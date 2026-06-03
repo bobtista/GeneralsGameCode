@@ -41,7 +41,7 @@
 
 #include "always.h"
 #include "ww3dformat.h"
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #include "dx8standalonetypes.h"
 #else
 #include <d3d8.h>
@@ -256,7 +256,7 @@ public:
 	bool Support_Render_To_Texture_Format(WW3DFormat format) const { return SupportRenderToTextureFormat[format]; }
 	bool Support_Depth_Stencil_Format(WW3DZFormat format) const { return SupportDepthStencilFormat[format]; }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	D3DCAPS8 const & Get_DX8_Caps() const;
 #endif
 

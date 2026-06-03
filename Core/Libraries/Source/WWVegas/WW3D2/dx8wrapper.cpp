@@ -79,7 +79,7 @@
 #include "textureloader.h"
 #include "missingtexture.h"
 #include "thread.h"
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #include <d3dx8core.h>
 #endif
 #include "pot.h"
@@ -96,7 +96,7 @@
 #include <cstdio>
 #include <cstring>
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #include "TARGA.h"
 #include "ww3dformat.h"
 
@@ -111,7 +111,7 @@ HRESULT Standalone_Copy_Legacy_Surface(
 static D3DDEVTYPE Legacy_Device_Type(unsigned value) { return static_cast<D3DDEVTYPE>(value); }
 static D3DRESOURCETYPE Legacy_Resource_Type(unsigned value) { return static_cast<D3DRESOURCETYPE>(value); }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 static IDirect3DVertexBuffer8 *Legacy_Vertex_Buffer(VertexBufferClass *buffer)
 {
 	return static_cast<IDirect3DVertexBuffer8 *>(
@@ -242,9 +242,6 @@ int DX8Wrapper_PreserveFPU = 0;
 ***********************************************************************************/
 
 static HWND						_Hwnd															= nullptr;
-#if defined(GGC_RENDER_BACKEND_BGFX)
-static HWND						_GameHwndForBgfx										= nullptr;
-#endif
 bool								DX8Wrapper::IsInitted									= false;
 bool								DX8Wrapper::_EnableTriangleDraw						= true;
 
@@ -284,7 +281,7 @@ static IDirect3DDevice8 *	D3DDevice									= nullptr;
 // file-static D3D8 device + interface pointers above. dx8wrapper.h forward-
 // declares these; defining them inline there would expose the file-static
 // pointers to every TU that includes the header, which fails to compile.
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 IDirect3DDevice8 * DX8Wrapper::_Get_D3D_Device8() { return D3DDevice; }
 IDirect3D8 * DX8Wrapper::_Get_D3D8() { return D3DInterface; }
 #endif
@@ -301,7 +298,7 @@ bool								DX8Wrapper::IsDeviceLost;
 int								DX8Wrapper::ZBias;
 float								DX8Wrapper::ZNear;
 float								DX8Wrapper::ZFar;
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 D3DMATRIX						DX8Wrapper::ProjectionMatrix;
 #endif
 DX8Caps*							DX8Wrapper::CurrentCaps = nullptr;
@@ -317,7 +314,7 @@ bool								_DX8SingleThreaded										= false;
 
 static D3DPRESENT_PARAMETERS								_PresentParameters;
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 static bool StandaloneDeviceCreated = false;
 
 static void Fill_Standalone_DX8_Caps(D3DCAPS8 &caps)
@@ -458,7 +455,7 @@ static HRESULT Copy_Legacy_Surface_Compat(
 	const RECT *source_rect,
 	unsigned int filter)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	(void)filter;
 	return Standalone_Copy_Legacy_Surface(destination, destination_rect, source, source_rect);
 #else
@@ -476,7 +473,7 @@ static HRESULT Copy_Legacy_Surface_Compat(
 
 static HRESULT Filter_Legacy_Texture_Mips_Compat(IDirect3DBaseTexture8 *base_texture, unsigned int src_level)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	return Standalone_Filter_Legacy_Texture_Mips(base_texture, src_level);
 #else
 	return D3DXFilterTexture(base_texture, nullptr, src_level, D3DX_FILTER_BOX);
@@ -510,7 +507,7 @@ RenderDebugStats &DX8Wrapper::stats = g_renderDebugStats;
 
 static HRESULT Get_DX8_Error_String(unsigned res, char *buffer, size_t buffer_size)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	if (buffer == nullptr || buffer_size == 0)
 	{
 		return D3D_OK;
@@ -602,51 +599,6 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	** Initialize all variables!
 	*/
 
-	// TheSuperHackers @feature bobtista 19/04/2026 When bgfx is
-	// the active render backend, legacy rendering uses a secondary reference window
-	// so bgfx can take the main game HWND without DXGI swapchain conflict.
-	// Save the original game HWND for bgfx before redirecting legacy rendering.
-	// In standalone mode the legacy device is a stub that doesn't
-	// render anywhere, so the ref popup is useless; it only sits on top of
-	// the real game window and hides the bgfx output.
-#if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
-	_GameHwndForBgfx = (HWND)hwnd;
-	{
-		HINSTANCE hInst = GetModuleHandleW(nullptr);
-		// Idempotent registration: RegisterClassExW fails if the class already exists (e.g. Init/Shutdown/Init cycles where Shutdown missed the unregister). GetClassInfoExW probe keeps the path recoverable.
-		WNDCLASSEXW existing = {};
-		existing.cbSize = sizeof(WNDCLASSEXW);
-		if (!GetClassInfoExW(hInst, L"GGC_DX8RefWindow", &existing))
-		{
-			WNDCLASSEXW wc = {};
-			wc.cbSize = sizeof(WNDCLASSEXW);
-			wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-			wc.lpfnWndProc = DefWindowProcW;
-			wc.hInstance = hInst;
-			wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-			wc.lpszClassName = L"GGC_DX8RefWindow";
-			if (RegisterClassExW(&wc) == 0)
-			{
-				WWDEBUG_SAY(("[DX8Wrapper] RegisterClassExW(GGC_DX8RefWindow) failed lastError=0x%lx", (unsigned long)GetLastError()));
-				return false;
-			}
-		}
-
-		// Create the window hidden — it will be shown later after the game's input system is fully initialized. Creating it visible during Init steals focus and blocks mouse capture. Initial 800x600 is a placeholder; Resize_And_Position_Window will move and size it to match the main game window once the resolution is known.
-		HWND refWnd = CreateWindowExW(
-			WS_EX_NOACTIVATE, L"GGC_DX8RefWindow", L"DX8 reference",
-			WS_OVERLAPPEDWINDOW,
-			CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
-			nullptr, nullptr, hInst, nullptr);
-		if (refWnd == nullptr)
-		{
-			WWDEBUG_SAY(("[DX8Wrapper] CreateWindowExW(GGC_DX8RefWindow) failed lastError=0x%lx", (unsigned long)GetLastError()));
-			return false;
-		}
-		hwnd = refWnd;
-	}
-#endif
-
 	_Hwnd = (HWND)hwnd;
 	_MainThreadID=ThreadClass::_Get_Current_Thread_ID();
 	WWDEBUG_SAY(("DX8Wrapper main thread: 0x%x",_MainThreadID));
@@ -677,7 +629,7 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	Invalidate_Cached_Render_States();
 
 	if (!lite) {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		WWDEBUG_SAY(("Using standalone bgfx device metadata"));
 		IsInitted = true;
 		Enumerate_Devices();
@@ -721,35 +673,23 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 void DX8Wrapper::Shutdown()
 {
 	if (D3DDevice
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		|| StandaloneDeviceCreated
 #endif
 	) {
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		Set_Render_Target ((IDirect3DSurface8 *)nullptr);
 #endif
 		Release_Device();
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	if (D3DInterface) {
 		D3DInterface->Release();
 		D3DInterface=nullptr;
 
 	}
-#endif
-
-#if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
-	// TheSuperHackers @fix bobtista 20/04/2026 Destroy the DX8 reference window and its WNDCLASS created in Init so repeated Init/Shutdown cycles don't leak.
-	// Standalone doesn't create a ref window, so nothing to tear down here.
-	if (_Hwnd != nullptr && _Hwnd != _GameHwndForBgfx)
-	{
-		::DestroyWindow(_Hwnd);
-	}
-	_Hwnd = nullptr;
-	::UnregisterClassW(L"GGC_DX8RefWindow", GetModuleHandleW(nullptr));
-	_GameHwndForBgfx = nullptr;
 #endif
 
 	if (CurrentCaps)
@@ -793,14 +733,8 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	// by the time this function is called, so it is safe to run the
 	// backend's real Initialize() here, well before the _Init() calls.
 	Init_Render_Backend();
-#if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
-	// Pass the original game HWND to bgfx, not the DX8 reference window.
-	g_renderBackend->Initialize(_GameHwndForBgfx, ResolutionWidth, ResolutionHeight);
-#else
-	// Standalone bgfx and legacy DX8 both render to the real game HWND
-	// (there's no separate ref popup to redirect around).
+	// bgfx and legacy DX8 both render to the real game HWND.
 	g_renderBackend->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
-#endif
 
    /*
 	** Initialize any other subsystems inside of WW3D
@@ -848,7 +782,7 @@ void DX8Wrapper::Invalidate_Cached_Render_States()
 	FixedFunctionState::Changed_Mask()=0;
 	RenderStateCache::Invalidate();
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	int a;
 	for (a=0;a<MAX_TEXTURE_STAGES;++a)
 	{
@@ -906,7 +840,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 
 bool DX8Wrapper::Create_Device()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT(!StandaloneDeviceCreated);
 
 	D3DCAPS8 caps;
@@ -1059,7 +993,7 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 	WWDEBUG_SAY(("Resetting device."));
 	DX8_THREAD_ASSERT();
 	if ((IsInitted) && (D3DDevice != nullptr
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		|| StandaloneDeviceCreated
 #endif
 		)) {
@@ -1085,7 +1019,7 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		memset(Vertex_Shader_Constants,0,sizeof(Vector4)*MAX_VERTEX_SHADER_CONSTANTS);
 		memset(Pixel_Shader_Constants,0,sizeof(Vector4)*MAX_PIXEL_SHADER_CONSTANTS);
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		HRESULT hr=_Get_D3D_Device8()->TestCooperativeLevel();
 		if (hr != D3DERR_DEVICELOST )
 		{	DX8CALL_HRES(Reset(&_PresentParameters),hr)
@@ -1115,7 +1049,7 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 
 void DX8Wrapper::Release_Device()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	if (StandaloneDeviceCreated) {
 		FixedFunctionState::Release_Raw_Textures();
 
@@ -1173,7 +1107,7 @@ void DX8Wrapper::Enumerate_Devices()
 {
 	DX8_Assert();
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	D3DADAPTER_IDENTIFIER8 id;
 	Fill_Standalone_Adapter_Identifier(id);
 
@@ -1337,7 +1271,7 @@ bool DX8Wrapper::Set_Render_Device
 	return false;
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 void DX8Wrapper::Get_Format_Name(unsigned int format, StringClass *tex_format)
 {
 		*tex_format="Unknown";
@@ -1436,41 +1370,6 @@ void DX8Wrapper::Resize_And_Position_Window()
 		}
 	}
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 19/04/2026 Also resize the
-	// main game window (used by bgfx) to match the game's resolution. Without
-	// this, the game window stays at its initial size and mouse coordinates
-	// don't match the game's UI coordinate system.
-	if (_GameHwndForBgfx && _GameHwndForBgfx != _Hwnd)
-	{
-		RECT gameRect = { 0 };
-		::GetClientRect(_GameHwndForBgfx, &gameRect);
-		if ((gameRect.right - gameRect.left) != ResolutionWidth ||
-			(gameRect.bottom - gameRect.top) != ResolutionHeight)
-		{
-			RECT r = { 0, 0, ResolutionWidth, ResolutionHeight };
-			DWORD dwstyle = ::GetWindowLong(_GameHwndForBgfx, GWL_STYLE);
-			AdjustWindowRect(&r, dwstyle, FALSE);
-			int w = r.right - r.left;
-			int h = r.bottom - r.top;
-
-			MONITORINFO mi = {sizeof(MONITORINFO)};
-			GetMonitorInfo(MonitorFromWindow(_GameHwndForBgfx, MONITOR_DEFAULTTOPRIMARY), &mi);
-			int l = (mi.rcWork.left + mi.rcWork.right - w) / 2;
-			int t = (mi.rcWork.top + mi.rcWork.bottom - h) / 2;
-
-			RECT rc;
-			rc.left = l - r.left;
-			rc.top = t - r.top;
-			rc.right = rc.left + ResolutionWidth;
-			rc.bottom = rc.top + ResolutionHeight;
-			MoveRectIntoOtherRect(rc, mi.rcMonitor, &l, &t);
-
-			::SetWindowPos(_GameHwndForBgfx, nullptr, l, t, w, h, SWP_NOZORDER);
-			WWDEBUG_SAY(("Bgfx game window resized to %dx%d at (%d,%d)", w, h, l, t));
-		}
-	}
-#endif
 }
 
 bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int windowed,
@@ -1521,7 +1420,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	}
 #endif
 	//must be either resetting existing device or creating a new one.
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT(reset_device || !StandaloneDeviceCreated);
 #else
 	WWASSERT(reset_device || D3DDevice == nullptr);
@@ -1556,7 +1455,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 
 		D3DDISPLAYMODE desktop_mode;
 		::ZeroMemory(&desktop_mode, sizeof(desktop_mode));
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		desktop_mode.Width = ResolutionWidth;
 		desktop_mode.Height = ResolutionHeight;
 		desktop_mode.RefreshRate = 60;
@@ -1584,7 +1483,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 			return false;
 		}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		_PresentParameters.AutoDepthStencilFormat = D3DFMT_D24S8;
 #else
 		if (BitDepth==32 && D3DInterface->CheckDeviceType(0,WW3D_DEVTYPE,desktop_mode.Format,Legacy_Format(21), TRUE) == S_OK)
@@ -1651,7 +1550,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	*/
 	if (MultiSampleAntiAliasing > 0) {
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		_PresentParameters.MultiSampleType = Legacy_Multisample_Type(MultiSampleAntiAliasing);
 #else
 		HRESULT hrBack = D3DInterface->CheckDeviceMultiSampleType(
@@ -1687,7 +1586,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	StringClass displayFormat;
 	StringClass backbufferFormat;
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	Get_Format_Name(Legacy_Format(DisplayFormat),&displayFormat);
 	Get_Format_Name(_PresentParameters.BackBufferFormat,&backbufferFormat);
 #else
@@ -1839,7 +1738,7 @@ const char * DX8Wrapper::Get_Render_Device_Name(int device_index)
 bool DX8Wrapper::Set_Device_Resolution(int width,int height,int bits,int windowed, bool resize_window)
 {
 	if (D3DDevice != nullptr
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		|| StandaloneDeviceCreated
 #endif
 	) {
@@ -1900,7 +1799,7 @@ void DX8Wrapper::Get_Render_Target_Resolution(int & set_w,int & set_h,int & set_
 {
 	WWASSERT(IsInitted);
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	Get_Device_Resolution (set_w, set_h, set_bits, set_windowed);
 #else
 	if (CurrentRenderTarget != nullptr) {
@@ -2063,7 +1962,7 @@ bool DX8Wrapper::Registry_Load_Render_Device( const char * sub_key, char *device
 
 bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,unsigned * set_colorbuffer,unsigned * set_backbuffer,unsigned * set_zmode)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	(void)resx;
 	(void)resy;
 	const unsigned color_format = bitdepth == 16 ? D3DFMT_R5G6B5 : D3DFMT_A8R8G8B8;
@@ -2135,7 +2034,7 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,unsigned *
 // refresh rate
 bool DX8Wrapper::Find_Color_Mode(unsigned colorbuffer, int resx, int resy, UINT *mode)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	(void)colorbuffer;
 	(void)resx;
 	(void)resy;
@@ -2247,7 +2146,7 @@ bool DX8Wrapper::Find_Z_Mode(unsigned colorbuffer,unsigned backbuffer, unsigned 
 
 bool DX8Wrapper::Test_Z_Mode(unsigned colorbuffer,unsigned backbuffer, unsigned zmode)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	(void)colorbuffer;
 	(void)backbuffer;
 	(void)zmode;
@@ -2298,7 +2197,7 @@ unsigned long DX8Wrapper::Get_FrameCount() {return FrameCount;}
 
 void DX8_Assert()
 {
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT(DX8Wrapper::_Get_D3D8());
 #endif
 	DX8_THREAD_ASSERT();
@@ -2308,7 +2207,7 @@ void DX8Wrapper::Begin_Scene()
 {
 	DX8_THREAD_ASSERT();
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #if ENABLE_EMBEDDED_BROWSER
 	DX8WebBrowser::Update();
 #endif
@@ -2322,7 +2221,7 @@ void DX8Wrapper::Begin_Scene()
 void DX8Wrapper::End_Scene(bool flip_frames)
 {
 	DX8_THREAD_ASSERT();
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(EndScene());
 
 	DX8WebBrowser::Render(0);
@@ -2378,7 +2277,7 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 
 void DX8Wrapper::Flip_To_Primary()
 {
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	// If we are fullscreen and the current frame is odd then we need
 	// to force a page flip to ensure that the first buffer in the flipping
 	// chain is the one visible.
@@ -2438,7 +2337,7 @@ void DX8Wrapper::Clear(bool clear_color, bool clear_z_stencil, const Vector3 &co
 {
 	DX8_THREAD_ASSERT();
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	// If we try to clear a stencil buffer which is not there, the entire call will fail
 	// KJM fixed this to get format from back buffer (incase render to texture is used)
 	/*bool has_stencil = (	_PresentParameters.AutoDepthStencilFormat == D3DFMT_D15S1 ||
@@ -2476,7 +2375,7 @@ void DX8Wrapper::Clear(bool clear_color, bool clear_z_stencil, const Vector3 &co
 #endif
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 {
 	DX8_THREAD_ASSERT();
@@ -2582,13 +2481,13 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		}
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(SetStreamSource(
 		0,
 		Legacy_Vertex_Buffer(dyn_vb_access.VertexBuffer),
 		dyn_vb_access.FVF_Info().Get_FVF_Size()));
 #endif
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	unsigned fvf=dyn_vb_access.FVF_Info().Get_FVF();
 	if (fvf!=0) {
 		DX8CALL(SetVertexShader(fvf));
@@ -2621,7 +2520,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		}
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(SetIndices(
 		Legacy_Index_Buffer(dyn_ib_access.IndexBuffer),
 		dyn_vb_access.VertexBufferOffset));
@@ -2629,7 +2528,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 	DX8_RECORD_INDEX_BUFFER_CHANGE();
 
 	DX8_RECORD_DRAW_CALLS();
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(DrawIndexedPrimitive(
 		static_cast<D3DPRIMITIVETYPE>(4),
 		0,		// start vertex
@@ -2678,7 +2577,7 @@ void DX8Wrapper::Draw(
 	// Debug feature to disable triangle drawing...
 	if (!_Is_Triangle_Draw_Enabled()) return;
 
-#if defined(MESH_RENDER_SNAPSHOT_ENABLED) && !defined(GGC_BGFX_STANDALONE)
+#if defined(MESH_RENDER_SNAPSHOT_ENABLED) && !defined(GGC_RENDER_BACKEND_BGFX)
 	if (WW3D::Is_Snapshot_Activated()) {
 		DWORD passes=0;
 		SNAPSHOT_SAY(("ValidateDevice:"));
@@ -2759,7 +2658,7 @@ void DX8Wrapper::Draw(
 				}*/
 				DX8_RECORD_RENDER(polygon_count,vertex_count,FixedFunctionState::Render_State().shader);
 				DX8_RECORD_DRAW_CALLS();
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 				DX8CALL(DrawIndexedPrimitive(
 					(D3DPRIMITIVETYPE)primitive_type,
 					min_vertex_index,
@@ -2886,7 +2785,7 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 		}
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	if (FixedFunctionState::Changed_Mask()&MATERIAL_CHANGED)
 	{
 		SNAPSHOT_SAY(("DX8 - apply material"));
@@ -2949,7 +2848,7 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 				switch (FixedFunctionState::Render_State().vertex_buffer_types[i]) {//->Type()) {
 				case BUFFER_TYPE_STATIC:
 				case BUFFER_TYPE_DYNAMIC:
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 					DX8CALL(SetStreamSource(
 						i,
 						Legacy_Vertex_Buffer(FixedFunctionState::Render_State().vertex_buffers[i]),
@@ -2971,7 +2870,7 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 					WWASSERT(0);
 				}
 			} else {
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 				DX8CALL(SetStreamSource(i,nullptr,0));
 #endif
 				DX8_RECORD_VERTEX_BUFFER_CHANGE();
@@ -2984,7 +2883,7 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 			switch (FixedFunctionState::Render_State().index_buffer_type) {//->Type()) {
 			case BUFFER_TYPE_STATIC:
 			case BUFFER_TYPE_DYNAMIC:
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 				DX8CALL(SetIndices(
 					Legacy_Index_Buffer(FixedFunctionState::Render_State().index_buffer),
 					FixedFunctionState::Render_State().index_base_offset+FixedFunctionState::Render_State().vba_offset));
@@ -2999,7 +2898,7 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 			}
 		}
 		else {
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 			DX8CALL(SetIndices(
 				nullptr,
 				0));
@@ -3013,14 +2912,14 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 	SNAPSHOT_SAY(("DX8Wrapper::Commit_Deferred_Render_State_Changes() - finished"));
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 void DX8Wrapper::Apply_Render_State_Changes()
 {
 	Commit_Deferred_Render_State_Changes();
 }
 #endif
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 (
 	unsigned int width,
@@ -3142,7 +3041,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	return texture;
 }
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 // TheSuperHackers @refactor bobtista 22/04/2026 In standalone we replace
 // D3DXCreateTextureFromFileExA with a direct
 // Targa decoder + stub-device CreateTexture + LockRect write. The goal
@@ -3317,7 +3216,7 @@ static bool HasTgaExtension(const char * filename)
 		(ext[2] == 'g' || ext[2] == 'G') &&
 		(ext[3] == 'a' || ext[3] == 'A');
 }
-#endif // GGC_BGFX_STANDALONE
+#endif // GGC_RENDER_BACKEND_BGFX
 
 static HRESULT Create_Legacy_Cube_Texture_Compat(
 	LPDIRECT3DDEVICE8 device,
@@ -3328,7 +3227,7 @@ static HRESULT Create_Legacy_Cube_Texture_Compat(
 	D3DPOOL pool,
 	LPDIRECT3DCUBETEXTURE8 *out_texture)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	if (device == nullptr || out_texture == nullptr)
 	{
 		return E_POINTER;
@@ -3358,7 +3257,7 @@ static HRESULT Create_Legacy_Volume_Texture_Compat(
 	D3DPOOL pool,
 	LPDIRECT3DVOLUMETEXTURE8 *out_texture)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	if (device == nullptr || out_texture == nullptr)
 	{
 		return E_POINTER;
@@ -3387,7 +3286,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	DX8_Assert();
 	IDirect3DTexture8 *texture = nullptr;
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	// Bypass D3DX for TGA files in standalone. The D3DX upload path
 	// occasionally produced bad pixel data against our stub device
 	// (unknown internal cause) which showed as dark bands / black
@@ -3587,7 +3486,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	DX8_Assert();
 	IDirect3DCubeTexture8* texture=nullptr;
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	if (Blocks_Legacy_Texture_Create())
 	{
 		WWASSERT_PRINT(
@@ -3730,7 +3629,7 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 	DX8_Assert();
 	IDirect3DVolumeTexture8* texture=nullptr;
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	if (Blocks_Legacy_Texture_Create())
 	{
 		WWASSERT_PRINT(
@@ -3884,7 +3783,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
  * HISTORY:                                                                                    *
  *   4/26/2001  hy : Created.                                                                  *
  *=============================================================================================*/
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 void DX8Wrapper::_Update_Texture(TextureClass *system, TextureClass *video)
 {
 	WWASSERT(system);
@@ -3900,7 +3799,7 @@ void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 	delete CurrentCaps;
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	D3DCAPS8 caps;
 	Fill_Standalone_DX8_Caps(caps);
 	CurrentCaps=new DX8Caps(nullptr,static_cast<const void*>(&caps),display_format,&CurrentAdapterIdentifier);
@@ -3909,7 +3808,7 @@ void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 #endif
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 void DX8Wrapper::Set_Light(unsigned index, const D3DLIGHT8* light)
 {
 	if (light) {
@@ -4089,7 +3988,7 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 }
 #endif
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 IDirect3DSurface8 * DX8Wrapper::_Get_DX8_Front_Buffer()
 {
 	DX8_THREAD_ASSERT();
@@ -4602,7 +4501,7 @@ unsigned int DX8Wrapper::Get_Free_Texture_RAM()
 // Contrast - controls the difference between the maximum and the minimum of the curve
 void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrate,bool uselimit)
 {
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	gamma=Bound(gamma,0.6f,6.0f);
 	bright=Bound(bright,-0.5f,0.5f);
 	contrast=Bound(contrast,0.5f,2.0f);
@@ -4725,7 +4624,7 @@ void DX8Wrapper::Apply_Default_State()
 
 	VertexMaterialClass::Apply_Null();
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	for (unsigned index=0;index<4;++index) {
 		SNAPSHOT_SAY(("Clearing light %d to null",index));
 		Set_DX8_Light(index,nullptr);
@@ -4747,7 +4646,7 @@ void DX8Wrapper::Apply_Default_State()
 	ShaderClass::Invalidate();
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 const char* DX8Wrapper::Get_DX8_Render_State_Name(D3DRENDERSTATETYPE state)
 {
 	switch (state) {

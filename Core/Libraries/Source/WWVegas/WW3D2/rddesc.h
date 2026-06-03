@@ -38,7 +38,7 @@
 
 #include "Vector.h"
 #include "wwstring.h"
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #include <d3d8types.h>
 #include <d3d8caps.h>
 #endif
@@ -84,7 +84,7 @@ public:
 		set_hardware_name(src.Get_Hardware_Name());
 		set_hardware_vendor(src.Get_Hardware_Vendor());
 		set_hardware_chipset(src.Get_Hardware_Chipset());
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		Caps=src.Caps;
 		AdapterIdentifier=src.AdapterIdentifier;
 #endif
@@ -108,7 +108,7 @@ public:
 	const char *		Get_Hardware_Chipset() const	{ return HardwareChipset; }
 
 	const DynamicVectorClass<ResolutionDescClass> & Enumerate_Resolutions() const	{ return ResArray; }
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	const D3DCAPS8& 	Get_Caps() const { return Caps; }
 	const D3DADAPTER_IDENTIFIER8& Get_Adapter_Identifier() const { return AdapterIdentifier; }
 #endif
@@ -140,7 +140,7 @@ private:
 	StringClass			HardwareVendor;
 	StringClass			HardwareChipset;
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	D3DCAPS8				Caps;
 	D3DADAPTER_IDENTIFIER8 AdapterIdentifier;
 #endif

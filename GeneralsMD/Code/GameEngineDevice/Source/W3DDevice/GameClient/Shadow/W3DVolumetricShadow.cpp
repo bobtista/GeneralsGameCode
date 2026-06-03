@@ -230,7 +230,7 @@ int SHADOW_INDEX_SIZE=8192;
 
 static int ShadowDynamicVertexCapacity()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	return 32768;
 #else
 	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
@@ -241,7 +241,7 @@ static int ShadowDynamicVertexCapacity()
 
 static int ShadowDynamicIndexCapacity()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	return 65535;
 #else
 	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
@@ -3782,7 +3782,7 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 		width,
 		height);
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	g_renderBackend->Set_Shade_Mode(RB_SHADE_GOURAUD);
 	g_renderBackend->Set_Alpha_Blend_Enable(false);
 	// turn off the stencil buffer

@@ -22,7 +22,7 @@
 
 class DX8VertexBufferClass;
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 
 #include "indexbufferbase.h"
 #include "vertexbufferbase.h"
