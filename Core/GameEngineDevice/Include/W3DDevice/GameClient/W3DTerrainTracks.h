@@ -77,6 +77,7 @@ protected:
 	AABoxClass	m_boundingBox;			///<bounding box of TerrainTracks
 	Int			m_activeEdgeCount;			///<number of active edges in segment list
 	Int			m_totalEdgesAdded;		///<number of edges ever added to this track
+	Bool		m_groupedThisFlush;		///<transient flag used to coalesce same-texture draws in flush()
 	const Drawable	*m_ownerDrawable;	///<logical object that's laying down tread marks.
 
 	struct edgeInfo{
