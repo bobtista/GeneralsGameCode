@@ -46,7 +46,7 @@
 class DX8Wrapper;
 class SortingRendererClass;
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 class DX8IndexBufferClass;
 /**
 ** DX8IndexBufferClass
@@ -72,7 +72,7 @@ public:
 	void Copy(unsigned int* indices,unsigned start_index,unsigned index_count);
 	void Copy(unsigned short* indices,unsigned start_index,unsigned index_count);
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	void *Get_Legacy_Index_Buffer()	{ return index_buffer; }
 #endif
 

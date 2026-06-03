@@ -914,7 +914,7 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 	const UnsignedByte *src = nullptr;
 	int pitch = 0;
 	UnsignedInt bytesPerPixel = Get_Bytes_Per_Pixel(desc.Format);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	SurfaceClass *fallbackSurface = nullptr;
 	Bool lockedSurface = FALSE;
 #endif
@@ -974,7 +974,7 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 			}
 
 			if (src == nullptr) {
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 				fallbackSurface = texture->Get_Surface_Level();
 				if (fallbackSurface == nullptr) {
 					return nullptr;
@@ -993,7 +993,7 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 
 	if (src == nullptr)
 	{
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		REF_PTR_RELEASE(fallbackSurface);
 #endif
 		return nullptr;
@@ -1008,7 +1008,7 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 
 	if (pixels.empty() || sourcePixels.empty())
 	{
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		if (lockedSurface)
 		{
 			fallbackSurface->Unlock();
@@ -1074,7 +1074,7 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 		}
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	if (lockedSurface)
 	{
 		fallbackSurface->Unlock();

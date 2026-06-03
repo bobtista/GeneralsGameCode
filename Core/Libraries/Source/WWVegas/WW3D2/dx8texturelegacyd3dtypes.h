@@ -18,7 +18,7 @@
 
 #pragma once
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #error dx8texturelegacyd3dtypes.h is only for the native DX8 texture compatibility path.
 #endif
 

@@ -10,7 +10,7 @@ target_link_libraries(core_wwcommon INTERFACE
     stlport
 )
 
-if(NOT GGC_BGFX_STANDALONE)
+if(NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_link_libraries(core_wwcommon INTERFACE
         d3d8lib
     )
