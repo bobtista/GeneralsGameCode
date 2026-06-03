@@ -2097,7 +2097,7 @@ Int RoadShaderPixelShader::shutdown()
 
 Int RoadShaderPixelShader::init()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	// bgfx cannot execute the legacy roadnoise2.pso bytecode. Let the
 	// two-stage road shader register the road variants so bgfx receives a
 	// fixed-function state cascade it can translate.
@@ -2272,7 +2272,7 @@ Int RoadShader2Stage::set(Int pass)
 			g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
 			g_renderBackend->Set_Texture_Alpha_Argument(1, 1, RB_TEXARG_TEXTURE);
 			g_renderBackend->Set_Texture_Alpha_Argument(1, 2, RB_TEXARG_CURRENT);
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 			g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 #else
 			g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);
