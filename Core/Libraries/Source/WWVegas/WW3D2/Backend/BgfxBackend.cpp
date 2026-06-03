@@ -3707,7 +3707,8 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                         "tex_creates,tex_uploads,inst_saved,"
                         "set_tex_us,set_tex_n,set_vb_us,set_vb_n,set_ib_us,set_ib_n,"
                         "submit_us,submit_n,draw_us,draw_n,"
-                        "apply_tex_us,apply_tex_n,uniforms_us,uniforms_n\n");
+                        "apply_tex_us,apply_tex_n,uniforms_us,uniforms_n,"
+                        "gpu_us,cpu_us,wait_sub_us,wait_ren_us,bgfx_ndraw\n");
                     s_headerWritten = true;
                 }
                 const double us_per_tick = 1000000.0 / static_cast<double>(g_timing.freq);
@@ -3719,9 +3720,29 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                 const long long total_ticks = (s_prev_t3 > 0)
                     ? (g_timing.t3_post_frame - s_prev_t3) : 0;
                 s_prev_t3 = g_timing.t3_post_frame;
+                // TheSuperHackers @perf bobtista 03/06/2026 bgfx internal timers
+                // separate GPU time from CPU-submit time. High wait_ren = render
+                // thread idle waiting on submit (CPU-submit bound); high wait_sub
+                // = submit thread waiting on render thread (GPU/render bound).
+                const bgfx::Stats * bstats = bgfx::getStats();
+                double gpu_us = 0.0, cpu_us = 0.0, wait_sub_us = 0.0, wait_ren_us = 0.0;
+                unsigned bgfx_ndraw = 0;
+                if (bstats != nullptr) {
+                    if (bstats->gpuTimerFreq > 0) {
+                        gpu_us = double(bstats->gpuTimeEnd - bstats->gpuTimeBegin)
+                            * 1000000.0 / double(bstats->gpuTimerFreq);
+                    }
+                    if (bstats->cpuTimerFreq > 0) {
+                        cpu_us = double(bstats->cpuTimeFrame) * 1000000.0 / double(bstats->cpuTimerFreq);
+                        wait_sub_us = double(bstats->waitSubmit) * 1000000.0 / double(bstats->cpuTimerFreq);
+                        wait_ren_us = double(bstats->waitRender) * 1000000.0 / double(bstats->cpuTimerFreq);
+                    }
+                    bgfx_ndraw = bstats->numDraw;
+                }
                 std::fprintf(f,
                     "%u,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
-                    "%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u\n",
+                    "%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,"
+                    "%.1f,%.1f,%.1f,%.1f,%u\n",
                     g_stats.frameIndex,
                     inter_ticks * us_per_tick,
                     scene_ticks * us_per_tick,
@@ -3750,7 +3771,8 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                     g_perf_sections[PERF_SECT_APPLY_TEX].total_ticks * us_per_tick,
                     g_perf_sections[PERF_SECT_APPLY_TEX].calls,
                     g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].total_ticks * us_per_tick,
-                    g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].calls);
+                    g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].calls,
+                    gpu_us, cpu_us, wait_sub_us, wait_ren_us, bgfx_ndraw);
                 std::fclose(f);
             }
         }
