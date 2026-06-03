@@ -40,7 +40,7 @@ endif()
 # Standalone bgfx owns the device through bgfx and supplies the remaining
 # D3DX helper symbols in-tree, so neither d3d8.lib nor d3dx8.lib is needed.
 # Ref-popup keeps both for the real DX8 reference path.
-if(NOT GGC_BGFX_STANDALONE)
+if(NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_link_libraries(z_generals PRIVATE d3d8 d3dx8)
 endif()
 

@@ -18,14 +18,14 @@
 
 #include "texturecompatibilityinterop.h"
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #include "WWLib/win.h"
 #else
 #include <d3d8.h>
 #include <d3dx8tex.h>
 #endif
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "dx8formatconv.h"
 #include "dx8wrapper.h"
 #endif
@@ -40,7 +40,7 @@
 
 namespace
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #else
 	IDirect3DDevice8 *Legacy_Device()
 	{
@@ -54,7 +54,7 @@ namespace
 
 	HRESULT Filter_Legacy_Texture_Mips_Compat(LegacyBaseTexture *base_texture, unsigned int src_level)
 	{
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		(void)base_texture;
 		(void)src_level;
 		WWASSERT_PRINT(
@@ -73,7 +73,7 @@ namespace
 		const RECT *source_rect,
 		unsigned int filter)
 	{
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		(void)destination;
 		(void)destination_rect;
 		(void)source;
@@ -100,7 +100,7 @@ namespace
 LegacyBaseTexture *TextureCompatibilityInterop::Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
 {
 	texture.LastAccessed=WW3D::Get_Sync_Time();
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		texture.Get_Native_Compatibility_Texture() == nullptr,
 		"Peek_Legacy_Base_Texture: standalone bgfx cannot expose fake-D3D textures");
@@ -132,7 +132,7 @@ void TextureCompatibilityInterop::Set_Legacy_Base_Texture(TextureBaseClass &text
 	texture.LastAccessed=WW3D::Get_Sync_Time();
 
 	LegacyBaseTexture *old_texture = static_cast<LegacyBaseTexture *>(texture.Get_Native_Compatibility_Texture());
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		old_texture == nullptr && native_texture == nullptr,
 		"Set_Legacy_Base_Texture: standalone bgfx cannot own fake-D3D textures");
@@ -141,12 +141,12 @@ void TextureCompatibilityInterop::Set_Legacy_Base_Texture(TextureBaseClass &text
 		old_texture->Release();
 	}
 #endif
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	texture.Set_Native_Compatibility_Texture(nullptr);
 #else
 	texture.Set_Native_Compatibility_Texture(native_texture);
 #endif
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	if (native_texture != nullptr) {
 		native_texture->AddRef();
 	}
@@ -154,14 +154,7 @@ void TextureCompatibilityInterop::Set_Legacy_Base_Texture(TextureBaseClass &text
 	bool preserve_cpu_snapshot = false;
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	preserve_cpu_snapshot =
-		(
-#if defined(GGC_BGFX_STANDALONE)
-			true
-#else
-			native_texture != nullptr
-#endif
-		)
-		&& texture.Has_CPU_Texture_Mips()
+		texture.Has_CPU_Texture_Mips()
 		&& texture.PreserveCPUTextureSnapshotOnNextLegacySet;
 #endif
 	if (!preserve_cpu_snapshot) {
@@ -211,7 +204,7 @@ void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass
 
 void TextureCompatibilityInterop::Poke_Legacy_Texture(TextureBaseClass &texture, LegacyBaseTexture *native_texture)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		native_texture == nullptr,
 		"Poke_Legacy_Texture: standalone bgfx cannot store fake-D3D textures");
@@ -232,7 +225,7 @@ void TextureCompatibilityInterop::Apply_Native_Compatibility_Texture(
 
 LegacySurface *TextureCompatibilityInterop::Peek_Legacy_Surface(const SurfaceClass &surface, bool intentToWrite)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		surface.Get_Native_Compatibility_Surface() == nullptr,
 		"Peek_Legacy_Surface: standalone bgfx cannot expose fake-D3D surfaces");
@@ -267,7 +260,7 @@ LegacySurface *TextureCompatibilityInterop::Create_Legacy_Surface(
 	unsigned int height,
 	WW3DFormat format)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"Create_Legacy_Surface: standalone bgfx cannot create fake-D3D surfaces");
@@ -279,7 +272,7 @@ LegacySurface *TextureCompatibilityInterop::Create_Legacy_Surface(
 
 LegacySurface *TextureCompatibilityInterop::Create_Legacy_Surface_From_File(const char *filename)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"Create_Legacy_Surface_From_File: standalone bgfx cannot create fake-D3D surfaces");
@@ -297,7 +290,7 @@ LegacyLoaderTexture *TextureCompatibilityInterop::Create_Legacy_Texture(
 	int pool,
 	bool render_target)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"Create_Legacy_Texture: standalone bgfx cannot create fake-D3D textures");
@@ -311,7 +304,7 @@ LegacyLoaderTexture *TextureCompatibilityInterop::Create_Legacy_Texture_From_Sur
 	LegacySurface *surface,
 	MipCountType mip_level_count)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"Create_Legacy_Texture_From_Surface: standalone bgfx cannot create fake-D3D textures");
@@ -328,7 +321,7 @@ LegacyLoaderTexture *TextureCompatibilityInterop::Create_Legacy_ZTexture(
 	MipCountType mip_level_count,
 	int pool)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"Create_Legacy_ZTexture: standalone bgfx cannot create fake-D3D depth textures");
@@ -346,7 +339,7 @@ LegacyLoaderCubeTexture *TextureCompatibilityInterop::Create_Legacy_Cube_Texture
 	int pool,
 	bool render_target)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"Create_Legacy_Cube_Texture: standalone bgfx cannot create fake-D3D cube textures");
@@ -364,7 +357,7 @@ LegacyLoaderVolumeTexture *TextureCompatibilityInterop::Create_Legacy_Volume_Tex
 	MipCountType mip_level_count,
 	int pool)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"Create_Legacy_Volume_Texture: standalone bgfx cannot create fake-D3D volume textures");
@@ -376,7 +369,7 @@ LegacyLoaderVolumeTexture *TextureCompatibilityInterop::Create_Legacy_Volume_Tex
 
 WW3DFormat TextureCompatibilityInterop::Legacy_Texture_Format_To_WW3DFormat(unsigned int format)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	(void)format;
 	WWASSERT_PRINT(
 		false,
@@ -400,7 +393,7 @@ bool TextureCompatibilityInterop::Generate_Legacy_Texture_Mips(TextureClass &tex
 
 LegacyLoaderTexture *Get_Legacy_Missing_Texture()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"Get_Legacy_Missing_Texture: standalone bgfx cannot return fake-D3D missing textures");
@@ -414,7 +407,7 @@ LegacyLoaderTexture *Get_Legacy_Missing_Texture()
 
 LegacySurface *Create_Legacy_Missing_Surface()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"Create_Legacy_Missing_Surface: standalone bgfx cannot create fake-D3D missing surfaces");
@@ -460,7 +453,7 @@ void Copy_Legacy_Surface(
 	const LegacySurfaceCopyRect &source_rect,
 	unsigned int filter)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	(void)destination;
 	(void)destination_rect;
 	(void)source;
@@ -496,7 +489,7 @@ void Init_Legacy_Missing_Texture(
 {
 	WWASSERT(!s_missingTexture);
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"Init_Legacy_Missing_Texture: standalone bgfx cannot create fake-D3D missing textures");
@@ -555,7 +548,7 @@ void Init_Legacy_Missing_Texture(
 void Release_Legacy_Missing_Texture()
 {
 	if (s_missingTexture != nullptr) {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		WWASSERT_PRINT(
 			false,
 			"Release_Legacy_Missing_Texture: standalone bgfx cannot release fake-D3D missing textures");
