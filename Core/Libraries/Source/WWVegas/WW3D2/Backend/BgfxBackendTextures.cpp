@@ -1514,6 +1514,17 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
         auto infoIt = textureInfo.find(tex);
         bool cacheKeyMatch = infoIt != textureInfo.end()
             && infoIt->second.revision == textureRevision;
+        // TheSuperHackers @performance bobtista 04/06/2026 On a revision match with a
+        // fully-populated entry, the upload plan is a pure function of the
+        // revision-tracked snapshot, so return the cached handle without re-deriving
+        // it. The re-derivation re-ran an O(pixels) DXT5 alpha scan on every one of
+        // the ~6000 texture binds per frame. The {revision,0,0} in-progress sentinel
+        // (w==0) falls through to a real rebuild; content changes bump the revision
+        // and atlas-region changes pair with Invalidate_Cached_Texture which clears it.
+        if (cacheKeyMatch && infoIt->second.w != 0 && infoIt->second.h != 0)
+        {
+            return it->second;
+        }
         if (cacheKeyMatch && !mips.empty())
         {
             TextureUploadPlan plan;
