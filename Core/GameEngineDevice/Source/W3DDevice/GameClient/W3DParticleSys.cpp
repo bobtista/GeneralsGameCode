@@ -36,6 +36,9 @@
 #include "W3DDevice/GameClient/W3DSnow.h"
 #include "WW3D2/camera.h"
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 //------------------------------------------------------------------------------ Performance Timers
 //#include "Common/PerfMetrics.h"
@@ -102,6 +105,49 @@ void DoParticles( RenderInfoClass &rinfo )
 		TheParticleSystemManager->doParticles(rinfo);
 }
 
+// TheSuperHackers @perf bobtista 03/06/2026 Render the accumulated [0,count) range of the shared
+// scratch buffers as a single point-group draw. The buffers already hold world-space vertices from
+// one or more emitters that share the bucket key, so no per-emitter transform is needed.
+void W3DParticleSystemManager::flushPointGroupBatch(RenderInfoClass &rinfo, TextureClass *texture,
+	ParticleSystemInfo::ParticleShaderType shaderType, Bool billboard, UnsignedInt volumeDepth, Int count)
+{
+	if (count == 0 || texture == nullptr || m_pointGroup == nullptr)
+	{
+		return;
+	}
+
+	m_pointGroup->Set_Texture( texture );
+	m_pointGroup->Set_Flag( PointGroupClass::TRANSFORM, true );	// transform to screen space
+
+	switch( shaderType )
+	{
+		case ParticleSystemInfo::ADDITIVE:
+			m_pointGroup->Set_Shader( ShaderClass::_PresetAdditiveSpriteShader );
+			break;
+		case ParticleSystemInfo::ALPHA:
+			m_pointGroup->Set_Shader( ShaderClass::_PresetAlphaSpriteShader );
+			break;
+		case ParticleSystemInfo::ALPHA_TEST:
+			m_pointGroup->Set_Shader( ShaderClass::_PresetATestSpriteShader );
+			break;
+		case ParticleSystemInfo::MULTIPLY:
+			m_pointGroup->Set_Shader( ShaderClass::_PresetMultiplicativeSpriteShader );
+			break;
+	}
+
+	m_pointGroup->Set_Point_Mode( PointGroupClass::QUADS );
+	m_pointGroup->Set_Arrays( m_posBuffer, m_RGBABuffer, nullptr, m_sizeBuffer, m_angleBuffer, nullptr, count );
+	m_pointGroup->Set_Billboard( billboard );
+	m_pointGroup->Set_Point_Frame( 0 );
+
+	if( volumeDepth > 1 )
+	{
+		m_pointGroup->RenderVolumeParticle( rinfo, volumeDepth );
+	}
+	else
+		m_pointGroup->Render( rinfo );
+}
+
 void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 {
 
@@ -143,6 +189,19 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 	{
 		TheSmudgeManager->resetDraw();
 	}
+
+	// TheSuperHackers @perf bobtista 03/06/2026 Only the shader-pipeline backend batches emitter draws.
+	// The fixed-function DX8 reference path keeps batchBase==0 so its buffer indexing, particle cap and
+	// per-emitter submission stay bit-for-bit identical to the original code.
+	// TheSuperHackers @perf bobtista 03/06/2026 GGC_NO_PARTICLE_BATCH=1 forces the
+	// per-emitter path for A/B visual verification and as a runtime safety escape.
+	static const bool s_particleBatchDisabled = std::getenv("GGC_NO_PARTICLE_BATCH") != nullptr;
+	const bool batchPointGroups = (!s_particleBatchDisabled && g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline());
+	Int batchBase = 0;
+	TextureClass *batchTexture = nullptr;
+	ParticleSystemInfo::ParticleShaderType batchShader = ParticleSystemInfo::INVALID_SHADER;
+	Bool batchBillboard = FALSE;
+	UnsignedInt batchVolumeDepth = 0;
 
 	ParticleSystemManager::ParticleSystemList &particleSysList = TheParticleSystemManager->getAllParticleSystems();
 	for( ParticleSystemManager::ParticleSystemListIt it = particleSysList.begin(); it != particleSysList.end(); ++it)
@@ -190,10 +249,39 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 		// initialize them here still, of course
 		// build W3D particle buffer
 		Int count = 0;
-		Vector3 *posArray = m_posBuffer->Get_Array();
-		Real *sizeArray = m_sizeBuffer->Get_Array();
-		Vector4 *RGBAArray = m_RGBABuffer->Get_Array();
-		uint8 *angleArray = m_angleBuffer->Get_Array();
+		TextureClass *texture = nullptr;
+
+		// TheSuperHackers @perf bobtista 03/06/2026 In batch mode resolve this emitter's bucket key up
+		// front so we can flush the open batch (and reset the accumulation base) before appending into
+		// the shared scratch buffers. Streak emitters never batch; flush before handing them off below.
+		if (batchPointGroups)
+		{
+			texture = W3DDisplay::m_assetManager->Get_Texture( sys->getParticleTypeName().str() );
+			const Bool isStreak = (m_streakLine != nullptr && sys->isUsingStreak());
+			// TheSuperHackers @bugfix bobtista 03/06/2026 Volume particles must NOT batch:
+			// RenderVolumeParticle derives its per-layer shift from current_size[0] (the
+			// first particle's size, pointgr.cpp:1880), so merging multiple volume emitters
+			// applies the first emitter's size to every layer of every merged particle,
+			// smearing volumetric blobs across the screen (over-bright clouds). Treat them
+			// like streaks: flush the open batch and render this emitter per-emitter.
+			const Bool isVolume = (sys->getVolumeParticleDepth() > 1);
+			const Bool keyMatches = (batchTexture == texture
+				&& batchShader == sys->getShaderType()
+				&& batchBillboard == sys->shouldBillboard()
+				&& batchVolumeDepth == sys->getVolumeParticleDepth());
+			if (batchBase > 0 && (isStreak || isVolume || !keyMatches))
+			{
+				flushPointGroupBatch( rinfo, batchTexture, batchShader, batchBillboard, batchVolumeDepth, batchBase );
+				batchTexture->Release_Ref();
+				batchTexture = nullptr;
+				batchBase = 0;
+			}
+		}
+
+		Vector3 *posArray = m_posBuffer->Get_Array() + batchBase;
+		Real *sizeArray = m_sizeBuffer->Get_Array() + batchBase;
+		Vector4 *RGBAArray = m_RGBABuffer->Get_Array() + batchBase;
+		uint8 *angleArray = m_angleBuffer->Get_Array() + batchBase;
 		const Coord3D *pos;
 		const RGBColor *color;
 		Real psize;
@@ -235,14 +323,111 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 
 			angleArray[count] = (uint8)(p->getAngle() * 255.0f / (2.0f * PI));
 
-			if (++count == MAX_POINTS_PER_GROUP)
+			if (batchBase + (++count) == MAX_POINTS_PER_GROUP)
+			{
+				// TheSuperHackers @perf bobtista 03/06/2026 The shared buffer filled while a same-key
+				// batch was already accumulated in front of this emitter. Flush that prior batch, then
+				// shift this emitter's particles to the front and keep filling from offset 0 so no
+				// particle is dropped (the DX8 path keeps batchBase==0 and simply breaks as before).
+				if (batchPointGroups && batchBase > 0)
+				{
+					flushPointGroupBatch( rinfo, batchTexture, batchShader, batchBillboard, batchVolumeDepth, batchBase );
+					batchTexture->Release_Ref();
+					batchTexture = nullptr;
+					std::memmove( m_posBuffer->Get_Array(), posArray, count * sizeof(Vector3) );
+					std::memmove( m_sizeBuffer->Get_Array(), sizeArray, count * sizeof(Real) );
+					std::memmove( m_RGBABuffer->Get_Array(), RGBAArray, count * sizeof(Vector4) );
+					std::memmove( m_angleBuffer->Get_Array(), angleArray, count * sizeof(uint8) );
+					batchBase = 0;
+					posArray = m_posBuffer->Get_Array();
+					sizeArray = m_sizeBuffer->Get_Array();
+					RGBAArray = m_RGBABuffer->Get_Array();
+					angleArray = m_angleBuffer->Get_Array();
+					continue;
+				}
 				break;
+			}
 		}
 
-		if ( count == 0 )
-			continue;	//this system has no particles to render
+			if ( count == 0 )
+			{
+				// TheSuperHackers @perf bobtista 03/06/2026 In batch mode the bucket texture was acquired
+				// up front; release that reference when this emitter contributes nothing.
+				if (batchPointGroups && texture != nullptr)
+				{
+					texture->Release_Ref();
+				}
+				continue;	//this system has no particles to render
+			}
 
-		TextureClass *texture = W3DDisplay::m_assetManager->Get_Texture( sys->getParticleTypeName().str() );
+			if (!batchPointGroups)
+			{
+				texture = W3DDisplay::m_assetManager->Get_Texture( sys->getParticleTypeName().str() );
+			}
+			if (particleDiag)
+			{
+				if (FILE *diag = std::fopen("ggc_particle_diag.txt", "a"))
+				{
+					const Coord3D *firstPos = sys->getFirstParticle() != nullptr
+						? sys->getFirstParticle()->getPosition()
+						: nullptr;
+					float minSz = (count > 0) ? sizeArray[0] : 0.0f;
+					float maxSz = minSz;
+					float minA = (count > 0) ? RGBAArray[0].W : 0.0f;
+					float maxA = minA;
+					for (Int idx = 1; idx < count; ++idx) {
+						if (sizeArray[idx] < minSz) {
+							minSz = sizeArray[idx];
+						}
+						if (sizeArray[idx] > maxSz) {
+							maxSz = sizeArray[idx];
+						}
+						if (RGBAArray[idx].W < minA) {
+							minA = RGBAArray[idx].W;
+						}
+						if (RGBAArray[idx].W > maxA) {
+							maxA = RGBAArray[idx].W;
+						}
+					}
+					Real waterZ = 0.0f;
+					Real terrainZ = 0.0f;
+					Bool underwater = FALSE;
+					if (TheWaterRenderObj != nullptr && firstPos != nullptr) {
+						waterZ = TheWaterRenderObj->getWaterHeight(firstPos->x, firstPos->y);
+					}
+					if (TheTerrainLogic != nullptr && firstPos != nullptr) {
+						Real tw = 0.0f, tt = 0.0f;
+						underwater = TheTerrainLogic->isUnderwater(firstPos->x, firstPos->y, &tw, &tt);
+						terrainZ = tt;
+					}
+					std::fprintf(diag,
+						"particle frame=%u type=%s texture=%s count=%d shader=%d streak=%d volume=%u billboard=%d ground=%d first=(%.2f,%.2f,%.2f) waterZ=%.2f terrainZ=%.2f under=%d sizeRange=[%.2f..%.2f] alphaRange=[%.3f..%.3f] firstRGB=(%.2f,%.2f,%.2f) texMissing=%d\n",
+						0u,
+						sys->getParticleTypeName().str(),
+						texture != nullptr ? texture->Get_Full_Path().str() : "<null>",
+						count,
+						static_cast<int>(sys->getShaderType()),
+						sys->isUsingStreak() ? 1 : 0,
+						static_cast<unsigned>(sys->getVolumeParticleDepth()),
+						sys->shouldBillboard() ? 1 : 0,
+						sys->m_isGroundAligned ? 1 : 0,
+						firstPos != nullptr ? firstPos->x : 0.0f,
+						firstPos != nullptr ? firstPos->y : 0.0f,
+						firstPos != nullptr ? firstPos->z : 0.0f,
+						waterZ,
+						terrainZ,
+						(int)(underwater ? 1 : 0),
+						minSz,
+						maxSz,
+						minA,
+						maxA,
+						(count > 0) ? RGBAArray[0].X : 0.0f,
+						(count > 0) ? RGBAArray[0].Y : 0.0f,
+						(count > 0) ? RGBAArray[0].Z : 0.0f,
+						texture != nullptr && texture->Is_Missing_Texture() ? 1 : 0);
+					std::fclose(diag);
+				}
+			}
 
 		if ( m_streakLine && sys->isUsingStreak() && (count >= 2) )
 		{
@@ -287,6 +472,24 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			//RENDER STREAK!
 			m_streakLine->Render( rinfo );
 
+		}
+		else if (batchPointGroups && sys->getVolumeParticleDepth() <= 1)
+		{
+			// TheSuperHackers @perf bobtista 03/06/2026 Accumulate this emitter into the open bucket
+			// instead of issuing a draw. The actual submission happens in flushPointGroupBatch when the
+			// next emitter changes the bucket key, the buffer overflows, or the loop ends.
+			if (batchBase == 0)
+			{
+				batchTexture = texture;	// take ownership of the reference acquired for the bucket key
+			}
+			else
+			{
+				texture->Release_Ref();	// same bucket: drop the duplicate reference, batchTexture holds one
+			}
+			batchShader = sys->getShaderType();
+			batchBillboard = sys->shouldBillboard();
+			batchVolumeDepth = sys->getVolumeParticleDepth();
+			batchBase += count;
 		}
 		else
 		{
@@ -359,6 +562,15 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 	*/
 
 
+	}
+
+	// TheSuperHackers @perf bobtista 03/06/2026 Submit whatever remains in the open point-group bucket.
+	if (batchPointGroups && batchBase > 0)
+	{
+		flushPointGroupBatch( rinfo, batchTexture, batchShader, batchBillboard, batchVolumeDepth, batchBase );
+		batchTexture->Release_Ref();
+		batchTexture = nullptr;
+		batchBase = 0;
 	}
 
 		/// @todo lorenzen sez: this should be debug only:
