@@ -48,7 +48,7 @@
 #include	"WWLib/bufffile.h"
 #include "ww3d.h"
 #include "assetmgr.h"
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "dx8wrapper.h"
 #endif
 #include "missingtexture.h"
@@ -382,7 +382,7 @@ private:
 	unsigned int			Get_Locked_Volume_Row_Pitch(unsigned int level);
 	unsigned int			Get_Locked_Volume_Slice_Pitch(unsigned int level);
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	auto*	Peek_Native_Compatibility_Volume_Texture()				{ return static_cast<decltype(Peek_Legacy_Volume_Texture(*Texture))>(NativeCompatibilityTexture);		}
 #endif
 
@@ -587,7 +587,7 @@ public:
 } _TextureLoadThread;
 
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 // TODO: Legacy - remove this call!
 static LegacyLoaderTexture * Load_Compressed_Texture(
 	const StringClass& filename,
@@ -715,7 +715,7 @@ void TextureLoader::Deinit()
 
 bool TextureLoader::Is_Main_Render_Thread()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	return (ThreadClass::_Get_Current_Thread_ID() == s_mainRenderThreadId);
 #else
 	return (ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
@@ -789,7 +789,7 @@ void TextureLoader::Validate_Texture_Size
 	depth=poweroftwodepth;
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
 {
 	WWASSERT(Is_Main_Render_Thread());
@@ -1011,7 +1011,7 @@ LegacyLoaderSurface * Load_Legacy_Surface_Immediate(
 	WW3DFormat texture_format,
 	bool allow_compression)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	(void)filename;
 	(void)texture_format;
 	(void)allow_compression;
@@ -1245,7 +1245,7 @@ void TextureLoader::Request_Thumbnail(TextureBaseClass *tc)
 	// serializes calls to Request_Thumbnail from multiple threads.
 	FastCriticalSectionClass::LockClass lock(_ForegroundCriticalSection);
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	if (Peek_Legacy_Base_Texture(*tc)) {
 		return;
 	}
@@ -1605,7 +1605,7 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 	}
 #endif
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"TextureLoader::Load_Thumbnail: standalone bgfx cannot use legacy thumbnail texture fallback");
@@ -1965,10 +1965,7 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 
 	Log_Texture_Load_Failure("task", Texture ? Texture->Get_Full_Path().str() : nullptr);
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	const bool use_cpu_missing_texture =
-		true;
-	if (use_cpu_missing_texture &&
-		Texture != nullptr &&
+	if (Texture != nullptr &&
 		Texture->As_TextureClass() != nullptr)
 	{
 		TextureClass *texture = Texture->As_TextureClass();
@@ -1989,7 +1986,7 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 		return;
 	}
 #endif
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"TextureLoadTaskClass::Apply_Missing_Texture: standalone bgfx cannot apply fake-D3D missing textures");
@@ -2011,7 +2008,7 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 
 void TextureLoadTaskClass::Apply(bool initialize)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	(void)initialize;
 	WWASSERT_PRINT(
 		NativeCompatibilityTexture == nullptr,
@@ -2278,7 +2275,7 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 		return true;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"TextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot create legacy texture fallback");
@@ -2364,7 +2361,7 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 		}
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"TextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot create legacy texture fallback");
@@ -2540,7 +2537,7 @@ void TextureLoadTaskClass::Lock_Surfaces()
 		return;
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	MipLevelCount = Peek_Native_Compatibility_Texture()->GetLevelCount();
 
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
@@ -2575,7 +2572,7 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 		return;
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
 	{
 		if (LockedSurfacePtr[i])
@@ -2599,7 +2596,7 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 
 void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		Peek_Native_Compatibility_Texture() == nullptr,
 		"Capture_CPU_Texture_Snapshot_From_Locked_Surfaces: standalone bgfx should use CPU texture staging, not locked fake-D3D surfaces");
@@ -3081,7 +3078,7 @@ void CubeTextureLoadTaskClass::Deinit()
 
 void CubeTextureLoadTaskClass::Lock_Surfaces()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(false, "CubeTextureLoadTaskClass::Lock_Surfaces: standalone bgfx does not support cube textures");
 #else
 	for (unsigned int f=0; f<6; f++)
@@ -3109,7 +3106,7 @@ void CubeTextureLoadTaskClass::Lock_Surfaces()
 
 void CubeTextureLoadTaskClass::Unlock_Surfaces()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(false, "CubeTextureLoadTaskClass::Unlock_Surfaces: standalone bgfx does not support cube textures");
 #else
 	for (unsigned int f=0; f<6; f++)
@@ -3149,7 +3146,7 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 
 bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"CubeTextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot load fake-D3D cube textures");
@@ -3203,7 +3200,7 @@ bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 
 bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"CubeTextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot load fake-D3D cube textures");
@@ -3420,7 +3417,7 @@ void VolumeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Prior
 
 void VolumeTextureLoadTaskClass::Lock_Surfaces()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(false, "VolumeTextureLoadTaskClass::Lock_Surfaces: standalone bgfx does not support volume textures");
 #else
 	for (unsigned int i=0; i<MipLevelCount; i++)
@@ -3446,7 +3443,7 @@ void VolumeTextureLoadTaskClass::Lock_Surfaces()
 
 void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(false, "VolumeTextureLoadTaskClass::Unlock_Surfaces: standalone bgfx does not support volume textures");
 #else
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
@@ -3476,7 +3473,7 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 
 bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"VolumeTextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot load fake-D3D volume textures");
@@ -3532,7 +3529,7 @@ bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 
 bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"VolumeTextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot load fake-D3D volume textures");

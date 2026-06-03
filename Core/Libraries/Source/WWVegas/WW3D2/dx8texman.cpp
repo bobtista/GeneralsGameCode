@@ -54,7 +54,7 @@
 #include "texturecompatibilityinterop.h"
 #include "dx8wrapper.h"
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 namespace
 {
 	constexpr auto kLegacyDefaultPool = D3DPOOL_DEFAULT;

@@ -67,7 +67,7 @@ namespace
 		return *static_cast<const LegacyCaps*>(caps);
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	constexpr auto kLegacySoftwareVertexProcessingState = D3DRS_SOFTWAREVERTEXPROCESSING;
 #endif
 	constexpr auto kLegacyHardwareTransformAndLight = D3DDEVCAPS_HWTRANSFORMANDLIGHT, kLegacyNPatches = D3DDEVCAPS_NPATCHES;
@@ -77,7 +77,7 @@ namespace
 	constexpr auto kLegacyTextureResource = D3DRTYPE_TEXTURE;
 	constexpr auto kLegacyRenderTargetUsage = D3DUSAGE_RENDERTARGET, kLegacyDepthStencilUsage = D3DUSAGE_DEPTHSTENCIL;
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	void Set_Legacy_Software_Vertex_Processing(LegacyDevice *device, BOOL enabled)
 	{
 		device->SetRenderState(kLegacySoftwareVertexProcessingState, enabled);
@@ -541,7 +541,7 @@ DX8Caps::~DX8Caps()
 	delete static_cast<LegacyCaps*>(Caps);
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 D3DCAPS8 const& DX8Caps::Get_DX8_Caps() const
 {
 	return Legacy_Caps(Caps);
@@ -564,7 +564,7 @@ void DX8Caps::Shutdown()
 void DX8Caps::Init_Caps(void* device)
 {
 	LegacyCaps& caps = Mutable_Legacy_Caps(Caps);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	LegacyDevice* D3DDevice = static_cast<LegacyDevice*>(device);
 	Set_Legacy_Software_Vertex_Processing(D3DDevice, TRUE);
 	DX8CALL(GetDeviceCaps(&caps));
@@ -573,7 +573,7 @@ void DX8Caps::Init_Caps(void* device)
 	if ((caps.DevCaps&kLegacyHardwareTransformAndLight)==kLegacyHardwareTransformAndLight) {
 		SupportTnL=true;
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		Set_Legacy_Software_Vertex_Processing(D3DDevice, FALSE);
 		DX8CALL(GetDeviceCaps(&caps));
 #endif
@@ -773,7 +773,7 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const void*
 		}
 		return;
 	}
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 		SupportTextureFormat[i]=(i!=WW3D_FORMAT_UNKNOWN);
 		if (SupportTextureFormat[i]) {
@@ -818,7 +818,7 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const vo
 		}
 		return;
 	}
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 		SupportRenderToTextureFormat[i]=(i==WW3D_FORMAT_A8R8G8B8 || i==WW3D_FORMAT_X8R8G8B8);
 		if (SupportRenderToTextureFormat[i]) {
@@ -870,7 +870,7 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const void*
 		return;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	for (unsigned i=0;i<WW3D_ZFORMAT_COUNT;++i)
 	{
 		SupportDepthStencilFormat[i]=(i==WW3D_ZFORMAT_D24S8 || i==WW3D_ZFORMAT_D24X8 || i==WW3D_ZFORMAT_D16);

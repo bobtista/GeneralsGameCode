@@ -199,7 +199,7 @@ ObjectPoolClass<T,BLOCK_SIZE>::ObjectPoolClass() :
 template<class T,int BLOCK_SIZE>
 ObjectPoolClass<T,BLOCK_SIZE>::~ObjectPoolClass()
 {
-#if defined(__APPLE__) && defined(GGC_BGFX_STANDALONE)
+#if defined(__APPLE__) && defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @bugfix bobtista 04/05/2026 The legacy engine leaves
 	// some global multi-list users alive until process teardown. On macOS the
 	// static AutoPoolClass allocators can then destruct after their list owners,
