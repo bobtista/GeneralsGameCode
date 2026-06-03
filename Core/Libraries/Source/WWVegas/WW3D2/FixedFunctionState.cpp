@@ -10,7 +10,7 @@
 
 #include "FixedFunctionState.h"
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "d3d8.h"
 #endif
 #include "indexbuffer.h"
@@ -696,7 +696,7 @@ bool FixedFunctionState::Set_Raw_Texture(unsigned stage, LegacyRawTexture * text
 		return false;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		s_rawTextures[stage] == nullptr && texture == nullptr,
 		"FixedFunctionState::Set_Raw_Texture: standalone bgfx cannot own fake-D3D raw textures");
@@ -717,7 +717,7 @@ void FixedFunctionState::Release_Raw_Textures()
 {
 	for (unsigned stage = 0; stage < MAX_TEXTURE_STAGES; ++stage) {
 		if (s_rawTextures[stage]) {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 			WWASSERT_PRINT(
 				false,
 				"FixedFunctionState::Release_Raw_Textures: standalone bgfx cannot release fake-D3D raw textures");

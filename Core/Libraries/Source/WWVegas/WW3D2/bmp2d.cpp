@@ -102,7 +102,7 @@ Bitmap2DObjClass::Bitmap2DObjClass
 		}
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	SurfaceClass *surface = nullptr;
 	if (source_mip == nullptr) {
 		surface = tex->Get_Surface_Level(0);
@@ -113,7 +113,7 @@ Bitmap2DObjClass::Bitmap2DObjClass
 #endif
 
 	if (source_mip == nullptr
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		&& surface == nullptr
 #endif
 	) {
@@ -229,7 +229,7 @@ Bitmap2DObjClass::Bitmap2DObjClass
 						::memcpy(dst, src, row_bytes);
 					}
 				}
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 				else if (surface != nullptr) {
 					SurfaceClass *piece_surface=NEW_REF(SurfaceClass,(pot,pot,sd.Format));
 					piece_surface->Copy(0,0,tlpx,tlpy,pot,pot,surface);
@@ -277,7 +277,7 @@ Bitmap2DObjClass::Bitmap2DObjClass
 		}
 	}
 	REF_PTR_RELEASE(tex);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	REF_PTR_RELEASE(surface);
 #endif
 

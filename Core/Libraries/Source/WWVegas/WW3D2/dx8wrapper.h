@@ -44,7 +44,7 @@
 #include "WWLib/always.h"
 #include <Utility/bit_adapter.h>
 #include "dllist.h"
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #include "dx8standalonetypes.h"
 #else
 #include "d3d8.h"
@@ -163,7 +163,7 @@ inline DWORD F2DW(FLOAT f) { return std::bit_cast<DWORD>(f); }
 #define DX8_THREAD_ASSERT() ;
 #endif
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #ifdef WWDEBUG
 #define DX8CALL_HRES(x,res) DX8_Assert(); res = DX8_Call_Device()->x; DX8_ErrorCode(res); DX8Wrapper::Increment_DX8_CallCount();
 #define DX8CALL(x) DX8_Assert(); DX8_ErrorCode(DX8_Call_Device()->x); DX8Wrapper::Increment_DX8_CallCount();
@@ -263,7 +263,7 @@ public:
 
 	GGC_RB_DEPRECATED static void Clear(bool clear_color, bool clear_z_stencil, const Vector3 &color, float dest_alpha=0.0f, float z=1.0f, unsigned int stencil=0);
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	GGC_RB_DEPRECATED static void	Set_Viewport(CONST D3DVIEWPORT8* pViewport);
 #endif
 
@@ -274,7 +274,7 @@ public:
 	GGC_RB_DEPRECATED static void Set_Index_Buffer_Index_Offset(unsigned offset);
 
 	static void Get_Render_State(RenderStateStruct& state);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static void Set_Render_State(const RenderStateStruct& state);
 #endif
 	static void Release_Render_State();
@@ -285,7 +285,7 @@ public:
 	// light/texture sync in BgfxBackend) should use this instead.
 	static const RenderStateStruct & Peek_Render_State() { return FixedFunctionState::Peek_Render_State(); }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static void Set_DX8_Material(const D3DMATERIAL8* mat);
 #endif
 
@@ -295,7 +295,7 @@ public:
 
 	GGC_RB_DEPRECATED static void Set_Projection_Transform_With_Z_Bias(const Matrix4x4& matrix,float znear, float zfar);	// pointer to 16 matrices
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	GGC_RB_DEPRECATED static void Set_Transform(D3DTRANSFORMSTATETYPE transform,const Matrix4x4& m);
 	GGC_RB_DEPRECATED static void Set_Transform(D3DTRANSFORMSTATETYPE transform,const Matrix3D& m);
 	GGC_RB_DEPRECATED static void Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4x4& m);
@@ -308,43 +308,43 @@ public:
 	// Note that *_DX8_Transform() functions take the matrix in DX8 format - transposed from Westwood convention.
 
 	static void Commit_Fixed_Function_Transform(unsigned transform, const LegacyTransformMatrix& m);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static void _Set_DX8_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m);
 #endif
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static void _Get_DX8_Transform(D3DTRANSFORMSTATETYPE transform, D3DMATRIX& m);
 #endif
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static void Set_DX8_Light(int index,D3DLIGHT8* light);
 #endif
 	static void Commit_Fixed_Function_Render_Value(unsigned state, unsigned value);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static void Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value);
 #endif
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static void Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane);
 #endif
 	static void Commit_Fixed_Function_Texture_Stage_Value(unsigned stage, unsigned state, unsigned value);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static void Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value);
 	static void Set_DX8_Texture(unsigned int stage, IDirect3DBaseTexture8* texture);
 #endif
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	GGC_RB_DEPRECATED static void Set_Light_Environment(LightEnvironmentClass* light_env);
 #endif
 	GGC_RB_DEPRECATED static LightEnvironmentClass* Get_Light_Environment() { return Light_Environment; }
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	GGC_RB_DEPRECATED static void Set_Fog(bool enable, const Vector3 &color, float start, float end);
 #endif
 
 	// Deferred
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	GGC_RB_DEPRECATED static void Set_Shader(const ShaderClass& shader);
 #endif
 	GGC_RB_DEPRECATED static void Get_Shader(ShaderClass& shader);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	GGC_RB_DEPRECATED static void Set_Texture(unsigned stage,TextureBaseClass* texture);
 	GGC_RB_DEPRECATED static void Set_Material(const VertexMaterialClass* material);
 	static void Set_Light(unsigned index,const D3DLIGHT8* light);
@@ -353,7 +353,7 @@ public:
 	static void Commit_Fixed_Function_Texture(unsigned stage,TextureBaseClass* texture);
 	static void Commit_Deferred_Render_State_Changes();
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	GGC_RB_DEPRECATED static void Apply_Render_State_Changes();	// Apply deferred render state changes (will be called automatically by Draw...)
 #endif
 
@@ -378,7 +378,7 @@ public:
 	** Resources
 	*/
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static IDirect3DVolumeTexture8* _Create_DX8_Volume_Texture
 	(
 		unsigned int width,
@@ -485,7 +485,7 @@ public:
 	**	Restore the default render target.
 	**
 	*/
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static IDirect3DSwapChain8 *	Create_Additional_Swap_Chain (HWND render_window);
 
 	/*
@@ -519,7 +519,7 @@ public:
 	// shader system updates KJM v
 	GGC_RB_DEPRECATED static void Apply_Default_State();
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	GGC_RB_DEPRECATED static void Set_Vertex_Shader(DWORD vertex_shader);
 	GGC_RB_DEPRECATED static void Set_Pixel_Shader(DWORD pixel_shader);
 
@@ -534,7 +534,7 @@ public:
 	static DWORD Get_Vertex_Processing_Behavior() { return Vertex_Processing_Behavior; }
 
 	// Needed by scene lighting class
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	GGC_RB_DEPRECATED static void						Set_Ambient(const Vector3& color);
 #endif
 	GGC_RB_DEPRECATED static const Vector3&		Get_Ambient() { return Ambient_Color; }
@@ -543,7 +543,7 @@ public:
 
 
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @build bobtista 01/06/2026 Out-of-line getters; the
 	// header cannot reference the file-static D3DDevice / D3DInterface
 	// pointers (defined in dx8wrapper.cpp) from inline bodies -- every TU
@@ -563,7 +563,7 @@ public:
 	static bool Registry_Save_Render_Device( const char * sub_key );
 	static bool Registry_Load_Render_Device( const char * sub_key, bool resize_window );
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static const char* Get_DX8_Render_State_Name(D3DRENDERSTATETYPE state);
 	static const char* Get_DX8_Texture_Stage_State_Name(D3DTEXTURESTAGESTATETYPE state);
 	static unsigned Get_DX8_Render_State(D3DRENDERSTATETYPE state) { return RenderStateCache::Get_Render_State((unsigned)state); }
@@ -634,7 +634,7 @@ protected:
 	static void	Set_Texture_Bitdepth(int depth)	{ WWASSERT(depth==16 || depth==32); TextureBitDepth = depth; }
 	static int	Get_Texture_Bitdepth()			{ return TextureBitDepth; }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static void Set_MSAA_Mode(D3DMULTISAMPLE_TYPE mode) { MultiSampleAntiAliasing = static_cast<unsigned>(mode); }
 	static D3DMULTISAMPLE_TYPE Get_MSAA_Mode() { return static_cast<D3DMULTISAMPLE_TYPE>(MultiSampleAntiAliasing); }
 #endif
@@ -713,7 +713,7 @@ protected:
 	static int								ZBias;
 	static float							ZNear;
 	static float							ZFar;
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	static D3DMATRIX					ProjectionMatrix;
 #endif
 
@@ -737,12 +737,12 @@ WWINLINE void DX8Wrapper::Commit_Vertex_Shader_Value(DWORD vertex_shader)
 #endif
 
 	Vertex_Shader=vertex_shader;
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(SetVertexShader(Vertex_Shader));
 #endif
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::Set_Vertex_Shader(DWORD vertex_shader)
 {
 	Commit_Vertex_Shader_Value(vertex_shader);
@@ -755,12 +755,12 @@ WWINLINE void DX8Wrapper::Commit_Pixel_Shader_Value(DWORD pixel_shader)
 	if (Pixel_Shader==pixel_shader) return;
 
 	Pixel_Shader=pixel_shader;
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(SetPixelShader(Pixel_Shader));
 #endif
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::Set_Pixel_Shader(DWORD pixel_shader)
 {
 	Commit_Pixel_Shader_Value(pixel_shader);
@@ -775,12 +775,12 @@ WWINLINE void DX8Wrapper::Commit_Vertex_Shader_Constants(int reg, const void* da
 	if (memcmp(data, &Vertex_Shader_Constants[reg],memsize)==0) return;
 
 	memcpy(&Vertex_Shader_Constants[reg],data,memsize);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(SetVertexShaderConstant(reg,data,count));
 #endif
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::Set_Vertex_Shader_Constant(int reg, const void* data, int count)
 {
 	Commit_Vertex_Shader_Constants(reg, data, count);
@@ -795,12 +795,12 @@ WWINLINE void DX8Wrapper::Commit_Pixel_Shader_Constants(int reg, const void* dat
 	if (memcmp(data, &Pixel_Shader_Constants[reg],memsize)==0) return;
 
 	memcpy(&Pixel_Shader_Constants[reg],data,memsize);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(SetPixelShaderConstant(reg,data,count));
 #endif
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::Set_Pixel_Shader_Constant(int reg, const void* data, int count)
 {
 	Commit_Pixel_Shader_Constants(reg, data, count);
@@ -818,20 +818,20 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Transform(unsigned transform, co
 			m.m[1][0],m.m[1][1],m.m[1][2],m.m[1][3],
 			m.m[2][0],m.m[2][1],m.m[2][2],m.m[2][3]));
 		DX8_RECORD_MATRIX_CHANGE();
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		DX8CALL(SetTransform(static_cast<D3DTRANSFORMSTATETYPE>(transform),&m));
 #endif
 	}
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::_Set_DX8_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m)
 {
 	Commit_Fixed_Function_Transform(transform, m);
 }
 #endif
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::_Get_DX8_Transform(D3DTRANSFORMSTATETYPE transform, D3DMATRIX& m)
 {
 	DX8CALL(GetTransform(transform,&m));
@@ -859,7 +859,7 @@ WWINLINE void DX8Wrapper::Set_Index_Buffer_Index_Offset(unsigned offset)
 // This function should be called rarely - once per scene would be appropriate.
 // ----------------------------------------------------------------------------
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::Set_Fog(bool enable, const Vector3 &color, float start, float end)
 {
 	// Set global states
@@ -891,7 +891,7 @@ WWINLINE void DX8Wrapper::Set_Ambient(const Vector3& color)
 //
 // ----------------------------------------------------------------------------
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::Set_DX8_Material(const D3DMATERIAL8* mat)
 {
 	DX8_RECORD_MATERIAL_CHANGE();
@@ -923,7 +923,7 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Render_Value(unsigned state, uns
 	// Can't monitor state changes because setShader call to GERD may change the states!
 	if (RenderStateCache::Get_Render_State(state)==value) return;
 
-#if defined(DEBUG_LOGGING) && !defined(GGC_BGFX_STANDALONE)
+#if defined(DEBUG_LOGGING) && !defined(GGC_RENDER_BACKEND_BGFX)
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
 		const auto legacy_state = static_cast<D3DRENDERSTATETYPE>(state);
@@ -935,20 +935,20 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Render_Value(unsigned state, uns
 #endif
 
 	RenderStateCache::Set_Render_State(state,value);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(SetRenderState( static_cast<D3DRENDERSTATETYPE>(state), value ));
 #endif
 	DX8_RECORD_RENDER_STATE_CHANGE();
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value)
 {
 	Commit_Fixed_Function_Render_Value(state, value);
 }
 #endif
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane)
 {
 	DX8CALL(SetClipPlane( Index, pPlane ));
@@ -959,7 +959,7 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Texture_Stage_Value(unsigned sta
 {
 	if (stage >= MAX_TEXTURE_STAGES)
 	{
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		DX8CALL(SetTextureStageState( stage, static_cast<D3DTEXTURESTAGESTATETYPE>(state), value ));
 		DX8_RECORD_TEXTURE_STAGE_STATE_CHANGE();
 #endif
@@ -969,7 +969,7 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Texture_Stage_Value(unsigned sta
 	// Can't monitor state changes because setShader call to GERD may change the states!
 	if (RenderStateCache::Get_Texture_Stage_State(stage,state)==value) return;
 
-#if defined(DEBUG_LOGGING) && !defined(GGC_BGFX_STANDALONE)
+#if defined(DEBUG_LOGGING) && !defined(GGC_RENDER_BACKEND_BGFX)
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
 		const auto legacy_state = static_cast<D3DTEXTURESTAGESTATETYPE>(state);
@@ -982,13 +982,13 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Texture_Stage_Value(unsigned sta
 #endif
 
 	RenderStateCache::Set_Texture_Stage_State(stage,state,value);
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(SetTextureStageState( stage, static_cast<D3DTEXTURESTAGESTATETYPE>(state), value ));
 #endif
 	DX8_RECORD_TEXTURE_STAGE_STATE_CHANGE();
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value)
 {
 	Commit_Fixed_Function_Texture_Stage_Value(stage, state, value);
@@ -1011,7 +1011,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTextu
 }
 #endif
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::_Copy_DX8_Rects(
   IDirect3DSurface8* pSourceSurface,
   CONST RECT* pSourceRectsArray,
@@ -1256,7 +1256,7 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Texture(unsigned stage,TextureBa
 	FixedFunctionState::Set_Texture(stage, texture);
 }
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 WWINLINE void DX8Wrapper::Set_Texture(unsigned stage,TextureBaseClass* texture)
 {
 	Commit_Fixed_Function_Texture(stage, texture);

@@ -1,4 +1,4 @@
-if(GGC_BGFX_STANDALONE)
+if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     add_library(d3d8lib INTERFACE)
     target_include_directories(d3d8lib INTERFACE
         ${CMAKE_SOURCE_DIR}/Core/Libraries/Source/WWVegas/WW3D2/dx8sdk)

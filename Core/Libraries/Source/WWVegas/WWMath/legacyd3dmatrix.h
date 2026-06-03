@@ -18,7 +18,7 @@
 
 #pragma once
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #ifndef D3DMATRIX_DEFINED
 typedef struct _D3DMATRIX
 {

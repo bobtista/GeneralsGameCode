@@ -19,7 +19,7 @@
 #pragma once
 
 #include "ww3dformat.h"
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #include "dx8standalonetypes.h"
 #else
 #include <d3d8.h>
@@ -31,7 +31,7 @@
 ** or from native legacy format values.
 */
 
-#ifdef GGC_BGFX_STANDALONE
+#ifdef GGC_RENDER_BACKEND_BGFX
 
 inline D3DFORMAT WW3DFormat_To_D3DFormat(WW3DFormat ww3d_format)
 {
