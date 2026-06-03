@@ -7519,6 +7519,16 @@ static bool ShouldApplySubmittedNormalBias(uint64_t state)
         || IsSneakAttackCoplanarSurface();
 }
 
+static bool CoplanarBiasGateEnabled()
+{
+    // TheSuperHackers @performance bobtista 04/06/2026 GGC_NO_COPLANAR_BIAS_GATE
+    // restores the unconditional O(n^2) coplanar-pair scan on every dynamic vertex
+    // write (the pre-gate behavior) for A/B measurement and as a fallback if a
+    // sorted-decal depth-bias regression is ever observed.
+    static const bool s_enabled = (std::getenv("GGC_NO_COPLANAR_BIAS_GATE") == nullptr);
+    return s_enabled;
+}
+
 // TheSuperHackers @feature bobtista 07/07/2026 A replayed sorted batch flagged as
 // mesh-origin carries its live per-mesh world (captured above) and is authored in
 // model space, so it must render through the engine view with that raw world. This
@@ -9265,7 +9275,12 @@ void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
     std::memcpy(g_draw.pendingVB.tvb.data, data, bytes);
     g_draw.pendingVB.owner = vba;
     g_draw.pendingVB.valid = true;
-    g_draw.pendingVB.coplanarNormalBias = HasSubmittedOppositeNormalPairs(vba->FVF_Info(), data, num_verts);
+    // TheSuperHackers @performance bobtista 04/06/2026 Gate the O(n^2) coplanar scan
+    // on ShouldApplySubmittedNormalBias (see End_Dynamic_Vertex_Write) so it only runs
+    // for the rare sorted decals that consume the result, not every particle batch.
+    g_draw.pendingVB.coplanarNormalBias = (!CoplanarBiasGateEnabled()
+            || ShouldApplySubmittedNormalBias(GetEffectiveDrawState()))
+        && HasSubmittedOppositeNormalPairs(vba->FVF_Info(), data, num_verts);
     LogBgfxTransientDiag("capture", "vb", vba, num_verts,
                          true,
                          true,
@@ -9358,8 +9373,16 @@ void BgfxBackend::End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
         return;
     }
     g_draw.pendingVB.owner = vba;
-    g_draw.pendingVB.coplanarNormalBias = HasSubmittedOppositeNormalPairs(
-        vba->FVF_Info(), data, vba->Get_Vertex_Count());
+    // TheSuperHackers @performance bobtista 04/06/2026 HasSubmittedOppositeNormalPairs
+    // is an O(n^2) coplanar-pair scan and dynamic_fvf_type carries a normal, so it
+    // ran on every sorted-translucent batch (particles/smoke/water) — ~40% of render
+    // CPU on heavy scenes. The result only matters when ShouldApplySubmittedNormalBias
+    // is true (a handful of sorted decals / sneak-attack surfaces per frame), which is
+    // re-checked identically at draw time, so gate the scan on it. Particles short-circuit.
+    g_draw.pendingVB.coplanarNormalBias = (!CoplanarBiasGateEnabled()
+            || ShouldApplySubmittedNormalBias(GetEffectiveDrawState()))
+        && HasSubmittedOppositeNormalPairs(
+            vba->FVF_Info(), data, vba->Get_Vertex_Count());
     g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
 }
 
