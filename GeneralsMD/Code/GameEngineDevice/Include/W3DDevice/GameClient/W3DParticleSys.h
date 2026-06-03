@@ -50,6 +50,11 @@ public:
 	virtual Int getOnScreenParticleCount() override { return m_onScreenParticleCount; }
 
 private:
+	// TheSuperHackers @perf bobtista 03/06/2026 Submit one point-group draw for a batch of emitters that
+	// share (texture, shader, billboard, volume depth), used only on the shader-pipeline backend.
+	void flushPointGroupBatch(RenderInfoClass &rinfo, TextureClass *texture,
+		ParticleSystemInfo::ParticleShaderType shaderType, Bool billboard, UnsignedInt volumeDepth, Int count);
+
 	enum { MAX_POINTS_PER_GROUP = 512 };
 
 	PointGroupClass *m_pointGroup;							///< the point group that contains all of the particles
