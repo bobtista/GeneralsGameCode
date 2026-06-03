@@ -18,13 +18,13 @@
 
 #pragma once
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #include "texturecompatibilitytypes.h"
 #else
 #include "dx8texturelegacyd3dtypes.h"
 #endif
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 using LegacyBaseTexture = NativeCompatibilityBaseTexture;
 using LegacySurface = NativeCompatibilitySurface;
 using NativeCompatibilityTextureSurface = NativeCompatibilitySurface;
