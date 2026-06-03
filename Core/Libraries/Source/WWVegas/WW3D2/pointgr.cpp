@@ -132,6 +132,17 @@ VectorClass<Vector3>			VertexLoc;		// camera-space vertex locations
 VectorClass<Vector4>			VertexDiffuse;	// vertex diffuse/alpha colors
 VectorClass<Vector2>			VertexUV;		// vertex texture coords
 
+// TheSuperHackers @performance bobtista 03/06/2026 Scratch accumulators used to
+// merge the per-depth-layer draws of one volume particle emitter into a single
+// Draw_Triangles. Reused across calls (grow-only) to avoid per-frame allocation.
+static VectorClass<Vector3>			s_volMergeLoc;
+static VectorClass<Vector2>			s_volMergeUV;
+static VectorClass<unsigned int>	s_volMergeColor;
+static int							s_volMergeCount = 0;
+static int							s_volMergeVerticesPerPrimitive = 3;
+static bool							s_volMergeSort = false;
+static IndexBufferClass *			s_volMergeIndexBuffer = nullptr;
+
 // Some render buffer constants
 #define MAX_VB_SIZE			2048
 #define MAX_TRI_POINTS		MAX_VB_SIZE/3
@@ -1782,6 +1793,17 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 
 
+	// TheSuperHackers @performance bobtista 03/06/2026 On the bgfx shader
+	// pipeline, merge this emitter's depth layers into one draw instead of one
+	// per layer. GGC_NO_VOLUME_MERGE forces the legacy per-layer path. The DX8
+	// fixed-function path keeps the original per-layer loop byte-identical.
+	static const bool s_volumeMergeDisabled = (std::getenv("GGC_NO_VOLUME_MERGE") != nullptr);
+	const bool mergeVolume = g_renderBackend->Has_Shader_Pipeline() && !s_volumeMergeDisabled;
+	if (mergeVolume)
+	{
+		s_volMergeCount = 0;
+	}
+
 	//// VOLUME_PARTICLE LOOP ///////////////
 	for ( unsigned int t = 0; t < depth; ++t )
 	{
@@ -1945,6 +1967,36 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 		float nudge = 0;
 
+		if (mergeVolume)
+		{
+			// Append this layer's vertices to the shared merge scratch in
+			// near-to-far t order. Submission order within the merged buffer
+			// equals the original per-layer order, so additive/alpha/multiply
+			// blending and the sort-pool z-ordering are unchanged.
+			const int mergeBase = s_volMergeCount;
+			const int mergeNeeded = mergeBase + vnum;
+			if (s_volMergeLoc.Length() < mergeNeeded)
+			{
+				s_volMergeLoc.Resize(mergeNeeded * 2);
+				s_volMergeUV.Resize(mergeNeeded * 2);
+				s_volMergeColor.Resize(mergeNeeded * 2);
+			}
+			const unsigned int defaultVolColor = WW3DColor::To_ARGB_Clamp(
+				Vector4(DefaultPointColor[0], DefaultPointColor[1], DefaultPointColor[2], DefaultPointAlpha));
+			for (int mi = 0; mi < vnum; mi++)
+			{
+				s_volMergeLoc[mergeBase + mi] = VertexLoc[mi];
+				s_volMergeUV[mergeBase + mi] = VertexUV[mi];
+				s_volMergeColor[mergeBase + mi] = current_diffuse
+					? WW3DColor::To_ARGB_Clamp(VertexDiffuse[mi]) : defaultVolColor;
+			}
+			s_volMergeCount = mergeNeeded;
+			s_volMergeVerticesPerPrimitive = verticesperprimitive;
+			s_volMergeSort = sort;
+			s_volMergeIndexBuffer = indexbuffer;
+			continue;
+		}
+
 		current = 0;
 		if (sort)
 		{
@@ -2006,8 +2058,56 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 	}
 
-
-
+	// TheSuperHackers @performance bobtista 03/06/2026 Emit the accumulated
+	// volume layers as a single Draw_Triangles (chunked only if the merged
+	// vertex count exceeds the dynamic VB cap), replacing the per-layer draws
+	// skipped above. Chunk size is aligned down to whole primitives.
+	if (mergeVolume && s_volMergeCount > 0)
+	{
+		const int vpp = s_volMergeVerticesPerPrimitive;
+		if (s_volMergeSort)
+		{
+			g_renderBackend->Set_Point_Group_Render_Active(true);
+		}
+		int mergedCurrent = 0;
+		while (mergedCurrent < s_volMergeCount)
+		{
+			int mergedDelta = MIN(s_volMergeCount - mergedCurrent, MAX_VB_SIZE);
+			mergedDelta -= (mergedDelta % vpp);
+			if (mergedDelta <= 0)
+			{
+				break;
+			}
+			DynamicVBAccessClass PointVerts(s_volMergeSort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, mergedDelta);
+			{
+				DynamicVBAccessClass::WriteLockClass Lock(&PointVerts);
+				unsigned char *vb = (unsigned char*)Lock.Get_Formatted_Vertex_Array();
+				const FVFInfoClass& fvfinfo = PointVerts.FVF_Info();
+				for (int mi = mergedCurrent; mi < mergedCurrent + mergedDelta; mi++)
+				{
+					*(Vector3*)(vb + fvfinfo.Get_Location_Offset()) = s_volMergeLoc[mi];
+					*(unsigned int*)(vb + fvfinfo.Get_Diffuse_Offset()) = s_volMergeColor[mi];
+					*(Vector2*)(vb + fvfinfo.Get_Tex_Offset(0)) = s_volMergeUV[mi];
+					vb += fvfinfo.Get_FVF_Size();
+				}
+			}
+			g_renderBackend->Set_Index_Buffer(s_volMergeIndexBuffer, 0);
+			g_renderBackend->Set_Vertex_Buffer(PointVerts);
+			if (s_volMergeSort)
+			{
+				SortingRendererClass::Insert_Triangles(0, mergedDelta / vpp, 0, mergedDelta);
+			}
+			else
+			{
+				g_renderBackend->Draw_Triangles(0, mergedDelta / vpp, 0, mergedDelta);
+			}
+			mergedCurrent += mergedDelta;
+		}
+		if (s_volMergeSort)
+		{
+			g_renderBackend->Set_Point_Group_Render_Active(false);
+		}
+	}
 
 	// restore the matrices
 	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,view);
