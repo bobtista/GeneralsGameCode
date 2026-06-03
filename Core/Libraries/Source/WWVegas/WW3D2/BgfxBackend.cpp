@@ -5318,6 +5318,12 @@ static uint64_t BgfxShadowVolumeDepthState()
 
 static bool BgfxTwoSidedStencilVolumes()
 {
+    // TheSuperHackers @bugfix bobtista 04/06/2026 Keep two-sided stencil
+    // shadow volumes opt-in. Defaulting it on (the attempt to halve
+    // shadow-volume submissions) miscounts the stencil for elevated casters:
+    // aircraft, helicopters and tall/stilted buildings draw a dark band or
+    // fan instead of a ground shadow. The legacy two-pass submit is correct;
+    // opt in with GGC_BGFX_STENCIL_TWO_SIDED only for A/B testing.
     return std::getenv("GGC_BGFX_STENCIL_TWO_SIDED") != nullptr;
 }
 
