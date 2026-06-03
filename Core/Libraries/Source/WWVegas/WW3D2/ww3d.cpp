@@ -881,7 +881,7 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 		WW3D::Get_Render_Backend()->Begin_Scene();
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	// Notify D3D that we are beginning to render the frame
 	DX8Wrapper::Begin_Scene();
 #endif

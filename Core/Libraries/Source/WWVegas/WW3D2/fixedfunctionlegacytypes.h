@@ -20,7 +20,7 @@
 
 #include "legacyd3dmatrix.h"
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 struct IDirect3DBaseTexture8;
 #endif
 
@@ -56,7 +56,7 @@ struct LegacyFixedFunctionLight
 	float Phi;
 };
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 using LegacyRawTexture = void;
 #else
 using LegacyRawTexture = IDirect3DBaseTexture8;
