@@ -117,17 +117,9 @@
         {
             "name": "win32-bgfx",
             "inherits": "win32",
-            "displayName": "Windows 32bit Release (bgfx stub backend)",
+            "displayName": "Windows 32bit Release (bgfx)",
             "cacheVariables": {
                 "GGC_RENDER_BACKEND": "bgfx"
-            }
-        },
-        {
-            "name": "win32-bgfx-standalone",
-            "inherits": "win32-bgfx",
-            "displayName": "Windows 32bit Release (bgfx standalone - DX8 ref popup off, BgfxBackend inherits IRenderBackend directly)",
-            "cacheVariables": {
-                "GGC_BGFX_STANDALONE": "ON"
             }
         },
         {
@@ -141,17 +133,9 @@
         {
             "name": "win32-debug-bgfx",
             "inherits": "win32-debug",
-            "displayName": "Windows 32bit Debug (bgfx stub backend)",
+            "displayName": "Windows 32bit Debug (bgfx)",
             "cacheVariables": {
                 "GGC_RENDER_BACKEND": "bgfx"
-            }
-        },
-        {
-            "name": "win32-debug-bgfx-standalone",
-            "inherits": "win32-debug-bgfx",
-            "displayName": "Windows 32bit Debug (bgfx standalone - DX8 ref popup off, BgfxBackend inherits IRenderBackend directly)",
-            "cacheVariables": {
-                "GGC_BGFX_STANDALONE": "ON"
             }
         },
         {
@@ -212,8 +196,7 @@
                 "SAGE_USE_OPENAL": "ON",
                 "RTS_GAMEMEMORY_ENABLE": "OFF",
                 "GGC_RENDER_BACKEND": "bgfx",
-                "GGC_BGFX_RENDERER": "metal",
-                "GGC_BGFX_STANDALONE": "ON"
+                "GGC_BGFX_RENDERER": "metal"
             }
         },
         {
@@ -305,15 +288,8 @@
         {
             "name": "win32-bgfx",
             "configurePreset": "win32-bgfx",
-            "displayName": "Build Windows 32bit Release (bgfx stub backend)",
-            "description": "Build Windows 32bit Release (bgfx stub backend)",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-bgfx-standalone",
-            "configurePreset": "win32-bgfx-standalone",
-            "displayName": "Build Windows 32bit Release (bgfx standalone)",
-            "description": "Build Windows 32bit Release (bgfx standalone)",
+            "displayName": "Build Windows 32bit Release (bgfx)",
+            "description": "Build Windows 32bit Release (bgfx)",
             "configuration": "Release",
             "targets": [
                 "z_generals"
@@ -475,19 +451,6 @@
                 {
                     "type": "build",
                     "name": "win32-bgfx"
-                }
-            ]
-        },
-        {
-            "name": "win32-bgfx-standalone",
-            "steps": [
-                {
-                    "type": "configure",
-                    "name": "win32-bgfx-standalone"
-                },
-                {
-                    "type": "build",
-                    "name": "win32-bgfx-standalone"
                 }
             ]
         },

@@ -120,7 +120,7 @@ static SurfaceClass *Create_Texture_Mip_Surface(TextureClass *texture, unsigned 
 		}
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	return texture->Get_Surface_Level(level);
 #else
 	return nullptr;

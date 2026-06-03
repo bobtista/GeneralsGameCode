@@ -89,7 +89,7 @@ void W3DSmudgeManager::ReAcquireResources()
 
 	RenderBackendSurfaceDescription surface_desc;
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	surface_desc.Format = WW3D_FORMAT_UNKNOWN;
 	surface_desc.Width = TheDisplay ? TheDisplay->getWidth() : 0;
 	surface_desc.Height = TheDisplay ? TheDisplay->getHeight() : 0;
@@ -184,7 +184,7 @@ Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int hei
 
 Bool W3DSmudgeManager::testHardwareSupport()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @feature bobtista 27/04/2026 Standalone bgfx samples
 	// the scene-color framebuffer directly for smudge/heat-haze distortion,
 	// so it no longer needs the old DX8 CopyRects support test.
@@ -310,7 +310,7 @@ Bool W3DSmudgeManager::testHardwareSupport()
 	}
 
 	return (SMUDGE_SUPPORT_YES == m_hardwareSupportStatus);
-#endif // GGC_BGFX_STANDALONE
+#endif // GGC_RENDER_BACKEND_BGFX
 }
 
 void W3DSmudgeManager::render(RenderInfoClass &rinfo)
@@ -322,7 +322,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	RenderBackendSurfaceDescription surface_desc;
 	Bool bgfxSmudgeActive = FALSE;
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	surface_desc.Format = WW3D_FORMAT_UNKNOWN;
 	surface_desc.Width = TheDisplay->getWidth();
 	surface_desc.Height = TheDisplay->getHeight();
@@ -342,7 +342,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 		Vector3(0.5f, 0.5f, 0.0f)
 	};
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #define THE_COLOR (0x00ffffff)
 #else
 #define THE_COLOR (0x00ffeedd)
@@ -436,7 +436,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 		return;	//nothing to render.
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	if (m_backgroundTexture == nullptr || g_renderBackend == nullptr)
 	{
 		return;
@@ -534,7 +534,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 					//Set center vertex opacity.
 					Real opacity = smudge->m_opacity;
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #if defined(RTS_ZEROHOUR)
 					if (TheGlobalData)
 					{
