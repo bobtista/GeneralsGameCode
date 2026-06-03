@@ -88,6 +88,7 @@ TerrainTracksRenderObjClass::TerrainTracksRenderObjClass()
 	m_bottomIndex=0;
 	m_activeEdgeCount=0;
 	m_totalEdgesAdded=0;
+	m_groupedThisFlush=false;
 	m_bound=false;
 	m_ownerDrawable = nullptr;
 }
@@ -899,17 +900,109 @@ Try improving the fit to vertical surfaces like cliffs.
 		trackStartIndex=0;
 		mod=m_usedModules;
 		g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,mod->Transform);
-		while (mod)
-		{
-			if (mod->m_activeEdgeCount >= 2 && mod->Is_Really_Visible())
-			{
-				g_renderBackend->Set_Texture(0,mod->m_stageZeroTexture);
-				g_renderBackend->Set_Index_Buffer_Index_Offset(trackStartIndex);
-				g_renderBackend->Draw_Triangles(	0,(mod->m_activeEdgeCount-1)*2, 0, mod->m_activeEdgeCount*2);
 
-				trackStartIndex += mod->m_activeEdgeCount*2;
+		// TheSuperHackers @perf bobtista 03/06/2026 Coalesce per-module track draws into one
+		// Draw_Triangles per stage-zero texture; the grouped index buffer reproduces the strip
+		// pattern bit-for-bit. The DX8 reference path keeps the per-module loop.
+		Int totalVerts=0;
+		Int totalTris=0;
+		for (TerrainTracksRenderObjClass *countMod=m_usedModules; countMod; countMod=countMod->m_nextSystem)
+		{
+			if (countMod->m_activeEdgeCount >= 2 && countMod->Is_Really_Visible())
+			{
+				totalVerts += countMod->m_activeEdgeCount*2;
+				totalTris += (countMod->m_activeEdgeCount-1)*2;
 			}
-			mod=mod->m_nextSystem;
+		}
+
+		// Draw_Triangles takes the index start as a 16-bit value, so the grouped
+		// index buffer must stay within 65535 indices; fall back to per-module
+		// draws when a very large scene would overflow that range.
+		// GGC_NO_TRACK_BATCH=1 forces the per-module path for A/B verification.
+		static const bool s_trackBatchDisabled = std::getenv("GGC_NO_TRACK_BATCH") != nullptr;
+		if (!s_trackBatchDisabled && g_renderBackend->Has_Shader_Pipeline() && totalVerts > 0 && totalTris*3 <= 65535)
+		{
+			RenderIndexBufferClass *groupIndexBuffer=NEW_REF(RenderIndexBufferClass,((UnsignedShort)(totalTris*3)));
+			{
+				RenderIndexBufferClass::WriteLockClass lockIdxBuffer(groupIndexBuffer);
+				UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
+				for (TerrainTracksRenderObjClass *texMod=m_usedModules; texMod; texMod=texMod->m_nextSystem)
+				{
+					if (!(texMod->m_activeEdgeCount >= 2 && texMod->Is_Really_Visible()))
+					{
+						continue;
+					}
+					if (texMod->m_groupedThisFlush)
+					{
+						continue;
+					}
+					TextureClass *groupTexture=texMod->m_stageZeroTexture;
+					Int baseVert=0;
+					for (TerrainTracksRenderObjClass *runMod=m_usedModules; runMod; runMod=runMod->m_nextSystem)
+					{
+						if (runMod->m_activeEdgeCount >= 2 && runMod->Is_Really_Visible())
+						{
+							if (runMod->m_stageZeroTexture == groupTexture && !runMod->m_groupedThisFlush)
+							{
+								for (Int e=0; e<(runMod->m_activeEdgeCount-1); e++)
+								{
+									ib[3]=ib[0]=(UnsignedShort)(baseVert+e*2);
+									ib[1]=(UnsignedShort)(baseVert+e*2+1);
+									ib[4]=ib[2]=(UnsignedShort)(baseVert+(e+1)*2+1);
+									ib[5]=(UnsignedShort)(baseVert+(e+1)*2);
+									ib+=6;
+								}
+								runMod->m_groupedThisFlush=true;
+							}
+							baseVert += runMod->m_activeEdgeCount*2;
+						}
+					}
+				}
+			}
+
+			g_renderBackend->Set_Index_Buffer(groupIndexBuffer,0);
+			g_renderBackend->Set_Index_Buffer_Index_Offset(0);
+
+			Int drawStartTri=0;
+			for (TerrainTracksRenderObjClass *drawMod=m_usedModules; drawMod; drawMod=drawMod->m_nextSystem)
+			{
+				if (!drawMod->m_groupedThisFlush)
+				{
+					continue;
+				}
+				TextureClass *groupTexture=drawMod->m_stageZeroTexture;
+				Int groupTris=0;
+				for (TerrainTracksRenderObjClass *sumMod=drawMod; sumMod; sumMod=sumMod->m_nextSystem)
+				{
+					if (sumMod->m_groupedThisFlush && sumMod->m_stageZeroTexture == groupTexture)
+					{
+						groupTris += (sumMod->m_activeEdgeCount-1)*2;
+						sumMod->m_groupedThisFlush=false;
+					}
+				}
+				g_renderBackend->Set_Texture(0,groupTexture);
+				g_renderBackend->Draw_Triangles((UnsignedShort)(drawStartTri*3),(UnsignedShort)groupTris,0,(UnsignedShort)totalVerts);
+				drawStartTri += groupTris;
+			}
+
+			REF_PTR_RELEASE(groupIndexBuffer);
+			// Restore the shared per-module index buffer for the next flush.
+			g_renderBackend->Set_Index_Buffer(m_indexBuffer,0);
+		}
+		else
+		{
+			while (mod)
+			{
+				if (mod->m_activeEdgeCount >= 2 && mod->Is_Really_Visible())
+				{
+					g_renderBackend->Set_Texture(0,mod->m_stageZeroTexture);
+					g_renderBackend->Set_Index_Buffer_Index_Offset(trackStartIndex);
+					g_renderBackend->Draw_Triangles(	0,(mod->m_activeEdgeCount-1)*2, 0, mod->m_activeEdgeCount*2);
+
+					trackStartIndex += mod->m_activeEdgeCount*2;
+				}
+				mod=mod->m_nextSystem;
+			}
 		}
 	}
 
