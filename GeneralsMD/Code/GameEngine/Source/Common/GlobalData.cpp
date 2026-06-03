@@ -59,6 +59,7 @@
 #include "Common/version.h"
 
 #include "GameLogic/AI.h"
+#include "GameLogic/GameLogic.h"
 #include "GameLogic/Weapon.h"
 #include "GameLogic/Module/BodyModule.h"
 
@@ -146,6 +147,14 @@ extern "C" int GGC_GetBgfxScreenshotFrame()
 extern "C" const char * GGC_GetBgfxScreenshotPath()
 {
 	return TheGlobalData ? TheGlobalData->m_bgfxScreenshotPath.str() : "";
+}
+
+// TheSuperHackers @feature bobtista 03/06/2026 Expose the simulation frame so the
+// render backend can trigger a screenshot at a deterministic logic frame (identical
+// scene state across runs/backends) rather than a render frame (render rate varies).
+extern "C" int GGC_GetCurrentLogicFrame()
+{
+	return TheGameLogic ? (int)TheGameLogic->getFrame() : 0;
 }
 
 extern "C" void GGC_ClearBgfxScreenshotRequest()
