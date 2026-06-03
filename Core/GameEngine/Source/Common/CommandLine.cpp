@@ -1088,6 +1088,25 @@ Int parseMaxRenderFPS(char *args[], int num)
 	return 1;
 }
 
+// TheSuperHackers @feature bobtista 03/06/2026 Pin the logic-tick rate to
+// fps regardless of render rate. Use with -noFPSLimit to measure pure
+// rendering throughput: render runs as fast as possible while simulation
+// state advances at the same rate every run.
+Int parseFixedLogicFPS(char *args[], int num)
+{
+	if (num > 1)
+	{
+		int fps = atoi(args[1]);
+		if (fps > 0 && TheFramePacer != nullptr)
+		{
+			TheFramePacer->enableLogicTimeScale(TRUE);
+			TheFramePacer->setLogicTimeScaleFps(fps);
+		}
+		return 2;
+	}
+	return 1;
+}
+
 Int parseMsaa(char *args[], int num)
 {
 	if (num > 1)
@@ -1320,6 +1339,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-ignoresync", parseSync },
 	{ "-noFPSLimit", parseNoFPSLimit },
 	{ "-maxRenderFPS", parseMaxRenderFPS },
+	{ "-fixedLogicFPS", parseFixedLogicFPS },
 	{ "-msaa", parseMsaa },
 	{ "-srgb", parseSrgb },
 	{ "-logFrameTimes", parseLogFrameTimes },
