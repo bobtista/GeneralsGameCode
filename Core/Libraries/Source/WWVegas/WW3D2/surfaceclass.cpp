@@ -54,7 +54,7 @@
 #include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
 #include "texturecompat.h"
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "texturecompatibilityinterop.h"
 #include "dx8wrapper.h"
 #endif
@@ -62,7 +62,7 @@
 #include "colorspace.h"
 #include "bound.h"
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #define DX8_ErrorCode(hr) ((void)(hr))
 #endif
 
@@ -94,7 +94,7 @@ namespace
 
 	bool Should_Use_CPU_Surface_Snapshots()
 	{
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		return true;
 #else
 		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
@@ -103,7 +103,7 @@ namespace
 
 	bool Should_Use_CPU_Only_Surface_Storage()
 	{
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		return true;
 #elif defined(GGC_RENDER_BACKEND_BGFX)
 		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
@@ -250,7 +250,7 @@ SurfaceClass::SurfaceClass(unsigned width, unsigned height, WW3DFormat format):
 		Allocate_CPU_Surface_Snapshot();
 		return;
 	}
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass(width,height,format): standalone bgfx cannot create legacy surface fallback");
@@ -290,7 +290,7 @@ SurfaceClass::SurfaceClass(const char *filename):
 		return;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(false, "SurfaceClass(filename): standalone bgfx must use CPU surface path");
 #else
 	NativeCompatibilitySurface = Create_Legacy_Surface_From_File(filename);
@@ -348,7 +348,7 @@ SurfaceClass::~SurfaceClass()
 		TextureOwner = nullptr;
 	}
 	if (NativeCompatibilitySurface) {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		WWASSERT_PRINT(
 			false,
 			"SurfaceClass::~SurfaceClass: standalone bgfx cannot release fake-D3D surfaces");
@@ -394,7 +394,7 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch)
 		return static_cast<LockedSurfacePtr>(ImageData.Data.data());
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::Lock: standalone bgfx requires a CPU surface snapshot");
@@ -424,7 +424,7 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch, const Vector2i &mi
 			min.I * pixel_size);
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::Lock(rect): standalone bgfx requires a CPU surface snapshot");
@@ -456,7 +456,7 @@ void SurfaceClass::Unlock()
 		return;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::Unlock: standalone bgfx cannot unlock fake-D3D surfaces");
@@ -503,7 +503,7 @@ void SurfaceClass::Clear()
 		return;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::Clear: standalone bgfx requires a CPU surface snapshot");
@@ -574,7 +574,7 @@ void SurfaceClass::Copy(const unsigned char *other, unsigned int pitch)
 		return;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::Copy(bytes): standalone bgfx requires a CPU surface snapshot");
@@ -635,7 +635,7 @@ void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned
 		return;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::Copy(rect,bytes): standalone bgfx requires a CPU surface snapshot");
@@ -710,7 +710,7 @@ unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool fli
 		return other;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::CreateCopy: standalone bgfx requires a CPU surface snapshot");
@@ -909,7 +909,7 @@ void SurfaceClass::Copy(
 	}
 	else
 	{
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		WWASSERT_PRINT(
 			false,
 			"SurfaceClass::Copy: standalone bgfx does not support legacy format-converting surface copies");
@@ -969,7 +969,7 @@ void SurfaceClass::Stretch_Copy(
 	Get_Description(sd);
 	const_cast <SurfaceClass*>(other)->Get_Description(osd);
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::Stretch_Copy: standalone bgfx does not support legacy stretched surface copies");
@@ -1067,7 +1067,7 @@ void SurfaceClass::FindBB(Vector2i *min,Vector2i*max)
 		return;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::FindBB: standalone bgfx requires a CPU surface snapshot");
@@ -1172,7 +1172,7 @@ bool SurfaceClass::Is_Transparent_Column(unsigned int column)
 		return true;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::Is_Transparent_Column: standalone bgfx requires a CPU surface snapshot");
@@ -1256,7 +1256,7 @@ void SurfaceClass::Get_Pixel(Vector3 &rgb, int x, int y, LockedSurfacePtr pBits,
 void SurfaceClass::Attach_Native_Compatibility_Surface(void *surface)
 {
 	Detach ();
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		surface == nullptr,
 		"SurfaceClass::Attach_Native_Compatibility_Surface: standalone bgfx cannot attach fake-D3D surfaces");
@@ -1279,7 +1279,7 @@ void SurfaceClass::Update_Description_From_Native_Compatibility_Surface()
 {
 	WWASSERT(NativeCompatibilitySurface != nullptr);
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		false,
 		"SurfaceClass::Update_Description_From_Native_Compatibility_Surface: standalone bgfx cannot read fake-D3D surface descriptions");
@@ -1316,7 +1316,7 @@ void SurfaceClass::Allocate_CPU_Surface_Snapshot()
 
 void SurfaceClass::Capture_CPU_Surface_Snapshot()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
 		NativeCompatibilitySurface == nullptr,
 		"SurfaceClass::Capture_CPU_Surface_Snapshot: standalone bgfx cannot read fake-D3D surface snapshots");
@@ -1372,7 +1372,7 @@ void SurfaceClass::Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface()
 
 	if (NativeCompatibilitySurface != nullptr)
 	{
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		WWASSERT_PRINT(
 			false,
 			"SurfaceClass::Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface: standalone bgfx cannot write fake-D3D surfaces");
@@ -1465,7 +1465,7 @@ void SurfaceClass::Detach ()
 	//	Release the hold we have on the legacy surface object
 	//
 	if (NativeCompatibilitySurface != nullptr) {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 		WWASSERT_PRINT(
 			false,
 			"SurfaceClass::Detach: standalone bgfx cannot release fake-D3D surfaces");

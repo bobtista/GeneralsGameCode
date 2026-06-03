@@ -1557,7 +1557,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	}
 
 	if (g_renderBackend->Is_Triangle_Draw_Enabled())
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	{
 		// TheSuperHackers @bugfix bobtista 30/04/2026 Route the player-color
 		// stencil wash through the dedicated effect-overlay view so its

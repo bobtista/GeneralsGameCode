@@ -36,7 +36,7 @@ extern unsigned int missing_image_pixels[];
 
 void MissingTexture::_Init()
 {
-#if defined(GGC_BGFX_STANDALONE) && defined(GGC_RENDER_BACKEND_BGFX)
+#if defined(GGC_RENDER_BACKEND_BGFX) && defined(GGC_RENDER_BACKEND_BGFX)
 	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
 	{
 		return;

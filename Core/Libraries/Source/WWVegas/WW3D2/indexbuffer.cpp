@@ -39,7 +39,7 @@
 //#define INDEX_BUFFER_LOG
 
 #include "indexbuffer.h"
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "dx8indexbuffer.h"
 #include "dx8wrapper.h"
 #endif
@@ -51,7 +51,7 @@
 #include "wwmemlog.h"
 #include <cstring>
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 #define RENDER_BUFFER_THREAD_ASSERT()
 #else
 #define RENDER_BUFFER_THREAD_ASSERT() DX8_THREAD_ASSERT()
@@ -79,7 +79,7 @@ static int _IndexBufferCount;
 static int _IndexBufferTotalIndices;
 static int _IndexBufferTotalSize;
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 using LegacyIndexBuffer = IDirect3DIndexBuffer8;
 
 constexpr unsigned kLegacyBufferUsageWriteOnly = D3DUSAGE_WRITEONLY, kLegacyBufferUsageDynamic = D3DUSAGE_DYNAMIC, kLegacyBufferUsageNPatches = D3DUSAGE_NPATCHES, kLegacyBufferUsageSoftwareProcessing = D3DUSAGE_SOFTWAREPROCESSING;
@@ -173,7 +173,7 @@ unsigned IndexBufferClass::Get_Total_Allocated_Memory()
 
 void *IndexBufferClass::Lock_CPU_Buffer_Data(unsigned byte_offset, unsigned size)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	if (type == BUFFER_TYPE_STATIC && m_backendHandle == kInvalidRenderResource) {
 		WWASSERT_PRINT(
 			false,
@@ -202,7 +202,7 @@ void IndexBufferClass::Update_CPU_Buffer_Data(unsigned byte_offset, const void *
 		return;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	if (type == BUFFER_TYPE_STATIC && m_backendHandle == kInvalidRenderResource) {
 		WWASSERT_PRINT(
 			false,
@@ -299,7 +299,7 @@ IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* index_buffer_
 	index_buffer->Add_Ref();
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_STATIC:
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
 			DX8_ErrorCode(legacy->Lock(
@@ -349,7 +349,7 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 		}
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_STATIC:
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
 			DX8_ErrorCode(legacy->Unlock());
@@ -380,7 +380,7 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 	index_buffer->Add_Ref();
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_STATIC:
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
 			DX8_ErrorCode(legacy->Lock(
@@ -426,7 +426,7 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 		}
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_STATIC:
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
 			DX8_ErrorCode(legacy->Unlock());
@@ -448,7 +448,7 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 //
 // ----------------------------------------------------------------------------
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType usage)
 	:
 	IndexBufferClass(BUFFER_TYPE_STATIC,index_count_)
@@ -461,7 +461,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 		return;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT(0);
 	return;
 #else
@@ -536,7 +536,7 @@ DX8IndexBufferClass::~DX8IndexBufferClass()
 
 // ----------------------------------------------------------------------------
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 RenderIndexBufferClass::RenderIndexBufferClass(unsigned short index_count_, UsageType usage)
 	:
 	IndexBufferClass(BUFFER_TYPE_STATIC, index_count_)
@@ -648,7 +648,7 @@ DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_ac
 	case BUFFER_TYPE_DYNAMIC:
 		WWASSERT(DynamicIBAccess);
 //		WWASSERT(!dynamic_dx8_index_buffer->Engine_Refs());
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(DynamicIBAccess->IndexBuffer))) {
 			DX8_ErrorCode(legacy->Lock(
@@ -699,7 +699,7 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 				g_renderBackend->Capture_Dynamic_Index_Data(DynamicIBAccess, Indices, total_bytes);
 			}
 		}
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(DynamicIBAccess->IndexBuffer))) {
 			DX8_ErrorCode(legacy->Unlock());
