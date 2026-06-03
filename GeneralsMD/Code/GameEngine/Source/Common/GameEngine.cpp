@@ -974,6 +974,27 @@ void GameEngine::update()
 				TheGameClient->step();
 			}
 		}
+
+		// TheSuperHackers @feature bobtista 03/06/2026 Render benchmark freeze.
+		// GGC_FREEZE_LOGIC_AFTER=N freezes the simulation once logic reaches frame
+		// N (rendering continues). The scene then becomes byte-identical across
+		// runs, eliminating the save-forward divergence that otherwise makes
+		// sub-fps render-backend comparisons unmeasurable. Freeze early (small N)
+		// for the most reproducible scene.
+		static int s_freezeAfter = -2;
+		if (s_freezeAfter == -2)
+		{
+			const char * e = getenv("GGC_FREEZE_LOGIC_AFTER");
+			s_freezeAfter = (e != nullptr) ? atoi(e) : -1;
+		}
+		if (s_freezeAfter > 0
+			&& TheGameLogic != nullptr
+			&& TheGameLogic->getFrame() >= (UnsignedInt)s_freezeAfter
+			&& TheFramePacer != nullptr
+			&& !TheFramePacer->isTimeFrozen())
+		{
+			TheFramePacer->setTimeFrozen(TRUE);
+		}
 	}
 }
 
