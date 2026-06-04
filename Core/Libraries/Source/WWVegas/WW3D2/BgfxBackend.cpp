@@ -3824,7 +3824,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                         "set_tex_us,set_tex_n,set_vb_us,set_vb_n,set_ib_us,set_ib_n,"
                         "submit_us,submit_n,draw_us,draw_n,"
                         "apply_tex_us,apply_tex_n,uniforms_us,uniforms_n,light_us,light_n,"
-                        "frame_draw_us,update_views_us,particle_update_us,rtt_us,draw_views_us,ui_draw_us,end_render_us,unattributed_us,"
+                        "frame_draw_us,update_views_us,particle_update_us,rtt_us,draw_views_us,ui_draw_us,end_render_us,render_unattributed_us,main_loop_other_us,"
                         "render_total_us,traversal_us,mesh_flush_us,sort_flush_us,particles_us,terrain_us,"
                         "gpu_us,cpu_us,wait_sub_us,wait_ren_us,bgfx_ndraw\n");
                     s_headerWritten = true;
@@ -3860,7 +3860,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                 std::fprintf(f,
                     "%u,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
                     "%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,"
-                    "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
+                    "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
                     "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
                     "%.1f,%.1f,%.1f,%.1f,%u\n",
                     g_stats.frameIndex,
@@ -3902,7 +3902,8 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                     GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::DRAW_VIEWS].total_ticks * us_per_tick,
                     GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UI_DRAW].total_ticks * us_per_tick,
                     GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::END_RENDER].total_ticks * us_per_tick,
-                    // unattributed = FRAME_DRAW minus the non-overlapping top-level buckets.
+                    // render_unattributed = FRAME_DRAW minus the non-overlapping top-level buckets
+                    // (work inside W3DDisplay::draw not in any named bucket). NOT the whole-frame remainder.
                     (GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::FRAME_DRAW].total_ticks
                         - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UPDATE_VIEWS].total_ticks
                         - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::PARTICLE_UPDATE].total_ticks
@@ -3910,6 +3911,10 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                         - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::DRAW_VIEWS].total_ticks
                         - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UI_DRAW].total_ticks
                         - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::END_RENDER].total_ticks) * us_per_tick,
+                    // main_loop_other = full frame (cpu_us) minus W3DDisplay::draw: the non-render
+                    // main-loop work between bgfx frames (client/drawable update + GPU backpressure).
+                    // 1-frame lag (cpu_us is current frame, frame_draw snapshot is previous) — fine for medians.
+                    cpu_us - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::FRAME_DRAW].total_ticks * us_per_tick,
                     // Nested detail inside DRAW_VIEWS/RTT (subsets, not subtracted above).
                     GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::RENDER_TOTAL].total_ticks * us_per_tick,
                     GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::TRAVERSAL].total_ticks * us_per_tick,
