@@ -400,6 +400,22 @@ static bool BgfxStencilShadowsEnabled()
     return mode == BgfxShadowMode::Stencil;
 }
 
+// TheSuperHackers @performance bobtista 04/06/2026 Opt-in bgfx multithreaded mode.
+// By default the backend forces single-threaded mode by calling bgfx::renderFrame()
+// once before bgfx::init() (see Initialize). With GGC_BGFX_RENDER_THREAD set we skip
+// that call so bgfx::init() creates its own internal render thread, pipelining the
+// Metal command-buffer build against the next frame's encode. Default OFF; the DX8
+// path and the single-threaded bgfx path are unchanged.
+static bool BgfxUseRenderThread()
+{
+    static int cached = -1;
+    if (cached < 0)
+    {
+        cached = (std::getenv("GGC_BGFX_RENDER_THREAD") != nullptr) ? 1 : 0;
+    }
+    return cached != 0;
+}
+
 static bool g_triangleDrawEnabled = true;
 
 static bool IsBgfxStatsLoggingEnabled()
@@ -3595,7 +3611,16 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     WWDEBUG_SAY(("[BgfxBackend] Using main game window %p (%dx%d) for bgfx.",
                  g_device.window, g_device.width, g_device.height));
 
-    bgfx::renderFrame();
+    if (!BgfxUseRenderThread())
+    {
+        // Single-threaded mode (default): this pre-init call tells bgfx::init() not to
+        // create an internal render thread, so bgfx::frame() runs renderFrame() inline.
+        bgfx::renderFrame();
+    }
+    else
+    {
+        WWDEBUG_SAY(("[BgfxBackend] GGC_BGFX_RENDER_THREAD set: using bgfx internal render thread."));
+    }
 
     bgfx::PlatformData pd;
     pd.ndt = nullptr;
