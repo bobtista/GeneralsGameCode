@@ -59,6 +59,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/sortingrenderer.h"
+#include "WW3D2/BgfxRenderProfile.h"
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/vertexbuffer.h"
 #include "WW3D2/RenderBackend.h"
@@ -1074,7 +1075,10 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 	if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
 		DoShadows(rinfo, false);	//draw all non-stencil shadows (decals) since they fall under other objects.
 
-	TheDX8MeshRenderer.Flush();	//draw all non-translucent objects.
+	{
+		GGC_RPROFILE(MESH_FLUSH);
+		TheDX8MeshRenderer.Flush();	//draw all non-translucent objects.
+	}
 
 	//draw all non-translucent objects which were separated because they are hidden and need custom rendering.
 #ifdef USE_NON_STENCIL_OCCLUSION
@@ -1104,9 +1108,15 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 
 		//don't draw transparent in this mode because they interfere with destination alpha
 		if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
+		{
+			GGC_RPROFILE(PARTICLES);
 			DoParticles(rinfo);	//queue up particles for rendering.
+		}
 
-		SortingRendererClass::Flush();	//draw sorted translucent polygons like particles.
+		{
+			GGC_RPROFILE(SORT_FLUSH);
+			SortingRendererClass::Flush();	//draw sorted translucent polygons like particles.
+		}
 	}
 	TheDX8MeshRenderer.Clear_Pending_Delete_Lists();
 }
@@ -1197,6 +1207,7 @@ void RTS3DScene::updatePlayerColorPasses()
 //DECLARE_PERF_TIMER(NonTerrainRender)
 void RTS3DScene::Render(RenderInfoClass & rinfo)
 {
+	GGC_RPROFILE(RENDER_TOTAL);
 	//USE_PERF_TIMER(NonTerrainRender)
 	SceneDiagReset();
 	g_renderBackend->Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
@@ -1329,6 +1340,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 //=============================================================================
 void RTS3DScene::Customized_Render( RenderInfoClass &rinfo )
 {
+	GGC_RPROFILE(TRAVERSAL);
 #ifdef DIRTY_CONDITION_FLAGS
 	StDrawableDirtyStuffLocker lockDirtyStuff;
 #endif
