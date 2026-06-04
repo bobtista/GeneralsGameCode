@@ -54,8 +54,8 @@ IRenderBackend * Create_Render_Backend(void * window, bool lite)
 
 // TheSuperHackers @refactor bobtista 29/10/2026 Bridge from the upstream static
 // Renderer class to the active IRenderBackend. Renderer owns the backend instance
-// and forwards to it; device queries go to DX8Wrapper as they did before the
-// Renderer class existed.
+// and forwards to it. The texture bit depth and swap interval still come from
+// DX8Wrapper because the backend interface does not expose them.
 
 #include "Renderer.h"
 #include "dx8wrapper.h"
@@ -86,42 +86,42 @@ void Renderer::Shutdown()
 
 int Renderer::Get_Render_Device_Count()
 {
-    return DX8Wrapper::Get_Render_Device_Count();
+    return TheRenderBackend->Get_Render_Device_Count();
 }
 
 int Renderer::Get_Render_Device()
 {
-    return DX8Wrapper::Get_Render_Device();
+    return TheRenderBackend->Get_Render_Device();
 }
 
 const char * Renderer::Get_Render_Device_Name(int device_index)
 {
-    return DX8Wrapper::Get_Render_Device_Name(device_index);
+    return TheRenderBackend->Get_Render_Device_Name(device_index);
 }
 
 void Renderer::Get_Device_Resolution(int & width, int & height, int & bits, bool & windowed)
 {
-    DX8Wrapper::Get_Device_Resolution(width, height, bits, windowed);
+    TheRenderBackend->Get_Device_Resolution(width, height, bits, windowed);
 }
 
 void Renderer::Get_Render_Target_Resolution(int & width, int & height, int & bits, bool & windowed)
 {
-    DX8Wrapper::Get_Render_Target_Resolution(width, height, bits, windowed);
+    TheRenderBackend->Get_Render_Target_Resolution(width, height, bits, windowed);
 }
 
 int Renderer::Get_Device_Resolution_Width()
 {
-    return DX8Wrapper::Get_Device_Resolution_Width();
+    return TheRenderBackend->Get_Device_Resolution_Width();
 }
 
 int Renderer::Get_Device_Resolution_Height()
 {
-    return DX8Wrapper::Get_Device_Resolution_Height();
+    return TheRenderBackend->Get_Device_Resolution_Height();
 }
 
 bool Renderer::Is_Windowed()
 {
-    return DX8Wrapper::Is_Windowed();
+    return TheRenderBackend->Is_Windowed();
 }
 
 int Renderer::Get_Texture_Bitdepth()
