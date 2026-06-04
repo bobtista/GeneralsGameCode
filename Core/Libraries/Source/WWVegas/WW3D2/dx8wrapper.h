@@ -699,6 +699,10 @@ protected:
 	// reference adapter that bridges IRenderBackend to DX8Wrapper. It needs
 	// access to the protected MSAA / texture-bitdepth accessors.
 	friend class DX8Backend;
+	// TheSuperHackers @build bobtista 05/06/2026 BgfxBackend forwards the
+	// device-enumeration / display-mode facade to DX8Wrapper on bgfx builds
+	// and needs the same protected access as DX8Backend.
+	friend class BgfxBackend;
 };
 
 // shader system updates KJM v
