@@ -49,6 +49,35 @@ public:
     virtual void Initialize(void * hwnd, int width, int height) override;
     virtual void Shutdown() override;
 
+    virtual bool Init_Render_System(void * hwnd, bool lite) override;
+    virtual void Shutdown_Render_System() override;
+
+    // -- Device selection, windowing and display-mode control -----------------
+    //
+    // bgfx has no D3D device-enumeration concept; these forward to the
+    // DX8Wrapper facade, which on bgfx builds stores the resolution list and
+    // window state so the existing options UI keeps working unchanged.
+
+    virtual bool Set_Render_Device(const char * dev_name, int width, int height, int bits, int windowed, bool resize_window) override;
+    virtual bool Set_Render_Device(int dev, int width, int height, int bits, int windowed, bool resize_window, bool reset_device, bool restore_assets) override;
+    virtual bool Set_Any_Render_Device() override;
+    virtual bool Set_Next_Render_Device() override;
+    virtual bool Toggle_Windowed() override;
+    virtual bool Is_Windowed() const override;
+    virtual int Get_Render_Device() const override;
+    virtual const RenderDeviceDescClass & Get_Render_Device_Desc(int deviceidx) override;
+    virtual int Get_Render_Device_Count() const override;
+    virtual const char * Get_Render_Device_Name(int device_index) override;
+    virtual bool Set_Device_Resolution(int width, int height, int bits, int windowed, bool resize_window) override;
+    virtual void Get_Render_Target_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed) override;
+    virtual void Get_Device_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed) override;
+    virtual int Get_Device_Resolution_Width() const override;
+    virtual int Get_Device_Resolution_Height() const override;
+    virtual bool Registry_Save_Render_Device(const char * sub_key) override;
+    virtual bool Registry_Save_Render_Device(const char * sub_key, int device, int width, int height, int depth, bool windowed, int texture_depth) override;
+    virtual bool Registry_Load_Render_Device(const char * sub_key, bool resize_window) override;
+    virtual bool Registry_Load_Render_Device(const char * sub_key, char * device, int device_len, int & width, int & height, int & depth, int & windowed, int & texture_depth) override;
+
     // -- Frame lifecycle ------------------------------------------------------
     //
     // Begin_Scene touches the bgfx views; End_Scene calls bgfx::frame to advance the swap chain.
