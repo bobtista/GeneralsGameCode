@@ -62,6 +62,8 @@ public:
     virtual bool Registry_Save_Render_Device(const char * sub_key, int device, int width, int height, int depth, bool windowed, int texture_depth) override;
     virtual bool Registry_Load_Render_Device(const char * sub_key, bool resize_window) override;
     virtual bool Registry_Load_Render_Device(const char * sub_key, char * device, int device_len, int & width, int & height, int & depth, int & windowed, int & texture_depth) override;
+    virtual void Set_Swap_Interval(int swap) override;
+    virtual int Get_Swap_Interval() const override;
 
     // -- Device state queries -------------------------------------------------
 
