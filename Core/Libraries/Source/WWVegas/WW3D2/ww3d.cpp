@@ -881,11 +881,6 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 		WW3D::Get_Render_Backend()->Begin_Scene();
 	}
 
-#if !defined(GGC_RENDER_BACKEND_BGFX)
-	// Notify D3D that we are beginning to render the frame
-	DX8Wrapper::Begin_Scene();
-#endif
-
 	return WW3D_ERROR_OK;
 }
 
@@ -1136,11 +1131,6 @@ WW3DErrorType WW3D::End_Render(bool flip_frame)
 		WW3D::Get_Render_Backend()->End_Scene(flip_frame);
 	}
 
-	{
-		WWPROFILE("IRenderBackend::End_Scene");
-		Get_Render_Backend()->End_Scene(flip_frame);
-	}
-
 	FrameCount++;
 
 	{
@@ -1157,7 +1147,10 @@ WW3DErrorType WW3D::End_Render(bool flip_frame)
 	// (gth) I've found some cases where its not safe to rely on our "shadow" copy (of
 	// matrices for example) across multiple frames.  So even though this is slightly
 	// less "optimal", lets just reset the caches each frame.
-	Get_Render_Backend()->Invalidate_Cached_Render_States();
+	if (WW3D::Get_Render_Backend() != nullptr)
+	{
+		WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();
+	}
 
 	return WW3D_ERROR_OK;
 }
@@ -1177,7 +1170,10 @@ WW3DErrorType WW3D::End_Render(bool flip_frame)
  *=============================================================================================*/
 void WW3D::Flip_To_Primary()
 {
-	Get_Render_Backend()->Flip_To_Primary();
+	if (WW3D::Get_Render_Backend() != nullptr)
+	{
+		WW3D::Get_Render_Backend()->Flip_To_Primary();
+	}
 }
 
 
