@@ -723,6 +723,79 @@ void RTS3DScene::renderSpecificDrawables(RenderInfoClass &rinfo, Int numDrawable
 	}
 }
 
+// TheSuperHackers @performance bobtista 04/06/2026 Optional sub-pixel mesh-skip.
+// With GGC_BGFX_CULL_SUBPIXEL set, world drawables whose projected on-screen size is
+// below GGC_BGFX_CULL_MIN_PX (default 2.0) have only their base mesh render submission
+// skipped. The object stays in the scene, so shroud/picking/selection/decals/health
+// bars are all preserved. Default OFF, shader pipeline only, never culls selected units.
+static Bool SubpixelCullEnabled()
+{
+	static int cached = -1;
+	if (cached < 0)
+	{
+		cached = (getenv("GGC_BGFX_CULL_SUBPIXEL") != nullptr) ? 1 : 0;
+	}
+	return cached != 0;
+}
+
+static Real SubpixelCullMinPx()
+{
+	static Real cached = -1.0f;
+	if (cached < 0.0f)
+	{
+		const char *env = getenv("GGC_BGFX_CULL_MIN_PX");
+		cached = (env != nullptr) ? (Real)atof(env) : 2.0f;
+		if (cached < 0.0f)
+		{
+			cached = 0.0f;
+		}
+	}
+	return cached;
+}
+
+static Int g_subpixelTested = 0;
+static Int g_subpixelCulled = 0;
+
+static Bool ShouldSubpixelCullMesh(RenderInfoClass &rinfo, Drawable *draw, const SphereClass &sph)
+{
+	if (!SubpixelCullEnabled())
+	{
+		return FALSE;
+	}
+	if (draw == nullptr)
+	{
+		return FALSE;
+	}
+	if (g_renderBackend == nullptr || !g_renderBackend->Has_Shader_Pipeline())
+	{
+		return FALSE;
+	}
+	if (draw->isSelected())
+	{
+		return FALSE;
+	}
+	const Real screenWidth = (Real)TheDisplay->getWidth();
+	if (screenWidth <= 0.0f)
+	{
+		return FALSE;
+	}
+	const Vector3 toCenter = sph.Center - rinfo.Camera.Get_Position();
+	const Real dist = toCenter.Length();
+	if (dist <= sph.Radius)
+	{
+		return FALSE;
+	}
+	const Real ndcRadius = rinfo.Camera.Compute_Projected_Sphere_Radius(dist, sph.Radius);
+	const Real pixelDiameter = (ndcRadius < 0.0f ? -ndcRadius : ndcRadius) * screenWidth;
+	++g_subpixelTested;
+	const Bool cull = (pixelDiameter < SubpixelCullMinPx());
+	if (cull)
+	{
+		++g_subpixelCulled;
+	}
+	return cull;
+}
+
 //============================================================================
 // RTS3DScene::renderOneObject
 //=============================================================================
@@ -930,7 +1003,11 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 		}
 	}
 
-	if (!drawableHidden)
+	// TheSuperHackers @performance bobtista 04/06/2026 Skip only the mesh render for
+	// sub-pixel drawables; shroud status, material-pass pops and light_environment reset
+	// below still run so the object stays fully present in the scene.
+	const Bool cullMeshDraw = ShouldSubpixelCullMesh(rinfo, draw, sph);
+	if (!drawableHidden && !cullMeshDraw)
 	{
 		//standard scene lights
 		RefRenderObjListIterator it2(&LightList);
@@ -1210,6 +1287,15 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 				Flush(rinfo);
 				SceneDiagWrite(m_drawTerrainOnly, m_numPotentialOccluders, m_numPotentialOccludees,
 					m_numNonOccluderOrOccludee, m_translucentObjectsCount);
+				if (SubpixelCullEnabled() && g_subpixelTested > 0
+					&& (TheGameLogic->getFrame() % 30) == 0)
+				{
+					// Visible on release builds too (DEBUG_LOG is a no-op there), gated on the
+					// opt-in env so it never prints for normal users. Mirrors BGFX_PERF.
+					fprintf(stderr, "BGFX subpixel-cull: %d of %d drawables skipped (<%.1f px)\n",
+						(int)g_subpixelCulled, (int)g_subpixelTested, SubpixelCullMinPx());
+					fflush(stderr);
+				}
 			}
 		else if (m_customPassMode == SCENE_PASS_ALPHA_MASK)
 		{
@@ -1332,6 +1418,10 @@ void RTS3DScene::Customized_Render( RenderInfoClass &rinfo )
 	RenderObjClass *terrainObject=nullptr,*robj;
 	m_translucentObjectsCount = 0;	//start of new frame so no translucent objects
 	m_occludedObjectsCount = 0;
+
+	// TheSuperHackers @performance bobtista 04/06/2026 Per-pass sub-pixel cull counters.
+	g_subpixelTested = 0;
+	g_subpixelCulled = 0;
 
 	const Int localPlayerIndex = rts::getObservedOrLocalPlayerIndex_Safe();
 
