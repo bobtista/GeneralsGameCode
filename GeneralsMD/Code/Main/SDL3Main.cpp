@@ -88,14 +88,21 @@ int main(int argc, char **argv)
 		}
 	}
 	bool wantWindowed = false;
+	int requestedW = 0;
+	int requestedH = 0;
 	for (int argi = 1; argi < argc; ++argi)
 	{
 		if (strcmp(argv[argi], "-win") == 0)
 		{
 			wantWindowed = true;
-			windowW = kDefaultWindowWidth;
-			windowH = kDefaultWindowHeight;
-			break;
+		}
+		else if (strcmp(argv[argi], "-xres") == 0 && argi + 1 < argc)
+		{
+			requestedW = atoi(argv[argi + 1]);
+		}
+		else if (strcmp(argv[argi], "-yres") == 0 && argi + 1 < argc)
+		{
+			requestedH = atoi(argv[argi + 1]);
 		}
 	}
 	TheSDL3Window = SDL_CreateWindow(kWindowTitle, windowW, windowH, windowFlags);
