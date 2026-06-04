@@ -400,18 +400,23 @@ static bool BgfxStencilShadowsEnabled()
     return mode == BgfxShadowMode::Stencil;
 }
 
-// TheSuperHackers @performance bobtista 04/06/2026 Opt-in bgfx multithreaded mode.
-// By default the backend forces single-threaded mode by calling bgfx::renderFrame()
-// once before bgfx::init() (see Initialize). With GGC_BGFX_RENDER_THREAD set we skip
-// that call so bgfx::init() creates its own internal render thread, pipelining the
-// Metal command-buffer build against the next frame's encode. Default OFF; the DX8
-// path and the single-threaded bgfx path are unchanged.
+// TheSuperHackers @performance bobtista 04/06/2026 bgfx multithreaded mode.
+// The backend forces single-threaded mode by calling bgfx::renderFrame() once before
+// bgfx::init() (see Initialize); skipping it lets bgfx::init() create its own internal
+// render thread, pipelining the Metal command-buffer build against the next frame's
+// encode. On macOS this is the default (validated pixel-identical + ~17% frame win, and
+// up to ~48% on GPU-flush-bound heavy scenes); opt out with GGC_BGFX_NO_RENDER_THREAD.
+// On other platforms it stays opt-in via GGC_BGFX_RENDER_THREAD. The DX8 path is unchanged.
 static bool BgfxUseRenderThread()
 {
     static int cached = -1;
     if (cached < 0)
     {
+#if defined(__APPLE__)
+        cached = (std::getenv("GGC_BGFX_NO_RENDER_THREAD") == nullptr) ? 1 : 0;
+#else
         cached = (std::getenv("GGC_BGFX_RENDER_THREAD") != nullptr) ? 1 : 0;
+#endif
     }
     return cached != 0;
 }
@@ -3666,14 +3671,16 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         initArgs.resolution.reset |= BGFX_RESET_DEPTH_CLAMP;
     }
 #if defined(__APPLE__)
-    // TheSuperHackers @bugfix bobtista 30/04/2026 BGFX_RESET_FLUSH_AFTER_RENDER
-    // serializes Metal command buffer submission instead of pipelining a
-    // frame ahead. AGX on M4 / macOS Tahoe loses internal helper-shader
-    // compiles when many command encoders are in flight; flushing after
-    // each render call lets the background compile queue drain. The flag
-    // costs ~1 frame of latency but is harmless. GGC_MACOS_NO_FLUSH=1
-    // disables it for A/B testing.
-    if (std::getenv("GGC_MACOS_NO_FLUSH") == nullptr)
+    // TheSuperHackers @performance bobtista 04/06/2026 BGFX_RESET_FLUSH_AFTER_RENDER
+    // serializes Metal command-buffer submission instead of pipelining a frame ahead.
+    // It was added (30/04/2026) to work around AGX losing internal helper-shader compiles
+    // when many encoders are in flight. With the render-thread split it instead serializes
+    // the GPU against the CPU and dominated the frame on heavy scenes (save 69: ~48% faster
+    // without it). After a multi-scene artifact soak + play-test it is now OFF by default.
+    // Re-enable with GGC_MACOS_FLUSH=1 if AGX shader-compile artifacts ever reappear;
+    // GGC_MACOS_NO_FLUSH still forces it off.
+    if (std::getenv("GGC_MACOS_FLUSH") != nullptr
+        && std::getenv("GGC_MACOS_NO_FLUSH") == nullptr)
     {
         initArgs.resolution.reset |= BGFX_RESET_FLUSH_AFTER_RENDER;
     }
