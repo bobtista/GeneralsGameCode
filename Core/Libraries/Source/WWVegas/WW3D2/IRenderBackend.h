@@ -578,6 +578,10 @@ public:
     virtual bool Registry_Load_Render_Device(const char * sub_key, bool resize_window) { return false; }
     virtual bool Registry_Load_Render_Device(const char * sub_key, char * device, int device_len, int & width, int & height, int & depth, int & windowed, int & texture_depth) { return false; }
 
+    // Present sync interval. 0 = no vsync, non-zero = sync to display refresh.
+    virtual void Set_Swap_Interval(int swap) {}
+    virtual int Get_Swap_Interval() const { return 0; }
+
     // -------------------------------------------------------------------------
     // Device state queries
     // -------------------------------------------------------------------------
