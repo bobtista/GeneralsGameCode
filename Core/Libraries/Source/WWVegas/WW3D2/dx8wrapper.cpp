@@ -718,22 +718,21 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	*/
 	Compute_Caps(D3DFormat_To_WW3DFormat(Legacy_Format(DisplayFormat)));
 
-	// TheSuperHackers @refactor bobtista 11/04/2026 Construct and
-	// initialize the render backend BEFORE the engine
-	// subsystem _Init() calls below. Several of them (notably
-	// PointGroupClass::_Init and BoxRenderObjClass::Init) allocate
-	// static index / vertex buffers and populate them via the Write
-	// lock classes, whose destructors call g_renderBackend->Capture_*
-	// to mirror the data into the bgfx caches. If the backend is not
-	// fully initialized (g_bgfxInitialized == false) at that moment
-	// those buffers are never captured and every later bgfx draw that
-	// binds them misses the cache and silently skips submission -
-	// which is why particles, lasers, tracers, and debris were
-	// invisible in the bgfx popup even though the underlying W3D
-	// effect modules ran. The d3d8 device and HWND are already valid
-	// by the time this function is called, so it is safe to run the
-	// backend's real Initialize() here, well before the _Init() calls.
-	Init_Render_Backend();
+	// TheSuperHackers @refactor bobtista 11/04/2026 Initialize the render
+	// backend's per-window context BEFORE the engine subsystem _Init()
+	// calls below. Several of them (notably PointGroupClass::_Init and
+	// BoxRenderObjClass::Init) allocate static index / vertex buffers and
+	// populate them via the Write lock classes, whose destructors call
+	// g_renderBackend->Capture_* to mirror the data into the bgfx caches. If
+	// the backend is not fully initialized (g_bgfxInitialized == false) at
+	// that moment those buffers are never captured and every later bgfx draw
+	// that binds them misses the cache and silently skips submission - which
+	// is why particles, lasers, tracers, and debris were invisible in the
+	// bgfx popup even though the underlying W3D effect modules ran. The d3d8
+	// device and HWND are already valid by the time this function is called,
+	// so it is safe to run the backend's real Initialize() here, well before
+	// the _Init() calls. The backend object itself is constructed earlier, in
+	// WW3D::Init, so it is already live here.
 	// bgfx and legacy DX8 both render to the real game HWND.
 	g_renderBackend->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
 
@@ -810,10 +809,11 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	if (g_renderBackend != nullptr)
 	{
 		// Symmetric counterpart to the Initialize call in
-		// Do_Onetime_Device_Dependent_Inits.
+		// Do_Onetime_Device_Dependent_Inits. The backend object outlives
+		// this teardown; it is destroyed in WW3D::Shutdown via
+		// Shutdown_Render_Backend.
 		g_renderBackend->Shutdown();
 	}
-	Shutdown_Render_Backend();
 
 	/*
 	** Shutdown ww3d systems

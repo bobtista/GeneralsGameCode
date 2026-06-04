@@ -177,6 +177,113 @@ void DX8Backend::Shutdown()
     }
 }
 
+bool DX8Backend::Init_Render_System(void * hwnd, bool lite)
+{
+    return DX8Wrapper::Init(hwnd, lite);
+}
+
+void DX8Backend::Shutdown_Render_System()
+{
+    DX8Wrapper::Shutdown();
+}
+
+// -- Device selection, windowing and display-mode control --------------------
+
+bool DX8Backend::Set_Render_Device(const char * dev_name, int width, int height, int bits, int windowed, bool resize_window)
+{
+    return DX8Wrapper::Set_Render_Device(dev_name, width, height, bits, windowed, resize_window);
+}
+
+bool DX8Backend::Set_Render_Device(int dev, int width, int height, int bits, int windowed, bool resize_window, bool reset_device, bool restore_assets)
+{
+    return DX8Wrapper::Set_Render_Device(dev, width, height, bits, windowed, resize_window, reset_device, restore_assets);
+}
+
+bool DX8Backend::Set_Any_Render_Device()
+{
+    return DX8Wrapper::Set_Any_Render_Device();
+}
+
+bool DX8Backend::Set_Next_Render_Device()
+{
+    return DX8Wrapper::Set_Next_Render_Device();
+}
+
+bool DX8Backend::Toggle_Windowed()
+{
+    return DX8Wrapper::Toggle_Windowed();
+}
+
+bool DX8Backend::Is_Windowed() const
+{
+    return DX8Wrapper::Is_Windowed();
+}
+
+int DX8Backend::Get_Render_Device() const
+{
+    return DX8Wrapper::Get_Render_Device();
+}
+
+const RenderDeviceDescClass & DX8Backend::Get_Render_Device_Desc(int deviceidx)
+{
+    return DX8Wrapper::Get_Render_Device_Desc(deviceidx);
+}
+
+int DX8Backend::Get_Render_Device_Count() const
+{
+    return DX8Wrapper::Get_Render_Device_Count();
+}
+
+const char * DX8Backend::Get_Render_Device_Name(int device_index)
+{
+    return DX8Wrapper::Get_Render_Device_Name(device_index);
+}
+
+bool DX8Backend::Set_Device_Resolution(int width, int height, int bits, int windowed, bool resize_window)
+{
+    return DX8Wrapper::Set_Device_Resolution(width, height, bits, windowed, resize_window);
+}
+
+void DX8Backend::Get_Render_Target_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed)
+{
+    DX8Wrapper::Get_Render_Target_Resolution(set_w, set_h, set_bits, set_windowed);
+}
+
+void DX8Backend::Get_Device_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed)
+{
+    DX8Wrapper::Get_Device_Resolution(set_w, set_h, set_bits, set_windowed);
+}
+
+int DX8Backend::Get_Device_Resolution_Width() const
+{
+    return DX8Wrapper::Get_Device_Resolution_Width();
+}
+
+int DX8Backend::Get_Device_Resolution_Height() const
+{
+    return DX8Wrapper::Get_Device_Resolution_Height();
+}
+
+bool DX8Backend::Registry_Save_Render_Device(const char * sub_key)
+{
+    return DX8Wrapper::Registry_Save_Render_Device(sub_key);
+}
+
+bool DX8Backend::Registry_Save_Render_Device(const char * sub_key, int device, int width, int height, int depth, bool windowed, int texture_depth)
+{
+    return DX8Wrapper::Registry_Save_Render_Device(sub_key, device, width, height, depth, windowed, texture_depth);
+}
+
+bool DX8Backend::Registry_Load_Render_Device(const char * sub_key, bool resize_window)
+{
+    return DX8Wrapper::Registry_Load_Render_Device(sub_key, resize_window);
+}
+
+bool DX8Backend::Registry_Load_Render_Device(const char * sub_key, char * device, int device_len, int & width, int & height, int & depth, int & windowed, int & texture_depth)
+{
+    return DX8Wrapper::Registry_Load_Render_Device(sub_key, device, device_len, width, height, depth, windowed, texture_depth);
+}
+
 // -- Device state queries ----------------------------------------------------
 
 bool DX8Backend::Is_Device_Lost() const
