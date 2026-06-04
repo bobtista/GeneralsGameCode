@@ -599,6 +599,7 @@ void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calib
 
 void DX8Backend::Begin_Scene()
 {
+    DX8Wrapper::Begin_Scene();
 }
 
 // TheSuperHackers @feature bobtista 03/06/2026 Simulation frame accessor (defined
@@ -722,7 +723,7 @@ bool Save_Bgra_Bmp(const char * path, unsigned width, unsigned height,
 
 } // namespace
 
-void DX8Backend::End_Scene(bool /*flip_frame*/)
+void DX8Backend::End_Scene(bool flip_frame)
 {
     DrawCallLog_End_Frame();
     RenderDoc_Maybe_Trigger_Capture();
@@ -760,6 +761,8 @@ void DX8Backend::End_Scene(bool /*flip_frame*/)
         }
     }
     ++Get_Dx8_Screenshot_State().frameIndex;
+
+    DX8Wrapper::End_Scene(flip_frame);
 }
 
 void DX8Backend::Flip_To_Primary()
