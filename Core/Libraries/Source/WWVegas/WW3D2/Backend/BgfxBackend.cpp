@@ -2962,6 +2962,28 @@ void BgfxBackend::Shutdown()
     g_device.window = nullptr;
 }
 
+// Assemble the full bgfx reset flag set from the persisted device state.
+// Used wherever a runtime bgfx::reset is issued (window resize, vsync toggle)
+// so every reset path keeps the same MSAA / sRGB / depth-clamp / flush / vsync
+// configuration instead of dropping bits.
+static uint32_t ComputeBgfxResetFlags()
+{
+    uint32_t resetFlags = BGFX_RESET_NONE | g_device.msaaResetFlags
+        | (g_device.srgbEnabled ? BGFX_RESET_SRGB_BACKBUFFER : 0)
+        | (g_device.vsyncEnabled ? BGFX_RESET_VSYNC : 0);
+    if (std::getenv("GGC_BGFX_DEPTH_CLAMP") != nullptr)
+    {
+        resetFlags |= BGFX_RESET_DEPTH_CLAMP;
+    }
+#if defined(__APPLE__)
+    if (std::getenv("GGC_MACOS_NO_FLUSH") == nullptr)
+    {
+        resetFlags |= BGFX_RESET_FLUSH_AFTER_RENDER;
+    }
+#endif
+    return resetFlags;
+}
+
 // -- Device selection, windowing and display-mode control --------------------
 //
 // bgfx has no D3D device-enumeration concept. These forward to the DX8Wrapper
@@ -3072,6 +3094,26 @@ bool BgfxBackend::Registry_Load_Render_Device(const char * sub_key, bool resize_
 bool BgfxBackend::Registry_Load_Render_Device(const char * sub_key, char * device, int device_len, int & width, int & height, int & depth, int & windowed, int & texture_depth)
 {
     return DX8Wrapper::Registry_Load_Render_Device(sub_key, device, device_len, width, height, depth, windowed, texture_depth);
+}
+
+void BgfxBackend::Set_Swap_Interval(int swap)
+{
+    // Default is vsync OFF; render fps is CPU-capped by the FramePacer.
+    const bool enabled = (swap != 0);
+    if (g_device.vsyncEnabled == enabled)
+    {
+        return;
+    }
+    g_device.vsyncEnabled = enabled;
+    if (g_device.initialized)
+    {
+        bgfx::reset(g_device.width, g_device.height, ComputeBgfxResetFlags());
+    }
+}
+
+int BgfxBackend::Get_Swap_Interval() const
+{
+    return g_device.vsyncEnabled ? 1 : 0;
 }
 
 // -- Viewport ----------------------------------------------------------------
@@ -3473,19 +3515,7 @@ void BgfxBackend::Begin_Scene()
                 DestroySceneFramebuffer();
                 g_device.width = w;
                 g_device.height = h;
-                uint32_t resetFlags = BGFX_RESET_NONE | g_device.msaaResetFlags
-                    | (g_device.srgbEnabled ? BGFX_RESET_SRGB_BACKBUFFER : 0);
-                if (std::getenv("GGC_BGFX_DEPTH_CLAMP") != nullptr)
-                {
-                    resetFlags |= BGFX_RESET_DEPTH_CLAMP;
-                }
-#if defined(__APPLE__)
-                if (std::getenv("GGC_MACOS_NO_FLUSH") == nullptr)
-                {
-                    resetFlags |= BGFX_RESET_FLUSH_AFTER_RENDER;
-                }
-#endif
-                bgfx::reset(g_device.width, g_device.height, resetFlags);
+                bgfx::reset(g_device.width, g_device.height, ComputeBgfxResetFlags());
                 CreateSceneFramebuffer();
                 ApplySceneFramebufferToViews();
                 // TheSuperHackers @bugfix bobtista 07/06/2026 bgfx::reset only rebuilds the
