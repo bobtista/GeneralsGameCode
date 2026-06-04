@@ -13,6 +13,10 @@ set(WW3D2_SRC
     #assetmgr.h
     assetstatus.cpp
     assetstatus.h
+    Backend/DX8Backend.cpp
+    Backend/DX8Backend.h
+    Backend/RenderBackend.cpp
+    Backend/RenderBackend.h
     bitmaphandler.cpp
     bitmaphandler.h
     bmp2d.cpp
@@ -43,10 +47,6 @@ set(WW3D2_SRC
     distlod.cpp
     distlod.h
     dllist.h
-    Backend/DX8Backend.cpp
-    Backend/DX8Backend.h
-    Backend/RenderBackend.cpp
-    Backend/RenderBackend.h
     dx8caps.cpp
     dx8caps.h
     dx8fvf.cpp
