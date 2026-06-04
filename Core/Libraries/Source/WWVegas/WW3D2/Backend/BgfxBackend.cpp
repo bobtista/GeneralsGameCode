@@ -4980,10 +4980,20 @@ enum PerfSectionId {
     PERF_SECT_UPLOAD_UNIFORMS,
     PERF_SECT_UPLOAD_LIGHTS,
     PERF_SECT_BEGIN_SCENE,
+    // TheSuperHackers @diag bobtista 04/06/2026 End_Dynamic_Vertex_Write ownership
+    // (the #1 sampled render self-time fn). DVW_END = whole End call; DVW_SCAN = the
+    // gated O(n^2) coplanar-pair scan within it; DVW_ALLOC = the transient-VB alloc in
+    // Begin. Proves whether the cost is the scan, the alloc, or per-call residue.
+    PERF_SECT_DVW_END,
+    PERF_SECT_DVW_SCAN,
+    PERF_SECT_DVW_ALLOC,
     PERF_SECT_COUNT
 };
 struct PerfSection { long long total_ticks = 0; uint32_t calls = 0; };
 static PerfSection g_perf_sections[PERF_SECT_COUNT];
+// TheSuperHackers @diag bobtista 04/06/2026 Total verts through End_Dynamic_Vertex_Write
+// per frame (reset with g_perf_sections); with DVW_END.calls gives verts/call.
+static uint64_t g_dvwVerts = 0;
 
 class ScopedSectionTimer
 {
@@ -5109,6 +5119,7 @@ void BgfxBackend::Begin_Scene()
         g_perf_sections[i].total_ticks = 0;
         g_perf_sections[i].calls = 0;
     }
+    g_dvwVerts = 0;
     if (TimingActive()) {
         g_timing.t0_begin_scene = QueryNow();
     }
@@ -5632,6 +5643,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                         "set_tex_us,set_tex_n,set_vb_us,set_vb_n,set_ib_us,set_ib_n,"
                         "submit_us,submit_n,draw_us,draw_n,"
                         "apply_tex_us,apply_tex_n,uniforms_us,uniforms_n,light_us,light_n,"
+                        "dvw_us,dvw_n,dvw_scan_us,dvw_scan_n,dvw_alloc_us,dvw_alloc_n,dvw_verts,"
                         "frame_draw_us,update_views_us,particle_update_us,rtt_us,draw_views_us,ui_draw_us,end_render_us,render_unattributed_us,main_loop_other_us,"
                         "render_total_us,traversal_us,mesh_flush_us,sort_flush_us,particles_us,terrain_us,"
                         "gpu_us,cpu_us,wait_sub_us,wait_ren_us,bgfx_ndraw\n");
@@ -5668,6 +5680,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                 std::fprintf(f,
                     "%u,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
                     "%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,"
+                    "%.1f,%u,%.1f,%u,%.1f,%u,%llu,"
                     "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
                     "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
                     "%.1f,%.1f,%.1f,%.1f,%u\n",
@@ -5702,6 +5715,13 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                     g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].calls,
                     g_perf_sections[PERF_SECT_UPLOAD_LIGHTS].total_ticks * us_per_tick,
                     g_perf_sections[PERF_SECT_UPLOAD_LIGHTS].calls,
+                    g_perf_sections[PERF_SECT_DVW_END].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_DVW_END].calls,
+                    g_perf_sections[PERF_SECT_DVW_SCAN].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_DVW_SCAN].calls,
+                    g_perf_sections[PERF_SECT_DVW_ALLOC].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_DVW_ALLOC].calls,
+                    static_cast<unsigned long long>(g_dvwVerts),
                     // Top-level sequential buckets of W3DDisplay::draw.
                     GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::FRAME_DRAW].total_ticks * us_per_tick,
                     GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UPDATE_VIEWS].total_ticks * us_per_tick,
@@ -9379,7 +9399,10 @@ void * BgfxBackend::Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
     if (num_verts == 0 || bgfx::getAvailTransientVertexBuffer(num_verts, layout) < num_verts) {
         return nullptr;
     }
-    bgfx::allocTransientVertexBuffer(&g_draw.pendingVB.tvb, num_verts, layout);
+    {
+        PERF_TIME(PERF_SECT_DVW_ALLOC);
+        bgfx::allocTransientVertexBuffer(&g_draw.pendingVB.tvb, num_verts, layout);
+    }
     g_draw.pendingVB.valid = true;
     g_stats.transientVbAllocations++;
     return g_draw.pendingVB.tvb.data;
@@ -9397,17 +9420,25 @@ void BgfxBackend::End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
     if (!g_draw.pendingVB.valid) {
         return;
     }
+    PERF_TIME(PERF_SECT_DVW_END);
     g_draw.pendingVB.owner = vba;
+    g_dvwVerts += static_cast<uint64_t>(vba->Get_Vertex_Count());
     // TheSuperHackers @performance bobtista 04/06/2026 HasSubmittedOppositeNormalPairs
     // is an O(n^2) coplanar-pair scan and dynamic_fvf_type carries a normal, so it
     // ran on every sorted-translucent batch (particles/smoke/water) — ~40% of render
     // CPU on heavy scenes. The result only matters when ShouldApplySubmittedNormalBias
     // is true (a handful of sorted decals / sneak-attack surfaces per frame), which is
     // re-checked identically at draw time, so gate the scan on it. Particles short-circuit.
-    g_draw.pendingVB.coplanarNormalBias = (!CoplanarBiasGateEnabled()
+    // (Split for measurement; semantics identical to the original (A||B)&&C short-circuit.)
+    bool coplanarBias = false;
+    if (!CoplanarBiasGateEnabled()
             || ShouldApplySubmittedNormalBias(GetEffectiveDrawState()))
-        && HasSubmittedOppositeNormalPairs(
+    {
+        PERF_TIME(PERF_SECT_DVW_SCAN);
+        coplanarBias = HasSubmittedOppositeNormalPairs(
             vba->FVF_Info(), data, vba->Get_Vertex_Count());
+    }
+    g_draw.pendingVB.coplanarNormalBias = coplanarBias;
     g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
 }
 
