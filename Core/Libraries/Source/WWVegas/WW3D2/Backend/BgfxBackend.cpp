@@ -29,6 +29,7 @@
 #include "RenderStateDefs.h"
 #include "DXTUtils.h"
 #include "dx8fvf.h"
+#include "dx8wrapper.h"
 #include "FixedFunctionState.h"
 #include "indexbuffer.h"
 #include "light.h"
@@ -2959,6 +2960,118 @@ void BgfxBackend::Shutdown()
 
     // bgfx window is the single game window, do not destroy it.
     g_device.window = nullptr;
+}
+
+// -- Device selection, windowing and display-mode control --------------------
+//
+// bgfx has no D3D device-enumeration concept. These forward to the DX8Wrapper
+// facade, which on bgfx builds still tracks the resolution list and window
+// state used by the options UI. This isolates the remaining DX8Wrapper
+// dependency in the backend adapter rather than in the WW3D device wrappers.
+
+bool BgfxBackend::Init_Render_System(void * hwnd, bool lite)
+{
+    return DX8Wrapper::Init(hwnd, lite);
+}
+
+void BgfxBackend::Shutdown_Render_System()
+{
+    DX8Wrapper::Shutdown();
+}
+
+bool BgfxBackend::Set_Render_Device(const char * dev_name, int width, int height, int bits, int windowed, bool resize_window)
+{
+    return DX8Wrapper::Set_Render_Device(dev_name, width, height, bits, windowed, resize_window);
+}
+
+bool BgfxBackend::Set_Render_Device(int dev, int width, int height, int bits, int windowed, bool resize_window, bool reset_device, bool restore_assets)
+{
+    return DX8Wrapper::Set_Render_Device(dev, width, height, bits, windowed, resize_window, reset_device, restore_assets);
+}
+
+bool BgfxBackend::Set_Any_Render_Device()
+{
+    return DX8Wrapper::Set_Any_Render_Device();
+}
+
+bool BgfxBackend::Set_Next_Render_Device()
+{
+    return DX8Wrapper::Set_Next_Render_Device();
+}
+
+bool BgfxBackend::Toggle_Windowed()
+{
+    return DX8Wrapper::Toggle_Windowed();
+}
+
+bool BgfxBackend::Is_Windowed() const
+{
+    return DX8Wrapper::Is_Windowed();
+}
+
+int BgfxBackend::Get_Render_Device() const
+{
+    return DX8Wrapper::Get_Render_Device();
+}
+
+const RenderDeviceDescClass & BgfxBackend::Get_Render_Device_Desc(int deviceidx)
+{
+    return DX8Wrapper::Get_Render_Device_Desc(deviceidx);
+}
+
+int BgfxBackend::Get_Render_Device_Count() const
+{
+    return DX8Wrapper::Get_Render_Device_Count();
+}
+
+const char * BgfxBackend::Get_Render_Device_Name(int device_index)
+{
+    return DX8Wrapper::Get_Render_Device_Name(device_index);
+}
+
+bool BgfxBackend::Set_Device_Resolution(int width, int height, int bits, int windowed, bool resize_window)
+{
+    return DX8Wrapper::Set_Device_Resolution(width, height, bits, windowed, resize_window);
+}
+
+void BgfxBackend::Get_Render_Target_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed)
+{
+    DX8Wrapper::Get_Render_Target_Resolution(set_w, set_h, set_bits, set_windowed);
+}
+
+void BgfxBackend::Get_Device_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed)
+{
+    DX8Wrapper::Get_Device_Resolution(set_w, set_h, set_bits, set_windowed);
+}
+
+int BgfxBackend::Get_Device_Resolution_Width() const
+{
+    return DX8Wrapper::Get_Device_Resolution_Width();
+}
+
+int BgfxBackend::Get_Device_Resolution_Height() const
+{
+    return DX8Wrapper::Get_Device_Resolution_Height();
+}
+
+bool BgfxBackend::Registry_Save_Render_Device(const char * sub_key)
+{
+    return DX8Wrapper::Registry_Save_Render_Device(sub_key);
+}
+
+bool BgfxBackend::Registry_Save_Render_Device(const char * sub_key, int device, int width, int height, int depth, bool windowed, int texture_depth)
+{
+    return DX8Wrapper::Registry_Save_Render_Device(sub_key, device, width, height, depth, windowed, texture_depth);
+}
+
+bool BgfxBackend::Registry_Load_Render_Device(const char * sub_key, bool resize_window)
+{
+    return DX8Wrapper::Registry_Load_Render_Device(sub_key, resize_window);
+}
+
+bool BgfxBackend::Registry_Load_Render_Device(const char * sub_key, char * device, int device_len, int & width, int & height, int & depth, int & windowed, int & texture_depth)
+{
+    return DX8Wrapper::Registry_Load_Render_Device(sub_key, device, device_len, width, height, depth, windowed, texture_depth);
 }
 
 // -- Viewport ----------------------------------------------------------------
