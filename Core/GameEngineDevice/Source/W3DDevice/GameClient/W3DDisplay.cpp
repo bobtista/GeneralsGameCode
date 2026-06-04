@@ -92,6 +92,7 @@ static void drawFramerateBar();
 #include "WWMath/wwmath.h"
 #include "WWLib/registry.h"
 #include "WW3D2/ww3d.h"
+#include "WW3D2/BgfxRenderProfile.h"
 #include "WW3D2/Renderer.h"
 #include "WW3D2/predlod.h"
 #include "WW3D2/part_emt.h"
@@ -2132,6 +2133,8 @@ void W3DDisplay::step()
 void W3DDisplay::draw()
 {
 	PROFILER_SECTION;
+	GGCRenderProfile::EndFrame();
+	GGC_RPROFILE(FRAME_DRAW);
 	//USE_PERF_TIMER(W3DDisplay_draw)
 
 	extern HWND ApplicationHWnd;
@@ -2275,19 +2278,23 @@ AGAIN:
 			if (!viewsUpdated)
 			{
 				PROFILER_SECTION_NAME("update views");
+				GGC_RPROFILE(UPDATE_VIEWS);
 				updateViews();
 			}
 
 			TheParticleSystemManager->DRAW();
 
-			PROFILER_SECTION_NAME("render to texture");
-			if (TheWaterRenderObj && TheGlobalData->m_waterType == 2)
-				TheWaterRenderObj->updateRenderTargetTextures(primaryW3DView->get3DCamera());	//do a render into each texture
+				{
+					PROFILER_SECTION_NAME("render to texture");
+					GGC_RPROFILE(RTT);
+					if (TheWaterRenderObj && TheGlobalData->m_waterType == 2)
+						TheWaterRenderObj->updateRenderTargetTextures(primaryW3DView->get3DCamera());	//do a render into each texture
 
 			//Can't render into textures while rendering to screen so these textures need to be updated
 			//before we enter main rendering loop.
 			if (TheW3DProjectedShadowManager)
 				TheW3DProjectedShadowManager->updateRenderTargetTextures();
+			}
 		}
 
 		viewsUpdated = FALSE;
@@ -2324,8 +2331,13 @@ AGAIN:
 					Debug_Statistics::Record_DX8_Polys_And_Vertices(numRenderTargetPolygons,numRenderTargetVertices,ShaderClass::_PresetOpaqueShader);
 
 				// draw all views of the world
-				drawViews();
+				{
+					GGC_RPROFILE(DRAW_VIEWS);
+					drawViews();
+				}
 
+				{
+				GGC_RPROFILE(UI_DRAW);
 				// draw the user interface
 				TheInGameUI->DRAW();
 
@@ -2334,6 +2346,7 @@ AGAIN:
 				// draw the mouse
 				if( TheMouse )
 					TheMouse->DRAW();
+				}
 
 				if ( m_videoStream && m_videoBuffer )
 				{
@@ -2407,7 +2420,10 @@ AGAIN:
 				}
 #endif
 				// render is all done!
-				WW3D::End_Render();
+				{
+					GGC_RPROFILE(END_RENDER);
+					WW3D::End_Render();
+				}
 			}
 			else
 			{
