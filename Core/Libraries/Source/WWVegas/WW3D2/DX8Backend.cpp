@@ -284,6 +284,16 @@ bool DX8Backend::Registry_Load_Render_Device(const char * sub_key, char * device
     return DX8Wrapper::Registry_Load_Render_Device(sub_key, device, device_len, width, height, depth, windowed, texture_depth);
 }
 
+void DX8Backend::Set_Swap_Interval(int swap)
+{
+    DX8Wrapper::Set_Swap_Interval(swap);
+}
+
+int DX8Backend::Get_Swap_Interval() const
+{
+    return DX8Wrapper::Get_Swap_Interval();
+}
+
 // -- Device state queries ----------------------------------------------------
 
 bool DX8Backend::Is_Device_Lost() const
