@@ -3888,6 +3888,18 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     g_draw.activeVertexNormalBias = false;
 }
 
+void BgfxBackend::Invalidate_Cached_Render_States()
+{
+    // TheSuperHackers @bugfix bobtista 05/06/2026 Intentionally a no-op on bgfx.
+    // This is called from ~20 sites (W3DShaderManager, W3DTreeBuffer) mid-frame
+    // after they fiddle DX8 render state. On bgfx those resets are unnecessary
+    // (the backend tracks its own state) and HARMFUL: forwarding to
+    // DX8Wrapper::Invalidate_Cached_Render_States() here resets the
+    // RenderStateCache / ShaderClass caches mid-frame and collapses sorted
+    // eye-space effects - notably the Particle Uplink Cannon orbital beam.
+    // Do NOT forward this to DX8Wrapper.
+}
+
 WW3DFormat BgfxBackend::Get_Back_Buffer_Format() const
 {
     return WW3D_FORMAT_A8R8G8B8;
