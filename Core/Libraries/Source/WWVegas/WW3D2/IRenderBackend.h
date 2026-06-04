@@ -48,6 +48,7 @@ class Matrix4x4;
 class Matrix3D;
 class Vector3;
 class RenderDeviceCleanupHook;
+class RenderDeviceDescClass;
 struct RenderStateStruct;
 
 // -----------------------------------------------------------------------------
@@ -541,6 +542,41 @@ public:
 
     virtual void Initialize(void * hwnd, int width, int height) {}
     virtual void Shutdown() {}
+
+    // -------------------------------------------------------------------------
+    // Render-system bring-up / tear-down (device enumeration layer)
+    //
+    // Distinct from Initialize/Shutdown above, which create and destroy the
+    // per-window rendering context. These mirror the legacy DX8Wrapper
+    // Init/Shutdown entry points that enumerate adapters and display modes.
+    // -------------------------------------------------------------------------
+
+    virtual bool Init_Render_System(void * hwnd, bool lite) { return false; }
+    virtual void Shutdown_Render_System() {}
+
+    // -------------------------------------------------------------------------
+    // Device selection, windowing and display-mode control
+    // -------------------------------------------------------------------------
+
+    virtual bool Set_Render_Device(const char * dev_name, int width, int height, int bits, int windowed, bool resize_window) { return false; }
+    virtual bool Set_Render_Device(int dev, int width, int height, int bits, int windowed, bool resize_window, bool reset_device, bool restore_assets) { return false; }
+    virtual bool Set_Any_Render_Device() { return false; }
+    virtual bool Set_Next_Render_Device() { return false; }
+    virtual bool Toggle_Windowed() { return false; }
+    virtual bool Is_Windowed() const { return false; }
+    virtual int Get_Render_Device() const { return -1; }
+    virtual const RenderDeviceDescClass & Get_Render_Device_Desc(int deviceidx) = 0;
+    virtual int Get_Render_Device_Count() const { return 0; }
+    virtual const char * Get_Render_Device_Name(int device_index) { return ""; }
+    virtual bool Set_Device_Resolution(int width, int height, int bits, int windowed, bool resize_window) { return false; }
+    virtual void Get_Render_Target_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed) {}
+    virtual void Get_Device_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed) {}
+    virtual int Get_Device_Resolution_Width() const { return 0; }
+    virtual int Get_Device_Resolution_Height() const { return 0; }
+    virtual bool Registry_Save_Render_Device(const char * sub_key) { return false; }
+    virtual bool Registry_Save_Render_Device(const char * sub_key, int device, int width, int height, int depth, bool windowed, int texture_depth) { return false; }
+    virtual bool Registry_Load_Render_Device(const char * sub_key, bool resize_window) { return false; }
+    virtual bool Registry_Load_Render_Device(const char * sub_key, char * device, int device_len, int & width, int & height, int & depth, int & windowed, int & texture_depth) { return false; }
 
     // -------------------------------------------------------------------------
     // Device state queries
