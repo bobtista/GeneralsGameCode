@@ -136,11 +136,24 @@ ALuint OpenALAudioFileCache::getBufferForFile(const OpenFileInfo &fileInfo)
 		}
 	}
 
+	// TheSuperHackers @diag bobtista 04/06/2026 GGC_AUDIO_DIAG logs every cache miss
+	// (the expensive FFmpeg decode) so we can see which sound re-decodes per frame.
+	const bool ggcAudioDiag = (getenv("GGC_AUDIO_DIAG") != nullptr);
+
 	auto it = m_openFiles.find(strToFind);
 
 	if (it != m_openFiles.end()) {
 		++it->second.m_openCount;
 		return it->second.m_buffer;
+	}
+
+	if (ggcAudioDiag) {
+		fprintf(stderr, "AUDIODIAG miss-decode '%s' positional=%d openFiles=%u usedKB=%u/%u\n",
+			strToFind.str(),
+			eventToOpenFrom ? (int)eventToOpenFrom->isPositionalAudio() : -1,
+			(unsigned)m_openFiles.size(),
+			(unsigned)(m_currentlyUsedSize/1024), (unsigned)(m_maxSize/1024));
+		fflush(stderr);
 	}
 
 	// Couldn't find the file, so actually open it.
@@ -185,6 +198,10 @@ ALuint OpenALAudioFileCache::getBufferForFile(const OpenFileInfo &fileInfo)
 		// We need to free some samples, or we're not going to be able to play this sound.
 		if (!freeEnoughSpaceForSample(openedAudioFile)) {
 			DEBUG_LOG(("Couldn't free enough space for sample\n"));
+			if (ggcAudioDiag) {
+				fprintf(stderr, "AUDIODIAG no-space-return0 '%s' (NOT cached -> will re-decode)\n", strToFind.str());
+				fflush(stderr);
+			}
 			m_currentlyUsedSize -= openedAudioFile.m_fileSize;
 			releaseOpenAudioFile(&openedAudioFile);
 			return 0;

@@ -506,7 +506,28 @@ void OpenALAudioManager::init()
 		return;
 	}
 	openDevice();
-	m_audioCache->setMaxSize(getAudioSettings()->m_maxCacheSize);
+	// TheSuperHackers @performance bobtista 04/06/2026 The OpenAL backend caches fully
+	// DECODED PCM, whereas the retail m_maxCacheSize (~4MB) was sized for the Miles
+	// backend that streamed compressed audio. Dense scenes with many positional ambient
+	// WAVs (e.g. a built-up base) exceed 4MB, so the cache thrashes and re-decodes the
+	// same sounds via FFmpeg every frame (~50ms/frame). Floor the cap at a size that
+	// holds the decoded working set; it is a lazy cap (only what is actually played is
+	// allocated), so the floor costs nothing until needed. Override with GGC_AUDIO_CACHE_MB.
+	UnsignedInt cacheBytes = getAudioSettings()->m_maxCacheSize;
+	const UnsignedInt minCacheBytes = 64u * 1024u * 1024u;
+	if (cacheBytes < minCacheBytes)
+	{
+		cacheBytes = minCacheBytes;
+	}
+	if (const char *cacheEnv = getenv("GGC_AUDIO_CACHE_MB"))
+	{
+		const int cacheMb = atoi(cacheEnv);
+		if (cacheMb > 0)
+		{
+			cacheBytes = (UnsignedInt)cacheMb * 1024u * 1024u;
+		}
+	}
+	m_audioCache->setMaxSize(cacheBytes);
 	alDistanceModel(AL_INVERSE_DISTANCE_CLAMPED);
 }
 
@@ -1430,7 +1451,7 @@ void OpenALAudioManager::stopAllSpeech(void)
 //}
 
 //-------------------------------------------------------------------------------------------------
-void OpenALAudioManager::nextMusicTrack(void)
+AsciiString OpenALAudioManager::nextMusicTrack(void)
 {
 	AsciiString trackName;
 	std::list<PlayingAudio*>::iterator it;
@@ -1450,10 +1471,11 @@ void OpenALAudioManager::nextMusicTrack(void)
 	trackName = nextTrackName(trackName);
 	AudioEventRTS newTrack(trackName);
 	TheAudio->addAudioEvent(&newTrack);
+	return trackName;
 }
 
 //-------------------------------------------------------------------------------------------------
-void OpenALAudioManager::prevMusicTrack(void)
+AsciiString OpenALAudioManager::prevMusicTrack(void)
 {
 	AsciiString trackName;
 	std::list<PlayingAudio*>::iterator it;
@@ -1473,6 +1495,7 @@ void OpenALAudioManager::prevMusicTrack(void)
 	trackName = prevTrackName(trackName);
 	AudioEventRTS newTrack(trackName);
 	TheAudio->addAudioEvent(&newTrack);
+	return trackName;
 }
 
 //-------------------------------------------------------------------------------------------------
