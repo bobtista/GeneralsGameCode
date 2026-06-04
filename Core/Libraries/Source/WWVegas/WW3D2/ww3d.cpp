@@ -1261,7 +1261,10 @@ void WW3D::Sync(bool step)
  *=============================================================================================*/
 void WW3D::Set_Ext_Swap_Interval(long swap)
 {
-	DX8Wrapper::Set_Swap_Interval(swap);
+	if (WW3D::Get_Render_Backend() != nullptr)
+	{
+		WW3D::Get_Render_Backend()->Set_Swap_Interval((int)swap);
+	}
 }
 
 
@@ -1279,7 +1282,7 @@ void WW3D::Set_Ext_Swap_Interval(long swap)
  *=============================================================================================*/
 long WW3D::Get_Ext_Swap_Interval()
 {
-	return DX8Wrapper::Get_Swap_Interval();
+	return (WW3D::Get_Render_Backend() != nullptr) ? WW3D::Get_Render_Backend()->Get_Swap_Interval() : 0;
 }
 
 
