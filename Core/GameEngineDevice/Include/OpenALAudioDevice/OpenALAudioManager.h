@@ -179,7 +179,7 @@ protected:
 	void initSamplePools(void);
 	void processRequest(AudioRequest *req);
 
-	void playAudioEvent(AudioEventRTS *event);
+	void playAudioEvent(AudioEventRTS *event, AudioRequest *req = NULL);
 	void stopAudioEvent(AudioHandle handle);
 	void pauseAudioEvent(AudioHandle handle);
 
