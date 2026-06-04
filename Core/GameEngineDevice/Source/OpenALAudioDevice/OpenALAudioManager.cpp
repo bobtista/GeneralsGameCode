@@ -743,7 +743,7 @@ void OpenALAudioManager::pauseAmbient(Bool shouldPause)
 }
 
 //-------------------------------------------------------------------------------------------------
-void OpenALAudioManager::playAudioEvent(AudioEventRTS* event)
+void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 {
 #ifdef INTENSIVE_AUDIO_DEBUG
 	DEBUG_LOG(("OPENAL (%d) - Processing play request: %d (%s)", TheGameLogic->getFrame(), event->getPlayingHandle(), event->getEventName().str()));
@@ -867,6 +867,9 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event)
 
 		// Put this on here, so that the audio event RTS will be cleaned up regardless.
 		audio->m_audioEventRTS = event;
+		// TheSuperHackers @bugfix bobtista 04/06/2026 Take ownership of the request's pending
+		// event so ~AudioRequest does not also delete it (double-free after upstream #2731).
+		if (req != NULL) { req->releasePendingEvent(); }
 		audio->m_stream = stream;
 		audio->m_ffmpegFile = ffmpegFile;
 		audio->m_type = PAT_Stream;
@@ -927,6 +930,9 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event)
 			}
 			// Push it onto the list of playing things
 			audio->m_audioEventRTS = event;
+			// TheSuperHackers @bugfix bobtista 04/06/2026 Take ownership of the request's pending
+			// event so ~AudioRequest does not also delete it (double-free after upstream #2731).
+			if (req != NULL) { req->releasePendingEvent(); }
 			audio->m_source = source;
 			audio->m_bufferHandle = 0;
 			audio->m_type = PAT_3DSample;
@@ -987,6 +993,9 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event)
 
 			// Push it onto the list of playing things
 			audio->m_audioEventRTS = event;
+			// TheSuperHackers @bugfix bobtista 04/06/2026 Take ownership of the request's pending
+			// event so ~AudioRequest does not also delete it (double-free after upstream #2731).
+			if (req != NULL) { req->releasePendingEvent(); }
 			audio->m_source = source;
 			audio->m_bufferHandle = 0;
 			audio->m_type = PAT_Sample;
@@ -3119,7 +3128,7 @@ void OpenALAudioManager::processRequest(AudioRequest* req)
 	{
 	case AR_Play:
 	{
-		playAudioEvent(req->m_pendingEvent);
+		playAudioEvent(req->m_pendingEvent, req);
 		break;
 	}
 	case AR_Pause:
