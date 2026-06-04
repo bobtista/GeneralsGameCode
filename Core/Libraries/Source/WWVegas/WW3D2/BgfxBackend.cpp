@@ -3214,6 +3214,7 @@ enum PerfSectionId {
     PERF_SECT_DRAW_TRIANGLES,
     PERF_SECT_APPLY_TEX,
     PERF_SECT_UPLOAD_UNIFORMS,
+    PERF_SECT_UPLOAD_LIGHTS,
     PERF_SECT_BEGIN_SCENE,
     PERF_SECT_COUNT
 };
@@ -3780,7 +3781,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                         "tex_creates,tex_uploads,inst_saved,"
                         "set_tex_us,set_tex_n,set_vb_us,set_vb_n,set_ib_us,set_ib_n,"
                         "submit_us,submit_n,draw_us,draw_n,"
-                        "apply_tex_us,apply_tex_n,uniforms_us,uniforms_n,"
+                        "apply_tex_us,apply_tex_n,uniforms_us,uniforms_n,light_us,light_n,"
                         "gpu_us,cpu_us,wait_sub_us,wait_ren_us,bgfx_ndraw\n");
                     s_headerWritten = true;
                 }
@@ -3814,7 +3815,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                 }
                 std::fprintf(f,
                     "%u,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
-                    "%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,"
+                    "%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,"
                     "%.1f,%.1f,%.1f,%.1f,%u\n",
                     g_stats.frameIndex,
                     inter_ticks * us_per_tick,
@@ -3845,6 +3846,8 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                     g_perf_sections[PERF_SECT_APPLY_TEX].calls,
                     g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].total_ticks * us_per_tick,
                     g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].calls,
+                    g_perf_sections[PERF_SECT_UPLOAD_LIGHTS].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_UPLOAD_LIGHTS].calls,
                     gpu_us, cpu_us, wait_sub_us, wait_ren_us, bgfx_ndraw);
                 std::fclose(f);
             }
@@ -6075,6 +6078,7 @@ static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
 
 static void UploadLightUniforms()
 {
+    PERF_TIME(PERF_SECT_UPLOAD_LIGHTS);
     g_stats.lightUniformUploads++;
     if (bgfx::isValid(g_uniforms.uLightDirs))
     {
