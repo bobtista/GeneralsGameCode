@@ -553,6 +553,172 @@ static bool Render_State_Matches(const RenderStateStruct& left, const RenderStat
 }
 
 // ----------------------------------------------------------------------------
+// TheSuperHackers @performance bobtista 04/06/2026 Coalesce z-scattered
+// additive sorted triangles that share render state into contiguous runs so
+// Flush_Sorting_Pool emits one draw per state instead of one draw per
+// depth-interleaved run. Additive blend (SRCBLEND_ONE/DSTBLEND_ONE) with depth
+// writes disabled is order-independent for non-negative fragments even under
+// the per-fragment [0,1] clamp, so reordering additive triangles within a run
+// bounded by any non-additive (barrier) triangle is pixel-identical. Only the
+// shader pipeline runs this; GGC_NO_SORT_COALESCE reverts to the byte-identical
+// z-only path and the DX8 backend never enters it.
+
+static bool Sort_Coalesce_Disabled()
+{
+	static const bool disabled = std::getenv("GGC_NO_SORT_COALESCE") != nullptr;
+	return disabled;
+}
+
+static inline bool Is_Coalescable_Additive(const RenderStateStruct& rs)
+{
+	return rs.shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_DISABLE
+		&& rs.shader.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE
+		&& rs.shader.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_ONE;
+}
+
+static inline unsigned long long Sort_Fnv1a(const void* data, unsigned len, unsigned long long hash)
+{
+	const unsigned char* p = static_cast<const unsigned char*>(data);
+	for (unsigned i = 0; i < len; ++i)
+	{
+		hash ^= p[i];
+		hash *= 1099511628211ULL;
+	}
+	return hash;
+}
+
+// Cheap key for grouping; equal state always yields an equal key. A key
+// collision between differing states only places them adjacently - the draw
+// loop still splits them with the exact Render_State_Matches test, so the
+// reorder can never merge states that do not truly match.
+static unsigned long long Sort_Node_State_Key(const RenderStateStruct& rs)
+{
+	unsigned long long hash = 1469598103934665603ULL;
+	const unsigned int shaderBits = rs.shader.Get_Bits();
+	hash = Sort_Fnv1a(&shaderBits, sizeof(shaderBits), hash);
+	hash = Sort_Fnv1a(&rs.sorted_draw_flags, sizeof(rs.sorted_draw_flags), hash);
+	const void* material = rs.material;
+	hash = Sort_Fnv1a(&material, sizeof(material), hash);
+	for (int texture_index = 0; texture_index < g_renderBackend->Get_Max_Texture_Stages(); ++texture_index)
+	{
+		const void* texture = rs.Textures[texture_index];
+		hash = Sort_Fnv1a(&texture, sizeof(texture), hash);
+	}
+	hash = Sort_Fnv1a(&rs.world, sizeof(rs.world), hash);
+	return hash;
+}
+
+static unsigned Count_Sorted_Runs(const TempIndexStruct* tis, unsigned tri_count)
+{
+	if (tri_count == 0)
+	{
+		return 0;
+	}
+	unsigned runs = 1;
+	SortingNodeStruct* state = overlapping_nodes[tis[0].idx];
+	for (unsigned i = 1; i < tri_count; ++i)
+	{
+		SortingNodeStruct* next_state = overlapping_nodes[tis[i].idx];
+		if (!Render_State_Matches(state->sorting_state, next_state->sorting_state))
+		{
+			++runs;
+			state = next_state;
+		}
+	}
+	return runs;
+}
+
+static TempIndexStruct* coalesce_scratch;
+static unsigned coalesce_scratch_count;
+static bool* coalesce_consumed;
+static unsigned coalesce_consumed_count;
+static unsigned long long* coalesce_node_key;
+static bool* coalesce_node_add;
+static unsigned coalesce_node_capacity;
+
+static void Coalesce_Sorted_Pool(TempIndexStruct* tis, unsigned tri_count)
+{
+	if (tri_count < 2)
+	{
+		return;
+	}
+
+	if (overlapping_node_count > coalesce_node_capacity)
+	{
+		delete[] coalesce_node_key;
+		delete[] coalesce_node_add;
+		coalesce_node_capacity = overlapping_node_count;
+		coalesce_node_key = W3DNEWARRAY unsigned long long[coalesce_node_capacity];
+		coalesce_node_add = W3DNEWARRAY bool[coalesce_node_capacity];
+	}
+	for (unsigned node_id = 0; node_id < overlapping_node_count; ++node_id)
+	{
+		const RenderStateStruct& rs = overlapping_nodes[node_id]->sorting_state;
+		coalesce_node_add[node_id] = Is_Coalescable_Additive(rs);
+		coalesce_node_key[node_id] = coalesce_node_add[node_id] ? Sort_Node_State_Key(rs) : 0ULL;
+	}
+
+	if (tri_count > coalesce_scratch_count)
+	{
+		delete[] coalesce_scratch;
+		coalesce_scratch_count = tri_count;
+		coalesce_scratch = W3DNEWARRAY TempIndexStruct[coalesce_scratch_count];
+	}
+	if (tri_count > coalesce_consumed_count)
+	{
+		delete[] coalesce_consumed;
+		coalesce_consumed_count = tri_count;
+		coalesce_consumed = W3DNEWARRAY bool[coalesce_consumed_count];
+	}
+
+	unsigned i = 0;
+	while (i < tri_count)
+	{
+		if (!coalesce_node_add[tis[i].idx])
+		{
+			++i;
+			continue;
+		}
+
+		// Maximal segment of consecutive coalescable additive triangles.
+		unsigned segment_end = i;
+		while (segment_end < tri_count && coalesce_node_add[tis[segment_end].idx])
+		{
+			++segment_end;
+		}
+
+		// Stable first-appearance grouping of [i, segment_end) by node key.
+		const unsigned segment_length = segment_end - i;
+		for (unsigned a = i; a < segment_end; ++a)
+		{
+			coalesce_consumed[a] = false;
+		}
+		unsigned out = 0;
+		for (unsigned a = i; a < segment_end; ++a)
+		{
+			if (coalesce_consumed[a])
+			{
+				continue;
+			}
+			const unsigned long long key = coalesce_node_key[tis[a].idx];
+			coalesce_scratch[out++] = tis[a];
+			coalesce_consumed[a] = true;
+			for (unsigned b = a + 1; b < segment_end; ++b)
+			{
+				if (!coalesce_consumed[b] && coalesce_node_key[tis[b].idx] == key)
+				{
+					coalesce_scratch[out++] = tis[b];
+					coalesce_consumed[b] = true;
+				}
+			}
+		}
+		memcpy(tis + i, coalesce_scratch, segment_length * sizeof(TempIndexStruct));
+
+		i = segment_end;
+	}
+}
+
+// ----------------------------------------------------------------------------
 
 static void Draw_Sorted_Run(unsigned start_index,
                             unsigned count_to_render,
@@ -692,6 +858,25 @@ void SortingRendererClass::Flush_Sorting_Pool()
 	}
 
 	Sort(tis, tis + overlapping_polygon_count);
+
+	if (g_renderBackend->Has_Shader_Pipeline() && !Sort_Coalesce_Disabled())
+	{
+		const bool diag = Should_Log_Sort_Effect_Diag();
+		const unsigned runs_before = diag ? Count_Sorted_Runs(tis, overlapping_polygon_count) : 0;
+		Coalesce_Sorted_Pool(tis, overlapping_polygon_count);
+		if (diag)
+		{
+			const unsigned runs_after = Count_Sorted_Runs(tis, overlapping_polygon_count);
+			if (FILE* diagFile = std::fopen("ggc_sort_effect_diag.txt", "a"))
+			{
+				std::fprintf(diagFile,
+					"coalesce nodes=%u tris=%u runs_before=%u runs_after=%u saved=%d\n",
+					overlapping_node_count, overlapping_polygon_count, runs_before, runs_after,
+					(int)runs_before - (int)runs_after);
+				std::fclose(diagFile);
+			}
+		}
+	}
 
 	// TheSuperHackers @fix stephanmeesters 10/06/2026
 	// Split rendering into chunks to prevent a crash when exceeding the 16-bit index buffer limit.
