@@ -23,6 +23,7 @@
 
 #include "BgfxBackend.h"
 
+#include "BgfxRenderProfile.h"
 #include "DrawCallLog.h"
 #include "RenderDocTrigger.h"
 #include "RenderStateDefs.h"
@@ -3188,6 +3189,44 @@ static long long QueryNow()
     return c.QuadPart;
 }
 
+// TheSuperHackers @diag bobtista 04/06/2026 Cross-TU render-frame attribution
+// accumulators (declared in BgfxRenderProfile.h, used from W3DScene / particle
+// system / sorting renderer). Reset each frame next to g_perf_sections; emitted
+// to the frame-timing CSV with an unattributed remainder so the ~18ms engine-side
+// render CPU is accounted top-down.
+namespace GGCRenderProfile
+{
+    struct PhaseAcc { long long start = 0; long long total_ticks = 0; uint32_t calls = 0; };
+    static PhaseAcc g_phase_acc[PHASE_COUNT];
+    // Snapshot of the last fully-closed frame. EndFrame() (called at the top of the
+    // next W3DDisplay::draw) copies the accumulators here once every scope of the
+    // previous frame has closed, then zeroes them. The CSV emit reads this snapshot
+    // so the enclosing FRAME_DRAW / END_RENDER scopes (still open when the emit fires
+    // mid-frame, inside End_Render) report complete times with a one-frame lag.
+    static PhaseAcc g_phase_snapshot[PHASE_COUNT];
+
+    void Begin(Phase phase)
+    {
+        LARGE_INTEGER c; QueryPerformanceCounter(&c);
+        g_phase_acc[phase].start = c.QuadPart;
+    }
+    void End(Phase phase)
+    {
+        LARGE_INTEGER c; QueryPerformanceCounter(&c);
+        g_phase_acc[phase].total_ticks += c.QuadPart - g_phase_acc[phase].start;
+        g_phase_acc[phase].calls++;
+    }
+    void EndFrame()
+    {
+        for (int i = 0; i < PHASE_COUNT; ++i)
+        {
+            g_phase_snapshot[i] = g_phase_acc[i];
+            g_phase_acc[i].total_ticks = 0;
+            g_phase_acc[i].calls = 0;
+        }
+    }
+}
+
 static void ResolveTimingEnv()
 {
     if (g_timing.env_resolved) {
@@ -3231,6 +3270,9 @@ void BgfxBackend::Begin_Scene()
 
     ResolveTimingEnv();
     long long prev_t3 = g_timing.t3_post_frame;
+    // g_phase_acc is snapshot+reset by GGCRenderProfile::EndFrame() at the top of
+    // W3DDisplay::draw (so the enclosing FRAME_DRAW/END_RENDER scopes are closed);
+    // the emit below reads g_phase_snapshot rather than resetting here.
     for (int i = 0; i < PERF_SECT_COUNT; ++i) {
         g_perf_sections[i].total_ticks = 0;
         g_perf_sections[i].calls = 0;
@@ -3707,6 +3749,8 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                         "set_tex_us,set_tex_n,set_vb_us,set_vb_n,set_ib_us,set_ib_n,"
                         "submit_us,submit_n,draw_us,draw_n,"
                         "apply_tex_us,apply_tex_n,uniforms_us,uniforms_n,light_us,light_n,"
+                        "frame_draw_us,update_views_us,particle_update_us,rtt_us,draw_views_us,ui_draw_us,end_render_us,unattributed_us,"
+                        "render_total_us,traversal_us,mesh_flush_us,sort_flush_us,particles_us,terrain_us,"
                         "gpu_us,cpu_us,wait_sub_us,wait_ren_us,bgfx_ndraw\n");
                     s_headerWritten = true;
                 }
@@ -3741,6 +3785,8 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                 std::fprintf(f,
                     "%u,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
                     "%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,"
+                    "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
+                    "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
                     "%.1f,%.1f,%.1f,%.1f,%u\n",
                     g_stats.frameIndex,
                     inter_ticks * us_per_tick,
@@ -3773,6 +3819,29 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                     g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].calls,
                     g_perf_sections[PERF_SECT_UPLOAD_LIGHTS].total_ticks * us_per_tick,
                     g_perf_sections[PERF_SECT_UPLOAD_LIGHTS].calls,
+                    // Top-level sequential buckets of W3DDisplay::draw.
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::FRAME_DRAW].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UPDATE_VIEWS].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::PARTICLE_UPDATE].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::RTT].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::DRAW_VIEWS].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UI_DRAW].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::END_RENDER].total_ticks * us_per_tick,
+                    // unattributed = FRAME_DRAW minus the non-overlapping top-level buckets.
+                    (GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::FRAME_DRAW].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UPDATE_VIEWS].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::PARTICLE_UPDATE].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::RTT].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::DRAW_VIEWS].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UI_DRAW].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::END_RENDER].total_ticks) * us_per_tick,
+                    // Nested detail inside DRAW_VIEWS/RTT (subsets, not subtracted above).
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::RENDER_TOTAL].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::TRAVERSAL].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::MESH_FLUSH].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::SORT_FLUSH].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::PARTICLES].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::TERRAIN].total_ticks * us_per_tick,
                     gpu_us, cpu_us, wait_sub_us, wait_ren_us, bgfx_ndraw);
                 std::fclose(f);
             }
