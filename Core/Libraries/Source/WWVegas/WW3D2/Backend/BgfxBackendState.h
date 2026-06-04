@@ -97,6 +97,7 @@ struct BgfxDevice
     int  height      = 0;
     uint32_t msaaResetFlags = 0;
     bool srgbEnabled = false;
+    bool vsyncEnabled = false;
     // bgfx debug-log callback is a file-local global in BgfxBackend.cpp (g_bgfxCallback); it needs the full BgfxLoggingCallback class definition and only BgfxBackend.cpp uses it.
 
     // Programs
