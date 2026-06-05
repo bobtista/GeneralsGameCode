@@ -86,10 +86,10 @@ bool alphaTestPass(float alpha, float ref, float func)
 	}
 	if (func < 1.5) { return false; }              // D3DCMP_NEVER
 	if (func < 2.5) { return alpha < ref; }        // D3DCMP_LESS
-	if (func < 3.5) { return abs(alpha - ref) <= (0.5 / 255.0); }
+	if (func < 3.5) { return abs(alpha - ref) <= ALPHA_MASK_EPSILON; }
 	if (func < 4.5) { return alpha <= ref; }       // D3DCMP_LESSEQUAL
 	if (func < 5.5) { return alpha > ref; }        // D3DCMP_GREATER
-	if (func < 6.5) { return abs(alpha - ref) > (0.5 / 255.0); }
+	if (func < 6.5) { return abs(alpha - ref) > ALPHA_MASK_EPSILON; }
 	if (func < 7.5) { return alpha >= ref; }       // D3DCMP_GREATEREQUAL
 	return true;                                  // D3DCMP_ALWAYS
 }
