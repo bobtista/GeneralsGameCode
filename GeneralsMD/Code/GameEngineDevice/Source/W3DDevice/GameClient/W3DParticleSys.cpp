@@ -337,7 +337,10 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			// retained. Boost their effective size 2x and color 1.5x (clamped)
 			// so the foam reads at the hull-waterline like the retail reference
 			// without overwhelming the rest of the frame.
-			if (sys->m_isGroundAligned
+			// TheSuperHackers @bugfix bobtista 05/06/2026 These boosts compensate for the
+			// bgfx shader pipeline only; gate on batchPointGroups so the DX8 path is unaffected.
+			if (batchPointGroups
+				&& sys->m_isGroundAligned
 				&& sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
 			{
 				sizeArray[count] *= 2.0f;
@@ -358,7 +361,10 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			// Force vertex alpha to 1.0 for additive draws so the shader's
 			// downstream alpha-aware logic does not filter out additive particles
 			// the way DX8 never had to worry about.
-			if (sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			// TheSuperHackers @bugfix bobtista 05/06/2026 The forced alpha is a bgfx
+			// shader-pipeline workaround; gate on batchPointGroups so DX8 keeps the
+			// original per-particle alpha.
+			if (batchPointGroups && sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
 			{
 				RGBAArray[count].W = 1.0f;
 			}
