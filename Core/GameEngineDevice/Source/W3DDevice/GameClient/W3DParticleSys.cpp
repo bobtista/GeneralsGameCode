@@ -40,6 +40,11 @@
 #include "WW3D2/RenderBackend.h"
 
 
+// TheSuperHackers @tweak bobtista 05/06/2026 Empirically-tuned boosts that make
+// ground-aligned additive foam read at retail brightness on the bgfx shader pipeline.
+static const float BGFX_ADDITIVE_FOAM_SIZE_BOOST = 2.0f;
+static const float BGFX_ADDITIVE_FOAM_COLOR_BOOST = 1.5f;
+
 //------------------------------------------------------------------------------ Performance Timers
 //#include "Common/PerfMetrics.h"
 //#include "Common/PerfTimer.h"
@@ -277,10 +282,10 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 				&& sys->m_isGroundAligned
 				&& sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
 			{
-				sizeArray[pointCount] *= 2.0f;
-				RGBAArray[pointCount].X = MIN(1.0f, color->red   * 1.5f);
-				RGBAArray[pointCount].Y = MIN(1.0f, color->green * 1.5f);
-				RGBAArray[pointCount].Z = MIN(1.0f, color->blue  * 1.5f);
+				sizeArray[pointCount] *= BGFX_ADDITIVE_FOAM_SIZE_BOOST;
+				RGBAArray[pointCount].X = MIN(1.0f, color->red   * BGFX_ADDITIVE_FOAM_COLOR_BOOST);
+				RGBAArray[pointCount].Y = MIN(1.0f, color->green * BGFX_ADDITIVE_FOAM_COLOR_BOOST);
+				RGBAArray[pointCount].Z = MIN(1.0f, color->blue  * BGFX_ADDITIVE_FOAM_COLOR_BOOST);
 			}
 
 			// TheSuperHackers @bugfix bobtista 27/05/2026 ADDITIVE particles keep m_alpha at the

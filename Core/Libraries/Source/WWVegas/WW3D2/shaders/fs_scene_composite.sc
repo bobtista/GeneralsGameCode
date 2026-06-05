@@ -11,6 +11,9 @@ SAMPLER2D(s_tex0, 0);
 uniform vec4 u_postParams;
 uniform vec4 u_postTexelSize;
 
+// TheSuperHackers @tweak bobtista 05/06/2026 BT.601 luma weights (matches fs_uber.sc).
+#define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
+
 void main()
 {
 	vec4 color = texture2D(s_tex0, v_texcoord0);
@@ -24,7 +27,7 @@ void main()
 		vec3 ne = texture2D(s_tex0, v_texcoord0 + vec2( u_postTexelSize.x, -u_postTexelSize.y)).rgb;
 		vec3 sw = texture2D(s_tex0, v_texcoord0 + vec2(-u_postTexelSize.x,  u_postTexelSize.y)).rgb;
 		vec3 se = texture2D(s_tex0, v_texcoord0 + vec2( u_postTexelSize.x,  u_postTexelSize.y)).rgb;
-		vec3 lumaVec = vec3(0.299, 0.587, 0.114);
+		vec3 lumaVec = LUMA_WEIGHTS;
 		float lumaNW = dot(nw, lumaVec);
 		float lumaNE = dot(ne, lumaVec);
 		float lumaSW = dot(sw, lumaVec);
@@ -61,7 +64,7 @@ void main()
 		color.rgb = color.rgb + (color.rgb - blur) * u_postParams.x;
 	}
 
-	float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+	float luma = dot(color.rgb, LUMA_WEIGHTS);
 	color.rgb = mix(vec3(luma, luma, luma), color.rgb, u_postParams.y);
 	color.rgb = (color.rgb - vec3(0.5, 0.5, 0.5)) * u_postParams.z + vec3(0.5, 0.5, 0.5);
 	gl_FragColor = vec4(clamp(color.rgb, 0.0, 1.0), color.a);
