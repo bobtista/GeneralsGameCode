@@ -109,7 +109,15 @@ enum DInputKeys
   DIK_DELETE,
   DIK_NUMPADENTER,
   DIK_NUMPADSLASH,
+
+  // TheSuperHackers @bugfix bobtista 05/06/2026 KeyDefs.h #ifndef-fallback defines
+  // DIK_OEM_102 as 0x56, which collides with this enum's auto-numbered DIK_RSHIFT
+  // (also 0x56). Provide a unique enum value and alias the macro below so KeyDefs.h
+  // skips its fallback and KEY_102 no longer equals KEY_RSHIFT.
+  DIK_OEM_102_VALUE,
 };
+
+#define DIK_OEM_102 DIK_OEM_102_VALUE
 
 typedef struct DIRECTINPUT8 *LPDIRECTINPUT8;
 typedef struct DIRECTINPUTDEVICE8 *LPDIRECTINPUTDEVICE8;
