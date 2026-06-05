@@ -52,6 +52,10 @@ namespace
 	const char *kCurrentUserRoot = "HKEY_CURRENT_USER";
 	const char *kLocalMachineRoot = "HKEY_LOCAL_MACHINE";
 	const char *kDefaultValueKey = "@";
+	// TheSuperHackers @tweak bobtista 05/06/2026 Name the vendor dir and store filename
+	// once so the registry location is defined in a single place.
+	const char *kVendorDirName = "TheSuperHackers";
+	const char *kRegistryIniFileName = "registry.ini";
 
 	std::string TrimCopy(const std::string &value)
 	{
@@ -149,44 +153,44 @@ namespace
 		const char *appData = getenv("APPDATA");
 		if (appData != nullptr && appData[0] != '\0')
 		{
-			return std::string(appData) + "\\TheSuperHackers";
+			return std::string(appData) + "\\" + kVendorDirName;
 		}
 
 		const char *userProfile = getenv("USERPROFILE");
 		if (userProfile != nullptr && userProfile[0] != '\0')
 		{
-			return std::string(userProfile) + "\\AppData\\Roaming\\TheSuperHackers";
+			return std::string(userProfile) + "\\AppData\\Roaming\\" + kVendorDirName;
 		}
 #else
 		const char *home = getenv("HOME");
 #ifdef __APPLE__
 		if (home != nullptr && home[0] != '\0')
 		{
-			return std::string(home) + "/Library/Application Support/TheSuperHackers";
+			return std::string(home) + "/Library/Application Support/" + kVendorDirName;
 		}
 #else
 		const char *xdgConfigHome = getenv("XDG_CONFIG_HOME");
 		if (xdgConfigHome != nullptr && xdgConfigHome[0] != '\0')
 		{
-			return std::string(xdgConfigHome) + "/TheSuperHackers";
+			return std::string(xdgConfigHome) + "/" + kVendorDirName;
 		}
 
 		if (home != nullptr && home[0] != '\0')
 		{
-			return std::string(home) + "/.config/TheSuperHackers";
+			return std::string(home) + "/.config/" + kVendorDirName;
 		}
 #endif
 #endif
 
-		return "TheSuperHackers";
+		return kVendorDirName;
 	}
 
 	std::string GetRegistryIniPath()
 	{
 #ifdef _WIN32
-		return GetRegistryIniDirectory() + "\\registry.ini";
+		return GetRegistryIniDirectory() + "\\" + kRegistryIniFileName;
 #else
-		return GetRegistryIniDirectory() + "/registry.ini";
+		return GetRegistryIniDirectory() + "/" + kRegistryIniFileName;
 #endif
 	}
 
