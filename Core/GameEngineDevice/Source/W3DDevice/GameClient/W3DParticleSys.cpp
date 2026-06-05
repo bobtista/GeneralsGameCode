@@ -328,16 +328,11 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			RGBAArray[count].Y = color->green;
 			RGBAArray[count].Z = color->blue;
 
-			// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned
-			// ADDITIVE water-surface particles (BattleShipWaterRipples and
-			// similar hull-contact foam) are rendered through the BGFX shader
-			// pipeline noticeably dimmer than DX8 retail at the same camera
-			// distance — likely because the fragment path strips contribution
-			// from anti-aliased ring edges that DX8's fixed-function path
-			// retained. Boost their effective size 2x and color 1.5x (clamped)
-			// so the foam reads at the hull-waterline like the retail reference
-			// without overwhelming the rest of the frame.
-			if (sys->m_isGroundAligned
+			// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned ADDITIVE water-surface foam
+			// renders dimmer through the shader pipeline than DX8; boost size 2x and color 1.5x
+			// (clamped), gated on batchPointGroups so the DX8 path is unaffected.
+			if (batchPointGroups
+				&& sys->m_isGroundAligned
 				&& sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
 			{
 				sizeArray[count] *= 2.0f;
@@ -346,19 +341,10 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 				RGBAArray[count].Z = MIN(1.0f, color->blue  * 1.5f);
 			}
 
-			// TheSuperHackers @bugfix bobtista 27/05/2026 Additive particles
-			// (Shader=ADDITIVE) keep m_alpha at its initial keyframe value because
-			// ParticleSys.cpp::update() skips alpha keyframe progression for
-			// ADDITIVE shader. For many systems (BattleShipWaterRipples,
-			// BattleshipMuzzleFlashWave, AmphibWaveRest) the initial Alpha1 is
-			// 0.0, which would be fine for DX8 fixed-function additive blend
-			// (which ignores alpha) but the bgfx fs_uber shader pipeline applies
-			// u_matDiffuse multiplication, soft-particle fade, and alpha test on
-			// current.a — any of which can discard pixels when vertex_alpha is 0.
-			// Force vertex alpha to 1.0 for additive draws so the shader's
-			// downstream alpha-aware logic does not filter out additive particles
-			// the way DX8 never had to worry about.
-			if (sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			// TheSuperHackers @bugfix bobtista 27/05/2026 ADDITIVE particles keep m_alpha at the
+			// initial keyframe (often 0) and fs_uber's alpha-aware paths would discard them; force
+			// vertex alpha to 1.0, gated on batchPointGroups so DX8 keeps per-particle alpha.
+			if (batchPointGroups && sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
 			{
 				RGBAArray[count].W = 1.0f;
 			}
