@@ -834,7 +834,12 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 			stream = new OpenALAudioStream;
 			// When we need more data ask FFmpeg for more data.
 			stream->setRequireDataCallback([ffmpegFile, stream]() {
-				ffmpegFile->decodePacket();
+				// TheSuperHackers @bugfix bobtista 05/06/2026 decodePacket() returns false at
+				// AVERROR_EOF; tell the stream so update() stops restarting it once the source
+				// drains, letting processPlayingList release the finished stream.
+				if (!ffmpegFile->decodePacket()) {
+					stream->markEndOfStream();
+				}
 				});
 
 			// When we receive a frame from FFmpeg, send it to OpenAL.
@@ -3020,7 +3025,17 @@ void OpenALAudioManager::playStream(AudioEventRTS* event, OpenALAudioStream* str
 		//alSourcei(stream->getSource(), AL_LOOPING, AL_TRUE);
 	}
 
-	stream->play();
+	// TheSuperHackers @bugfix bobtista 05/06/2026 Do not start the source while its buffer queue
+	// is still empty. A freshly created stream has no data yet (it is filled lazily in update()),
+	// and playing an empty OpenAL source leaves it STOPPED "at end" — which makes the buffers
+	// queued a moment later count as already-processed. The audio then never plays audibly (silent
+	// EVA / speech) and the underrun-restart logic endlessly replays those phantom-processed
+	// buffers (the machine-gun). update() starts the stream as soon as data has been buffered.
+	ALint queuedBuffers = 0;
+	alGetSourcei(stream->getSource(), AL_BUFFERS_QUEUED, &queuedBuffers);
+	if (queuedBuffers > 0) {
+		stream->play();
+	}
 	if (event->getAudioEventInfo()->m_soundType == AT_Music) {
 		// Need to stop/fade out the old music here.
 	}
