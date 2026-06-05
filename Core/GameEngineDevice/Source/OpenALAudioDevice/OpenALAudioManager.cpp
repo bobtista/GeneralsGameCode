@@ -242,11 +242,16 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 				continue;
 			}
 
+			// TheSuperHackers @bugfix bobtista 05/06/2026 Bound the gather so a full
+			// channel list cannot write past playingArray[maxChannels-1].
+			if (channel >= maxChannels) {
+				break;
+			}
 			playingArray[channel] = playing;
 			channel++;
 		}
 
-		for (Int i = 1; i <= maxChannels && i <= channelCount; ++i) {
+		for (Int i = 1; i < maxChannels && i <= channelCount; ++i) {
 			playing = playingArray[i];
 			if (!playing) {
 				dd->printf("%d: Silence\n", i);
@@ -305,6 +310,11 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 				continue;
 			}
 
+			// TheSuperHackers @bugfix bobtista 05/06/2026 Bound the gather so a full
+			// channel list cannot write past playingArray[maxChannels-1].
+			if (channel >= maxChannels) {
+				break;
+			}
 			playingArray[channel] = playing;
 			channel++;
 		}
@@ -809,6 +819,9 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 		}
 
 		FFmpegFile* ffmpegFile = NEW FFmpegFile();
+		// TheSuperHackers @bugfix bobtista 05/06/2026 Hand ownership to the PlayingAudio
+		// immediately so an open() failure frees it via releasePlayingAudio (was leaked).
+		audio->m_ffmpegFile = ffmpegFile;
 		if (!ffmpegFile->open(file))
 		{
 			DEBUG_LOG(("Failed to open FFmpeg file: %s\n", fileToPlay.str()));
@@ -871,7 +884,6 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 		// event so ~AudioRequest does not also delete it (double-free after upstream #2731).
 		if (req != NULL) { req->releasePendingEvent(); }
 		audio->m_stream = stream;
-		audio->m_ffmpegFile = ffmpegFile;
 		audio->m_type = PAT_Stream;
 
 		if (stream) {
@@ -1559,7 +1571,10 @@ AsciiString OpenALAudioManager::getMusicTrackName(void) const
 			continue;
 		}
 
-		if ((*ait)->m_pendingEvent->getAudioEventInfo()->m_soundType == AT_Music) {
+		// TheSuperHackers @bugfix bobtista 05/06/2026 A queued Play request may not
+		// have its AudioEventInfo resolved yet (NULL is an expected state); guard it.
+		if ((*ait)->m_pendingEvent->getAudioEventInfo() != NULL &&
+			(*ait)->m_pendingEvent->getAudioEventInfo()->m_soundType == AT_Music) {
 			return (*ait)->m_pendingEvent->getEventName();
 		}
 	}
@@ -2450,7 +2465,10 @@ void OpenALAudioManager::processRequestList(void)
 	std::list<AudioRequest*>::iterator it;
 	for (it = m_audioRequests.begin(); it != m_audioRequests.end(); /* empty */) {
 		AudioRequest* req = (*it);
+		// TheSuperHackers @bugfix bobtista 05/06/2026 Erase (not bare continue) so a
+		// NULL entry cannot spin this manually-advanced loop forever.
 		if (req == NULL) {
+			it = m_audioRequests.erase(it);
 			continue;
 		}
 
@@ -2853,7 +2871,10 @@ void OpenALAudioManager::closeAnySamplesUsingFile(const void* fileToClose)
 
 	for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ) {
 		playing = *it;
+		// TheSuperHackers @bugfix bobtista 05/06/2026 Erase (not bare continue) so a
+		// NULL entry cannot spin this manually-advanced loop forever.
 		if (!playing) {
+			it = m_playingSounds.erase(it);
 			continue;
 		}
 
@@ -2868,7 +2889,10 @@ void OpenALAudioManager::closeAnySamplesUsingFile(const void* fileToClose)
 
 	for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ) {
 		playing = *it;
+		// TheSuperHackers @bugfix bobtista 05/06/2026 Erase (not bare continue) so a
+		// NULL entry cannot spin this manually-advanced loop forever.
 		if (!playing) {
+			it = m_playing3DSounds.erase(it);
 			continue;
 		}
 
