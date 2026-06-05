@@ -534,7 +534,10 @@ void main()
 		vec3 matAmbient = (u_vertexColorFlags.z > 0.5) ? diffuse.rgb : u_matAmbient.rgb;
 		vec3 matEmissive = (u_vertexColorFlags.w > 0.5) ? diffuse.rgb : u_matEmissive.rgb;
 
-		vec3 nrm = normalize(v_normal);
+		// TheSuperHackers @bugfix bobtista 05/06/2026 Guard normalize against a zero
+		// normal (degenerate geometry) which would yield NaN and bleed into the color.
+		float nrmLen = length(v_normal);
+		vec3 nrm = (nrmLen > 1e-5) ? (v_normal / nrmLen) : vec3(0.0, 0.0, 1.0);
 		// D3D fixed-function folds emissive into the material color before
 		// texture-stage modulation. Adding it after sampling bleaches tinted
 		// self-lit textures like the shellmap police roof lights to white.
@@ -543,7 +546,10 @@ void main()
 		{
 			if (u_lightParams[li].w > 0.5 || u_lightDirs[li].w > 0.5)
 			{
-				vec3 ldir = normalize(u_lightDirs[li].xyz);
+				// TheSuperHackers @bugfix bobtista 05/06/2026 Guard against a zero light
+				// direction (unset but enabled slot) to avoid NaN from normalize.
+				float ldirLen = length(u_lightDirs[li].xyz);
+				vec3 ldir = (ldirLen > 1e-5) ? (u_lightDirs[li].xyz / ldirLen) : vec3(0.0, 0.0, 1.0);
 				float atten = 1.0;
 				if (u_lightParams[li].z > 0.5)
 				{
