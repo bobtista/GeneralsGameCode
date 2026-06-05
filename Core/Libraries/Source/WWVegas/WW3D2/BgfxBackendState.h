@@ -214,7 +214,7 @@ struct BgfxDraw
     bool                depthTestEnabled = true;
     bool                depthWriteEnabled = true;
     uint64_t            depthFuncBits = BGFX_STATE_DEPTH_TEST_LEQUAL;
-    unsigned            depthFunc = 4;
+    unsigned            depthFunc = 4; // == IRenderBackend RB_CMP_LESS_EQUAL
 
     // Textures + per-stage sampler flags
     bgfx::TextureHandle tex[4] = {

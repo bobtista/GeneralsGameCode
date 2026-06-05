@@ -668,19 +668,24 @@ static bool Is_Format_Compressed(WW3DFormat texture_format,bool allow_compressio
 	return compressed;
 }
 
+// TheSuperHackers @tweak bobtista 05/06/2026 Conservative fallbacks when the backend
+// reports no texture limits, so callers get a usable cap instead of zero.
+static const unsigned DEFAULT_MAX_TEXTURE_DIMENSION = 2048;
+static const unsigned DEFAULT_MAX_TEXTURE_ASPECT = 8;
+
 static RenderBackendTextureLimits Get_Backend_Texture_Limits()
 {
 	if (g_renderBackend)
 	{
 		RenderBackendTextureLimits limits = g_renderBackend->Get_Texture_Limits();
-		if (limits.max_width == 0) limits.max_width = 2048;
-		if (limits.max_height == 0) limits.max_height = 2048;
-		if (limits.max_volume_extent == 0) limits.max_volume_extent = 2048;
-		if (limits.max_aspect_ratio == 0) limits.max_aspect_ratio = 8;
+		if (limits.max_width == 0) limits.max_width = DEFAULT_MAX_TEXTURE_DIMENSION;
+		if (limits.max_height == 0) limits.max_height = DEFAULT_MAX_TEXTURE_DIMENSION;
+		if (limits.max_volume_extent == 0) limits.max_volume_extent = DEFAULT_MAX_TEXTURE_DIMENSION;
+		if (limits.max_aspect_ratio == 0) limits.max_aspect_ratio = DEFAULT_MAX_TEXTURE_ASPECT;
 		return limits;
 	}
 
-	return { 2048, 2048, 2048, 8 };
+	return { DEFAULT_MAX_TEXTURE_DIMENSION, DEFAULT_MAX_TEXTURE_DIMENSION, DEFAULT_MAX_TEXTURE_DIMENSION, DEFAULT_MAX_TEXTURE_ASPECT };
 }
 
 
