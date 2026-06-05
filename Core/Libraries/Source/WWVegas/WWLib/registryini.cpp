@@ -70,6 +70,61 @@ namespace
 		return value.substr(start, end - start);
 	}
 
+	// TheSuperHackers @bugfix bobtista 05/06/2026 Escape backslash/newline/CR so
+	// stored values survive a round-trip. Without this, a value containing a
+	// newline split into a bogus second line on load, and leading/trailing
+	// spaces were silently stripped because the value was Trim-copied on read.
+	std::string EscapeValue(const std::string &value)
+	{
+		std::string out;
+		out.reserve(value.length());
+		for (std::string::size_type i = 0; i < value.length(); ++i)
+		{
+			const char c = value[i];
+			switch (c)
+			{
+				case '\\': out += "\\\\"; break;
+				case '\n': out += "\\n"; break;
+				case '\r': out += "\\r"; break;
+				default: out += c; break;
+			}
+		}
+		return out;
+	}
+
+	std::string UnescapeValue(const std::string &value)
+	{
+		std::string out;
+		out.reserve(value.length());
+		for (std::string::size_type i = 0; i < value.length(); ++i)
+		{
+			if (value[i] == '\\' && i + 1 < value.length())
+			{
+				const char next = value[i + 1];
+				if (next == '\\')
+				{
+					out += '\\';
+					++i;
+					continue;
+				}
+				if (next == 'n')
+				{
+					out += '\n';
+					++i;
+					continue;
+				}
+				if (next == 'r')
+				{
+					out += '\r';
+					++i;
+					continue;
+				}
+			}
+			out += value[i];
+		}
+		return out;
+	}
+
 	std::string ToLowerAscii(std::string value)
 	{
 		for (std::string::size_type i = 0; i < value.length(); ++i)
@@ -460,8 +515,18 @@ namespace
 			}
 
 			const std::string key = BuildKeyName(currentLine.substr(0, separator).c_str());
-			const std::string value = TrimCopy(currentLine.substr(separator + 1));
+			// TheSuperHackers @bugfix bobtista 05/06/2026 Unescape and do NOT trim
+			// the value so leading/trailing spaces and escaped characters round-trip.
+			const std::string value = UnescapeValue(currentLine.substr(separator + 1));
 			data[currentSection][key] = value;
+		}
+
+		// TheSuperHackers @bugfix bobtista 05/06/2026 Distinguish a real read error
+		// from EOF so callers do not overwrite a store they failed to fully read.
+		if (ferror(file))
+		{
+			fclose(file);
+			return false;
 		}
 
 		fclose(file);
@@ -495,7 +560,7 @@ namespace
 			{
 				fprintf(file, "%s=%s\n",
 					valueIt->first == kDefaultValueKey ? "@" : valueIt->first.c_str(),
-					valueIt->second.c_str());
+					EscapeValue(valueIt->second).c_str());
 			}
 			fprintf(file, "\n");
 		}
@@ -582,7 +647,12 @@ namespace RegistryIni
 	bool WriteString(const char *root, const char *path, const char *key, const char *value)
 	{
 		RegistryIniData data;
-		LoadRegistryIni(data);
+		// TheSuperHackers @bugfix bobtista 05/06/2026 Bail on a failed load rather
+		// than overwriting the store with partial/empty data.
+		if (!LoadRegistryIni(data))
+		{
+			return false;
+		}
 		data[BuildSectionName(root, path)][BuildKeyName(key)] = value == nullptr ? "" : value;
 		return SaveRegistryIni(data);
 	}
@@ -604,7 +674,10 @@ namespace RegistryIni
 	bool DeleteValue(const char *root, const char *path, const char *key)
 	{
 		RegistryIniData data;
-		LoadRegistryIni(data);
+		if (!LoadRegistryIni(data))
+		{
+			return false;
+		}
 
 		RegistryIniData::iterator sectionIt = data.find(BuildSectionName(root, path));
 		if (sectionIt == data.end())
@@ -624,7 +697,10 @@ namespace RegistryIni
 	bool ClearSection(const char *root, const char *path)
 	{
 		RegistryIniData data;
-		LoadRegistryIni(data);
+		if (!LoadRegistryIni(data))
+		{
+			return false;
+		}
 		data.erase(BuildSectionName(root, path));
 		return SaveRegistryIni(data);
 	}
