@@ -91,6 +91,12 @@ struct OpenFileInfo
 typedef std::unordered_map< AsciiString, OpenAudioFile, rts::hash<AsciiString>, rts::equal_to<AsciiString> > OpenFilesHash;
 typedef OpenFilesHash::iterator OpenFilesHashIt;
 
+// TheSuperHackers @tweak bobtista 05/06/2026 Decoded-PCM cache sizing. 14 MiB is the
+// bare ctor default; the 64 MiB floor (applied in OpenALAudioManager) overrides a
+// smaller INI/default cap so the decoded working set fits without re-decoding per frame.
+static const UnsignedInt DEFAULT_AUDIO_CACHE_BYTES = 14u * 1024u * 1024u;
+static const UnsignedInt MIN_DECODED_PCM_CACHE_BYTES = 64u * 1024u * 1024u;
+
 class OpenALAudioFileCache
 {
 public:

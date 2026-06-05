@@ -524,7 +524,7 @@ void OpenALAudioManager::init()
 	// holds the decoded working set; it is a lazy cap (only what is actually played is
 	// allocated), so the floor costs nothing until needed. Override with GGC_AUDIO_CACHE_MB.
 	UnsignedInt cacheBytes = getAudioSettings()->m_maxCacheSize;
-	const UnsignedInt minCacheBytes = 64u * 1024u * 1024u;
+	const UnsignedInt minCacheBytes = MIN_DECODED_PCM_CACHE_BYTES;
 	if (cacheBytes < minCacheBytes)
 	{
 		cacheBytes = minCacheBytes;

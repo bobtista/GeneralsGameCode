@@ -33,7 +33,7 @@ extern "C" {
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-OpenALAudioFileCache::OpenALAudioFileCache() : m_maxSize(14*1024*1024), m_currentlyUsedSize(0)
+OpenALAudioFileCache::OpenALAudioFileCache() : m_maxSize(DEFAULT_AUDIO_CACHE_BYTES), m_currentlyUsedSize(0)
 {
 }
 
