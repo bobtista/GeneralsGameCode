@@ -528,11 +528,9 @@ void W3DShroud::render(CameraClass *cam)
 	if (!m_pSrcTexture)
 		return; //nothing to update from.  Must be in reset state.
 
-	// TheSuperHackers @refactor bobtista 10/04/2026 Replaced the
-	// raw _Get_D3D_Device8()->TestCooperativeLevel() check with the abstracted
-	// device-lost flag on IRenderBackend. Same intent: skip rendering this
-	// frame if the device isn't ready.
-	if (g_renderBackend->Is_Device_Lost())
+	// TheSuperHackers @refactor bobtista 10/04/2026 Skip the frame via the abstracted device-lost
+	// flag; g_renderBackend can be null before the backend exists or during reset.
+	if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 		return;	//device not ready to render anything
 
 #if defined(RTS_DEBUG)
