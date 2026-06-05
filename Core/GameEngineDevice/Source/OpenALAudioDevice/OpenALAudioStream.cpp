@@ -108,7 +108,15 @@ void OpenALAudioStream::update()
 
     // GeneralsX @bugfix BenderAI 22/04/2026 Restart before unqueue to avoid dropping freshly queued
     // briefing buffers when OpenAL reports AL_STOPPED with processed buffers.
-    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL || sourceState == AL_PAUSED) && num_queued > 0) {
+    // TheSuperHackers @bugfix bobtista 05/06/2026 Restart a stopped stream when it still has
+    // UNPLAYED buffers to play (processed < queued — covers the initial start of a fully-buffered
+    // short EVA clip and underrun recovery) OR when it has not yet reached EOF (bridge a transient
+    // mid-stream decode gap). Only when EOF is reached AND every buffer has already played do we
+    // leave the source stopped, so a finished stream is released instead of replaying its last
+    // buffer forever (the machine-gun loop).
+    ALint processedQueued = 0;
+    alGetSourcei(m_source, AL_BUFFERS_PROCESSED, &processedQueued);
+    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL || sourceState == AL_PAUSED) && num_queued > 0 && (processedQueued < num_queued || !m_reachedEof)) {
         play();
         alGetSourcei(m_source, AL_SOURCE_STATE, &sourceState);
     }
@@ -152,8 +160,12 @@ void OpenALAudioStream::update()
     // GeneralsX @bugfix fbraz3 27/04/2026 Restart after refill when a generic speech stream
     // began the frame with an empty queue; otherwise processPlayingList() can release it as
     // stopped before the newly buffered narrator audio ever starts playing.
+    // TheSuperHackers @bugfix bobtista 05/06/2026 Same condition as the pre-unqueue restart above:
+    // play whenever there are unplayed buffers or EOF has not been reached; only a finished,
+    // fully-played stream is left stopped so it can be released.
     alGetSourcei(m_source, AL_SOURCE_STATE, &sourceState);
-    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL || sourceState == AL_PAUSED) && num_queued > 0) {
+    alGetSourcei(m_source, AL_BUFFERS_PROCESSED, &processedQueued);
+    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL || sourceState == AL_PAUSED) && num_queued > 0 && (processedQueued < num_queued || !m_reachedEof)) {
         play();
     }
 }
@@ -177,6 +189,7 @@ void OpenALAudioStream::reset()
         num_queued--;
     }
     m_current_buffer_idx = 0;
+    m_reachedEof = false;
 }
 
 bool OpenALAudioStream::isPlaying()

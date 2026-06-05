@@ -42,6 +42,11 @@ public:
     void update();
     void reset();
 
+    // TheSuperHackers @bugfix bobtista 05/06/2026 Marked once the decoder reaches end-of-file so
+    // update() stops restarting a finished stream (which otherwise replays its last buffer forever).
+    void markEndOfStream() { m_reachedEof = true; }
+    bool reachedEndOfStream() const { return m_reachedEof; }
+
     void play() { alSourcePlay(m_source); }
     void pause() { alSourcePause(m_source); }
     void stop() { alSourceStop(m_source); }
@@ -53,4 +58,5 @@ protected:
     ALuint m_source = 0;
     ALuint m_buffers[AL_STREAM_BUFFER_COUNT] = {};
     unsigned int m_current_buffer_idx = 0;
+    bool m_reachedEof = false;
 };
