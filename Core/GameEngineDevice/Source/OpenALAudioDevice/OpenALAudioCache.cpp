@@ -75,8 +75,18 @@ Bool OpenALAudioFileCache::decodeFFmpeg(OpenAudioFile* file)
 	}
 
 	// Fill the buffer with the audio data
-	alBufferData(file->m_buffer, OpenALAudioManager::getALFormat(file->m_ffmpegFile->getNumChannels(), file->m_ffmpegFile->getBytesPerSample() * 8),
+	// TheSuperHackers @bugfix bobtista 05/06/2026 Reject unsupported formats instead
+	// of caching a silent buffer, and surface alBufferData failures to the caller.
+	const ALenum alFormat = OpenALAudioManager::getALFormat(file->m_ffmpegFile->getNumChannels(), file->m_ffmpegFile->getBytesPerSample() * 8);
+	if (alFormat == AL_NONE) {
+		return false;
+	}
+	alGetError();
+	alBufferData(file->m_buffer, alFormat,
 		audioData.data(), audioData.size(), file->m_ffmpegFile->getSampleRate());
+	if (alGetError() != AL_NONE) {
+		return false;
+	}
 
 	// Calculate the duration in MS
 	file->m_duration = (file->m_totalSamples / (float)file->m_ffmpegFile->getSampleRate()) * 1000.0f;
@@ -163,8 +173,6 @@ ALuint OpenALAudioFileCache::getBufferForFile(const OpenFileInfo &fileInfo)
 		return 0;
 	}
 
-	UnsignedInt fileSize = file->size();
-
 	OpenAudioFile openedAudioFile;
 	alGenBuffers(1, &openedAudioFile.m_buffer);
 	openedAudioFile.m_eventInfo = eventToOpenFrom ? eventToOpenFrom->getAudioEventInfo() : NULL;
@@ -191,7 +199,9 @@ ALuint OpenALAudioFileCache::getBufferForFile(const OpenFileInfo &fileInfo)
 
 	openedAudioFile.m_ffmpegFile->close();
 
-	openedAudioFile.m_fileSize = fileSize;
+	// TheSuperHackers @bugfix bobtista 05/06/2026 Account the decoded PCM size (set
+	// by decodeFFmpeg), not the compressed on-disk size, so the cache cap bounds the
+	// real memory footprint and eviction frees the right amount.
 	m_currentlyUsedSize += openedAudioFile.m_fileSize;
 	if (m_currentlyUsedSize > m_maxSize) {
 		DEBUG_LOG(("Audio Cache is full, trying to free some space\n"));
