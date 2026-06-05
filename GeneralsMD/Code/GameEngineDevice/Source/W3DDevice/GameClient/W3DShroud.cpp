@@ -532,7 +532,9 @@ void W3DShroud::render(CameraClass *cam)
 	// raw _Get_D3D_Device8()->TestCooperativeLevel() check with the abstracted
 	// device-lost flag on IRenderBackend. Same intent: skip rendering this
 	// frame if the device isn't ready.
-	if (g_renderBackend->Is_Device_Lost())
+	// TheSuperHackers @bugfix bobtista 05/06/2026 Guard g_renderBackend (null before
+	// the backend exists / during reset); the original tolerated a null device too.
+	if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 		return;	//device not ready to render anything
 
 #if defined(RTS_DEBUG)
