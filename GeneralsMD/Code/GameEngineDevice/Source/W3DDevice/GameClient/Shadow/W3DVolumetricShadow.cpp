@@ -222,14 +222,18 @@ int nShadowIndicesInBuf=0;	//model vetices in vertex buffer
 int nShadowStartBatchIndex=0;
 int SHADOW_VERTEX_SIZE=4096;
 int SHADOW_INDEX_SIZE=8192;
+// TheSuperHackers @tweak bobtista 05/06/2026 Larger per-frame shadow-volume ring-buffer
+// capacities for the bgfx / closed-volume path (65535 is the u16 index ceiling).
+int SHADOW_VOLUME_BGFX_VERTEX_CAPACITY=32768;
+int SHADOW_VOLUME_BGFX_INDEX_CAPACITY=65535;
 
 static int ShadowDynamicVertexCapacity()
 {
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	return 32768;
+	return SHADOW_VOLUME_BGFX_VERTEX_CAPACITY;
 #else
 	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
-		return 32768;
+		return SHADOW_VOLUME_BGFX_VERTEX_CAPACITY;
 	return SHADOW_VERTEX_SIZE;
 #endif
 }
@@ -237,10 +241,10 @@ static int ShadowDynamicVertexCapacity()
 static int ShadowDynamicIndexCapacity()
 {
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	return 65535;
+	return SHADOW_VOLUME_BGFX_INDEX_CAPACITY;
 #else
 	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
-		return 65535;
+		return SHADOW_VOLUME_BGFX_INDEX_CAPACITY;
 	return SHADOW_INDEX_SIZE;
 #endif
 }
