@@ -6597,6 +6597,10 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
 void * BgfxBackend::Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
                                                 unsigned int size_bytes)
 {
+    // TheSuperHackers @bugfix bobtista 05/06/2026 Reset valid up front so any early
+    // return below leaves a previous draw's transient buffer marked invalid; only a
+    // successful allocation re-validates it (End must not blindly mark it valid).
+    g_draw.pendingVB.valid = false;
     if (!g_device.initialized || vba == nullptr || size_bytes == 0) {
         return nullptr;
     }
@@ -6609,6 +6613,7 @@ void * BgfxBackend::Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
         return nullptr;
     }
     bgfx::allocTransientVertexBuffer(&g_draw.pendingVB.tvb, num_verts, layout);
+    g_draw.pendingVB.valid = true;
     g_stats.transientVbAllocations++;
     return g_draw.pendingVB.tvb.data;
 }
@@ -6620,8 +6625,12 @@ void BgfxBackend::End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
     if (!g_device.initialized || vba == nullptr) {
         return;
     }
+    // TheSuperHackers @bugfix bobtista 05/06/2026 If Begin failed to allocate a
+    // transient buffer (pendingVB.valid stayed false), do not finalize a stale buffer.
+    if (!g_draw.pendingVB.valid) {
+        return;
+    }
     g_draw.pendingVB.owner = vba;
-    g_draw.pendingVB.valid = true;
     g_draw.pendingVB.coplanarNormalBias = HasSubmittedOppositeNormalPairs(
         vba->FVF_Info(), data, vba->Get_Vertex_Count());
     g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
