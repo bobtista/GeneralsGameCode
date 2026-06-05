@@ -274,11 +274,11 @@ static Bool GetSDLWindowSize(SDL_Window *window, Int *width, Int *height)
 
 	int windowWidth = 0;
 	int windowHeight = 0;
+	// TheSuperHackers @bugfix bobtista 05/06/2026 Mouse events are in logical window
+	// points, so the display mapping must divide by the window size in points too.
+	// Do not fall back to SDL_GetWindowSizeInPixels: on a Retina/HiDPI display that
+	// returns physical pixels (~2x), which would scale the cursor position wrong.
 	SDL_GetWindowSize(window, &windowWidth, &windowHeight);
-	if (windowWidth <= 0 || windowHeight <= 0)
-	{
-		SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
-	}
 	if (windowWidth <= 0 || windowHeight <= 0)
 	{
 		return FALSE;
