@@ -3813,7 +3813,9 @@ void W3DVolumetricShadowManager::reset()
 // ============================================================================
 W3DVolumetricShadow* W3DVolumetricShadowManager::addShadow(RenderObjClass *robj, Shadow::ShadowTypeInfo *shadowInfo, Drawable *draw)
 {
-	if (!g_renderBackend->Has_Stencil() || !robj || !TheGlobalData->m_useShadowVolumes)
+	// TheSuperHackers @bugfix bobtista 05/06/2026 Guard g_renderBackend, which can be
+	// null before the backend exists or during a device-lost/reset window.
+	if (!g_renderBackend || !g_renderBackend->Has_Stencil() || !robj || !TheGlobalData->m_useShadowVolumes)
 		return nullptr;	//right now we require a stencil buffer
 
 	W3DShadowGeometry *sg=nullptr;
