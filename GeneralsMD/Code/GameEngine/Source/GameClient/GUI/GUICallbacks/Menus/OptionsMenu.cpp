@@ -880,6 +880,13 @@ static void saveOptions()
 
 				TheInGameUI->recreateControlBar();
 				TheInGameUI->refreshCustomUiResources();
+
+				// TheSuperHackers @fix Mauller 08/05/2026 Update the view so the camera height re-scales when changing resolution
+				TheTacticalView->setDefaultView(
+					DEG_TO_RADF(TheGlobalData->m_cameraPitch),
+					DEG_TO_RADF(TheGlobalData->m_cameraYaw),
+					1.0f);
+				TheTacticalView->setZoomToDefault();
 			}
 		}
 	}
