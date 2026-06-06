@@ -2249,10 +2249,42 @@ void W3DView::setPitchToDefault()
 //-------------------------------------------------------------------------------------------------
 void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
 {
+	// TheSuperHackers @tweak bobtista 06/06/2026 Allow zooming out further than retail via a flat
+	// scale on the maximum camera height. Tunable live via GGC_CAM_ZOOM_SCALE; the minimum height
+	// (zoom-in) is left unchanged.
+	Real zoomScale = 1.3f;
+	const char* zoomEnv = getenv("GGC_CAM_ZOOM_SCALE");
+	if (zoomEnv != NULL)
+	{
+		Real overrideScale = (Real)atof(zoomEnv);
+		if (overrideScale > 0.0f)
+		{
+			zoomScale = overrideScale;
+		}
+	}
+
+	// TheSuperHackers @tweak bobtista 08/06/2026 Make the zoom-out aspect-aware. The camera uses a
+	// fixed horizontal FOV (Set_View_Plane(hfov, -1)), so a wider-than-4:3 framebuffer gets a smaller
+	// vertical FOV and shows less of the map vertically at a given height. Real fullscreen resolutions
+	// are widescreen, so windowed 4:3 and fullscreen would otherwise frame the world differently at the
+	// same height. Scale the max height by the aspect ratio relative to the 4:3 baseline the zoomScale
+	// was tuned against, so widescreen pulls the camera back to show a comparable vertical extent. 4:3
+	// and narrower keep the tuned scale unchanged.
+	Real aspectScale = 1.0f;
+	if (getHeight() != 0)
+	{
+		const Real baseAspect = 4.0f / 3.0f;
+		const Real aspect = (Real)getWidth() / (Real)getHeight();
+		if (aspect > baseAspect)
+		{
+			aspectScale = aspect / baseAspect;
+		}
+	}
+
 	// MDC - we no longer want to rotate maps (design made all of them right to begin with)
 	//	m_defaultAngle = angle * M_PI/180.0f;
 	setDefaultPitch(pitch);
-	m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight*maxHeight;
+	m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight * zoomScale * aspectScale * maxHeight;
 	if (m_minHeightAboveGround > m_maxHeightAboveGround)
 		m_maxHeightAboveGround = m_minHeightAboveGround;
 }
@@ -2294,7 +2326,6 @@ void W3DView::setZoomToDefault()
 	m_heightAboveGround = m_maxHeightAboveGround;
 	m_zoom = getMaxZoom(m_pos.x, m_pos.y);
 
-	stopDoingScriptedCamera();
 	m_CameraArrivedAtWaypointOnPathFlag = false;
 	m_cameraAreaConstraintsValid = false;
 	m_recalcCamera = true;
