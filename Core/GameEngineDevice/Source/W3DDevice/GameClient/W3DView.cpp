@@ -2246,10 +2246,25 @@ void W3DView::setPitchToDefault()
 //-------------------------------------------------------------------------------------------------
 void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
 {
+	// TheSuperHackers @tweak bobtista 06/06/2026 Allow zooming out further than retail. The bgfx/macOS
+	// build renders at a fixed 4:3 logical resolution, so the upstream aspect-ratio scaling has nothing
+	// to act on; apply a flat zoom-out factor to the maximum camera height instead. Tunable live via
+	// GGC_CAM_ZOOM_SCALE; the minimum height (zoom-in) is left unchanged.
+	Real zoomScale = 1.3f;
+	const char* zoomEnv = getenv("GGC_CAM_ZOOM_SCALE");
+	if (zoomEnv != NULL)
+	{
+		Real overrideScale = (Real)atof(zoomEnv);
+		if (overrideScale > 0.0f)
+		{
+			zoomScale = overrideScale;
+		}
+	}
+
 	// MDC - we no longer want to rotate maps (design made all of them right to begin with)
 	//	m_defaultAngle = angle * M_PI/180.0f;
 	setDefaultPitch(pitch);
-	m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight*maxHeight;
+	m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight * zoomScale * maxHeight;
 	if (m_minHeightAboveGround > m_maxHeightAboveGround)
 		m_maxHeightAboveGround = m_minHeightAboveGround;
 }
@@ -2291,7 +2306,6 @@ void W3DView::setZoomToDefault()
 	m_heightAboveGround = m_maxHeightAboveGround;
 	m_zoom = getMaxZoom(m_pos.x, m_pos.y);
 
-	stopDoingScriptedCamera();
 	m_CameraArrivedAtWaypointOnPathFlag = false;
 	m_cameraAreaConstraintsValid = false;
 	m_recalcCamera = true;
