@@ -6948,6 +6948,11 @@ void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
         {
             g_draw.alphaBlendEnabled = true;
         }
+        // TheSuperHackers @bugfix bobtista 06/06/2026 Mark blend as explicitly set (like
+        // Set_Alpha_Blend_Enable) so SubmitEngineDraw does not reset blendFuncBits back to the
+        // shader's default, which silently dropped explicit factors (e.g. the m_gForceMultiply
+        // DEST_COLOR/SRC_COLOR multiply) when no blend override was active.
+        g_draw.alphaBlendExplicitlySet = true;
     }
 }
 
