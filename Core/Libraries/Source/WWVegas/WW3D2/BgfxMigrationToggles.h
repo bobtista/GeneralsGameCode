@@ -24,7 +24,6 @@ enum class BgfxMigrationToggle
 	SurfaceOwnership,
 	RenderTargets,
 	BufferOwnership,
-	SemanticState,
 };
 
 const char *Get_Bgfx_Migration_Toggle_Name(BgfxMigrationToggle toggle);

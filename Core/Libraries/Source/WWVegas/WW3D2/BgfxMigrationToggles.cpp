@@ -51,8 +51,6 @@ bool Toggle_Default_Enabled(BgfxMigrationToggle toggle)
 		case BgfxMigrationToggle::RenderTargets:
 		case BgfxMigrationToggle::BufferOwnership:
 			return true;
-		case BgfxMigrationToggle::SemanticState:
-			return false;
 	}
 	return false;
 }
@@ -70,8 +68,6 @@ const char *Get_Bgfx_Migration_Toggle_Name(BgfxMigrationToggle toggle)
 			return "render targets";
 		case BgfxMigrationToggle::BufferOwnership:
 			return "buffer ownership";
-		case BgfxMigrationToggle::SemanticState:
-			return "semantic state";
 	}
 	return "unknown";
 }
@@ -87,8 +83,6 @@ const char *Get_Bgfx_Migration_Toggle_Env(BgfxMigrationToggle toggle)
 			return "GGC_BGFX_NEW_RENDER_TARGETS";
 		case BgfxMigrationToggle::BufferOwnership:
 			return "GGC_BGFX_NEW_BUFFER_OWNERSHIP";
-		case BgfxMigrationToggle::SemanticState:
-			return "GGC_BGFX_SEMANTIC_STATE";
 	}
 	return "";
 }
@@ -102,8 +96,6 @@ bool Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle toggle)
 		case BgfxMigrationToggle::RenderTargets:
 		case BgfxMigrationToggle::BufferOwnership:
 			return true;
-		case BgfxMigrationToggle::SemanticState:
-			break;
 	}
 #endif
 	const char *value = std::getenv(Get_Bgfx_Migration_Toggle_Env(toggle));
