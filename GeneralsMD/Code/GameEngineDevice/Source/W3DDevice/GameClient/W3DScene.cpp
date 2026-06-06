@@ -1003,9 +1003,10 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 		}
 	}
 
-	// TheSuperHackers @performance bobtista 04/06/2026 Skip only the mesh render for
-	// sub-pixel drawables; shroud status, material-pass pops and light_environment reset
-	// below still run so the object stays fully present in the scene.
+	// TheSuperHackers @performance bobtista 04/06/2026 Cull sub-pixel drawables: skip the per-object
+	// render entirely (the shroud/fog material passes inside the !cullMeshDraw block below are gated
+	// off too, not just the base mesh). Only the trailing light_environment reset and material-pass
+	// pops still run, so a culled object is not drawn this pass - including its shroud overlay.
 	const Bool cullMeshDraw = ShouldSubpixelCullMesh(rinfo, draw, sph);
 	if (!drawableHidden && !cullMeshDraw)
 	{
