@@ -4611,7 +4611,10 @@ void BgfxBackend::Upload_Vertex_Buffer_Sub_Range(const VertexBufferClass * vb,
     }
     if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
     {
-        DestroyStaticVertexResource(*entry);
+        // TheSuperHackers @bugfix bobtista 06/06/2026 Defer the static-buffer destroy (matching
+        // TryCaptureStaticVertexBuffer) so a buffer still referenced by an earlier draw this frame
+        // is not freed before bgfx::frame() - the RefCount-leak / one-frame use-after-free case.
+        DeferDestroyStaticVertexResource(*entry);
     }
     bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
     if (!bgfx::isValid(h))
@@ -4649,7 +4652,10 @@ void BgfxBackend::Upload_Index_Buffer_Sub_Range(const IndexBufferClass * ib,
     }
     if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
     {
-        DestroyStaticIndexResource(*entry);
+        // TheSuperHackers @bugfix bobtista 06/06/2026 Defer the static-buffer destroy (matching
+        // TryCaptureStaticIndexBuffer) so a buffer still referenced by an earlier draw this frame
+        // is not freed before bgfx::frame().
+        DeferDestroyStaticIndexResource(*entry);
     }
     bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
     if (!bgfx::isValid(h))
