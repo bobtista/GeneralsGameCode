@@ -2976,7 +2976,12 @@ static uint32_t ComputeBgfxResetFlags()
         resetFlags |= BGFX_RESET_DEPTH_CLAMP;
     }
 #if defined(__APPLE__)
-    if (std::getenv("GGC_MACOS_NO_FLUSH") == nullptr)
+    // TheSuperHackers @bugfix bobtista 06/06/2026 Match the init-time gate (opt-in via
+    // GGC_MACOS_FLUSH) so a runtime reset (window resize / vsync toggle) does not silently flip
+    // FLUSH_AFTER_RENDER back on and revert the ~48% perf win. This path was opt-out (always on
+    // unless GGC_MACOS_NO_FLUSH), which diverged from Initialize().
+    if (std::getenv("GGC_MACOS_FLUSH") != nullptr
+        && std::getenv("GGC_MACOS_NO_FLUSH") == nullptr)
     {
         resetFlags |= BGFX_RESET_FLUSH_AFTER_RENDER;
     }
