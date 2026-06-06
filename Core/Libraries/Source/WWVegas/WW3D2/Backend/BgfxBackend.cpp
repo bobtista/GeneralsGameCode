@@ -6321,6 +6321,12 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         LogBgfxRevealDraw("submit-sorted", submitView,
                           polygon_count, vertex_count, state, "skip-missing");
         g_stats.skippedDraws++;
+        // TheSuperHackers @bugfix bobtista 06/06/2026 Discard the queued encoder state (transform/
+        // VB/IB/textures/uniforms) and suppress the fallback SubmitEngineDraw, matching the success
+        // path below. Without this the queued state leaks into the next draw and the outer
+        // Draw_Triangles re-submits with stale sorting-VB args.
+        bgfx::discard(BGFX_DISCARD_ALL);
+        g_views.skipNextSubmitEngineDraw = true;
         return;
     }
 
