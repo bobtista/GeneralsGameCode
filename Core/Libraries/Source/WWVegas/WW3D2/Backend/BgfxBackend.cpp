@@ -6541,6 +6541,10 @@ void BgfxBackend::End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
 void * BgfxBackend::Begin_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
                                                unsigned int size_bytes)
 {
+    // TheSuperHackers @bugfix bobtista 06/06/2026 Mirror Begin_Dynamic_Vertex_Write: reset valid up
+    // front so any early return leaves a previous draw's transient buffer marked invalid; only a
+    // successful allocation re-validates it (End must not blindly mark it valid).
+    g_draw.pendingIB.valid = false;
     if (!g_device.initialized || iba == nullptr || size_bytes == 0) {
         return nullptr;
     }
@@ -6549,6 +6553,7 @@ void * BgfxBackend::Begin_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
         return nullptr;
     }
     bgfx::allocTransientIndexBuffer(&g_draw.pendingIB.tib, num_indices);
+    g_draw.pendingIB.valid = true;
     g_stats.transientIbAllocations++;
     return g_draw.pendingIB.tib.data;
 }
@@ -6560,8 +6565,12 @@ void BgfxBackend::End_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
     if (!g_device.initialized || iba == nullptr) {
         return;
     }
+    // TheSuperHackers @bugfix bobtista 06/06/2026 If Begin failed to allocate a transient buffer
+    // (pendingIB.valid stayed false), do not finalize a stale buffer.
+    if (!g_draw.pendingIB.valid) {
+        return;
+    }
     g_draw.pendingIB.owner = iba;
-    g_draw.pendingIB.valid = true;
 }
 
 // -- Instancing -------------------------------------------------------------
