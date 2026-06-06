@@ -1880,6 +1880,10 @@ static bool NearlyEqual(float a, float b)
     return a > b - epsilon && a < b + epsilon;
 }
 
+// TheSuperHackers @info bobtista 06/06/2026 Intentionally ignores the translation row (m[12..14]):
+// only the rotation/scale 3x3 and the homogeneous m[15] are checked, so a pure-translation view
+// still counts as identity. That is what the 2D-overlay inference at the call site wants - it is
+// not an oversight.
 static bool IsIdentityViewMatrix(const float *m)
 {
     return NearlyEqual(m[0], 1.0f) && NearlyEqual(m[5], 1.0f)
