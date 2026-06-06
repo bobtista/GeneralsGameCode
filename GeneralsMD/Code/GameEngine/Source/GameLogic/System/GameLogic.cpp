@@ -2460,6 +2460,11 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// update the loadscreen
 	updateLoadProgress(LOAD_PROGRESS_POST_PRELOAD_ASSETS);
 
+	// TheSuperHackers @fix Mauller 08/05/2026 Apply the aspect-ratio-scaled default view before defaulting the camera
+	TheTacticalView->setDefaultView(
+		DEG_TO_RADF(TheGlobalData->m_cameraPitch),
+		DEG_TO_RADF(TheGlobalData->m_cameraYaw),
+		1.0f);
 	TheTacticalView->setAngleToDefault();
 	TheTacticalView->setPitchToDefault();
 	TheTacticalView->setZoomToDefault();
