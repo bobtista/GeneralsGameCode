@@ -617,7 +617,9 @@ void main()
 				current.rgb = applyColorOp(secColorOp, tex1.rgb, current.rgb);
 			}
 			if (u_texcoordSelect.y > 0.5)
+			{
 				current *= tex2 * tex3;
+			}
 		}
 		if (secAlphaOp > 0.5)
 		{
