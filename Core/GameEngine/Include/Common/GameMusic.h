@@ -98,10 +98,10 @@ public:
 	MusicManager();
 	virtual ~MusicManager();
 
-	void playTrack(AudioEventRTS* eventToUse);
+	void playTrack(DynamicAudioEventRTS* eventToUse);
 	void stopTrack(AudioHandle eventToRemove);
 
-	virtual void addAudioEvent(AudioEventRTS* eventToAdd);    // pre-copied
+	virtual void addAudioEvent(DynamicAudioEventRTS* eventToAdd);    // pre-copied
 	virtual void removeAudioEvent(AudioHandle eventToRemove);
 
 	void setVolume(Real m_volume);
