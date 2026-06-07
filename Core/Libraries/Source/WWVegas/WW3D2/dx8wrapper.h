@@ -463,26 +463,7 @@ public:
 	static void _Enable_Triangle_Draw(bool enable) { _EnableTriangleDraw=enable; }
 	static bool _Is_Triangle_Draw_Enabled() { return _EnableTriangleDraw; }
 
-	/*
-	** Additional swap chain interface
-	**
-	**		Use this interface to render to multiple windows (in windowed mode).
-	**	To render to an additional window, the sequence of calls should look
-	**	something like this:
-	**
-	**	Set the additional swap chain as the active render target.
-	**
-	**	WW3D::Begin_Render (true, true, Vector3 (0, 0, 0));
-	**	WW3D::Render (scene, camera, FALSE, FALSE);
-	**	WW3D::End_Render ();
-	**
-	**	swap_chain_ptr->Present (nullptr, nullptr, nullptr, nullptr);
-	**
-	**	Restore the default render target.
-	**
-	*/
 #if !defined(GGC_RENDER_BACKEND_BGFX)
-	static IDirect3DSwapChain8 *	Create_Additional_Swap_Chain (HWND render_window);
 
 	/*
 	** Render target interface. If render target format is WW3D_FORMAT_UNKNOWN, current display format is used.
@@ -550,9 +531,6 @@ public:
 	/// Returns the display format - added by TR for video playback - not part of W3D
 	static WW3DFormat	getBackBufferFormat();
 	static bool Reset_Device(bool reload_assets=true);
-
-	// TheSuperHackers @feature bobtista 16/04/2026 Move DX8 device to a different window
-	static void Set_Device_Window(HWND hwnd, int width, int height);
 
 	static const DX8Caps*	Get_Current_Caps() { WWASSERT(CurrentCaps); return CurrentCaps; }
 
