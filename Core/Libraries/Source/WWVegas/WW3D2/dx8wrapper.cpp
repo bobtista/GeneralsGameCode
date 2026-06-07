@@ -1319,6 +1319,13 @@ void DX8Wrapper::Get_Format_Name(unsigned int format, StringClass *tex_format)
 
 void DX8Wrapper::Resize_And_Position_Window()
 {
+#if defined(SAGE_USE_SDL3)
+	// TheSuperHackers @bugfix bobtista 07/06/2026 SDL3 owns window sizing, positioning and
+	// fullscreen (SDL3Main and W3DDisplay::setDisplayMode). The legacy Win32 SetWindowPos path
+	// below fights it: with the windowed/fullscreen choice now honored, the !IsWindowed branch
+	// shrinks the SDL fullscreen window to the logical resolution at the top-left corner. Skip it.
+	return;
+#else
 	// Get the current dimensions of the 'render area' of the window
 	RECT rect = { 0 };
 	::GetClientRect (_Hwnd, &rect);
@@ -1369,7 +1376,7 @@ void DX8Wrapper::Resize_And_Position_Window()
 			DEBUG_LOG(("Window positioned to x:%d y:%d, resized to w:%d h:%d", left, top, width, height));
 		}
 	}
-
+#endif
 }
 
 bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int windowed,
@@ -1397,12 +1404,6 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 
 	if (bits != -1)		BitDepth = bits;
 	if (windowed != -1)	IsWindowed = (windowed != 0);
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 16/04/2026 legacy reference
-	// window must always use windowed mode. Fullscreen-exclusive would steal
-	// input focus from the main game window where bgfx renders.
-	IsWindowed = true;
-#endif
 	DX8Wrapper_IsWindowed = IsWindowed;
 
 	WWDEBUG_SAY(("Attempting Set_Render_Device: name: %s (%s:%s), width: %d, height: %d, windowed: %d",
@@ -1759,30 +1760,6 @@ bool DX8Wrapper::Set_Device_Resolution(int width,int height,int bits,int windowe
 	} else {
 		return false;
 	}
-}
-
-// TheSuperHackers @feature bobtista 16/04/2026 Move the DX8 device to a
-// different window. Updates the present parameters and resets the device so
-// it renders into the given hwnd at the specified dimensions.
-void DX8Wrapper::Set_Device_Window(HWND hwnd, int width, int height)
-{
-	if (D3DDevice == nullptr)
-	{
-		return;
-	}
-
-	// TheSuperHackers @refactor bobtista 18/04/2026 Move the legacy
-	// device to a reference popup window. Keep the original backbuffer
-	// resolution so the game's UI layout calculations stay correct;
-	// legacy rendering stretches the output to fit the popup window automatically.
-	_Hwnd = hwnd;
-	_PresentParameters.hDeviceWindow = hwnd;
-	_PresentParameters.Windowed = TRUE;
-
-	WWDEBUG_SAY(("DX8Wrapper::Set_Device_Window moving device to hwnd=%p (%dx%d), "
-	             "keeping backbuffer at %dx%d.",
-	             hwnd, width, height, ResolutionWidth, ResolutionHeight));
-	Reset_Device(true);
 }
 
 void DX8Wrapper::Get_Device_Resolution(int & set_w,int & set_h,int & set_bits,bool & set_windowed)
@@ -4451,35 +4428,6 @@ void DX8Wrapper::Set_Render_Target
 	IsRenderToTexture=true;
 }
 
-
-IDirect3DSwapChain8 *
-DX8Wrapper::Create_Additional_Swap_Chain (HWND render_window)
-{
-	DX8_Assert();
-
-	//
-	//	Configure the presentation parameters for a windowed render target
-	//
-	D3DPRESENT_PARAMETERS params				= { 0 };
-	params.BackBufferFormat						= _PresentParameters.BackBufferFormat;
-	params.BackBufferCount						= 1;
-	params.MultiSampleType						= D3DMULTISAMPLE_NONE;
-	params.SwapEffect								= D3DSWAPEFFECT_COPY_VSYNC;
-	params.hDeviceWindow							= render_window;
-	params.Windowed								= TRUE;
-	params.EnableAutoDepthStencil				= TRUE;
-	params.AutoDepthStencilFormat				= _PresentParameters.AutoDepthStencilFormat;
-	params.Flags									= 0;
-	params.FullScreen_RefreshRateInHz		= D3DPRESENT_RATE_DEFAULT;
-	params.FullScreen_PresentationInterval	= D3DPRESENT_INTERVAL_DEFAULT;
-
-	//
-	//	Create the swap chain
-	//
-	IDirect3DSwapChain8 *swap_chain = nullptr;
-	DX8CALL(CreateAdditionalSwapChain(&params, &swap_chain));
-	return swap_chain;
-}
 
 void DX8Wrapper::Flush_DX8_Resource_Manager(unsigned int bytes)
 {
