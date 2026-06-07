@@ -15,7 +15,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#if defined(_WIN32)
+// TheSuperHackers @build bobtista 07/06/2026 strings.h is POSIX; MSVC has no such header.
+// strcasecmp lives in <string.h> as _stricmp on Windows.
+#include <string.h>
+#define strcasecmp _stricmp
+#else
 #include <strings.h>
+#endif
 
 #include "Common/AudioRequest.h"
 #include "Common/Debug.h"
@@ -36,6 +43,10 @@
 #include "GameNetwork/NetworkInterface.h"
 #if defined(SAGE_USE_OPENAL)
 #include "OpenALAudioDevice/OpenALAudioManager.h"
+#elif defined(_WIN32)
+// TheSuperHackers @build bobtista 07/06/2026 The SDL3 build on Windows has no OpenAL, so it uses
+// the same Miles(-stub) audio backend as the Win32 build.
+#include "MilesAudioDevice/MilesAudioManager.h"
 #endif
 #include "SDL3Device/GameClient/SDL3Keyboard.h"
 #include "SDL3Device/GameClient/SDL3Mouse.h"
@@ -529,8 +540,15 @@ AudioManager *SDL3GameEngine::createAudioManager(Bool dummy)
 		}
 	}
 	return NEW OpenALAudioManager(dummy);
-#endif
+#elif defined(_WIN32)
+	// TheSuperHackers @build bobtista 07/06/2026 No OpenAL on the Windows SDL3 build; reuse the
+	// Win32 Miles(-stub) audio backend so audio init returns a valid manager instead of NULL.
+	if (dummy)
+		return NEW MilesAudioManagerDummy;
+	return NEW MilesAudioManager;
+#else
 	return NULL;
+#endif
 }
 
 ParticleSystemManager *SDL3GameEngine::createParticleSystemManager(Bool dummy)
