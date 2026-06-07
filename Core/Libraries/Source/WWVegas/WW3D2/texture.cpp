@@ -460,6 +460,19 @@ void TextureBaseClass::Invalidate_Old_Unused_Textures(unsigned invalidation_time
 */
 void TextureBaseClass::Invalidate()
 {
+	// TheSuperHackers @bugfix bobtista 07/06/2026 On the standalone bgfx backend the device is
+	// never lost on a window/resolution change - bgfx::reset only rebuilds the swapchain and
+	// preserves all user textures. The CPU mip snapshot is the only authoritative copy of the
+	// pixel data (there is no D3D MANAGED system-memory backing to reload from). Tearing the
+	// texture down here - Release_Cached_Texture + Destroy_Resource + Clear_CPU_Texture_Snapshot -
+	// discards that only copy, and nothing reloads it, so every file texture (palm trees, rocks,
+	// units) rebuilds white after a resolution change. There is no device-loss to recover from on
+	// bgfx, so skip the invalidation entirely. The DX8 reference backend (Has_Shader_Pipeline()
+	// false) is unaffected and keeps the original release-on-reset behavior.
+	if (g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline()) {
+		return;
+	}
+
 	if (TextureLoadTask) {
 		return;
 	}
