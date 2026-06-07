@@ -1144,8 +1144,8 @@ public:
     //
     // W3D asset wrapper classes (TextureBaseClass, VertexBufferClass,
     // IndexBufferClass) store the returned handle beside their existing
-    // raw legacy resource field; the pointer stays populated in ref-popup
-    // builds so the DX8 reference window renders from the same data.
+    // raw legacy resource field; on DX8 builds that field still drives
+    // rendering, on bgfx builds the handle returned here is authoritative.
 
     virtual bool Requires_Legacy_Buffer_Resources() const { return true; }
     virtual RenderResource Create_Texture(const TextureDesc & desc) { return kInvalidRenderResource; }
