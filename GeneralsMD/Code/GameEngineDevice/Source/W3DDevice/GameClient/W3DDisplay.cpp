@@ -541,10 +541,8 @@ Int W3DDisplay::getDisplayModeCount()
 	extern SDL_Window *TheSDL3Window;
 	if (TheSDL3Window != nullptr)
 	{
-		if (!getWindowed())
-		{
-			return 1;
-		}
+		// TheSuperHackers @feature bobtista 07/06/2026 Enumerate real fullscreen modes for both
+		// windowed and fullscreen so the Options menu offers actual fullscreen resolutions.
 		const SDL_DisplayID display = SDL_GetDisplayForWindow(TheSDL3Window);
 		const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(display);
 		int maxW = desktop ? desktop->w : 1920;
@@ -601,13 +599,8 @@ void W3DDisplay::getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, 
 	extern SDL_Window *TheSDL3Window;
 	if (TheSDL3Window != nullptr)
 	{
-		if (!getWindowed())
-		{
-			*xres = getWidth();
-			*yres = getHeight();
-			*bitDepth = 32;
-			return;
-		}
+		// TheSuperHackers @feature bobtista 07/06/2026 Same real-mode enumeration for windowed
+		// and fullscreen so fullscreen reports actual selectable resolutions, not just current.
 		const SDL_DisplayID display = SDL_GetDisplayForWindow(TheSDL3Window);
 		const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(display);
 		int maxW = desktop ? desktop->w : 1920;
@@ -689,11 +682,34 @@ Bool W3DDisplay::setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt
 
 #if defined(SAGE_USE_SDL3)
 	extern SDL_Window *TheSDL3Window;
-	if (TheSDL3Window != nullptr && windowed)
+	if (TheSDL3Window != nullptr)
 	{
-		SDL_SetWindowFullscreen(TheSDL3Window, false);
-		SDL_SetWindowSize(TheSDL3Window, xres, yres);
-		SDL_SyncWindow(TheSDL3Window);
+		if (windowed)
+		{
+			SDL_SetWindowFullscreen(TheSDL3Window, false);
+			SDL_SetWindowSize(TheSDL3Window, xres, yres);
+			SDL_SyncWindow(TheSDL3Window);
+		}
+		else
+		{
+			// TheSuperHackers @feature bobtista 07/06/2026 Real fullscreen at non-native
+			// resolutions. Startup and the old code only ever used SDL_SetWindowFullscreenMode
+			// with nullptr (desktop fullscreen), which forces native resolution. Select the
+			// closest real fullscreen mode for the requested size and switch to exclusive
+			// fullscreen so non-native resolutions actually mode-switch and fill the screen.
+			const SDL_DisplayID display = SDL_GetDisplayForWindow(TheSDL3Window);
+			SDL_DisplayMode mode;
+			if (SDL_GetClosestFullscreenDisplayMode(display, (int)xres, (int)yres, 0.0f, false, &mode))
+			{
+				SDL_SetWindowFullscreenMode(TheSDL3Window, &mode);
+			}
+			else
+			{
+				SDL_SetWindowFullscreenMode(TheSDL3Window, nullptr);
+			}
+			SDL_SetWindowFullscreen(TheSDL3Window, true);
+			SDL_SyncWindow(TheSDL3Window);
+		}
 	}
 #endif
 	if (WW3D_ERROR_OK == WW3D::Set_Device_Resolution(xres,yres,bitdepth,windowed,true))
