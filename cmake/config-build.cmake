@@ -10,7 +10,7 @@ option(RTS_BUILD_OPTION_ASAN "Build code with Address Sanitizer." OFF)
 option(RTS_BUILD_OPTION_VC6_FULL_DEBUG "Build VC6 with full debug info." OFF)
 option(RTS_BUILD_OPTION_FFMPEG "Enable FFmpeg support" OFF)
 option(SAGE_USE_SDL3 "Use SDL3 for GeneralsMD windowing and input on macOS/non-Windows builds." OFF)
-option(SAGE_USE_OPENAL "Use OpenAL for GeneralsMD audio on macOS/non-Windows builds." OFF)
+option(SAGE_USE_OPENAL "Use OpenAL (+FFmpeg) for GeneralsMD audio on macOS and the SDL3 Windows build." OFF)
 
 if(NOT RTS_BUILD_ZEROHOUR AND NOT RTS_BUILD_GENERALS)
     set(RTS_BUILD_ZEROHOUR TRUE)
