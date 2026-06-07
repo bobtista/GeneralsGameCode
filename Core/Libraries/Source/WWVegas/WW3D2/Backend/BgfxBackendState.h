@@ -482,6 +482,12 @@ struct BgfxCaches
     std::unordered_map<const TextureBaseClass  *, bool>                  renderTarget;
     std::vector<bgfx::TextureHandle> deferredDestroys;     // current frame
     std::vector<bgfx::TextureHandle> deferredDestroysPrev; // previous frame, safe to destroy
+    // TheSuperHackers @bugfix bobtista 07/06/2026 Render-target framebuffers (water RTTs, etc.)
+    // dropped by a resolution-change device reset must outlive the in-flight frame, same as the
+    // texture/buffer queues. Queue the framebuffer handle (which owns its attachment textures)
+    // here and destroy it one frame later.
+    std::vector<bgfx::FrameBufferHandle> deferredDestroyFB;
+    std::vector<bgfx::FrameBufferHandle> deferredDestroyFBPrev;
     // TheSuperHackers @bugfix bobtista 02/06/2026 Dynamic VB/IB handles orphaned by a
     // mid-frame resize must outlive the in-flight frame that may still reference them;
     // destroyed one frame later, like the textures above.

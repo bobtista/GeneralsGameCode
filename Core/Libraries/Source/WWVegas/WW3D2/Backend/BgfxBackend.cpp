@@ -71,8 +71,8 @@
 #include <SDL3/SDL.h>
 #endif
 
-// TheSuperHackers @refactor bobtista 16/04/2026 bgfx takes the main
-// game window. A secondary popup is created for legacy reference output.
+// TheSuperHackers @refactor bobtista 16/04/2026 bgfx renders into the single
+// game window. The old DX8 reference popup window has been removed.
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -1756,7 +1756,7 @@ void IdentityMatrix(float * out)
     out[12] = 0.0f; out[13] = 0.0f; out[14] = 0.0f; out[15] = 1.0f;
 }
 
-static bool GetBackendWindowSize(HWND window, int &width, int &height)
+static bool GetBackendWindowSize(void *window, int &width, int &height)
 {
     width = 0;
     height = 0;
@@ -1772,7 +1772,7 @@ static bool GetBackendWindowSize(HWND window, int &width, int &height)
     }
 #else
     RECT clientRect;
-    if (GetClientRect(window, &clientRect))
+    if (GetClientRect(static_cast<HWND>(window), &clientRect))
     {
         width = clientRect.right - clientRect.left;
         height = clientRect.bottom - clientRect.top;
@@ -2632,9 +2632,8 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                  caps->homogeneousDepth ? 1 : 0,
                  caps->originBottomLeft ? 1 : 0));
 
-    // TheSuperHackers @refactor bobtista 16/04/2026 DX8 now creates
-    // its own secondary reference window in DX8Wrapper::Init, so no need to
-    // create or move anything here.
+    // TheSuperHackers @refactor bobtista 16/04/2026 Single-window build: there is
+    // no secondary reference window to create or move here.
 
     // TheSuperHackers @bugfix bobtista 30/04/2026 The pre-warm loop was
     // intended to serialize AGX helper-shader compilation during init,
@@ -2920,8 +2919,7 @@ void BgfxBackend::Shutdown()
         WWDEBUG_SAY(("[BgfxBackend] bgfx::shutdown complete."));
     }
 
-    // bgfx window is the main game window, do not destroy it.
-    // DX8's secondary reference window is owned by DX8Wrapper.
+    // bgfx window is the single game window, do not destroy it.
     g_device.window = nullptr;
 }
 
@@ -3148,6 +3146,15 @@ void BgfxBackend::Begin_Scene()
         }
     }
     g_caches.deferredDestroyStaticIBPrev.clear();
+    for (auto & h : g_caches.deferredDestroyFBPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroyFBPrev.clear();
+
     // Show the DX8 reference popup after a few frames, giving the game's
     // input system time to fully initialize. Showing too early steals focus
     // and permanently blocks mouse capture.
@@ -3178,6 +3185,7 @@ void BgfxBackend::Begin_Scene()
         }
     }
 #endif
+
 
     // Check if the game window was resized (e.g., by Set_Render_Device) and
     // update bgfx's swapchain to match. Without this, bgfx renders at the
@@ -3210,6 +3218,23 @@ void BgfxBackend::Begin_Scene()
                 bgfx::reset(g_device.width, g_device.height, resetFlags);
                 CreateSceneFramebuffer();
                 ApplySceneFramebufferToViews();
+                // TheSuperHackers @bugfix bobtista 07/06/2026 bgfx::reset only rebuilds the
+                // swapchain - it preserves all user textures, and TextureBaseClass::Invalidate is
+                // a no-op on this backend, so the texture caches (g_caches.texture/textureBaseMip)
+                // stay valid across a resolution change and must NOT be dropped here. Only the
+                // render-target framebuffers (water reflection/refraction RTTs) are resolution
+                // tied and need to be rebuilt; drop them deferred so the in-flight frame's command
+                // buffers retire cleanly, and Ensure_Render_Target_Framebuffer recreates them
+                // lazily at the new size.
+                for (auto & kv : g_caches.framebuffer)
+                {
+                    if (bgfx::isValid(kv.second.fb))
+                    {
+                        g_caches.deferredDestroyFB.push_back(kv.second.fb);
+                    }
+                }
+                g_caches.framebuffer.clear();
+                g_caches.renderTarget.clear();
             }
         }
     }
@@ -3510,7 +3535,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
 #if defined(SAGE_USE_SDL3)
     if (!g_device.mainWindowShown && g_device.window != nullptr)
     {
-        SDL_ShowWindow(static_cast<SDL_Window *>(g_device.window));
+        SDL_ShowWindow(static_cast<SDL_Window *>(static_cast<void *>(g_device.window)));
         g_device.mainWindowShown = true;
     }
 #endif
@@ -3527,6 +3552,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     g_caches.deferredDestroyIBPrev.swap(g_caches.deferredDestroyIB);
     g_caches.deferredDestroyStaticVBPrev.swap(g_caches.deferredDestroyStaticVB);
     g_caches.deferredDestroyStaticIBPrev.swap(g_caches.deferredDestroyStaticIB);
+    g_caches.deferredDestroyFBPrev.swap(g_caches.deferredDestroyFB);
 
     // Transient buffers are freed at bgfx::frame time. Invalidate the
     // pending and current slots so nothing next frame tries to reuse
