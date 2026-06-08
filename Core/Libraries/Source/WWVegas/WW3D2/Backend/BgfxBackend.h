@@ -80,10 +80,9 @@ public:
     virtual void Get_Device_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed) override;
     virtual int Get_Device_Resolution_Width() const override;
     virtual int Get_Device_Resolution_Height() const override;
-    virtual bool Registry_Save_Render_Device(const char * sub_key) override;
-    virtual bool Registry_Save_Render_Device(const char * sub_key, int device, int width, int height, int depth, bool windowed, int texture_depth) override;
-    virtual bool Registry_Load_Render_Device(const char * sub_key, bool resize_window) override;
-    virtual bool Registry_Load_Render_Device(const char * sub_key, char * device, int device_len, int & width, int & height, int & depth, int & windowed, int & texture_depth) override;
+    // TheSuperHackers @refactor bobtista 08/06/2026 Registry_Save/Load_Render_Device is dead on bgfx
+    // (no GameEngine caller; macOS persistence is a no-op stub). Use the IRenderBackend base stubs
+    // instead of forwarding to DX8Wrapper. The DX8 reference build keeps DX8Backend's own forwards.
     virtual void Set_Swap_Interval(int swap) override;
     virtual int Get_Swap_Interval() const override;
 
