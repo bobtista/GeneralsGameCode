@@ -15,7 +15,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#if defined(_WIN32)
+// TheSuperHackers @build bobtista 08/06/2026 strings.h is POSIX; MSVC has no such header.
+// strcasecmp lives in <string.h> as _stricmp on Windows.
+#include <string.h>
+#define strcasecmp _stricmp
+#else
 #include <strings.h>
+#endif
 
 #include "Common/AudioRequest.h"
 #include "Common/Debug.h"
