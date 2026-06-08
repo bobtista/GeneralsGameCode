@@ -3180,25 +3180,9 @@ int BgfxBackend::Get_Device_Resolution_Height() const
     return g_device.height;
 }
 
-bool BgfxBackend::Registry_Save_Render_Device(const char * sub_key)
-{
-    return DX8Wrapper::Registry_Save_Render_Device(sub_key);
-}
-
-bool BgfxBackend::Registry_Save_Render_Device(const char * sub_key, int device, int width, int height, int depth, bool windowed, int texture_depth)
-{
-    return DX8Wrapper::Registry_Save_Render_Device(sub_key, device, width, height, depth, windowed, texture_depth);
-}
-
-bool BgfxBackend::Registry_Load_Render_Device(const char * sub_key, bool resize_window)
-{
-    return DX8Wrapper::Registry_Load_Render_Device(sub_key, resize_window);
-}
-
-bool BgfxBackend::Registry_Load_Render_Device(const char * sub_key, char * device, int device_len, int & width, int & height, int & depth, int & windowed, int & texture_depth)
-{
-    return DX8Wrapper::Registry_Load_Render_Device(sub_key, device, device_len, width, height, depth, windowed, texture_depth);
-}
+// TheSuperHackers @refactor bobtista 08/06/2026 Registry_Save/Load_Render_Device removed - they
+// only forwarded to DX8Wrapper and have no GameEngine callers on bgfx (macOS persistence is a no-op
+// stub). The IRenderBackend base stubs (return false) now apply.
 
 void BgfxBackend::Set_Swap_Interval(int swap)
 {
