@@ -229,6 +229,11 @@ int main(int argc, char **argv)
 #endif
 	GGC_TRACE("SDL_CreateWindow OK window=%p", (void*)TheSDL3Window);
 
+	// TheSuperHackers @feature bobtista 08/06/2026 Enforce a minimum content size so a drag
+	// cannot shrink the window below what the fixed-resolution UI can lay out. SDL_SetWindowAspectRatio
+	// is avoided: on macOS its windowWillResize: delegate traps AppKit's live-resize loop.
+	SDL_SetWindowMinimumSize(TheSDL3Window, 800, 600);
+
 	ApplicationHWnd = TheSDL3Window;
 
 #if defined(__APPLE__)

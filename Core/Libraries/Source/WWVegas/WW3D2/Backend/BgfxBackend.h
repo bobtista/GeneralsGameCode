@@ -40,6 +40,13 @@ public:
                                                TextureClass * src_render_target) override;
     virtual void Release_Cached_Texture(TextureBaseClass * texture) override;
 
+    virtual void Set_Present_Letterbox(bool enabled, float aspectW, float aspectH) override;
+    virtual bool Is_Present_Letterbox_Active() const override;
+    virtual int  Get_Present_Content_Width() const override;
+    virtual int  Get_Present_Content_Height() const override;
+    virtual int  Get_Present_Offset_X() const override;
+    virtual int  Get_Present_Offset_Y() const override;
+
     // -- Backend lifecycle ----------------------------------------------------
     //
     // Initialize creates the bgfx popup window and calls bgfx::init.

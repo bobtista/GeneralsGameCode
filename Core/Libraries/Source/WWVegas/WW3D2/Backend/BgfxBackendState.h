@@ -95,6 +95,18 @@ struct BgfxDevice
     // placeholder masked uninitialized-use bugs.
     int  width       = 0;
     int  height      = 0;
+    // TheSuperHackers @feature bobtista 08/06/2026 Letterbox present. width/height are the CONTENT
+    // (render) size; when letterboxing, the swapchain is larger (swapWidth/swapHeight == window) and
+    // the content is drawn at presentOffsetX/Y with black bars filling the rest. When not
+    // letterboxing, swap == content and offset == 0 (identical to a direct present).
+    bool letterboxRequested = false;
+    float letterboxAspectW = 16.0f;
+    float letterboxAspectH = 9.0f;
+    bool letterboxActive = false;
+    int  swapWidth   = 0;
+    int  swapHeight  = 0;
+    int  presentOffsetX = 0;
+    int  presentOffsetY = 0;
     uint32_t msaaResetFlags = 0;
     bool srgbEnabled = false;
     bool vsyncEnabled = false;
