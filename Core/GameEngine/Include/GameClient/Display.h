@@ -81,6 +81,7 @@ public:
 	virtual void setWindowed( Bool windowed ) { m_windowed = windowed; }  ///< set windowed/fullscreen flag
 	virtual Bool getWindowed() { return m_windowed; }				///< return widowed/fullscreen flag
 	virtual Bool setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed );	///<sets screen resolution/mode
+	virtual Bool applyExternalResize( UnsignedInt xres, UnsignedInt yres ) { return FALSE; }	///<sync engine resolution to an OS-driven window size change, without touching the OS window
 	virtual Int getDisplayModeCount() {return 0;}	///<return number of display modes/resolutions supported by video card.
 	virtual void getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, Int *bitDepth) {}	///<return description of mode
  	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) {};
