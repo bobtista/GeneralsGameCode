@@ -283,19 +283,15 @@ void SDL3GameEngine::applyPendingWindowResize()
 
 void SDL3GameEngine::updatePresentMode()
 {
-	// TheSuperHackers @feature bobtista 08/06/2026 Letterbox the present to a fixed 16:9 aspect while
-	// in a multiplayer match, so every player sees the same viewable area regardless of their window
-	// or display aspect (the camera's visible extent is governed by aspect, not resolution). The
-	// remainder of the window becomes black bars. Outside multiplayer the present fills the window.
+	// TheSuperHackers @feature bobtista 08/06/2026 Letterboxing the present to a fixed 16:9
+	// keeps every player's viewable area identical regardless of window/display aspect; the
+	// plumbing is kept intact but is not auto-forced for multiplayer.
 	if (g_renderBackend == NULL)
 	{
 		return;
 	}
 
-	const Bool wantLetterbox =
-		(TheGameLogic != NULL
-		 && TheGameLogic->isInGame()
-		 && TheGameLogic->isInMultiplayerGame());
+	const Bool wantLetterbox = FALSE;
 
 	if (wantLetterbox == m_letterboxActive)
 	{
