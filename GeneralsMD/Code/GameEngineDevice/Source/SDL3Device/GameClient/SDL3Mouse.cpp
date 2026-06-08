@@ -27,6 +27,8 @@
 #include "GameClient/InGameUI.h"
 #include "WW3D2/assetmgr.h"
 #include "WW3D2/ddsfile.h"
+#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/RenderBackend.h"
 #include "WW3D2/surfaceclass.h"
 #include "WW3D2/texture.h"
 
@@ -331,8 +333,29 @@ static void MapSDLPointToDisplayPoint(float rawX, float rawY, Uint32 windowID, I
 		return;
 	}
 
-	*displayX = static_cast<Int>(std::lround(rawX * static_cast<float>(displayWidth) / static_cast<float>(windowWidth)));
-	*displayY = static_cast<Int>(std::lround(rawY * static_cast<float>(displayHeight) / static_cast<float>(windowHeight)));
+	// TheSuperHackers @feature bobtista 08/06/2026 When the present is letterboxed (multiplayer), the
+	// game is drawn in a centered sub-rect of the window. Subtract the bar offset and map against the
+	// content size so pointer coordinates land in the rendered area; clicks in the bars map outside
+	// the display bounds and are ignored downstream.
+	Int offsetX = 0;
+	Int offsetY = 0;
+	Int contentWidth = windowWidth;
+	Int contentHeight = windowHeight;
+	if (g_renderBackend != NULL && g_renderBackend->Is_Present_Letterbox_Active())
+	{
+		offsetX = g_renderBackend->Get_Present_Offset_X();
+		offsetY = g_renderBackend->Get_Present_Offset_Y();
+		const Int cw = g_renderBackend->Get_Present_Content_Width();
+		const Int ch = g_renderBackend->Get_Present_Content_Height();
+		if (cw > 0 && ch > 0)
+		{
+			contentWidth = cw;
+			contentHeight = ch;
+		}
+	}
+
+	*displayX = static_cast<Int>(std::lround((rawX - static_cast<float>(offsetX)) * static_cast<float>(displayWidth) / static_cast<float>(contentWidth)));
+	*displayY = static_cast<Int>(std::lround((rawY - static_cast<float>(offsetY)) * static_cast<float>(displayHeight) / static_cast<float>(contentHeight)));
 }
 
 static void MapDisplayPointToSDLPoint(Int displayX, Int displayY, float *rawX, float *rawY)
@@ -360,8 +383,27 @@ static void MapDisplayPointToSDLPoint(Int displayX, Int displayY, float *rawX, f
 		return;
 	}
 
-	*rawX = static_cast<float>(displayX) * static_cast<float>(windowWidth) / static_cast<float>(displayWidth);
-	*rawY = static_cast<float>(displayY) * static_cast<float>(windowHeight) / static_cast<float>(displayHeight);
+	// Mirror the letterbox mapping in MapSDLPointToDisplayPoint: scale by the content size and add the
+	// bar offset so a warped cursor lands in the rendered sub-rect.
+	Int offsetX = 0;
+	Int offsetY = 0;
+	Int contentWidth = windowWidth;
+	Int contentHeight = windowHeight;
+	if (g_renderBackend != NULL && g_renderBackend->Is_Present_Letterbox_Active())
+	{
+		offsetX = g_renderBackend->Get_Present_Offset_X();
+		offsetY = g_renderBackend->Get_Present_Offset_Y();
+		const Int cw = g_renderBackend->Get_Present_Content_Width();
+		const Int ch = g_renderBackend->Get_Present_Content_Height();
+		if (cw > 0 && ch > 0)
+		{
+			contentWidth = cw;
+			contentHeight = ch;
+		}
+	}
+
+	*rawX = static_cast<float>(displayX) * static_cast<float>(contentWidth) / static_cast<float>(displayWidth) + static_cast<float>(offsetX);
+	*rawY = static_cast<float>(displayY) * static_cast<float>(contentHeight) / static_cast<float>(displayHeight) + static_cast<float>(offsetY);
 }
 
 void SDL3Mouse::addSDL3MotionEvent(const SDL_MouseMotionEvent &event)
