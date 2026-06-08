@@ -526,6 +526,19 @@ public:
     // draws may still reference it) and erase its cache entries.
     virtual void Release_Cached_Texture(TextureBaseClass * /*texture*/) {}
 
+    // TheSuperHackers @feature bobtista 08/06/2026 Letterbox present. When enabled, the backend
+    // renders the game into a centered sub-rect of the window at the requested aspect and fills the
+    // remainder with black bars; this gives a consistent viewable area regardless of window/display
+    // aspect (used to keep multiplayer fair). When disabled, present is direct (content == window).
+    // The default backend ignores it and always presents directly. The accessors report the current
+    // content rect so the engine can match its display resolution and offset mouse input.
+    virtual void Set_Present_Letterbox(bool /*enabled*/, float /*aspectW*/, float /*aspectH*/) {}
+    virtual bool Is_Present_Letterbox_Active() const { return false; }
+    virtual int  Get_Present_Content_Width() const { return 0; }
+    virtual int  Get_Present_Content_Height() const { return 0; }
+    virtual int  Get_Present_Offset_X() const { return 0; }
+    virtual int  Get_Present_Offset_Y() const { return 0; }
+
     // -------------------------------------------------------------------------
     // Backend lifecycle
     // -------------------------------------------------------------------------
