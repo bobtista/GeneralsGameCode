@@ -110,6 +110,11 @@ struct BgfxDevice
     uint32_t msaaResetFlags = 0;
     bool srgbEnabled = false;
     bool vsyncEnabled = false;
+    // TheSuperHackers @refactor bobtista 08/06/2026 Device windowed flag and color bit-depth are
+    // owned here on bgfx builds; DX8Wrapper mirrors its IsWindowed/BitDepth into these from its
+    // Set_Render_Device/Init. Defaults match DX8Wrapper (IsWindowed=false, BitDepth=DEFAULT_BIT_DEPTH=32).
+    bool windowed    = false;
+    int  bits        = 32;
     // bgfx debug-log callback is a file-local global in BgfxBackend.cpp (g_bgfxCallback); it needs the full BgfxLoggingCallback class definition and only BgfxBackend.cpp uses it.
 
     // Programs
