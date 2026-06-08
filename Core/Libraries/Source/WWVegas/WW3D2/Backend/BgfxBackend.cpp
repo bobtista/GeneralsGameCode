@@ -1818,6 +1818,58 @@ static bool NearlyEqual(float a, float b)
     return a > b - epsilon && a < b + epsilon;
 }
 
+// TheSuperHackers @feature bobtista 08/06/2026 Swapchain dimensions for the letterbox present. The
+// swapchain always matches the window; g_device.width/height are the (possibly smaller) content
+// size. Fall back to the content size before the first resize has populated the swap fields.
+static inline int LbSwapWidth()  { return g_device.swapWidth  > 0 ? g_device.swapWidth  : g_device.width; }
+static inline int LbSwapHeight() { return g_device.swapHeight > 0 ? g_device.swapHeight : g_device.height; }
+
+// Compute the content rect (render size + centered offset) for a window of swapW x swapH given the
+// current letterbox request. With no request the content fills the window (offset 0). With one, the
+// content is the largest box of the requested aspect that fits, centered, leaving the remainder for
+// black bars. active is false when the content ends up filling the window (e.g. an exact-aspect
+// window), so the direct-present fast path is kept.
+static void ComputeLetterboxLayout(int swapW, int swapH,
+                                   int &contentW, int &contentH,
+                                   int &offsetX, int &offsetY, bool &active)
+{
+    contentW = swapW;
+    contentH = swapH;
+    offsetX = 0;
+    offsetY = 0;
+    active = false;
+    if (!g_device.letterboxRequested || swapW <= 0 || swapH <= 0
+        || g_device.letterboxAspectW <= 0.0f || g_device.letterboxAspectH <= 0.0f)
+    {
+        return;
+    }
+    const float targetAspect = g_device.letterboxAspectW / g_device.letterboxAspectH;
+    const float windowAspect = static_cast<float>(swapW) / static_cast<float>(swapH);
+    if (windowAspect > targetAspect)
+    {
+        // Window wider than the target: pillarbox (bars left/right).
+        contentH = swapH;
+        contentW = static_cast<int>(static_cast<float>(swapH) * targetAspect + 0.5f);
+    }
+    else
+    {
+        // Window taller than the target: letterbox (bars top/bottom).
+        contentW = swapW;
+        contentH = static_cast<int>(static_cast<float>(swapW) / targetAspect + 0.5f);
+    }
+    if (contentW < 1) { contentW = 1; }
+    if (contentH < 1) { contentH = 1; }
+    if (contentW > swapW) { contentW = swapW; }
+    if (contentH > swapH) { contentH = swapH; }
+    offsetX = (swapW - contentW) / 2;
+    offsetY = (swapH - contentH) / 2;
+    active = (contentW != swapW) || (contentH != swapH);
+}
+
+// TheSuperHackers @info bobtista 06/06/2026 Intentionally ignores the translation row (m[12..14]):
+// only the rotation/scale 3x3 and the homogeneous m[15] are checked, so a pure-translation view
+// still counts as identity. That is what the 2D-overlay inference at the call site wants - it is
+// not an oversight.
 static bool IsIdentityViewMatrix(const float *m)
 {
     return NearlyEqual(m[0], 1.0f) && NearlyEqual(m[5], 1.0f)
@@ -2141,7 +2193,9 @@ static void SubmitSceneComposite()
     float identity[16];
     IdentityMatrix(identity);
     bgfx::setViewTransform(kBgfxSceneCompositeView, identity, identity);
-    bgfx::setViewRect(kBgfxSceneCompositeView, 0, 0,
+    bgfx::setViewRect(kBgfxSceneCompositeView,
+                      static_cast<uint16_t>(g_device.presentOffsetX),
+                      static_cast<uint16_t>(g_device.presentOffsetY),
                       static_cast<uint16_t>(g_device.width),
                       static_cast<uint16_t>(g_device.height));
     bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor,
@@ -2181,6 +2235,24 @@ static void SubmitSceneComposite()
 
 }
 
+void BgfxBackend::Set_Present_Letterbox(bool enabled, float aspectW, float aspectH)
+{
+    g_device.letterboxRequested = enabled;
+    if (aspectW > 0.0f && aspectH > 0.0f)
+    {
+        g_device.letterboxAspectW = aspectW;
+        g_device.letterboxAspectH = aspectH;
+    }
+    // The per-frame resize check in Begin_Scene recomputes the content rect and rebuilds the scene
+    // framebuffer + view rects when the layout changes, so no immediate work is needed here.
+}
+
+bool BgfxBackend::Is_Present_Letterbox_Active() const { return g_device.letterboxActive; }
+int  BgfxBackend::Get_Present_Content_Width() const { return g_device.width; }
+int  BgfxBackend::Get_Present_Content_Height() const { return g_device.height; }
+int  BgfxBackend::Get_Present_Offset_X() const { return g_device.letterboxActive ? g_device.presentOffsetX : 0; }
+int  BgfxBackend::Get_Present_Offset_Y() const { return g_device.letterboxActive ? g_device.presentOffsetY : 0; }
+
 void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 {
 #if defined(__APPLE__)
@@ -2214,6 +2286,12 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     {
         g_device.height = 600;
     }
+    // Letterbox starts off: swapchain == content, no offset. Begin_Scene reconciles this every frame.
+    g_device.swapWidth = g_device.width;
+    g_device.swapHeight = g_device.height;
+    g_device.presentOffsetX = 0;
+    g_device.presentOffsetY = 0;
+    g_device.letterboxActive = false;
     WWDEBUG_SAY(("[BgfxBackend] Using main game window %p (%dx%d) for bgfx.",
                  g_device.window, g_device.width, g_device.height));
 
@@ -2334,9 +2412,11 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                        1.0f,
                        0);
     bgfx::setViewFrameBuffer(kBgfxDebugView, BGFX_INVALID_HANDLE);
+    // The debug view clears + covers the whole swapchain (the full window), so the letterbox bars
+    // outside the content rect stay black.
     bgfx::setViewRect(kBgfxDebugView, 0, 0,
-                      static_cast<uint16_t>(g_device.width),
-                      static_cast<uint16_t>(g_device.height));
+                      static_cast<uint16_t>(LbSwapWidth()),
+                      static_cast<uint16_t>(LbSwapHeight()));
 
     // View 1 is the engine geometry view. Same render target, but its
     // own clear/depth and (eventually) its own view+projection matrices
@@ -2434,7 +2514,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     bgfx::setViewMode(kBgfxSceneDepthView, bgfx::ViewMode::Default);
 
     bgfx::setViewClear(kBgfxSceneCompositeView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
-    bgfx::setViewRect(kBgfxSceneCompositeView, 0, 0,
+    bgfx::setViewRect(kBgfxSceneCompositeView,
+                      static_cast<uint16_t>(g_device.presentOffsetX),
+                      static_cast<uint16_t>(g_device.presentOffsetY),
                       static_cast<uint16_t>(g_device.width),
                       static_cast<uint16_t>(g_device.height));
     bgfx::setViewMode(kBgfxSceneCompositeView, bgfx::ViewMode::Sequential);
@@ -2460,7 +2542,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // 2D quads; identity view+projection; no clear so it composites over
     // the 3D scene.
     bgfx::setViewClear(kBgfxUIView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
-    bgfx::setViewRect(kBgfxUIView, 0, 0,
+    bgfx::setViewRect(kBgfxUIView,
+                      static_cast<uint16_t>(g_device.presentOffsetX),
+                      static_cast<uint16_t>(g_device.presentOffsetY),
                       static_cast<uint16_t>(g_device.width),
                       static_cast<uint16_t>(g_device.height));
     bgfx::setViewMode(kBgfxUIView, bgfx::ViewMode::Sequential);
@@ -3061,24 +3145,40 @@ bool BgfxBackend::Set_Device_Resolution(int width, int height, int bits, int win
     return DX8Wrapper::Set_Device_Resolution(width, height, bits, windowed, resize_window);
 }
 
+// TheSuperHackers @bugfix bobtista 08/06/2026 The bgfx backbuffer/content size (g_device.width/height)
+// is the source of truth for the device resolution: it tracks the window every frame. Reading it here
+// (rather than DX8Wrapper's cached resolution, which is only refreshed on a full device reset) keeps
+// the 3D camera viewport - derived from this in CameraClass::Apply - correct across an OS window
+// resize, without mirroring the size into DX8Wrapper. Bit depth and windowed flag still come from
+// DX8Wrapper until they too are owned by the backend.
 void BgfxBackend::Get_Render_Target_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed)
 {
     DX8Wrapper::Get_Render_Target_Resolution(set_w, set_h, set_bits, set_windowed);
+    if (g_device.width > 0 && g_device.height > 0)
+    {
+        set_w = g_device.width;
+        set_h = g_device.height;
+    }
 }
 
 void BgfxBackend::Get_Device_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed)
 {
     DX8Wrapper::Get_Device_Resolution(set_w, set_h, set_bits, set_windowed);
+    if (g_device.width > 0 && g_device.height > 0)
+    {
+        set_w = g_device.width;
+        set_h = g_device.height;
+    }
 }
 
 int BgfxBackend::Get_Device_Resolution_Width() const
 {
-    return DX8Wrapper::Get_Device_Resolution_Width();
+    return g_device.width > 0 ? g_device.width : DX8Wrapper::Get_Device_Resolution_Width();
 }
 
 int BgfxBackend::Get_Device_Resolution_Height() const
 {
-    return DX8Wrapper::Get_Device_Resolution_Height();
+    return g_device.height > 0 ? g_device.height : DX8Wrapper::Get_Device_Resolution_Height();
 }
 
 bool BgfxBackend::Registry_Save_Render_Device(const char * sub_key)
@@ -3112,7 +3212,7 @@ void BgfxBackend::Set_Swap_Interval(int swap)
     g_device.vsyncEnabled = enabled;
     if (g_device.initialized)
     {
-        bgfx::reset(g_device.width, g_device.height, ComputeBgfxResetFlags());
+        bgfx::reset(LbSwapWidth(), LbSwapHeight(), ComputeBgfxResetFlags());
     }
 }
 
@@ -3509,37 +3609,62 @@ void BgfxBackend::Begin_Scene()
     // old resolution while the game expects the new one.
     if (g_device.window)
     {
-        int w = 0;
-        int h = 0;
-        if (GetBackendWindowSize(g_device.window, w, h))
+        int sw = 0;
+        int sh = 0;
+        if (GetBackendWindowSize(g_device.window, sw, sh))
         {
-            if (w != g_device.width || h != g_device.height)
+            // TheSuperHackers @feature bobtista 08/06/2026 Reconcile the swapchain (= window) and the
+            // content (= render) size every frame. Without a letterbox request they are equal; with
+            // one the content is the centered aspect-fit box and the rest becomes black bars. The
+            // swapchain follows the window so bgfx presents at native size; the scene framebuffer and
+            // all render-target views follow the content size.
+            int cw = 0;
+            int ch = 0;
+            int ox = 0;
+            int oy = 0;
+            bool active = false;
+            ComputeLetterboxLayout(sw, sh, cw, ch, ox, oy, active);
+            const bool swapChanged = (sw != g_device.swapWidth || sh != g_device.swapHeight);
+            const bool contentChanged = (cw != g_device.width || ch != g_device.height);
+            if (swapChanged || contentChanged || active != g_device.letterboxActive)
             {
-                WWDEBUG_SAY(("[BgfxBackend] Window resized %dx%d -> %dx%d, calling bgfx::reset.",
-                             g_device.width, g_device.height, w, h));
-                DestroySceneFramebuffer();
-                g_device.width = w;
-                g_device.height = h;
-                bgfx::reset(g_device.width, g_device.height, ComputeBgfxResetFlags());
-                CreateSceneFramebuffer();
-                ApplySceneFramebufferToViews();
-                // TheSuperHackers @bugfix bobtista 07/06/2026 bgfx::reset only rebuilds the
-                // swapchain - it preserves all user textures, and TextureBaseClass::Invalidate is
-                // a no-op on this backend, so the texture caches (g_caches.texture/textureBaseMip)
-                // stay valid across a resolution change and must NOT be dropped here. Only the
-                // render-target framebuffers (water reflection/refraction RTTs) are resolution
-                // tied and need to be rebuilt; drop them deferred so the in-flight frame's command
-                // buffers retire cleanly, and Ensure_Render_Target_Framebuffer recreates them
-                // lazily at the new size.
-                for (auto & kv : g_caches.framebuffer)
+                WWDEBUG_SAY(("[BgfxBackend] Present resize: swap %dx%d -> %dx%d, content %dx%d -> %dx%d, letterbox=%d.",
+                             g_device.swapWidth, g_device.swapHeight, sw, sh,
+                             g_device.width, g_device.height, cw, ch, (int)active));
+                if (contentChanged)
                 {
-                    if (bgfx::isValid(kv.second.fb))
-                    {
-                        g_caches.deferredDestroyFB.push_back(kv.second.fb);
-                    }
+                    DestroySceneFramebuffer();
                 }
-                g_caches.framebuffer.clear();
-                g_caches.renderTarget.clear();
+                g_device.swapWidth = sw;
+                g_device.swapHeight = sh;
+                g_device.width = cw;
+                g_device.height = ch;
+                g_device.presentOffsetX = ox;
+                g_device.presentOffsetY = oy;
+                g_device.letterboxActive = active;
+                bgfx::reset(sw, sh, ComputeBgfxResetFlags());
+                if (contentChanged)
+                {
+                    CreateSceneFramebuffer();
+                    ApplySceneFramebufferToViews();
+                    // TheSuperHackers @bugfix bobtista 07/06/2026 bgfx::reset only rebuilds the
+                    // swapchain - it preserves all user textures, and TextureBaseClass::Invalidate is
+                    // a no-op on this backend, so the texture caches (g_caches.texture/textureBaseMip)
+                    // stay valid across a resolution change and must NOT be dropped here. Only the
+                    // render-target framebuffers (water reflection/refraction RTTs) are resolution
+                    // tied and need to be rebuilt; drop them deferred so the in-flight frame's command
+                    // buffers retire cleanly, and Ensure_Render_Target_Framebuffer recreates them
+                    // lazily at the new size.
+                    for (auto & kv : g_caches.framebuffer)
+                    {
+                        if (bgfx::isValid(kv.second.fb))
+                        {
+                            g_caches.deferredDestroyFB.push_back(kv.second.fb);
+                        }
+                    }
+                    g_caches.framebuffer.clear();
+                    g_caches.renderTarget.clear();
+                }
             }
         }
     }
@@ -3553,9 +3678,10 @@ void BgfxBackend::Begin_Scene()
     {
         float identity[16];
         IdentityMatrix(identity);
+        // Cover the whole swapchain (full window) so the letterbox bars are painted black.
         bgfx::setViewRect(kBgfxDebugView, 0, 0,
-                          static_cast<uint16_t>(g_device.width),
-                          static_cast<uint16_t>(g_device.height));
+                          static_cast<uint16_t>(LbSwapWidth()),
+                          static_cast<uint16_t>(LbSwapHeight()));
         bgfx::setViewTransform(kBgfxDebugView, identity, identity);
         bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
         bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
@@ -3594,14 +3720,16 @@ void BgfxBackend::Begin_Scene()
     bgfx::setViewRect(kBgfxShadowApplyView,   0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxShroudOverlayView, 0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxSceneDepthView,    0, 0, g_device.width, g_device.height);
-    bgfx::setViewRect(kBgfxSceneCompositeView, 0, 0, g_device.width, g_device.height);
+    // Composite and UI present to the swapchain, so they go in the centered content rect; the
+    // remainder of the swapchain is the black-bar region painted by the debug view above.
+    bgfx::setViewRect(kBgfxSceneCompositeView, g_device.presentOffsetX, g_device.presentOffsetY, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxSmudgeCopyView,    0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxSmudgeView,        0, 0, g_device.width, g_device.height);
     if (!preserveRenderToTexture)
     {
         bgfx::setViewRect(kBgfxRTTView,       0, 0, g_device.width, g_device.height);
     }
-    bgfx::setViewRect(kBgfxUIView,            0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxUIView,            g_device.presentOffsetX, g_device.presentOffsetY, g_device.width, g_device.height);
     {
         // TheSuperHackers @bugfix bobtista 30/04/2026 Keep the dedicated
         // 2D UI view in sync with runtime window-size changes too. Leaving
@@ -3741,7 +3869,9 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         IdentityMatrix(identityMtx);
         bgfx::setViewTransform(kBgfxUIView, identityMtx, identityMtx);
     }
-    bgfx::setViewRect(kBgfxUIView, 0, 0,
+    bgfx::setViewRect(kBgfxUIView,
+                      static_cast<uint16_t>(g_device.presentOffsetX),
+                      static_cast<uint16_t>(g_device.presentOffsetY),
                       static_cast<uint16_t>(g_device.width),
                       static_cast<uint16_t>(g_device.height));
 
