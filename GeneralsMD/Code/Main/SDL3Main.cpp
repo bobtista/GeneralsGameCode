@@ -51,8 +51,12 @@ namespace
 	const int kDefaultWindowHeight = 600;
 }
 
+#if !defined(_WIN32)
+// TheSuperHackers @build bobtista 07/06/2026 On Windows the CRT already declares and populates
+// __argc/__argv (stdlib.h) before main() runs (see /ENTRY:mainCRTStartup); only POSIX needs these.
 int __argc = 0;
 char **__argv = NULL;
+#endif
 
 // TheSuperHackers @bugfix bobtista 30/04/2026 Backing storage for the
 // compat shim's GetCommandLineA(). Populated in main() before any
@@ -82,7 +86,10 @@ void DumpExceptionInfo(unsigned int /*u*/, EXCEPTION_POINTERS * /*e*/) {}
 void OSDisplaySetBusyState(Bool /*busyDisplay*/, Bool /*busySystem*/) {}
 
 SDL_Window *TheSDL3Window = NULL;
-void *ApplicationHWnd = NULL;
+// TheSuperHackers @build bobtista 07/06/2026 Define with the same HWND type every consumer
+// extern-declares it as. On macOS HWND is a void* shim so this is unchanged; on Windows HWND is
+// the real type, and defining it as void* here left the symbol unresolved at link.
+HWND ApplicationHWnd = NULL;
 // TheSuperHackers @bugfix bobtista 30/04/2026 macOS-only: keep the
 // SDL_Metal view alive for the lifetime of the bgfx renderer, and
 // publish its CAMetalLayer pointer here so BgfxBackend's
@@ -100,8 +107,10 @@ extern Int GameMain();
 
 int main(int argc, char **argv)
 {
+#if !defined(_WIN32)
 	__argc = argc;
 	__argv = argv;
+#endif
 
 	GGC_TRACE("main entered argc=%d", argc);
 
@@ -238,7 +247,7 @@ int main(int argc, char **argv)
 	// by the 16:9 letterbox present, not by constraining the window shape.
 	SDL_SetWindowMinimumSize(TheSDL3Window, 800, 600);
 
-	ApplicationHWnd = TheSDL3Window;
+	ApplicationHWnd = (HWND)TheSDL3Window;
 
 #if defined(__APPLE__)
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Use SDL3's official

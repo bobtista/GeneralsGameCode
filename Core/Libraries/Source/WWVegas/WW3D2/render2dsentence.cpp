@@ -42,6 +42,9 @@
 #include "BgfxMigrationToggles.h"
 #include "IRenderBackend.h"
 #include "RenderBackend.h"
+#if !defined(__APPLE__)
+#include "ww3d.h"
+#endif
 
 #if defined(__APPLE__)
 #if defined(interface)
