@@ -53,10 +53,15 @@ private:
 	void handleMouseButtonEvent(const SDL_MouseButtonEvent &event);
 	void handleMouseWheelEvent(const SDL_MouseWheelEvent &event);
 	void handleWindowEvent(const SDL_WindowEvent &event);
+	void applyPendingWindowResize();
 	void updateTextInputState();
 
 	SDL_Window *m_sdlWindow;
 	Bool m_textInputActive;
+	Bool m_resizePending;
+	Int m_pendingWidth;
+	Int m_pendingHeight;
+	Int m_resizeStableCount;
 };
 
 #endif
