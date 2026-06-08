@@ -38,6 +38,13 @@
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
 
+#ifdef _WIN32
+#include <stdlib.h>
+static inline int setenv(const char *name, const char *value, int /*overwrite*/)
+{
+	return _putenv_s(name, value);
+}
+#endif
 
 
 
