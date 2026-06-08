@@ -12,18 +12,26 @@
 
 #if defined(SAGE_USE_SDL3)
 
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <strings.h>
 
 #include "Common/AudioRequest.h"
+#include "Common/Debug.h"
 #include "Common/GameAudio.h"
+#include "Common/GlobalData.h"
+#include "GameClient/Display.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/HeaderTemplate.h"
+#include "GameClient/InGameUI.h"
 #include "GameClient/Keyboard.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/ParticleSys.h"
+#include "GameClient/Shell.h"
+#include "GameClient/View.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/NetworkInterface.h"
 #if defined(SAGE_USE_OPENAL)
@@ -46,7 +54,11 @@ extern Keyboard *TheKeyboard;
 
 SDL3GameEngine::SDL3GameEngine() :
 	m_sdlWindow(NULL),
-	m_textInputActive(false)
+	m_textInputActive(false),
+	m_resizePending(false),
+	m_pendingWidth(0),
+	m_pendingHeight(0),
+	m_resizeStableCount(0)
 {
 }
 
@@ -104,6 +116,7 @@ void SDL3GameEngine::pollSDL3Events()
 			case SDL_EVENT_WINDOW_FOCUS_LOST:
 			case SDL_EVENT_WINDOW_MOUSE_ENTER:
 			case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+			case SDL_EVENT_WINDOW_RESIZED:
 				handleWindowEvent(event.window);
 				break;
 
@@ -133,6 +146,102 @@ void SDL3GameEngine::pollSDL3Events()
 				break;
 		}
 	}
+
+	// TheSuperHackers @bugfix bobtista 08/06/2026 Sync the engine resolution only once the
+	// window size has been stable for a few polls; macOS fullscreen animates through
+	// intermediate sizes and applying one mid-transition resets the device on a stale size.
+	if (m_resizePending && m_sdlWindow != NULL)
+	{
+		int curW = 0;
+		int curH = 0;
+		SDL_GetWindowSize(m_sdlWindow, &curW, &curH);
+		if (curW == m_pendingWidth && curH == m_pendingHeight)
+		{
+			const Int kStablePolls = 8;
+			if (++m_resizeStableCount >= kStablePolls)
+			{
+				m_resizePending = false;
+				m_resizeStableCount = 0;
+				applyPendingWindowResize();
+			}
+		}
+		else
+		{
+			m_pendingWidth = curW;
+			m_pendingHeight = curH;
+			m_resizeStableCount = 0;
+		}
+	}
+}
+
+void SDL3GameEngine::applyPendingWindowResize()
+{
+	m_resizePending = false;
+
+	// Read the actual, current window content size rather than the resize event's payload: macOS
+	// emits several events while a fullscreen transition settles, and we only want the final size.
+	int actualW = 0;
+	int actualH = 0;
+	if (m_sdlWindow != NULL)
+	{
+		SDL_GetWindowSize(m_sdlWindow, &actualW, &actualH);
+	}
+	const Int newWidth = actualW;
+	const Int newHeight = actualH;
+
+	if (TheDisplay == NULL || newWidth <= 0 || newHeight <= 0)
+	{
+		return;
+	}
+
+	// Nothing to do if the engine is already at this size.
+	if ((Int)TheDisplay->getWidth() == newWidth && (Int)TheDisplay->getHeight() == newHeight)
+	{
+		return;
+	}
+
+	DEBUG_LOG(("SDL3GameEngine::applyPendingWindowResize from %dx%d to %dx%d (windowed=%d)",
+		TheDisplay->getWidth(), TheDisplay->getHeight(), newWidth, newHeight, TheDisplay->getWindowed()));
+
+	// Engine-side resolution sync only. applyExternalResize updates the render device's view of the
+	// resolution and the 2D coordinate range without touching the SDL window (bgfx already tracks
+	// the real size). This fixes the mouse mapping (display now equals the window) and the rendered
+	// viewport.
+	if (!TheDisplay->applyExternalResize(newWidth, newHeight))
+	{
+		DEBUG_LOG(("SDL3GameEngine::applyPendingWindowResize applyExternalResize FAILED, size unchanged"));
+		return;
+	}
+
+	if (TheWritableGlobalData != NULL)
+	{
+		TheWritableGlobalData->m_xResolution = newWidth;
+		TheWritableGlobalData->m_yResolution = newHeight;
+	}
+
+	// Lightweight, event-loop-safe relayout. NOTE: TheShell->recreateWindowLayouts() and
+	// TheInGameUI->recreateControlBar()/refreshCustomUiResources() are deliberately NOT called here -
+	// they destroy and rebuild live GameWindow layouts and crash when invoked mid-frame from the
+	// event poll (they are only safe from the options-menu GUI flow). onResolutionChanged() and the
+	// camera re-default are safe and cover the mouse bounds and camera framing.
+	if (TheHeaderTemplateManager != NULL)
+	{
+		TheHeaderTemplateManager->onResolutionChanged();
+	}
+	if (TheMouse != NULL)
+	{
+		TheMouse->onResolutionChanged();
+	}
+	if (TheTacticalView != NULL)
+	{
+		TheTacticalView->setDefaultView(
+			DEG_TO_RADF(TheGlobalData->m_cameraPitch),
+			DEG_TO_RADF(TheGlobalData->m_cameraYaw),
+			1.0f);
+		TheTacticalView->setZoomToDefault();
+	}
+
+	DEBUG_LOG(("SDL3GameEngine::applyPendingWindowResize done at %dx%d", newWidth, newHeight));
 }
 
 void SDL3GameEngine::handleKeyboardEvent(const SDL_KeyboardEvent &event)
@@ -255,6 +364,16 @@ void SDL3GameEngine::handleWindowEvent(const SDL_WindowEvent &event)
 		{
 			TheMouse->onCursorMovedOutside();
 		}
+	}
+	else if (event.type == SDL_EVENT_WINDOW_RESIZED)
+	{
+		// data1/data2 carry the new window size in logical points, matching the units used by
+		// SDL_GetWindowSize() and the mouse mapping. Restart the settle timer so we only apply once
+		// the size stops changing.
+		m_pendingWidth = event.data1;
+		m_pendingHeight = event.data2;
+		m_resizePending = true;
+		m_resizeStableCount = 0;
 	}
 }
 
