@@ -35,6 +35,10 @@
 //#include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/udp.h"
 
+#ifdef _WIN32
+typedef int socklen_t;
+#endif
+
 
 //-------------------------------------------------------------------------
 

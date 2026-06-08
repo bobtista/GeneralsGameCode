@@ -1,7 +1,7 @@
 # cmake/openal.cmake
 #
 # TheSuperHackers @build bobtista 28/04/2026 OpenAL Soft dependency for the
-# GeneralsMD macOS-native audio branch.
+# GeneralsMD OpenAL audio backend (macOS-native build and the SDL3 Windows build).
 
 if(SAGE_USE_OPENAL)
     message(STATUS "Configuring OpenAL Soft for GeneralsMD audio")
