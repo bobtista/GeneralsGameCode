@@ -66,6 +66,7 @@ public:
 	virtual void setWidth( UnsignedInt width ) override;
 	virtual void setHeight( UnsignedInt height ) override;
 	virtual Bool setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed ) override;
+	virtual Bool applyExternalResize( UnsignedInt xres, UnsignedInt yres ) override;
 	virtual Int getDisplayModeCount() override;	///<return number of display modes/resolutions supported by video card.
 	virtual void getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, Int *bitDepth) override;	///<return description of mode
  	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) override;

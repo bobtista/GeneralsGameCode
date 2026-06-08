@@ -670,6 +670,26 @@ Bool W3DDisplay::setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt
 	return FALSE;	//did not change to a new mode.
 }
 
+// TheSuperHackers @bugfix bobtista 08/06/2026 Sync the engine-side resolution (render device, 2D
+// coordinate range, display dimensions) to an OS-driven window size change WITHOUT touching the SDL
+// window. macOS fullscreen settles to the usable area below the menu bar/notch (e.g. 982 -> 949)
+// after the window is shown, and a windowed drag-resize changes it live. bgfx already tracks the
+// real window size, so re-driving SDL via setDisplayMode here would re-enter the fullscreen
+// transition and destabilize it (it grabbed transition-intermediate sizes and crashed). The
+// windowed flag and bit depth are kept as-is; only the dimensions follow the window.
+Bool W3DDisplay::applyExternalResize( UnsignedInt xres, UnsignedInt yres )
+{
+	// Update only the engine-side coordinate state. Deliberately do NOT call Set_Device_Resolution:
+	// the bgfx backend already resizes its backbuffer and scene render targets to the live window
+	// size every frame in Begin_Scene, so a device reset here is redundant - and calling it from the
+	// event-poll context (mid-frame, outside the options-menu/game-start flow it was written for)
+	// crashes. Updating the 2D coordinate range and the display dimensions is enough for the mouse
+	// mapping, UI layout and camera to follow the window.
+	Render2DClass::Set_Screen_Resolution(RectClass(0, 0, xres, yres));
+	Display::setDisplayMode(xres, yres, getBitDepth(), getWindowed());
+	return TRUE;
+}
+
 /** Set width of display */
 //=============================================================================
 void W3DDisplay::setWidth( UnsignedInt width )
