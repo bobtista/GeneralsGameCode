@@ -3112,12 +3112,14 @@ bool BgfxBackend::Set_Next_Render_Device()
 
 bool BgfxBackend::Toggle_Windowed()
 {
-    return DX8Wrapper::Toggle_Windowed();
+    // TheSuperHackers @refactor bobtista 08/06/2026 DX8Wrapper::Toggle_Windowed is a no-op on bgfx
+    // builds (its body is WW3D_DX8-only and unconditionally returns false); match that directly.
+    return false;
 }
 
 bool BgfxBackend::Is_Windowed() const
 {
-    return DX8Wrapper::Is_Windowed();
+    return g_device.windowed;
 }
 
 int BgfxBackend::Get_Render_Device() const
@@ -3145,40 +3147,37 @@ bool BgfxBackend::Set_Device_Resolution(int width, int height, int bits, int win
     return DX8Wrapper::Set_Device_Resolution(width, height, bits, windowed, resize_window);
 }
 
-// TheSuperHackers @bugfix bobtista 08/06/2026 The bgfx backbuffer/content size (g_device.width/height)
-// is the source of truth for the device resolution: it tracks the window every frame. Reading it here
-// (rather than DX8Wrapper's cached resolution, which is only refreshed on a full device reset) keeps
-// the 3D camera viewport - derived from this in CameraClass::Apply - correct across an OS window
-// resize, without mirroring the size into DX8Wrapper. Bit depth and windowed flag still come from
-// DX8Wrapper until they too are owned by the backend.
+// TheSuperHackers @refactor bobtista 08/06/2026 g_device is the source of truth for the device
+// resolution (width/height track the window every frame) and now for the bit depth and windowed flag
+// too. Reading them here - rather than DX8Wrapper's cached state, which is only refreshed on a full
+// device reset - keeps the 3D camera viewport (derived from this in CameraClass::Apply) correct across
+// an OS window resize. DX8Wrapper mirrors its IsWindowed/BitDepth into g_device, so no round-trip
+// through the legacy wrapper is needed. width/height are 0 until Initialize() runs (a deliberate
+// sentinel; see the field declaration), which is before any of these getters are read.
 void BgfxBackend::Get_Render_Target_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed)
 {
-    DX8Wrapper::Get_Render_Target_Resolution(set_w, set_h, set_bits, set_windowed);
-    if (g_device.width > 0 && g_device.height > 0)
-    {
-        set_w = g_device.width;
-        set_h = g_device.height;
-    }
+    set_w = g_device.width;
+    set_h = g_device.height;
+    set_bits = g_device.bits;
+    set_windowed = g_device.windowed;
 }
 
 void BgfxBackend::Get_Device_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed)
 {
-    DX8Wrapper::Get_Device_Resolution(set_w, set_h, set_bits, set_windowed);
-    if (g_device.width > 0 && g_device.height > 0)
-    {
-        set_w = g_device.width;
-        set_h = g_device.height;
-    }
+    set_w = g_device.width;
+    set_h = g_device.height;
+    set_bits = g_device.bits;
+    set_windowed = g_device.windowed;
 }
 
 int BgfxBackend::Get_Device_Resolution_Width() const
 {
-    return g_device.width > 0 ? g_device.width : DX8Wrapper::Get_Device_Resolution_Width();
+    return g_device.width;
 }
 
 int BgfxBackend::Get_Device_Resolution_Height() const
 {
-    return g_device.height > 0 ? g_device.height : DX8Wrapper::Get_Device_Resolution_Height();
+    return g_device.height;
 }
 
 bool BgfxBackend::Registry_Save_Render_Device(const char * sub_key)
