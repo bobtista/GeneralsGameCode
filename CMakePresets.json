@@ -209,6 +209,21 @@
             }
         },
         {
+            "name": "win32-generalsmd-sdl3-bgfx",
+            "inherits": "win32-bgfx",
+            "displayName": "Windows 32bit GeneralsMD SDL3 bgfx Release",
+            "cacheVariables": {
+                "RTS_BUILD_GENERALS": "OFF",
+                "RTS_BUILD_GENERALS_TOOLS": "OFF",
+                "RTS_BUILD_ZEROHOUR": "ON",
+                "RTS_BUILD_ZEROHOUR_TOOLS": "OFF",
+                "RTS_BUILD_CORE_TOOLS": "OFF",
+                "RTS_BUILD_OPTION_FFMPEG": "ON",
+                "SAGE_USE_SDL3": "ON",
+                "SAGE_USE_OPENAL": "ON"
+            }
+        },
+        {
             "name": "mingw-w64-i686",
             "displayName": "MinGW-w64 32-bit (i686) Release",
             "generator": "Unix Makefiles",
@@ -290,6 +305,16 @@
             "configurePreset": "win32-bgfx",
             "displayName": "Build Windows 32bit Release (bgfx)",
             "description": "Build Windows 32bit Release (bgfx)",
+            "configuration": "Release",
+            "targets": [
+                "z_generals"
+            ]
+        },
+        {
+            "name": "win32-generalsmd-sdl3-bgfx",
+            "configurePreset": "win32-generalsmd-sdl3-bgfx",
+            "displayName": "Build Windows 32bit GeneralsMD SDL3 bgfx Release",
+            "description": "Build Windows 32bit Release (bgfx + SDL3 + OpenAL + FFmpeg, GeneralsMD only)",
             "configuration": "Release",
             "targets": [
                 "z_generals"
@@ -451,6 +476,19 @@
                 {
                     "type": "build",
                     "name": "win32-bgfx"
+                }
+            ]
+        },
+        {
+            "name": "win32-generalsmd-sdl3-bgfx",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win32-generalsmd-sdl3-bgfx"
+                },
+                {
+                    "type": "build",
+                    "name": "win32-generalsmd-sdl3-bgfx"
                 }
             ]
         },
