@@ -576,7 +576,6 @@ void SlowDeathBehavior::loadPostProcess()
 	// extend base class
 	UpdateModule::loadPostProcess();
 
-	Object *obj = getObject();
 	if (!isSlowDeathActivated())
 	{
 		return;
