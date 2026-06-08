@@ -227,6 +227,17 @@ int main(int argc, char **argv)
 #endif
 	GGC_TRACE("SDL_CreateWindow OK window=%p", (void*)TheSDL3Window);
 
+	// TheSuperHackers @feature bobtista 08/06/2026 Enforce a minimum content size so a drag cannot
+	// shrink the window below what the fixed-resolution UI can lay out. SDL applies it to windowed
+	// resizes only; fullscreen is unaffected.
+	//
+	// NOTE: SDL_SetWindowAspectRatio is deliberately NOT used. On macOS it installs a windowWillResize:
+	// delegate that rewrites the window frame on every drag step (round-tripping content/frame rects on
+	// the Metal-backed content view), which traps inside AppKit's live-resize loop. The aspect clamp is
+	// unnecessary anyway: the resize relayout handles any aspect, and multiplayer fairness is enforced
+	// by the 16:9 letterbox present, not by constraining the window shape.
+	SDL_SetWindowMinimumSize(TheSDL3Window, 800, 600);
+
 	ApplicationHWnd = TheSDL3Window;
 
 #if defined(__APPLE__)
