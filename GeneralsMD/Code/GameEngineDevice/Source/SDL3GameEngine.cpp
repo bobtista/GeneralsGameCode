@@ -48,6 +48,8 @@
 #include "W3DDevice/GameClient/W3DGameClient.h"
 #include "W3DDevice/GameClient/W3DParticleSys.h"
 #include "W3DDevice/GameLogic/W3DGameLogic.h"
+#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/RenderBackend.h"
 
 extern Mouse *TheMouse;
 extern Keyboard *TheKeyboard;
@@ -56,6 +58,8 @@ SDL3GameEngine::SDL3GameEngine() :
 	m_sdlWindow(NULL),
 	m_textInputActive(false),
 	m_resizePending(false),
+	m_resizeReadyToApply(false),
+	m_letterboxActive(false),
 	m_pendingWidth(0),
 	m_pendingHeight(0),
 	m_resizeStableCount(0)
@@ -81,6 +85,16 @@ void SDL3GameEngine::update()
 {
 	pollSDL3Events();
 	GameEngine::update();
+
+	// TheSuperHackers @bugfix bobtista 08/06/2026 Apply a settled window resize between
+	// frames; the full relayout destroys live GameWindow trees and crashes mid event-poll.
+	if (m_resizeReadyToApply)
+	{
+		m_resizeReadyToApply = false;
+		applyPendingWindowResize();
+	}
+
+	updatePresentMode();
 }
 
 void SDL3GameEngine::serviceWindowsOS()
@@ -162,7 +176,7 @@ void SDL3GameEngine::pollSDL3Events()
 			{
 				m_resizePending = false;
 				m_resizeStableCount = 0;
-				applyPendingWindowResize();
+				m_resizeReadyToApply = true;
 			}
 		}
 		else
@@ -186,8 +200,23 @@ void SDL3GameEngine::applyPendingWindowResize()
 	{
 		SDL_GetWindowSize(m_sdlWindow, &actualW, &actualH);
 	}
-	const Int newWidth = actualW;
-	const Int newHeight = actualH;
+	Int newWidth = actualW;
+	Int newHeight = actualH;
+
+	// When the backend is letterboxing (multiplayer), the engine renders at the centered content
+	// size, not the full window: the camera aspect, 2D coordinate range and mouse bounds must match
+	// the content rect, with the bars left to the backend. The backend has already recomputed the
+	// content rect this frame (in Begin_Scene), so read it back as the target resolution.
+	if (g_renderBackend != NULL && g_renderBackend->Is_Present_Letterbox_Active())
+	{
+		const Int contentW = g_renderBackend->Get_Present_Content_Width();
+		const Int contentH = g_renderBackend->Get_Present_Content_Height();
+		if (contentW > 0 && contentH > 0)
+		{
+			newWidth = contentW;
+			newHeight = contentH;
+		}
+	}
 
 	if (TheDisplay == NULL || newWidth <= 0 || newHeight <= 0)
 	{
@@ -219,11 +248,10 @@ void SDL3GameEngine::applyPendingWindowResize()
 		TheWritableGlobalData->m_yResolution = newHeight;
 	}
 
-	// Lightweight, event-loop-safe relayout. NOTE: TheShell->recreateWindowLayouts() and
-	// TheInGameUI->recreateControlBar()/refreshCustomUiResources() are deliberately NOT called here -
-	// they destroy and rebuild live GameWindow layouts and crash when invoked mid-frame from the
-	// event poll (they are only safe from the options-menu GUI flow). onResolutionChanged() and the
-	// camera re-default are safe and cover the mouse bounds and camera framing.
+	// Full relayout, matching the options-menu resolution-change sequence. This is safe here because
+	// applyPendingWindowResize() runs from SDL3GameEngine::update() (between frames), not from the SDL
+	// event poll: recreateWindowLayouts()/recreateControlBar() destroy and rebuild live GameWindow
+	// trees, which only crashed when invoked mid event-poll.
 	if (TheHeaderTemplateManager != NULL)
 	{
 		TheHeaderTemplateManager->onResolutionChanged();
@@ -231,6 +259,15 @@ void SDL3GameEngine::applyPendingWindowResize()
 	if (TheMouse != NULL)
 	{
 		TheMouse->onResolutionChanged();
+	}
+	if (TheShell != NULL)
+	{
+		TheShell->recreateWindowLayouts();
+	}
+	if (TheInGameUI != NULL)
+	{
+		TheInGameUI->recreateControlBar();
+		TheInGameUI->refreshCustomUiResources();
 	}
 	if (TheTacticalView != NULL)
 	{
@@ -242,6 +279,35 @@ void SDL3GameEngine::applyPendingWindowResize()
 	}
 
 	DEBUG_LOG(("SDL3GameEngine::applyPendingWindowResize done at %dx%d", newWidth, newHeight));
+}
+
+void SDL3GameEngine::updatePresentMode()
+{
+	// TheSuperHackers @feature bobtista 08/06/2026 Letterbox the present to a fixed 16:9 aspect while
+	// in a multiplayer match, so every player sees the same viewable area regardless of their window
+	// or display aspect (the camera's visible extent is governed by aspect, not resolution). The
+	// remainder of the window becomes black bars. Outside multiplayer the present fills the window.
+	if (g_renderBackend == NULL)
+	{
+		return;
+	}
+
+	const Bool wantLetterbox =
+		(TheGameLogic != NULL
+		 && TheGameLogic->isInGame()
+		 && TheGameLogic->isInMultiplayerGame());
+
+	if (wantLetterbox == m_letterboxActive)
+	{
+		return;
+	}
+
+	m_letterboxActive = wantLetterbox;
+	g_renderBackend->Set_Present_Letterbox(wantLetterbox != FALSE, 16.0f, 9.0f);
+
+	// Resync the engine display resolution, UI layout and mouse bounds to the new content rect on the
+	// next frame, once the backend has recomputed the letterbox layout in Begin_Scene.
+	m_resizeReadyToApply = true;
 }
 
 void SDL3GameEngine::handleKeyboardEvent(const SDL_KeyboardEvent &event)
