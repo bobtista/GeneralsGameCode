@@ -67,3 +67,5 @@ build.ninja
 ## Python
 __pycache__/
 *.pyc
+# Local prebuilt dependency cache (ffmpeg, etc.) to avoid slow rebuilds
+.deps-cache/
