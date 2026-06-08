@@ -1310,7 +1310,6 @@ void PartitionCell::addLooker(Int playerIndex)
 void PartitionCell::removeLooker(Int playerIndex)
 {
 	CellShroudStatus oldShroud = getShroudStatusForPlayer( playerIndex );
-	const Int oldCurrentShroud = m_shroudLevel[playerIndex].m_currentShroud;
 	// the increasing Algorithm: a -1 goes up to min(1,activeLevel), otherwise it just gets incremented
 	if( m_shroudLevel[playerIndex].m_currentShroud == -1 )
 		m_shroudLevel[playerIndex].m_currentShroud = min( m_shroudLevel[playerIndex].m_activeShroudLevel, (Short)1 );
