@@ -120,6 +120,20 @@ void StdBIGFileSystem::init() {
 	loadBigFilesFromDirectory("", "*.big");
 
 #if RTS_ZEROHOUR
+#if defined(_UNIX)
+    // TheSuperHackers @feature bobtista 09/06/2026 On non-Windows the engine binary often
+    // lives apart from the game data, so honor $CNC_ZH_INSTALLPATH (resolved through
+    // GetStringFromRegistry) as an additional Zero Hour archive root alongside the working
+    // directory, mirroring the base Generals load below. Lets a build elsewhere point at an
+    // existing install without copying the .big files next to the executable.
+    AsciiString zhInstallPath;
+    GetStringFromRegistry("", "InstallPath", zhInstallPath );
+    if (!zhInstallPath.isEmpty())
+    {
+      loadBigFilesFromDirectory(zhInstallPath, "*.big");
+    }
+#endif
+
     // load original Generals assets
     AsciiString installPath;
     GetStringFromGeneralsRegistry("", "InstallPath", installPath );
