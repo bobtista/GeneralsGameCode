@@ -190,13 +190,19 @@ int main(int argc, char **argv)
 		}
 	}
 	Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
+#if defined(__APPLE__)
+	windowFlags |= SDL_WINDOW_METAL;
+	// TheSuperHackers @bugfix bobtista 08/06/2026 Do NOT create the window hidden on macOS for
+	// fullscreen. A real fullscreen Space (which hides the menu bar + Dock) is entered via
+	// -[NSWindow toggleFullScreen:], and AppKit only animates a VISIBLE, active window into a Space;
+	// toggling a hidden window degrades to a borderless window confined to the usable area. The
+	// fullscreen transition below happens fast enough that there is no meaningful windowed flash.
+#else
 	// TheSuperHackers @bugfix bobtista 28/05/2026 Hide the window during fullscreen bring-up so it doesn't briefly appear at the requested resolution before SDL_SetWindowFullscreen takes effect; windowed runs show the window immediately.
 	if (!wantWindowed)
 	{
 		windowFlags |= SDL_WINDOW_HIDDEN;
 	}
-#if defined(__APPLE__)
-	windowFlags |= SDL_WINDOW_METAL;
 #endif
 	GGC_TRACE("calling SDL_CreateWindow");
 	TheSDL3Window = SDL_CreateWindow(kWindowTitle, windowW, windowH, windowFlags);
@@ -206,12 +212,14 @@ int main(int argc, char **argv)
 		SDL_Quit();
 		return 1;
 	}
+#if !defined(__APPLE__)
 	if (!wantWindowed)
 	{
 		SDL_SetWindowFullscreenMode(TheSDL3Window, nullptr);
 		SDL_SetWindowFullscreen(TheSDL3Window, true);
 		SDL_SyncWindow(TheSDL3Window);
 	}
+#endif
 	GGC_TRACE("SDL_CreateWindow OK window=%p", (void*)TheSDL3Window);
 
 	ApplicationHWnd = TheSDL3Window;
@@ -234,6 +242,20 @@ int main(int argc, char **argv)
 	else
 	{
 		SDL_Log("SDL_Metal_CreateView failed: %s", SDL_GetError());
+	}
+
+	// TheSuperHackers @bugfix bobtista 08/06/2026 Enter a REAL macOS fullscreen Space (hides the menu
+	// bar + Dock, covers the whole display). Per SDL3's Cocoa backend this needs a resizable window
+	// (set above), desktop/NULL fullscreen mode (so it is not "exclusive"), and the window VISIBLE and
+	// raised when toggled - a window that is still hidden makes SDL_SetWindowFullscreen a no-op and
+	// falls back to a borderless window confined to the usable area (menu bar + Dock left on top).
+	if (!wantWindowed)
+	{
+		SDL_ShowWindow(TheSDL3Window);
+		SDL_RaiseWindow(TheSDL3Window);
+		SDL_SetWindowFullscreenMode(TheSDL3Window, nullptr);
+		SDL_SetWindowFullscreen(TheSDL3Window, true);
+		SDL_SyncWindow(TheSDL3Window);
 	}
 #endif
 
