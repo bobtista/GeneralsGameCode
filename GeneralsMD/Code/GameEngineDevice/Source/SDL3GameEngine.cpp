@@ -262,7 +262,17 @@ void SDL3GameEngine::applyPendingWindowResize()
 	}
 	if (TheShell != NULL)
 	{
-		TheShell->recreateWindowLayouts();
+		// TheSuperHackers @bugfix bobtista 09/06/2026 Do not rebuild the shell menu layouts
+		// while a real game is running. The menus are hidden behind the match and their backing
+		// state (e.g. TheLAN->GetMyGame()) may already be gone, so re-running their init callbacks
+		// would dereference null. Starting a multiplayer match enables letterboxing, which lands
+		// here mid-match. The shell is relaid out on the resize that fires when the match ends.
+		const Bool inRealGame =
+			(TheGameLogic != NULL && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame());
+		if (!inRealGame)
+		{
+			TheShell->recreateWindowLayouts();
+		}
 	}
 	if (TheInGameUI != NULL)
 	{

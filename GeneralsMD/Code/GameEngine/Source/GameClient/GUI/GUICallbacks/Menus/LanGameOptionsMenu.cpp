@@ -822,6 +822,15 @@ void DeinitLanGameGadgets()
 //-------------------------------------------------------------------------------------------------
 void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 {
+	// TheSuperHackers @bugfix bobtista 09/06/2026 Bail if there is no current LAN game.
+	// This init is re-run when the shell rebuilds its window layouts (e.g. on a window
+	// resize); if it runs after the lobby game is gone, the gadget setup below dereferences
+	// a null GetMyGame(). Return without popping, since this can fire mid stack-rebuild.
+	if (TheLAN == NULL || TheLAN->GetMyGame() == NULL)
+	{
+		return;
+	}
+
 	if (TheLAN->GetMyGame() && TheLAN->GetMyGame()->isGameInProgress())
 	{
 		// If we init while the game is in progress, we are really returning to the menu
