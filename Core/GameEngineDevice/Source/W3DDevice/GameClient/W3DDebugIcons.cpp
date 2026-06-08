@@ -52,6 +52,12 @@
 #include "GameLogic/GameLogic.h"
 #include "Common/MapObject.h"
 #include "WW3D2/RenderBackend.h"
+// TheSuperHackers @build bobtista 30/05/2026 Restore DynamicVBAccess/DynamicIBAccess,
+// BUFFER_TYPE_DYNAMIC and ShaderClass declarations needed by the RTS_DEBUG path after
+// the "neutral dynamic buffer type at draw sites" refactor removed transitive includes.
+#include "WW3D2/vertexbuffer.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/shader.h"
 
 #if defined(RTS_DEBUG)
 
