@@ -61,6 +61,11 @@
 #include "dx8renderer.h"
 #include "RenderBackend.h"
 #include "WW3D2/IRenderBackend.h"
+#if defined(GGC_RENDER_BACKEND_BGFX)
+// TheSuperHackers @refactor bobtista 08/06/2026 On bgfx builds g_device owns the windowed/bit-depth
+// device state; Set_Render_Device/Init mirror DX8Wrapper's IsWindowed/BitDepth into it.
+#include "WW3D2/BgfxBackendState.h"
+#endif
 #include "WW3D2/ww3d.h"
 #include "WW3D2/camera.h"
 #include "WWLib/wwstring.h"
@@ -611,6 +616,10 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	BitDepth = DEFAULT_BIT_DEPTH;
 	IsWindowed = false;
 	DX8Wrapper_IsWindowed = false;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	g_device.windowed = IsWindowed;
+	g_device.bits = BitDepth;
+#endif
 
 	for (int light=0;light<4;++light) CurrentDX8LightEnables[light]=false;
 
@@ -1601,6 +1610,14 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	{
 		Render2DClass::Set_Screen_Resolution( RectClass( 0, 0, ResolutionWidth, ResolutionHeight ) );
 	}
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @refactor bobtista 08/06/2026 Mirror the final windowed/bit-depth into g_device,
+	// which owns this state on bgfx builds. This is the single authoritative mutation point: direct
+	// callers and Registry_Load_Render_Device (which loops through this function) all pass here.
+	g_device.windowed = IsWindowed;
+	g_device.bits = BitDepth;
+#endif
 
 	return ret;
 }
