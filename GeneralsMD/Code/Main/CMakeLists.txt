@@ -34,6 +34,13 @@ endif()
 
 if(SAGE_USE_SDL3)
     target_link_libraries(z_generals PRIVATE sdl3lib)
+    # TheSuperHackers @build bobtista 07/06/2026 SDL3Main.cpp uses a cross-platform int main(),
+    # but on Windows the exe is built with the GUI subsystem whose default entry is WinMainCRTStartup
+    # (expects WinMain). Point the entry at mainCRTStartup so the CRT calls main() directly while
+    # staying in the WINDOWS subsystem (no console window), avoiding an SDL_main/WinMain shim.
+    if(WIN32 AND MSVC)
+        target_link_options(z_generals PRIVATE "/ENTRY:mainCRTStartup")
+    endif()
 endif()
 
 # TheSuperHackers @build bobtista 22/04/2026
@@ -73,10 +80,14 @@ target_include_directories(z_generals PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# TheSuperHackers @build bobtista 07/06/2026 SDL3 is the entry point whenever SAGE_USE_SDL3 is
+# set, including on Windows (win32-generalsmd-sdl3-bgfx). The Win32 WinMain entry is only used for
+# the non-SDL3 Windows build. Previously SDL3Main was gated on NOT WIN32, so the Windows SDL3 build
+# linked WinMain and left TheSDL3Window (defined in SDL3Main.cpp) unresolved.
 target_sources(z_generals PRIVATE
-    $<$<BOOL:${WIN32}>:WinMain.cpp>
-    $<$<BOOL:${WIN32}>:WinMain.h>
-    $<$<AND:$<NOT:$<BOOL:${WIN32}>>,$<BOOL:${SAGE_USE_SDL3}>>:SDL3Main.cpp>
+    $<$<AND:$<BOOL:${WIN32}>,$<NOT:$<BOOL:${SAGE_USE_SDL3}>>>:WinMain.cpp>
+    $<$<AND:$<BOOL:${WIN32}>,$<NOT:$<BOOL:${SAGE_USE_SDL3}>>>:WinMain.h>
+    $<$<BOOL:${SAGE_USE_SDL3}>:SDL3Main.cpp>
 )
 
 # RC files optional for MinGW builds
