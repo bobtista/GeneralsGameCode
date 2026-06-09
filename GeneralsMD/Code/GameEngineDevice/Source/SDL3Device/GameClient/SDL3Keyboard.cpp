@@ -14,6 +14,8 @@
 
 #include "GameClient/KeyDefs.h"
 
+#include <mmsystem.h> // for timeGetTime() - real on Windows, win32 shim on other platforms
+
 SDL3Keyboard::SDL3Keyboard() :
 	m_nextGetIndex(0),
 	m_nextFreeIndex(0),
@@ -103,7 +105,11 @@ void SDL3Keyboard::pushKey(KeyDefType key, UnsignedShort state)
 	slot.key = key;
 	slot.status = KeyboardIO::STATUS_UNUSED;
 	slot.state = state;
-	slot.keyDownTimeMsec = SDL_GetTicks();
+	// TheSuperHackers @bugfix bobtista 09/06/2026 Stamp the key with timeGetTime() - the same
+	// clock Keyboard::checkKeyRepeat() compares against. SDL_GetTicks() counts from SDL init while
+	// timeGetTime() counts from system boot, so mixing them made elapsed time enormous and tripped
+	// auto-repeat on the very first frame of every press (e.g. one backspace deleting two chars).
+	slot.keyDownTimeMsec = timeGetTime();
 
 	m_nextFreeIndex = (m_nextFreeIndex + 1) % MAX_BUFFERED_KEYS;
 	if (m_nextFreeIndex == m_nextGetIndex)
