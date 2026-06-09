@@ -183,7 +183,15 @@ void outputCRCDumpLines()
 
 static AsciiString getFname(AsciiString path)
 {
-	return path.reverseFind('\\') + 1;
+	// TheSuperHackers @bugfix bobtista 09/06/2026 reverseFind returns NULL when the separator is
+	// absent; "+ 1" then yields (char*)1 and the AsciiString constructor strlen()s it -> crash.
+	// __FILE__ uses '/' on macOS/Linux (no '\\'), so handle both separators and the not-found case.
+	const char *lastSep = path.reverseFind('\\');
+	if (lastSep == NULL)
+		lastSep = path.reverseFind('/');
+	if (lastSep == NULL)
+		return path;
+	return lastSep + 1;
 }
 
 static void addCRCDebugLineInternal(bool count, const char *fmt, va_list args)
