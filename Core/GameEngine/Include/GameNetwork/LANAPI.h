@@ -33,6 +33,7 @@
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/LANPlayer.h"
 #include "GameNetwork/LANGameInfo.h"
+#include "Common/UnicodeString.h"
 
 //static const Int g_lanPlayerNameLength = 20;
 static const Int g_lanPlayerNameLength = 12; // reduced length because of game option length
@@ -171,7 +172,7 @@ struct LANMessage
 		MSG_REQUEST_GAME_INFO,	///< For direct connect, get the game info from a specific IP Address
 	} messageType;
 
-	WideChar name[g_lanPlayerNameLength+1]; ///< My name, for convenience
+	UnsignedShort name[g_lanPlayerNameLength+1]; ///< My name, for convenience
 	char userName[g_lanLoginNameLength+1];	///< login name, for convenience
 	char hostName[g_lanHostNameLength+1];		///< machine name, for convenience
 
@@ -188,13 +189,13 @@ struct LANMessage
 		// GameJoined is sent with REQUEST_GAME_LEAVE
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			UnsignedShort gameName[g_lanGameNameLength+1];
 		} GameToLeave;
 
 		// GameInfo if sent with GAME_ANNOUNCE
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			UnsignedShort gameName[g_lanGameNameLength+1];
 			Bool inProgress;
 			char options[m_lanMaxOptionsLength+1];
 			Bool isDirectConnect;
@@ -204,7 +205,7 @@ struct LANMessage
 		struct
 		{
 			UnsignedInt ip;
-			WideChar playerName[g_lanPlayerNameLength+1];
+			UnsignedShort playerName[g_lanPlayerNameLength+1];
 		} PlayerInfo;
 
 		// GameToJoin is sent with REQUEST_JOIN
@@ -219,7 +220,7 @@ struct LANMessage
 		// GameJoined is sent with JOIN_ACCEPT
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			UnsignedShort gameName[g_lanGameNameLength+1];
 			UnsignedInt gameIP;
 			UnsignedInt playerIP;
 			Int slotPosition;
@@ -228,7 +229,7 @@ struct LANMessage
 		// GameNotJoined is sent with JOIN_DENY
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			UnsignedShort gameName[g_lanGameNameLength+1];
 			UnsignedInt gameIP;
 			UnsignedInt playerIP;
 			LANAPIInterface::ReturnType reason;
@@ -237,14 +238,14 @@ struct LANMessage
 		// Accept is sent with SET_ACCEPT
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			UnsignedShort gameName[g_lanGameNameLength+1];
 			Bool isAccepted;
 		} Accept;
 
 		// Accept is sent with MAP_AVAILABILITY
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			UnsignedShort gameName[g_lanGameNameLength+1];
 			UnsignedInt mapCRC;	// to make sure we're talking about the same map
 			Bool hasMap;
 		} MapStatus;
@@ -252,9 +253,9 @@ struct LANMessage
 		// Chat is sent with CHAT
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			UnsignedShort gameName[g_lanGameNameLength+1];
 			LANAPIInterface::ChatType chatType;
-			WideChar message[g_lanMaxChatLength+1];
+			UnsignedShort message[g_lanMaxChatLength+1];
 		} Chat;
 
 		// GameOptions is sent with GAME_OPTIONS
@@ -267,13 +268,34 @@ struct LANMessage
 };
 #pragma pack(pop)
 
-// TheSuperHackers @build bobtista 29/04/2026 The LANMessage struct contains
-// pointer-sized fields that grow on 64-bit, which trips this assertion on
-// non-Win builds. The retail wire format is Win 32-bit, so this assertion
-// only matters there.
-#ifdef _WIN32
 static_assert(sizeof(LANMessage) <= MAX_LANAPI_PACKET_SIZE, "LANMessage struct cannot be larger than the max packet size");
-#endif
+
+// TheSuperHackers @bugfix bobtista 09/06/2026 The LAN wire protocol stores wide
+// strings as fixed 16-bit UTF-16 code units (the retail Win32 wire format) so the
+// byte layout of LANMessage is identical on every platform. WideChar is wchar_t,
+// which is 2 bytes on Windows but 4 bytes on macOS/Linux; copying it onto the wire
+// raw corrupted player/game names and shifted every following field, which broke
+// cross-platform LAN discovery and direct-connect joins.
+inline void lanWideStrCopy(UnsignedShort *dst, const WideChar *src, Int dstCount)
+{
+	Int i = 0;
+	for (; i < dstCount - 1 && src[i] != 0; ++i)
+	{
+		dst[i] = (UnsignedShort)src[i];
+	}
+	dst[i] = 0;
+}
+
+inline UnicodeString lanWideStrToUnicode(const UnsignedShort *src)
+{
+	UnicodeString result;
+	while (*src != 0)
+	{
+		result.concat((WideChar)*src);
+		++src;
+	}
+	return result;
+}
 
 
 /**
