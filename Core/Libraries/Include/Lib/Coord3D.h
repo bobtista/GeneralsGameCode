@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "BaseDefines.h"
 #include "Coord2D.h"
 
 // NOTE: Keep the types simple; avoid constructors and destructors so they can be used within unions
@@ -32,7 +33,16 @@ struct Coord3D
 		return xy;
 	}
 
-	Real length() const { return (Real)sqrt( x*x + y*y + z*z ); }
+	Real length() const
+	{
+#if RETAIL_COMPATIBLE_CRC
+		// Must not touch this function because it affects its inline-ability
+		// and therefore changes the logic at an unknown call site that relies on it. It is a bug.
+		return (Real)sqrt( x*x + y*y + z*z );
+#else
+		return Sqrt( x*x + y*y + z*z );
+#endif
+	}
 	Real lengthSqr() const { return ( x*x + y*y + z*z ); }
 
 	void normalize()
