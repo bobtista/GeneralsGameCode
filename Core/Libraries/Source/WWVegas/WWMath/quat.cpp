@@ -200,7 +200,7 @@ Quaternion Trackball(float x0, float y0, float x1, float y1, float sphsize)
 	// Avoid problems with out of control values
 	if (t >  1.0f) t =  1.0f;
 	if (t < -1.0f) t = -1.0f;
-	phi = 2.0f * WWMath::Asin(t);
+	phi = 2.0f * WWMath::Asin_Legacy(t);
 
 	return Axis_To_Quat(a, phi);
 }
@@ -868,10 +868,10 @@ float project_to_sphere(float r, float x, float y)
 {
 	const float SQRT2 = 1.41421356f;
 	float t, z;
-	float d = WWMath::Sqrt(x * x + y * y);
+	float d = WWMath::Sqrt_Legacy(x * x + y * y);
 
 	if (d < r * (SQRT2/(2.0f)))			// inside sphere
-		z = WWMath::Sqrt(r * r - d * d);
+		z = WWMath::Sqrt_Legacy(r * r - d * d);
 	else {
 		// on hyperbola
 		t = r / SQRT2;
