@@ -210,13 +210,17 @@ void TransitionWindow::update( Int frame )
 	if(frame < m_currentFrameDelay || frame > (m_currentFrameDelay + m_transition->getFrameLength()))
 		return;
 
-	if(m_transition)
+	// TheSuperHackers @bugfix bobtista 09/06/2026 If the GameWindow was destroyed mid-transition it
+	// unlinks itself and nulls m_win, but the transition object lives on in the handler. The style
+	// update()/reverse()/skip() methods dereference m_win (e.g. CountUpTransition::update -> winHide),
+	// so stop forwarding once the window is gone, and report finished so the group does not stall.
+	if(m_transition && m_win)
 		m_transition->update( frame - m_currentFrameDelay);
 }
 
 Bool TransitionWindow::isFinished()
 {
-	if(m_transition)
+	if(m_transition && m_win)
 		return m_transition->isFinished();
 	return TRUE;
 }
@@ -224,19 +228,19 @@ Bool TransitionWindow::isFinished()
 void TransitionWindow::reverse( Int totalFrames )
 {
 	//m_currentFrameDelay = totalFrames - (m_transition->getFrameLength() + m_frameDelay);
-	if(m_transition)
+	if(m_transition && m_win)
 		m_transition->reverse();
 }
 
 void TransitionWindow::skip()
 {
-	if(m_transition)
+	if(m_transition && m_win)
 		m_transition->skip();
 }
 
 void TransitionWindow::draw()
 {
-	if(m_transition)
+	if(m_transition && m_win)
 		m_transition->draw();
 }
 
