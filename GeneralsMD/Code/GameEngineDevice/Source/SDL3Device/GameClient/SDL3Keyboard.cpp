@@ -63,11 +63,17 @@ void SDL3Keyboard::addSDL3KeyEvent(const SDL_KeyboardEvent &event)
 		return;
 	}
 
-	UnsignedShort state = (event.down != 0) ? KEY_STATE_DOWN : KEY_STATE_UP;
+	// TheSuperHackers @bugfix bobtista 09/06/2026 Ignore SDL's hardware key-repeat events.
+	// The engine's Keyboard::checkKeyRepeat() already synthesizes auto-repeat (it must, because
+	// the Win32 DirectInput backend delivers no repeats). Forwarding SDL's repeats on top of
+	// that made every held key repeat at roughly double speed - e.g. one backspace tap deleting
+	// several characters. Let the engine be the single source of repeat.
 	if (event.repeat != 0)
 	{
-		state |= KEY_STATE_AUTOREPEAT;
+		return;
 	}
+
+	UnsignedShort state = (event.down != 0) ? KEY_STATE_DOWN : KEY_STATE_UP;
 	if (event.scancode == SDL_SCANCODE_CAPSLOCK && event.down != 0)
 	{
 		m_capsState = !m_capsState;
