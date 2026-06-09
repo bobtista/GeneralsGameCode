@@ -623,10 +623,9 @@ void GameInfo::setMapCRC( UnsignedInt mapCRC )
 		lowerMap.toLower();
 		//DEBUG_LOG(("GameInfo::setMapCRC - looking for map file \"%s\" in the map cache", lowerMap.str()));
 		std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
-		fprintf(stderr, "GameInfo::setMapCRC - map='%s' found=%d wantCRC=0x%08x cachedCRC=0x%08x\n",
+		DEBUG_LOG(("GameInfo::setMapCRC - map='%s' found=%d wantCRC=0x%08x cachedCRC=0x%08x",
 			lowerMap.str(), (it != TheMapCache->end())?1:0, m_mapCRC,
-			(it != TheMapCache->end())?it->second.m_CRC:0);
-		fflush(stderr);
+			(it != TheMapCache->end())?it->second.m_CRC:0));
 		if (it == TheMapCache->end())
 		{
 			/*
@@ -924,9 +923,8 @@ AsciiString GameInfoToAsciiString( const GameInfo *game )
 		DEBUG_LOG(("Map name is %s", mapName.str()));
 	}
 
-	fprintf(stderr, "GameInfoToAsciiString - portableMap='%s' encodedDir='%s'\n",
-		TheGameState->realMapPathToPortableMapPath(game->getMap()).str(), newMapName.str());
-	fflush(stderr);
+	DEBUG_LOG(("GameInfoToAsciiString - portableMap='%s' encodedDir='%s'",
+		TheGameState->realMapPathToPortableMapPath(game->getMap()).str(), newMapName.str()));
 
 	AsciiString optionsString;
 #if RTS_GENERALS

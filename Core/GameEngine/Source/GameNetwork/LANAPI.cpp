@@ -111,9 +111,8 @@ void LANAPI::init()
 #endif
 	m_transport->allowBroadcasts(true);
 
-	fprintf(stderr, "LANAPI::init - identity localIP=%d.%d.%d.%d broadcast=%d.%d.%d.%d port=%d sizeof(LANMessage)=%d\n",
-		PRINTF_IP_AS_4_INTS(m_localIP), PRINTF_IP_AS_4_INTS(m_broadcastAddr), (int)lobbyPort, (int)sizeof(LANMessage));
-	fflush(stderr);
+	DEBUG_LOG(("LANAPI::init - identity localIP=%d.%d.%d.%d broadcast=%d.%d.%d.%d port=%d sizeof(LANMessage)=%d",
+		PRINTF_IP_AS_4_INTS(m_localIP), PRINTF_IP_AS_4_INTS(m_broadcastAddr), (int)lobbyPort, (int)sizeof(LANMessage)));
 
 	m_pendingAction = ACT_NONE;
 	m_expiration = 0;
@@ -195,9 +194,8 @@ void LANAPI::sendMessage(LANMessage *msg, UnsignedInt ip /* = 0 */)
 {
 	if (ip != 0)
 	{
-		fprintf(stderr, "LANAPI::sendMessage - unicast type=%d to %d.%d.%d.%d:%d len=%d\n",
-			(int)msg->messageType, PRINTF_IP_AS_4_INTS(ip), (int)lobbyPort, (int)sizeof(LANMessage));
-		fflush(stderr);
+		DEBUG_LOG(("LANAPI::sendMessage - unicast type=%d to %d.%d.%d.%d:%d len=%d",
+			(int)msg->messageType, PRINTF_IP_AS_4_INTS(ip), (int)lobbyPort, (int)sizeof(LANMessage)));
 		m_transport->queueSend(ip, lobbyPort, (unsigned char *)msg, sizeof(LANMessage) /*, 0, 0 */);
 	}
 	else if ((m_currentGame != nullptr) && (m_currentGame->getIsDirectConnect()))
@@ -215,9 +213,8 @@ void LANAPI::sendMessage(LANMessage *msg, UnsignedInt ip /* = 0 */)
 	}
 	else
 	{
-		fprintf(stderr, "LANAPI::sendMessage - broadcast type=%d to %d.%d.%d.%d:%d len=%d\n",
-			(int)msg->messageType, PRINTF_IP_AS_4_INTS(m_broadcastAddr), (int)lobbyPort, (int)sizeof(LANMessage));
-		fflush(stderr);
+		DEBUG_LOG(("LANAPI::sendMessage - broadcast type=%d to %d.%d.%d.%d:%d len=%d",
+			(int)msg->messageType, PRINTF_IP_AS_4_INTS(m_broadcastAddr), (int)lobbyPort, (int)sizeof(LANMessage)));
 		m_transport->queueSend(m_broadcastAddr, lobbyPort, (unsigned char *)msg, sizeof(LANMessage) /*, 0, 0 */);
 	}
 }
@@ -373,10 +370,9 @@ void LANAPI::update()
 			}
 
 			LANMessage *msg = (LANMessage *)(m_transport->m_inBuffer[i].data);
-			fprintf(stderr, "LANAPI::update - recv %d bytes from %d.%d.%d.%d:%d type=%d\n",
+			DEBUG_LOG(("LANAPI::update - recv %d bytes from %d.%d.%d.%d:%d type=%d",
 				m_transport->m_inBuffer[i].length, PRINTF_IP_AS_4_INTS(senderIP),
-				(int)m_transport->m_inBuffer[i].port, (int)msg->messageType);
-			fflush(stderr);
+				(int)m_transport->m_inBuffer[i].port, (int)msg->messageType));
 			switch (msg->messageType)
 			{
 				// Location specification
@@ -662,8 +658,7 @@ void LANAPI::RequestGameJoin( LANGameInfo *game, UnsignedInt ip /* = 0 */ )
 	GetStringFromRegistry("\\ergc", "", s);
 	strlcpy(msg.GameToJoin.serial, s.str(), ARRAY_SIZE(msg.GameToJoin.serial));
 
-	fprintf(stderr, "RequestGameJoin - REQUEST_JOIN gameIP=0x%08x dest=0x%08x (0=bcast)\n", msg.GameToJoin.gameIP, ip);
-	fflush(stderr);
+	DEBUG_LOG(("RequestGameJoin - REQUEST_JOIN gameIP=0x%08x dest=0x%08x (0=bcast)", msg.GameToJoin.gameIP, ip));
 	sendMessage(&msg, ip);
 
 	m_pendingAction = ACT_JOIN;
@@ -1297,9 +1292,8 @@ Bool LANAPI::SetLocalIP( UnsignedInt localIP )
 #endif
 	m_transport->allowBroadcasts(true);
 
-	fprintf(stderr, "LANAPI::SetLocalIP - identity localIP=%d.%d.%d.%d (socket bound INADDR_ANY on non-Windows)\n",
-		PRINTF_IP_AS_4_INTS(m_localIP));
-	fflush(stderr);
+	DEBUG_LOG(("LANAPI::SetLocalIP - identity localIP=%d.%d.%d.%d (socket bound INADDR_ANY on non-Windows)",
+		PRINTF_IP_AS_4_INTS(m_localIP)));
 
 	return retval;
 }
