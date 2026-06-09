@@ -429,13 +429,19 @@ void LanLobbyMenuInit( WindowLayout *layout, void *userData )
 		}
 		*/
 		DEBUG_ASSERTCRASH(IPlist, ("No IP addresses found!"));
-		if (!IPlist)
+		// TheSuperHackers @bugfix bobtista 09/06/2026 Guard against an empty IP
+		// list. In Release the assert above is compiled out, so dereferencing a
+		// null IPlist below crashed the game when entering the network lobby.
+		if (IPlist)
+		{
+			IPSource = L"Local IP chosen";
+			IP = IPlist->getIP();
+		}
+		else
 		{
 			/// @todo: display error and exit lan lobby if no IPs are found
+			IPSource = L"No local IP found";
 		}
-
-		IPSource = L"Local IP chosen";
-		IP = IPlist->getIP();
 	}
 	else
 	{
