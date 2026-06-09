@@ -48,6 +48,13 @@ typedef int socklen_t;
 
 AsciiString GetWSAErrorString( Int error )
 {
+#ifndef _WIN32
+	// TheSuperHackers @build bobtista 09/06/2026 The WSA* error names are Windows-only; on
+	// other platforms socket errors are POSIX errno values, so report those instead.
+	AsciiString ret;
+	ret.format("%s (%d)", strerror(error), error);
+	return ret;
+#else
 	switch (error)
 	{
 		CASE(WSABASEERR)
@@ -110,6 +117,7 @@ AsciiString GetWSAErrorString( Int error )
 		}
 	}
 	return AsciiString::TheEmptyString; // will not be hit, ever.
+#endif
 }
 
 #undef CASE

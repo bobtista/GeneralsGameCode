@@ -377,6 +377,10 @@ void DebugInit(int flags)
 			return;
 
 		char dirbuf[ _MAX_PATH ];
+		// TheSuperHackers @bugfix bobtista 09/06/2026 Start empty so a platform whose
+		// GetModuleFileName is a no-op stub (non-Windows) leaves no uninitialized garbage in
+		// the path; the log then opens relative to the working directory instead of failing.
+		dirbuf[0] = 0;
 		::GetModuleFileName( nullptr, dirbuf, sizeof( dirbuf ) );
 		if (char *pEnd = strrchr(dirbuf, '\\'))
 		{
