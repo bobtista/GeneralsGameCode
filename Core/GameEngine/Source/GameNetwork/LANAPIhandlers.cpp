@@ -98,9 +98,8 @@ void LANAPI::handleRequestLocations( LANMessage *msg, UnsignedInt senderIP )
 
 void LANAPI::handleGameAnnounce( LANMessage *msg, UnsignedInt senderIP )
 {
-	fprintf(stderr, "handleGameAnnounce - from 0x%08x game='%ls' options='%s'\n",
-		senderIP, lanWideStrToUnicode(msg->GameInfo.gameName).str(), AsciiString(msg->GameInfo.options).str());
-	fflush(stderr);
+	DEBUG_LOG(("handleGameAnnounce - from 0x%08x game='%ls' options='%s'",
+		senderIP, lanWideStrToUnicode(msg->GameInfo.gameName).str(), AsciiString(msg->GameInfo.options).str()));
 	if (senderIP == m_localIP)
 	{
 		return; // Don't try to update own info
@@ -256,14 +255,12 @@ void LANAPI::handleRequestJoin( LANMessage *msg, UnsignedInt senderIP )
 	UnsignedInt responseIP = senderIP;	// need this cause the player may or may not be
 																			// in the player list at the sendMessage.
 
-	fprintf(stderr, "handleRequestJoin - from 0x%08x gameIP=0x%08x m_localIP=0x%08x inLobby=%d game=%d slot0=0x%08x\n",
+	DEBUG_LOG(("handleRequestJoin - from 0x%08x gameIP=0x%08x m_localIP=0x%08x inLobby=%d game=%d slot0=0x%08x",
 		senderIP, msg->GameToJoin.gameIP, m_localIP, (int)m_inLobby, m_currentGame?1:0,
-		m_currentGame?m_currentGame->getIP(0):0);
-	fflush(stderr);
+		m_currentGame?m_currentGame->getIP(0):0));
 	if (msg->GameToJoin.gameIP != m_localIP)
 	{
-		fprintf(stderr, "handleRequestJoin - DROPPED: gameIP != m_localIP\n");
-		fflush(stderr);
+		DEBUG_LOG(("handleRequestJoin - DROPPED: gameIP != m_localIP"));
 		return; // Not us.  Ignore it.
 	}
 	LANMessage reply;
@@ -428,17 +425,15 @@ void LANAPI::handleRequestJoin( LANMessage *msg, UnsignedInt senderIP )
 		reply.GameNotJoined.gameIP = m_localIP;
 		reply.GameNotJoined.playerIP = senderIP;
 	}
-	fprintf(stderr, "handleRequestJoin - reply type=%d to 0x%08x (0=bcast)\n", (int)reply.messageType, responseIP);
-	fflush(stderr);
+	DEBUG_LOG(("handleRequestJoin - reply type=%d to 0x%08x (0=bcast)", (int)reply.messageType, responseIP));
 	sendMessage(&reply, responseIP);
 	RequestGameOptions(GenerateGameOptionsString(), true);
 }
 
 void LANAPI::handleJoinAccept( LANMessage *msg, UnsignedInt senderIP )
 {
-	fprintf(stderr, "handleJoinAccept - from 0x%08x playerIP=0x%08x m_localIP=0x%08x pending=%d\n",
-		senderIP, msg->GameJoined.playerIP, m_localIP, (int)m_pendingAction);
-	fflush(stderr);
+	DEBUG_LOG(("handleJoinAccept - from 0x%08x playerIP=0x%08x m_localIP=0x%08x pending=%d",
+		senderIP, msg->GameJoined.playerIP, m_localIP, (int)m_pendingAction));
 	if (msg->GameJoined.playerIP == m_localIP) // Is it for us?
 	{
 		if (m_pendingAction == ACT_JOIN) // Are we trying to join?
@@ -614,9 +609,8 @@ void LANAPI::handleHasMap( LANMessage *msg, UnsignedInt senderIP )
 //	mapNameCRC.computeCRC(m_currentGame->getMap().str(), m_currentGame->getMap().getLength());
 		AsciiString portableMapName = TheGameState->realMapPathToPortableMapPath(m_currentGame->getMap());
 		mapNameCRC.computeCRC(portableMapName.str(), portableMapName.getLength());
-		fprintf(stderr, "handleHasMap - from 0x%08x localNameCRC=0x%08x msgNameCRC=0x%08x hasMap=%d name='%s'\n",
-			senderIP, mapNameCRC.get(), msg->MapStatus.mapCRC, (int)msg->MapStatus.hasMap, portableMapName.str());
-		fflush(stderr);
+		DEBUG_LOG(("handleHasMap - from 0x%08x localNameCRC=0x%08x msgNameCRC=0x%08x hasMap=%d name='%s'",
+			senderIP, mapNameCRC.get(), msg->MapStatus.mapCRC, (int)msg->MapStatus.hasMap, portableMapName.str()));
 		if (mapNameCRC.get() != msg->MapStatus.mapCRC)
 		{
 			return;
