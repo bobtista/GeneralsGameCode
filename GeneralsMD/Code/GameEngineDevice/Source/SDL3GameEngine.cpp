@@ -347,6 +347,20 @@ void SDL3GameEngine::handleKeyboardEvent(const SDL_KeyboardEvent &event)
 	{
 		keyboard->addSDL3KeyEvent(event);
 	}
+
+	// TheSuperHackers @bugfix bobtista 09/06/2026 SDL does not emit a TEXT_INPUT event for Return,
+	// and the text-entry gadget only commits on GWM_IME_CHAR(VK_RETURN) - the form the Windows IME
+	// delivers. Bridge Return here so chat and other text fields submit on Enter. Only text-entry
+	// gadgets act on GWM_IME_CHAR(VK_RETURN); the regular key path still drives buttons and lists.
+	if (event.down != 0 && event.repeat == 0 && TheWindowManager != NULL &&
+		(event.scancode == SDL_SCANCODE_RETURN || event.scancode == SDL_SCANCODE_KP_ENTER))
+	{
+		GameWindow *focus = TheWindowManager->winGetFocus();
+		if (focus != NULL)
+		{
+			TheWindowManager->winSendInputMsg(focus, GWM_IME_CHAR, VK_RETURN, 0);
+		}
+	}
 }
 
 void SDL3GameEngine::handleTextInputEvent(const SDL_TextInputEvent &event)
