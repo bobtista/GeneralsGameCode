@@ -405,9 +405,12 @@ Int parseFullVersion(char *args[], int num)
 Int parseMathCrcCheck(char *args[], int)
 {
 	const UnsignedInt crc = SimulationMathCrc::calculate();
+	const UnsignedInt crcDouble = SimulationMathCrc::calculateDouble();
 	printf("SimulationMathCrc = %08X\n", crc);
+	printf("SimulationMathCrcDouble = %08X\n", crcDouble);
 	fflush(stdout);
 	DEBUG_LOG(("SimulationMathCrc = %08X", crc));
+	DEBUG_LOG(("SimulationMathCrcDouble = %08X", crcDouble));
 	// Pure math parity check - print and exit before launching the game so it can be run
 	// instantly on each machine and the value compared.
 	exit(0);
