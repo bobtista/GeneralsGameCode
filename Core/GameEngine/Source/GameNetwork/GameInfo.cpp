@@ -623,6 +623,10 @@ void GameInfo::setMapCRC( UnsignedInt mapCRC )
 		lowerMap.toLower();
 		//DEBUG_LOG(("GameInfo::setMapCRC - looking for map file \"%s\" in the map cache", lowerMap.str()));
 		std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
+		fprintf(stderr, "GameInfo::setMapCRC - map='%s' found=%d wantCRC=0x%08x cachedCRC=0x%08x\n",
+			lowerMap.str(), (it != TheMapCache->end())?1:0, m_mapCRC,
+			(it != TheMapCache->end())?it->second.m_CRC:0);
+		fflush(stderr);
 		if (it == TheMapCache->end())
 		{
 			/*
