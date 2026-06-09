@@ -28,6 +28,7 @@
 #include "Common/ArchiveFileSystem.h"
 #include "Common/CommandLine.h"
 #include "Common/CRCDebug.h"
+#include "Common/Diagnostic/SimulationMathCrc.h"
 #include "Common/FramePacer.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/Recorder.h"
@@ -395,6 +396,17 @@ Int parseFullVersion(char *args[], int num)
 	{
 		TheVersion->setShowFullVersion(atoi(args[1]) != 0);
 	}
+	return 1;
+}
+
+// TheSuperHackers @feature bobtista 09/06/2026 Print the deterministic simulation-math CRC
+// for cross-platform parity testing. Run on each machine with -mathCrcCheck and compare the
+// printed value; identical CRCs confirm the deterministic math path matches across architectures.
+Int parseMathCrcCheck(char *args[], int)
+{
+	const UnsignedInt crc = SimulationMathCrc::calculate();
+	printf("SimulationMathCrc = %08X\n", crc);
+	DEBUG_LOG(("SimulationMathCrc = %08X", crc));
 	return 1;
 }
 
@@ -1333,6 +1345,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-xres", parseXRes },
 	{ "-yres", parseYRes },
 	{ "-fullVersion", parseFullVersion },
+	{ "-mathCrcCheck", parseMathCrcCheck },
 	{ "-particleEdit", parseParticleEdit },
 	{ "-scriptDebug", parseScriptDebug },
 	{ "-playStats", parsePlayStats },
