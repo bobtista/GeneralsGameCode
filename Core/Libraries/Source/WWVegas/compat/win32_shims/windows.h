@@ -591,6 +591,36 @@ inline DWORD GetModuleFileNameW(HMODULE, wchar_t *, DWORD size) { (void)size; re
 #ifndef MB_TASKMODAL
 #define MB_TASKMODAL       0x00002000
 #endif
+#ifndef MB_APPLMODAL
+#define MB_APPLMODAL       0x00000000
+#endif
+#ifndef MB_DEFBUTTON3
+#define MB_DEFBUTTON3      0x00000200
+#endif
+
+#ifndef IDOK
+#define IDOK     1
+#endif
+#ifndef IDCANCEL
+#define IDCANCEL 2
+#endif
+#ifndef IDABORT
+#define IDABORT  3
+#endif
+#ifndef IDRETRY
+#define IDRETRY  4
+#endif
+#ifndef IDIGNORE
+#define IDIGNORE 5
+#endif
+#ifndef IDYES
+#define IDYES    6
+#endif
+#ifndef IDNO
+#define IDNO     7
+#endif
+
+inline void DebugBreak() {}
 
 #ifndef SW_HIDE
 #define SW_HIDE            0
