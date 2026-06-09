@@ -96,7 +96,9 @@ void PopulateRemoteIPComboBox()
 	{
 		GadgetComboBoxSetSelectedPos(comboboxRemoteIP, 0, TRUE);
 	}
-	userprefs.write();
+	// TheSuperHackers @bugfix bobtista 09/06/2026 Do not write prefs from this read-only populate
+	// function; the remote-IP list is persisted by UpdateRemoteIPList. Writing here served no
+	// purpose and risked clobbering the file during display refreshes.
 }
 
 void UpdateRemoteIPList()
@@ -110,11 +112,14 @@ void UpdateRemoteIPList()
 	AsciiString sel;
 	sel.translate(unisel);
 
-//	UnicodeString newEntry = prefs.getRemoteIPEntry(0);
-	UnicodeString newEntry = unisel;
-	UnicodeString newIP;
-	newEntry.nextToken(&newIP, L":");
-	Int numFields = swscanf(newIP.str(), L"%d.%d.%d.%d", &(n1[0]), &(n1[1]), &(n1[2]), &(n1[3]));
+	// TheSuperHackers @bugfix bobtista 09/06/2026 Parse the IP from the AsciiString with narrow
+	// sscanf. The wide swscanf previously used here returned the wrong field count on macOS
+	// (4-byte wchar_t), so a valid typed IP was treated as malformed and the remote-IP list was
+	// never saved - even though the direct connect itself (which uses narrow sscanf) worked.
+	AsciiString newEntryAscii = sel;
+	AsciiString newIPAscii;
+	newEntryAscii.nextToken(&newIPAscii, ":");
+	Int numFields = sscanf(newIPAscii.str(), "%d.%d.%d.%d", &(n1[0]), &(n1[1]), &(n1[2]), &(n1[3]));
 
 	if (numFields != 4) {
 		// this is not a properly formatted IP, don't change a thing.
@@ -142,7 +147,7 @@ void UpdateRemoteIPList()
 				UnicodeString oldIP;
 				oldEntry.nextToken(&oldIP, L":");
 
-				swscanf(oldIP.str(), L"%d.%d.%d.%d", &(n2[0]), &(n2[1]), &(n2[2]), &(n2[3]));
+				AsciiString oldIPAscii; oldIPAscii.translate(oldIP); sscanf(oldIPAscii.str(), "%d.%d.%d.%d", &(n2[0]), &(n2[1]), &(n2[2]), &(n2[3]));
 
 				Bool isEqual = TRUE;
 				for (Int i = 0; (i < 4) && (isEqual == TRUE); ++i) {
