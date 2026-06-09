@@ -29,6 +29,7 @@
 
 #include "PreRTS.h"
 
+#include "Common/CRCDebug.h"
 #include "Common/Player.h"
 #include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
@@ -1283,6 +1284,7 @@ void RailroadBehavior::updatePositionTrackDistance( PullInfo *pullerInfo, PullIn
 	FindPosByPathDistance( &carPosition,
 													myInfo->trackDistance,
 													m_track->m_length, TRUE);
+	DUMPCOORD3D(&carPosition);
 
 
 	Coord3D turnPos = *obj->getPosition();
@@ -1293,6 +1295,7 @@ void RailroadBehavior::updatePositionTrackDistance( PullInfo *pullerInfo, PullIn
 	const Coord3D* dir = obj->getUnitDirectionVector2D();
 	turnPos.x += dir->x * -hitchRadius;
 	turnPos.y += dir->y * -hitchRadius;
+	DUMPCOORD3D(&turnPos);
 	Coord3D trackPosDelta;
 	trackPosDelta.x = carPosition.x - turnPos.x;
 	trackPosDelta.y = carPosition.y - turnPos.y;
@@ -1300,9 +1303,11 @@ void RailroadBehavior::updatePositionTrackDistance( PullInfo *pullerInfo, PullIn
 	Real dx = pullerInfo->towHitchPosition.x - turnPos.x;
 	Real dy = pullerInfo->towHitchPosition.y - turnPos.y;
 	Real desiredAngle = WWMath::Atan2(dy, dx);
+	DUMPREAL(desiredAngle);
 
 
 	Real relAngle = stdAngleDiff(desiredAngle, obj->getTransformMatrix()->Get_Z_Rotation());
+	DUMPREAL(relAngle);
 
 
 	Matrix3D mtx;
@@ -1312,9 +1317,15 @@ void RailroadBehavior::updatePositionTrackDistance( PullInfo *pullerInfo, PullIn
 	tmp.In_Place_Pre_Rotate_Z(relAngle );
 
 	tmp.Translate(-turnPos.x, -turnPos.y, 0);
+	DUMPREAL(tmp.Get_X_Translation());
+	DUMPREAL(tmp.Get_Y_Translation());
+	DUMPREAL(tmp.Get_Z_Rotation());
 
 
 	mtx.mul(tmp, *obj->getTransformMatrix());
+	DUMPREAL(mtx.Get_X_Translation());
+	DUMPREAL(mtx.Get_Y_Translation());
+	DUMPREAL(mtx.Get_Z_Rotation());
 
 
 	//enforce ground elevation
