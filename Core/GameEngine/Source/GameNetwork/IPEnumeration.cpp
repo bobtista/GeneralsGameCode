@@ -58,6 +58,11 @@ EnumeratedIP * IPEnumeration::getAddresses()
 
 	if (!m_isWinsockInitialized)
 	{
+		// TheSuperHackers @bugfix bobtista 09/06/2026 Only validate the Winsock
+		// version on Windows. On other platforms WSAStartup is a no-op that never
+		// fills wsadata, so reading wsadata.wVersion returns uninitialized memory
+		// and this check spuriously fails, leaving the machine with no IP list.
+#ifdef _WIN32
 		WORD verReq = MAKEWORD(2, 2);
 		WSADATA wsadata;
 
@@ -70,6 +75,7 @@ EnumeratedIP * IPEnumeration::getAddresses()
 			WSACleanup();
 			return nullptr;
 		}
+#endif
 		m_isWinsockInitialized = true;
 	}
 
@@ -167,6 +173,10 @@ AsciiString IPEnumeration::getMachineName()
 {
 	if (!m_isWinsockInitialized)
 	{
+		// TheSuperHackers @bugfix bobtista 09/06/2026 Only validate the Winsock
+		// version on Windows. On other platforms WSAStartup is a no-op that never
+		// fills wsadata, so reading wsadata.wVersion returns uninitialized memory.
+#ifdef _WIN32
 		WORD verReq = MAKEWORD(2, 2);
 		WSADATA wsadata;
 
@@ -179,6 +189,7 @@ AsciiString IPEnumeration::getMachineName()
 			WSACleanup();
 			return "";
 		}
+#endif
 		m_isWinsockInitialized = true;
 	}
 
