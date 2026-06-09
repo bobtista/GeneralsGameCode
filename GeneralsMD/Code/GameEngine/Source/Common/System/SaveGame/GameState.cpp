@@ -930,6 +930,16 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
 		// uncaught exceptions crash us. better to just use a bad path.
 		prefix = in;
 	}
+	// TheSuperHackers @bugfix bobtista 09/06/2026 Normalize separators to '\\' (the retail
+	// portable-path format). On macOS getMapLeafAndDirName returns '/'-separated names while
+	// PORTABLE_MAPS uses '\\', producing a mixed path like "maps\\alpine assault/..." that the
+	// game-options encoder (which walks the path on '\\') truncated to just "maps" - so the
+	// joiner could not resolve the host's map and the cross-platform map-name CRCs mismatched.
+	{
+		std::string normalized(prefix.str());
+		std::replace(normalized.begin(), normalized.end(), '/', '\\');
+		prefix.set(normalized.c_str());
+	}
 	prefix.toLower();
 	return prefix;
 }
