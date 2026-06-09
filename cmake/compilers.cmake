@@ -49,6 +49,16 @@ if (NOT IS_VS6_BUILD)
         add_compile_options(/MP)
         # Enforce strict __cplusplus version
         add_compile_options(/Zc:__cplusplus)
+        # TheSuperHackers @build bobtista 10/06/2026 Emit SSE2 scalar floating-point instead of x87
+        # on 32-bit builds. x87 keeps 80-bit extended-precision intermediates and setFPMode()'s
+        # _PC_24 control word forces single-precision rounding, so double-precision math (e.g.
+        # gm_atan2) diverges from the macOS/arm64 NEON build and breaks cross-platform deterministic
+        # lockstep. SSE2 doubles are true IEEE-754 64-bit, matching arm64. (x64 already uses SSE2.)
+        if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+            add_compile_options(/arch:SSE2)
+        endif()
+        # Keep MSVC from contracting/reassociating FP so it matches clang -ffp-contract=off.
+        add_compile_options(/fp:precise)
     else()
         add_compile_options(-Wsuggest-override)
         # Prevent FMA contraction (a*b+c -> fmadd) which skips intermediate
