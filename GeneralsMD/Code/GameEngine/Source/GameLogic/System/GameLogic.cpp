@@ -33,6 +33,7 @@
 #include "Common/AudioHandleSpecialValues.h"
 #include "Common/BuildAssistant.h"
 #include "Common/CRCDebug.h"
+#include "Common/Diagnostic/SimulationMathCrc.h"
 #include "Common/FramePacer.h"
 #include "Common/GameAudio.h"
 #include "Common/GameEngine.h"
@@ -4040,6 +4041,16 @@ void GameLogic::update()
 	{
 		TheTerrainLogic->UPDATE();
 	}
+
+#if RUN_MATH_BENCHMARK_REPLAY400_FLAG
+	static bool s_benchmarkRun = false;
+
+	if (!s_benchmarkRun && m_frame == 400)
+	{
+		SimulationMathCrc::runBenchmark(10000);
+		s_benchmarkRun = true;
+	}
+#endif
 
 	// TheSuperHackers @feature bobtista 13/07/2026 Optional per-frame fingerprint of the sleepy update
 	// scheduler. The pop order of equal-priority modules depends on the heap operation history, which the

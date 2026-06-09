@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include "BaseDefines.h"
+
 #include <math.h>
 #include <string.h>
 

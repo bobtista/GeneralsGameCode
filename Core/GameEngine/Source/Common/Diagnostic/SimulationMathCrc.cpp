@@ -25,8 +25,10 @@
 #include "GameLogic/FPUControl.h"
 
 #include <math.h>
+#include <stdio.h>
+#include <time.h>
 
-static void appendSimulationMathCrc(XferCRC &xfer)
+static void appendSimulationMathCrc_Deterministic(XferCRC &xfer)
 {
     Matrix3D matrix;
     Matrix3D factorsMatrix;
@@ -63,11 +65,56 @@ UnsignedInt SimulationMathCrc::calculate()
 
     setFPMode();
 
-    appendSimulationMathCrc(xfer);
+    appendSimulationMathCrc_Deterministic(xfer);
 
     _fpreset();
 
     xfer.close();
 
     return xfer.getCRC();
+}
+
+void SimulationMathCrc::runBenchmark(int iterations)
+{
+    int i;
+    clock_t startDet = clock();
+    UnsignedInt crcDet = 0;
+    
+    setFPMode();
+
+    for (i = 0; i < iterations; ++i)
+    {
+        XferCRC xfer;
+        xfer.open("SimMathDet");
+        appendSimulationMathCrc_Deterministic(xfer);
+        xfer.close();
+		if (i == 0)
+			crcDet = xfer.getCRC();
+    }
+    _fpreset();
+    clock_t endDet = clock();
+    double timeDetMs = (double)(endDet - startDet) / CLOCKS_PER_SEC * 1000.0;
+
+    clock_t startNat = clock();
+    UnsignedInt crcNat = 0;
+    
+    setFPMode();
+
+    for (i = 0; i < iterations; ++i)
+    {
+        XferCRC xfer;
+        xfer.open("SimMathNat");
+        appendSimulationMathCrc_Native(xfer);
+        xfer.close();
+		if (i == 0)
+			crcNat = xfer.getCRC();
+    }
+    _fpreset();
+    clock_t endNat = clock();
+    double timeNatMs = (double)(endNat - startNat) / CLOCKS_PER_SEC * 1000.0;
+
+    printf("\n================ MATH BENCHMARK (%d iterations) ================\n", iterations);
+    printf("Deterministic (WWMath): CRC = %08X, Time = %.2f ms\n", crcDet, timeDetMs);
+    printf("Native (system math):   CRC = %08X, Time = %.2f ms\n", crcNat, timeNatMs);
+    printf("===========================================================\n\n");
 }
