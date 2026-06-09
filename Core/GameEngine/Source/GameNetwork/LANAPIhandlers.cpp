@@ -260,7 +260,7 @@ void LANAPI::handleRequestJoin( LANMessage *msg, UnsignedInt senderIP )
 		m_currentGame?m_currentGame->getIP(0):0));
 	if (msg->GameToJoin.gameIP != m_localIP)
 	{
-		DEBUG_LOG(("handleRequestJoin - DROPPED: gameIP != m_localIP"));
+		DEBUG_LOG(("handleRequestJoin - DROPPED: gameIP 0x%08x != m_localIP 0x%08x", msg->GameToJoin.gameIP, m_localIP));
 		return; // Not us.  Ignore it.
 	}
 	LANMessage reply;
