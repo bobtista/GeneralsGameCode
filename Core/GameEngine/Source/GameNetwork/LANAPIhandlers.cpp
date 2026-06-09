@@ -98,6 +98,9 @@ void LANAPI::handleRequestLocations( LANMessage *msg, UnsignedInt senderIP )
 
 void LANAPI::handleGameAnnounce( LANMessage *msg, UnsignedInt senderIP )
 {
+	fprintf(stderr, "handleGameAnnounce - from 0x%08x game='%ls' options='%s'\n",
+		senderIP, lanWideStrToUnicode(msg->GameInfo.gameName).str(), AsciiString(msg->GameInfo.options).str());
+	fflush(stderr);
 	if (senderIP == m_localIP)
 	{
 		return; // Don't try to update own info
