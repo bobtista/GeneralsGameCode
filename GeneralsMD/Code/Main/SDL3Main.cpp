@@ -73,6 +73,10 @@ static std::string s_compatCommandLineStorage;
 // Win-side WinMain.cpp.
 const char *g_strFile = "data/Generals.str";
 const char *g_csfFile = "data/%s/Generals.csf";
+// TheSuperHackers @build bobtista 09/06/2026 Debug.cpp references gAppPrefix from inside
+// DEBUG_LOGGING-gated code; WinMain.cpp defines it on Win, so provide it here so a logging
+// build of the SDL3 entry point links.
+const char *gAppPrefix = "";
 
 // Stack-dump shims. The Win build provides these in core_debug; the engine
 // references them from RTS_DEBUG / IG_DEBUG_STACKTRACE-gated code so just
@@ -157,6 +161,12 @@ int main(int argc, char **argv)
 		}
 	}
 	g_compatCommandLine = s_compatCommandLineStorage.c_str();
+
+	// TheSuperHackers @bugfix bobtista 09/06/2026 WinMain initializes the debug log via
+	// initMemoryManager(); the SDL3 entry point with the null memory manager never does, so a
+	// logging build produced no output. Initialize it here so DEBUG_LOG reaches the log file and
+	// console. Expands to nothing when debug logging is compiled out.
+	DEBUG_INIT(DEBUG_FLAGS_DEFAULT);
 
 	GGC_TRACE("calling SDL_Init");
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
