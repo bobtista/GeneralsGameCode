@@ -15,15 +15,15 @@
     },
     {
       "name": "sdl3",
-      "version-string": "3.4.4",
+      "version-string": "3.4.10",
       "port-version": 0,
-      "git-tree": "c3ea8e6cf352b01ab5bf9035850e72f674af2433"
+      "git-tree": "ca8f0f2fec751398b72e40cb25af47f13bf22d63"
     },
     {
       "name": "sdl3-image",
-      "version-string": "3.4.2",
+      "version-string": "3.4.4",
       "port-version": 0,
-      "git-tree": "2621596cc09e39b1ab98298f4f9e126c1764a6c4"
+      "git-tree": "7d64d0dd26d1a025b99b83429838551fde4a65cf"
     },
     {
       "name": "vcpkg-cmake",
