@@ -88,6 +88,11 @@ Bool Transport::init( UnsignedInt ip, UnsignedShort port )
 	// ----- Initialize Winsock -----
 	if (!m_winsockInit)
 	{
+		// TheSuperHackers @bugfix bobtista 09/06/2026 Only validate the Winsock
+		// version on Windows. On other platforms WSAStartup is a no-op that never
+		// fills wsadata, so reading wsadata.wVersion returns uninitialized memory
+		// and this check spuriously fails, breaking all network socket creation.
+#ifdef _WIN32
 		WORD verReq = MAKEWORD(2, 2);
 		WSADATA wsadata;
 
@@ -100,6 +105,7 @@ Bool Transport::init( UnsignedInt ip, UnsignedShort port )
 			WSACleanup();
 			return false;
 		}
+#endif
 		m_winsockInit = true;
 	}
 
