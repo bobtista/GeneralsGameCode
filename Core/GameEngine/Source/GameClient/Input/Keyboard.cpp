@@ -243,8 +243,12 @@ Bool Keyboard::checkKeyRepeat()
 				for( index = 0; index< NUM_KEYS; index++ )
 					m_keyStatus[ index ].keyDownTimeMsec = now;
 
-				// Set repeated key so it will repeat again after the interval
-				m_keyStatus[ key ].keyDownTimeMsec = now - (Keyboard::KEY_REPEAT_DELAY_MSEC + Keyboard::KEY_REPEAT_INTERVAL_MSEC);
+				// TheSuperHackers @bugfix bobtista 09/06/2026 Schedule the next repeat one INTERVAL
+				// from now (time-based). The previous code subtracted DELAY+INTERVAL, leaving the key
+				// permanently past the repeat threshold so it repeated EVERY frame and ignored
+				// KEY_REPEAT_INTERVAL_MSEC. At high frame rates (e.g. macOS) that caused runaway
+				// repeats - one backspace tap deleting several characters.
+				m_keyStatus[ key ].keyDownTimeMsec = now - (Keyboard::KEY_REPEAT_DELAY_MSEC - Keyboard::KEY_REPEAT_INTERVAL_MSEC);
 
 				retVal = TRUE;
 				break;  // exit for key
