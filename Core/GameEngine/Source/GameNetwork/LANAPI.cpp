@@ -100,10 +100,18 @@ void LANAPI::init()
 	m_gameStartTime = 0;
 	m_gameStartSeconds = 0;
 	m_transport->reset();
+	// TheSuperHackers @bugfix bobtista 09/06/2026 On macOS/BSD a UDP socket bound to a
+	// specific local IP does not receive limited broadcasts (255.255.255.255), which
+	// broke LAN discovery and broadcast join requests on the Mac. Bind to INADDR_ANY so
+	// broadcasts are received; m_localIP is still used as our identity in the protocol.
+#ifdef _WIN32
 	m_transport->init(m_localIP, lobbyPort);
+#else
+	m_transport->init((UnsignedInt)0, lobbyPort);
+#endif
 	m_transport->allowBroadcasts(true);
 
-	fprintf(stderr, "LANAPI::init - bound localIP=%d.%d.%d.%d broadcast=%d.%d.%d.%d port=%d sizeof(LANMessage)=%d\n",
+	fprintf(stderr, "LANAPI::init - identity localIP=%d.%d.%d.%d broadcast=%d.%d.%d.%d port=%d sizeof(LANMessage)=%d\n",
 		PRINTF_IP_AS_4_INTS(m_localIP), PRINTF_IP_AS_4_INTS(m_broadcastAddr), (int)lobbyPort, (int)sizeof(LANMessage));
 	fflush(stderr);
 
@@ -1279,8 +1287,19 @@ Bool LANAPI::SetLocalIP( UnsignedInt localIP )
 	m_localIP = localIP;
 
 	m_transport->reset();
+	// TheSuperHackers @bugfix bobtista 09/06/2026 Bind to INADDR_ANY on macOS/BSD so the
+	// LAN socket receives limited broadcasts; binding to the specific m_localIP silently
+	// drops them on those platforms. m_localIP remains our identity in the protocol.
+#ifdef _WIN32
 	retval = m_transport->init(m_localIP, lobbyPort);
+#else
+	retval = m_transport->init((UnsignedInt)0, lobbyPort);
+#endif
 	m_transport->allowBroadcasts(true);
+
+	fprintf(stderr, "LANAPI::SetLocalIP - identity localIP=%d.%d.%d.%d (socket bound INADDR_ANY on non-Windows)\n",
+		PRINTF_IP_AS_4_INTS(m_localIP));
+	fflush(stderr);
 
 	return retval;
 }
