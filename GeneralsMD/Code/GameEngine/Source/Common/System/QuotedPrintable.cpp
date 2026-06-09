@@ -53,33 +53,31 @@ static int hexDigitToInt(char c)
 }
 
 // Convert unicode strings into ascii quoted-printable strings
+// TheSuperHackers @bugfix bobtista 09/06/2026 Encode each WideChar as two
+// little-endian bytes (the retail UTF-16 format) instead of walking the raw
+// wchar_t buffer two bytes at a time. wchar_t is 4 bytes on macOS/Linux, so the
+// old code saw the 0x0000 upper half of the first character as a string
+// terminator and truncated every name to its first letter (e.g. "Macbook" -> "M_00").
 AsciiString UnicodeStringToQuotedPrintable(UnicodeString original)
 {
 	static char dest[1024];
-	const unsigned char *src = reinterpret_cast<const unsigned char *>(original.str());
+	const WideChar *src = original.str();
 	int i=0;
-	while ( !(src[0]=='\0' && src[1]=='\0') && i<1021 )
+	while ( *src != 0 && i < (int)sizeof(dest)-7 )
 	{
-		if (!isalnum(*src))
+		const unsigned char bytes[2] = { (unsigned char)((*src)&0xff), (unsigned char)(((*src)>>8)&0xff) };
+		for (int b=0; b<2; ++b)
 		{
-			dest[i++] = MAGIC_CHAR;
-			dest[i++] = intToHexDigit((*src)>>4);
-			dest[i++] = intToHexDigit((*src)&0xf);
-		}
-		else
-		{
-			dest[i++] = *src;
-		}
-		src ++;
-		if (!isalnum(*src))
-		{
-			dest[i++] = MAGIC_CHAR;
-			dest[i++] = intToHexDigit((*src)>>4);
-			dest[i++] = intToHexDigit((*src)&0xf);
-		}
-		else
-		{
-			dest[i++] = *src;
+			if (!isalnum(bytes[b]))
+			{
+				dest[i++] = MAGIC_CHAR;
+				dest[i++] = intToHexDigit(bytes[b]>>4);
+				dest[i++] = intToHexDigit(bytes[b]&0xf);
+			}
+			else
+			{
+				dest[i++] = bytes[b];
+			}
 		}
 		src ++;
 	}
@@ -114,16 +112,22 @@ AsciiString AsciiStringToQuotedPrintable(AsciiString original)
 }
 
 // Convert ascii quoted-printable strings into unicode strings
+// TheSuperHackers @bugfix bobtista 09/06/2026 Reassemble decoded bytes into
+// little-endian 16-bit code units before storing them as WideChar. wchar_t is
+// 4 bytes on macOS/Linux, so writing decoded bytes straight into the wchar_t
+// buffer (as the old code did) produced garbage on those platforms.
 UnicodeString QuotedPrintableToUnicodeString(AsciiString original)
 {
 	static WideChar dest[1024];
-	int i=0;
+	int di=0;
 
-	unsigned char *c = reinterpret_cast<unsigned char *>(dest);
 	const unsigned char *src = reinterpret_cast<const unsigned char *>(original.str());
 
-	while (*src && i<1023)
+	unsigned char lowByte=0;
+	Bool haveLow=FALSE;
+	while (*src && di<1023)
 	{
+		unsigned char value;
 		if (*src == MAGIC_CHAR)
 		{
 			if (src[1] == '\0')
@@ -131,35 +135,38 @@ UnicodeString QuotedPrintableToUnicodeString(AsciiString original)
 				// string ends with MAGIC_CHAR
 				break;
 			}
-			*c = hexDigitToInt(src[1]);
+			value = hexDigitToInt(src[1]);
 			src++;
 			if (src[1] != '\0')
 			{
-				*c = *c<<4;
-				*c = *c | hexDigitToInt(src[1]);
+				value = (value<<4) | hexDigitToInt(src[1]);
 				src++;
 			}
 		}
 		else
 		{
-			*c = *src;
+			value = *src;
 		}
 		src++;
-		c++;
+
+		if (!haveLow)
+		{
+			lowByte = value;
+			haveLow = TRUE;
+		}
+		else
+		{
+			dest[di++] = (WideChar)(lowByte | (value << 8));
+			haveLow = FALSE;
+		}
 	}
 
-	// Fixup odd-length strings
-	if ((c-(unsigned char *)dest)%2)
+	if (haveLow && di<1023)
 	{
-		// OK
-	}
-	else
-	{
-		*c = '\0';
-		c++;
+		dest[di++] = (WideChar)lowByte;
 	}
 
-	*c = 0;
+	dest[di] = 0;
 
 	return dest;
 }
