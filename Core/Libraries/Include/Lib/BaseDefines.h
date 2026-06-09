@@ -19,7 +19,10 @@
 #pragma once
 
 #ifndef RETAIL_COMPATIBLE_CRC
-#define RETAIL_COMPATIBLE_CRC (1) // Game is expected to be CRC compatible with retail Generals 1.08, Zero Hour 1.04
+// TheSuperHackers @tweak bobtista 09/06/2026 Temporarily default to 0 so USE_DETERMINISTIC_MATH
+// stays active (the two are mutually exclusive), enabling Mac<->Windows cross-architecture lockstep
+// parity. Drops sync with retail 1.04 clients. Revert with the deterministic-math squash when PR #8 lands.
+#define RETAIL_COMPATIBLE_CRC (0) // Game is expected to be CRC compatible with retail Generals 1.08, Zero Hour 1.04
 #endif
 
 #ifndef USE_DETERMINISTIC_MATH
