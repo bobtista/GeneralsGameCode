@@ -67,6 +67,9 @@ endif()
 
 include(cmake/config.cmake)
 include(cmake/gamespy.cmake)
+if (NOT IS_VS6_BUILD)
+    include(cmake/gamemath.cmake)
+endif()
 include(cmake/lzhl.cmake)
 
 if(SAGE_USE_SDL3)
