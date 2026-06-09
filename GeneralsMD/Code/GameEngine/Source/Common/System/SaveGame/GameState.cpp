@@ -930,16 +930,6 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
 		// uncaught exceptions crash us. better to just use a bad path.
 		prefix = in;
 	}
-	// TheSuperHackers @bugfix bobtista 09/06/2026 Normalize separators to '/' so the
-	// portable map path is canonical across platforms. getMapLeafAndDirName returns
-	// native separators ('\\' on Windows, '/' on macOS/Linux), which made the same
-	// stock map produce different portable strings - and therefore different map-name
-	// CRCs - breaking cross-platform LAN map matching.
-	{
-		std::string normalized(prefix.str());
-		std::replace(normalized.begin(), normalized.end(), '\\', '/');
-		prefix.set(normalized.c_str());
-	}
 	prefix.toLower();
 	return prefix;
 }
