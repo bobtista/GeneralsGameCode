@@ -275,6 +275,11 @@ void GameResultsThreadClass::Thread_Function()
 
 static const char *getWSAErrorString( Int error )
 {
+#ifndef _WIN32
+	// TheSuperHackers @build bobtista 09/06/2026 The WSA* error names are Windows-only; on
+	// other platforms socket errors are POSIX errno values, so report those instead.
+	return strerror(error);
+#else
 	switch (error)
 	{
 		CASE(WSABASEERR)
@@ -332,6 +337,7 @@ static const char *getWSAErrorString( Int error )
 		default:
 			return "Not a Winsock error";
 	}
+#endif
 }
 
 #undef CASE
