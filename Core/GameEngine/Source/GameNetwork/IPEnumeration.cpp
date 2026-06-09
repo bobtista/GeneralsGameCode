@@ -28,6 +28,11 @@
 #include "GameNetwork/networkutil.h"
 #include "GameClient/ClientInstance.h"
 
+#ifndef _WIN32
+#include <ifaddrs.h>
+#include <net/if.h>
+#endif
+
 IPEnumeration::IPEnumeration()
 {
 	m_IPlist = nullptr;
@@ -79,6 +84,18 @@ EnumeratedIP * IPEnumeration::getAddresses()
 		m_isWinsockInitialized = true;
 	}
 
+	// TheSuperHackers @feature Add one unique local host IP address for each multi client instance.
+	if (rts::ClientInstance::isMultiInstance())
+	{
+		const UnsignedInt id = rts::ClientInstance::getInstanceId();
+		addNewIP(
+			127,
+			(UnsignedByte)(id >> 16),
+			(UnsignedByte)(id >> 8),
+			(UnsignedByte)(id));
+	}
+
+#ifdef _WIN32
 	// get the local machine's host name
 	char hostname[256];
 	if (gethostname(hostname, sizeof(hostname)))
@@ -103,17 +120,6 @@ EnumeratedIP * IPEnumeration::getAddresses()
 		return nullptr;
 	}
 
-	// TheSuperHackers @feature Add one unique local host IP address for each multi client instance.
-	if (rts::ClientInstance::isMultiInstance())
-	{
-		const UnsignedInt id = rts::ClientInstance::getInstanceId();
-		addNewIP(
-			127,
-			(UnsignedByte)(id >> 16),
-			(UnsignedByte)(id >> 8),
-			(UnsignedByte)(id));
-	}
-
 	// construct a list of addresses
 	int numAddresses = 0;
 	char *entry;
@@ -125,6 +131,36 @@ EnumeratedIP * IPEnumeration::getAddresses()
 			(UnsignedByte)entry[2],
 			(UnsignedByte)entry[3]);
 	}
+#else
+	// TheSuperHackers @feature bobtista 09/06/2026 Enumerate every local IPv4 interface via
+	// getifaddrs. gethostbyname(hostname) only returns the addresses the host name resolves to
+	// on non-Windows, which omits VPN/tunnel adapters (Hamachi, ZeroTier, utun) that are needed
+	// to host or join an internet "LAN" or direct-connect game. Loopback is skipped so it is
+	// never offered as the local IP.
+	struct ifaddrs *ifaddrList = nullptr;
+	if (getifaddrs(&ifaddrList) == 0)
+	{
+		for (struct ifaddrs *ifa = ifaddrList; ifa != nullptr; ifa = ifa->ifa_next)
+		{
+			if (ifa->ifa_addr == nullptr || ifa->ifa_addr->sa_family != AF_INET)
+			{
+				continue;
+			}
+			if ((ifa->ifa_flags & IFF_UP) == 0 || (ifa->ifa_flags & IFF_LOOPBACK) != 0)
+			{
+				continue;
+			}
+			const struct sockaddr_in *sin = (const struct sockaddr_in *)ifa->ifa_addr;
+			const UnsignedInt addr = ntohl(sin->sin_addr.s_addr);
+			addNewIP(
+				(UnsignedByte)(addr >> 24),
+				(UnsignedByte)(addr >> 16),
+				(UnsignedByte)(addr >> 8),
+				(UnsignedByte)(addr));
+		}
+		freeifaddrs(ifaddrList);
+	}
+#endif
 
 	return m_IPlist;
 }
