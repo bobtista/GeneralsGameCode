@@ -28,6 +28,34 @@
 #include <stdio.h>
 #include <time.h>
 
+// TheSuperHackers @info bobtista 10/06/2026 Hash the exact bits of a double so a 1-ULP
+// cross-platform divergence in a double-precision transcendental is caught by the CRC.
+static void xferDoubleBits(XferCRC &xfer, double value)
+{
+    Int64 bits;
+    memcpy(&bits, &value, sizeof(bits));
+    xfer.xferInt64(&bits);
+}
+
+// TheSuperHackers @info bobtista 10/06/2026 The single-precision probe below never exercises
+// the double-precision WWMath overloads (e.g. WWMath::Atan2(double,double) -> gm_atan2), which
+// is the path the train track-follow code actually uses. Sweep them here over movement-like
+// inputs so -mathCrcCheck reveals any clang/MSVC double-precision divergence directly.
+static void appendSimulationMathCrcDouble(XferCRC &xfer)
+{
+    static const double atan2Y[] = { 0.4, 1.3, -2.7, 187.66, -1116.46, 0.000123, 3.5, -0.841933 };
+    static const double atan2X[] = { 1.3, 0.4, 11.9, -59.13, 1412.47, 9999.5, -3.5, 2.121793 };
+    const Int count = sizeof(atan2Y) / sizeof(atan2Y[0]);
+    for (Int i = 0; i < count; ++i)
+    {
+        xferDoubleBits(xfer, WWMath::Atan2(atan2Y[i], atan2X[i]));
+        xferDoubleBits(xfer, WWMath::Atan(atan2Y[i] / atan2X[i]));
+        xferDoubleBits(xfer, WWMath::Sin(atan2Y[i]));
+        xferDoubleBits(xfer, WWMath::Cos(atan2Y[i]));
+        xferDoubleBits(xfer, WWMath::Sqrt(WWMath::Fabs(atan2X[i])));
+    }
+}
+
 static void appendSimulationMathCrc_Deterministic(XferCRC &xfer)
 {
     Matrix3D matrix;
@@ -96,6 +124,23 @@ UnsignedInt SimulationMathCrc::calculate()
     setFPMode();
 
     appendSimulationMathCrc_Deterministic(xfer);
+    appendSimulationMathCrcDouble(xfer);
+
+    _fpreset();
+
+    xfer.close();
+
+    return xfer.getCRC();
+}
+
+UnsignedInt SimulationMathCrc::calculateDouble()
+{
+    XferCRC xfer;
+    xfer.open("SimulationMathCrcDouble");
+
+    setFPMode();
+
+    appendSimulationMathCrcDouble(xfer);
 
     _fpreset();
 
