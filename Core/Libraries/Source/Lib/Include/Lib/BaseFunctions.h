@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include <Utility/bit_adapter.h>
 #include "BaseDefines.h"
 
+#include <Utility/bit_adapter.h>
 //-----------------------------------------------------------------------------
 inline Real rad2deg(Real rad) { return rad * (180/PI); }
 inline Real deg2rad(Real rad) { return rad * (PI/180); }

@@ -2823,7 +2823,7 @@ void W3DView::rotateCameraTowardPosition(const Coord3D *pLoc, Int milliseconds, 
 	Vector2 dir(pLoc->x-curPos.x, pLoc->y-curPos.y);
 	const Real dirLength = dir.Length();
 	if (dirLength<0.1f) return;
-	Real angle = WWMath::Acos(dir.X/dirLength);
+	Real angle = WWMath::Acos_Legacy(dir.X/dirLength);
 	if (dir.Y<0.0f) {
 		angle = -angle;
 	}
@@ -2966,7 +2966,7 @@ void W3DView::cameraModLookToward(Coord3D *pLoc)
 			Vector2 dir(pLoc->x-result.x, pLoc->y-result.y);
 			const Real dirLength = dir.Length();
 			if (dirLength<0.1f) continue;
-			Real angle = WWMath::Acos(dir.X/dirLength);
+			Real angle = WWMath::Acos_Legacy(dir.X/dirLength);
 			if (dir.Y<0.0f) {
 				angle = -angle;
 			}
@@ -3047,7 +3047,7 @@ void W3DView::cameraModFinalLookToward(Coord3D *pLoc)
 			Vector2 dir(pLoc->x-result.x, pLoc->y-result.y);
 			const Real dirLength = dir.Length();
 			if (dirLength<0.1f) continue;
-			Real angle = WWMath::Acos(dir.X/dirLength);
+			Real angle = WWMath::Acos_Legacy(dir.X/dirLength);
 			if (dir.Y<0.0f) {
 				angle = -angle;
 			}
@@ -3228,7 +3228,7 @@ void W3DView::setupWaypointPath(Bool orient)
 		m_mcwpInfo.waySegLength[i] = dirLength;
 		m_mcwpInfo.totalDistance += m_mcwpInfo.waySegLength[i];
 		if (orient && dirLength >= 0.1f) {
-			angle = WWMath::Acos(dir.X/dirLength);
+			angle = WWMath::Acos_Legacy(dir.X/dirLength);
 			if (dir.Y<0.0f) {
 				angle = -angle;
 			}
@@ -3304,7 +3304,7 @@ static Real makeQuadraticS(Real t)
 		tPrime = 0.5 * (2*t*2*t);
 	} else {
 		tPrime = (t-0.5)*2;
-		tPrime = WWMath::Sqrt(tPrime);
+		tPrime = WWMath::Sqrt_Legacy(tPrime);
 		tPrime = 0.5 + 0.5*(tPrime);
 	}
 	return tPrime*0.5 + t*0.5;
@@ -3338,7 +3338,7 @@ void W3DView::rotateCameraOneFrame()
 			const Real dirLength = dir.Length();
 			if (dirLength>=0.1f)
 			{
-				Real angle = WWMath::Acos(dir.X/dirLength);
+				Real angle = WWMath::Acos_Legacy(dir.X/dirLength);
 				if (dir.Y<0.0f) {
 					angle = -angle;
 				}

@@ -47,6 +47,10 @@
 #include "gmath.h"
 #endif
 
+#if USE_DETERMINISTIC_MATH
+#include "gmath.h"
+#endif
+
 /*
 ** Some global constants.
 */
@@ -209,6 +213,14 @@ static WWINLINE unsigned char	Unit_Float_To_Byte(float f) { return (unsigned cha
 static WWINLINE float	Byte_To_Unit_Float(unsigned char byte) { return ((float)byte) / 255.0f; }
 
 static WWINLINE float	Normalize_Angle(float angle); // Normalizes the angle to the range -PI..PI
+
+static WWINLINE int Float_To_Int_Chop(float f);
+static WWINLINE int Float_To_Int_Floor(float f);
+static WWINLINE long Float_To_Long(float f);
+static WWINLINE long Float_To_Long(double f);
+static WWINLINE int Float_As_Int(const float f) { return *((int*)&f); }
+static WWINLINE unsigned char Unit_Float_To_Byte(float f) { return (unsigned char)(f*255.0f); }
+static WWINLINE float Byte_To_Unit_Float(unsigned char byte) { return ((float)byte) / 255.0f; }
 
 static WWINLINE float	Div_Safe(float dividend, float divisor, float epsilon = WWMATH_EPSILON);
 static WWINLINE double	Div_Safe(double dividend, double divisor, double epsilon = WWMATH_EPSILON);
