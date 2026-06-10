@@ -57,36 +57,6 @@ static void appendSimulationMathCrcDouble(XferCRC &xfer)
     }
 }
 
-// TheSuperHackers @info bobtista 10/06/2026 Per-function double-precision dump: prints the exact
-// 64-bit hex of each gm_* result so a cross-platform diff pinpoints WHICH function diverges and by
-// how much (vs the lumped CRC, which only says "something differs"). Also prints raw libc results
-// so we can tell whether the GameMath path or the routing is at fault.
-static void printDoubleBits(const char *label, double value)
-{
-    Int64 bits;
-    memcpy(&bits, &value, sizeof(bits));
-    printf("%-22s %016llX (%.17g)\n", label, (unsigned long long)bits, value);
-}
-
-void SimulationMathCrc::dumpDoubleProbe()
-{
-    setFPMode();
-    char label[64];
-    for (Int i = 0; i < s_probeCount; ++i)
-    {
-        const double y = s_probeY[i];
-        const double x = s_probeX[i];
-        sprintf(label, "atan2[%d]", i);    printDoubleBits(label, WWMath::Atan2(y, x));
-        sprintf(label, "atan2_libc[%d]", i); printDoubleBits(label, ::atan2(y, x));
-        sprintf(label, "atan[%d]", i);     printDoubleBits(label, WWMath::Atan(y / x));
-        sprintf(label, "sin[%d]", i);      printDoubleBits(label, WWMath::Sin(y));
-        sprintf(label, "cos[%d]", i);      printDoubleBits(label, WWMath::Cos(y));
-        sprintf(label, "sqrt[%d]", i);     printDoubleBits(label, WWMath::Sqrt(WWMath::Fabs(x)));
-    }
-    fflush(stdout);
-    _fpreset();
-}
-
 static void appendSimulationMathCrc_Deterministic(XferCRC &xfer)
 {
     Matrix3D matrix;
