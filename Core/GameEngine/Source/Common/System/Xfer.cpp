@@ -201,7 +201,27 @@ void Xfer::xferMarkerLabel( AsciiString asciiStringData )
 void Xfer::xferUnicodeString( UnicodeString *unicodeStringData )
 {
 
+#ifdef _WIN32
 	xferImplementation( (void *)unicodeStringData->str(), sizeof( WideChar ) * unicodeStringData->getLength() );
+#else
+	// TheSuperHackers @bugfix bobtista 11/06/2026 WideChar is 4 bytes on non-Windows but 2 on
+	// Windows, so feeding raw WideChar bytes here makes the CRC (and any other byte sink) diverge
+	// across platforms - e.g. Player::m_generalName desyncs cross-platform multiplayer. Serialize
+	// each code unit as 16-bit little-endian to match Windows' native wchar_t layout. Chunks are a
+	// whole number of code units capped at an even 256 so xferImplementation folds only complete
+	// 4-byte words until the final (possibly odd) chunk, matching a single contiguous call.
+	const Int len = unicodeStringData->getLength();
+	const WideChar *src = unicodeStringData->str();
+	UnsignedShort diskBuffer[ 256 ];
+	for( Int i = 0; i < len; )
+	{
+		const Int chunk = (len - i < 256) ? (len - i) : 256;
+		for( Int j = 0; j < chunk; ++j )
+			diskBuffer[ j ] = (UnsignedShort)src[ i + j ];
+		xferImplementation( diskBuffer, sizeof( UnsignedShort ) * chunk );
+		i += chunk;
+	}
+#endif
 
 }
 
