@@ -408,6 +408,7 @@ Int parseMathCrcCheck(char *args[], int)
 	const UnsignedInt crcDouble = SimulationMathCrc::calculateDouble();
 	printf("SimulationMathCrc = %08X\n", crc);
 	printf("SimulationMathCrcDouble = %08X\n", crcDouble);
+	SimulationMathCrc::dumpDoubleProbe();
 	fflush(stdout);
 	DEBUG_LOG(("SimulationMathCrc = %08X", crc));
 	DEBUG_LOG(("SimulationMathCrcDouble = %08X", crcDouble));
