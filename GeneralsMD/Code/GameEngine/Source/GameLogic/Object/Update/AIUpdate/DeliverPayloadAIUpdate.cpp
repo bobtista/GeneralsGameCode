@@ -347,7 +347,12 @@ Real DeliverPayloadAIUpdate::calcMinTurnRadius(Real* timeToTravelThatDist) const
 	Real minTurnRadius = (maxTurnRate > 0.0f) ? (maxSpeed / maxTurnRate) : 999999.0f;
 
 	if (timeToTravelThatDist)
-		*timeToTravelThatDist = minTurnRadius / maxSpeed;
+	{
+		// TheSuperHackers @bugfix bobtista 10/06/2026 A zero max speed (e.g. EMP/subdual sets it to 0)
+		// makes this Inf, and the caller feeds it to REAL_TO_INT_CEIL - platform-divergent UB that
+		// desyncs the re-entry frame. Fall back to a large finite time when stopped.
+		*timeToTravelThatDist = (maxSpeed > 0.0f) ? (minTurnRadius / maxSpeed) : 999999.0f;
+	}
 
 	return minTurnRadius;
 }
