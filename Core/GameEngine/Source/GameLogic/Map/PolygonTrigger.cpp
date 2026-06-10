@@ -296,7 +296,7 @@ void PolygonTrigger::updateBounds()	const
 	Real halfHeight = m_bounds.height() / 2.0f;
 #endif
 
-	m_radius = WWMath::Sqrt(halfHeight*halfHeight + halfWidth*halfWidth);
+	m_radius = WWMath::Sqrtf(halfHeight*halfHeight + halfWidth*halfWidth);
 }
 
 
