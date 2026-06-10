@@ -31,6 +31,7 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 #define DEFINE_SLOWDEATHPHASE_NAMES
+#include "Common/CRCDebug.h"
 #include "Common/GameLOD.h"
 #include "Common/INI.h"
 #include "Common/RandomValue.h"
@@ -181,6 +182,13 @@ Int SlowDeathBehavior::getProbabilityModifier( const DamageInfo *damageInfo ) co
 	Int overkillDamage = damageInfo->out.m_actualDamageDealt - damageInfo->out.m_actualDamageClipped;
 	Real overkillPercent = (float)overkillDamage / (float)getObject()->getBodyModule()->getMaxHealth();
 	Int overkillModifier = overkillPercent * getSlowDeathBehaviorModuleData()->m_modifierBonusPerOverkillPercent;
+
+	DUMPREAL(damageInfo->out.m_actualDamageDealt);
+	DUMPREAL(damageInfo->out.m_actualDamageClipped);
+	DUMPREAL(getObject()->getBodyModule()->getMaxHealth());
+	DUMPREAL((Real)overkillDamage);
+	DUMPREAL(overkillPercent);
+	DUMPREAL((Real)overkillModifier);
 
 	return max( getSlowDeathBehaviorModuleData()->m_probabilityModifier + overkillModifier, 1 );
 }
