@@ -337,7 +337,18 @@ void XferDeepCRC::xferUnicodeString( UnicodeString *unicodeStringData )
 	xferByte( &len );
 
 	// save string data
+	// TheSuperHackers @bugfix bobtista 11/06/2026 Serialize each code unit as 16-bit little-endian
+	// so the deep CRC matches across platforms; WideChar is 4 bytes on non-Windows but 2 on Windows.
 	if( len > 0 )
+	{
+#ifdef _WIN32
 		xferUser( (void *)unicodeStringData->str(), sizeof( WideChar ) * len );
+#else
+		UnsignedShort diskBuffer[ 256 ];
+		for( Int i = 0; i < len; ++i )
+			diskBuffer[ i ] = (UnsignedShort)unicodeStringData->str()[ i ];
+		xferUser( diskBuffer, sizeof( UnsignedShort ) * len );
+#endif
+	}
 
 }
