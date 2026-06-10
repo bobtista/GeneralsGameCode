@@ -232,7 +232,7 @@ void MissileAIUpdate::projectileFireAtObjectOrPosition( const Object *victim, co
 	Real deltaZ = victimPos->z - obj->getPosition()->z;
 	Real dx = victimPos->x - obj->getPosition()->x;
 	Real dy = victimPos->y - obj->getPosition()->y;
-	Real xyDist = WWMath::Sqrt(sqr(dx)+sqr(dy));
+	Real xyDist = WWMath::Sqrtf(sqr(dx)+sqr(dy));
 	if (xyDist<1) xyDist = 1;
 	Real zFactor = 0;
 	if (deltaZ>0) {

@@ -2885,7 +2885,7 @@ Path *Pathfinder::internalFindPath( Object *obj, const LocomotorSet& locomotorSe
 		dx = from->x - to->x;
 		dy = from->y - to->y;
 
-		Int count = WWMath::Sqrt(dx*dx+dy*dy)/(PATHFIND_CELL_SIZE_F/2);
+		Int count = WWMath::Sqrtf(dx*dx+dy*dy)/(PATHFIND_CELL_SIZE_F/2);
 		if (count<2) count = 2;
 		Int i;
 		color.green = 0;
@@ -3582,7 +3582,7 @@ Path *Pathfinder::findGroundPath( const Coord3D *from,
 		dx = from->x - to->x;
 		dy = from->y - to->y;
 
-		Int count = WWMath::Sqrt(dx*dx+dy*dy)/(PATHFIND_CELL_SIZE_F/2);
+		Int count = WWMath::Sqrtf(dx*dx+dy*dy)/(PATHFIND_CELL_SIZE_F/2);
 		if (count<2) count = 2;
 		Int i;
 		color.green = 0;
@@ -4278,7 +4278,7 @@ Path *Pathfinder::internal_findHierarchicalPath( Bool isHuman, const LocomotorSu
 		dx = from->x - to->x;
 		dy = from->y - to->y;
 
-		Int count = WWMath::Sqrt(dx*dx+dy*dy)/(PATHFIND_CELL_SIZE_F/2);
+		Int count = WWMath::Sqrtf(dx*dx+dy*dy)/(PATHFIND_CELL_SIZE_F/2);
 		if (count<2) count = 2;
 		Int i;
 		color.green = 0;
@@ -7364,7 +7364,7 @@ Path *Pathfinder::findSafePath( const Object *obj, const LocomotorSet& locomotor
 			farthestDistanceSqr = distSqr;
 			if (cellCount > MAX_CELLS) {
 #ifdef INTENSE_DEBUG
-				DEBUG_LOG(("Took intermediate path, dist %f, goal dist %f", WWMath::Sqrt(farthestDistanceSqr), repulsorRadius));
+				DEBUG_LOG(("Took intermediate path, dist %f, goal dist %f", WWMath::Sqrtf(farthestDistanceSqr), repulsorRadius));
 #endif
 				ok = true; // Already a big search, just take this one.
 			}
