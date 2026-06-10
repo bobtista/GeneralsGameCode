@@ -103,7 +103,7 @@ static Real heightToSpeed(Real height)
 {
 	// don't bother trying to remember how far we've fallen; instead,
 	// back-calc it from our speed & gravity... v = sqrt(2*g*h)
-	return WWMath::Sqrt(WWMath::Fabs(2.0f * TheGlobalData->m_gravity * height));
+	return WWMath::Sqrtf(WWMath::Fabs(2.0f * TheGlobalData->m_gravity * height));
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -738,7 +738,7 @@ UpdateSleepTime PhysicsBehavior::update()
 			{
 				Vector3 xvec = mtx.Get_X_Vector();
 				Real xy = WWMath::Sqrtf(sqr(xvec.X) + sqr(xvec.Y));
-				Real pitchAngle = WWMath::Atan2(xvec.Z, xy);
+				Real pitchAngle = WWMath::Atan2f(xvec.Z, xy);
 				Real remainingAngle = (offset > 0) ? ((PI/2) - pitchAngle) : (-(PI/2) + pitchAngle);
 				Real s = Sin(remainingAngle);
 				pitchRateToUse *= s;
