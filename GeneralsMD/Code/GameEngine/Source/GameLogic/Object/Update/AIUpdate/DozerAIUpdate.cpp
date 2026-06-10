@@ -530,6 +530,11 @@ StateReturnType DozerActionDoActionState::update()
 
 				// increase the construction percent of the goal object
 				Int framesToBuild = goalObject->getTemplate()->calcTimeToBuild( dozer->getControllingPlayer() );
+				// TheSuperHackers @bugfix bobtista 10/06/2026 Guard a zero build time: dividing by it gives
+				// Inf, which corrupts construction percent and the int-cast health change with platform-
+				// divergent UB (arm64 vs x86) - a lockstep desync. Clamp to at least one frame.
+				if( framesToBuild < 1 )
+					framesToBuild = 1;
 				Real percentProgressThisFrame = 100.0f / framesToBuild;
 				goalObject->setConstructionPercent( goalObject->getConstructionPercent() +
 																						percentProgressThisFrame );

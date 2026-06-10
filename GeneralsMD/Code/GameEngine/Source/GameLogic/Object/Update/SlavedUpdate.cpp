@@ -200,7 +200,11 @@ UpdateSleepTime SlavedUpdate::update()
 		{
 			Real health = body->getHealth();
 			Real maxHealth = body->getMaxHealth();
-			healthPercentage = (Int)(health / maxHealth * 100.0f);
+			// TheSuperHackers @bugfix bobtista 10/06/2026 Guard against zero max health: health/0 is
+			// Inf/NaN and (Int) of it is platform-divergent UB (arm64 vs x86), which would flip this
+			// repair-vs-attack branch differently per machine and desync lockstep.
+			if( maxHealth > 0.0f )
+				healthPercentage = (Int)(health / maxHealth * 100.0f);
 		}
 	}
 

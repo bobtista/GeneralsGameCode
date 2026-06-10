@@ -928,7 +928,10 @@ void Path::computePointOnPath(
 		// projected position on the path.  If we are very far off the path, we will move
 		// directly towards the nearest point on the path, and not the next path node.
 		const Real maxPathError = 3.0f * PATHFIND_CELL_SIZE_F;
-		const Real maxPathErrorInv = 1.0 / maxPathError;
+		// TheSuperHackers @bugfix bobtista 10/06/2026 1.0 is a double literal, forcing a double-precision
+		// reciprocal that diverges between x87 (32-bit Windows) and arm64; use 1.0f so this movement-goal
+		// math stays single-precision and deterministic across platforms.
+		const Real maxPathErrorInv = 1.0f / maxPathError;
 		Real k = offsetDist * maxPathErrorInv;
 		if (k > 1.0f)
 			k = 1.0f;
