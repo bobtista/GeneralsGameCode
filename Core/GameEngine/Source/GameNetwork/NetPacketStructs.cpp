@@ -655,7 +655,7 @@ size_t NetPacketChatCommandData::getSize(const NetCommandMsg &msg)
 
 	size_t size = 0;
 	size += sizeof(UnsignedByte);
-	size += textLength * sizeof(WideChar);
+	size += textLength * sizeof(UnsignedShort);
 	size += sizeof(Int);
 	return size;
 }
@@ -714,7 +714,7 @@ size_t NetPacketDisconnectChatCommandData::getSize(const NetCommandMsg &msg)
 
 	size_t size = 0;
 	size += sizeof(UnsignedByte);
-	size += textLength * sizeof(WideChar);
+	size += textLength * sizeof(UnsignedShort);
 	return size;
 }
 
