@@ -32,31 +32,7 @@
 #include "Common/RandomValue.h"
 #include "Common/crc.h"
 #include "Common/Debug.h"
-#include "Common/CRCDebug.h"
 #include "GameLogic/GameLogic.h"
-
-#ifdef DEBUG_CRC
-// TheSuperHackers @info bobtista 10/06/2026 Temporary: log every GameLogic random call site into the
-// CRC trace so a cross-platform diff reveals which call consumes the RNG a different number of times
-// (a float-gated branch deciding whether to roll). NoCounter avoids desyncing the line index. The
-// basename strips the '/' vs '\\' path difference between the macOS and Windows builds.
-static const char *randCrcBase(const char *path)
-{
-	const char *base = path;
-	for (const char *p = path; *p != 0; ++p)
-	{
-		if (*p == '/' || *p == '\\')
-		{
-			base = p + 1;
-		}
-	}
-	return base;
-}
-#define LOG_LOGIC_RANDOM_CRC(file, line, lo, hi) \
-	addCRCDebugLineNoCounter("GameLogicRandom %s:%d (%d-%d)", randCrcBase(file), (Int)(line), (Int)(lo), (Int)(hi))
-#else
-#define LOG_LOGIC_RANDOM_CRC(file, line, lo, hi) ((void)0)
-#endif
 
 #undef DEBUG_RANDOM_AUDIO
 #undef DEBUG_RANDOM_CLIENT
@@ -304,8 +280,6 @@ Int GetGameLogicRandomValue( int lo, int hi, const char *file, int line )
 
 	const Int rval = ((Int)(randomValue(theGameLogicSeed) % delta)) + lo;
 
-	LOG_LOGIC_RANDOM_CRC(file, line, lo, hi);
-
 #ifdef DEBUG_RANDOM_LOGIC
 	DEBUG_LOG(( "%d: GetGameLogicRandomValue = %d (%d - %d), %s line %d",
 		TheGameLogic->getFrame(), rval, lo, hi, file, line ));
@@ -332,8 +306,6 @@ Real GetGameLogicRandomValueReal( Real lo, Real hi, const char *file, int line )
 #endif
 
 	const Real rval = ((Real)(randomValue(theGameLogicSeed)) * theMultFactor) * delta + lo;
-
-	LOG_LOGIC_RANDOM_CRC(file, line, (Int)lo, (Int)hi);
 
 #ifdef DEBUG_RANDOM_LOGIC
 	DEBUG_LOG(( "%d: GetGameLogicRandomValueReal = %f, %s line %d",
