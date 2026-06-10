@@ -2312,7 +2312,7 @@ void InGameUI::message( AsciiString stringManagerLabel, ... )
 	va_list args;
 	va_start( args, stringManagerLabel );
 	WideChar buf[ UnicodeString::MAX_FORMAT_BUF_LEN ];
-	int result = vswprintf(buf, sizeof( buf )/sizeof( WideChar ), stringManagerString.str(), args );
+	int result = formatStringW(buf, sizeof( buf )/sizeof( WideChar ), stringManagerString.str(), args );
 	va_end(args);
 
 	if( result >= 0 )
@@ -2353,7 +2353,7 @@ void InGameUI::message( UnicodeString format, ... )
 	va_list args;
 	va_start( args, format );
 	WideChar buf[ UnicodeString::MAX_FORMAT_BUF_LEN ];
-	int result = vswprintf(buf, sizeof( buf )/sizeof( WideChar ), format.str(), args );
+	int result = formatStringW(buf, sizeof( buf )/sizeof( WideChar ), format.str(), args );
 	va_end(args);
 
 	if( result >= 0 )
@@ -2380,7 +2380,7 @@ void InGameUI::messageColor( const RGBColor *rgbColor, UnicodeString format, ...
 	va_list args;
 	va_start( args, format );
 	WideChar buf[ UnicodeString::MAX_FORMAT_BUF_LEN ];
-	int result = vswprintf(buf, sizeof( buf )/sizeof( WideChar ), format.str(), args );
+	int result = formatStringW(buf, sizeof( buf )/sizeof( WideChar ), format.str(), args );
 	va_end(args);
 
 	if( result >= 0 )
