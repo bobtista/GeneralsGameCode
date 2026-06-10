@@ -1302,7 +1302,11 @@ void RailroadBehavior::updatePositionTrackDistance( PullInfo *pullerInfo, PullIn
 	trackPosDelta.z = 0;
 	Real dx = pullerInfo->towHitchPosition.x - turnPos.x;
 	Real dy = pullerInfo->towHitchPosition.y - turnPos.y;
-	Real desiredAngle = WWMath::Atan2(dy, dx);
+	// TheSuperHackers @bugfix bobtista 10/06/2026 Use single-precision Atan2f instead of the double
+	// overload. On 32-bit x86 (x87 at _PC_24) the double result truncates to 24-bit and diverges from
+	// the arm64 build's full-double computation, breaking cross-platform lockstep; single precision is
+	// deterministic across both (matches Get_Z_Rotation, which already uses the float Atan2_Legacy).
+	Real desiredAngle = WWMath::Atan2f(dy, dx);
 	DUMPREAL(desiredAngle);
 
 
