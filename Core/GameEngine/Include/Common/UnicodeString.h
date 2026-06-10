@@ -52,6 +52,13 @@
 
 class AsciiString;
 
+// TheSuperHackers @bugfix bobtista 10/06/2026 Portable wide vswprintf that keeps MSVC %s/%c
+// semantics on every platform. Standard libc vswprintf treats %s/%c as narrow (char*) and
+// %S/%C as wide, the opposite of MSVC. Game format strings (including localized .csf text)
+// use MSVC semantics (%s == wide), so on non-Windows a wide argument would be truncated at
+// its first embedded NUL byte. This rewrites the conversion specifiers before formatting.
+Int formatStringW(WideChar* buf, size_t bufCount, const WideChar* format, va_list args);
+
 // -----------------------------------------------------
 /**
 	UnicodeString is the fundamental double-byte string type used in the Generals
