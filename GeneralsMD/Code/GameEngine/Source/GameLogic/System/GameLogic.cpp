@@ -240,7 +240,12 @@ void setFPMode()
 	UnsignedInt newVal = curVal;
 	newVal = (newVal & ~_MCW_RC) | (_RC_NEAR & _MCW_RC);
 	//newVal = (newVal & ~_MCW_RC) | (_RC_CHOP & _MCW_RC);
-	newVal = (newVal & ~_MCW_PC) | (_PC_24   & _MCW_PC);
+	// TheSuperHackers @bugfix bobtista 10/06/2026 Round the x87 control word to 53-bit (double)
+	// precision instead of the legacy _PC_24 (24-bit/single). On 32-bit x86, MSVC emits residual
+	// x87 arithmetic inside double-precision kernels (e.g. GameMath's gm_atan), and _PC_24 truncated
+	// those intermediates to single precision, diverging from the macOS/arm64 build (no x87, always
+	// full double) and breaking cross-platform deterministic lockstep. _PC_53 matches SSE2/NEON.
+	newVal = (newVal & ~_MCW_PC) | (_PC_53   & _MCW_PC);
 
 	_controlfp(newVal, _MCW_PC | _MCW_RC);
 }
