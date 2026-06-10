@@ -3207,22 +3207,24 @@ Int PartitionManager::calcMinRadius(const ICoord2D& cur)
 		so it really shouldn't matter... (I hope)
 	*/
 
-	double minDistSqr = 1e12;				// double, not real
+	// TheSuperHackers @bugfix bobtista 10/06/2026 Single precision, not double: on 32-bit x86 the x87
+	// FPU runs at _PC_24, so double intermediates here diverge from the arm64 build's full-double math
+	// and can cross the REAL_TO_INT_CEIL boundary, corrupting the whole getClosestObjects radius table
+	// and breaking cross-platform lockstep. (The result is narrowed to float at Sqrtf regardless.)
+	Real minDistSqr = 1e12f;
 	for (int i = 0; i < 4; ++i)
 	{
 		for (int j = 0; j < 4; ++j)
 		{
-			// double, not real
-			double dx = centerPos[i].x - otherPos[j].x;
-			double dy = centerPos[i].y - otherPos[j].y;
-			double curDistSqr = dx*dx + dy*dy;
+			Real dx = centerPos[i].x - otherPos[j].x;
+			Real dy = centerPos[i].y - otherPos[j].y;
+			Real curDistSqr = dx*dx + dy*dy;
 			if (minDistSqr > curDistSqr)
 				minDistSqr = curDistSqr;
 		}
 	}
 
-	// double, not real
-	double dist = WWMath::Sqrtf(minDistSqr);
+	Real dist = WWMath::Sqrtf(minDistSqr);
 	Int minRadius = REAL_TO_INT_CEIL( dist / m_cellSize );
 
 	return minRadius;
@@ -3237,10 +3239,11 @@ void PartitionManager::calcRadiusVec()
 	Int cx = getCellCountX();
 	Int cy = getCellCountY();
 
-	// double, not real
-	double dx = (double)cx * (double)cellSize;
-	double dy = (double)cy * (double)cellSize;
-	double maxPossibleDist = WWMath::Sqrtf(dx*dx + dy*dy);
+	// TheSuperHackers @bugfix bobtista 10/06/2026 Single precision, not double, for cross-platform
+	// determinism (x87 _PC_24 vs arm64 full-double would diverge at the REAL_TO_INT_CEIL boundary).
+	Real dx = (Real)cx * cellSize;
+	Real dy = (Real)cy * cellSize;
+	Real maxPossibleDist = WWMath::Sqrtf(dx*dx + dy*dy);
 
 	m_maxGcoRadius = REAL_TO_INT_CEIL(maxPossibleDist / cellSize);
 
