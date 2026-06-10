@@ -117,18 +117,25 @@ inline size_t readBytes(UnsignedByte *dest, size_t destLen, NetPacketBuf src)
 	return readLen;
 }
 
+// TheSuperHackers @bugfix bobtista 10/06/2026 Serialize chat text as 16-bit UTF-16 little-endian
+// (2 bytes per code unit) on every platform instead of raw wchar_t. wchar_t is 4 bytes on macOS but
+// 2 on Windows, so the old raw memcpy corrupted in-game chat across a macOS<->Windows lockstep game.
+// On Windows this is byte-identical to the old format (wchar_t is already 16-bit LE).
 inline size_t readStringWithoutNull(UnicodeString &str, size_t maxStrLen, NetPacketBuf src)
 {
-	const size_t strLen = min(maxStrLen, src.size() / sizeof(WideChar));
-	const size_t cpyLen = strLen * sizeof(WideChar);
+	const size_t strLen = min(maxStrLen, src.size() / 2u);
 
 	if (strLen > 0)
 	{
 		WideChar *strBuf = str.getBufferForRead(strLen);
-		memcpy(strBuf, src.data(), cpyLen);
+		const UnsignedByte *data = src.data();
+		for (size_t i = 0; i < strLen; ++i)
+		{
+			strBuf[i] = (WideChar)((UnsignedShort)data[i * 2] | ((UnsignedShort)data[i * 2 + 1] << 8));
+		}
 		strBuf[strLen] = 0;
 	}
-	return cpyLen;
+	return strLen * 2u;
 }
 
 inline size_t readStringWithNull(AsciiString &str, size_t maxStrLen, NetPacketBuf src)
@@ -170,9 +177,14 @@ inline size_t writeBytes(UnsignedByte *dest, const UnsignedByte *src, size_t len
 inline size_t writeStringWithoutNull(UnsignedByte *dest, const UnicodeString &value, size_t maxLen)
 {
 	const size_t copyLen = std::min<size_t>(value.getLength(), maxLen);
-	const size_t copyBytes = copyLen * sizeof(WideChar);
-	memcpy(dest, value.str(), copyBytes);
-	return copyBytes;
+	const WideChar *src = value.str();
+	for (size_t i = 0; i < copyLen; ++i)
+	{
+		const UnsignedShort codeUnit = (UnsignedShort)src[i];
+		dest[i * 2] = (UnsignedByte)(codeUnit & 0xFF);
+		dest[i * 2 + 1] = (UnsignedByte)((codeUnit >> 8) & 0xFF);
+	}
+	return copyLen * 2u;
 }
 
 inline size_t writeStringWithNull(UnsignedByte *dest, const AsciiString &value)
