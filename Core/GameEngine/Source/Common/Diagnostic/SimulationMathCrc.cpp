@@ -41,19 +41,50 @@ static void xferDoubleBits(XferCRC &xfer, double value)
 // the double-precision WWMath overloads (e.g. WWMath::Atan2(double,double) -> gm_atan2), which
 // is the path the train track-follow code actually uses. Sweep them here over movement-like
 // inputs so -mathCrcCheck reveals any clang/MSVC double-precision divergence directly.
+static const double s_probeY[] = { 0.4, 1.3, -2.7, 187.66, -1116.46, 0.000123, 3.5, -0.841933 };
+static const double s_probeX[] = { 1.3, 0.4, 11.9, -59.13, 1412.47, 9999.5, -3.5, 2.121793 };
+static const Int s_probeCount = sizeof(s_probeY) / sizeof(s_probeY[0]);
+
 static void appendSimulationMathCrcDouble(XferCRC &xfer)
 {
-    static const double atan2Y[] = { 0.4, 1.3, -2.7, 187.66, -1116.46, 0.000123, 3.5, -0.841933 };
-    static const double atan2X[] = { 1.3, 0.4, 11.9, -59.13, 1412.47, 9999.5, -3.5, 2.121793 };
-    const Int count = sizeof(atan2Y) / sizeof(atan2Y[0]);
-    for (Int i = 0; i < count; ++i)
+    for (Int i = 0; i < s_probeCount; ++i)
     {
-        xferDoubleBits(xfer, WWMath::Atan2(atan2Y[i], atan2X[i]));
-        xferDoubleBits(xfer, WWMath::Atan(atan2Y[i] / atan2X[i]));
-        xferDoubleBits(xfer, WWMath::Sin(atan2Y[i]));
-        xferDoubleBits(xfer, WWMath::Cos(atan2Y[i]));
-        xferDoubleBits(xfer, WWMath::Sqrt(WWMath::Fabs(atan2X[i])));
+        xferDoubleBits(xfer, WWMath::Atan2(s_probeY[i], s_probeX[i]));
+        xferDoubleBits(xfer, WWMath::Atan(s_probeY[i] / s_probeX[i]));
+        xferDoubleBits(xfer, WWMath::Sin(s_probeY[i]));
+        xferDoubleBits(xfer, WWMath::Cos(s_probeY[i]));
+        xferDoubleBits(xfer, WWMath::Sqrt(WWMath::Fabs(s_probeX[i])));
     }
+}
+
+// TheSuperHackers @info bobtista 10/06/2026 Per-function double-precision dump: prints the exact
+// 64-bit hex of each gm_* result so a cross-platform diff pinpoints WHICH function diverges and by
+// how much (vs the lumped CRC, which only says "something differs"). Also prints raw libc results
+// so we can tell whether the GameMath path or the routing is at fault.
+static void printDoubleBits(const char *label, double value)
+{
+    Int64 bits;
+    memcpy(&bits, &value, sizeof(bits));
+    printf("%-22s %016llX (%.17g)\n", label, (unsigned long long)bits, value);
+}
+
+void SimulationMathCrc::dumpDoubleProbe()
+{
+    setFPMode();
+    char label[64];
+    for (Int i = 0; i < s_probeCount; ++i)
+    {
+        const double y = s_probeY[i];
+        const double x = s_probeX[i];
+        sprintf(label, "atan2[%d]", i);    printDoubleBits(label, WWMath::Atan2(y, x));
+        sprintf(label, "atan2_libc[%d]", i); printDoubleBits(label, ::atan2(y, x));
+        sprintf(label, "atan[%d]", i);     printDoubleBits(label, WWMath::Atan(y / x));
+        sprintf(label, "sin[%d]", i);      printDoubleBits(label, WWMath::Sin(y));
+        sprintf(label, "cos[%d]", i);      printDoubleBits(label, WWMath::Cos(y));
+        sprintf(label, "sqrt[%d]", i);     printDoubleBits(label, WWMath::Sqrt(WWMath::Fabs(x)));
+    }
+    fflush(stdout);
+    _fpreset();
 }
 
 static void appendSimulationMathCrc_Deterministic(XferCRC &xfer)
