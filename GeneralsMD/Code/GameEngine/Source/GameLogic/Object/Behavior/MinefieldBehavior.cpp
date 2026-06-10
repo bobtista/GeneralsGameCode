@@ -588,7 +588,7 @@ void MinefieldBehavior::setScootParms(const Coord3D& start, const Coord3D& end)
 		Real dx = endOnGround.x - start.x;
 		Real dy = endOnGround.y - start.y;
 		Real dz = endOnGround.z - start.z;
-		Real dist = WWMath::Sqrt(sqr(dx) + sqr(dy));
+		Real dist = WWMath::Sqrtf(sqr(dx) + sqr(dy));
 		if (dist <= 0.1f && WWMath::Fabs(dz) <= 0.1f)
 		{
 			obj->setPosition(&endOnGround);
