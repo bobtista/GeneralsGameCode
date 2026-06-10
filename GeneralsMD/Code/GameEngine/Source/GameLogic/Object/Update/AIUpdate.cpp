@@ -2473,7 +2473,7 @@ Real AIUpdateInterface::getLocomotorDistanceToGoal()
 					dest = m_path->getLastNode()->getPosition();
 				}
 				Real distance = ThePartitionManager->getDistanceSquared( me, dest, FROM_CENTER_3D );
-				return WWMath::Sqrt( distance );// Other paths return dots of normalized vectors, so one sqrt ain't so bad
+				return WWMath::Sqrtf( distance );// Other paths return dots of normalized vectors, so one sqrt ain't so bad
 			}
 			else
 			{
@@ -2505,7 +2505,7 @@ Real AIUpdateInterface::getLocomotorDistanceToGoal()
 				{
 					if (sqr(dist) > distSqr)
 					{
-						return WWMath::Sqrt(distSqr);
+						return WWMath::Sqrtf(distSqr);
 					}
 					else
 					{
