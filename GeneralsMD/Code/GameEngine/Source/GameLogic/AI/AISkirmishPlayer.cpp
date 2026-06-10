@@ -636,7 +636,9 @@ void AISkirmishPlayer::buildAIBaseDefenseStructure(const AsciiString &thingName,
 
 		Real structureRadius = tTemplate->getTemplateGeometryInfo().getBoundingCircleRadius();
 		Real baseCircumference = 2*PI*defenseDistance;
-		Real angleOffset = 2*PI*(structureRadius*4/baseCircumference);
+		// TheSuperHackers @bugfix bobtista 10/06/2026 Guard a zero circumference: the division would be
+		// NaN/Inf, propagating into base-defense placement angles and desyncing AI lockstep across arch.
+		Real angleOffset = (baseCircumference > 0.0f) ? (2*PI*(structureRadius*4/baseCircumference)) : 0.0f;
 
 		Int selector;
 		Real angle;

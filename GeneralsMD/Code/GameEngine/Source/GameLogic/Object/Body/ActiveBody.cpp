@@ -910,7 +910,10 @@ void ActiveBody::setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeT
 		{
 			//400/500 (80%) + 100 becomes 480/600 (80%)
 			//200/500 (40%) - 100 becomes 160/400 (40%)
-			Real ratio = m_currentHealth / prevMaxHealth;
+			// TheSuperHackers @bugfix bobtista 10/06/2026 Guard a zero previous max health: the division
+			// would be NaN/Inf, corrupting health into NaN (and platform-divergent once int-cast) - a
+			// lockstep desync. A prior max health of 0 means there is no ratio to preserve, so keep full.
+			Real ratio = (prevMaxHealth > 0.0f) ? (m_currentHealth / prevMaxHealth) : 1.0f;
 			Real newHealth = maxHealth * ratio;
 			internalChangeHealth( newHealth - m_currentHealth );
 			break;

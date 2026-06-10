@@ -201,7 +201,14 @@ void ToppleUpdate::applyTopplingForce( const Coord3D* toppleDirection, Real topp
 	}
 	// desired angle is toppleAngle +/- pi/2, whichever is closer to curangle
 	Real desiredAngleX = angleClosestTo(toppleAngle + PI/2, toppleAngle - PI/2, curAngleX);
-	m_numAngleDeltaX = REAL_TO_INT_FLOOR(ANGULAR_LIMIT / (m_angularVelocity * 2));
+	// TheSuperHackers @bugfix bobtista 10/06/2026 Guard the divisor: a zero angular velocity gives
+	// Inf, and REAL_TO_INT_FLOOR(Inf) is platform-divergent UB (x87 fistp vs arm64 lroundf) that
+	// breaks cross-platform lockstep. The < 1 clamp below is too late (the bad cast already happened).
+	const Real angularSpeed = m_angularVelocity * 2;
+	if (angularSpeed > 0.0f)
+		m_numAngleDeltaX = REAL_TO_INT_FLOOR(ANGULAR_LIMIT / angularSpeed);
+	else
+		m_numAngleDeltaX = 1;
 	if (m_numAngleDeltaX < 1)
 		m_numAngleDeltaX = 1;
 	m_angleDeltaX = (desiredAngleX - curAngleX) / m_numAngleDeltaX;
