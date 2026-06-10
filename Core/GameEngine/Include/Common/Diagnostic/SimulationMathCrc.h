@@ -26,6 +26,5 @@ class SimulationMathCrc
 public:
 	static UnsignedInt calculate();
 	static UnsignedInt calculateDouble();
-	static void dumpDoubleProbe();
 	static void runBenchmark(int iterations = 10000);
 };
