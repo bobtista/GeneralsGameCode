@@ -1008,7 +1008,11 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 		v.y = victimPos->y - sourcePos->y;
 		v.z = victimPos->z - sourcePos->z;
 		// don't round the result; we WANT a fractional-frame-delay in this case.
-		Real delayInFrames = (v.length() / getWeaponSpeed());
+		// TheSuperHackers @bugfix bobtista 10/06/2026 Guard a zero weapon speed: the division would be
+		// Inf, which survives the < 1.0f check below and reaches REAL_TO_INT_CEIL(Inf) - platform-
+		// divergent UB (arm64 vs x86) producing a different damage-delay frame and a lockstep desync.
+		const Real weaponSpeed = getWeaponSpeed();
+		Real delayInFrames = (weaponSpeed > 0.0f) ? (v.length() / weaponSpeed) : 0.0f;
 
 		ObjectID damageID = getDamageDealtAtSelfPosition() ? INVALID_ID : victimID;
 

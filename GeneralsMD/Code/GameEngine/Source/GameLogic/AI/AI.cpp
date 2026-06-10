@@ -715,7 +715,11 @@ Object *AI::findClosestEnemy( const Object *me, Real range, UnsignedInt qualifie
 
 		Real distSqr = ThePartitionManager->getDistanceSquared(me, theEnemy, FROM_BOUNDINGSPHERE_2D);
 		Real dist = WWMath::Sqrtf(distSqr);
-		Int modifier = dist/getAiData()->m_attackPriorityDistanceModifier;
+		// TheSuperHackers @bugfix bobtista 10/06/2026 m_attackPriorityDistanceModifier defaults to 0;
+		// dist/0 is Inf and (Int)Inf is platform-divergent UB (arm64 vs x86) that would skew target
+		// selection differently per machine and desync lockstep. Treat a non-positive modifier as none.
+		const Real distModifier = getAiData()->m_attackPriorityDistanceModifier;
+		Int modifier = (distModifier > 0.0f) ? (Int)(dist / distModifier) : 0;
 		Int modPriority = curPriority-modifier;
 		if (modPriority < 1)
 			modPriority = 1;

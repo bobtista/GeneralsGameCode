@@ -1115,7 +1115,9 @@ void BridgeBehavior::createScaffolding()
 	// to the center area of the bridge
 	//
 	Real tileDistance = leftVector.length();
-	Int numObjects = REAL_TO_INT_CEIL( tileDistance / spacing ) + 1;
+	// TheSuperHackers @bugfix bobtista 10/06/2026 Guard a zero scaffold spacing: tileDistance/0 is Inf
+	// and REAL_TO_INT_CEIL(Inf) is platform-divergent UB (arm64 vs x86) that desyncs the object count.
+	Int numObjects = (spacing > 0.0f) ? (REAL_TO_INT_CEIL( tileDistance / spacing ) + 1) : 1;
 
 	//
 	// given the number of objects that we need to tile across the whole bridge, we will
