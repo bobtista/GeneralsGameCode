@@ -31,7 +31,6 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 #define DEFINE_SLOWDEATHPHASE_NAMES
-#include "Common/CRCDebug.h"
 #include "Common/GameLOD.h"
 #include "Common/INI.h"
 #include "Common/RandomValue.h"
@@ -179,16 +178,18 @@ Int SlowDeathBehavior::getProbabilityModifier( const DamageInfo *damageInfo ) co
 	// Calculating how far past dead we were allows us to pick more spectacular deaths when
 	// severely killed, and more sedate ones when only slightly killed.
 	// eg ( 200 hp max, had 10 left, took 50 damage, 40 overkill, (40/200) * 100 = 20 overkill %)
+	// TheSuperHackers @bugfix bobtista 10/06/2026 Guard against a zero max health. Dividing by it
+	// gave 0/0 = NaN, and (Int)NaN is undefined behavior that differs across architectures (arm64
+	// yields 0, x86 yields INT_MIN), which flipped the probability total and made one machine roll
+	// the GameLogic RNG while the other did not - a cross-platform lockstep desync.
 	Int overkillDamage = damageInfo->out.m_actualDamageDealt - damageInfo->out.m_actualDamageClipped;
-	Real overkillPercent = (float)overkillDamage / (float)getObject()->getBodyModule()->getMaxHealth();
-	Int overkillModifier = overkillPercent * getSlowDeathBehaviorModuleData()->m_modifierBonusPerOverkillPercent;
-
-	DUMPREAL(damageInfo->out.m_actualDamageDealt);
-	DUMPREAL(damageInfo->out.m_actualDamageClipped);
-	DUMPREAL(getObject()->getBodyModule()->getMaxHealth());
-	DUMPREAL((Real)overkillDamage);
-	DUMPREAL(overkillPercent);
-	DUMPREAL((Real)overkillModifier);
+	Int overkillModifier = 0;
+	const Real maxHealth = getObject()->getBodyModule()->getMaxHealth();
+	if (maxHealth > 0.0f)
+	{
+		Real overkillPercent = (float)overkillDamage / maxHealth;
+		overkillModifier = overkillPercent * getSlowDeathBehaviorModuleData()->m_modifierBonusPerOverkillPercent;
+	}
 
 	return max( getSlowDeathBehaviorModuleData()->m_probabilityModifier + overkillModifier, 1 );
 }
