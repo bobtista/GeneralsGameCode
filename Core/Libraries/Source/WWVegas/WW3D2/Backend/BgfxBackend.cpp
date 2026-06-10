@@ -5616,6 +5616,14 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
     if (state.shader != nullptr)
     {
         Set_Shader(*state.shader);
+        // TheSuperHackers @bugfix bobtista 10/06/2026 The sorted replay restores the captured shader's
+        // depth state through Set_Shader, but the cull face is read from the separate semantic cull
+        // (FixedFunctionState::Cull_Mode), which Set_Shader does not update. A captured CULL_MODE_DISABLE
+        // - used by two-sided segmented-line ribbons such as rally/waypoint lines - was therefore lost,
+        // and whatever cull was last set (typically CW) culled the backward-wound ribbon segments,
+        // making parts of the line vanish. Restore the captured shader's cull mode so two-sided sorted
+        // geometry draws both faces, matching the DX8 path where applying a shader set the cull state.
+        Set_Cull_Mode(state.shader->Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE ? RB_CULL_CW : RB_CULL_NONE);
     }
     Set_Material(state.material);
     for (unsigned i = 0; i < RB_MAX_TEXTURE_STAGES; ++i)
