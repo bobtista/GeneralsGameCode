@@ -3240,7 +3240,7 @@ void PartitionManager::calcRadiusVec()
 	// double, not real
 	double dx = (double)cx * (double)cellSize;
 	double dy = (double)cy * (double)cellSize;
-	double maxPossibleDist = WWMath::Sqrt(dx*dx + dy*dy);
+	double maxPossibleDist = WWMath::Sqrtf(dx*dx + dy*dy);
 
 	m_maxGcoRadius = REAL_TO_INT_CEIL(maxPossibleDist / cellSize);
 
@@ -5800,7 +5800,7 @@ void hLineAddThreat(Int x1, Int x2, Int y, void *threatValueParms)
 		if (x < 0 || x >= ThePartitionManager->m_cellCountX)
 			continue;
 
-		distance = WWMath::Sqrt( WWMath::Pow(x - parms->xCenter, 2) + WWMath::Pow(y - parms->yCenter, 2) );
+		distance = WWMath::Sqrtf( WWMath::Powf(x - parms->xCenter, 2) + WWMath::Powf(y - parms->yCenter, 2) );
 		mulVal = 1 - distance / parms->radius;
 		if (mulVal < 0.0f)
 			mulVal = 0.0f;
@@ -5828,7 +5828,7 @@ void hLineRemoveThreat(Int x1, Int x2, Int y, void *threatValueParms)
 		if (x < 0 || x >= ThePartitionManager->m_cellCountX)
 			continue;
 
-		distance = WWMath::Sqrt( WWMath::Pow(x - parms->xCenter, 2) + WWMath::Pow(y - parms->yCenter, 2) );
+		distance = WWMath::Sqrtf( WWMath::Powf(x - parms->xCenter, 2) + WWMath::Powf(y - parms->yCenter, 2) );
 		mulVal = 1 - distance / parms->radius;
 		if (mulVal < 0.0f)
 			mulVal = 0.0f;
@@ -5856,7 +5856,7 @@ void hLineAddValue(Int x1, Int x2, Int y, void *threatValueParms)
 		if (x < 0 || x >= ThePartitionManager->m_cellCountX)
 			continue;
 
-		distance = WWMath::Sqrt( WWMath::Pow(x - parms->xCenter, 2) + WWMath::Pow(y - parms->yCenter, 2) );
+		distance = WWMath::Sqrtf( WWMath::Powf(x - parms->xCenter, 2) + WWMath::Powf(y - parms->yCenter, 2) );
 		mulVal = 1 - distance / parms->radius;
 		if (mulVal < 0.0f)
 			mulVal = 0.0f;
@@ -5884,7 +5884,7 @@ void hLineRemoveValue(Int x1, Int x2, Int y, void *threatValueParms)
 		if (x < 0 || x >= ThePartitionManager->m_cellCountX)
 			continue;
 
-		distance = WWMath::Sqrt( WWMath::Pow(x - parms->xCenter, 2) + WWMath::Pow(y - parms->yCenter, 2) );
+		distance = WWMath::Sqrtf( WWMath::Powf(x - parms->xCenter, 2) + WWMath::Powf(y - parms->yCenter, 2) );
 		mulVal = 1 - distance / parms->radius;
 		if (mulVal < 0.0f)
 			mulVal = 0.0f;
