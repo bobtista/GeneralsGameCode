@@ -492,6 +492,63 @@ inline Bool isResolutionSupported(const ResolutionDescClass &res)
 	return res.Width >= DEFAULT_DISPLAY_WIDTH && res.BitDepth >= minBitDepth;
 }
 
+#if defined(SAGE_USE_SDL3)
+// TheSuperHackers @bugfix bobtista 11/06/2026 Offer a curated, stable set of standard resolutions in
+// the Options menu, clamped to the desktop size plus the desktop's native resolution. The previous
+// code listed the display's raw SDL fullscreen modes, which on HiDPI displays are non-standard scaled
+// sizes (e.g. 1147x745) and omit 800x600 - so the game's default 800x600 only appeared as the injected
+// "current" entry (OptionsMenu) and vanished once the user switched away. setDisplayMode already snaps
+// a requested size to the nearest real fullscreen mode (SDL_GetClosestFullscreenDisplayMode), so the
+// list does not need to mirror the hardware modes.
+struct OptionsResolution { int w; int h; };
+
+static int Build_Options_Resolution_List(OptionsResolution * out, int cap)
+{
+	extern SDL_Window *TheSDL3Window;
+	int maxW = 1920;
+	int maxH = 1080;
+	if (TheSDL3Window != nullptr)
+	{
+		const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(TheSDL3Window));
+		if (desktop != nullptr)
+		{
+			maxW = desktop->w;
+			maxH = desktop->h;
+		}
+	}
+	static const OptionsResolution standard[] = {
+		{ 800, 600 }, { 1024, 768 }, { 1152, 864 }, { 1280, 720 }, { 1280, 800 },
+		{ 1280, 960 }, { 1280, 1024 }, { 1360, 768 }, { 1366, 768 }, { 1440, 900 },
+		{ 1600, 900 }, { 1600, 1200 }, { 1680, 1050 }, { 1920, 1080 }, { 1920, 1200 },
+		{ 2560, 1440 }, { 2560, 1600 }, { 3840, 2160 }
+	};
+	const int standardCount = sizeof(standard) / sizeof(standard[0]);
+	int n = 0;
+	bool hasNative = false;
+	for (int i = 0; i < standardCount && n < cap; ++i)
+	{
+		if (standard[i].w >= DEFAULT_DISPLAY_WIDTH && standard[i].h >= DEFAULT_DISPLAY_HEIGHT
+			&& standard[i].w <= maxW && standard[i].h <= maxH)
+		{
+			out[n] = standard[i];
+			++n;
+			if (standard[i].w == maxW && standard[i].h == maxH)
+			{
+				hasNative = true;
+			}
+		}
+	}
+	if (!hasNative && n < cap && maxW >= DEFAULT_DISPLAY_WIDTH && maxH >= DEFAULT_DISPLAY_HEIGHT)
+	{
+		out[n].w = maxW;
+		out[n].h = maxH;
+		++n;
+	}
+	DEBUG_LOG(("Options resolution list: %d entries (desktop %dx%d)", n, maxW, maxH));
+	return n;
+}
+#endif
+
 /*Return number of screen modes supported by the current device*/
 Int W3DDisplay::getDisplayModeCount()
 {
@@ -499,41 +556,8 @@ Int W3DDisplay::getDisplayModeCount()
 	extern SDL_Window *TheSDL3Window;
 	if (TheSDL3Window != nullptr)
 	{
-		// TheSuperHackers @feature bobtista 07/06/2026 Enumerate real fullscreen modes for both
-		// windowed and fullscreen so the Options menu offers actual fullscreen resolutions.
-		const SDL_DisplayID display = SDL_GetDisplayForWindow(TheSDL3Window);
-		const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(display);
-		int maxW = desktop ? desktop->w : 1920;
-		int maxH = desktop ? desktop->h : 1080;
-		int count = 0;
-		SDL_DisplayMode **modes = SDL_GetFullscreenDisplayModes(display, &count);
-		if (modes == nullptr)
-		{
-			return 0;
-		}
-		int unique = 0;
-		for (int i = 0; i < count; ++i)
-		{
-			if (modes[i]->w < 800 || modes[i]->h < 600 || modes[i]->w > maxW || modes[i]->h > maxH)
-			{
-				continue;
-			}
-			bool dup = false;
-			for (int j = 0; j < i; ++j)
-			{
-				if (modes[j]->w == modes[i]->w && modes[j]->h == modes[i]->h)
-				{
-					dup = true;
-					break;
-				}
-			}
-			if (!dup)
-			{
-				++unique;
-			}
-		}
-		SDL_free(modes);
-		return unique;
+		OptionsResolution list[32];
+		return Build_Options_Resolution_List(list, 32);
 	}
 #endif
 	const RenderDeviceDescClass &devDesc=WW3D::Get_Render_Device_Desc(0);
@@ -557,47 +581,14 @@ void W3DDisplay::getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, 
 	extern SDL_Window *TheSDL3Window;
 	if (TheSDL3Window != nullptr)
 	{
-		// TheSuperHackers @feature bobtista 07/06/2026 Same real-mode enumeration for windowed
-		// and fullscreen so fullscreen reports actual selectable resolutions, not just current.
-		const SDL_DisplayID display = SDL_GetDisplayForWindow(TheSDL3Window);
-		const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(display);
-		int maxW = desktop ? desktop->w : 1920;
-		int maxH = desktop ? desktop->h : 1080;
-		int count = 0;
-		SDL_DisplayMode **modes = SDL_GetFullscreenDisplayModes(display, &count);
-		if (modes != nullptr)
+		OptionsResolution list[32];
+		int n = Build_Options_Resolution_List(list, 32);
+		if (modeIndex >= 0 && modeIndex < n)
 		{
-			int unique = 0;
-			for (int i = 0; i < count; ++i)
-			{
-				if (modes[i]->w < 800 || modes[i]->h < 600 || modes[i]->w > maxW || modes[i]->h > maxH)
-				{
-					continue;
-				}
-				bool dup = false;
-				for (int j = 0; j < i; ++j)
-				{
-					if (modes[j]->w == modes[i]->w && modes[j]->h == modes[i]->h)
-					{
-						dup = true;
-						break;
-					}
-				}
-				if (!dup)
-				{
-					if (unique == modeIndex)
-					{
-						*xres = modes[i]->w;
-						*yres = modes[i]->h;
-						*bitDepth = SDL_BITSPERPIXEL(modes[i]->format);
-						SDL_free(modes);
-						return;
-					}
-					++unique;
-				}
-			}
+			*xres = list[modeIndex].w;
+			*yres = list[modeIndex].h;
+			*bitDepth = 32;
 		}
-		SDL_free(modes);
 		return;
 	}
 #endif
