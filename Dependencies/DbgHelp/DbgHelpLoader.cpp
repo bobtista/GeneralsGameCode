@@ -43,6 +43,16 @@ typedef BOOL (WINAPI *StackWalk_t)(DWORD MachineType, HANDLE hProcess, HANDLE hT
 	PVOID ContextRecord, PREAD_PROCESS_MEMORY_ROUTINE ReadMemoryRoutine,
 	PFUNCTION_TABLE_ACCESS_ROUTINE FunctionTableAccessRoutine, PGET_MODULE_BASE_ROUTINE GetModuleBaseRoutine,
 	PTRANSLATE_ADDRESS_ROUTINE TranslateAddress);
+typedef DWORD64 (WINAPI *SymGetModuleBase64_t)(HANDLE hProcess, DWORD64 dwAddr);
+typedef DWORD64 (WINAPI *SymLoadModule64_t)(HANDLE hProcess, HANDLE hFile, PCSTR ImageName,
+	PCSTR ModuleName, DWORD64 BaseOfDll, DWORD SizeOfDll);
+typedef BOOL (WINAPI *SymGetSymFromAddr64_t)(HANDLE hProcess, DWORD64 Address, PDWORD64 Displacement, PIMAGEHLP_SYMBOL64 Symbol);
+typedef BOOL (WINAPI *SymGetLineFromAddr64_t)(HANDLE hProcess, DWORD64 dwAddr, PDWORD pdwDisplacement, PIMAGEHLP_LINE64 Line);
+typedef PVOID (WINAPI *SymFunctionTableAccess64_t)(HANDLE hProcess, DWORD64 AddrBase);
+typedef BOOL (WINAPI *StackWalk64_t)(DWORD MachineType, HANDLE hProcess, HANDLE hThread, LPSTACKFRAME64 StackFrame,
+	PVOID ContextRecord, PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
+	PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine, PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
+	PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress);
 typedef BOOL (WINAPI *MiniDumpWriteDump_t)(HANDLE hProcess, DWORD ProcessId, HANDLE hFile, MINIDUMP_TYPE DumpType,
 	PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam, PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
 	PMINIDUMP_CALLBACK_INFORMATION CallbackParam);
@@ -57,6 +67,12 @@ SymGetLineFromAddr_t SymGetLineFromAddrPtr = nullptr;
 SymSetOptions_t SymSetOptionsPtr = nullptr;
 SymFunctionTableAccess_t SymFunctionTableAccessPtr = nullptr;
 StackWalk_t StackWalkPtr = nullptr;
+SymGetModuleBase64_t SymGetModuleBase64Ptr = nullptr;
+SymLoadModule64_t SymLoadModule64Ptr = nullptr;
+SymGetSymFromAddr64_t SymGetSymFromAddr64Ptr = nullptr;
+SymGetLineFromAddr64_t SymGetLineFromAddr64Ptr = nullptr;
+SymFunctionTableAccess64_t SymFunctionTableAccess64Ptr = nullptr;
+StackWalk64_t StackWalk64Ptr = nullptr;
 MiniDumpWriteDump_t MiniDumpWriteDumpPtr = nullptr;
 
 typedef std::set<HANDLE, std::less<HANDLE>, stl::system_allocator<HANDLE> > Processes;
@@ -107,6 +123,12 @@ static void resolveAll()
 	DBGHELP_RESOLVE(SymSetOptions);
 	DBGHELP_RESOLVE(SymFunctionTableAccess);
 	DBGHELP_RESOLVE(StackWalk);
+	DBGHELP_RESOLVE(SymGetModuleBase64);
+	DBGHELP_RESOLVE(SymLoadModule64);
+	DBGHELP_RESOLVE(SymGetSymFromAddr64);
+	DBGHELP_RESOLVE(SymGetLineFromAddr64);
+	DBGHELP_RESOLVE(SymFunctionTableAccess64);
+	DBGHELP_RESOLVE(StackWalk64);
 	DBGHELP_RESOLVE(MiniDumpWriteDump);
 }
 #undef DBGHELP_RESOLVE
@@ -134,6 +156,12 @@ static void freeResources()
 	SymSetOptionsPtr = nullptr;
 	SymFunctionTableAccessPtr = nullptr;
 	StackWalkPtr = nullptr;
+	SymGetModuleBase64Ptr = nullptr;
+	SymLoadModule64Ptr = nullptr;
+	SymGetSymFromAddr64Ptr = nullptr;
+	SymGetLineFromAddr64Ptr = nullptr;
+	SymFunctionTableAccess64Ptr = nullptr;
+	StackWalk64Ptr = nullptr;
 	MiniDumpWriteDumpPtr = nullptr;
 
 	LoadedFromSystem = false;
@@ -403,6 +431,94 @@ BOOL WINAPI StackWalk(
 
 	if (StackWalkPtr != nullptr)
 		return StackWalkPtr(MachineType, hProcess, hThread, StackFrame, ContextRecord, ReadMemoryRoutine,
+			FunctionTableAccessRoutine, GetModuleBaseRoutine, TranslateAddress);
+
+	return FALSE;
+}
+
+DWORD64 WINAPI SymGetModuleBase64(
+	HANDLE hProcess,
+	DWORD64 dwAddr)
+{
+	ScopedLock lock;
+
+	if (SymGetModuleBase64Ptr != nullptr)
+		return SymGetModuleBase64Ptr(hProcess, dwAddr);
+
+	return 0u;
+}
+
+DWORD64 WINAPI SymLoadModule64(
+	HANDLE hProcess,
+	HANDLE hFile,
+	PCSTR ImageName,
+	PCSTR ModuleName,
+	DWORD64 BaseOfDll,
+	DWORD SizeOfDll)
+{
+	ScopedLock lock;
+
+	if (SymLoadModule64Ptr != nullptr)
+		return SymLoadModule64Ptr(hProcess, hFile, ImageName, ModuleName, BaseOfDll, SizeOfDll);
+
+	return 0u;
+}
+
+BOOL WINAPI SymGetSymFromAddr64(
+	HANDLE hProcess,
+	DWORD64 Address,
+	PDWORD64 Displacement,
+	PIMAGEHLP_SYMBOL64 Symbol)
+{
+	ScopedLock lock;
+
+	if (SymGetSymFromAddr64Ptr != nullptr)
+		return SymGetSymFromAddr64Ptr(hProcess, Address, Displacement, Symbol);
+
+	return FALSE;
+}
+
+BOOL WINAPI SymGetLineFromAddr64(
+	HANDLE hProcess,
+	DWORD64 dwAddr,
+	PDWORD pdwDisplacement,
+	PIMAGEHLP_LINE64 Line)
+{
+	ScopedLock lock;
+
+	if (SymGetLineFromAddr64Ptr != nullptr)
+		return SymGetLineFromAddr64Ptr(hProcess, dwAddr, pdwDisplacement, Line);
+
+	return FALSE;
+}
+
+PVOID WINAPI SymFunctionTableAccess64(
+	HANDLE hProcess,
+	DWORD64 AddrBase)
+{
+	ScopedLock lock;
+
+	if (SymFunctionTableAccess64Ptr != nullptr)
+		return SymFunctionTableAccess64Ptr(hProcess, AddrBase);
+
+	return nullptr;
+}
+
+BOOL WINAPI StackWalk64(
+	DWORD MachineType,
+	HANDLE hProcess,
+	HANDLE hThread,
+	LPSTACKFRAME64 StackFrame,
+	PVOID ContextRecord,
+	PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
+	PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
+	PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
+	PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress)
+{
+	ScopedLock lock;
+
+	if (StackWalk64Ptr != nullptr)
+		return StackWalk64Ptr(MachineType, hProcess, hThread, StackFrame, ContextRecord, ReadMemoryRoutine,
 			FunctionTableAccessRoutine, GetModuleBaseRoutine, TranslateAddress);
 
 	return FALSE;
