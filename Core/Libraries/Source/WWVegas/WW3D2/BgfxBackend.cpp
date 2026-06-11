@@ -29,6 +29,8 @@
 #include "RenderStateDefs.h"
 #include "DXTUtils.h"
 #include "dx8fvf.h"
+#include "dx8indexbuffer.h"
+#include "dx8vertexbuffer.h"
 #include "dx8wrapper.h"
 #include "FixedFunctionState.h"
 #include "indexbuffer.h"
@@ -36,12 +38,17 @@
 #include "lightenvironment.h"
 #include "matrix3d.h"
 #include "matrix4.h"
+#include "render2d.h"
 #include "RenderStateCache.h"
 #include "shader.h"
+#include "shdlib.h"
 #include "texture.h"
 #include "texturefilter.h"
+#include "textureloader.h"
+#include "TextureResourceManager.h"
 #include "vertexbuffer.h"
 #include "vector3.h"
+#include "WW3DDeviceInit.h"
 #include "ww3d.h"
 #include "ww3dformat.h"
 #include "wwdebug.h"
@@ -86,6 +93,13 @@
 #endif
 #include <windows.h>
 #endif
+
+// TheSuperHackers @refactor bobtista 11/06/2026 On bgfx builds dx8wrapper.cpp (the home of these
+// globals on the DX8 reference build) is not compiled, so define them here. External code declares
+// them extern locally (CommandLine.cpp, GameEngine.cpp, Debug.cpp). g_device.windowed is the source
+// of truth; DX8Wrapper_IsWindowed mirrors it for the legacy headless/quickstart checks.
+bool DX8Wrapper_IsWindowed = true;
+int DX8Wrapper_PreserveFPU = 0;
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Compiled shader
 // bytecode. These headers are generated at build time by ggc_compile_bgfx_shader
@@ -1215,6 +1229,9 @@ void BuildStandardVertexLayouts()
 BgfxBackend::BgfxBackend()
     : m_textureBitDepth(16)
     , m_msaaMode(RB_MSAA_NONE)
+    , m_renderDeviceDescBuilt(false)
+    , m_deviceCreated(false)
+    , m_curRenderDevice(-1)
 {
     WWDEBUG_SAY(("[BgfxBackend] Backend constructed."));
 }
@@ -3075,39 +3092,192 @@ static uint32_t ComputeBgfxResetFlags()
 
 // -- Device selection, windowing and display-mode control --------------------
 //
-// bgfx has no D3D device-enumeration concept. These forward to the DX8Wrapper
-// facade, which on bgfx builds still tracks the resolution list and window
-// state used by the options UI. This isolates the remaining DX8Wrapper
-// dependency in the backend adapter rather than in the WW3D device wrappers.
+// TheSuperHackers @refactor bobtista 11/06/2026 The bgfx backend owns its device lifecycle and a
+// single synthetic device entry natively, so dx8wrapper.cpp is no longer compiled on bgfx builds.
+// Init_Render_System brings up the render-state cache and the device enumeration; the real bgfx
+// device (Initialize) and the WW3D subsystems come up on the first Set_Render_Device, matching the
+// legacy Init -> Set_Render_Device -> Create_Device -> Do_Onetime_Device_Dependent_Inits sequence.
+// The resolution list feeds the options UI fallback (W3DDisplay::getDisplayMode enumerates SDL3
+// modes directly); caps and Set_Default_Global_Render_States are intentionally dropped because
+// bgfx reads neither (it routes fog/bump-env through FixedFunctionState and ignores CurrentCaps).
+
+void BgfxBackend::Ensure_Render_Device_Desc()
+{
+    if (m_renderDeviceDescBuilt)
+    {
+        return;
+    }
+    m_renderDeviceDescBuilt = true;
+    m_renderDeviceDesc.set_device_name("Generals bgfx standalone");
+    m_renderDeviceDesc.set_driver_name("bgfx");
+    m_renderDeviceDesc.set_driver_version("0.0.0.0");
+    m_renderDeviceDesc.reset_resolution_list();
+#if defined(SAGE_USE_SDL3)
+    int mode_count = 0;
+    SDL_DisplayMode ** modes = SDL_GetFullscreenDisplayModes(SDL_GetPrimaryDisplay(), &mode_count);
+    if (modes != nullptr)
+    {
+        for (int i = 0; i < mode_count; ++i)
+        {
+            if (modes[i]->w >= 640 && modes[i]->h >= 480)
+            {
+                m_renderDeviceDesc.add_resolution(modes[i]->w, modes[i]->h, 32);
+            }
+        }
+        SDL_free(modes);
+    }
+#endif
+    if (m_renderDeviceDesc.Enumerate_Resolutions().Count() == 0)
+    {
+        m_renderDeviceDesc.add_resolution(640, 480, 32);
+        m_renderDeviceDesc.add_resolution(800, 600, 32);
+        m_renderDeviceDesc.add_resolution(1024, 768, 32);
+        m_renderDeviceDesc.add_resolution(1280, 720, 32);
+        m_renderDeviceDesc.add_resolution(1280, 1024, 32);
+        m_renderDeviceDesc.add_resolution(1920, 1080, 32);
+    }
+}
+
+// Equivalent of DX8Wrapper::Reset_Device on the bgfx path: release the bound buffers and let the
+// texture/dynamic-buffer/shader subsystems recreate. The bgfx backbuffer and scene render targets
+// are resized to the live window every frame in Begin_Scene, so no explicit device reset is needed.
+bool BgfxBackend::Reset_Bgfx_Device(bool reload_assets)
+{
+    if (!m_deviceCreated)
+    {
+        return false;
+    }
+    WW3D::_Invalidate_Textures();
+    for (unsigned i = 0; i < MAX_VERTEX_STREAMS; ++i)
+    {
+        if (FixedFunctionState::Render_State().vertex_buffers[i])
+        {
+            FixedFunctionState::Render_State().vertex_buffers[i]->Release_Engine_Ref();
+        }
+        REF_PTR_RELEASE(FixedFunctionState::Render_State().vertex_buffers[i]);
+    }
+    if (FixedFunctionState::Render_State().index_buffer)
+    {
+        FixedFunctionState::Render_State().index_buffer->Release_Engine_Ref();
+    }
+    REF_PTR_RELEASE(FixedFunctionState::Render_State().index_buffer);
+    DynamicVBAccessClass::_Deinit();
+    DynamicIBAccessClass::_Deinit();
+    TextureResourceManagerClass::Release_Textures();
+    SHD_SHUTDOWN_SHADERS;
+    if (reload_assets)
+    {
+        TextureResourceManagerClass::Recreate_Textures();
+    }
+    Invalidate_Cached_Render_States();
+    SHD_INIT_SHADERS;
+    return true;
+}
 
 bool BgfxBackend::Init_Render_System(void * hwnd, bool lite)
 {
-    return DX8Wrapper::Init(hwnd, lite);
+    RenderStateCache::Clear();
+    FixedFunctionState::Clear_Raw();
+    g_device.window = static_cast<HWND>(hwnd);
+    m_curRenderDevice = -1;
+    Render2DClass::Set_Screen_Resolution(RectClass(0, 0, 640, 480));
+    g_device.windowed = false;
+    g_device.bits = 32;
+    DX8Wrapper_IsWindowed = false;
+    if (!lite)
+    {
+        Ensure_Render_Device_Desc();
+    }
+    return true;
 }
 
 void BgfxBackend::Shutdown_Render_System()
 {
-    DX8Wrapper::Shutdown();
+    if (!m_deviceCreated)
+    {
+        return;
+    }
+    FixedFunctionState::Release_Raw_Textures();
+    for (unsigned i = 0; i < MAX_VERTEX_STREAMS; ++i)
+    {
+        if (FixedFunctionState::Render_State().vertex_buffers[i])
+        {
+            FixedFunctionState::Render_State().vertex_buffers[i]->Release_Engine_Ref();
+        }
+        REF_PTR_RELEASE(FixedFunctionState::Render_State().vertex_buffers[i]);
+    }
+    if (FixedFunctionState::Render_State().index_buffer)
+    {
+        FixedFunctionState::Render_State().index_buffer->Release_Engine_Ref();
+    }
+    REF_PTR_RELEASE(FixedFunctionState::Render_State().index_buffer);
+    Shutdown();
+    WW3DDeviceInit::Shutdown_Subsystems();
+    m_deviceCreated = false;
 }
 
 bool BgfxBackend::Set_Render_Device(const char * dev_name, int width, int height, int bits, int windowed, bool resize_window)
 {
-    return DX8Wrapper::Set_Render_Device(dev_name, width, height, bits, windowed, resize_window);
+    Ensure_Render_Device_Desc();
+    return Set_Render_Device(0, width, height, bits, windowed, resize_window, m_deviceCreated, true);
 }
 
 bool BgfxBackend::Set_Render_Device(int dev, int width, int height, int bits, int windowed, bool resize_window, bool reset_device, bool restore_assets)
 {
-    return DX8Wrapper::Set_Render_Device(dev, width, height, bits, windowed, resize_window, reset_device, restore_assets);
+    Ensure_Render_Device_Desc();
+    if ((m_curRenderDevice == -1) && (dev == -1))
+    {
+        m_curRenderDevice = 0;
+    }
+    else if (dev != -1)
+    {
+        m_curRenderDevice = dev;
+    }
+    if (width != -1)
+    {
+        g_device.width = width;
+    }
+    if (height != -1)
+    {
+        g_device.height = height;
+    }
+    if (bits != -1)
+    {
+        g_device.bits = bits;
+    }
+    if (windowed != -1)
+    {
+        g_device.windowed = (windowed != 0);
+    }
+    DX8Wrapper_IsWindowed = g_device.windowed;
+
+    if (!reset_device)
+    {
+        // First creation: bring up the bgfx device, then the WW3D subsystems. Order matters - the
+        // subsystem _Init() calls allocate static buffers captured into the bgfx caches, so the
+        // backend must be live first (see the original Do_Onetime_Device_Dependent_Inits note).
+        Initialize(g_device.window, g_device.width, g_device.height);
+        WW3DDeviceInit::Init_Subsystems();
+        m_deviceCreated = true;
+    }
+    else
+    {
+        Reset_Bgfx_Device(restore_assets);
+    }
+    Render2DClass::Set_Screen_Resolution(RectClass(0, 0, g_device.width, g_device.height));
+    return true;
 }
 
 bool BgfxBackend::Set_Any_Render_Device()
 {
-    return DX8Wrapper::Set_Any_Render_Device();
+    Ensure_Render_Device_Desc();
+    return Set_Render_Device(0, -1, -1, -1, -1, false, m_deviceCreated, true);
 }
 
 bool BgfxBackend::Set_Next_Render_Device()
 {
-    return DX8Wrapper::Set_Next_Render_Device();
+    // Only one synthetic device, so "next" wraps back to it and resets.
+    return Set_Render_Device(m_curRenderDevice, -1, -1, -1, -1, false, true, true);
 }
 
 bool BgfxBackend::Toggle_Windowed()
@@ -3124,27 +3294,41 @@ bool BgfxBackend::Is_Windowed() const
 
 int BgfxBackend::Get_Render_Device() const
 {
-    return DX8Wrapper::Get_Render_Device();
+    return m_curRenderDevice;
 }
 
-const RenderDeviceDescClass & BgfxBackend::Get_Render_Device_Desc(int deviceidx)
+const RenderDeviceDescClass & BgfxBackend::Get_Render_Device_Desc(int /*deviceidx*/)
 {
-    return DX8Wrapper::Get_Render_Device_Desc(deviceidx);
+    Ensure_Render_Device_Desc();
+    return m_renderDeviceDesc;
 }
 
 int BgfxBackend::Get_Render_Device_Count() const
 {
-    return DX8Wrapper::Get_Render_Device_Count();
+    return 1;
 }
 
-const char * BgfxBackend::Get_Render_Device_Name(int device_index)
+const char * BgfxBackend::Get_Render_Device_Name(int /*device_index*/)
 {
-    return DX8Wrapper::Get_Render_Device_Name(device_index);
+    Ensure_Render_Device_Desc();
+    return m_renderDeviceDesc.Get_Device_Name();
 }
 
 bool BgfxBackend::Set_Device_Resolution(int width, int height, int bits, int windowed, bool resize_window)
 {
-    return DX8Wrapper::Set_Device_Resolution(width, height, bits, windowed, resize_window);
+    if (!m_deviceCreated)
+    {
+        return false;
+    }
+    if (width != -1)
+    {
+        g_device.width = width;
+    }
+    if (height != -1)
+    {
+        g_device.height = height;
+    }
+    return Reset_Bgfx_Device(true);
 }
 
 // TheSuperHackers @refactor bobtista 08/06/2026 g_device is the source of truth for the device
