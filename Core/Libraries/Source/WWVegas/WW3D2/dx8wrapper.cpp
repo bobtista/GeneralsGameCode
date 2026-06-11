@@ -51,6 +51,7 @@
 #endif
 
 #include "dx8wrapper.h"
+#include "WW3DDeviceInit.h"
 #include "texturecompatibilityinterop.h"
 #include "DrawCallLog.h"
 #include "RenderStateDefs.h"
@@ -748,18 +749,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
    /*
 	** Initialize any other subsystems inside of WW3D
 	*/
-	MissingTexture::_Init();
-	TextureFilterClass::_Init_Filters(
-		(TextureFilterClass::TextureFilterMode)WW3D::Get_Texture_Filter(),
-		(TextureFilterClass::AnisotropicFilterMode)WW3D::Get_Anisotropy_Level()
-	);
-	TheDX8MeshRenderer.Init();
-	SHD_INIT;
-	BoxRenderObjClass::Init();
-	VertexMaterialClass::Init();
-	PointGroupClass::_Init(); // This needs the VertexMaterialClass to be initted
-	ShatterSystem::Init();
-	TextureLoader::Init();
+	WW3DDeviceInit::Init_Subsystems();
 
 	Set_Default_Global_Render_States();
 }
@@ -827,20 +817,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	/*
 	** Shutdown ww3d systems
 	*/
-	FixedFunctionState::Release_Render_State();
-
-
-	TextureLoader::Deinit();
-	SortingRendererClass::Deinit();
-	DynamicVBAccessClass::_Deinit();
-	DynamicIBAccessClass::_Deinit();
-	ShatterSystem::Shutdown();
-	PointGroupClass::_Shutdown();
-	VertexMaterialClass::Shutdown();
-	BoxRenderObjClass::Shutdown();
-	SHD_SHUTDOWN;
-	TheDX8MeshRenderer.Shutdown();
-	MissingTexture::_Deinit();
+	WW3DDeviceInit::Shutdown_Subsystems();
 
 	delete CurrentCaps;
 	CurrentCaps=nullptr;
