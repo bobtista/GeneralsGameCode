@@ -26,6 +26,7 @@
 #pragma once
 
 #include "IRenderBackend.h"
+#include "rddesc.h"
 #include "vector3.h"
 
 class BgfxBackend : public IRenderBackend
@@ -451,4 +452,14 @@ private:
     RenderBackendMSAAMode m_msaaMode;
     // TheSuperHackers @bugfix bobtista 28/05/2026 Persist the ambient color in a real member so Get_Ambient() returns a stable lvalue mirror of g_draw.sceneAmbient.
     mutable Vector3 m_ambient;
+
+    // TheSuperHackers @refactor bobtista 11/06/2026 Native device lifecycle so dx8wrapper.cpp is
+    // no longer compiled on bgfx builds. A single synthetic device entry feeds the options UI;
+    // the real bgfx device (Initialize) and WW3D subsystems come up on the first Set_Render_Device.
+    RenderDeviceDescClass m_renderDeviceDesc;
+    bool m_renderDeviceDescBuilt;
+    bool m_deviceCreated;
+    int m_curRenderDevice;
+    void Ensure_Render_Device_Desc();
+    bool Reset_Bgfx_Device(bool reload_assets);
 };
