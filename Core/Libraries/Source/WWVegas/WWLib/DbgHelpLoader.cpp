@@ -33,6 +33,12 @@ DbgHelpLoader::DbgHelpLoader()
 	, m_symSetOptions(nullptr)
 	, m_symFunctionTableAccess(nullptr)
 	, m_stackWalk(nullptr)
+	, m_symGetModuleBase64(nullptr)
+	, m_symLoadModule64(nullptr)
+	, m_symGetSymFromAddr64(nullptr)
+	, m_symGetLineFromAddr64(nullptr)
+	, m_symFunctionTableAccess64(nullptr)
+	, m_stackWalk64(nullptr)
 #ifdef RTS_ENABLE_CRASHDUMP
 	, m_miniDumpWriteDump(nullptr)
 #endif
@@ -121,6 +127,12 @@ bool DbgHelpLoader::load()
 	Inst->m_symSetOptions = reinterpret_cast<SymSetOptions_t>(::GetProcAddress(Inst->m_dllModule, "SymSetOptions"));
 	Inst->m_symFunctionTableAccess = reinterpret_cast<SymFunctionTableAccess_t>(::GetProcAddress(Inst->m_dllModule, "SymFunctionTableAccess"));
 	Inst->m_stackWalk = reinterpret_cast<StackWalk_t>(::GetProcAddress(Inst->m_dllModule, "StackWalk"));
+	Inst->m_symGetModuleBase64 = reinterpret_cast<SymGetModuleBase64_t>(::GetProcAddress(Inst->m_dllModule, "SymGetModuleBase64"));
+	Inst->m_symLoadModule64 = reinterpret_cast<SymLoadModule64_t>(::GetProcAddress(Inst->m_dllModule, "SymLoadModule64"));
+	Inst->m_symGetSymFromAddr64 = reinterpret_cast<SymGetSymFromAddr64_t>(::GetProcAddress(Inst->m_dllModule, "SymGetSymFromAddr64"));
+	Inst->m_symGetLineFromAddr64 = reinterpret_cast<SymGetLineFromAddr64_t>(::GetProcAddress(Inst->m_dllModule, "SymGetLineFromAddr64"));
+	Inst->m_symFunctionTableAccess64 = reinterpret_cast<SymFunctionTableAccess64_t>(::GetProcAddress(Inst->m_dllModule, "SymFunctionTableAccess64"));
+	Inst->m_stackWalk64 = reinterpret_cast<StackWalk64_t>(::GetProcAddress(Inst->m_dllModule, "StackWalk64"));
 #ifdef RTS_ENABLE_CRASHDUMP
 	Inst->m_miniDumpWriteDump = reinterpret_cast<MiniDumpWriteDump_t>(::GetProcAddress(Inst->m_dllModule, "MiniDumpWriteDump"));
 #endif
@@ -177,6 +189,12 @@ void DbgHelpLoader::freeResources()
 	Inst->m_symSetOptions = nullptr;
 	Inst->m_symFunctionTableAccess = nullptr;
 	Inst->m_stackWalk = nullptr;
+	Inst->m_symGetModuleBase64 = nullptr;
+	Inst->m_symLoadModule64 = nullptr;
+	Inst->m_symGetSymFromAddr64 = nullptr;
+	Inst->m_symGetLineFromAddr64 = nullptr;
+	Inst->m_symFunctionTableAccess64 = nullptr;
+	Inst->m_stackWalk64 = nullptr;
 #ifdef RTS_ENABLE_CRASHDUMP
 	Inst->m_miniDumpWriteDump = nullptr;
 #endif
@@ -338,6 +356,93 @@ BOOL DbgHelpLoader::stackWalk(
 
 	if (Inst != nullptr && Inst->m_stackWalk)
 		return Inst->m_stackWalk(MachineType, hProcess, hThread, StackFrame, ContextRecord, ReadMemoryRoutine, FunctionTableAccessRoutine, GetModuleBaseRoutine, TranslateAddress);
+
+	return FALSE;
+}
+
+DWORD64 DbgHelpLoader::symGetModuleBase64(
+	HANDLE hProcess,
+	DWORD64 dwAddr)
+{
+	CriticalSectionClass::LockClass lock(CriticalSection);
+
+	if (Inst != nullptr && Inst->m_symGetModuleBase64)
+		return Inst->m_symGetModuleBase64(hProcess, dwAddr);
+
+	return 0u;
+}
+
+DWORD64 DbgHelpLoader::symLoadModule64(
+	HANDLE hProcess,
+	HANDLE hFile,
+	LPSTR ImageName,
+	LPSTR ModuleName,
+	DWORD64 BaseOfDll,
+	DWORD SizeOfDll)
+{
+	CriticalSectionClass::LockClass lock(CriticalSection);
+
+	if (Inst != nullptr && Inst->m_symLoadModule64)
+		return Inst->m_symLoadModule64(hProcess, hFile, ImageName, ModuleName, BaseOfDll, SizeOfDll);
+
+	return 0u;
+}
+
+BOOL DbgHelpLoader::symGetSymFromAddr64(
+	HANDLE hProcess,
+	DWORD64 Address,
+	PDWORD64 Displacement,
+	PIMAGEHLP_SYMBOL64 Symbol)
+{
+	CriticalSectionClass::LockClass lock(CriticalSection);
+
+	if (Inst != nullptr && Inst->m_symGetSymFromAddr64)
+		return Inst->m_symGetSymFromAddr64(hProcess, Address, Displacement, Symbol);
+
+	return FALSE;
+}
+
+BOOL DbgHelpLoader::symGetLineFromAddr64(
+	HANDLE hProcess,
+	DWORD64 dwAddr,
+	PDWORD pdwDisplacement,
+	PIMAGEHLP_LINE64 Line)
+{
+	CriticalSectionClass::LockClass lock(CriticalSection);
+
+	if (Inst != nullptr && Inst->m_symGetLineFromAddr64)
+		return Inst->m_symGetLineFromAddr64(hProcess, dwAddr, pdwDisplacement, Line);
+
+	return FALSE;
+}
+
+PVOID DbgHelpLoader::symFunctionTableAccess64(
+	HANDLE hProcess,
+	DWORD64 AddrBase)
+{
+	CriticalSectionClass::LockClass lock(CriticalSection);
+
+	if (Inst != nullptr && Inst->m_symFunctionTableAccess64)
+		return Inst->m_symFunctionTableAccess64(hProcess, AddrBase);
+
+	return nullptr;
+}
+
+BOOL DbgHelpLoader::stackWalk64(
+	DWORD MachineType,
+	HANDLE hProcess,
+	HANDLE hThread,
+	LPSTACKFRAME64 StackFrame,
+	PVOID ContextRecord,
+	PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
+	PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
+	PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
+	PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress)
+{
+	CriticalSectionClass::LockClass lock(CriticalSection);
+
+	if (Inst != nullptr && Inst->m_stackWalk64)
+		return Inst->m_stackWalk64(MachineType, hProcess, hThread, StackFrame, ContextRecord, ReadMemoryRoutine, FunctionTableAccessRoutine, GetModuleBaseRoutine, TranslateAddress);
 
 	return FALSE;
 }

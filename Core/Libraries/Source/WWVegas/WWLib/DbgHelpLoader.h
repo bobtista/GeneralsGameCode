@@ -114,6 +114,49 @@ public:
 		PGET_MODULE_BASE_ROUTINE GetModuleBaseRoutine,
 		PTRANSLATE_ADDRESS_ROUTINE TranslateAddress);
 
+	// TheSuperHackers @feature bobtista 11/06/2026 64-bit DbgHelp entry points. The legacy
+	// 32-bit wrappers above truncate addresses to DWORD and cannot walk a 64-bit stack, so
+	// the x64 build (and the modern x86 build) route through these StackWalk64/Sym*64 calls.
+	// These work on both x86 and x64, which is why Microsoft recommends them universally.
+	static DWORD64 WINAPI symGetModuleBase64(
+		HANDLE hProcess,
+		DWORD64 dwAddr);
+
+	static DWORD64 WINAPI symLoadModule64(
+		HANDLE hProcess,
+		HANDLE hFile,
+		LPSTR ImageName,
+		LPSTR ModuleName,
+		DWORD64 BaseOfDll,
+		DWORD SizeOfDll);
+
+	static BOOL WINAPI symGetSymFromAddr64(
+		HANDLE hProcess,
+		DWORD64 Address,
+		PDWORD64 Displacement,
+		PIMAGEHLP_SYMBOL64 Symbol);
+
+	static BOOL WINAPI symGetLineFromAddr64(
+		HANDLE hProcess,
+		DWORD64 dwAddr,
+		PDWORD pdwDisplacement,
+		PIMAGEHLP_LINE64 Line);
+
+	static PVOID WINAPI symFunctionTableAccess64(
+		HANDLE hProcess,
+		DWORD64 AddrBase);
+
+	static BOOL WINAPI stackWalk64(
+		DWORD MachineType,
+		HANDLE hProcess,
+		HANDLE hThread,
+		LPSTACKFRAME64 StackFrame,
+		PVOID ContextRecord,
+		PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
+		PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
+		PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
+		PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress);
+
 #ifdef RTS_ENABLE_CRASHDUMP
 	static BOOL WINAPI miniDumpWriteDump(
 		HANDLE hProcess,
@@ -183,6 +226,45 @@ private:
 		PGET_MODULE_BASE_ROUTINE GetModuleBaseRoutine,
 		PTRANSLATE_ADDRESS_ROUTINE TranslateAddress);
 
+	typedef DWORD64 (WINAPI *SymGetModuleBase64_t) (
+		HANDLE hProcess,
+		DWORD64 dwAddr);
+
+	typedef DWORD64 (WINAPI *SymLoadModule64_t) (
+		HANDLE hProcess,
+		HANDLE hFile,
+		LPSTR ImageName,
+		LPSTR ModuleName,
+		DWORD64 BaseOfDll,
+		DWORD SizeOfDll);
+
+	typedef BOOL (WINAPI *SymGetSymFromAddr64_t) (
+		HANDLE hProcess,
+		DWORD64 Address,
+		PDWORD64 Displacement,
+		PIMAGEHLP_SYMBOL64 Symbol);
+
+	typedef BOOL (WINAPI *SymGetLineFromAddr64_t) (
+		HANDLE hProcess,
+		DWORD64 dwAddr,
+		PDWORD pdwDisplacement,
+		PIMAGEHLP_LINE64 Line);
+
+	typedef PVOID (WINAPI *SymFunctionTableAccess64_t) (
+		HANDLE hProcess,
+		DWORD64 AddrBase);
+
+	typedef BOOL (WINAPI *StackWalk64_t) (
+		DWORD MachineType,
+		HANDLE hProcess,
+		HANDLE hThread,
+		LPSTACKFRAME64 StackFrame,
+		PVOID ContextRecord,
+		PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
+		PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
+		PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
+		PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress);
+
 #ifdef RTS_ENABLE_CRASHDUMP
 	typedef BOOL(WINAPI* MiniDumpWriteDump_t)(
 		HANDLE hProcess,
@@ -204,6 +286,12 @@ private:
 	SymSetOptions_t m_symSetOptions;
 	SymFunctionTableAccess_t m_symFunctionTableAccess;
 	StackWalk_t m_stackWalk;
+	SymGetModuleBase64_t m_symGetModuleBase64;
+	SymLoadModule64_t m_symLoadModule64;
+	SymGetSymFromAddr64_t m_symGetSymFromAddr64;
+	SymGetLineFromAddr64_t m_symGetLineFromAddr64;
+	SymFunctionTableAccess64_t m_symFunctionTableAccess64;
+	StackWalk64_t m_stackWalk64;
 #ifdef RTS_ENABLE_CRASHDUMP
 	MiniDumpWriteDump_t m_miniDumpWriteDump;
 #endif
@@ -237,6 +325,20 @@ using PREAD_PROCESS_MEMORY_ROUTINE = void*;
 using PFUNCTION_TABLE_ACCESS_ROUTINE = void*;
 using PGET_MODULE_BASE_ROUTINE = void*;
 using PTRANSLATE_ADDRESS_ROUTINE = void*;
+
+using DWORD64 = unsigned long long;
+using PDWORD64 = DWORD64*;
+using PVOID = void*;
+struct IMAGEHLP_SYMBOL64;
+using PIMAGEHLP_SYMBOL64 = IMAGEHLP_SYMBOL64*;
+struct IMAGEHLP_LINE64;
+using PIMAGEHLP_LINE64 = IMAGEHLP_LINE64*;
+struct STACKFRAME64;
+using LPSTACKFRAME64 = STACKFRAME64*;
+using PREAD_PROCESS_MEMORY_ROUTINE64 = void*;
+using PFUNCTION_TABLE_ACCESS_ROUTINE64 = void*;
+using PGET_MODULE_BASE_ROUTINE64 = void*;
+using PTRANSLATE_ADDRESS_ROUTINE64 = void*;
 
 #ifdef RTS_ENABLE_CRASHDUMP
 enum MINIDUMP_TYPE : unsigned int {};
@@ -277,6 +379,25 @@ public:
 		PFUNCTION_TABLE_ACCESS_ROUTINE,
 		PGET_MODULE_BASE_ROUTINE,
 		PTRANSLATE_ADDRESS_ROUTINE)
+	{
+		return 0;
+	}
+
+	static DWORD64 WINAPI symGetModuleBase64(HANDLE, DWORD64) { return 0; }
+	static DWORD64 WINAPI symLoadModule64(HANDLE, HANDLE, LPSTR, LPSTR, DWORD64, DWORD) { return 0; }
+	static BOOL WINAPI symGetSymFromAddr64(HANDLE, DWORD64, PDWORD64, PIMAGEHLP_SYMBOL64) { return 0; }
+	static BOOL WINAPI symGetLineFromAddr64(HANDLE, DWORD64, LPDWORD, PIMAGEHLP_LINE64) { return 0; }
+	static PVOID WINAPI symFunctionTableAccess64(HANDLE, DWORD64) { return nullptr; }
+	static BOOL WINAPI stackWalk64(
+		DWORD,
+		HANDLE,
+		HANDLE,
+		LPSTACKFRAME64,
+		PVOID,
+		PREAD_PROCESS_MEMORY_ROUTINE64,
+		PFUNCTION_TABLE_ACCESS_ROUTINE64,
+		PGET_MODULE_BASE_ROUTINE64,
+		PTRANSLATE_ADDRESS_ROUTINE64)
 	{
 		return 0;
 	}
