@@ -280,7 +280,10 @@ W3DShroudLevel W3DShroud::getShroudLevel(Int x, Int y)
 {
 	DEBUG_ASSERTCRASH( m_pSrcTexture != nullptr, ("Reading empty shroud"));
 
-	if (x < m_numCellsX && y < m_numCellsY)
+	// TheSuperHackers @bugfix bobtista 12/06/2026 Guard the lower bound and a null source buffer.
+	// River-water shading converts world positions to shroud cells without the draw-origin offset,
+	// so map-edge vertices produce negative indices. Out-of-range cells return 0, like the upper bound.
+	if (m_srcTextureData != nullptr && x >= 0 && y >= 0 && x < m_numCellsX && y < m_numCellsY)
 	{
 		UnsignedShort pixel=*(UnsignedShort *)((Byte *)m_srcTextureData + x*2 + y*m_srcTexturePitch);
 
