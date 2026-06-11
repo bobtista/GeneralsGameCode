@@ -280,7 +280,13 @@ W3DShroudLevel W3DShroud::getShroudLevel(Int x, Int y)
 {
 	DEBUG_ASSERTCRASH( m_pSrcTexture != nullptr, ("Reading empty shroud"));
 
-	if (x < m_numCellsX && y < m_numCellsY)
+	// TheSuperHackers @bugfix bobtista 12/06/2026 Guard the lower bound and a null source buffer.
+	// River-water shroud shading (getRiverVertexDiffuse in W3DWater.cpp) converts a river vertex's
+	// world position to a shroud cell without the draw-origin offset, so vertices near or past the
+	// map edge produce negative / out-of-range cell indices. The original check validated only the
+	// upper bound, so a negative index dereferenced wild memory and crashed (SIGBUS) on the first
+	// campaign-map frame. Out-of-range cells now return 0, matching the existing upper-bound behavior.
+	if (m_srcTextureData != nullptr && x >= 0 && y >= 0 && x < m_numCellsX && y < m_numCellsY)
 	{
 		UnsignedShort pixel=*(UnsignedShort *)((Byte *)m_srcTextureData + x*2 + y*m_srcTexturePitch);
 
