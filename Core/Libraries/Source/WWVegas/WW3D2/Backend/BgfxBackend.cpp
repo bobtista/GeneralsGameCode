@@ -3233,14 +3233,11 @@ bool BgfxBackend::Set_Render_Device(int dev, int width, int height, int bits, in
     {
         m_curRenderDevice = dev;
     }
-    if (width != -1)
-    {
-        g_device.width = width;
-    }
-    if (height != -1)
-    {
-        g_device.height = height;
-    }
+    // TheSuperHackers @bugfix bobtista 11/06/2026 Do NOT write g_device.width/height here. Begin_Scene
+    // is their sole owner - it reads the live window every frame and recreates the scene framebuffer
+    // only when its contentChanged check fires. Pre-setting the new size defeats that check (scene FB
+    // kept at the old size while the swapchain resizes -> render freeze on resolution change).
+    // Initialize() sets them from the window at creation; bit-depth/windowed are mirrored here as before.
     if (bits != -1)
     {
         g_device.bits = bits;
@@ -3320,15 +3317,15 @@ bool BgfxBackend::Set_Device_Resolution(int width, int height, int bits, int win
     {
         return false;
     }
-    if (width != -1)
-    {
-        g_device.width = width;
-    }
-    if (height != -1)
-    {
-        g_device.height = height;
-    }
-    return Reset_Bgfx_Device(true);
+    // TheSuperHackers @bugfix bobtista 11/06/2026 The caller (W3DDisplay::setDisplayMode) already
+    // resized the SDL window. Begin_Scene owns g_device.width/height/swap* and reconciles them against
+    // the live window every frame, recreating the scene framebuffer when the content size changes.
+    // Do NOT touch g_device here: writing the new size defeats Begin_Scene's contentChanged check, so
+    // the scene framebuffer is left at the old size while the swapchain resizes -> the render freezes
+    // (audio keeps running, the shellmap stops). The legacy D3D8 device reset is likewise unnecessary
+    // on bgfx (Begin_Scene does the resize) - mirrors W3DDisplay::applyExternalResize.
+    WWDEBUG_SAY(("BgfxBackend::Set_Device_Resolution requested %dx%d; Begin_Scene owns the resize", width, height));
+    return true;
 }
 
 // TheSuperHackers @refactor bobtista 08/06/2026 g_device is the source of truth for the device
