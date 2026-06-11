@@ -149,6 +149,9 @@ private:
 
 	friend class WW3D;
 	friend class DX8Wrapper;
+	// TheSuperHackers @refactor bobtista 11/06/2026 BgfxBackend builds the synthetic device entry
+	// natively now that dx8wrapper.cpp is not compiled on bgfx builds.
+	friend class BgfxBackend;
 };
 
 
