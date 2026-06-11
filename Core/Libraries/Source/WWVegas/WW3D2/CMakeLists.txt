@@ -58,7 +58,6 @@ set(WW3D2_SRC
     dx8rendererdebugger.h
     vertexbuffer.cpp
     dx8vertexbuffer.h
-    dx8wrapper.cpp
     dx8wrapper.h
     WW3DDeviceInit.cpp
     WW3DDeviceInit.h
@@ -268,6 +267,7 @@ if(GGC_RENDER_BACKEND STREQUAL "dx8")
         ${CMAKE_CURRENT_SOURCE_DIR}/DX8Backend.h
         ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8wrapper.cpp
     )
 endif()
 
