@@ -355,13 +355,13 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	if (imagehelp != nullptr) {
 		DebugString ("Exception Handler: Found IMAGEHLP.DLL - linking to required functions\n");
 		char const *function_name = nullptr;
-		unsigned long *fptr = (unsigned long*) &_SymCleanup;
+		ULONG_PTR *fptr = (ULONG_PTR*) &_SymCleanup;
 		int count = 0;
 
 		do {
 			function_name = ImagehelpFunctionNames[count];
 			if (function_name) {
-				*fptr = (unsigned long) GetProcAddress(imagehelp, function_name);
+				*fptr = (ULONG_PTR) GetProcAddress(imagehelp, function_name);
 				fptr++;
 				count++;
 			}
@@ -465,8 +465,9 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	symptr->SizeOfStruct = sizeof (IMAGEHLP_SYMBOL);
 	symptr->MaxNameLength = 256-sizeof (IMAGEHLP_SYMBOL);
 	symptr->Size = 0;
-	symptr->Address = context->Eip;
 
+#if defined(_M_IX86)
+	symptr->Address = context->Eip;
 	if (!IsBadCodePtr((FARPROC)context->Eip)) {
 		if (_SymGetSymFromAddr != nullptr && _SymGetSymFromAddr (GetCurrentProcess(), context->Eip, &displacement, symptr)) {
 			snprintf(scrap, ARRAY_SIZE(scrap), "Exception occurred at %08X - %s + %08X\r\n",
@@ -481,6 +482,12 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	} else {
 		DebugString ("Exception Handler: context->Eip is bad code pointer\n");
 	}
+#else
+	// TheSuperHackers @todo bobtista 11/06/2026 Symbolize the faulting address on x64 by wiring
+	// SymGetSymFromAddr64 into Load_Image_Helper. Build+verify on a Windows x64 machine. The raw
+	// faulting address is still recorded here.
+	sprintf (scrap, "Exception occurred at %p\r\n", (void*)context->Rip);
+#endif
 
 	Add_Txt (scrap);
 
@@ -580,6 +587,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 
 	Add_Txt("\r\nDetails:\r\n");
 
+#if defined(_M_IX86)
 	DebugString("Register dump...\n");
 
 	/*
@@ -706,6 +714,15 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 		Add_Txt(scrap);
 		stackptr++;
 	}
+#else
+	// TheSuperHackers @todo bobtista 11/06/2026 Implement the x64 register/FP context dump: print
+	// Rax..R15/Rip/RFlags + segment registers, the XMM register state (the x64 CONTEXT has no x87
+	// FloatSave / 80387 ST registers), the bytes at RIP, and an Rsp-based stack dump symbolized
+	// via SymGetSymFromAddr64. Build+verify on a Windows x64 machine. The faulting address above
+	// and the call stack from StackDump.cpp's StackWalk64 path still land in the crash log.
+	Add_Txt("\r\nRegister/FP context dump is not yet implemented on x64.\r\n");
+	Add_Txt("See the StackDump.cpp call stack above for the crash location.\r\n");
+#endif
 
 	/*
 	** Unload the symbols.
@@ -1065,13 +1082,13 @@ void Load_Image_Helper()
 
 		if (ImageHelp != nullptr) {
 			char const *function_name = nullptr;
-			unsigned long *fptr = (unsigned long *) &_SymCleanup;
+			ULONG_PTR *fptr = (ULONG_PTR *) &_SymCleanup;
 			int count = 0;
 
 			do {
 				function_name = ImagehelpFunctionNames[count];
 				if (function_name) {
-					*fptr = (unsigned long) GetProcAddress(ImageHelp, function_name);
+					*fptr = (ULONG_PTR) GetProcAddress(ImageHelp, function_name);
 					fptr++;
 					count++;
 				}
@@ -1226,6 +1243,7 @@ int Stack_Walk(unsigned long *return_addresses, int num_addresses, CONTEXT *cont
 	/*
 	** Set up the stack frame structure for the start point of the stack walk (i.e. here).
 	*/
+#if defined(_M_IX86)
 	STACKFRAME stack_frame;
 	memset(&stack_frame, 0, sizeof(stack_frame));
 
@@ -1289,6 +1307,18 @@ here:
 	}
 
 	return(pointer_index);
+#else
+	// TheSuperHackers @todo bobtista 11/06/2026 Port this legacy stack walk to the 64-bit DbgHelp
+	// API: capture an x64 CONTEXT (Rip/Rsp/Rbp), build a STACKFRAME64, call StackWalk64 with
+	// IMAGE_FILE_MACHINE_AMD64, and load SymFunctionTableAccess64/SymGetModuleBase64 in
+	// Load_Image_Helper. Must be built and verified on a Windows x64 machine. The primary crash
+	// call stack is already produced by StackDump.cpp's StackWalk64 path, so this legacy
+	// duplicate reports no frames for now rather than walking with the wrong (32-bit) unwinder.
+	(void)return_addresses;
+	(void)num_addresses;
+	(void)context;
+	return(0);
+#endif
 }
 
 
