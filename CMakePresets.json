@@ -224,6 +224,23 @@
             }
         },
         {
+            "name": "win64",
+            "inherits": "win32-generalsmd-sdl3-bgfx",
+            "displayName": "Windows 64bit GeneralsMD SDL3 bgfx Release",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            }
+        },
+        {
+            "name": "win64-debug",
+            "inherits": "win64",
+            "displayName": "Windows 64bit GeneralsMD SDL3 bgfx Debug",
+            "cacheVariables": {
+                "RTS_BUILD_OPTION_DEBUG": "ON"
+            }
+        },
+        {
             "name": "mingw-w64-i686",
             "displayName": "MinGW-w64 32-bit (i686) Release",
             "generator": "Unix Makefiles",
@@ -316,6 +333,26 @@
             "displayName": "Build Windows 32bit GeneralsMD SDL3 bgfx Release",
             "description": "Build Windows 32bit Release (bgfx + SDL3 + OpenAL + FFmpeg, GeneralsMD only)",
             "configuration": "Release",
+            "targets": [
+                "z_generals"
+            ]
+        },
+        {
+            "name": "win64",
+            "configurePreset": "win64",
+            "displayName": "Build Windows 64bit GeneralsMD SDL3 bgfx Release",
+            "description": "Build Windows 64bit Release (bgfx + SDL3 + OpenAL + FFmpeg, GeneralsMD only)",
+            "configuration": "Release",
+            "targets": [
+                "z_generals"
+            ]
+        },
+        {
+            "name": "win64-debug",
+            "configurePreset": "win64-debug",
+            "displayName": "Build Windows 64bit GeneralsMD SDL3 bgfx Debug",
+            "description": "Build Windows 64bit Debug (bgfx + SDL3 + OpenAL + FFmpeg, GeneralsMD only)",
+            "configuration": "Debug",
             "targets": [
                 "z_generals"
             ]
@@ -489,6 +526,32 @@
                 {
                     "type": "build",
                     "name": "win32-generalsmd-sdl3-bgfx"
+                }
+            ]
+        },
+        {
+            "name": "win64",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win64"
+                },
+                {
+                    "type": "build",
+                    "name": "win64"
+                }
+            ]
+        },
+        {
+            "name": "win64-debug",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win64-debug"
+                },
+                {
+                    "type": "build",
+                    "name": "win64-debug"
                 }
             ]
         },
