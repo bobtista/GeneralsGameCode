@@ -60,6 +60,8 @@ set(WW3D2_SRC
     dx8vertexbuffer.h
     dx8wrapper.cpp
     dx8wrapper.h
+    WW3DDeviceInit.cpp
+    WW3DDeviceInit.h
     texturecompatibilityinterop.cpp
     dynamesh.cpp
     dynamesh.h
