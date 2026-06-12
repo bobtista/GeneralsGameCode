@@ -69,6 +69,12 @@ public:
 	EnumeratedIP * getAddresses();		///< Return a linked list of local IP addresses
 	AsciiString getMachineName();			///< Return the Network Neighborhood machine name
 
+	// TheSuperHackers @bugfix bobtista 12/06/2026 Return the subnet-directed broadcast address
+	// for the interface that owns localIP (host byte order in and out). Used instead of the limited
+	// broadcast 255.255.255.255 so LAN announces egress the correct interface on multi-homed hosts
+	// (e.g. a ZeroTier/VPN adapter alongside Wi-Fi). Falls back to INADDR_BROADCAST when unknown.
+	static UnsignedInt getSubnetBroadcastAddress( UnsignedInt localIP );
+
 protected:
 	void addNewIP( UnsignedByte a, UnsignedByte b, UnsignedByte c, UnsignedByte d );
 
