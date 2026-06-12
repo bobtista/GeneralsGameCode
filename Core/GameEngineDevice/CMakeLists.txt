@@ -260,9 +260,14 @@ target_link_libraries(corei_gameenginedevice_public INTERFACE
 if(WIN32)
     target_link_libraries(corei_gameenginedevice_public INTERFACE
         binkstub
-        d3d8lib
         milesstub
     )
+    # TheSuperHackers @build bobtista 12/06/2026 d3d8lib only exists on 32-bit (dx8.cmake is x86-only);
+    # the bgfx x64 build does not use D3D8. Guard by target existence so the x64 link does not pull a
+    # missing lib, while every 32-bit build keeps linking it exactly as before.
+    if(TARGET d3d8lib)
+        target_link_libraries(corei_gameenginedevice_public INTERFACE d3d8lib)
+    endif()
 endif()
 
 if(SAGE_USE_OPENAL)
