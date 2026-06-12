@@ -304,7 +304,10 @@ void W3DShroud::setShroudLevel(Int x, Int y, W3DShroudLevel level, Bool textureO
 	if (!m_pSrcTexture)
 		return;
 
-	if (x < m_numCellsX && y < m_numCellsY)
+	// TheSuperHackers @bugfix bobtista 12/06/2026 Guard the lower bound here too: a negative cell index
+	// would WRITE out of bounds (heap corruption) and drive the dirty-rect min/max negative. Matches
+	// the guard added to getShroudLevel.
+	if (x >= 0 && y >= 0 && x < m_numCellsX && y < m_numCellsY)
 	{
 		m_shroudDirty = TRUE;
 		if (x < m_dirtyMinX) { m_dirtyMinX = x; }
