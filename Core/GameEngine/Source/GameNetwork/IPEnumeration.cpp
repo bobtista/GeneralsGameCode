@@ -165,6 +165,68 @@ EnumeratedIP * IPEnumeration::getAddresses()
 	return m_IPlist;
 }
 
+// TheSuperHackers @bugfix bobtista 12/06/2026 The LAN protocol broadcasts discovery announces and
+// JOIN_ACCEPT to the limited broadcast 255.255.255.255, which only egresses the single default-route
+// interface. On a multi-homed host (a ZeroTier/VPN overlay adapter alongside Wi-Fi) those packets
+// never reach peers on the overlay subnet, so machines can't see each other in the LAN lobby and a
+// direct-connect joiner times out waiting for its (broadcast) accept even though the host has already
+// added it. Sending to the subnet-directed broadcast of the selected local IP instead routes the
+// packet out the interface that owns that subnet. Returns host byte order; falls back to the limited
+// broadcast when the netmask can't be resolved (preserving the original behavior).
+UnsignedInt IPEnumeration::getSubnetBroadcastAddress( UnsignedInt localIP )
+{
+	if (localIP == 0)
+	{
+		return INADDR_BROADCAST;
+	}
+
+#ifdef _WIN32
+	SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sock != INVALID_SOCKET)
+	{
+		INTERFACE_INFO ifList[32];
+		DWORD bytesReturned = 0;
+		if (WSAIoctl(sock, SIO_GET_INTERFACE_LIST, nullptr, 0, ifList, sizeof(ifList), &bytesReturned, nullptr, nullptr) == 0)
+		{
+			const int count = (int)(bytesReturned / sizeof(INTERFACE_INFO));
+			for (int i = 0; i < count; ++i)
+			{
+				const UnsignedInt ifaceIP = ntohl(((struct sockaddr_in *)&ifList[i].iiAddress)->sin_addr.s_addr);
+				if (ifaceIP == localIP)
+				{
+					const UnsignedInt mask = ntohl(((struct sockaddr_in *)&ifList[i].iiNetmask)->sin_addr.s_addr);
+					closesocket(sock);
+					return (localIP & mask) | (~mask);
+				}
+			}
+		}
+		closesocket(sock);
+	}
+#else
+	struct ifaddrs *ifaddrList = nullptr;
+	if (getifaddrs(&ifaddrList) == 0)
+	{
+		for (struct ifaddrs *ifa = ifaddrList; ifa != nullptr; ifa = ifa->ifa_next)
+		{
+			if (ifa->ifa_addr == nullptr || ifa->ifa_addr->sa_family != AF_INET || ifa->ifa_netmask == nullptr)
+			{
+				continue;
+			}
+			const UnsignedInt ifaceIP = ntohl(((const struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr);
+			if (ifaceIP == localIP)
+			{
+				const UnsignedInt mask = ntohl(((const struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr);
+				freeifaddrs(ifaddrList);
+				return (localIP & mask) | (~mask);
+			}
+		}
+		freeifaddrs(ifaddrList);
+	}
+#endif
+
+	return INADDR_BROADCAST;
+}
+
 void IPEnumeration::addNewIP( UnsignedByte a, UnsignedByte b, UnsignedByte c, UnsignedByte d )
 {
 	EnumeratedIP *newIP = newInstance(EnumeratedIP);
