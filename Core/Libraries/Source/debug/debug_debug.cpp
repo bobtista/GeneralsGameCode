@@ -33,6 +33,10 @@
 #include "internal_io.h"
 #include <stdlib.h>
 #include <windows.h>
+// TheSuperHackers @build bobtista 12/06/2026 _ReturnAddress intrinsic for the x64 frame capture.
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 #include <WWCommon.h>
 #include <new>      // needed for placement new prototype
 
@@ -306,12 +310,16 @@ bool Debug::SkipNext()
   // do not implement this function inline, we do need
   // a valid frame pointer here!
   unsigned help;
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(__i386__))
   _asm
   {
     mov eax,[ebp+4]   // return address
     mov help,eax
   };
+#elif defined(_MSC_VER)
+  // TheSuperHackers @build bobtista 12/06/2026 MSVC x64 has no inline asm; the intrinsic returns
+  // this function's return address (the [ebp+4] equivalent), truncated to the 32-bit frame key.
+  help = (unsigned)(size_t)_ReturnAddress();
 #elif (defined(__GNUC__) || defined(__clang__)) && (defined(__i386__) || defined(_M_IX86))
   // GCC/Clang inline assembly for x86-32
   __asm__ __volatile__(
@@ -434,8 +442,10 @@ bool Debug::AssertDone()
           }
           break;
         case IDRETRY:
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(__i386__))
           _asm int 0x03
+#elif defined(_MSC_VER)
+          __debugbreak();
 #elif defined(__GNUC__)
           __builtin_trap();
 #else
@@ -708,8 +718,10 @@ bool Debug::CrashDone(bool die)
             }
             break;
           case IDRETRY:
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(__i386__))
             _asm int 0x03
+#elif defined(_MSC_VER)
+            __debugbreak();
 #elif defined(__GNUC__)
             __builtin_trap();
 #else

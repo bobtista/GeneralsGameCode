@@ -110,7 +110,13 @@ void DebugExceptionhandler::LogExceptionLocation(Debug &dbg, struct _EXCEPTION_P
   struct _CONTEXT &ctx=*exptr->ContextRecord;
 
   char buf[512];
+  // TheSuperHackers @build bobtista 12/06/2026 x64 _CONTEXT uses Rip; GetSymbol takes a 32-bit
+  // address, so the high half is truncated (the real x64 walk uses StackWalk64 elsewhere).
+#if defined(_M_X64) || defined(__x86_64__)
+  DebugStackwalk::Signature::GetSymbol((unsigned)ctx.Rip,buf,sizeof(buf));
+#else
   DebugStackwalk::Signature::GetSymbol(ctx.Eip,buf,sizeof(buf));
+#endif
   dbg << "Exception occured at\n" << buf << ".";
 }
 
@@ -118,6 +124,36 @@ void DebugExceptionhandler::LogRegisters(Debug &dbg, struct _EXCEPTION_POINTERS 
 {
   struct _CONTEXT &ctx=*exptr->ContextRecord;
 
+  // TheSuperHackers @build bobtista 12/06/2026 x64 _CONTEXT exposes the 64-bit R* registers (the
+  // Debug stream has unsigned __int64 support); the x86 E* dump is preserved verbatim under its guard.
+#if defined(_M_X64) || defined(__x86_64__)
+  dbg << Debug::FillChar('0')
+      << Debug::Hex()
+      <<  "RAX:" << Debug::Width(16) << ctx.Rax
+      << " RBX:" << Debug::Width(16) << ctx.Rbx
+      << " RCX:" << Debug::Width(16) << ctx.Rcx << "\n"
+      <<  "RDX:" << Debug::Width(16) << ctx.Rdx
+      << " RSI:" << Debug::Width(16) << ctx.Rsi
+      << " RDI:" << Debug::Width(16) << ctx.Rdi << "\n"
+      <<  "RIP:" << Debug::Width(16) << ctx.Rip
+      << " RSP:" << Debug::Width(16) << ctx.Rsp
+      << " RBP:" << Debug::Width(16) << ctx.Rbp << "\n"
+      <<  "R8: " << Debug::Width(16) << ctx.R8
+      << " R9: " << Debug::Width(16) << ctx.R9
+      << " R10:" << Debug::Width(16) << ctx.R10 << "\n"
+      <<  "R11:" << Debug::Width(16) << ctx.R11
+      << " R12:" << Debug::Width(16) << ctx.R12
+      << " R13:" << Debug::Width(16) << ctx.R13 << "\n"
+      <<  "R14:" << Debug::Width(16) << ctx.R14
+      << " R15:" << Debug::Width(16) << ctx.R15 << "\n"
+      <<  "Flags:" << Debug::Bin() << Debug::Width(32) << ctx.EFlags << Debug::Hex() << "\n"
+      <<  "CS:" << Debug::Width(4) << ctx.SegCs
+      << " DS:" << Debug::Width(4) << ctx.SegDs
+      << " SS:" << Debug::Width(4) << ctx.SegSs
+      << "\nES:" << Debug::Width(4) << ctx.SegEs
+      << " FS:" << Debug::Width(4) << ctx.SegFs
+      << " GS:" << Debug::Width(4) << ctx.SegGs << "\n" << Debug::FillChar() << Debug::Dec();
+#else
   dbg << Debug::FillChar('0')
       << Debug::Hex()
       <<  "EAX:" << Debug::Width(8) << ctx.Eax
@@ -136,6 +172,7 @@ void DebugExceptionhandler::LogRegisters(Debug &dbg, struct _EXCEPTION_POINTERS 
       << "\nES:" << Debug::Width(4) << ctx.SegEs
       << " FS:" << Debug::Width(4) << ctx.SegFs
       << " GS:" << Debug::Width(4) << ctx.SegGs << "\n" << Debug::FillChar() << Debug::Dec();
+#endif
 }
 
 void DebugExceptionhandler::LogFPURegisters(Debug &dbg, struct _EXCEPTION_POINTERS *exptr)
@@ -148,6 +185,36 @@ void DebugExceptionhandler::LogFPURegisters(Debug &dbg, struct _EXCEPTION_POINTE
     return;
   }
 
+  // TheSuperHackers @build bobtista 12/06/2026 x64 stores the legacy x87 state in ctx.FltSave
+  // (XMM_SAVE_AREA32) rather than the x86 ctx.FloatSave (FLOATING_SAVE_AREA); long double is 8 bytes
+  // on MSVC x64 so the 80-bit->double conversion is x86-only. The x86 dump is preserved verbatim.
+#if defined(_M_X64) || defined(__x86_64__)
+  XMM_SAVE_AREA32 &flt=ctx.FltSave;
+  dbg << Debug::Bin() << Debug::FillChar('0')
+      << "CW:" << Debug::Width(16) << (flt.ControlWord&0xffff) << "\n"
+      << "SW:" << Debug::Width(16) << (flt.StatusWord&0xffff) << "\n"
+      << "TW:" << Debug::Width(16) << (flt.TagWord&0xff) << "\n"
+      << Debug::Hex()
+      << "ErrOfs:      " << Debug::Width(8) << flt.ErrorOffset
+      << " ErrSel:  "    << Debug::Width(8) << flt.ErrorSelector << "\n"
+      << "DataOfs:     " << Debug::Width(8) << flt.DataOffset
+      << " DataSel: "    << Debug::Width(8) << flt.DataSelector << "\n"
+      << "MxCsr:       " << Debug::Width(8) << flt.MxCsr << "\n"
+  ;
+
+  for (unsigned k=0;k<8;++k)
+  {
+    dbg << Debug::Dec() << "ST(" << k << ") ";
+    dbg.SetPrefixAndRadix("",16);
+
+    BYTE *value=(BYTE *)&flt.FloatRegisters[k];
+    for (unsigned i=0;i<10;i++)
+      dbg << Debug::Width(2) << value[i];
+
+    dbg << "\n";
+  }
+  dbg << Debug::FillChar() << Debug::Dec();
+#else
   FLOATING_SAVE_AREA &flt=ctx.FloatSave;
   dbg << Debug::Bin() << Debug::FillChar('0')
       << "CW:" << Debug::Width(16) << (flt.ControlWord&0xffff) << "\n"
@@ -181,6 +248,7 @@ void DebugExceptionhandler::LogFPURegisters(Debug &dbg, struct _EXCEPTION_POINTE
     dbg << "\n";
   }
   dbg << Debug::FillChar() << Debug::Dec();
+#endif
 }
 
 // include exception dialog box
@@ -195,7 +263,9 @@ static char regInfo[1024],verInfo[256];
 // and this saves us from doing a stack walk twice
 static DebugStackwalk::Signature sig;
 
-static BOOL CALLBACK ExceptionDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+// TheSuperHackers @build bobtista 12/06/2026 DLGPROC returns INT_PTR (64-bit on x64); BOOL no longer
+// matches the DialogBoxIndirect signature on x64. INT_PTR is identical to BOOL's int ABI on x86.
+static INT_PTR CALLBACK ExceptionDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch(uMsg)
   {
@@ -240,7 +310,11 @@ static BOOL CALLBACK ExceptionDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 
   // address
   struct _CONTEXT &ctx=*exPtrs->ContextRecord;
+#if defined(_M_X64) || defined(__x86_64__)
+  DebugStackwalk::Signature::GetSymbol((unsigned)ctx.Rip,regInfo,sizeof(regInfo));
+#else
   DebugStackwalk::Signature::GetSymbol(ctx.Eip,regInfo,sizeof(regInfo));
+#endif
   SendDlgItemMessage(hWnd,102,WM_SETTEXT,0,(LPARAM)regInfo);
 
   // stack
@@ -396,7 +470,11 @@ LONG __stdcall DebugExceptionhandler::ExceptionFilter(struct _EXCEPTION_POINTERS
   dbg.m_stackWalk.StackWalk(sig,pExPtrs->ContextRecord);
   dbg << sig << "\n";
 
+#if defined(_M_X64) || defined(__x86_64__)
+  dbg << "Bytes around RIP:" << Debug::MemDump::Char(((char *)(pExPtrs->ContextRecord->Rip))-32,80);
+#else
   dbg << "Bytes around EIP:" << Debug::MemDump::Char(((char *)(pExPtrs->ContextRecord->Eip))-32,80);
+#endif
 
   dbg.FlushOutput();
 
