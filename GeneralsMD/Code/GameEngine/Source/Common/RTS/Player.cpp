@@ -1652,6 +1652,27 @@ void Player::onStructureConstructionComplete( Object *builder, Object *structure
 	if( m_ai )
 		m_ai->onStructureProduced( builder, structure );
 
+#if !RETAIL_COMPATIBLE_CRC
+	// TheSuperHackers @bugfix bobtista 10/06/2026 Buildings constructed under OBJECT_STATUS_UNDER_CONSTRUCTION
+	// skip the SpecialPowerModule recharge and, without a SpecialPowerCreate module, never leave the
+	// uninitialized 0xFFFFFFFF ready frame (e.g. Strategy Center battle plans, Detention Camp CIA Intelligence).
+	// Make any such special power ready now on completion to match retail availability.
+	for( BehaviorModule** module = structure->getBehaviorModules(); *module; ++module )
+	{
+		SpecialPowerModuleInterface* specialPower = (*module)->getSpecialPower();
+		if( specialPower == nullptr )
+		{
+			continue;
+		}
+		if( specialPower->getReadyFrame() == 0xFFFFFFFF )
+		{
+			specialPower->setReadyFrame( TheGameLogic->getFrame() );
+			DEBUG_LOG(( "onStructureConstructionComplete: charged uninitialized special power '%s' on '%s' to ready.",
+				specialPower->getPowerName().str(), structure->getTemplate()->getName().str() ));
+		}
+	}
+#endif
+
 	// the GUI needs to re-evaluate the information being displayed to the user now
 	if( TheControlBar )
 		TheControlBar->markUIDirty();
