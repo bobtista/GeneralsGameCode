@@ -335,6 +335,11 @@ bool DebugStackwalk::IsOldDbghelp()
   return g_oldDbghelp;
 }
 
+// TheSuperHackers @build bobtista 12/06/2026 On x64 <imagehlp.h> does #define StackWalk StackWalk64,
+// which mangles this class method's name. The dbghelp API itself is called via the gDbg._StackWalk
+// function pointer, not the macro, so undefining it is safe (and a no-op on x86).
+#undef StackWalk
+
 int DebugStackwalk::StackWalk(Signature &sig, struct _CONTEXT *ctx)
 {
   InitDbghelp();
@@ -356,15 +361,32 @@ int DebugStackwalk::StackWalk(Signature &sig, struct _CONTEXT *ctx)
 	// Use the context struct if it was provided.
 	if (ctx)
   {
+		// TheSuperHackers @build bobtista 12/06/2026 x64 _CONTEXT uses R* registers. This legacy
+		// core_debug walker still uses the 32-bit STACKFRAME/StackWalk, so x64 offsets are truncated
+		// here (stub); the real x64 walk lives in StackDump.cpp (StackWalk64/RtlCaptureContext).
+#if defined(_M_X64) || defined(__x86_64__)
+		stackFrame.AddrPC.Offset = (DWORD)ctx->Rip;
+		stackFrame.AddrStack.Offset = (DWORD)ctx->Rsp;
+		stackFrame.AddrFrame.Offset = (DWORD)ctx->Rbp;
+#else
 		stackFrame.AddrPC.Offset = ctx->Eip;
 		stackFrame.AddrStack.Offset = ctx->Esp;
 		stackFrame.AddrFrame.Offset = ctx->Ebp;
+#endif
 	}
   else
   {
     // walk stack back using current call chain
 	  unsigned long reg_eip, reg_ebp, reg_esp;
-#if defined(_MSC_VER)
+#if defined(_M_X64) || defined(__x86_64__)
+	  // TheSuperHackers @build bobtista 12/06/2026 x64 has no inline asm; capture the live context.
+	  // Offsets are truncated into the 32-bit STACKFRAME (legacy walker stub - see note above).
+	  CONTEXT selfCtx;
+	  RtlCaptureContext(&selfCtx);
+	  reg_eip = (unsigned long)selfCtx.Rip;
+	  reg_ebp = (unsigned long)selfCtx.Rbp;
+	  reg_esp = (unsigned long)selfCtx.Rsp;
+#elif defined(_MSC_VER) && (defined(_M_IX86) || defined(__i386__))
 	  __asm
     {
     here:
@@ -391,6 +413,10 @@ int DebugStackwalk::StackWalk(Signature &sig, struct _CONTEXT *ctx)
 
 	// Walk the stack by the requested number of return address iterations.
   bool skipFirst=!ctx;
+  // TheSuperHackers @build bobtista 12/06/2026 The 32-bit StackWalk + STACKFRAME signature is x86-only
+  // (on x64 _StackWalk resolves to StackWalk64, which needs STACKFRAME64 and the ...64 callbacks). This
+  // legacy core_debug walker is a stub on x64; the real x64 stack walk lives in StackDump.cpp.
+#if !defined(_M_X64) && !defined(__x86_64__)
   while (sig.m_numAddr<Signature::MAX_ADDR&&
 		     gDbg._StackWalk(IMAGE_FILE_MACHINE_I386,GetCurrentProcess(),GetCurrentThread(),
                          &stackFrame,nullptr,nullptr,gDbg._SymFunctionTableAccess,gDbg._SymGetModuleBase,nullptr))
@@ -400,6 +426,10 @@ int DebugStackwalk::StackWalk(Signature &sig, struct _CONTEXT *ctx)
     else
       sig.m_addr[sig.m_numAddr++]=stackFrame.AddrPC.Offset;
   }
+#else
+  (void)skipFirst;
+  (void)stackFrame;
+#endif
 
 	return sig.m_numAddr;
 }
