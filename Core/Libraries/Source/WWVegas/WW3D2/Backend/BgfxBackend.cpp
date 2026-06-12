@@ -3111,31 +3111,18 @@ void BgfxBackend::Ensure_Render_Device_Desc()
     m_renderDeviceDesc.set_device_name("Generals bgfx standalone");
     m_renderDeviceDesc.set_driver_name("bgfx");
     m_renderDeviceDesc.set_driver_version("0.0.0.0");
+    // TheSuperHackers @refactor bobtista 12/06/2026 Only the device name/count are consumed on the
+    // bgfx path; the options-menu resolution list is built directly from SDL3 modes by
+    // W3DDisplay::Build_Options_Resolution_List. This small fixed list is only read by the non-SDL3
+    // bgfx fallback (W3DDisplay::getDisplayMode's else branch). Do NOT re-enumerate SDL3 modes here -
+    // that was dead on SDL3 builds and duplicated the W3DDisplay logic.
     m_renderDeviceDesc.reset_resolution_list();
-#if defined(SAGE_USE_SDL3)
-    int mode_count = 0;
-    SDL_DisplayMode ** modes = SDL_GetFullscreenDisplayModes(SDL_GetPrimaryDisplay(), &mode_count);
-    if (modes != nullptr)
-    {
-        for (int i = 0; i < mode_count; ++i)
-        {
-            if (modes[i]->w >= 640 && modes[i]->h >= 480)
-            {
-                m_renderDeviceDesc.add_resolution(modes[i]->w, modes[i]->h, 32);
-            }
-        }
-        SDL_free(modes);
-    }
-#endif
-    if (m_renderDeviceDesc.Enumerate_Resolutions().Count() == 0)
-    {
-        m_renderDeviceDesc.add_resolution(640, 480, 32);
-        m_renderDeviceDesc.add_resolution(800, 600, 32);
-        m_renderDeviceDesc.add_resolution(1024, 768, 32);
-        m_renderDeviceDesc.add_resolution(1280, 720, 32);
-        m_renderDeviceDesc.add_resolution(1280, 1024, 32);
-        m_renderDeviceDesc.add_resolution(1920, 1080, 32);
-    }
+    m_renderDeviceDesc.add_resolution(640, 480, 32);
+    m_renderDeviceDesc.add_resolution(800, 600, 32);
+    m_renderDeviceDesc.add_resolution(1024, 768, 32);
+    m_renderDeviceDesc.add_resolution(1280, 720, 32);
+    m_renderDeviceDesc.add_resolution(1280, 1024, 32);
+    m_renderDeviceDesc.add_resolution(1920, 1080, 32);
 }
 
 // Equivalent of DX8Wrapper::Reset_Device on the bgfx path: release the bound buffers and let the
@@ -3148,19 +3135,15 @@ bool BgfxBackend::Reset_Bgfx_Device(bool reload_assets)
         return false;
     }
     WW3D::_Invalidate_Textures();
+    // TheSuperHackers @refactor bobtista 12/06/2026 Clear the bound buffers through the existing
+    // FixedFunctionState setter (the idiom the original DX8Wrapper::Reset_Device used) instead of a
+    // hand-rolled release loop. The setter also resets the changed-mask / vba bookkeeping the raw
+    // loop dropped.
     for (unsigned i = 0; i < MAX_VERTEX_STREAMS; ++i)
     {
-        if (FixedFunctionState::Render_State().vertex_buffers[i])
-        {
-            FixedFunctionState::Render_State().vertex_buffers[i]->Release_Engine_Ref();
-        }
-        REF_PTR_RELEASE(FixedFunctionState::Render_State().vertex_buffers[i]);
+        FixedFunctionState::Set_Vertex_Buffer(nullptr, i);
     }
-    if (FixedFunctionState::Render_State().index_buffer)
-    {
-        FixedFunctionState::Render_State().index_buffer->Release_Engine_Ref();
-    }
-    REF_PTR_RELEASE(FixedFunctionState::Render_State().index_buffer);
+    FixedFunctionState::Set_Index_Buffer(nullptr, 0);
     DynamicVBAccessClass::_Deinit();
     DynamicIBAccessClass::_Deinit();
     TextureResourceManagerClass::Release_Textures();
