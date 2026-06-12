@@ -30,6 +30,7 @@
 #include "Common/GameState.h"
 #include "Common/Registry.h"
 #include "GameNetwork/LANAPI.h"
+#include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/networkutil.h"
 #include "Common/GlobalData.h"
 #include "Common/RandomValue.h"
@@ -1281,6 +1282,13 @@ Bool LANAPI::SetLocalIP( UnsignedInt localIP )
 	Bool retval = TRUE;
 	m_localIP = localIP;
 
+	// TheSuperHackers @bugfix bobtista 12/06/2026 Derive the broadcast target from the selected
+	// interface so announces egress the interface that owns m_localIP rather than the default route.
+	// On a multi-homed host (e.g. ZeroTier/VPN overlay alongside Wi-Fi) the limited broadcast
+	// 255.255.255.255 only leaves the default-route interface, so peers on the overlay subnet never
+	// see our lobby/join broadcasts. Falls back to INADDR_BROADCAST when the netmask can't be resolved.
+	m_broadcastAddr = IPEnumeration::getSubnetBroadcastAddress(m_localIP);
+
 	m_transport->reset();
 	// TheSuperHackers @bugfix bobtista 09/06/2026 Bind to INADDR_ANY on macOS/BSD so the
 	// LAN socket receives limited broadcasts; binding to the specific m_localIP silently
@@ -1292,8 +1300,8 @@ Bool LANAPI::SetLocalIP( UnsignedInt localIP )
 #endif
 	m_transport->allowBroadcasts(true);
 
-	DEBUG_LOG(("LANAPI::SetLocalIP - identity localIP=%d.%d.%d.%d (socket bound INADDR_ANY on non-Windows)",
-		PRINTF_IP_AS_4_INTS(m_localIP)));
+	DEBUG_LOG(("LANAPI::SetLocalIP - identity localIP=%d.%d.%d.%d broadcast=%d.%d.%d.%d (socket bound INADDR_ANY on non-Windows)",
+		PRINTF_IP_AS_4_INTS(m_localIP), PRINTF_IP_AS_4_INTS(m_broadcastAddr)));
 
 	return retval;
 }
