@@ -20,10 +20,6 @@
 #include "missingtexture.h"
 #include "texturecompat.h"
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-#include "BgfxMigrationToggles.h"
-#endif
-
 #include <cstring>
 #include <utility>
 
@@ -36,11 +32,8 @@ extern unsigned int missing_image_pixels[];
 
 void MissingTexture::_Init()
 {
-#if defined(GGC_RENDER_BACKEND_BGFX) && defined(GGC_RENDER_BACKEND_BGFX)
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
-	{
-		return;
-	}
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	return;
 #endif
 	Init_Legacy_Missing_Texture(
 		missing_image_width,

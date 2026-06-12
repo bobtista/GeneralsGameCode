@@ -48,7 +48,6 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "surfaceclass.h"
-#include "BgfxMigrationToggles.h"
 #include "texture.h"
 #include "textureloader.h"
 #include "dx8formatconv.h"
@@ -97,7 +96,7 @@ namespace
 #if defined(GGC_RENDER_BACKEND_BGFX)
 		return true;
 #else
-		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+		return false;
 #endif
 	}
 
@@ -105,8 +104,6 @@ namespace
 	{
 #if defined(GGC_RENDER_BACKEND_BGFX)
 		return true;
-#elif defined(GGC_RENDER_BACKEND_BGFX)
-		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
 #else
 		return false;
 #endif

@@ -25,9 +25,6 @@
 #include <d3dx8tex.h>
 #endif
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-#include "BgfxMigrationToggles.h"
-#endif
 #if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "dx8formatconv.h"
 #include "dx8wrapper.h"
@@ -157,16 +154,8 @@ void TextureCompatibilityInterop::Set_Legacy_Base_Texture(TextureBaseClass &text
 	bool preserve_cpu_snapshot = false;
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	preserve_cpu_snapshot =
-		(
-#if defined(GGC_RENDER_BACKEND_BGFX)
-			true
-#else
-			native_texture != nullptr
-#endif
-		)
-		&& texture.Has_CPU_Texture_Mips()
-		&& texture.PreserveCPUTextureSnapshotOnNextLegacySet
-		&& Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+		texture.Has_CPU_Texture_Mips()
+		&& texture.PreserveCPUTextureSnapshotOnNextLegacySet;
 #endif
 	if (!preserve_cpu_snapshot) {
 		texture.Capture_CPU_Texture_Snapshot(texture.Get_Native_Compatibility_Texture());
@@ -199,8 +188,7 @@ void TextureCompatibilityInterop::Share_Legacy_Texture_With(TextureBaseClass &te
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	if (source != nullptr
 		&& shared_legacy != nullptr
-		&& source->Has_CPU_Texture_Mips()
-		&& Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership)) {
+		&& source->Has_CPU_Texture_Mips()) {
 		texture.CPUTextureMips = source->CPUTextureMips;
 		texture.PreserveCPUTextureSnapshotOnNextLegacySet = true;
 		++texture.CPUTextureRevision;

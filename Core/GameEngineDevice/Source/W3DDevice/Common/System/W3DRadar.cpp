@@ -52,7 +52,6 @@
 #include "W3DDevice/Common/W3DRadar.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/BgfxMigrationToggles.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/surfaceclass.h"
 #include "WW3D2/RenderBackend.h"
@@ -138,16 +137,10 @@ static WW3DFormat findFormat(const WW3DFormat formats[])
 
 static TextureClass *createWritableRadarTexture(unsigned width, unsigned height, WW3DFormat format)
 {
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
-		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership))
-	{
-		SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
-		TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
-		REF_PTR_RELEASE(surface);
-		return texture;
-	}
-
-	return MSGNEW("TextureClass") TextureClass(width, height, format, MIP_LEVELS_1);
+	SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
+	TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
+	REF_PTR_RELEASE(surface);
+	return texture;
 }
 
 //-------------------------------------------------------------------------------------------------

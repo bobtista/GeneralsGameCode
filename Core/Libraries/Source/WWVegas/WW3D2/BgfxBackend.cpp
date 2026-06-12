@@ -24,7 +24,6 @@
 #include "BgfxBackend.h"
 
 #include "BgfxRenderProfile.h"
-#include "BgfxMigrationToggles.h"
 #include "DrawCallLog.h"
 #include "RenderDocTrigger.h"
 #include "RenderStateDefs.h"
@@ -10582,7 +10581,7 @@ bgfx::IndexBufferHandle CreateStaticIndexBufferFromInitialData(const BufferDesc 
 
 bool BgfxBackend::Requires_Legacy_Buffer_Resources() const
 {
-    return !Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::BufferOwnership);
+    return false;
 }
 
 RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
@@ -10772,8 +10771,7 @@ RenderResource BgfxBackend::Register_Texture_Resource(TextureBaseClass * tex)
     // this phase5 entry — Release_Cached_Texture in the dtor queues it
     // for deferred destroy. We leave entry.texture invalid so
     // Destroy_Resource doesn't try to destroy the same handle twice.
-    if (tex->Is_Render_Target() &&
-        Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::RenderTargets))
+    if (tex->Is_Render_Target())
     {
         Ensure_Render_Target_Framebuffer(tex->As_TextureClass());
     }

@@ -38,7 +38,6 @@
 #include "wwdebug.h"
 
 #include "BgfxBackend.h"
-#include "BgfxMigrationToggles.h"
 #include "BgfxBackendState.h"
 #include "DXTUtils.h"
 
@@ -1439,23 +1438,14 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
     }
 
     TextureClass * tex2d = tex->As_TextureClass();
-    const bool textureOwnershipEnabled =
-        Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
     if (tex2d != nullptr &&
         tex->Get_Pool() != TextureBaseClass::POOL_DEFAULT &&
         tex->Get_CPU_Texture_Mips().empty() &&
         tex->Has_Compatibility_Texture())
     {
-        if (textureOwnershipEnabled)
-        {
-            WWASSERT_PRINT(
-                false,
-                "EnsureBgfxTexture: BGFX texture ownership missing CPU mips; no compatibility texture recapture is allowed");
-        }
-        else
-        {
-            tex->Refresh_CPU_Texture_Snapshot();
-        }
+        WWASSERT_PRINT(
+            false,
+            "EnsureBgfxTexture: BGFX texture ownership missing CPU mips; no compatibility texture recapture is allowed");
     }
 
     const unsigned textureRevision = tex->Get_CPU_Texture_Revision();
@@ -1619,16 +1609,9 @@ void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
     }
     if (!texture->Has_CPU_Texture_Mips())
     {
-        if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
-        {
-            WWASSERT_PRINT(
-                false,
-                "Invalidate_Cached_Texture: BGFX texture ownership missing CPU mips; no compatibility texture recapture is allowed");
-        }
-        else
-        {
-            texture->Refresh_CPU_Texture_Snapshot();
-        }
+        WWASSERT_PRINT(
+            false,
+            "Invalidate_Cached_Texture: BGFX texture ownership missing CPU mips; no compatibility texture recapture is allowed");
     }
     // Set the cached revision to 0 (sentinel) so the next EnsureBgfxTexture
     // detects a change and re-uploads pixel data. Keep dimensions so the

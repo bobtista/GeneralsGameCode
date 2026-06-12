@@ -39,7 +39,6 @@
 #include "texture.h"
 #include "wwprofile.h"
 #include "wwmemlog.h"
-#include "BgfxMigrationToggles.h"
 #include "IRenderBackend.h"
 #include "RenderBackend.h"
 
@@ -68,16 +67,10 @@
 
 static TextureClass *Create_Writable_Sentence_Texture(unsigned width, unsigned height, WW3DFormat format)
 {
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
-		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership))
-	{
-		SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
-		TextureClass *texture = W3DNEW TextureClass(surface, MIP_LEVELS_1);
-		REF_PTR_RELEASE(surface);
-		return texture;
-	}
-
-	return W3DNEW TextureClass(width, height, format, MIP_LEVELS_1);
+	SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
+	TextureClass *texture = W3DNEW TextureClass(surface, MIP_LEVELS_1);
+	REF_PTR_RELEASE(surface);
+	return texture;
 }
 
 #if defined(__APPLE__)

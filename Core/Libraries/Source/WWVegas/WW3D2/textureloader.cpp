@@ -39,9 +39,6 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "textureloader.h"
-#if defined(GGC_RENDER_BACKEND_BGFX)
-#include "BgfxMigrationToggles.h"
-#endif
 #include "mutex.h"
 #include "thread.h"
 #include "wwdebug.h"
@@ -907,11 +904,7 @@ static bool Should_Use_CPU_Texture_Thumbnail(TextureBaseClass *texture)
 	{
 		return false;
 	}
-#if defined(GGC_RENDER_BACKEND_BGFX)
 	return true;
-#else
-	return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
-#endif
 }
 
 static bool Build_CPU_Texture_Thumbnail(
@@ -1857,8 +1850,7 @@ bool TextureLoadTaskClass::Begin_Load()
 	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
-		Texture != nullptr &&
+	if (Texture != nullptr &&
 		Texture->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR)
 	{
 		WWASSERT_PRINT(
@@ -1929,8 +1921,7 @@ void TextureLoadTaskClass::End_Load()
 	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
-		!UseCPUTextureSnapshotStaging) {
+	if (!UseCPUTextureSnapshotStaging) {
 		Capture_CPU_Texture_Snapshot_From_Locked_Surfaces();
 	}
 #endif
@@ -1979,14 +1970,7 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 
 	Log_Texture_Load_Failure("task", Texture ? Texture->Get_Full_Path().str() : nullptr);
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	const bool use_cpu_missing_texture =
-#if defined(GGC_RENDER_BACKEND_BGFX)
-		true;
-#else
-		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
-#endif
-	if (use_cpu_missing_texture &&
-		Texture != nullptr &&
+	if (Texture != nullptr &&
 		Texture->As_TextureClass() != nullptr)
 	{
 		TextureClass *texture = Texture->As_TextureClass();
@@ -2684,12 +2668,6 @@ bool TextureLoadTaskClass::Should_Use_CPU_Texture_Snapshot_Staging() const
 	{
 		return false;
 	}
-
-#if !defined(GGC_RENDER_BACKEND_BGFX)
-	if (!Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership)) {
-		return false;
-	}
-#endif
 
 	return Is_CPU_Texture_Snapshot_Staging_Format(Format);
 #else

@@ -41,7 +41,6 @@
 
 #include "texture.h"
 
-#include "BgfxMigrationToggles.h"
 #if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "dx8wrapper.h"
 #endif
@@ -93,7 +92,7 @@ namespace
 	bool Should_Use_CPU_Only_Texture_Level_Surfaces()
 	{
 #if defined(GGC_RENDER_BACKEND_BGFX)
-		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+		return true;
 #else
 		return false;
 #endif
@@ -102,7 +101,7 @@ namespace
 	bool Should_Use_CPU_Only_Surface_Textures()
 	{
 #if defined(GGC_RENDER_BACKEND_BGFX)
-		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+		return true;
 #else
 		return false;
 #endif
@@ -1030,7 +1029,6 @@ TextureClass::TextureClass
 	}
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
 	{
 		if (rendertarget)
 		{
@@ -1345,7 +1343,6 @@ void TextureClass::Init()
 	bool has_bgfx_cpu_thumbnail = false;
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	has_bgfx_cpu_thumbnail =
-		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
 		Has_CPU_Texture_Mips();
 #endif
 	if (!Peek_Legacy_Base_Texture(*this) && !has_bgfx_cpu_thumbnail)
@@ -2056,7 +2053,6 @@ ZTextureClass::ZTextureClass
 	DepthStencilTextureFormat(zformat)
 {
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
 	{
 		Poke_Legacy_Texture(*this, nullptr);
 		Initialized=true;

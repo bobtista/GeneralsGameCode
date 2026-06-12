@@ -31,7 +31,6 @@
 #include "camera.h"
 #include "simplevec.h"
 #include "WW3D2/RenderBackend.h"
-#include "WW3D2/BgfxMigrationToggles.h"
 #include "WW3D2/surfaceclass.h"
 #include "Common/MapObject.h"
 #include "Common/PerfTimer.h"
@@ -77,16 +76,10 @@
 
 static TextureClass *Create_Writable_Shroud_Texture(unsigned width, unsigned height, WW3DFormat format)
 {
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
-		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership))
-	{
-		SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
-		TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
-		REF_PTR_RELEASE(surface);
-		return texture;
-	}
-
-	return MSGNEW("TextureClass") TextureClass(width, height, format, MIP_LEVELS_1, TextureClass::POOL_DEFAULT);
+	SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
+	TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
+	REF_PTR_RELEASE(surface);
+	return texture;
 }
 
 //-----------------------------------------------------------------------------

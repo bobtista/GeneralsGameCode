@@ -271,16 +271,6 @@ if(GGC_RENDER_BACKEND STREQUAL "dx8")
     )
 endif()
 
-# TheSuperHackers @build bobtista 01/06/2026 BgfxMigrationToggles must be
-# compiled for every backend. Shared code (notably SurfaceClass and texture
-# ownership decisions) calls Is_Bgfx_Migration_Toggle_Enabled regardless of
-# the active backend; the implementation already gates its bgfx-only
-# short-circuits on GGC_BGFX_STANDALONE so compiling under dx8 is safe.
-target_sources(corei_ww3d2 INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.h
-)
-
 # TheSuperHackers @feature bobtista 01/06/2026 Backend-agnostic RenderDoc
 # capture trigger, compiled for every backend so the env var works in both
 # dx8 and bgfx builds.
@@ -304,8 +294,6 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendState.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendTextures.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.h
     )
 
     # TheSuperHackers @refactor bobtista 11/04/2026 Compile bgfx shaders.
