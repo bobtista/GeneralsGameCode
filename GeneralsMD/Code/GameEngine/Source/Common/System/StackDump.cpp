@@ -542,11 +542,34 @@ void DumpExceptionInfo( unsigned int u, EXCEPTION_POINTERS* e_info )
 	}
 
 	DOUBLE_DEBUG (("\nStack Dump:"));
-	StackDumpFromContext(context->Eip, context->Esp, context->Ebp, nullptr);
-
 	DOUBLE_DEBUG (("\nDetails:"));
-
 	DOUBLE_DEBUG (("Register dump..."));
+
+	char scrap[512];
+	unsigned char *eip_ptr;
+	// TheSuperHackers @build bobtista 12/06/2026 x64 _CONTEXT uses R* registers; the legacy x86
+	// register dump truncates the 64-bit IP only for the legacy StackDumpFromContext call (the real
+	// x64 walk uses RtlCaptureContext/StackWalk64 above), the dump itself prints the full registers.
+#if defined(_M_X64) || defined(__x86_64__)
+	StackDumpFromContext((DWORD)context->Rip, (DWORD)context->Rsp, (DWORD)context->Rbp, nullptr);
+
+	/*
+	** Dump the registers.
+	*/
+	DOUBLE_DEBUG ( ( "Rip:%016llX\tRsp:%016llX\tRbp:%016llX", context->Rip, context->Rsp, context->Rbp));
+	DOUBLE_DEBUG ( ( "Rax:%016llX\tRbx:%016llX\tRcx:%016llX", context->Rax, context->Rbx, context->Rcx));
+	DOUBLE_DEBUG ( ( "Rdx:%016llX\tRsi:%016llX\tRdi:%016llX", context->Rdx, context->Rsi, context->Rdi));
+	DOUBLE_DEBUG ( ( "EFlags:%08X ", context->EFlags));
+	DOUBLE_DEBUG ( ( "CS:%04x  SS:%04x  DS:%04x  ES:%04x  FS:%04x  GS:%04x", context->SegCs, context->SegSs, context->SegDs, context->SegEs, context->SegFs, context->SegGs));
+
+	/*
+	** Dump the bytes at RIP. This will make it easier to match the crash address with later versions of the game.
+	*/
+	DOUBLE_DEBUG ( ("RIP bytes dump..."));
+	wsprintf (scrap, "\nBytes at CS:RIP (%016llX)  : ", context->Rip);
+	eip_ptr = (unsigned char *) (context->Rip);
+#else
+	StackDumpFromContext(context->Eip, context->Esp, context->Ebp, nullptr);
 
 	/*
 	** Dump the registers.
@@ -560,11 +583,10 @@ void DumpExceptionInfo( unsigned int u, EXCEPTION_POINTERS* e_info )
 	/*
 	** Dump the bytes at EIP. This will make it easier to match the crash address with later versions of the game.
 	*/
-	char scrap[512];
 	DOUBLE_DEBUG ( ("EIP bytes dump..."));
 	wsprintf (scrap, "\nBytes at CS:EIP (%08X)  : ", context->Eip);
-
-	unsigned char *eip_ptr = (unsigned char *) (context->Eip);
+	eip_ptr = (unsigned char *) (context->Eip);
+#endif
 	char bytestr[32];
 
 	for (int c = 0 ; c < 32 ; c++)
