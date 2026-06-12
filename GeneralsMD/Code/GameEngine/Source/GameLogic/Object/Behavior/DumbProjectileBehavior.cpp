@@ -444,7 +444,10 @@ Bool DumbProjectileBehavior::calcFlightPath(Bool recalcNumSegments)
 	if (recalcNumSegments)
 	{
 		Real flightDistance = flightCurve.getApproximateLength();
-		m_flightPathSegments = WWMath::Ceil( flightDistance / m_flightPathSpeed );
+		// TheSuperHackers @bugfix bobtista 12/06/2026 Guard the division so a zero flight-path speed
+		// can't yield Inf and a platform-divergent int cast (lockstep desync). Matches the Inf/NaN
+		// int-cast guards on the other simulation sites; only affects the degenerate speed==0 case.
+		m_flightPathSegments = (m_flightPathSpeed > 0.0f) ? (Int)WWMath::Ceil( flightDistance / m_flightPathSpeed ) : 1;
 	}
 
 	// TheSuperHackers @info The way flight paths are used requires at least two curve points.
