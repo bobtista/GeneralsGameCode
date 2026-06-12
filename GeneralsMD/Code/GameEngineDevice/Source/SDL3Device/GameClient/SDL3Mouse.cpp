@@ -154,7 +154,12 @@ void SDL3Mouse::draw()
 			texture = getCursorTexture(m_currentCursor, frame);
 		}
 		logCursorLookup(m_currentCursor, image, texture);
-		if (sdlCursor == nullptr && image != nullptr && TheDisplay != nullptr && texture == nullptr)
+		// TheSuperHackers @bugfix bobtista 12/06/2026 Draw the image cursor whenever there is no SDL
+		// hardware cursor. The previous "&& texture == nullptr" made a successfully-loaded texture
+		// suppress the image draw and fall through to the (no-op) software-cursor path, leaving no
+		// cursor drawn. The texture is otherwise unused on this path.
+		(void)texture;
+		if (sdlCursor == nullptr && image != nullptr && TheDisplay != nullptr)
 		{
 			const ICoord2D &hotSpot = m_cursorInfo[m_currentCursor].hotSpotPosition;
 			TheDisplay->drawImage(
