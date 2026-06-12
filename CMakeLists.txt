@@ -49,7 +49,10 @@ if(MINGW)
 endif()
 
 # Find/Add build dependencies and stubs shared by all projects
-if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
+# TheSuperHackers @build bobtista 12/06/2026 miles-sdk-stub and bink-sdk-stub are arch-independent
+# source stubs (they provide mss.h / bink.h, which WWAudio/AudibleSound.h and W3DDisplay.cpp include
+# unconditionally), so they must be available on x64 too. Only dx8 is a real x86-only binary.
+if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
     include(cmake/miles.cmake)
     include(cmake/bink.cmake)
 endif()
