@@ -31,6 +31,10 @@
 #ifndef _WIN32
 #include <ifaddrs.h>
 #include <net/if.h>
+#else
+// TheSuperHackers @build bobtista 12/06/2026 INTERFACE_INFO / SIO_GET_INTERFACE_LIST (used by
+// getSubnetBroadcastAddress) are declared in ws2ipdef.h, which winsock2.h does not include by default.
+#include <ws2ipdef.h>
 #endif
 
 IPEnumeration::IPEnumeration()
