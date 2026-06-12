@@ -517,4 +517,3 @@ Real Transport::getUnknownPacketsPerSecond()
 	return val / (MAX_TRANSPORT_STATISTICS_SECONDS-1);
 }
 
-
