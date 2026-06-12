@@ -221,6 +221,9 @@
             "architecture": {
                 "value": "x64",
                 "strategy": "external"
+            },
+            "environment": {
+                "FFMPEG_ROOT": "${sourceDir}/.deps-cache/ffmpeg-x64"
             }
         },
         {
