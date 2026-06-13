@@ -149,12 +149,13 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
         buffer[sizeof(buffer) - 1] = '\0';
 	}
 
-	Coord3D lookPos;
-	TheTacticalView->getPosition(&lookPos);
+	// TheSuperHackers @build bobtista 13/06/2026 getPosition() now returns Coord3D by value
+	Coord3D lookPos = TheTacticalView->getPosition();
 	lookPos.z = TheTerrainLogic->getGroundHeight(lookPos.x, lookPos.y);
 	const Coord3D* mikePos = TheAudio->getListenerPosition();
 	Coord3D distanceVector = TheTacticalView->get3DCameraPosition();
-	distanceVector.sub(mikePos);
+	// TheSuperHackers @build bobtista 13/07/2026 Coord3D::sub now takes a reference
+	distanceVector.sub(*mikePos);
 
 	Int now = TheGameLogic->getFrame();
 	static Int lastCheck = now;
@@ -340,7 +341,7 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 			if (pos)
 			{
 				Coord3D vector = *microphonePos;
-				vector.sub(pos);
+				vector.sub(*pos);
 				dist = vector.length();
 				sprintf(distStr, "%d", REAL_TO_INT(dist));
 			}
