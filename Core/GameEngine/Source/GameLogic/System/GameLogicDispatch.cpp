@@ -870,6 +870,21 @@ bool GameLogic::onNewGame(MAYBE_UNUSED GameMessage *msg)
 
 	//DEBUG_ASSERTCRASH(msg->getArgumentCount() == 1 || msg->getArgumentCount() == 2, ("%d arguments to MSG_NEW_GAME", msg->getArgumentCount()));
 	GameMode gameMode = (GameMode)msg->getArgument( 0 )->integer;
+
+	// TheSuperHackers @bugfix bobtista 13/06/2026 A GAME_SHELL new-game exists only to show the menu-background
+	// shell map. Shell::showShellMap queues it with m_pendingFile = m_shellMapName, but a real game request
+	// (e.g. Generals Challenge "Continue" -> startNextCampaignGame) can overwrite m_pendingFile and queue its
+	// own MSG_NEW_GAME right after. If this now-stale shell message still runs first it would load the real map
+	// in GAME_SHELL mode (no human player created -> instant defeat) and then block the real request via the
+	// isInGame()/isLoadingMap() guard above. Skip the stale shell start so the real new-game wins.
+	if ( gameMode == GAME_SHELL
+		&& !TheGlobalData->m_shellMapName.isEmpty()
+		&& TheGlobalData->m_pendingFile != TheGlobalData->m_shellMapName )
+	{
+		DEBUG_LOG(("onNewGame: skipping stale GAME_SHELL new-game (pendingFile=%s != shellMap=%s) superseded by a real game start",
+			TheGlobalData->m_pendingFile.str(), TheGlobalData->m_shellMapName.str()));
+		return false;
+	}
 	Int rankPoints = 0;
 	GameDifficulty diff = DIFFICULTY_NORMAL;
 	if ( msg->getArgumentCount() >= 2 )
