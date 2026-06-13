@@ -213,19 +213,13 @@ void startNextCampaignGame()
 		slot.setPlayerTemplate(templateNum);
 		TheChallengeGameInfo->setSlot(0, slot);
 
-		// TheSuperHackers @bugfix bobtista 12/06/2026 Continuing a Generals Challenge after a victory
-		// must set up the next battle exactly like ChallengeMenu's launch does, otherwise the new
-		// (skirmish-style) game starts misconfigured and the player is instantly defeated ("YOU ARE
-		// DEFEATED" on the Choose-Your-General screen). The script global difficulty in particular
-		// gates the challenge map scripts that build the player's starting base; without it the player
-		// begins with nothing and loses immediately.
+		// TheSuperHackers @tweak bobtista 12/06/2026 Set up the next challenge battle like ChallengeMenu's
+		// launch: restore the challenge difficulty onto both the campaign and the script engine.
 		if (TheChallengeGenerals)
 		{
 			TheCampaignManager->setGameDifficulty(TheChallengeGenerals->getCurrentDifficulty());
 			TheScriptEngine->setGlobalDifficulty(TheChallengeGenerals->getCurrentDifficulty());
 		}
-		DEBUG_LOG(("startNextCampaignGame challenge continue: map=%s templateNum=%d difficulty=%d",
-			TheCampaignManager->getCurrentMap().str(), templateNum, (Int)TheCampaignManager->getGameDifficulty()));
 
 		if (TheGameLogic->isInGame())
 			TheGameLogic->clearGameData();
