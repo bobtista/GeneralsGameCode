@@ -7361,6 +7361,9 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     state = ApplyProjectedAdditiveDecalDrawState(state);
     state = ApplyColorWriteOverride(state);
     state = ApplySortedMaterialDecalDepthState(state);
+    // TheSuperHackers @bugfix bobtista 12/06/2026 Match SubmitEngineDraw: enable MSAA so sorted
+    // translucent effects get the same edge antialiasing as opaque geometry on a multisampled target.
+    state |= BGFX_STATE_MSAA;
     LogBgfxSortedMaterialDecal("submit-sorted", submitView,
                                polygon_count, vertex_count, state);
     LogBgfxEffectSubmit("submit-sorted", submitView,
@@ -7392,6 +7395,10 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     }
 
     bgfx::setState(state);
+    // TheSuperHackers @bugfix bobtista 12/06/2026 Sorted translucent effects never use the stencil;
+    // clear it explicitly so a preceding stencil pass (shadow volumes / shroud) can't leak its
+    // stencil test into this submit. SubmitEngineDraw achieves the same via its applyStencil gate.
+    bgfx::setStencil(BGFX_STENCIL_NONE);
     BindSoftParticleDepth(submitView == kBgfxEngineSortView
                           && IsSoftParticleCandidate(state));
     bgfx::submit(submitView, g_draw.program);
@@ -7646,6 +7653,18 @@ bool BgfxBackend::Begin_Instanced_Batch(unsigned max_instances)
 {
     if (!Supports_Instancing() || max_instances == 0) {
         return false;
+    }
+
+    // TheSuperHackers @bugfix bobtista 12/06/2026 Clamp to what the per-frame transient instance pool
+    // can actually provide. bgfx::allocInstanceDataBuffer may hand back fewer instances than requested
+    // when the pool is low; without this, instanceMax stayed at the (larger) request and Add_Instance
+    // would memcpy past the end of the allocated buffer.
+    const unsigned avail = bgfx::getAvailInstanceDataBuffer(max_instances, 64);
+    if (avail == 0) {
+        return false;
+    }
+    if (avail < max_instances) {
+        max_instances = avail;
     }
 
     bgfx::allocInstanceDataBuffer(&g_draw.instanceBatch, max_instances, 64);
@@ -9265,6 +9284,25 @@ static const BgfxFramebufferEntry *Ensure_Render_Target_Framebuffer(TextureClass
     }
 
     auto it = g_caches.framebuffer.find(texture);
+    if (it != g_caches.framebuffer.end())
+    {
+        // TheSuperHackers @bugfix bobtista 12/06/2026 Revalidate the cached framebuffer against the
+        // texture's current size. A render-target texture can be resized (e.g. on a resolution
+        // change), which would otherwise return a stale framebuffer at the old dimensions and a
+        // mismatched setViewRect. Defer-destroy the stale FB so the in-flight frame retires cleanly,
+        // then fall through to rebuild it at the new size.
+        const uint16_t curW = static_cast<uint16_t>(texture->Get_Width());
+        const uint16_t curH = static_cast<uint16_t>(texture->Get_Height());
+        if (it->second.width != curW || it->second.height != curH)
+        {
+            if (bgfx::isValid(it->second.fb))
+            {
+                g_caches.deferredDestroyFB.push_back(it->second.fb);
+            }
+            g_caches.framebuffer.erase(it);
+            it = g_caches.framebuffer.end();
+        }
+    }
     if (it == g_caches.framebuffer.end())
     {
         const uint16_t w = static_cast<uint16_t>(texture->Get_Width());
@@ -9864,8 +9902,54 @@ void SubmitEngineDraw(unsigned short start_index,
     BindTextureStages();
     UpdateTextureTransforms();
 
+    // TheSuperHackers @bugfix bobtista 12/06/2026 The 2D override below overwrites persistent g_draw
+    // texcoord-routing fields. Those are only rewritten when texcoord generation is reconfigured, so a
+    // later 3D draw that reuses the prior routing would inherit the 2D values and sample black atlas
+    // padding. Restore them on every exit path of this function (texTransform* are rebuilt by
+    // UpdateTextureTransforms each draw and so do not leak).
+    struct TexcoordRoutingGuard
+    {
+        bool active = false;
+        float select0 = 0.0f;
+        float select3 = 0.0f;
+        float select2_0 = 0.0f;
+        float select2_1 = 0.0f;
+        float source[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        float projected0 = 0.0f;
+        float projected1 = 0.0f;
+        ~TexcoordRoutingGuard()
+        {
+            if (!active)
+            {
+                return;
+            }
+            g_draw.texcoordSelect[0] = select0;
+            g_draw.texcoordSelect[3] = select3;
+            g_draw.texcoordSelect2[0] = select2_0;
+            g_draw.texcoordSelect2[1] = select2_1;
+            for (unsigned s = 0; s < 4; ++s)
+            {
+                g_draw.texcoordSource[s] = source[s];
+            }
+            g_draw.texProjected[0] = projected0;
+            g_draw.texProjected[1] = projected1;
+        }
+    } texcoordRoutingGuard;
+
     if (is2D)
     {
+        texcoordRoutingGuard.active = true;
+        texcoordRoutingGuard.select0 = g_draw.texcoordSelect[0];
+        texcoordRoutingGuard.select3 = g_draw.texcoordSelect[3];
+        texcoordRoutingGuard.select2_0 = g_draw.texcoordSelect2[0];
+        texcoordRoutingGuard.select2_1 = g_draw.texcoordSelect2[1];
+        for (unsigned s = 0; s < 4; ++s)
+        {
+            texcoordRoutingGuard.source[s] = g_draw.texcoordSource[s];
+        }
+        texcoordRoutingGuard.projected0 = g_draw.texProjected[0];
+        texcoordRoutingGuard.projected1 = g_draw.texProjected[1];
+
         // Render2DClass-authored quads only carry UV0 in screen space.
         // Stale world texture coordinate routing/transform state can
         // otherwise redirect video/UI samples into black atlas padding.
