@@ -195,7 +195,9 @@ void startNextCampaignGame()
 	TheShell->popImmediate();
 	TheShell->hideShell();
 	TheWritableGlobalData->m_pendingFile = TheCampaignManager->getCurrentMap();
-	if (TheCampaignManager->getCurrentCampaign() && TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
+	const Bool isChallenge = (TheCampaignManager->getCurrentCampaign()
+		&& TheCampaignManager->getCurrentCampaign()->isChallengeCampaign());
+	if (isChallenge)
 	{
 		DEBUG_ASSERTCRASH( TheChallengeGameInfo, ("TheChallengeGameInfo doesn't exist.") );
 		TheChallengeGameInfo->init();
@@ -211,6 +213,20 @@ void startNextCampaignGame()
 		slot.setPlayerTemplate(templateNum);
 		TheChallengeGameInfo->setSlot(0, slot);
 
+		// TheSuperHackers @bugfix bobtista 12/06/2026 Continuing a Generals Challenge after a victory
+		// must set up the next battle exactly like ChallengeMenu's launch does, otherwise the new
+		// (skirmish-style) game starts misconfigured and the player is instantly defeated ("YOU ARE
+		// DEFEATED" on the Choose-Your-General screen). The script global difficulty in particular
+		// gates the challenge map scripts that build the player's starting base; without it the player
+		// begins with nothing and loses immediately.
+		if (TheChallengeGenerals)
+		{
+			TheCampaignManager->setGameDifficulty(TheChallengeGenerals->getCurrentDifficulty());
+			TheScriptEngine->setGlobalDifficulty(TheChallengeGenerals->getCurrentDifficulty());
+		}
+		DEBUG_LOG(("startNextCampaignGame challenge continue: map=%s templateNum=%d difficulty=%d",
+			TheCampaignManager->getCurrentMap().str(), templateNum, (Int)TheCampaignManager->getGameDifficulty()));
+
 		if (TheGameLogic->isInGame())
 			TheGameLogic->clearGameData();
 	}
@@ -220,6 +236,14 @@ void startNextCampaignGame()
 	msg->appendIntegerArgument(GAME_SINGLE_PLAYER);
 	msg->appendIntegerArgument(TheCampaignManager->getGameDifficulty());
 	msg->appendIntegerArgument(TheCampaignManager->getRankPoints());
+
+	// TheSuperHackers @bugfix bobtista 12/06/2026 A challenge game is a SkirmishGame in single-player
+	// clothing; match ChallengeMenu's launch and pass the frame cap so GameEngine applies it as it
+	// does for solo missions.
+	if (isChallenge)
+	{
+		msg->appendIntegerArgument(LOGICFRAMES_PER_SECOND);
+	}
 
 	InitRandom(0);
 }
