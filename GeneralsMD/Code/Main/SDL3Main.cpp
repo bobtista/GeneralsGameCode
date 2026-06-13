@@ -98,6 +98,12 @@ SDL_Window *TheSDL3Window = NULL;
 // extern-declares it as. On macOS HWND is a void* shim so this is unchanged; on Windows HWND is
 // the real type, and defining it as void* here left the symbol unresolved at link.
 HWND ApplicationHWnd = NULL;
+#if defined(_WIN32)
+// TheSuperHackers @build bobtista 13/06/2026 ATL's _Module.Init (GameEngine ctor, Win-only) needs
+// the real module handle. WinMain.cpp supplies this on the non-SDL3 Win build; the SDL3 entry point
+// must define and populate it too (set in main() via GetModuleHandle), else the Win SDL3 link fails.
+HINSTANCE ApplicationHInstance = NULL;
+#endif
 // TheSuperHackers @bugfix bobtista 30/04/2026 macOS-only: keep the
 // SDL_Metal view alive for the lifetime of the bgfx renderer, and
 // publish its CAMetalLayer pointer here so BgfxBackend's
@@ -121,6 +127,10 @@ int main(int argc, char **argv)
 #endif
 
 	GGC_TRACE("main entered argc=%d", argc);
+
+#if defined(_WIN32)
+	ApplicationHInstance = GetModuleHandle(NULL);
+#endif
 
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Build a Win32-style
 	// command-line string from argv so GetCommandLineA() in the compat
