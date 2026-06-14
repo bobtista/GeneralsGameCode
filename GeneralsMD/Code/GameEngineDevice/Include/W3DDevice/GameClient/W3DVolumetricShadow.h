@@ -117,6 +117,7 @@ class W3DVolumetricShadow	: public Shadow
 
 		void setRenderObject( RenderObjClass	*robj) {assert(m_robj==nullptr); m_robj=robj;}
  		void setRenderObjExtent ( Real extent) { m_robjExtent = extent; }
+		void setUseVerticalShadowProjection(Bool value) { m_useVerticalShadowProjection = value; }
 
 		// called once per frame, updates shadow volume when necessary
 		void Update();
@@ -146,6 +147,8 @@ class W3DVolumetricShadow	: public Shadow
 		// shadow volume access
 		void constructVolume( Vector3 *lightPos, Real shadowExtrudeDistance, Int volumeIndex, Int meshIndex );
 		void constructVolumeVB( Vector3 *lightPosObject,Real shadowExtrudeDistance, Int volumeIndex, Int meshIndex );
+		void constructVerticalProjectedSilhouette( const Matrix4x4 &objectToWorld, const Matrix4x4 &worldToObject, Real floorZWorld, Int volumeIndex, Int meshIndex );
+		Bool shouldUseClosedShadowVolume() const;
 		Bool allocateShadowVolume( Int volumeIndex, Int meshIndex );  // allocate mem
 		void deleteShadowVolume( Int volumeIndex );  // delete all volume data
 		void resetShadowVolume( Int volumeIndex, Int meshIndex );  // reset shadow volume
@@ -158,6 +161,7 @@ class W3DVolumetricShadow	: public Shadow
 		Real	m_shadowLengthScale;	///<scale factor used to reduce/clamp shadow length
  		Real	m_robjExtent;			///<maximum possible horizontal reach of shadow from center of object.
 		Real	m_extraExtrusionPadding;	///<amount to extrude shadow beyond where it would normally stop (ground level below object).
+		Bool	m_useVerticalShadowProjection;	///<force air-unit stencil shadows directly beneath caster.
 
 		//
 		// this geometry is our actual shadow volume data, we have an array
