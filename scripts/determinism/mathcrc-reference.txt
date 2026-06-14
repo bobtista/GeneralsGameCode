@@ -1,0 +1,18 @@
+# Canonical cross-platform deterministic simulation-math CRC reference.
+#
+# Produced by `generalszh -mathCrcCheck` (writes SimulationMathCrc.txt and prints to stdout).
+# These are the strict-IEEE-754 values shared by the architectures that compute float/double
+# natively in round-to-nearest with no FMA contraction (macOS/arm64 and Windows x64/SSE2).
+#
+# The deterministic-math build (RETAIL_COMPATIBLE_CRC=0) routes all transcendentals through
+# GameMath (GM_ENABLE_INTRINSICS=OFF) so every such architecture MUST emit identical values.
+# A mismatch on SimulationMathCrc is a lockstep-breaking floating-point divergence.
+#
+# Caveat: a 32-bit x86 (x87) build forces _PC_24 single precision in setFPMode(), so it may
+# legitimately differ on SimulationMathCrcDouble (the double-precision probe) while still
+# matching SimulationMathCrc. Run check-mathcrc with --allow-double-divergence for win32.
+#
+# Captured: macOS arm64, build macos-generalsmd-sdl3-bgfx (Release), 14/06/2026.
+
+SimulationMathCrc = 22F6E8A3
+SimulationMathCrcDouble = FBAC7656
