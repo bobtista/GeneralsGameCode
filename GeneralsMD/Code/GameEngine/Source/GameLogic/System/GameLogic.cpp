@@ -240,22 +240,16 @@ void setFPMode()
 	UnsignedInt newVal = curVal;
 	newVal = (newVal & ~_MCW_RC) | (_RC_NEAR & _MCW_RC);
 	//newVal = (newVal & ~_MCW_RC) | (_RC_CHOP & _MCW_RC);
-#if defined(_M_IX86)
-	// TheSuperHackers @info bobtista 10/06/2026 Keep the x87 control word at _PC_24 (24-bit/single).
-	// On 32-bit x86 the x87 FPU has a single global precision; the macOS/arm64 build computes float
-	// at 24-bit and double at 53-bit natively. _PC_24 makes x87 float math match arm64; the cost is
-	// that explicit double-precision math in the simulation must be avoided (compute in float), which
-	// is the deterministic-lockstep contract. _PC_53 was tried and fixed double but broke the far more
-	// common float transcendentals (gm_atan2f etc.), so single-precision sim math + _PC_24 is correct.
-	newVal = (newVal & ~_MCW_PC) | (_PC_24   & _MCW_PC);
-
-	_controlfp(newVal, _MCW_PC | _MCW_RC);
-#else
-	// TheSuperHackers @build bobtista 14/06/2026 x87 precision control (_MCW_PC/_PC_24) exists only on
-	// 32-bit x86. On x64 (SSE2) the UCRT asserts on an _MCW_PC mask bit (ucrt ieee.c: mask must be a
-	// subset of _MCW_DN|_MCW_EM|_MCW_RC), and arm64 has no equivalent. Set only the rounding mode there.
+	// TheSuperHackers @bugfix bobtista 14/06/2026 Set the rounding mode only; do NOT touch x87 precision
+	// control (_MCW_PC/_PC_24). With /arch:SSE2 the bulk of float/double math already runs on SSE2; the
+	// old _PC_24 clamp only perturbed the residual x87 ops and pulled 32-bit x86 OFF the unified IEEE-754
+	// value. Leaving x87 at its default precision makes win32, win64, and arm64 all produce the SAME
+	// deterministic simulation CRC (verified 22F6E8A3/FBAC7656 across all three), giving N-way
+	// cross-platform lockstep. Trade-off: a build made this way desyncs against a legacy _PC_24 32-bit
+	// client (expected for a RETAIL_COMPATIBLE_CRC=0 fork; every fresh build lands in the unified group).
+	// _MCW_PC is also illegal on x64 (UCRT ieee.c asserts the mask is a subset of _MCW_DN|_MCW_EM|_MCW_RC),
+	// so dropping it fixes the win64 build at the same time.
 	_controlfp(newVal, _MCW_RC);
-#endif
 }
 
 //-------------------------------------------------------------------------------------------------
