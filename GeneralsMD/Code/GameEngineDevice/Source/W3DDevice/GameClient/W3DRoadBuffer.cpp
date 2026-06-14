@@ -176,11 +176,7 @@ void RoadType::loadTexture(AsciiString path, Int ID)
 	/// @todo - delay loading textures and only load textures referenced by map.
 	WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_1);
-#else
 	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3);
-#endif
 	//Hack to disable texture reduction
 	//m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3, WW3D_FORMAT_UNKNOWN,true,TextureBaseClass::TEX_REGULAR, false);
 
