@@ -139,28 +139,42 @@ static void LogVolumetricShadowPath(const char *event,
 
 static bool ShouldSkipBgfxStaticVolumeShadow(const Drawable *draw)
 {
-	if (std::getenv("GGC_BGFX_SKIP_STATIC_VOLUME_SHADOWS") == nullptr)
-		return false;
 	if (g_renderBackend == nullptr)
 		return false;
 
+#if !defined(GGC_BGFX_RENDERER_METAL)
+	if (std::getenv("GGC_BGFX_SKIP_STATIC_VOLUME_SHADOWS") == nullptr)
+		return false;
+#endif
+
 	const ThingTemplate *tmplate = draw != nullptr ? draw->getTemplate() : nullptr;
 	if (tmplate == nullptr)
+	{
+#if defined(GGC_BGFX_RENDERER_METAL)
+		// TheSuperHackers @bugfix bobtista 14/06/2026 Metal lacks hardware depth clamp
+		// for the legacy open stencil volumes. Render objects without a template cannot
+		// be classified as mobile units, and static/effect volumes are the cases that
+		// produce giant bgfx/Metal stencil fans in combat saves.
+		return true;
+#else
 		return false;
+#endif
+	}
 
-	if (std::getenv("GGC_BGFX_SKIP_AIRCRAFT_VOLUME_SHADOWS") != nullptr
-		&& tmplate->isKindOf(KINDOF_AIRCRAFT))
-		return true;
-	if (std::getenv("GGC_BGFX_SKIP_VEHICLE_VOLUME_SHADOWS") != nullptr
-		&& tmplate->isKindOf(KINDOF_VEHICLE))
-		return true;
-	if (std::getenv("GGC_BGFX_SKIP_BOAT_VOLUME_SHADOWS") != nullptr
-		&& tmplate->isKindOf(KINDOF_BOAT))
-		return true;
+#if defined(GGC_BGFX_RENDERER_METAL)
+	const bool isKnownVolumeCaster =
+		tmplate->isKindOf(KINDOF_AIRCRAFT)
+		|| tmplate->isKindOf(KINDOF_DRONE)
+		|| tmplate->isKindOf(KINDOF_VEHICLE)
+		|| tmplate->isKindOf(KINDOF_BOAT)
+		|| tmplate->isKindOf(KINDOF_STRUCTURE);
 
+	return !isKnownVolumeCaster;
+#else
 	return !tmplate->isKindOf(KINDOF_VEHICLE)
 		&& !tmplate->isKindOf(KINDOF_AIRCRAFT)
 		&& !tmplate->isKindOf(KINDOF_BOAT);
+#endif
 }
 
 static bool BgfxUseShadowVolumeZFail()
@@ -169,9 +183,9 @@ static bool BgfxUseShadowVolumeZFail()
 		return false;
 
 	const char *algo = std::getenv("GGC_BGFX_STENCIL_ALGO");
-	return algo != nullptr
-		&& (std::strcmp(algo, "zfail") == 0
-			|| std::strcmp(algo, "zfail-swap") == 0);
+	return algo == nullptr
+		|| std::strcmp(algo, "zfail") == 0
+		|| std::strcmp(algo, "zfail-swap") == 0;
 }
 
 static bool BgfxSwapShadowVolumeZFailOps()
@@ -1525,7 +1539,6 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 	if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 		return;
 
-
 	geometry = m_shadowVolume[lightIndex][ meshIndex ];
 
 	//
@@ -1789,6 +1802,7 @@ W3DVolumetricShadow::W3DVolumetricShadow()
 	m_geometry = nullptr;
 	m_shadowLengthScale = 0.0f;
 	m_extraExtrusionPadding = 0.0f;
+	m_useVerticalShadowProjection = FALSE;
 	m_robj = nullptr;
 	m_isEnabled = TRUE;
 	m_isInvisibleEnabled = FALSE;
@@ -1846,6 +1860,14 @@ W3DVolumetricShadow::~W3DVolumetricShadow()
 	m_geometry=nullptr;
 	m_robj=nullptr;
 
+}
+
+Bool W3DVolumetricShadow::shouldUseClosedShadowVolume() const
+{
+	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
+		return TRUE;
+
+	return FALSE;
 }
 
 void W3DVolumetricShadow::SetGeometry( W3DShadowGeometry *geometry )
@@ -1943,14 +1965,25 @@ void W3DVolumetricShadow::Update()
 			//this unit is above ground, extend shadow volume to reach lowest point on the terrain plus extra bit to make
 			//sure shadow goes under ground.
 			Real airborneZOffset = fabs(pos.Z - TheTerrainRenderObject->getMinHeight()) + SHADOW_EXTRUSION_BUFFER;
+#if defined(GGC_BGFX_RENDERER_METAL)
+			if (g_renderBackend != nullptr)
+			{
+				// TheSuperHackers @bugfix bobtista 14/06/2026 Metal ignores hardware
+				// depth clamp, so open stencil volumes extruded to the map minimum turn
+				// elevated casters into oversized screen-space streaks. Keep the floor
+				// near local ground for Metal casters instead.
+				airborneZOffset = fabs(pos.Z - groundHeight) + SHADOW_EXTRUSION_BUFFER;
+			}
+#else
 			if (g_renderBackend != nullptr
-				&& g_renderBackend->Needs_Closed_Shadow_Volumes()
-				&& m_shadowLengthScale > 10.0f)
+				&& m_shadowLengthScale > 10.0f
+				&& g_renderBackend->Needs_Closed_Shadow_Volumes())
 			{
 				airborneZOffset = fabs(pos.Z - groundHeight) - SHADOW_EXTRUSION_BUFFER;
 				if (airborneZOffset < 0.0f)
 					airborneZOffset = 0.0f;
 			}
+#endif
 			updateVolumes(airborneZOffset);
    		}
    		else
@@ -2159,9 +2192,26 @@ void W3DVolumetricShadow::updateMeshVolume(Int meshIndex, Int lightIndex, const 
 	// get the object
 	meshXform->Get_Translation(&objectCenter);	//current mesh position
 
+	const Bool useVerticalShadowProjection =
+#if defined(GGC_BGFX_RENDERER_METAL)
+		m_useVerticalShadowProjection;
+#else
+		FALSE;
+#endif
+
+	if (useVerticalShadowProjection)
+	{
+		// TheSuperHackers @bugfix bobtista 14/06/2026 Air casters should keep
+		// compact stencil shadows directly beneath them. The legacy sun-direction
+		// volume exposes long side walls for elevated casters on bgfx/Metal.
+		lightPosWorld.X = objectCenter.X;
+		lightPosWorld.Y = objectCenter.Y;
+		lightPosWorld.Z = objectCenter.Z + 100000.0f;
+	}
+
 	// check if object has a limit/clamp on shadow length and adjust light
 	// position of necessary.
-	if (m_shadowLengthScale)
+	if (m_shadowLengthScale && !useVerticalShadowProjection)
 	{	//Find light's distance from origin in xy plane
 		Real lightXYDistance = sqrt(lightPosWorld.X*lightPosWorld.X + lightPosWorld.Y * lightPosWorld.Y);
 		Real newZ=lightXYDistance*m_shadowLengthScale;
@@ -2313,6 +2363,11 @@ void W3DVolumetricShadow::updateMeshVolume(Int meshIndex, Int lightIndex, const 
 			// construct the shadow volume at this light position in the
 			// passed shadow volume geometry index
 			//
+			if (useVerticalShadowProjection)
+			{
+				constructVerticalProjectedSilhouette(objectToWorld, worldToObject, floorZ, lightIndex, meshIndex);
+			}
+			else
 			if (m_shadowVolume[ lightIndex ][meshIndex]->GetFlags() & SHADOW_DYNAMIC)
 				constructVolume( &lightPosObject, vectorScaleMax, lightIndex, meshIndex );
 			else
@@ -2844,6 +2899,130 @@ static void AuditShadowVolumeEdges(Geometry * shadowVolume, int vertexCount,
 }
 #endif
 
+void W3DVolumetricShadow::constructVerticalProjectedSilhouette(const Matrix4x4 &objectToWorld, const Matrix4x4 &worldToObject, Real floorZWorld, Int volumeIndex, Int meshIndex)
+{
+	if (volumeIndex < 0 || volumeIndex >= MAX_SHADOW_LIGHTS)
+	{
+		assert(0);
+		return;
+	}
+
+	Geometry *shadowVolume = m_shadowVolume[volumeIndex][meshIndex];
+	if (shadowVolume == nullptr)
+	{
+		assert(0);
+		return;
+	}
+
+	const Int indicesPerMesh = m_numIndicesPerMesh[meshIndex];
+	if (indicesPerMesh < 6)
+		return;
+
+	W3DShadowGeometryMesh *geomMesh = m_geometry->getMesh(meshIndex);
+	Short *silhouetteIndices = m_silhouetteIndex[meshIndex];
+	if (geomMesh == nullptr || silhouetteIndices == nullptr)
+		return;
+
+	shadowVolume->SetNumActivePolygon(0);
+	shadowVolume->SetNumActiveVertex(0);
+
+	Int vertexCount = 0;
+	Int polygonCount = 0;
+	Int stripStartVertex = 0;
+	Int stripVertexCount = 0;
+	Short stripStartIndex = silhouetteIndices[0];
+	const Real floorBias = 0.25f;
+
+	auto addProjectedVertex = [&](Short geomVertexIndex) {
+		Vector3 vertexWorld;
+		Matrix4x4::Transform_Vector(objectToWorld, geomMesh->GetVertex(geomVertexIndex), &vertexWorld);
+		vertexWorld.Z = floorZWorld + floorBias;
+
+		Vector3 projectedObject;
+		Matrix4x4::Transform_Vector(worldToObject, vertexWorld, &projectedObject);
+		shadowVolume->SetVertex(vertexCount, &projectedObject);
+		++vertexCount;
+		++stripVertexCount;
+	};
+
+	auto beginStrip = [&](Short geomVertexIndex) {
+		stripStartIndex = geomVertexIndex;
+		stripStartVertex = vertexCount;
+		stripVertexCount = 0;
+		addProjectedVertex(geomVertexIndex);
+	};
+
+	auto finishStrip = [&]() {
+		if (stripVertexCount < 3)
+			return;
+
+		Real signedArea = 0.0f;
+		for (Int i = 0; i < stripVertexCount; ++i)
+		{
+			Vector3 aWorld;
+			Vector3 bWorld;
+			Matrix4x4::Transform_Vector(objectToWorld, *shadowVolume->GetVertex(stripStartVertex + i), &aWorld);
+			Matrix4x4::Transform_Vector(objectToWorld, *shadowVolume->GetVertex(stripStartVertex + ((i + 1) % stripVertexCount)), &bWorld);
+			signedArea += aWorld.X * bWorld.Y - bWorld.X * aWorld.Y;
+		}
+
+		for (Int i = 1; i < stripVertexCount - 1; ++i)
+		{
+			Short indexList[3];
+			indexList[0] = static_cast<Short>(stripStartVertex);
+			if (signedArea >= 0.0f)
+			{
+				indexList[1] = static_cast<Short>(stripStartVertex + i);
+				indexList[2] = static_cast<Short>(stripStartVertex + i + 1);
+			}
+			else
+			{
+				indexList[1] = static_cast<Short>(stripStartVertex + i + 1);
+				indexList[2] = static_cast<Short>(stripStartVertex + i);
+			}
+			shadowVolume->SetPolygonIndex(polygonCount++, indexList);
+		}
+	};
+
+	beginStrip(stripStartIndex);
+	for (Int i = 0; i < indicesPerMesh; i += 2)
+	{
+		Short currentEdgeEnd = silhouetteIndices[i + 1];
+
+		for (Int k = i + 2; k < indicesPerMesh; k += 2)
+		{
+			if (silhouetteIndices[k] == currentEdgeEnd)
+			{
+				const Short temp0 = silhouetteIndices[i + 2];
+				const Short temp1 = silhouetteIndices[i + 3];
+				silhouetteIndices[i + 2] = silhouetteIndices[k];
+				silhouetteIndices[i + 3] = silhouetteIndices[k + 1];
+				silhouetteIndices[k] = temp0;
+				silhouetteIndices[k + 1] = temp1;
+				break;
+			}
+		}
+
+		if (currentEdgeEnd != stripStartIndex)
+			addProjectedVertex(currentEdgeEnd);
+
+		if ((i + 2) >= indicesPerMesh)
+		{
+			finishStrip();
+			break;
+		}
+
+		if (silhouetteIndices[i + 2] != currentEdgeEnd)
+		{
+			finishStrip();
+			beginStrip(silhouetteIndices[i + 2]);
+		}
+	}
+
+	shadowVolume->SetNumActivePolygon(polygonCount);
+	shadowVolume->SetNumActiveVertex(vertexCount);
+}
+
 void W3DVolumetricShadow::constructVolume( Vector3 *lightPosObject,Real shadowExtrudeDistance, Int volumeIndex, Int meshIndex )
 {
 	Geometry *shadowVolume;
@@ -3058,7 +3237,7 @@ void W3DVolumetricShadow::constructVolume( Vector3 *lightPosObject,Real shadowEx
 #endif
 	}
 
-	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
+	if (shouldUseClosedShadowVolume())
 	{
 		for (i = 0; i < geomMesh->GetNumPolygon(); ++i)
 		{
@@ -3474,7 +3653,7 @@ void W3DVolumetricShadow::constructVolumeVB( Vector3 *lightPosObject,Real shadow
 		}
 	}
 
-	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
+	if (shouldUseClosedShadowVolume())
 	{
 		for (i = 0; i < geomMesh->GetNumPolygon(); ++i)
 		{
@@ -3555,6 +3734,8 @@ Bool W3DVolumetricShadow::allocateShadowVolume( Int volumeIndex, Int meshIndex )
 	{
 		// poolify
 		shadowVolume = NEW Geometry;		// create the new geometry
+		if (m_useVerticalShadowProjection)
+			shadowVolume->SetFlags(shadowVolume->GetFlags() | SHADOW_DYNAMIC);
 		// we now have one more valid geometry volume
 		m_shadowVolumeCount[meshIndex]++;
 	}
@@ -3597,7 +3778,7 @@ Bool W3DVolumetricShadow::allocateShadowVolume( Int volumeIndex, Int meshIndex )
 	//is known.
 	if (shadowVolume->GetFlags() & SHADOW_DYNAMIC)
 	{
-		if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
+		if (shouldUseClosedShadowVolume())
 		{
 			W3DShadowGeometryMesh *geomMesh = m_geometry != nullptr ? m_geometry->getMesh(meshIndex) : nullptr;
 			if (geomMesh != nullptr)
@@ -4233,6 +4414,12 @@ W3DVolumetricShadow* W3DVolumetricShadowManager::addShadow(RenderObjClass *robj,
 
 	shadow->setRenderObject(robj);
 	shadow->SetGeometry(sg);
+#if defined(GGC_BGFX_RENDERER_METAL)
+	const ThingTemplate *tmplate = draw != nullptr ? draw->getTemplate() : nullptr;
+	shadow->setUseVerticalShadowProjection(tmplate != nullptr
+		&& (tmplate->isKindOf(KINDOF_AIRCRAFT)
+			|| tmplate->isKindOf(KINDOF_DRONE)));
+#endif
  	SphereClass sphere;
  	robj->Get_Obj_Space_Bounding_Sphere(sphere);
  	shadow->setRenderObjExtent(sphere.Radius*MAX_SHADOW_LENGTH_SCALE_FACTOR);
