@@ -274,19 +274,6 @@ void W3DView::setOrigin( Int x, Int y)
 #define MIN_CAPPED_ZOOM (0.5f) //WST 10.19.2002. JSC integrated 5/20/03.
 void W3DView::buildCameraPosition( Vector3& sourcePos, Vector3& targetPos )
 {
-	// TheSuperHackers @info bobtista 31/05/2026 Authoritative client-side zoom override for headless
-	// diagnostics. This is the latest point each client frame where m_zoom is consumed to build the
-	// camera, so forcing it here bypasses every zoom-limit clamp and desired-height recompute.
-	if (const char *ggcForceZoom = getenv("GGC_FORCE_ZOOM"))
-	{
-		m_zoom = (Real)atof(ggcForceZoom);
-		static Bool s_ggcForceZoomLogged = false;
-		if (!s_ggcForceZoomLogged)
-		{
-			s_ggcForceZoomLogged = true;
-			fprintf(stderr, "[GGC_FORCE_ZOOM] applied zoom=%.3f\n", m_zoom);
-		}
-	}
 
 	const Real zoom = getZoom();
 	const Real angle = getAngle();
@@ -2246,42 +2233,10 @@ void W3DView::setPitchToDefault()
 //-------------------------------------------------------------------------------------------------
 void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
 {
-	// TheSuperHackers @tweak bobtista 06/06/2026 Allow zooming out further than retail via a flat
-	// scale on the maximum camera height. Tunable live via GGC_CAM_ZOOM_SCALE; the minimum height
-	// (zoom-in) is left unchanged.
-	Real zoomScale = 1.3f;
-	const char* zoomEnv = getenv("GGC_CAM_ZOOM_SCALE");
-	if (zoomEnv != NULL)
-	{
-		Real overrideScale = (Real)atof(zoomEnv);
-		if (overrideScale > 0.0f)
-		{
-			zoomScale = overrideScale;
-		}
-	}
-
-	// TheSuperHackers @tweak bobtista 08/06/2026 Make the zoom-out aspect-aware. The camera uses a
-	// fixed horizontal FOV (Set_View_Plane(hfov, -1)), so a wider-than-4:3 framebuffer gets a smaller
-	// vertical FOV and shows less of the map vertically at a given height. Real fullscreen resolutions
-	// are widescreen, so windowed 4:3 and fullscreen would otherwise frame the world differently at the
-	// same height. Scale the max height by the aspect ratio relative to the 4:3 baseline the zoomScale
-	// was tuned against, so widescreen pulls the camera back to show a comparable vertical extent. 4:3
-	// and narrower keep the tuned scale unchanged.
-	Real aspectScale = 1.0f;
-	if (getHeight() != 0)
-	{
-		const Real baseAspect = 4.0f / 3.0f;
-		const Real aspect = (Real)getWidth() / (Real)getHeight();
-		if (aspect > baseAspect)
-		{
-			aspectScale = aspect / baseAspect;
-		}
-	}
-
 	// MDC - we no longer want to rotate maps (design made all of them right to begin with)
 	//	m_defaultAngle = angle * WWMATH_PI/180.0f;
 	setDefaultPitch(pitch);
-	m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight * zoomScale * aspectScale * maxHeight;
+	m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight*maxHeight;
 	if (m_minHeightAboveGround > m_maxHeightAboveGround)
 		m_maxHeightAboveGround = m_minHeightAboveGround;
 }
