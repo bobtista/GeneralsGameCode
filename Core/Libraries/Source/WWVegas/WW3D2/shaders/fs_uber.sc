@@ -679,13 +679,18 @@ void main()
 		}
 	}
 
-	// TheSuperHackers @bugfix bobtista 30/04/2026 Cloud-shadow modulation
-	// is terrain-only in DX8 (ST_TERRAIN_BASE_NOISE1 / _NOISE12). The
-	// terrain pixel-shader branch above handles its own cloud sampling and
-	// returns before reaching this point. Don't apply cloud here — the
-	// generic material path renders buildings/units/effects, none of which
-	// receive cloud shadows in DX8, and v_cloudUV is undefined for them so
-	// sampleCloudShadow's floor constant just darkens them uniformly.
+	// TheSuperHackers @bugfix bobtista 14/06/2026 Cloud-shadow modulation,
+	// gated on u_cloudParams.w. The terrain pixel-shader branch above samples
+	// cloud itself and returns early, so this only runs for generic-path
+	// ground draws inside the terrain pass (roads and other map decals) where
+	// the cloud state is enabled. Units, buildings and effects render after
+	// the terrain pass with w == 0, so they are unaffected. Matches the DX8
+	// ST_ROAD_BASE_NOISE multipass that modulated the scrolling cloud texture
+	// into the road colour, which the single-pass bgfx road path had dropped.
+	if (u_cloudParams.w > 0.5)
+	{
+		current.rgb *= sampleCloudShadow(v_cloudUV);
+	}
 
 	// Grayscale output for disabled button state. Matches the D3D8 path
 	// (render2d.cpp) which used D3DTOP_DOTPRODUCT3 with TFACTOR=0x80A5CA8E
