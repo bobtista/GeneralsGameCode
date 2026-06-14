@@ -240,6 +240,7 @@ void setFPMode()
 	UnsignedInt newVal = curVal;
 	newVal = (newVal & ~_MCW_RC) | (_RC_NEAR & _MCW_RC);
 	//newVal = (newVal & ~_MCW_RC) | (_RC_CHOP & _MCW_RC);
+#if defined(_M_IX86)
 	// TheSuperHackers @info bobtista 10/06/2026 Keep the x87 control word at _PC_24 (24-bit/single).
 	// On 32-bit x86 the x87 FPU has a single global precision; the macOS/arm64 build computes float
 	// at 24-bit and double at 53-bit natively. _PC_24 makes x87 float math match arm64; the cost is
@@ -249,6 +250,12 @@ void setFPMode()
 	newVal = (newVal & ~_MCW_PC) | (_PC_24   & _MCW_PC);
 
 	_controlfp(newVal, _MCW_PC | _MCW_RC);
+#else
+	// TheSuperHackers @build bobtista 14/06/2026 x87 precision control (_MCW_PC/_PC_24) exists only on
+	// 32-bit x86. On x64 (SSE2) the UCRT asserts on an _MCW_PC mask bit (ucrt ieee.c: mask must be a
+	// subset of _MCW_DN|_MCW_EM|_MCW_RC), and arm64 has no equivalent. Set only the rounding mode there.
+	_controlfp(newVal, _MCW_RC);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
