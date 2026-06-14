@@ -1,17 +1,16 @@
-# Canonical cross-platform deterministic simulation-math CRC reference.
+# Cross-platform deterministic simulation-math CRC reference (macOS/arm64 + Windows x64).
 #
 # Produced by `generalszh -mathCrcCheck` (writes SimulationMathCrc.txt and prints to stdout).
-# These are the strict-IEEE-754 values shared by the architectures that compute float/double
-# natively in round-to-nearest with no FMA contraction (macOS/arm64 and Windows x64/SSE2).
+# These are the values shared by macOS/arm64 and Windows x64/SSE2 (native IEEE-754 float/double,
+# round-to-nearest, no FMA contraction).
 #
-# The deterministic-math build (RETAIL_COMPATIBLE_CRC=0) routes all transcendentals through
-# GameMath (GM_ENABLE_INTRINSICS=OFF) so every such architecture MUST emit identical values.
-# A mismatch on SimulationMathCrc is a lockstep-breaking floating-point divergence.
-#
-# N-way verified 14/06/2026: macOS/arm64, win64 (Debug + Release), AND win32 all emit these exact
-# values now that setFPMode() no longer sets the x87 _PC_24 precision clamp on 32-bit x86 (that clamp
-# previously pulled win32 to 85594C58/7EB5D952, a separate lockstep group). --allow-double-divergence
-# is therefore NO LONGER needed for win32; all three architectures match outright.
+# IMPORTANT CAVEAT (learned 14/06/2026): this probe is NOT a reliable predictor of full-sim
+# cross-platform determinism. 32-bit x86 with the x87 _PC_24 clamp emits a DIFFERENT value here
+# (85594C58/7EB5D952), yet replay testing shows that _PC_24 win32 build actually tracks an
+# x64-recorded replay to x64's own self-desync floor (~frame 2600), while a win32 build WITHOUT
+# _PC_24 matches this probe's value but desyncs from the real sim early (~frame 200). So a probe
+# match does not imply lockstep, and a probe mismatch does not imply divergence. Treat REPLAY
+# parity as the source of truth; use this probe only as a quick smoke signal for the IEEE arches.
 #
 # Captured: macOS arm64, build macos-generalsmd-sdl3-bgfx (Release), 14/06/2026.
 
