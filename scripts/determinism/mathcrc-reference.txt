@@ -8,9 +8,10 @@
 # GameMath (GM_ENABLE_INTRINSICS=OFF) so every such architecture MUST emit identical values.
 # A mismatch on SimulationMathCrc is a lockstep-breaking floating-point divergence.
 #
-# Caveat: a 32-bit x86 (x87) build forces _PC_24 single precision in setFPMode(), so it may
-# legitimately differ on SimulationMathCrcDouble (the double-precision probe) while still
-# matching SimulationMathCrc. Run check-mathcrc with --allow-double-divergence for win32.
+# N-way verified 14/06/2026: macOS/arm64, win64 (Debug + Release), AND win32 all emit these exact
+# values now that setFPMode() no longer sets the x87 _PC_24 precision clamp on 32-bit x86 (that clamp
+# previously pulled win32 to 85594C58/7EB5D952, a separate lockstep group). --allow-double-divergence
+# is therefore NO LONGER needed for win32; all three architectures match outright.
 #
 # Captured: macOS arm64, build macos-generalsmd-sdl3-bgfx (Release), 14/06/2026.
 
