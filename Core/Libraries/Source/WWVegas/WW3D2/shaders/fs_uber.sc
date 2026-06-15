@@ -9,12 +9,6 @@ SAMPLER2D(s_tex3, 3);
 // Terrain cloud-shadow scroll texture (BASE_NOISE1/NOISE12 paths on DX8).
 SAMPLER2D(s_cloudMap, 5);
 SAMPLER2D(s_sceneDepth, 6);
-uniform vec4 u_matDiffuse;
-uniform vec4 u_matAmbient; // material ambient color
-uniform vec4 u_matEmissive; // material emissive / self-illumination color
-uniform vec4 u_atestParams;
-uniform vec4 u_tssOps0; // (priColorOp, priAlphaOp, secColorOp, secAlphaOp)
-uniform vec4 u_tssOps1; // (priColorArg1Src, priAlphaArg1Src, secColorArg1Src, secAlphaArg1Src)
 uniform vec4 u_lightDirs[4];    // per-light direction (xyz=toward light, w=enabled)
 uniform vec4 u_lightColors[4]; // per-light diffuse color (rgb)
 uniform vec4 u_lightAmbients[4]; // per-light ambient color (rgb)
@@ -23,18 +17,36 @@ uniform vec4 u_lightParams[4]; // x inner range, y outer/range, z > 0.5 point, w
 uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
 uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
 uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
-uniform vec4 u_texcoordSelect2; // .z > 1.5 = sorted rotor mask, .w > 0.5 = additive blend draw
-uniform vec4 u_texcoordSource; // .w selects legacy water stage-3 UV source
 uniform vec4 u_shroudParams; // xy = offset, zw = scale
-uniform vec4 u_projectedDecalMode; // .x = RenderBackendProjectedDecalMode
-uniform vec4 u_legacyPixelShaderMode; // .x = RenderBackendLegacyPixelShaderMode
-uniform vec4 u_texProjected; // .x > 0.5 = stage 0 projected, .y > 0.5 = stage 1 projected
-uniform vec4 u_vertexColorFlags; // .y/.z/.w: diffuse/ambient/emissive source is COLOR1
-uniform vec4 u_grayscaleEnable; // .x > 0.5 = convert final color to luminance (disabled button state)
-uniform vec4 u_objectShroudDim; // .x = object-status fog/shroud dim multiplier, .z = base-texture alpha-mask cutoff
-uniform vec4 u_cloudParams; // xy = scroll, z = stretch, w > 0.5 = modulate cloud into output
 uniform vec4 u_softParticleParams; // .x enable, .y fade scale, zw inverse scene size
-uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
+
+// TheSuperHackers @performance bobtista 15/06/2026 Packed per-draw material uniforms.
+// Index order MUST match MaterialUniformSlot in BgfxBackend.cpp.
+uniform vec4 u_material[24];
+#define u_matDiffuse            u_material[0]
+#define u_matAmbient            u_material[1]
+#define u_matEmissive           u_material[2]
+#define u_tssOps0               u_material[3]
+#define u_tssOps1               u_material[4]
+#define u_atestParams           u_material[5]
+#define u_texcoordSource        u_material[6]
+#define u_vertexColorFlags      u_material[7]
+#define u_texcoordSelect2       u_material[8]
+#define u_projectedDecalMode    u_material[9]
+#define u_grayscaleEnable       u_material[10]
+#define u_objectShroudDim       u_material[11]
+#define u_cloudParams           u_material[12]
+#define u_texTransform0         u_material[13]
+#define u_texTransform1         u_material[14]
+#define u_texTransform0Z        u_material[15]
+#define u_tex1Transform0        u_material[16]
+#define u_tex1Transform1        u_material[17]
+#define u_tex1TransformZ        u_material[18]
+#define u_tex2Transform0        u_material[19]
+#define u_tex2Transform1        u_material[20]
+#define u_texProjected          u_material[21]
+#define u_legacyPixelShaderMode u_material[22]
+#define u_zBias                 u_material[23]
 
 // TSS operation IDs (must match BgfxBackend.cpp encoding)
 #define TSS_DISABLE         0.0
