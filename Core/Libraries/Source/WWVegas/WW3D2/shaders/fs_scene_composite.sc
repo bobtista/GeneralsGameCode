@@ -21,9 +21,18 @@ uniform vec4 u_colorGradeParams;
 // TheSuperHackers @feature bobtista 15/06/2026 u_bloomParams.x = threshold (used
 // by the bright pass), .y = intensity added over the scene here.
 uniform vec4 u_bloomParams;
+// TheSuperHackers @feature bobtista 15/06/2026 u_hdrParams.x = HDR enabled. When
+// set, the scene target is RGBA16F and the final output is ACES-tonemapped instead
+// of hard-clamped, giving highlight rolloff and richer bloom.
+uniform vec4 u_hdrParams;
 
 // TheSuperHackers @tweak bobtista 05/06/2026 BT.601 luma weights (matches fs_uber.sc).
 #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
+
+vec3 acesTonemap(vec3 x)
+{
+	return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+}
 
 void main()
 {
@@ -96,20 +105,28 @@ void main()
 		color.rgb += texture2D(s_bloom, v_texcoord0).rgb * u_bloomParams.y;
 	}
 
-	vec3 processed = clamp(color.rgb, 0.0, 1.0);
-
+	// Keep the (possibly HDR) values intact through the wipe mix; map to display
+	// range last via ACES tonemap (HDR) or hard clamp (LDR).
+	vec3 outRgb = color.rgb;
 	if (u_wipeParams.y > 0.5)
 	{
 		float side = step(u_wipeParams.x, v_texcoord0.x);
-		vec3 outRgb = mix(rawColor, processed, side);
-		if (abs(v_texcoord0.x - u_wipeParams.x) < u_postTexelSize.x * 1.5)
-		{
-			outRgb = vec3(1.0, 1.0, 1.0);
-		}
-		gl_FragColor = vec4(outRgb, color.a);
+		outRgb = mix(rawColor, color.rgb, side);
+	}
+
+	if (u_hdrParams.x > 0.5)
+	{
+		outRgb = acesTonemap(outRgb);
 	}
 	else
 	{
-		gl_FragColor = vec4(processed, color.a);
+		outRgb = clamp(outRgb, 0.0, 1.0);
 	}
+
+	if (u_wipeParams.y > 0.5 && abs(v_texcoord0.x - u_wipeParams.x) < u_postTexelSize.x * 1.5)
+	{
+		outRgb = vec3(1.0, 1.0, 1.0);
+	}
+
+	gl_FragColor = vec4(outRgb, color.a);
 }
