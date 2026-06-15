@@ -169,7 +169,8 @@ extern "C" void GGC_GetBgfxBloomParams(float * params);
 extern "C" int  GGC_GetBgfxHdrEnabled();
 extern "C" void GGC_GetBgfxPostFx2Params(float * params);
 extern "C" void GGC_GetBgfxSSAOParams(float * params);
-extern "C" int  GGC_GetBgfxMsaaSamples();
+extern "C" int   GGC_GetBgfxMsaaSamples();
+extern "C" float GGC_GetBgfxRenderScale();
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
 extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
 extern "C" int  GGC_GetBgfxScreenshotFrame();
@@ -2221,6 +2222,28 @@ static int GetSceneMsaaSamples()
     return 0;
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Internal render-scale (supersampling)
+// for the 3D scene framebuffer. Env GGC_BGFX_RENDER_SCALE overrides the INI value.
+// Clamped to [1.0, 2.0].
+static float GetSceneRenderScale()
+{
+    float scale = 1.0f;
+    const char * env = std::getenv("GGC_BGFX_RENDER_SCALE");
+    if (env != nullptr)
+    {
+        scale = static_cast<float>(std::atof(env));
+    }
+#ifdef RTS_ZEROHOUR
+    else
+    {
+        scale = GGC_GetBgfxRenderScale();
+    }
+#endif
+    if (scale < 1.0f) { scale = 1.0f; }
+    if (scale > 2.0f) { scale = 2.0f; }
+    return scale;
+}
+
 static bool IsReadableSceneDepthEnabled()
 {
     if (GetBgfxDiagnosticFlags().noSceneFramebuffer)
@@ -2362,8 +2385,15 @@ static bool CreateSceneFramebuffer()
 {
     DestroySceneFramebuffer();
 
-    const uint16_t w = static_cast<uint16_t>(g_device.width > 0 ? g_device.width : 1);
-    const uint16_t h = static_cast<uint16_t>(g_device.height > 0 ? g_device.height : 1);
+    const uint16_t cw = static_cast<uint16_t>(g_device.width > 0 ? g_device.width : 1);
+    const uint16_t ch = static_cast<uint16_t>(g_device.height > 0 ? g_device.height : 1);
+    // TheSuperHackers @feature bobtista 15/06/2026 Supersampling: the scene targets
+    // are sized at content * render scale and the composite downsamples to native.
+    const float renderScale = GetSceneRenderScale();
+    const uint16_t w = static_cast<uint16_t>(static_cast<float>(cw) * renderScale + 0.5f);
+    const uint16_t h = static_cast<uint16_t>(static_cast<float>(ch) * renderScale + 0.5f);
+    g_device.sceneRenderWidth = w;
+    g_device.sceneRenderHeight = h;
     // TheSuperHackers @feature bobtista 15/06/2026 HDR opt-in: the scene, bloom,
     // and smudge-copy targets share one color format. RGBA16F preserves highlights
     // above 1.0 for HDR bloom + tonemap; RGBA8 is the default LDR path.
@@ -2587,8 +2617,8 @@ static void SubmitSSAO()
 
     float identity[16];
     IdentityMatrix(identity);
-    const uint16_t w = static_cast<uint16_t>(g_device.width);
-    const uint16_t h = static_cast<uint16_t>(g_device.height);
+    const uint16_t w = g_device.sceneRenderWidth > 0 ? g_device.sceneRenderWidth : static_cast<uint16_t>(g_device.width);
+    const uint16_t h = g_device.sceneRenderHeight > 0 ? g_device.sceneRenderHeight : static_cast<uint16_t>(g_device.height);
     const uint64_t sampleFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
     const uint64_t fullscreenState = BGFX_STATE_WRITE_RGB
         | BGFX_STATE_WRITE_A
@@ -2717,8 +2747,10 @@ static void SubmitSceneComposite()
                       static_cast<uint16_t>(g_device.presentOffsetY),
                       static_cast<uint16_t>(g_device.width),
                       static_cast<uint16_t>(g_device.height));
+    // TheSuperHackers @feature bobtista 15/06/2026 Linear (not point) so a
+    // supersampled scene color downsamples by averaging; identical at scale 1.
     bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor,
-                     BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+                     BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
     g_stats.textureBinds++;
     if (bgfx::isValid(g_uniforms.sSceneDepth) && bgfx::isValid(g_device.sceneReadableDepth))
     {
@@ -2731,9 +2763,12 @@ static void SubmitSceneComposite()
     // subtle so the scene keeps the original Zero Hour art direction.
     float postParams[4];
     GetPostParams(postParams);
+    // Texel size of the (supersampled) scene color the composite samples.
+    const float texW = g_device.sceneRenderWidth > 0 ? static_cast<float>(g_device.sceneRenderWidth) : static_cast<float>(g_device.width);
+    const float texH = g_device.sceneRenderHeight > 0 ? static_cast<float>(g_device.sceneRenderHeight) : static_cast<float>(g_device.height);
     const float postTexelSize[4] = {
-        1.0f / static_cast<float>(g_device.width),
-        1.0f / static_cast<float>(g_device.height),
+        1.0f / texW,
+        1.0f / texH,
         0.0f,
         0.0f
     };
@@ -4023,15 +4058,28 @@ void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
         return;
     }
 
-    bgfx::setViewRect(kBgfxEngineView, x, y, w, h);
-    bgfx::setViewRect(kBgfxEngineSortView, x, y, w, h);
-    bgfx::setViewRect(kBgfxWaterView, x, y, w, h);
-    bgfx::setViewRect(kBgfxEffectOverlayView, x, y, w, h);
-    bgfx::setViewRect(kBgfxShadowVolumeView, x, y, w, h);
-    bgfx::setViewRect(kBgfxShadowApplyView, x, y, w, h);
-    bgfx::setViewRect(kBgfxSceneDepthView, x, y, w, h);
-    bgfx::setViewRect(kBgfxSmudgeCopyView, x, y, w, h);
-    bgfx::setViewRect(kBgfxSmudgeView, x, y, w, h);
+    // TheSuperHackers @feature bobtista 15/06/2026 Scale the tactical viewport into
+    // the supersampled scene framebuffer. RTTView (water reflection) is a separate
+    // target and stays at content coords.
+    float renderScaleRatio = 1.0f;
+    if (g_device.width > 0 && g_device.sceneRenderWidth > 0)
+    {
+        renderScaleRatio = static_cast<float>(g_device.sceneRenderWidth) / static_cast<float>(g_device.width);
+    }
+    const uint16_t sx = static_cast<uint16_t>(static_cast<float>(x) * renderScaleRatio + 0.5f);
+    const uint16_t sy = static_cast<uint16_t>(static_cast<float>(y) * renderScaleRatio + 0.5f);
+    const uint16_t sw = static_cast<uint16_t>(static_cast<float>(w) * renderScaleRatio + 0.5f);
+    const uint16_t sh = static_cast<uint16_t>(static_cast<float>(h) * renderScaleRatio + 0.5f);
+
+    bgfx::setViewRect(kBgfxEngineView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxEngineSortView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxWaterView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxEffectOverlayView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxShadowVolumeView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxShadowApplyView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxSceneDepthView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxSmudgeCopyView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxSmudgeView, sx, sy, sw, sh);
     bgfx::setViewRect(kBgfxRTTView, x, y, w, h);
 }
 
@@ -4480,19 +4528,24 @@ void BgfxBackend::Begin_Scene()
     // TheSuperHackers @fix bobtista 21/04/2026 Reset ALL 3D view rects to full canvas at
     // Begin_Scene so a frame that never calls Set_Viewport does not inherit the last
     // tactical rect on some views but not others.
-    bgfx::setViewRect(kBgfxEngineView,        0, 0, g_device.width, g_device.height);
-    bgfx::setViewRect(kBgfxEngineSortView,    0, 0, g_device.width, g_device.height);
-    bgfx::setViewRect(kBgfxWaterView,         0, 0, g_device.width, g_device.height);
-    bgfx::setViewRect(kBgfxEffectOverlayView, 0, 0, g_device.width, g_device.height);
-    bgfx::setViewRect(kBgfxShadowVolumeView,  0, 0, g_device.width, g_device.height);
-    bgfx::setViewRect(kBgfxShadowApplyView,   0, 0, g_device.width, g_device.height);
-    bgfx::setViewRect(kBgfxShroudOverlayView, 0, 0, g_device.width, g_device.height);
-    bgfx::setViewRect(kBgfxSceneDepthView,    0, 0, g_device.width, g_device.height);
+    // TheSuperHackers @feature bobtista 15/06/2026 Scene views render into the
+    // supersampled scene framebuffer (content * render scale); the composite samples
+    // it normalized and downsamples to the native present rect.
+    const uint16_t srw = g_device.sceneRenderWidth > 0 ? g_device.sceneRenderWidth : static_cast<uint16_t>(g_device.width);
+    const uint16_t srh = g_device.sceneRenderHeight > 0 ? g_device.sceneRenderHeight : static_cast<uint16_t>(g_device.height);
+    bgfx::setViewRect(kBgfxEngineView,        0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxEngineSortView,    0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxWaterView,         0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxEffectOverlayView, 0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxShadowVolumeView,  0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxShadowApplyView,   0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxShroudOverlayView, 0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxSceneDepthView,    0, 0, srw, srh);
     // Composite and UI present to the swapchain, so they go in the centered content rect; the
     // remainder of the swapchain is the black-bar region painted by the debug view above.
     bgfx::setViewRect(kBgfxSceneCompositeView, g_device.presentOffsetX, g_device.presentOffsetY, g_device.width, g_device.height);
-    bgfx::setViewRect(kBgfxSmudgeCopyView,    0, 0, g_device.width, g_device.height);
-    bgfx::setViewRect(kBgfxSmudgeView,        0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxSmudgeCopyView,    0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxSmudgeView,        0, 0, srw, srh);
     if (!preserveRenderToTexture)
     {
         bgfx::setViewRect(kBgfxRTTView,       0, 0, g_device.width, g_device.height);
