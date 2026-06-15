@@ -289,6 +289,33 @@ extern "C" void GGC_GetBgfxSSAOParams(float * params)
 	params[2] = TheGlobalData->m_bgfxSSAOIntensity;
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Uber-shader material lighting effects.
+// These read existing W3D material data (specular color/shininess) and the camera eye
+// vector; no new art assets are required.
+// params: x = specular strength (0 = off), y = rim-light strength (0 = off),
+// z = rim-light power, w = emissive boost multiplier (1 = neutral).
+extern "C" void GGC_GetBgfxMaterialFxParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0f;
+	params[1] = 0.0f;
+	params[2] = 3.0f;
+	params[3] = 1.0f;
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	if (TheGlobalData->m_bgfxSpecular)
+	{
+		params[0] = TheGlobalData->m_bgfxSpecularStrength;
+	}
+}
+
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
 {
 	if (logStats)
@@ -433,6 +460,8 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxSSAORadius",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSSAORadius ) },
 	{ "BgfxSSAOIntensity",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSSAOIntensity ) },
 	{ "BgfxRenderScale",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxRenderScale ) },
+	{ "BgfxSpecular",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSpecular ) },
+	{ "BgfxSpecularStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSpecularStrength ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
@@ -1026,6 +1055,8 @@ GlobalData::GlobalData()
 	m_bgfxSSAORadius = 12.0f;
 	m_bgfxSSAOIntensity = 1.0f;
 	m_bgfxRenderScale = 1.0f;
+	m_bgfxSpecular = FALSE;
+	m_bgfxSpecularStrength = 1.0f;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;

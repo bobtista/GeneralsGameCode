@@ -158,6 +158,7 @@ extern "C" void GGC_GetBgfxBloomParams(float * params);
 extern "C" int  GGC_GetBgfxHdrEnabled();
 extern "C" void GGC_GetBgfxPostFx2Params(float * params);
 extern "C" void GGC_GetBgfxSSAOParams(float * params);
+extern "C" void GGC_GetBgfxMaterialFxParams(float * params);
 extern "C" int   GGC_GetBgfxMsaaSamples();
 extern "C" float GGC_GetBgfxRenderScale();
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
@@ -3305,6 +3306,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uMatDiffuse  = bgfx::createUniform("u_matDiffuse",  bgfx::UniformType::Vec4);
     g_uniforms.uMatAmbient  = bgfx::createUniform("u_matAmbient",  bgfx::UniformType::Vec4);
     g_uniforms.uMatEmissive = bgfx::createUniform("u_matEmissive", bgfx::UniformType::Vec4);
+    g_uniforms.uMatSpecular = bgfx::createUniform("u_matSpecular", bgfx::UniformType::Vec4);
+    g_uniforms.uMatFx       = bgfx::createUniform("u_matFx",       bgfx::UniformType::Vec4);
+    g_uniforms.uEyePos      = bgfx::createUniform("u_eyePos",      bgfx::UniformType::Vec4);
     g_uniforms.uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
     g_uniforms.uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
     g_uniforms.uTssOps1     = bgfx::createUniform("u_tssOps1",     bgfx::UniformType::Vec4);
@@ -3604,6 +3608,9 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uSoftParticleParams);
         DestroyBgfxHandle(g_uniforms.uShadowBias);
         DestroyBgfxHandle(g_uniforms.uMatEmissive);
+        DestroyBgfxHandle(g_uniforms.uMatSpecular);
+        DestroyBgfxHandle(g_uniforms.uMatFx);
+        DestroyBgfxHandle(g_uniforms.uEyePos);
         DestroyBgfxHandle(g_uniforms.uGrayscaleEnable);
         DestroyBgfxHandle(g_device.defaultWhiteTexture);
         DestroyBgfxHandle(g_device.defaultTransparentTexture);
@@ -7336,6 +7343,35 @@ static void UploadLightUniforms()
     {
         bgfx::setUniform(g_uniforms.uLightParams, g_draw.lightParams, 4);
     }
+    if (bgfx::isValid(g_uniforms.uEyePos))
+    {
+        // World-space camera position recovered from the rigid view matrix:
+        // eye = -transpose(R) * T (column-major bgfx layout).
+        const float * v = g_frame.view;
+        float eye[4];
+        eye[0] = -(v[0] * v[12] + v[1] * v[13] + v[2] * v[14]);
+        eye[1] = -(v[4] * v[12] + v[5] * v[13] + v[6] * v[14]);
+        eye[2] = -(v[8] * v[12] + v[9] * v[13] + v[10] * v[14]);
+        eye[3] = 0.0f;
+        bgfx::setUniform(g_uniforms.uEyePos, eye);
+    }
+    if (bgfx::isValid(g_uniforms.uMatFx))
+    {
+        float matFx[4];
+        GGC_GetBgfxMaterialFxParams(matFx);
+        bgfx::setUniform(g_uniforms.uMatFx, matFx);
+        static bool s_loggedMatFx = false;
+        if (!s_loggedMatFx && (matFx[0] > 0.0f || matFx[1] > 0.0f || matFx[3] != 1.0f))
+        {
+            std::fprintf(stderr,
+                "[ggc] material FX active: spec=%.2f rim=%.2f rimPow=%.2f emissive=%.2f"
+                " (sample matSpecular rgb=%.2f,%.2f,%.2f shin=%.1f)\n",
+                matFx[0], matFx[1], matFx[2], matFx[3],
+                g_draw.matSpecular[0], g_draw.matSpecular[1], g_draw.matSpecular[2],
+                g_draw.matSpecular[3]);
+            s_loggedMatFx = true;
+        }
+    }
 }
 
 static void BindTextureStages()
@@ -7573,6 +7609,10 @@ static void UploadMaterialUniforms_Body()
     {
         bgfx::setUniform(g_uniforms.uMatEmissive, g_draw.matEmissive);
     }
+    if (bgfx::isValid(g_uniforms.uMatSpecular))
+    {
+        bgfx::setUniform(g_uniforms.uMatSpecular, g_draw.matSpecular);
+    }
 
     if (bgfx::isValid(g_uniforms.uTssOps0))
     {
@@ -7739,6 +7779,13 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
         g_draw.matEmissive[1] = emissive.Y;
         g_draw.matEmissive[2] = emissive.Z;
         g_draw.matEmissive[3] = 0.0f;
+
+        Vector3 specular(0.0f, 0.0f, 0.0f);
+        material->Get_Specular(&specular);
+        g_draw.matSpecular[0] = specular.X;
+        g_draw.matSpecular[1] = specular.Y;
+        g_draw.matSpecular[2] = specular.Z;
+        g_draw.matSpecular[3] = material->Get_Shininess();
     }
     else
     {
@@ -7754,6 +7801,10 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
         g_draw.matEmissive[1] = 0.0f;
         g_draw.matEmissive[2] = 0.0f;
         g_draw.matEmissive[3] = 0.0f;
+        g_draw.matSpecular[0] = 0.0f;
+        g_draw.matSpecular[1] = 0.0f;
+        g_draw.matSpecular[2] = 0.0f;
+        g_draw.matSpecular[3] = 1.0f;
         g_draw.vertexColorFlags[1] = 0.0f;
         g_draw.vertexColorFlags[2] = 0.0f;
         g_draw.vertexColorFlags[3] = 0.0f;
@@ -8362,6 +8413,10 @@ void BgfxBackend::Apply_Material_State(const RenderBackendMaterialState & materi
         g_draw.matAmbient[i] = material.ambient[i];
         g_draw.matEmissive[i] = material.emissive[i];
     }
+    g_draw.matSpecular[0] = 0.0f;
+    g_draw.matSpecular[1] = 0.0f;
+    g_draw.matSpecular[2] = 0.0f;
+    g_draw.matSpecular[3] = 1.0f;
 }
 
 void BgfxBackend::Set_Material_Color_Source(RenderBackendMaterialColorSource ambient_source,
