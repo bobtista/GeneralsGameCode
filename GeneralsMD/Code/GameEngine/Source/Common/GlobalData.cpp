@@ -918,8 +918,8 @@ GlobalData::GlobalData()
 	m_bgfxColorGradeTemperature = 0.0f;
 	m_bgfxColorGradeTint = 0.0f;
 	m_bgfxBloom = FALSE;
-	m_bgfxBloomThreshold = 0.75f;
-	m_bgfxBloomIntensity = 0.6f;
+	m_bgfxBloomThreshold = 0.9f;
+	m_bgfxBloomIntensity = 0.5f;
 	m_bgfxHdr = FALSE;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
