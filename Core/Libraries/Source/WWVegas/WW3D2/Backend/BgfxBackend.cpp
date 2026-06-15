@@ -121,6 +121,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "fs_bloom_bright_metal.bin.h"
 #include "fs_bloom_blur_metal.bin.h"
 #include "fs_ssao_metal.bin.h"
+#include "fs_copy_metal.bin.h"
 #include "vs_scene_depth_metal.bin.h"
 #include "fs_scene_depth_metal.bin.h"
 #include "vs_smudge_metal.bin.h"
@@ -150,6 +151,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "fs_bloom_bright_dx11.bin.h"
 #include "fs_bloom_blur_dx11.bin.h"
 #include "fs_ssao_dx11.bin.h"
+#include "fs_copy_dx11.bin.h"
 #include "vs_scene_depth_dx11.bin.h"
 #include "fs_scene_depth_dx11.bin.h"
 #include "vs_smudge_dx11.bin.h"
@@ -167,6 +169,7 @@ extern "C" void GGC_GetBgfxBloomParams(float * params);
 extern "C" int  GGC_GetBgfxHdrEnabled();
 extern "C" void GGC_GetBgfxPostFx2Params(float * params);
 extern "C" void GGC_GetBgfxSSAOParams(float * params);
+extern "C" int  GGC_GetBgfxMsaaSamples();
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
 extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
 extern "C" int  GGC_GetBgfxScreenshotFrame();
@@ -2196,6 +2199,28 @@ static void GetSoftParticleParams(float * params)
 
 static bool IsBgfxSSAOEnabled();
 
+// TheSuperHackers @feature bobtista 15/06/2026 MSAA sample count for the offscreen
+// scene framebuffer (0/2/4/8). Env GGC_BGFX_MSAA overrides the INI BgfxMSAA.
+static int GetSceneMsaaSamples()
+{
+    int samples = 0;
+    const char * env = std::getenv("GGC_BGFX_MSAA");
+    if (env != nullptr)
+    {
+        samples = std::atoi(env);
+    }
+#ifdef RTS_ZEROHOUR
+    if (samples <= 0)
+    {
+        samples = GGC_GetBgfxMsaaSamples();
+    }
+#endif
+    if (samples >= 8) { return 8; }
+    if (samples >= 4) { return 4; }
+    if (samples >= 2) { return 2; }
+    return 0;
+}
+
 static bool IsReadableSceneDepthEnabled()
 {
     if (GetBgfxDiagnosticFlags().noSceneFramebuffer)
@@ -2271,6 +2296,10 @@ static void DestroySceneFramebuffer()
     {
         bgfx::destroy(g_device.sceneReadableDepthFB);
     }
+    if (bgfx::isValid(g_device.sceneSmudgeCopyFB))
+    {
+        bgfx::destroy(g_device.sceneSmudgeCopyFB);
+    }
     if (bgfx::isValid(g_device.sceneSmudgeCopy))
     {
         bgfx::destroy(g_device.sceneSmudgeCopy);
@@ -2321,6 +2350,7 @@ static void DestroySceneFramebuffer()
     g_device.sceneColor = BGFX_INVALID_HANDLE;
     g_device.sceneDepth = BGFX_INVALID_HANDLE;
     g_device.sceneSmudgeCopy = BGFX_INVALID_HANDLE;
+    g_device.sceneSmudgeCopyFB = BGFX_INVALID_HANDLE;
     g_device.sceneReadableDepthFB = BGFX_INVALID_HANDLE;
     g_device.sceneReadableDepth = BGFX_INVALID_HANDLE;
     g_device.sceneReadableDepthTest = BGFX_INVALID_HANDLE;
@@ -2340,14 +2370,22 @@ static bool CreateSceneFramebuffer()
     const bgfx::TextureFormat::Enum sceneColorFormat = IsBgfxHdrEnabled()
         ? bgfx::TextureFormat::RGBA16F
         : bgfx::TextureFormat::RGBA8;
-    const uint64_t colorFlags = BGFX_TEXTURE_RT
+    // TheSuperHackers @feature bobtista 15/06/2026 True MSAA on the 3D scene: the
+    // scene color/depth are multisampled and bgfx auto-resolves the color when the
+    // composite samples it. RGBA16F (HDR) and MSAA combine. 0 = no MSAA.
+    const int msaaSamples = GetSceneMsaaSamples();
+    uint64_t msaaRtFlag = BGFX_TEXTURE_RT;
+    if (msaaSamples >= 8) { msaaRtFlag = BGFX_TEXTURE_RT_MSAA_X8; }
+    else if (msaaSamples >= 4) { msaaRtFlag = BGFX_TEXTURE_RT_MSAA_X4; }
+    else if (msaaSamples >= 2) { msaaRtFlag = BGFX_TEXTURE_RT_MSAA_X2; }
+    const uint64_t colorFlags = msaaRtFlag
         | BGFX_SAMPLER_POINT
         | BGFX_SAMPLER_U_CLAMP
         | BGFX_SAMPLER_V_CLAMP;
     bgfx::TextureHandle colorTex = bgfx::createTexture2D(
         w, h, false, 1, sceneColorFormat, colorFlags);
     bgfx::TextureHandle depthTex = bgfx::createTexture2D(
-        w, h, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+        w, h, false, 1, bgfx::TextureFormat::D24S8, msaaRtFlag | BGFX_TEXTURE_RT_WRITE_ONLY);
 
     bgfx::TextureHandle attachments[2] = { colorTex, depthTex };
     bgfx::FrameBufferHandle fb = bgfx::createFrameBuffer(2, attachments, true);
@@ -2369,11 +2407,18 @@ static bool CreateSceneFramebuffer()
     g_device.sceneFB = fb;
     g_device.sceneColor = colorTex;
     g_device.sceneDepth = depthTex;
+    // TheSuperHackers @tweak bobtista 15/06/2026 The smudge snapshot is now an RT
+    // single-sample target written by a fullscreen resolve-draw (not bgfx::blit),
+    // so it works when the scene color is multisampled.
     g_device.sceneSmudgeCopy = bgfx::createTexture2D(
         w, h, false, 1, sceneColorFormat,
-        BGFX_TEXTURE_BLIT_DST
+        BGFX_TEXTURE_RT
         | BGFX_SAMPLER_U_CLAMP
         | BGFX_SAMPLER_V_CLAMP);
+    if (bgfx::isValid(g_device.sceneSmudgeCopy))
+    {
+        g_device.sceneSmudgeCopyFB = bgfx::createFrameBuffer(1, &g_device.sceneSmudgeCopy, false);
+    }
     g_device.sceneWidth = w;
     g_device.sceneHeight = h;
     bgfx::setName(g_device.sceneColor, "sceneColorRGBA8");
@@ -2504,7 +2549,7 @@ static void ApplySceneFramebufferToViews()
     bgfx::setViewFrameBuffer(kBgfxShadowVolumeView, sceneFB);
     bgfx::setViewFrameBuffer(kBgfxShadowApplyView, sceneFB);
     bgfx::setViewFrameBuffer(kBgfxShroudOverlayView, sceneFB);
-    bgfx::setViewFrameBuffer(kBgfxSmudgeCopyView, BGFX_INVALID_HANDLE);
+    bgfx::setViewFrameBuffer(kBgfxSmudgeCopyView, g_device.sceneSmudgeCopyFB);
     bgfx::setViewFrameBuffer(kBgfxSmudgeView, sceneFB);
     bgfx::setViewFrameBuffer(kBgfxBloomBrightView, g_device.bloomBrightFB);
     bgfx::setViewFrameBuffer(kBgfxBloomBlurHView, g_device.bloomBlurFB);
@@ -3140,6 +3185,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_device.ssaoProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
         GGC_BGFX_SHADER(fs_ssao), sizeof(GGC_BGFX_SHADER(fs_ssao)), "fs_ssao");
+    g_device.copyProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
+        GGC_BGFX_SHADER(fs_copy), sizeof(GGC_BGFX_SHADER(fs_copy)), "fs_copy");
     g_device.sceneDepthProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_scene_depth), sizeof(GGC_BGFX_SHADER(vs_scene_depth)), "vs_scene_depth",
         GGC_BGFX_SHADER(fs_scene_depth), sizeof(GGC_BGFX_SHADER(fs_scene_depth)), "fs_scene_depth");
@@ -3395,6 +3443,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_device.bloomBrightProgram);
         DestroyBgfxHandle(g_device.bloomBlurProgram);
         DestroyBgfxHandle(g_device.ssaoProgram);
+        DestroyBgfxHandle(g_device.copyProgram);
         DestroyBgfxHandle(g_device.sceneDepthProgram);
         DestroyBgfxHandle(g_device.smudgeProgram);
         DestroyBgfxHandle(g_device.fullscreenClearVB);
@@ -9318,13 +9367,23 @@ bool BgfxBackend::Begin_Smudge_Distortion()
         || diagnostics.noPostFx
         || !bgfx::isValid(g_device.sceneColor)
         || !bgfx::isValid(g_device.sceneSmudgeCopy)
+        || !bgfx::isValid(g_device.sceneSmudgeCopyFB)
+        || !bgfx::isValid(g_device.copyProgram)
+        || !bgfx::isValid(g_device.fullscreenClearVB)
+        || !bgfx::isValid(g_uniforms.sTex0)
         || !bgfx::isValid(g_device.smudgeProgram))
     {
         return false;
     }
 
-    bgfx::blit(kBgfxSmudgeCopyView, g_device.sceneSmudgeCopy, 0, 0,
-               g_device.sceneColor);
+    // Resolve-draw the (possibly MSAA) scene color into the single-sample snapshot;
+    // bgfx::blit cannot read a multisampled source. The view rect/transform/target
+    // are set up in the per-frame view setup.
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor,
+                     BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_DEPTH_TEST_ALWAYS);
+    bgfx::submit(kBgfxSmudgeCopyView, g_device.copyProgram);
     g_views.smudgeActive = true;
     return true;
 }
