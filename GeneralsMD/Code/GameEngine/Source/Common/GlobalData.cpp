@@ -919,8 +919,11 @@ GlobalData::GlobalData()
 	m_bgfxColorGradeTemperature = 0.0f;
 	m_bgfxColorGradeTint = 0.0f;
 	m_bgfxBloom = FALSE;
-	m_bgfxBloomThreshold = 0.75f;
-	m_bgfxBloomIntensity = 0.6f;
+	// TheSuperHackers @tweak bobtista 15/06/2026 A threshold around 0.7 is the
+	// practical middle ground on this game's display-referred art: bright effects
+	// and surfaces bloom while most terrain stays clean. Best paired with BgfxHdr.
+	m_bgfxBloomThreshold = 0.7f;
+	m_bgfxBloomIntensity = 0.5f;
 	m_bgfxHdr = FALSE;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
