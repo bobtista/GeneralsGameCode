@@ -128,6 +128,7 @@ struct BgfxDevice
     bgfx::ProgramHandle bloomBrightProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle bloomBlurProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle ssaoProgram = BGFX_INVALID_HANDLE;
+    bgfx::ProgramHandle copyProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle sceneDepthProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle smudgeProgram = BGFX_INVALID_HANDLE;
 
@@ -138,6 +139,7 @@ struct BgfxDevice
     bgfx::TextureHandle     sceneColor = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     sceneDepth = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     sceneSmudgeCopy = BGFX_INVALID_HANDLE;
+    bgfx::FrameBufferHandle sceneSmudgeCopyFB = BGFX_INVALID_HANDLE;
     bgfx::FrameBufferHandle sceneReadableDepthFB = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     sceneReadableDepth = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     sceneReadableDepthTest = BGFX_INVALID_HANDLE;
