@@ -227,6 +227,12 @@ void ReleaseCrash(const char *reason)
 	char prevbuf[ _MAX_PATH ];
 	char curbuf[ _MAX_PATH ];
 
+#ifdef DEBUG_LOGGING
+	// TheSuperHackers @performance bobtista 14/06/2026 Flush the buffered debug log before
+	// the fatal exit so its tail is captured alongside the release crash report.
+	DebugFlushLogFile();
+#endif
+
 	if (TheGlobalData==nullptr) {
 		return; // We are shutting down, and TheGlobalData has been freed.  jba. [4/15/2003]
 	}
