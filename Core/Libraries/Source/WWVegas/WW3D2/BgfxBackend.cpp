@@ -163,6 +163,7 @@ extern "C" void GGC_GetBgfxWipeParams(float * params);
 extern "C" void GGC_GetBgfxColorGradeParams(float * params);
 extern "C" void GGC_GetBgfxBloomParams(float * params);
 extern "C" int  GGC_GetBgfxHdrEnabled();
+extern "C" void GGC_GetBgfxPostFx2Params(float * params);
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
 extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
 extern "C" int  GGC_GetBgfxScreenshotFrame();
@@ -209,6 +210,15 @@ enum MaterialUniformSlot
 };
 BgfxDraw       g_draw;
 BgfxOverrides  g_overrides;
+
+// TheSuperHackers @feature bobtista 15/06/2026 LOCAL DEV AID (uncommitted): lets a
+// hotkey request a scene-framebuffer rebuild so opt-in HDR (RGBA8<->RGBA16F format)
+// can be toggled live. The rebuild runs at the safe resize point in Begin_Scene.
+static bool g_requestSceneFramebufferRebuild = false;
+extern "C" void GGC_RequestBgfxFramebufferRebuild()
+{
+    g_requestSceneFramebufferRebuild = true;
+}
 BgfxViewFlags  g_views;
 BgfxFrame      g_frame;
 BgfxStats      g_stats;
@@ -2107,6 +2117,47 @@ static void GetBloomParams(float * params)
     }
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Cheap fullscreen post effects with
+// per-effect env overrides for dev iteration. params: x = vignette strength,
+// y = chromatic aberration amount, z = film grain strength.
+static void GetPostFx2Params(float * params)
+{
+    params[0] = 0.0f;
+    params[1] = 0.0f;
+    params[2] = 0.0f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxPostFx2Params(params);
+#endif
+    static int forcedVig = -1;
+    static int forcedCa = -1;
+    static int forcedGrain = -1;
+    if (forcedVig < 0)
+    {
+        forcedVig = (std::getenv("GGC_BGFX_VIGNETTE") != nullptr) ? 1 : 0;
+    }
+    if (forcedCa < 0)
+    {
+        forcedCa = (std::getenv("GGC_BGFX_CHROMA") != nullptr) ? 1 : 0;
+    }
+    if (forcedGrain < 0)
+    {
+        forcedGrain = (std::getenv("GGC_BGFX_GRAIN") != nullptr) ? 1 : 0;
+    }
+    if (forcedVig == 1 && params[0] <= 0.0f)
+    {
+        params[0] = 0.4f;
+    }
+    if (forcedCa == 1 && params[1] <= 0.0f)
+    {
+        params[1] = 0.5f;
+    }
+    if (forcedGrain == 1 && params[2] <= 0.0f)
+    {
+        params[2] = 0.08f;
+    }
+}
+
 static void GetSoftParticleParams(float * params)
 {
     params[0] = 1.0f;
@@ -2524,6 +2575,13 @@ static void SubmitSceneComposite()
     if (bgfx::isValid(g_uniforms.uHdrParams))
     {
         bgfx::setUniform(g_uniforms.uHdrParams, hdrParams);
+    }
+    float postFx2[4];
+    GetPostFx2Params(postFx2);
+    postFx2[3] = static_cast<float>(g_stats.frameIndex & 1023); // film-grain time seed
+    if (bgfx::isValid(g_uniforms.uPostFx2Params))
+    {
+        bgfx::setUniform(g_uniforms.uPostFx2Params, postFx2);
     }
     static bool s_loggedComposite = false;
     if (!s_loggedComposite)
@@ -3023,6 +3081,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uBloomBlurDir = bgfx::createUniform("u_bloomBlurDir", bgfx::UniformType::Vec4);
     g_uniforms.sBloom = bgfx::createUniform("s_bloom", bgfx::UniformType::Sampler);
     g_uniforms.uHdrParams = bgfx::createUniform("u_hdrParams", bgfx::UniformType::Vec4);
+    g_uniforms.uPostFx2Params = bgfx::createUniform("u_postFx2Params", bgfx::UniformType::Vec4);
     g_uniforms.uSoftParticleParams = bgfx::createUniform("u_softParticleParams", bgfx::UniformType::Vec4);
 
     // Keep view order explicit. Stencil shadow volumes, sorted decals/effects,
@@ -3216,6 +3275,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uBloomBlurDir);
         DestroyBgfxHandle(g_uniforms.sBloom);
         DestroyBgfxHandle(g_uniforms.uHdrParams);
+        DestroyBgfxHandle(g_uniforms.uPostFx2Params);
         DestroyBgfxHandle(g_uniforms.uSoftParticleParams);
         DestroyBgfxHandle(g_uniforms.uShadowBias);
         DestroyBgfxHandle(g_uniforms.uMatEmissive);
@@ -4133,6 +4193,17 @@ void BgfxBackend::Begin_Scene()
                 }
             }
         }
+    }
+
+    // TheSuperHackers @feature bobtista 15/06/2026 LOCAL DEV AID (uncommitted):
+    // honor a hotkey-requested framebuffer rebuild (HDR format toggle) at the same
+    // safe point the resize path uses.
+    if (g_requestSceneFramebufferRebuild)
+    {
+        g_requestSceneFramebufferRebuild = false;
+        DestroySceneFramebuffer();
+        CreateSceneFramebuffer();
+        ApplySceneFramebufferToViews();
     }
 
     // TheSuperHackers @fix bobtista 20/04/2026 Force a real draw on view 0
