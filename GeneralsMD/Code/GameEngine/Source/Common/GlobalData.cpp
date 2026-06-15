@@ -918,7 +918,12 @@ GlobalData::GlobalData()
 	m_bgfxColorGradeTemperature = 0.0f;
 	m_bgfxColorGradeTint = 0.0f;
 	m_bgfxBloom = FALSE;
-	m_bgfxBloomThreshold = 0.9f;
+	// TheSuperHackers @tweak bobtista 15/06/2026 Default threshold above 1.0 so bloom
+	// only catches genuinely over-bright (additive) content in HDR mode - explosions,
+	// lasers, muzzle flashes - and never the bright diffuse terrain/buildings that sit
+	// at ~1.0. Bloom is designed to be used together with BgfxHdr; without HDR the
+	// scene clamps to 1.0 and little will exceed the threshold.
+	m_bgfxBloomThreshold = 1.1f;
 	m_bgfxBloomIntensity = 0.5f;
 	m_bgfxHdr = FALSE;
 	m_bgfxSoftParticles = FALSE;
