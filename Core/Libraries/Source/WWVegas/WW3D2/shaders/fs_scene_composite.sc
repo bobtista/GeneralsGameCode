@@ -10,6 +10,10 @@ SAMPLER2D(s_tex0, 0);
 
 uniform vec4 u_postParams;
 uniform vec4 u_postTexelSize;
+// TheSuperHackers @feature bobtista 15/06/2026 u_wipeParams.x = split position
+// 0..1, .y = enabled. Left of the split shows the unprocessed scene, right shows
+// the processed result, for live before/after comparison of post effects.
+uniform vec4 u_wipeParams;
 
 // TheSuperHackers @tweak bobtista 05/06/2026 BT.601 luma weights (matches fs_uber.sc).
 #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
@@ -17,6 +21,7 @@ uniform vec4 u_postTexelSize;
 void main()
 {
 	vec4 color = texture2D(s_tex0, v_texcoord0);
+	vec3 rawColor = color.rgb;
 
 	// u_postParams.x = sharpen amount, y = saturation, z = contrast,
 	// w = edge-aware FXAA-style smoothing amount. Defaults are identity:
@@ -67,5 +72,20 @@ void main()
 	float luma = dot(color.rgb, LUMA_WEIGHTS);
 	color.rgb = mix(vec3(luma, luma, luma), color.rgb, u_postParams.y);
 	color.rgb = (color.rgb - vec3(0.5, 0.5, 0.5)) * u_postParams.z + vec3(0.5, 0.5, 0.5);
-	gl_FragColor = vec4(clamp(color.rgb, 0.0, 1.0), color.a);
+	vec3 processed = clamp(color.rgb, 0.0, 1.0);
+
+	if (u_wipeParams.y > 0.5)
+	{
+		float side = step(u_wipeParams.x, v_texcoord0.x);
+		vec3 outRgb = mix(rawColor, processed, side);
+		if (abs(v_texcoord0.x - u_wipeParams.x) < u_postTexelSize.x * 1.5)
+		{
+			outRgb = vec3(1.0, 1.0, 1.0);
+		}
+		gl_FragColor = vec4(outRgb, color.a);
+	}
+	else
+	{
+		gl_FragColor = vec4(processed, color.a);
+	}
 }
