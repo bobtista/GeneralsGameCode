@@ -9,6 +9,11 @@ SAMPLER2D(s_tex3, 3);
 // Terrain cloud-shadow scroll texture (BASE_NOISE1/NOISE12 paths on DX8).
 SAMPLER2D(s_cloudMap, 5);
 SAMPLER2D(s_sceneDepth, 6);
+// Specular/rim uniforms not in trunk's packed u_material[] array (which already
+// provides u_matDiffuse/Ambient/Emissive/tssOps/atest via #define).
+uniform vec4 u_matSpecular; // rgb = specular color, w = shininess (Blinn-Phong power)
+uniform vec4 u_matFx; // x specular strength, y rim strength, z rim power, w emissive boost
+uniform vec4 u_eyePos; // xyz = world-space camera position
 uniform vec4 u_lightDirs[4];    // per-light direction (xyz=toward light, w=enabled)
 uniform vec4 u_lightColors[4]; // per-light diffuse color (rgb)
 uniform vec4 u_lightAmbients[4]; // per-light ambient color (rgb)
@@ -567,6 +572,11 @@ void main()
 		// normal (degenerate geometry) which would yield NaN and bleed into the color.
 		float nrmLen = length(v_normal);
 		vec3 nrm = (nrmLen > 1e-5) ? (v_normal / nrmLen) : vec3(0.0, 0.0, 1.0);
+		// TheSuperHackers @feature bobtista 15/06/2026 View vector for Blinn-Phong
+		// specular and rim lighting, both driven entirely from existing W3D material
+		// data and geometry normals (no new art).
+		vec3 viewDir = normalize(u_eyePos.xyz - v_worldPos);
+		vec3 specAccum = vec3(0.0, 0.0, 0.0);
 		// D3D fixed-function folds emissive into the material color before
 		// texture-stage modulation. Adding it after sampling bleaches tinted
 		// self-lit textures like the shellmap police roof lights to white.
@@ -591,6 +601,13 @@ void main()
 				}
 				float nDotL = max(0.0, dot(nrm, ldir));
 				litColor += (u_lightAmbients[li].rgb * matAmbient + u_lightColors[li].rgb * nDotL * matDiffuse) * atten;
+				if (nDotL > 0.0)
+				{
+					vec3 halfV = normalize(ldir + viewDir);
+					float nDotH = max(0.0, dot(nrm, halfV));
+					float shininess = max(u_matSpecular.w, 1.0);
+					specAccum += u_lightColors[li].rgb * pow(nDotH, shininess) * atten;
+				}
 			}
 		}
 		vec4 litDiffuse = vec4(min(vec3_splat(1.0), litColor), u_matDiffuse.a);
@@ -654,6 +671,11 @@ void main()
 		{
 			current.a = applyAlphaOp(secAlphaOp, tex1.a, current.a);
 		}
+
+		// TheSuperHackers @feature bobtista 15/06/2026 Add Blinn-Phong specular on top of
+		// the lit/textured result, gated by u_matFx.x (0 = off) so the retail look is
+		// unchanged unless explicitly enabled.
+		current.rgb += specAccum * u_matSpecular.rgb * u_matFx.x;
 	}
 	else
 	{
