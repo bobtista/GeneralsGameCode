@@ -105,27 +105,30 @@ void main()
 		color.rgb += texture2D(s_bloom, v_texcoord0).rgb * u_bloomParams.y;
 	}
 
-	// Keep the (possibly HDR) values intact through the wipe mix; map to display
-	// range last via ACES tonemap (HDR) or hard clamp (LDR).
-	vec3 outRgb = color.rgb;
-	if (u_wipeParams.y > 0.5)
-	{
-		float side = step(u_wipeParams.x, v_texcoord0.x);
-		outRgb = mix(rawColor, color.rgb, side);
-	}
-
+	// Map the fully-processed scene to display range: ACES tonemap (HDR) or hard
+	// clamp (LDR).
+	vec3 processedOut;
 	if (u_hdrParams.x > 0.5)
 	{
-		outRgb = acesTonemap(outRgb);
+		processedOut = acesTonemap(color.rgb);
 	}
 	else
 	{
-		outRgb = clamp(outRgb, 0.0, 1.0);
+		processedOut = clamp(color.rgb, 0.0, 1.0);
 	}
 
-	if (u_wipeParams.y > 0.5 && abs(v_texcoord0.x - u_wipeParams.x) < u_postTexelSize.x * 1.5)
+	vec3 outRgb = processedOut;
+	if (u_wipeParams.y > 0.5)
 	{
-		outRgb = vec3(1.0, 1.0, 1.0);
+		// Left of the split shows the raw scene with every enhancement off (no
+		// post, color grade, bloom, or HDR tonemap) for a true before/after.
+		vec3 beforeOut = clamp(rawColor, 0.0, 1.0);
+		float side = step(u_wipeParams.x, v_texcoord0.x);
+		outRgb = mix(beforeOut, processedOut, side);
+		if (abs(v_texcoord0.x - u_wipeParams.x) < u_postTexelSize.x * 1.5)
+		{
+			outRgb = vec3(1.0, 1.0, 1.0);
+		}
 	}
 
 	gl_FragColor = vec4(outRgb, color.a);
