@@ -118,6 +118,8 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "fs_shadow_apply_metal.bin.h"
 #include "vs_scene_composite_metal.bin.h"
 #include "fs_scene_composite_metal.bin.h"
+#include "fs_bloom_bright_metal.bin.h"
+#include "fs_bloom_blur_metal.bin.h"
 #include "vs_scene_depth_metal.bin.h"
 #include "fs_scene_depth_metal.bin.h"
 #include "vs_smudge_metal.bin.h"
@@ -144,6 +146,8 @@ int DX8Wrapper_PreserveFPU = 0;
 
 #include "vs_scene_composite_dx11.bin.h"
 #include "fs_scene_composite_dx11.bin.h"
+#include "fs_bloom_bright_dx11.bin.h"
+#include "fs_bloom_blur_dx11.bin.h"
 #include "vs_scene_depth_dx11.bin.h"
 #include "fs_scene_depth_dx11.bin.h"
 #include "vs_smudge_dx11.bin.h"
@@ -157,6 +161,7 @@ int DX8Wrapper_PreserveFPU = 0;
 extern "C" void GGC_GetBgfxPostProcessParams(float * params);
 extern "C" void GGC_GetBgfxWipeParams(float * params);
 extern "C" void GGC_GetBgfxColorGradeParams(float * params);
+extern "C" void GGC_GetBgfxBloomParams(float * params);
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
 extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
 extern "C" int  GGC_GetBgfxScreenshotFrame();
@@ -1795,6 +1800,12 @@ const bgfx::ViewId kBgfxUIView           = 10;
 // and particle passes can sample depth without touching the D24S8 stencil
 // surface used by the main scene framebuffer.
 const bgfx::ViewId kBgfxSceneDepthView   = 11;
+// TheSuperHackers @feature bobtista 15/06/2026 Bloom passes. After the scene is
+// fully rendered, a bright-pass extracts highlights into a half-res target which
+// is blurred (H then V) and added back over the scene in the composite.
+const bgfx::ViewId kBgfxBloomBrightView  = 14;
+const bgfx::ViewId kBgfxBloomBlurHView   = 15;
+const bgfx::ViewId kBgfxBloomBlurVView   = 16;
 const uint8_t kBgfxSceneDepthSamplerStage = 6;
 const float kSoftParticleDepthFadeScale  = 80.0f;
 const int kSwayTableEntries              = 11;
@@ -2069,6 +2080,32 @@ static void GetColorGradeParams(float * params)
     }
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Pull bloom params, with an env
+// override (GGC_BGFX_BLOOM). params: x = enabled, y = threshold, z = intensity.
+static void GetBloomParams(float * params)
+{
+    params[0] = 0.0f;
+    params[1] = 0.75f;
+    params[2] = 0.0f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxBloomParams(params);
+#endif
+    static int forced = -1;
+    if (forced < 0)
+    {
+        forced = (std::getenv("GGC_BGFX_BLOOM") != nullptr) ? 1 : 0;
+    }
+    if (forced == 1)
+    {
+        params[0] = 1.0f;
+        if (params[2] <= 0.0f)
+        {
+            params[2] = 0.8f;
+        }
+    }
+}
+
 static void GetSoftParticleParams(float * params)
 {
     params[0] = 1.0f;
@@ -2125,6 +2162,28 @@ static void DestroySceneFramebuffer()
     {
         bgfx::destroy(g_device.sceneSmudgeCopy);
     }
+    if (bgfx::isValid(g_device.bloomBrightFB))
+    {
+        bgfx::destroy(g_device.bloomBrightFB);
+    }
+    if (bgfx::isValid(g_device.bloomBrightTex))
+    {
+        bgfx::destroy(g_device.bloomBrightTex);
+    }
+    if (bgfx::isValid(g_device.bloomBlurFB))
+    {
+        bgfx::destroy(g_device.bloomBlurFB);
+    }
+    if (bgfx::isValid(g_device.bloomBlurTex))
+    {
+        bgfx::destroy(g_device.bloomBlurTex);
+    }
+    g_device.bloomBrightFB = BGFX_INVALID_HANDLE;
+    g_device.bloomBrightTex = BGFX_INVALID_HANDLE;
+    g_device.bloomBlurFB = BGFX_INVALID_HANDLE;
+    g_device.bloomBlurTex = BGFX_INVALID_HANDLE;
+    g_device.bloomWidth = 0;
+    g_device.bloomHeight = 0;
     g_device.sceneFB = BGFX_INVALID_HANDLE;
     g_device.sceneColor = BGFX_INVALID_HANDLE;
     g_device.sceneDepth = BGFX_INVALID_HANDLE;
@@ -2183,6 +2242,33 @@ static bool CreateSceneFramebuffer()
     if (bgfx::isValid(g_device.sceneSmudgeCopy))
     {
         bgfx::setName(g_device.sceneSmudgeCopy, "sceneSmudgeCopyRGBA8");
+    }
+
+    // TheSuperHackers @feature bobtista 15/06/2026 Half-res bloom ping-pong
+    // targets. The bright-pass and separable blur run here; the result is added
+    // back over the scene in the composite.
+    {
+        const uint16_t bloomW = static_cast<uint16_t>(w > 1 ? w / 2 : 1);
+        const uint16_t bloomH = static_cast<uint16_t>(h > 1 ? h / 2 : 1);
+        const uint64_t bloomFlags = BGFX_TEXTURE_RT
+            | BGFX_SAMPLER_U_CLAMP
+            | BGFX_SAMPLER_V_CLAMP;
+        g_device.bloomBrightTex = bgfx::createTexture2D(
+            bloomW, bloomH, false, 1, bgfx::TextureFormat::RGBA8, bloomFlags);
+        if (bgfx::isValid(g_device.bloomBrightTex))
+        {
+            g_device.bloomBrightFB = bgfx::createFrameBuffer(1, &g_device.bloomBrightTex, false);
+            bgfx::setName(g_device.bloomBrightTex, "bloomBrightRGBA8");
+        }
+        g_device.bloomBlurTex = bgfx::createTexture2D(
+            bloomW, bloomH, false, 1, bgfx::TextureFormat::RGBA8, bloomFlags);
+        if (bgfx::isValid(g_device.bloomBlurTex))
+        {
+            g_device.bloomBlurFB = bgfx::createFrameBuffer(1, &g_device.bloomBlurTex, false);
+            bgfx::setName(g_device.bloomBlurTex, "bloomBlurRGBA8");
+        }
+        g_device.bloomWidth = bloomW;
+        g_device.bloomHeight = bloomH;
     }
 
     if (IsReadableSceneDepthEnabled())
@@ -2259,9 +2345,75 @@ static void ApplySceneFramebufferToViews()
     bgfx::setViewFrameBuffer(kBgfxShroudOverlayView, sceneFB);
     bgfx::setViewFrameBuffer(kBgfxSmudgeCopyView, BGFX_INVALID_HANDLE);
     bgfx::setViewFrameBuffer(kBgfxSmudgeView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxBloomBrightView, g_device.bloomBrightFB);
+    bgfx::setViewFrameBuffer(kBgfxBloomBlurHView, g_device.bloomBlurFB);
+    bgfx::setViewFrameBuffer(kBgfxBloomBlurVView, g_device.bloomBrightFB);
     bgfx::setViewFrameBuffer(kBgfxSceneCompositeView, BGFX_INVALID_HANDLE);
     bgfx::setViewFrameBuffer(kBgfxSceneDepthView, g_device.sceneReadableDepthFB);
     bgfx::setViewFrameBuffer(kBgfxUIView, BGFX_INVALID_HANDLE);
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Bloom passes: extract highlights
+// above a threshold into a half-res target, separable-blur (H then V), leaving
+// the result in bloomBrightTex for the composite to add over the scene.
+static void SubmitBloom(const float * bloomParams)
+{
+    const bool ready = bloomParams[0] > 0.5f
+        && bgfx::isValid(g_device.bloomBrightFB)
+        && bgfx::isValid(g_device.bloomBlurFB)
+        && bgfx::isValid(g_device.bloomBrightProgram)
+        && bgfx::isValid(g_device.bloomBlurProgram)
+        && bgfx::isValid(g_device.sceneColor)
+        && bgfx::isValid(g_device.fullscreenClearVB)
+        && bgfx::isValid(g_uniforms.sTex0)
+        && g_device.bloomWidth > 0
+        && g_device.bloomHeight > 0;
+    if (!ready)
+    {
+        bgfx::touch(kBgfxBloomBrightView);
+        bgfx::touch(kBgfxBloomBlurHView);
+        bgfx::touch(kBgfxBloomBlurVView);
+        return;
+    }
+
+    float identity[16];
+    IdentityMatrix(identity);
+    const uint16_t bw = g_device.bloomWidth;
+    const uint16_t bh = g_device.bloomHeight;
+    const uint64_t sampleFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+    const uint64_t fullscreenState = BGFX_STATE_WRITE_RGB
+        | BGFX_STATE_WRITE_A
+        | BGFX_STATE_DEPTH_TEST_ALWAYS;
+    float bloomUniform[4] = { bloomParams[1], bloomParams[2], 0.0f, 0.0f };
+
+    bgfx::setViewTransform(kBgfxBloomBrightView, identity, identity);
+    bgfx::setViewRect(kBgfxBloomBrightView, 0, 0, bw, bh);
+    bgfx::setViewClear(kBgfxBloomBrightView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor, sampleFlags);
+    bgfx::setUniform(g_uniforms.uBloomParams, bloomUniform);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxBloomBrightView, g_device.bloomBrightProgram);
+
+    const float dirH[4] = { 1.0f / static_cast<float>(bw), 0.0f, 0.0f, 0.0f };
+    bgfx::setViewTransform(kBgfxBloomBlurHView, identity, identity);
+    bgfx::setViewRect(kBgfxBloomBlurHView, 0, 0, bw, bh);
+    bgfx::setViewClear(kBgfxBloomBlurHView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.bloomBrightTex, sampleFlags);
+    bgfx::setUniform(g_uniforms.uBloomBlurDir, dirH);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxBloomBlurHView, g_device.bloomBlurProgram);
+
+    const float dirV[4] = { 0.0f, 1.0f / static_cast<float>(bh), 0.0f, 0.0f };
+    bgfx::setViewTransform(kBgfxBloomBlurVView, identity, identity);
+    bgfx::setViewRect(kBgfxBloomBlurVView, 0, 0, bw, bh);
+    bgfx::setViewClear(kBgfxBloomBlurVView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.bloomBlurTex, sampleFlags);
+    bgfx::setUniform(g_uniforms.uBloomBlurDir, dirV);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxBloomBlurVView, g_device.bloomBlurProgram);
 }
 
 static void SubmitSceneComposite()
@@ -2325,15 +2477,34 @@ static void SubmitSceneComposite()
     {
         bgfx::setUniform(g_uniforms.uColorGradeParams, colorGradeParams);
     }
+    float bloomParams[4];
+    GetBloomParams(bloomParams);
+    const float bloomUniform[4] = {
+        bloomParams[1],
+        bloomParams[0] > 0.5f ? bloomParams[2] : 0.0f,
+        0.0f,
+        0.0f
+    };
+    if (bgfx::isValid(g_uniforms.uBloomParams))
+    {
+        bgfx::setUniform(g_uniforms.uBloomParams, bloomUniform);
+    }
+    if (bgfx::isValid(g_uniforms.sBloom) && bgfx::isValid(g_device.bloomBrightTex))
+    {
+        bgfx::setTexture(2, g_uniforms.sBloom, g_device.bloomBrightTex,
+                         BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        g_stats.textureBinds++;
+    }
     static bool s_loggedComposite = false;
     if (!s_loggedComposite)
     {
         s_loggedComposite = true;
         std::fprintf(stderr,
-                     "[ggc] composite post=(%.3f,%.3f,%.3f,%.3f) wipe=(split %.3f, enabled %.1f) grade=(on %.1f, str %.3f, temp %.3f, tint %.3f)\n",
+                     "[ggc] composite post=(%.3f,%.3f,%.3f,%.3f) wipe=(split %.3f, enabled %.1f) grade=(on %.1f, str %.3f, temp %.3f, tint %.3f) bloom=(on %.1f, thr %.3f, int %.3f)\n",
                      postParams[0], postParams[1], postParams[2], postParams[3],
                      wipeParams[0], wipeParams[1],
-                     colorGradeParams[0], colorGradeParams[1], colorGradeParams[2], colorGradeParams[3]);
+                     colorGradeParams[0], colorGradeParams[1], colorGradeParams[2], colorGradeParams[3],
+                     bloomParams[0], bloomParams[1], bloomParams[2]);
     }
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
@@ -2705,6 +2876,12 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_device.sceneCompositeProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
         GGC_BGFX_SHADER(fs_scene_composite), sizeof(GGC_BGFX_SHADER(fs_scene_composite)), "fs_scene_composite");
+    g_device.bloomBrightProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
+        GGC_BGFX_SHADER(fs_bloom_bright), sizeof(GGC_BGFX_SHADER(fs_bloom_bright)), "fs_bloom_bright");
+    g_device.bloomBlurProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
+        GGC_BGFX_SHADER(fs_bloom_blur), sizeof(GGC_BGFX_SHADER(fs_bloom_blur)), "fs_bloom_blur");
     g_device.sceneDepthProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_scene_depth), sizeof(GGC_BGFX_SHADER(vs_scene_depth)), "vs_scene_depth",
         GGC_BGFX_SHADER(fs_scene_depth), sizeof(GGC_BGFX_SHADER(fs_scene_depth)), "fs_scene_depth");
@@ -2812,6 +2989,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uPostTexelSize = bgfx::createUniform("u_postTexelSize", bgfx::UniformType::Vec4);
     g_uniforms.uWipeParams = bgfx::createUniform("u_wipeParams", bgfx::UniformType::Vec4);
     g_uniforms.uColorGradeParams = bgfx::createUniform("u_colorGradeParams", bgfx::UniformType::Vec4);
+    g_uniforms.uBloomParams = bgfx::createUniform("u_bloomParams", bgfx::UniformType::Vec4);
+    g_uniforms.uBloomBlurDir = bgfx::createUniform("u_bloomBlurDir", bgfx::UniformType::Vec4);
+    g_uniforms.sBloom = bgfx::createUniform("s_bloom", bgfx::UniformType::Sampler);
     g_uniforms.uSoftParticleParams = bgfx::createUniform("u_softParticleParams", bgfx::UniformType::Vec4);
 
     // Keep view order explicit. Stencil shadow volumes, sorted decals/effects,
@@ -2829,6 +3009,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         kBgfxShroudOverlayView,
         kBgfxSmudgeCopyView,
         kBgfxSmudgeView,
+        kBgfxBloomBrightView,
+        kBgfxBloomBlurHView,
+        kBgfxBloomBlurVView,
         kBgfxSceneCompositeView,
         kBgfxUIView,
     };
@@ -2942,6 +3125,8 @@ void BgfxBackend::Shutdown()
 
         DestroyBgfxHandle(g_device.passthroughProgram);
         DestroyBgfxHandle(g_device.sceneCompositeProgram);
+        DestroyBgfxHandle(g_device.bloomBrightProgram);
+        DestroyBgfxHandle(g_device.bloomBlurProgram);
         DestroyBgfxHandle(g_device.sceneDepthProgram);
         DestroyBgfxHandle(g_device.smudgeProgram);
         DestroyBgfxHandle(g_device.fullscreenClearVB);
@@ -2996,6 +3181,9 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uPostTexelSize);
         DestroyBgfxHandle(g_uniforms.uWipeParams);
         DestroyBgfxHandle(g_uniforms.uColorGradeParams);
+        DestroyBgfxHandle(g_uniforms.uBloomParams);
+        DestroyBgfxHandle(g_uniforms.uBloomBlurDir);
+        DestroyBgfxHandle(g_uniforms.sBloom);
         DestroyBgfxHandle(g_uniforms.uSoftParticleParams);
         DestroyBgfxHandle(g_uniforms.uShadowBias);
         DestroyBgfxHandle(g_uniforms.uMatEmissive);
@@ -4143,11 +4331,17 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         kBgfxShroudOverlayView,    // 8 — shroud darkening after scene detail
         kBgfxSmudgeCopyView,       // 12 — scene-color snapshot for heat haze
         kBgfxSmudgeView,           // 13 — heat-haze/smudge distortion
+        kBgfxBloomBrightView,      // 14 — bloom bright-pass (half-res)
+        kBgfxBloomBlurHView,       // 15 — bloom horizontal blur
+        kBgfxBloomBlurVView,       // 16 — bloom vertical blur
         kBgfxSceneCompositeView,   // 9 — scene color to swapchain
         kBgfxUIView,               // 10 — 2D UI overlay (last)
     };
     bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(viewOrder), viewOrder);
 
+    float bloomPass[4];
+    GetBloomParams(bloomPass);
+    SubmitBloom(bloomPass);
     SubmitSceneComposite();
     LogFrameStats();
     UpdateBgfxStatsLog();
