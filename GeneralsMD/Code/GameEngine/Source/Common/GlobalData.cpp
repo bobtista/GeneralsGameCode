@@ -918,12 +918,10 @@ GlobalData::GlobalData()
 	m_bgfxColorGradeTemperature = 0.0f;
 	m_bgfxColorGradeTint = 0.0f;
 	m_bgfxBloom = FALSE;
-	// TheSuperHackers @tweak bobtista 15/06/2026 Default threshold above 1.0 so bloom
-	// only catches genuinely over-bright (additive) content in HDR mode - explosions,
-	// lasers, muzzle flashes - and never the bright diffuse terrain/buildings that sit
-	// at ~1.0. Bloom is designed to be used together with BgfxHdr; without HDR the
-	// scene clamps to 1.0 and little will exceed the threshold.
-	m_bgfxBloomThreshold = 1.1f;
+	// TheSuperHackers @tweak bobtista 15/06/2026 A threshold around 0.7 is the
+	// practical middle ground on this game's display-referred art: bright effects
+	// and surfaces bloom while most terrain stays clean. Best paired with BgfxHdr.
+	m_bgfxBloomThreshold = 0.7f;
 	m_bgfxBloomIntensity = 0.5f;
 	m_bgfxHdr = FALSE;
 	m_bgfxSoftParticles = FALSE;
