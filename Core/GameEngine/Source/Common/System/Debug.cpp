@@ -113,6 +113,12 @@ static char theLogFileNamePrev[ _MAX_PATH ];
 #define LARGE_BUFFER	8192
 static char theBuffer[ LARGE_BUFFER ];	// make it big to avoid weird overflow bugs in debug mode
 static int theDebugFlags = 0;
+// TheSuperHackers @performance bobtista 14/06/2026 When false (default) the debug log is
+// buffered and only flushed on crash/assert/shutdown. Flushing every line turned each
+// DEBUG_LOG into a blocking disk write, which crippled debug-build framerate on log-heavy
+// frames. Flip to true (e.g. from the debugger) for per-line durability while chasing a
+// hard crash that bypasses the handled crash paths.
+static bool theFlushDebugLogEachLine = false;
 static DWORD theMainThreadID = 0;
 // ----------------------------------------------------------------------------
 // PUBLIC DATA
@@ -244,7 +250,8 @@ static void doLogOutput(const char *buffer, const char *endline)
 		if (theLogFile)
 		{
 			fprintf(theLogFile, "%s%s", buffer, endline);
-			fflush(theLogFile);
+			if (theFlushDebugLogEachLine)
+				fflush(theLogFile);
 		}
 	}
 
@@ -258,6 +265,14 @@ static void doLogOutput(const char *buffer, const char *endline)
 #ifdef INCLUDE_DEBUG_LOG_IN_CRC_LOG
 	addCRCDebugLineNoCounter("%s%s", buffer, endline);
 #endif
+}
+// TheSuperHackers @performance bobtista 14/06/2026 Force the buffered debug log to disk.
+// Called from the crash/assert/shutdown paths so the log tail survives even though normal
+// logging no longer flushes per line.
+static void flushLogFile()
+{
+	if (theLogFile)
+		fflush(theLogFile);
 }
 #endif // DEBUG_LOGGING
 
@@ -550,6 +565,9 @@ void DebugCrash(const char *format, ...)
 			doStackDump();
 		}
 #endif
+#ifdef DEBUG_LOGGING
+		flushLogFile();
+#endif
 	}
 
 	strlcat(theCrashBuffer, "\n\nAbort->exception; Retry->debugger; Ignore->continue", ARRAY_SIZE(theCrashBuffer));
@@ -763,6 +781,12 @@ void ReleaseCrash(const char *reason)
 
 	char prevbuf[ _MAX_PATH ];
 	char curbuf[ _MAX_PATH ];
+
+#ifdef DEBUG_LOGGING
+	// TheSuperHackers @performance bobtista 14/06/2026 Flush the buffered debug log before
+	// the fatal exit so its tail is captured alongside the release crash report.
+	flushLogFile();
+#endif
 
 	if (TheGlobalData==nullptr) {
 		return; // We are shutting down, and TheGlobalData has been freed.  jba. [4/15/2003]
