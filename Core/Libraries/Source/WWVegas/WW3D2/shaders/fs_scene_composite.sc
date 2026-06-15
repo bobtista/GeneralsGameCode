@@ -14,6 +14,9 @@ uniform vec4 u_postTexelSize;
 // 0..1, .y = enabled. Left of the split shows the unprocessed scene, right shows
 // the processed result, for live before/after comparison of post effects.
 uniform vec4 u_wipeParams;
+// TheSuperHackers @feature bobtista 15/06/2026 u_colorGradeParams.x = enabled,
+// .y = strength 0..1, .z = temperature -1..1 (cool..warm), .w = tint -1..1.
+uniform vec4 u_colorGradeParams;
 
 // TheSuperHackers @tweak bobtista 05/06/2026 BT.601 luma weights (matches fs_uber.sc).
 #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
@@ -72,6 +75,18 @@ void main()
 	float luma = dot(color.rgb, LUMA_WEIGHTS);
 	color.rgb = mix(vec3(luma, luma, luma), color.rgb, u_postParams.y);
 	color.rgb = (color.rgb - vec3(0.5, 0.5, 0.5)) * u_postParams.z + vec3(0.5, 0.5, 0.5);
+
+	if (u_colorGradeParams.x > 0.5)
+	{
+		vec3 graded = color.rgb;
+		graded.r += u_colorGradeParams.z * 0.10;
+		graded.b -= u_colorGradeParams.z * 0.10;
+		graded.g += u_colorGradeParams.w * 0.10;
+		graded = graded * (graded * 0.20 + 0.85);
+		graded = clamp(graded, 0.0, 1.0);
+		color.rgb = mix(color.rgb, graded, u_colorGradeParams.y);
+	}
+
 	vec3 processed = clamp(color.rgb, 0.0, 1.0);
 
 	if (u_wipeParams.y > 0.5)
