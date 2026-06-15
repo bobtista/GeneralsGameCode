@@ -90,6 +90,12 @@ static char theLogFileNamePrev[ _MAX_PATH ];
 #define LARGE_BUFFER	8192
 static char theBuffer[ LARGE_BUFFER ];	// make it big to avoid weird overflow bugs in debug mode
 static int theDebugFlags = 0;
+// TheSuperHackers @performance bobtista 14/06/2026 When false (default) the debug log is
+// buffered and only flushed on crash/assert/shutdown. Flushing every line turned each
+// DEBUG_LOG into a blocking disk write, which crippled debug-build framerate on log-heavy
+// frames. Flip to true (e.g. from the debugger) for per-line durability while chasing a
+// hard crash that bypasses the handled crash paths.
+static bool theFlushDebugLogEachLine = false;
 static DWORD theMainThreadID = 0;
 static DebugCrashHandler theCrashHandler = nullptr;
 #ifdef ALLOW_DEBUG_UTILS
@@ -255,7 +261,8 @@ static void doLogOutput(const char *buffer, const char *endline)
 		if (theLogFile)
 		{
 			fprintf(theLogFile, "%s%s", buffer, endline);
-			fflush(theLogFile);
+			if (theFlushDebugLogEachLine)
+				fflush(theLogFile);
 		}
 	}
 
@@ -499,6 +506,15 @@ void DebugLogRaw(const char *format, ...)
 	doLogOutput(theBuffer, "");
 }
 
+// TheSuperHackers @performance bobtista 14/06/2026 Force the buffered debug log to disk.
+// Called from the crash/assert/shutdown paths so the log tail survives even though normal
+// logging no longer flushes per line.
+void DebugFlushLogFile()
+{
+	if (theLogFile)
+		fflush(theLogFile);
+}
+
 const char* DebugGetLogFileName()
 {
 	return theLogFileName;
@@ -555,6 +571,9 @@ void DebugCrash(const char *format, ...)
 #endif
 #ifdef DEBUG_STACKTRACE
 		doStackDump();
+#endif
+#ifdef DEBUG_LOGGING
+		DebugFlushLogFile();
 #endif
 	}
 
