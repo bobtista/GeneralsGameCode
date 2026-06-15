@@ -233,6 +233,7 @@ struct BgfxUniforms
     bgfx::UniformHandle uBloomBlurDir        = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sBloom               = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uHdrParams           = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPostFx2Params       = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uSoftParticleParams  = BGFX_INVALID_HANDLE;
     // Polygon-offset equivalent for stencil-shadow-volume passes. bgfx has no state bit for polygon offset, so the post-projection Z bias is applied in vs_shadow_volume.sc. .x is the offset; negative = toward the camera.
     bgfx::UniformHandle uShadowBias          = BGFX_INVALID_HANDLE;
