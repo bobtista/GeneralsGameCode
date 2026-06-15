@@ -162,6 +162,7 @@ extern "C" void GGC_GetBgfxPostProcessParams(float * params);
 extern "C" void GGC_GetBgfxWipeParams(float * params);
 extern "C" void GGC_GetBgfxColorGradeParams(float * params);
 extern "C" void GGC_GetBgfxBloomParams(float * params);
+extern "C" int  GGC_GetBgfxHdrEnabled();
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
 extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
 extern "C" int  GGC_GetBgfxScreenshotFrame();
@@ -2131,6 +2132,23 @@ static bool IsReadableSceneDepthEnabled()
     return softParticleParams[0] > 0.5f;
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Opt-in HDR scene color (RGBA16F +
+// ACES tonemap). Read at framebuffer creation, so it applies on startup/resize.
+static bool IsBgfxHdrEnabled()
+{
+    if (std::getenv("GGC_BGFX_HDR") != nullptr)
+    {
+        return true;
+    }
+#ifdef RTS_ZEROHOUR
+    if (GGC_GetBgfxHdrEnabled() != 0)
+    {
+        return true;
+    }
+#endif
+    return false;
+}
+
 // TheSuperHackers @refactor bobtista 16/04/2026 No aspect correction needed:
 // bgfx renders into the game's window and the engine's projection matrix
 // already matches the framebuffer aspect.
@@ -2201,12 +2219,18 @@ static bool CreateSceneFramebuffer()
 
     const uint16_t w = static_cast<uint16_t>(g_device.width > 0 ? g_device.width : 1);
     const uint16_t h = static_cast<uint16_t>(g_device.height > 0 ? g_device.height : 1);
+    // TheSuperHackers @feature bobtista 15/06/2026 HDR opt-in: the scene, bloom,
+    // and smudge-copy targets share one color format. RGBA16F preserves highlights
+    // above 1.0 for HDR bloom + tonemap; RGBA8 is the default LDR path.
+    const bgfx::TextureFormat::Enum sceneColorFormat = IsBgfxHdrEnabled()
+        ? bgfx::TextureFormat::RGBA16F
+        : bgfx::TextureFormat::RGBA8;
     const uint64_t colorFlags = BGFX_TEXTURE_RT
         | BGFX_SAMPLER_POINT
         | BGFX_SAMPLER_U_CLAMP
         | BGFX_SAMPLER_V_CLAMP;
     bgfx::TextureHandle colorTex = bgfx::createTexture2D(
-        w, h, false, 1, bgfx::TextureFormat::RGBA8, colorFlags);
+        w, h, false, 1, sceneColorFormat, colorFlags);
     bgfx::TextureHandle depthTex = bgfx::createTexture2D(
         w, h, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
 
@@ -2231,7 +2255,7 @@ static bool CreateSceneFramebuffer()
     g_device.sceneColor = colorTex;
     g_device.sceneDepth = depthTex;
     g_device.sceneSmudgeCopy = bgfx::createTexture2D(
-        w, h, false, 1, bgfx::TextureFormat::RGBA8,
+        w, h, false, 1, sceneColorFormat,
         BGFX_TEXTURE_BLIT_DST
         | BGFX_SAMPLER_U_CLAMP
         | BGFX_SAMPLER_V_CLAMP);
@@ -2254,18 +2278,18 @@ static bool CreateSceneFramebuffer()
             | BGFX_SAMPLER_U_CLAMP
             | BGFX_SAMPLER_V_CLAMP;
         g_device.bloomBrightTex = bgfx::createTexture2D(
-            bloomW, bloomH, false, 1, bgfx::TextureFormat::RGBA8, bloomFlags);
+            bloomW, bloomH, false, 1, sceneColorFormat, bloomFlags);
         if (bgfx::isValid(g_device.bloomBrightTex))
         {
             g_device.bloomBrightFB = bgfx::createFrameBuffer(1, &g_device.bloomBrightTex, false);
-            bgfx::setName(g_device.bloomBrightTex, "bloomBrightRGBA8");
+            bgfx::setName(g_device.bloomBrightTex, "bloomBright");
         }
         g_device.bloomBlurTex = bgfx::createTexture2D(
-            bloomW, bloomH, false, 1, bgfx::TextureFormat::RGBA8, bloomFlags);
+            bloomW, bloomH, false, 1, sceneColorFormat, bloomFlags);
         if (bgfx::isValid(g_device.bloomBlurTex))
         {
             g_device.bloomBlurFB = bgfx::createFrameBuffer(1, &g_device.bloomBlurTex, false);
-            bgfx::setName(g_device.bloomBlurTex, "bloomBlurRGBA8");
+            bgfx::setName(g_device.bloomBlurTex, "bloomBlur");
         }
         g_device.bloomWidth = bloomW;
         g_device.bloomHeight = bloomH;
@@ -2495,16 +2519,22 @@ static void SubmitSceneComposite()
                          BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
         g_stats.textureBinds++;
     }
+    const float hdrEnabled = IsBgfxHdrEnabled() ? 1.0f : 0.0f;
+    const float hdrParams[4] = { hdrEnabled, 0.0f, 0.0f, 0.0f };
+    if (bgfx::isValid(g_uniforms.uHdrParams))
+    {
+        bgfx::setUniform(g_uniforms.uHdrParams, hdrParams);
+    }
     static bool s_loggedComposite = false;
     if (!s_loggedComposite)
     {
         s_loggedComposite = true;
         std::fprintf(stderr,
-                     "[ggc] composite post=(%.3f,%.3f,%.3f,%.3f) wipe=(split %.3f, enabled %.1f) grade=(on %.1f, str %.3f, temp %.3f, tint %.3f) bloom=(on %.1f, thr %.3f, int %.3f)\n",
+                     "[ggc] composite post=(%.3f,%.3f,%.3f,%.3f) wipe=(split %.3f, enabled %.1f) grade=(on %.1f, str %.3f, temp %.3f, tint %.3f) bloom=(on %.1f, thr %.3f, int %.3f) hdr=%.1f\n",
                      postParams[0], postParams[1], postParams[2], postParams[3],
                      wipeParams[0], wipeParams[1],
                      colorGradeParams[0], colorGradeParams[1], colorGradeParams[2], colorGradeParams[3],
-                     bloomParams[0], bloomParams[1], bloomParams[2]);
+                     bloomParams[0], bloomParams[1], bloomParams[2], hdrEnabled);
     }
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
@@ -2992,6 +3022,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uBloomParams = bgfx::createUniform("u_bloomParams", bgfx::UniformType::Vec4);
     g_uniforms.uBloomBlurDir = bgfx::createUniform("u_bloomBlurDir", bgfx::UniformType::Vec4);
     g_uniforms.sBloom = bgfx::createUniform("s_bloom", bgfx::UniformType::Sampler);
+    g_uniforms.uHdrParams = bgfx::createUniform("u_hdrParams", bgfx::UniformType::Vec4);
     g_uniforms.uSoftParticleParams = bgfx::createUniform("u_softParticleParams", bgfx::UniformType::Vec4);
 
     // Keep view order explicit. Stencil shadow volumes, sorted decals/effects,
@@ -3184,6 +3215,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uBloomParams);
         DestroyBgfxHandle(g_uniforms.uBloomBlurDir);
         DestroyBgfxHandle(g_uniforms.sBloom);
+        DestroyBgfxHandle(g_uniforms.uHdrParams);
         DestroyBgfxHandle(g_uniforms.uSoftParticleParams);
         DestroyBgfxHandle(g_uniforms.uShadowBias);
         DestroyBgfxHandle(g_uniforms.uMatEmissive);
