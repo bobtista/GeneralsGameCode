@@ -171,6 +171,11 @@ struct BgfxUniforms
     bgfx::UniformHandle sSceneDepth = BGFX_INVALID_HANDLE;
 
     // Material / TSS
+    // TheSuperHackers @performance bobtista 15/06/2026 Packed per-draw material block.
+    // The individual uMat*/uTss*/uTex*Transform*/uZBias etc. handles below are uploaded
+    // through this single array uniform (one setUniform/draw instead of ~24) to cut
+    // submit-thread CPU cost. Slot order is MaterialUniformSlot in BgfxBackend.cpp.
+    bgfx::UniformHandle uMaterial    = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uMatDiffuse  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uMatAmbient  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uMatEmissive = BGFX_INVALID_HANDLE;
