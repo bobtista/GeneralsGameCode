@@ -120,6 +120,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "fs_scene_composite_metal.bin.h"
 #include "fs_bloom_bright_metal.bin.h"
 #include "fs_bloom_blur_metal.bin.h"
+#include "fs_ssao_metal.bin.h"
 #include "vs_scene_depth_metal.bin.h"
 #include "fs_scene_depth_metal.bin.h"
 #include "vs_smudge_metal.bin.h"
@@ -148,6 +149,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "fs_scene_composite_dx11.bin.h"
 #include "fs_bloom_bright_dx11.bin.h"
 #include "fs_bloom_blur_dx11.bin.h"
+#include "fs_ssao_dx11.bin.h"
 #include "vs_scene_depth_dx11.bin.h"
 #include "fs_scene_depth_dx11.bin.h"
 #include "vs_smudge_dx11.bin.h"
@@ -164,6 +166,7 @@ extern "C" void GGC_GetBgfxColorGradeParams(float * params);
 extern "C" void GGC_GetBgfxBloomParams(float * params);
 extern "C" int  GGC_GetBgfxHdrEnabled();
 extern "C" void GGC_GetBgfxPostFx2Params(float * params);
+extern "C" void GGC_GetBgfxSSAOParams(float * params);
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
 extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
 extern "C" int  GGC_GetBgfxScreenshotFrame();
@@ -1817,6 +1820,10 @@ const bgfx::ViewId kBgfxSceneDepthView   = 11;
 const bgfx::ViewId kBgfxBloomBrightView  = 14;
 const bgfx::ViewId kBgfxBloomBlurHView   = 15;
 const bgfx::ViewId kBgfxBloomBlurVView   = 16;
+// TheSuperHackers @feature bobtista 15/06/2026 SSAO compute + separable blur.
+const bgfx::ViewId kBgfxSsaoView         = 17;
+const bgfx::ViewId kBgfxSsaoBlurHView    = 18;
+const bgfx::ViewId kBgfxSsaoBlurVView    = 19;
 const uint8_t kBgfxSceneDepthSamplerStage = 6;
 const float kSoftParticleDepthFadeScale  = 80.0f;
 const int kSwayTableEntries              = 11;
@@ -2158,6 +2165,22 @@ static void GetPostFx2Params(float * params)
     }
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 SSAO params: x = radius, y = intensity,
+// z = bias. Env GGC_BGFX_SSAO forces it on for dev iteration.
+static void GetSSAOParams(float * params)
+{
+    params[0] = 1.0f;
+    params[1] = 1.0f;
+    params[2] = 0.025f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    float bridge[4];
+    GGC_GetBgfxSSAOParams(bridge);
+    params[0] = bridge[1]; // radius
+    params[1] = bridge[2]; // intensity
+#endif
+}
+
 static void GetSoftParticleParams(float * params)
 {
     params[0] = 1.0f;
@@ -2171,6 +2194,8 @@ static void GetSoftParticleParams(float * params)
 #endif
 }
 
+static bool IsBgfxSSAOEnabled();
+
 static bool IsReadableSceneDepthEnabled()
 {
     if (GetBgfxDiagnosticFlags().noSceneFramebuffer)
@@ -2180,7 +2205,7 @@ static bool IsReadableSceneDepthEnabled()
 
     float softParticleParams[4];
     GetSoftParticleParams(softParticleParams);
-    return softParticleParams[0] > 0.5f;
+    return softParticleParams[0] > 0.5f || IsBgfxSSAOEnabled();
 }
 
 // TheSuperHackers @feature bobtista 15/06/2026 Opt-in HDR scene color (RGBA16F +
@@ -2193,6 +2218,25 @@ static bool IsBgfxHdrEnabled()
     }
 #ifdef RTS_ZEROHOUR
     if (GGC_GetBgfxHdrEnabled() != 0)
+    {
+        return true;
+    }
+#endif
+    return false;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 SSAO needs the readable scene depth,
+// so this also forces that target on (see IsReadableSceneDepthEnabled).
+static bool IsBgfxSSAOEnabled()
+{
+    if (std::getenv("GGC_BGFX_SSAO") != nullptr)
+    {
+        return true;
+    }
+#ifdef RTS_ZEROHOUR
+    float params[4];
+    GGC_GetBgfxSSAOParams(params);
+    if (params[0] > 0.5f)
     {
         return true;
     }
@@ -2247,10 +2291,30 @@ static void DestroySceneFramebuffer()
     {
         bgfx::destroy(g_device.bloomBlurTex);
     }
+    if (bgfx::isValid(g_device.ssaoFB))
+    {
+        bgfx::destroy(g_device.ssaoFB);
+    }
+    if (bgfx::isValid(g_device.ssaoTex))
+    {
+        bgfx::destroy(g_device.ssaoTex);
+    }
+    if (bgfx::isValid(g_device.ssaoBlurFB))
+    {
+        bgfx::destroy(g_device.ssaoBlurFB);
+    }
+    if (bgfx::isValid(g_device.ssaoBlurTex))
+    {
+        bgfx::destroy(g_device.ssaoBlurTex);
+    }
     g_device.bloomBrightFB = BGFX_INVALID_HANDLE;
     g_device.bloomBrightTex = BGFX_INVALID_HANDLE;
     g_device.bloomBlurFB = BGFX_INVALID_HANDLE;
     g_device.bloomBlurTex = BGFX_INVALID_HANDLE;
+    g_device.ssaoFB = BGFX_INVALID_HANDLE;
+    g_device.ssaoTex = BGFX_INVALID_HANDLE;
+    g_device.ssaoBlurFB = BGFX_INVALID_HANDLE;
+    g_device.ssaoBlurTex = BGFX_INVALID_HANDLE;
     g_device.bloomWidth = 0;
     g_device.bloomHeight = 0;
     g_device.sceneFB = BGFX_INVALID_HANDLE;
@@ -2346,6 +2410,28 @@ static bool CreateSceneFramebuffer()
         g_device.bloomHeight = bloomH;
     }
 
+    // TheSuperHackers @feature bobtista 15/06/2026 Full-res SSAO targets (raw +
+    // blurred). Only allocated when SSAO is enabled; the AO is multiplied over the
+    // scene in the composite.
+    if (IsBgfxSSAOEnabled())
+    {
+        const uint64_t aoFlags = BGFX_TEXTURE_RT
+            | BGFX_SAMPLER_U_CLAMP
+            | BGFX_SAMPLER_V_CLAMP;
+        g_device.ssaoTex = bgfx::createTexture2D(w, h, false, 1, bgfx::TextureFormat::RGBA8, aoFlags);
+        if (bgfx::isValid(g_device.ssaoTex))
+        {
+            g_device.ssaoFB = bgfx::createFrameBuffer(1, &g_device.ssaoTex, false);
+            bgfx::setName(g_device.ssaoTex, "ssaoRGBA8");
+        }
+        g_device.ssaoBlurTex = bgfx::createTexture2D(w, h, false, 1, bgfx::TextureFormat::RGBA8, aoFlags);
+        if (bgfx::isValid(g_device.ssaoBlurTex))
+        {
+            g_device.ssaoBlurFB = bgfx::createFrameBuffer(1, &g_device.ssaoBlurTex, false);
+            bgfx::setName(g_device.ssaoBlurTex, "ssaoBlurRGBA8");
+        }
+    }
+
     if (IsReadableSceneDepthEnabled())
     {
         // TheSuperHackers @feature bobtista 27/04/2026 Keep the main scene
@@ -2423,9 +2509,83 @@ static void ApplySceneFramebufferToViews()
     bgfx::setViewFrameBuffer(kBgfxBloomBrightView, g_device.bloomBrightFB);
     bgfx::setViewFrameBuffer(kBgfxBloomBlurHView, g_device.bloomBlurFB);
     bgfx::setViewFrameBuffer(kBgfxBloomBlurVView, g_device.bloomBrightFB);
+    bgfx::setViewFrameBuffer(kBgfxSsaoView, g_device.ssaoFB);
+    bgfx::setViewFrameBuffer(kBgfxSsaoBlurHView, g_device.ssaoBlurFB);
+    bgfx::setViewFrameBuffer(kBgfxSsaoBlurVView, g_device.ssaoFB);
     bgfx::setViewFrameBuffer(kBgfxSceneCompositeView, BGFX_INVALID_HANDLE);
     bgfx::setViewFrameBuffer(kBgfxSceneDepthView, g_device.sceneReadableDepthFB);
     bgfx::setViewFrameBuffer(kBgfxUIView, BGFX_INVALID_HANDLE);
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 SSAO: compute an ambient-occlusion
+// factor from the scene depth, then separable-blur it (reusing the bloom blur).
+// The result lands in ssaoTex for the composite to multiply over the scene.
+static void SubmitSSAO()
+{
+    const bool ready = IsBgfxSSAOEnabled()
+        && bgfx::isValid(g_device.ssaoFB)
+        && bgfx::isValid(g_device.ssaoBlurFB)
+        && bgfx::isValid(g_device.ssaoTex)
+        && bgfx::isValid(g_device.ssaoBlurTex)
+        && bgfx::isValid(g_device.ssaoProgram)
+        && bgfx::isValid(g_device.bloomBlurProgram)
+        && bgfx::isValid(g_device.sceneReadableDepth)
+        && bgfx::isValid(g_uniforms.sSceneDepth)
+        && bgfx::isValid(g_device.fullscreenClearVB);
+    if (!ready)
+    {
+        bgfx::touch(kBgfxSsaoView);
+        bgfx::touch(kBgfxSsaoBlurHView);
+        bgfx::touch(kBgfxSsaoBlurVView);
+        return;
+    }
+
+    float identity[16];
+    IdentityMatrix(identity);
+    const uint16_t w = static_cast<uint16_t>(g_device.width);
+    const uint16_t h = static_cast<uint16_t>(g_device.height);
+    const uint64_t sampleFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+    const uint64_t fullscreenState = BGFX_STATE_WRITE_RGB
+        | BGFX_STATE_WRITE_A
+        | BGFX_STATE_DEPTH_TEST_ALWAYS;
+
+    float invProj[16];
+    bx::mtxInverse(invProj, g_frame.cameraProj);
+    float ssaoParams[4];
+    GetSSAOParams(ssaoParams);
+    const float texel[4] = { 1.0f / static_cast<float>(w), 1.0f / static_cast<float>(h), 0.0f, 0.0f };
+
+    bgfx::setViewTransform(kBgfxSsaoView, identity, identity);
+    bgfx::setViewRect(kBgfxSsaoView, 0, 0, w, h);
+    bgfx::setViewClear(kBgfxSsaoView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(1, g_uniforms.sSceneDepth, g_device.sceneReadableDepth, sampleFlags);
+    bgfx::setUniform(g_uniforms.uSsaoInvProj, invProj);
+    bgfx::setUniform(g_uniforms.uSsaoProj, g_frame.cameraProj);
+    bgfx::setUniform(g_uniforms.uSsaoParams, ssaoParams);
+    bgfx::setUniform(g_uniforms.uPostTexelSize, texel);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxSsaoView, g_device.ssaoProgram);
+
+    const float dirH[4] = { 1.0f / static_cast<float>(w), 0.0f, 0.0f, 0.0f };
+    bgfx::setViewTransform(kBgfxSsaoBlurHView, identity, identity);
+    bgfx::setViewRect(kBgfxSsaoBlurHView, 0, 0, w, h);
+    bgfx::setViewClear(kBgfxSsaoBlurHView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.ssaoTex, sampleFlags);
+    bgfx::setUniform(g_uniforms.uBloomBlurDir, dirH);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxSsaoBlurHView, g_device.bloomBlurProgram);
+
+    const float dirV[4] = { 0.0f, 1.0f / static_cast<float>(h), 0.0f, 0.0f };
+    bgfx::setViewTransform(kBgfxSsaoBlurVView, identity, identity);
+    bgfx::setViewRect(kBgfxSsaoBlurVView, 0, 0, w, h);
+    bgfx::setViewClear(kBgfxSsaoBlurVView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.ssaoBlurTex, sampleFlags);
+    bgfx::setUniform(g_uniforms.uBloomBlurDir, dirV);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxSsaoBlurVView, g_device.bloomBlurProgram);
 }
 
 // TheSuperHackers @feature bobtista 15/06/2026 Bloom passes: extract highlights
@@ -2571,10 +2731,17 @@ static void SubmitSceneComposite()
         g_stats.textureBinds++;
     }
     const float hdrEnabled = IsBgfxHdrEnabled() ? 1.0f : 0.0f;
-    const float hdrParams[4] = { hdrEnabled, 0.0f, 0.0f, 0.0f };
+    const bool ssaoApply = IsBgfxSSAOEnabled() && bgfx::isValid(g_device.ssaoTex);
+    const float hdrParams[4] = { hdrEnabled, ssaoApply ? 1.0f : 0.0f, 0.0f, 0.0f };
     if (bgfx::isValid(g_uniforms.uHdrParams))
     {
         bgfx::setUniform(g_uniforms.uHdrParams, hdrParams);
+    }
+    if (ssaoApply && bgfx::isValid(g_uniforms.sSsao))
+    {
+        bgfx::setTexture(3, g_uniforms.sSsao, g_device.ssaoTex,
+                         BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        g_stats.textureBinds++;
     }
     float postFx2[4];
     GetPostFx2Params(postFx2);
@@ -2970,6 +3137,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_device.bloomBlurProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
         GGC_BGFX_SHADER(fs_bloom_blur), sizeof(GGC_BGFX_SHADER(fs_bloom_blur)), "fs_bloom_blur");
+    g_device.ssaoProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
+        GGC_BGFX_SHADER(fs_ssao), sizeof(GGC_BGFX_SHADER(fs_ssao)), "fs_ssao");
     g_device.sceneDepthProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_scene_depth), sizeof(GGC_BGFX_SHADER(vs_scene_depth)), "vs_scene_depth",
         GGC_BGFX_SHADER(fs_scene_depth), sizeof(GGC_BGFX_SHADER(fs_scene_depth)), "fs_scene_depth");
@@ -3082,6 +3252,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.sBloom = bgfx::createUniform("s_bloom", bgfx::UniformType::Sampler);
     g_uniforms.uHdrParams = bgfx::createUniform("u_hdrParams", bgfx::UniformType::Vec4);
     g_uniforms.uPostFx2Params = bgfx::createUniform("u_postFx2Params", bgfx::UniformType::Vec4);
+    g_uniforms.uSsaoParams = bgfx::createUniform("u_ssaoParams", bgfx::UniformType::Vec4);
+    g_uniforms.uSsaoInvProj = bgfx::createUniform("u_ssaoInvProj", bgfx::UniformType::Mat4);
+    g_uniforms.uSsaoProj = bgfx::createUniform("u_ssaoProj", bgfx::UniformType::Mat4);
+    g_uniforms.sSsao = bgfx::createUniform("s_ssao", bgfx::UniformType::Sampler);
     g_uniforms.uSoftParticleParams = bgfx::createUniform("u_softParticleParams", bgfx::UniformType::Vec4);
 
     // Keep view order explicit. Stencil shadow volumes, sorted decals/effects,
@@ -3102,6 +3276,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         kBgfxBloomBrightView,
         kBgfxBloomBlurHView,
         kBgfxBloomBlurVView,
+        kBgfxSsaoView,
+        kBgfxSsaoBlurHView,
+        kBgfxSsaoBlurVView,
         kBgfxSceneCompositeView,
         kBgfxUIView,
     };
@@ -3217,6 +3394,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_device.sceneCompositeProgram);
         DestroyBgfxHandle(g_device.bloomBrightProgram);
         DestroyBgfxHandle(g_device.bloomBlurProgram);
+        DestroyBgfxHandle(g_device.ssaoProgram);
         DestroyBgfxHandle(g_device.sceneDepthProgram);
         DestroyBgfxHandle(g_device.smudgeProgram);
         DestroyBgfxHandle(g_device.fullscreenClearVB);
@@ -3276,6 +3454,10 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.sBloom);
         DestroyBgfxHandle(g_uniforms.uHdrParams);
         DestroyBgfxHandle(g_uniforms.uPostFx2Params);
+        DestroyBgfxHandle(g_uniforms.uSsaoParams);
+        DestroyBgfxHandle(g_uniforms.uSsaoInvProj);
+        DestroyBgfxHandle(g_uniforms.uSsaoProj);
+        DestroyBgfxHandle(g_uniforms.sSsao);
         DestroyBgfxHandle(g_uniforms.uSoftParticleParams);
         DestroyBgfxHandle(g_uniforms.uShadowBias);
         DestroyBgfxHandle(g_uniforms.uMatEmissive);
@@ -4437,6 +4619,9 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         kBgfxBloomBrightView,      // 14 — bloom bright-pass (half-res)
         kBgfxBloomBlurHView,       // 15 — bloom horizontal blur
         kBgfxBloomBlurVView,       // 16 — bloom vertical blur
+        kBgfxSsaoView,             // 17 — SSAO compute
+        kBgfxSsaoBlurHView,        // 18 — SSAO horizontal blur
+        kBgfxSsaoBlurVView,        // 19 — SSAO vertical blur
         kBgfxSceneCompositeView,   // 9 — scene color to swapchain
         kBgfxUIView,               // 10 — 2D UI overlay (last)
     };
@@ -4445,6 +4630,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     float bloomPass[4];
     GetBloomParams(bloomPass);
     SubmitBloom(bloomPass);
+    SubmitSSAO();
     SubmitSceneComposite();
     LogFrameStats();
     UpdateBgfxStatsLog();
