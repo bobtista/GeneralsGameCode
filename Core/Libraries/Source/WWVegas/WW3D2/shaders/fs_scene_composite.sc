@@ -110,13 +110,8 @@ void main()
 		color.rgb = mix(color.rgb, graded, u_colorGradeParams.y);
 	}
 
-	if (u_bloomParams.y > 0.001)
-	{
-		color.rgb += texture2D(s_bloom, v_texcoord0).rgb * u_bloomParams.y;
-	}
-
-	// Map the fully-processed scene to display range: ACES tonemap (HDR) or hard
-	// clamp (LDR).
+	// Map the scene to display range first: highlight rolloff (HDR) or hard clamp
+	// (LDR).
 	vec3 processedOut;
 	if (u_hdrParams.x > 0.5)
 	{
@@ -126,6 +121,15 @@ void main()
 	{
 		processedOut = clamp(color.rgb, 0.0, 1.0);
 	}
+
+	// TheSuperHackers @tweak bobtista 15/06/2026 Add bloom AFTER tonemap/clamp so the
+	// HDR highlight rolloff does not compress the glow back down - bloom is additive
+	// light on top of the display-range image.
+	if (u_bloomParams.y > 0.001)
+	{
+		processedOut += texture2D(s_bloom, v_texcoord0).rgb * u_bloomParams.y;
+	}
+	processedOut = clamp(processedOut, 0.0, 1.0);
 
 	vec3 outRgb = processedOut;
 	if (u_wipeParams.y > 0.5)
