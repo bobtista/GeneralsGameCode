@@ -242,6 +242,18 @@ extern "C" void GGC_GetBgfxPostFx2Params(float * params)
 	}
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 MSAA sample count for the offscreen
+// scene framebuffer (0/2/4/8). Drives true multisampling of the 3D scene, distinct
+// from the backbuffer reset MSAA.
+extern "C" int GGC_GetBgfxMsaaSamples()
+{
+	if (!TheGlobalData)
+	{
+		return 0;
+	}
+	return TheGlobalData->m_bgfxMsaa;
+}
+
 // TheSuperHackers @feature bobtista 15/06/2026 Screen-space ambient occlusion.
 // params: x = enabled, y = radius (world units), z = intensity.
 extern "C" void GGC_GetBgfxSSAOParams(float * params)
