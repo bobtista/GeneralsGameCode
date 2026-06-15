@@ -319,6 +319,10 @@ extern "C" void GGC_GetBgfxMaterialFxParams(float * params)
 		params[1] = TheGlobalData->m_bgfxRimStrength;
 		params[2] = TheGlobalData->m_bgfxRimPower;
 	}
+	if (TheGlobalData->m_bgfxEmissiveBoost)
+	{
+		params[3] = TheGlobalData->m_bgfxEmissiveBoostScale;
+	}
 }
 
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
@@ -470,6 +474,8 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxRimLight",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxRimLight ) },
 	{ "BgfxRimStrength",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxRimStrength ) },
 	{ "BgfxRimPower",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxRimPower ) },
+	{ "BgfxEmissiveBoost",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxEmissiveBoost ) },
+	{ "BgfxEmissiveBoostScale",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxEmissiveBoostScale ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
@@ -1068,6 +1074,8 @@ GlobalData::GlobalData()
 	m_bgfxRimLight = FALSE;
 	m_bgfxRimStrength = 0.3f;
 	m_bgfxRimPower = 3.0f;
+	m_bgfxEmissiveBoost = FALSE;
+	m_bgfxEmissiveBoostScale = 2.0f;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;
