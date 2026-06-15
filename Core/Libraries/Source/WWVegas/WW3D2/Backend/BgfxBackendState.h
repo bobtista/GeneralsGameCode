@@ -153,6 +153,9 @@ struct BgfxDevice
     bgfx::FrameBufferHandle ssaoBlurFB     = BGFX_INVALID_HANDLE;
     uint16_t                sceneWidth = 0;
     uint16_t                sceneHeight = 0;
+    // Supersampled scene render size = content size * render scale (1.0-2.0).
+    uint16_t                sceneRenderWidth = 0;
+    uint16_t                sceneRenderHeight = 0;
     uint16_t                bloomWidth = 0;
     uint16_t                bloomHeight = 0;
 
