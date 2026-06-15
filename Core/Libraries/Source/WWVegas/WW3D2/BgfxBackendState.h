@@ -125,6 +125,8 @@ struct BgfxDevice
     bgfx::ProgramHandle shadowVolumeProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle shadowApplyProgram  = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle sceneCompositeProgram = BGFX_INVALID_HANDLE;
+    bgfx::ProgramHandle bloomBrightProgram = BGFX_INVALID_HANDLE;
+    bgfx::ProgramHandle bloomBlurProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle sceneDepthProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle smudgeProgram = BGFX_INVALID_HANDLE;
 
@@ -138,8 +140,14 @@ struct BgfxDevice
     bgfx::FrameBufferHandle sceneReadableDepthFB = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     sceneReadableDepth = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     sceneReadableDepthTest = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     bloomBrightTex = BGFX_INVALID_HANDLE;
+    bgfx::FrameBufferHandle bloomBrightFB  = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     bloomBlurTex   = BGFX_INVALID_HANDLE;
+    bgfx::FrameBufferHandle bloomBlurFB    = BGFX_INVALID_HANDLE;
     uint16_t                sceneWidth = 0;
     uint16_t                sceneHeight = 0;
+    uint16_t                bloomWidth = 0;
+    uint16_t                bloomHeight = 0;
 
     // Default textures + helper VB
     bgfx::TextureHandle       defaultWhiteTexture       = BGFX_INVALID_HANDLE;
@@ -221,6 +229,9 @@ struct BgfxUniforms
     bgfx::UniformHandle uPostTexelSize       = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uWipeParams          = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uColorGradeParams    = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uBloomParams         = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uBloomBlurDir        = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle sBloom               = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uSoftParticleParams  = BGFX_INVALID_HANDLE;
     // Polygon-offset equivalent for stencil-shadow-volume passes. bgfx has no state bit for polygon offset, so the post-projection Z bias is applied in vs_shadow_volume.sc. .x is the offset; negative = toward the camera.
     bgfx::UniformHandle uShadowBias          = BGFX_INVALID_HANDLE;
