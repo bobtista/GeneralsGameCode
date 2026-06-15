@@ -197,6 +197,9 @@ struct BgfxUniforms
     bgfx::UniformHandle uMatDiffuse  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uMatAmbient  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uMatEmissive = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uMatSpecular = BGFX_INVALID_HANDLE; // rgb = specular color, w = shininess
+    bgfx::UniformHandle uMatFx       = BGFX_INVALID_HANDLE; // x spec strength, y rim strength, z rim power, w emissive boost
+    bgfx::UniformHandle uEyePos      = BGFX_INVALID_HANDLE; // xyz = world-space camera position
     bgfx::UniformHandle uAtestParams = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTssOps0     = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTssOps1     = BGFX_INVALID_HANDLE;
@@ -318,6 +321,7 @@ struct BgfxDraw
     float matDiffuse[4]       = { 1.0f, 1.0f, 1.0f, 1.0f };
     float matAmbient[4]       = { 1.0f, 1.0f, 1.0f, 1.0f };
     float matEmissive[4]      = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float matSpecular[4]      = { 0.0f, 0.0f, 0.0f, 1.0f }; // rgb = specular color, w = shininess
     float grayscaleEnable[4]  = { 0.0f, 0.0f, 0.0f, 0.0f };
     float tssOps0[4]          = { 3.0f, 3.0f, 0.0f, 0.0f };
     float tssOps1[4]          = { 0.0f, 0.0f, 0.0f, 0.0f };
