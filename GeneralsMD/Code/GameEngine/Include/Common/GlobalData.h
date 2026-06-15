@@ -173,6 +173,7 @@ public:
 	Bool m_bgfxSSAO;
 	Real m_bgfxSSAORadius;
 	Real m_bgfxSSAOIntensity;
+	Real m_bgfxRenderScale;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
 	Real m_bgfxHeatHazeOpacityScale;

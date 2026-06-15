@@ -254,6 +254,18 @@ extern "C" int GGC_GetBgfxMsaaSamples()
 	return TheGlobalData->m_bgfxMsaa;
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Internal render-scale (supersampling)
+// for the 3D scene. 1.0 = native; up to 2.0 renders the scene at a multiple and the
+// composite downsamples to native, antialiasing geometry and shading alike.
+extern "C" float GGC_GetBgfxRenderScale()
+{
+	if (!TheGlobalData)
+	{
+		return 1.0f;
+	}
+	return TheGlobalData->m_bgfxRenderScale;
+}
+
 // TheSuperHackers @feature bobtista 15/06/2026 Screen-space ambient occlusion.
 // params: x = enabled, y = radius (world units), z = intensity.
 extern "C" void GGC_GetBgfxSSAOParams(float * params)
@@ -420,6 +432,7 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxSSAO",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSSAO ) },
 	{ "BgfxSSAORadius",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSSAORadius ) },
 	{ "BgfxSSAOIntensity",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSSAOIntensity ) },
+	{ "BgfxRenderScale",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxRenderScale ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
@@ -1012,6 +1025,7 @@ GlobalData::GlobalData()
 	// fairly large radius to read at all.
 	m_bgfxSSAORadius = 12.0f;
 	m_bgfxSSAOIntensity = 1.0f;
+	m_bgfxRenderScale = 1.0f;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;
