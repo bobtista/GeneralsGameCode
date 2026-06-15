@@ -167,6 +167,38 @@ extern "C" int  GGC_GetCurrentLogicFrame();
 // in BgfxBackendState.h so BgfxBackendTextures.cpp can reference them.
 BgfxDevice     g_device;
 BgfxUniforms   g_uniforms;
+
+// TheSuperHackers @performance bobtista 15/06/2026 Slot layout for the packed
+// per-draw material array uniform (u_material). MUST stay in lockstep with the
+// #define block in fs_uber.sc / vs_uber.sc / vs_uber_instanced.sc.
+enum MaterialUniformSlot
+{
+    MU_MatDiffuse = 0,
+    MU_MatAmbient,
+    MU_MatEmissive,
+    MU_TssOps0,
+    MU_TssOps1,
+    MU_AtestParams,
+    MU_TexcoordSource,
+    MU_VertexColorFlags,
+    MU_TexcoordSelect2,
+    MU_ProjectedDecalMode,
+    MU_GrayscaleEnable,
+    MU_ObjectShroudDim,
+    MU_CloudParams,
+    MU_TexTransform0,
+    MU_TexTransform1,
+    MU_TexTransform0Z,
+    MU_Tex1Transform0,
+    MU_Tex1Transform1,
+    MU_Tex1TransformZ,
+    MU_Tex2Transform0,
+    MU_Tex2Transform1,
+    MU_TexProjected,
+    MU_LegacyPixelShaderMode,
+    MU_ZBias,
+    MU_COUNT
+};
 BgfxDraw       g_draw;
 BgfxOverrides  g_overrides;
 BgfxViewFlags  g_views;
@@ -2640,6 +2672,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.sTex2        = bgfx::createUniform("s_tex2",        bgfx::UniformType::Sampler);
     g_uniforms.sTex3        = bgfx::createUniform("s_tex3",        bgfx::UniformType::Sampler);
     g_uniforms.sSceneDepth  = bgfx::createUniform("s_sceneDepth",  bgfx::UniformType::Sampler);
+    // TheSuperHackers @performance bobtista 15/06/2026 Single packed material array
+    // uploaded once per draw (see UploadMaterialUniforms_Body / MaterialUniformSlot).
+    g_uniforms.uMaterial    = bgfx::createUniform("u_material",    bgfx::UniformType::Vec4, MU_COUNT);
     g_uniforms.uMatDiffuse  = bgfx::createUniform("u_matDiffuse",  bgfx::UniformType::Vec4);
     g_uniforms.uMatAmbient  = bgfx::createUniform("u_matAmbient",  bgfx::UniformType::Vec4);
     g_uniforms.uMatEmissive = bgfx::createUniform("u_matEmissive", bgfx::UniformType::Vec4);
@@ -5845,7 +5880,14 @@ static uint64_t BgfxShadowVolumeDepthState()
 
 static bool BgfxTwoSidedStencilVolumes()
 {
-    return std::getenv("GGC_BGFX_STENCIL_TWO_SIDED") != nullptr;
+    // TheSuperHackers @bugfix bobtista 04/06/2026 Keep two-sided stencil
+    // shadow volumes opt-in. Defaulting it on (the attempt to halve
+    // shadow-volume submissions) miscounts the stencil for elevated casters:
+    // aircraft, helicopters and tall/stilted buildings draw a dark band or
+    // fan instead of a ground shadow. The legacy two-pass submit is correct;
+    // opt in with GGC_BGFX_STENCIL_TWO_SIDED only for A/B testing.
+    static const bool cached = std::getenv("GGC_BGFX_STENCIL_TWO_SIDED") != nullptr;
+    return cached;
 }
 
 static unsigned BgfxShadowCullModeBits()
@@ -5969,6 +6011,14 @@ static const char * TextureDebugName(TextureBaseClass * texture);
 static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
 static bool IsCommandCenterEmblemTextureName(const char *name);
 
+// TheSuperHackers @performance bobtista 15/06/2026 The sorted-draw routing predicates
+// scan the stage-0 texture name for special-case effect markers. During the sort flush
+// these run for ~1k particle draws/frame. Get_Full_Path returns a stable member ref (no
+// alloc), but the repeated case-insensitive scans add up. Cache the four marker results
+// keyed by the bound texture pointer so consecutive draws of one texture reuse them.
+struct SortedTexNameFlags { bool snk01; bool snk0; bool rotor; bool coplight; bool commandCenterEmblem; };
+static const SortedTexNameFlags & GetSortedTexNameFlags();
+
 static bool IsSortedAlphaDepthDecal(uint64_t state)
 {
     const unsigned particleFlags = RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK;
@@ -5982,7 +6032,7 @@ static bool IsSortedAlphaDepthDecal(uint64_t state)
         && g_draw.tssOps0[2] < 0.5f
         && g_draw.tssOps0[3] < 0.5f
         && (g_draw.texcoordSelect2[0] < 0.5f
-            || ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "ubsnkatak_01"));
+            || GetSortedTexNameFlags().snk01);
 }
 
 static bool IsSortedParticleEffect(uint64_t state)
@@ -5996,15 +6046,13 @@ static bool IsSortedParticleEffect(uint64_t state)
 static bool IsSneakAttackAlphaDepthDecal(uint64_t state)
 {
     return IsSortedAlphaDepthDecal(state)
-        && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "ubsnkatak_01");
+        && GetSortedTexNameFlags().snk01;
 }
 
 static bool IsSneakAttackCoplanarSurface()
 {
-    const char * name = TextureDebugName(g_draw.sourceTextures[0]);
-    return name != nullptr
-        && ContainsCaseInsensitive(name, "ubsnkatak_0")
-        && !ContainsCaseInsensitive(name, "ubsnkatak_01");
+    const SortedTexNameFlags & f = GetSortedTexNameFlags();
+    return f.snk0 && !f.snk01;
 }
 
 static bool ShouldApplySubmittedNormalBias(uint64_t state)
@@ -6024,7 +6072,7 @@ static bool IsSortedRotorBlur(uint64_t state)
             || (g_draw.tssOps0[1] > 2.5f && g_draw.tssOps0[1] < 3.5f))
         && g_draw.tssOps0[2] < 0.5f
         && g_draw.tssOps0[3] < 0.5f
-        && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "avcomanche_p");
+        && GetSortedTexNameFlags().rotor;
 }
 
 // TheSuperHackers @bugfix bobtista 25/05/2026 Police-car lightbar glow meshes
@@ -6038,7 +6086,7 @@ static bool IsSortedRotorBlur(uint64_t state)
 static bool IsSortedCopLightSprite(uint64_t /*state*/)
 {
     return g_views.inSortFlush
-        && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "coplight");
+        && GetSortedTexNameFlags().coplight;
 }
 
 // TheSuperHackers @bugfix bobtista 30/06/2026 A draw whose material carries an
@@ -6170,34 +6218,40 @@ static bool IsMissingOrUnavailableTexture(TextureBaseClass * texture, bgfx::Text
 
 static bool ShouldLogBgfxShroudPass()
 {
-    return std::getenv("GGC_BGFX_SHROUD_PASS_DIAG") != nullptr;
+    static const bool cached = std::getenv("GGC_BGFX_SHROUD_PASS_DIAG") != nullptr;
+    return cached;
 }
 
 static bool ShouldLogBgfxSortedDecals()
 {
-    return std::getenv("GGC_BGFX_SORTED_DECAL_DIAG") != nullptr;
+    static const bool cached = std::getenv("GGC_BGFX_SORTED_DECAL_DIAG") != nullptr;
+    return cached;
 }
 
 static bool ShouldLogBgfxRevealDiag()
 {
-    return std::getenv("GGC_BGFX_REVEAL_DIAG") != nullptr;
+    static const bool cached = std::getenv("GGC_BGFX_REVEAL_DIAG") != nullptr;
+    return cached;
 }
 
 static bool ShouldLogBgfxRevealDiagVerbose()
 {
-    return std::getenv("GGC_BGFX_REVEAL_DIAG_VERBOSE") != nullptr;
+    static const bool cached = std::getenv("GGC_BGFX_REVEAL_DIAG_VERBOSE") != nullptr;
+    return cached;
 }
 
 static bool ShouldLogBgfxEffectSubmitDiag()
 {
-    return std::getenv("GGC_BGFX_EFFECT_SUBMIT_DIAG") != nullptr;
+    static const bool cached = std::getenv("GGC_BGFX_EFFECT_SUBMIT_DIAG") != nullptr;
+    return cached;
 }
 
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage);
 
 static bool ShouldAllowBgfxDiagnosticDrawOverrides()
 {
-    return std::getenv("GGC_BGFX_ENABLE_DIAGNOSTIC_OVERRIDES") != nullptr;
+    static const bool cached = std::getenv("GGC_BGFX_ENABLE_DIAGNOSTIC_OVERRIDES") != nullptr;
+    return cached;
 }
 
 static const char * TextureDebugName(TextureBaseClass * texture)
@@ -6239,8 +6293,33 @@ static bool IsCommandCenterEmblemTextureName(const char *name)
         || ContainsCaseInsensitive(name, "zhca_gtoxin");
 }
 
+static const SortedTexNameFlags & GetSortedTexNameFlags()
+{
+    static const TextureBaseClass * s_cachedTex = nullptr;
+    static bool s_valid = false;
+    static SortedTexNameFlags s_flags = { false, false, false, false, false };
+    TextureBaseClass * tex = g_draw.sourceTextures[0];
+    if (!s_valid || tex != s_cachedTex)
+    {
+        const char * n = TextureDebugName(tex);
+        s_flags.snk01    = ContainsCaseInsensitive(n, "ubsnkatak_01");
+        s_flags.snk0     = ContainsCaseInsensitive(n, "ubsnkatak_0");
+        s_flags.rotor    = ContainsCaseInsensitive(n, "avcomanche_p");
+        s_flags.coplight = ContainsCaseInsensitive(n, "coplight");
+        s_flags.commandCenterEmblem = IsCommandCenterEmblemTextureName(n);
+        s_cachedTex = tex;
+        s_valid = true;
+    }
+    return s_flags;
+}
+
 static bool IsCommandCenterEmblemTexture(TextureBaseClass *texture)
 {
+    if (texture == g_draw.sourceTextures[0])
+    {
+        return GetSortedTexNameFlags().commandCenterEmblem;
+    }
+
     const char *name = TextureDebugName(texture);
     return IsCommandCenterEmblemTextureName(name);
 }
@@ -7023,115 +7102,49 @@ static void UploadMaterialUniforms()
 static void UploadMaterialUniforms_Body()
 {
     g_stats.materialUniformUploads++;
-    if (bgfx::isValid(g_uniforms.uMatDiffuse))
+    if (bgfx::isValid(g_uniforms.uMaterial))
     {
-        bgfx::setUniform(g_uniforms.uMatDiffuse, g_draw.matDiffuse);
-    }
-    if (bgfx::isValid(g_uniforms.uMatAmbient))
-    {
-        bgfx::setUniform(g_uniforms.uMatAmbient, g_draw.matAmbient);
-    }
-    if (bgfx::isValid(g_uniforms.uMatEmissive))
-    {
-        bgfx::setUniform(g_uniforms.uMatEmissive, g_draw.matEmissive);
-    }
-
-    if (bgfx::isValid(g_uniforms.uTssOps0))
-    {
-        float tssOps0[4] = {
-            g_draw.tssOps0[0], g_draw.tssOps0[1],
-            g_draw.shaderTssOps0[2], g_draw.shaderTssOps0[3]
-        };
-        bgfx::setUniform(g_uniforms.uTssOps0, tssOps0);
-    }
-    if (bgfx::isValid(g_uniforms.uTssOps1))
-    {
-        bgfx::setUniform(g_uniforms.uTssOps1, g_draw.tssOps1);
-    }
-    if (bgfx::isValid(g_uniforms.uAtestParams))
-    {
-        const float effectiveAtestRef = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
-        const float effectiveAtestFunc = g_overrides.atestActive ? g_overrides.atestFunc : (g_draw.atestEnabled ? g_draw.atestFunc : 0.0f);
-        float atestParams[4] = { effectiveAtestRef, effectiveAtestFunc, 0.0f, 0.0f };
-        bgfx::setUniform(g_uniforms.uAtestParams, atestParams);
-    }
-    if (bgfx::isValid(g_uniforms.uTexcoordSource))
-    {
-        bgfx::setUniform(g_uniforms.uTexcoordSource, g_draw.texcoordSource);
-    }
-    if (bgfx::isValid(g_uniforms.uVertexColorFlags))
-    {
-        bgfx::setUniform(g_uniforms.uVertexColorFlags, g_draw.vertexColorFlags);
-    }
-    if (bgfx::isValid(g_uniforms.uTexcoordSelect2))
-    {
-        bgfx::setUniform(g_uniforms.uTexcoordSelect2, g_draw.texcoordSelect2);
-    }
-    if (bgfx::isValid(g_uniforms.uProjectedDecalMode))
-    {
-        bgfx::setUniform(g_uniforms.uProjectedDecalMode, g_draw.projectedDecalMode);
-    }
-    if (bgfx::isValid(g_uniforms.uGrayscaleEnable))
-    {
-        bgfx::setUniform(g_uniforms.uGrayscaleEnable, g_draw.grayscaleEnable);
-    }
-    if (bgfx::isValid(g_uniforms.uObjectShroudDim))
-    {
-        float objectShroudDim[4] = {
-            g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[0] : 1.0f,
-            g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[1] : 0.0f,
-            g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[2] : 0.0f,
-            g_draw.objectShroudDim[3]
-        };
-        bgfx::setUniform(g_uniforms.uObjectShroudDim, objectShroudDim);
-    }
-    if (bgfx::isValid(g_uniforms.uCloudParams))
-    {
-        bgfx::setUniform(g_uniforms.uCloudParams, g_draw.cloudParams);
-    }
-    if (bgfx::isValid(g_uniforms.uTexTransform0))
-    {
-        bgfx::setUniform(g_uniforms.uTexTransform0, g_draw.texTransform0);
-    }
-    if (bgfx::isValid(g_uniforms.uTexTransform1))
-    {
-        bgfx::setUniform(g_uniforms.uTexTransform1, g_draw.texTransform1);
-    }
-    if (bgfx::isValid(g_uniforms.uTexTransform0Z))
-    {
-        bgfx::setUniform(g_uniforms.uTexTransform0Z, g_draw.texTransform0Z);
-    }
-    if (bgfx::isValid(g_uniforms.uTex1Transform0))
-    {
-        bgfx::setUniform(g_uniforms.uTex1Transform0, g_draw.tex1Transform0);
-    }
-    if (bgfx::isValid(g_uniforms.uTex1Transform1))
-    {
-        bgfx::setUniform(g_uniforms.uTex1Transform1, g_draw.tex1Transform1);
-    }
-    if (bgfx::isValid(g_uniforms.uTex1TransformZ))
-    {
-        bgfx::setUniform(g_uniforms.uTex1TransformZ, g_draw.tex1TransformZ);
-    }
-    if (bgfx::isValid(g_uniforms.uTex2Transform0))
-    {
-        bgfx::setUniform(g_uniforms.uTex2Transform0, g_draw.tex2Transform0);
-    }
-    if (bgfx::isValid(g_uniforms.uTex2Transform1))
-    {
-        bgfx::setUniform(g_uniforms.uTex2Transform1, g_draw.tex2Transform1);
-    }
-    if (bgfx::isValid(g_uniforms.uTexProjected))
-    {
-        bgfx::setUniform(g_uniforms.uTexProjected, g_draw.texProjected);
-    }
-    if (bgfx::isValid(g_uniforms.uLegacyPixelShaderMode))
-    {
-        bgfx::setUniform(g_uniforms.uLegacyPixelShaderMode, g_draw.legacyPixelShaderMode);
-    }
-    if (bgfx::isValid(g_uniforms.uZBias))
-    {
-        bgfx::setUniform(g_uniforms.uZBias, g_draw.zBias);
+        // Pack the per-draw material block and upload it in a single setUniform.
+        // Slot order MUST match MaterialUniformSlot and the shader #define block.
+        float m[MU_COUNT][4];
+        std::memcpy(m[MU_MatDiffuse],  g_draw.matDiffuse,  sizeof(float) * 4);
+        std::memcpy(m[MU_MatAmbient],  g_draw.matAmbient,  sizeof(float) * 4);
+        std::memcpy(m[MU_MatEmissive], g_draw.matEmissive, sizeof(float) * 4);
+        m[MU_TssOps0][0] = g_draw.tssOps0[0];
+        m[MU_TssOps0][1] = g_draw.tssOps0[1];
+        m[MU_TssOps0][2] = g_draw.shaderTssOps0[2];
+        m[MU_TssOps0][3] = g_draw.shaderTssOps0[3];
+        std::memcpy(m[MU_TssOps1], g_draw.tssOps1, sizeof(float) * 4);
+        {
+            const float effectiveAtestRef = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
+            const float effectiveAtestFunc = g_overrides.atestActive ? g_overrides.atestFunc : (g_draw.atestEnabled ? g_draw.atestFunc : 0.0f);
+            m[MU_AtestParams][0] = effectiveAtestRef;
+            m[MU_AtestParams][1] = effectiveAtestFunc;
+            m[MU_AtestParams][2] = 0.0f;
+            m[MU_AtestParams][3] = 0.0f;
+        }
+        std::memcpy(m[MU_TexcoordSource],     g_draw.texcoordSource,     sizeof(float) * 4);
+        std::memcpy(m[MU_VertexColorFlags],   g_draw.vertexColorFlags,   sizeof(float) * 4);
+        std::memcpy(m[MU_TexcoordSelect2],    g_draw.texcoordSelect2,    sizeof(float) * 4);
+        std::memcpy(m[MU_ProjectedDecalMode], g_draw.projectedDecalMode, sizeof(float) * 4);
+        std::memcpy(m[MU_GrayscaleEnable],    g_draw.grayscaleEnable,    sizeof(float) * 4);
+        m[MU_ObjectShroudDim][0] = g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[0] : 1.0f;
+        m[MU_ObjectShroudDim][1] = g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[1] : 0.0f;
+        m[MU_ObjectShroudDim][2] = g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[2] : 0.0f;
+        m[MU_ObjectShroudDim][3] = g_draw.objectShroudDim[3];
+        std::memcpy(m[MU_CloudParams],        g_draw.cloudParams,        sizeof(float) * 4);
+        std::memcpy(m[MU_TexTransform0],      g_draw.texTransform0,      sizeof(float) * 4);
+        std::memcpy(m[MU_TexTransform1],      g_draw.texTransform1,      sizeof(float) * 4);
+        std::memcpy(m[MU_TexTransform0Z],     g_draw.texTransform0Z,     sizeof(float) * 4);
+        std::memcpy(m[MU_Tex1Transform0],     g_draw.tex1Transform0,     sizeof(float) * 4);
+        std::memcpy(m[MU_Tex1Transform1],     g_draw.tex1Transform1,     sizeof(float) * 4);
+        std::memcpy(m[MU_Tex1TransformZ],     g_draw.tex1TransformZ,     sizeof(float) * 4);
+        std::memcpy(m[MU_Tex2Transform0],     g_draw.tex2Transform0,     sizeof(float) * 4);
+        std::memcpy(m[MU_Tex2Transform1],     g_draw.tex2Transform1,     sizeof(float) * 4);
+        std::memcpy(m[MU_TexProjected],       g_draw.texProjected,       sizeof(float) * 4);
+        std::memcpy(m[MU_LegacyPixelShaderMode], g_draw.legacyPixelShaderMode, sizeof(float) * 4);
+        std::memcpy(m[MU_ZBias],              g_draw.zBias,              sizeof(float) * 4);
+        bgfx::setUniform(g_uniforms.uMaterial, m, MU_COUNT);
     }
     if (bgfx::isValid(g_uniforms.sCloudMap))
     {
