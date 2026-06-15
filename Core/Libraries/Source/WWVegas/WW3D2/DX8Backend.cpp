@@ -42,6 +42,41 @@
 #include <cstdlib>
 #include <cstring>
 #include <d3dx8core.h>
+#include "BgfxRenderProfile.h"
+
+// TheSuperHackers @build bobtista 15/06/2026 GGCRenderProfile is referenced by the
+// always-compiled W3DDisplay / W3DScene / sorting renderer, but its accumulators are
+// owned by the active backend TU. BgfxBackend.cpp owns the bgfx copy; this is the
+// DX8/VC6 copy so the reference (and VC6) builds link again. VC6-safe: __int64 and
+// static zero-init, no C++11 default member initializers. Timing is accumulated but
+// only the bgfx backend emits it; the DX8 build relies on -logFrameTimes for fps.
+namespace GGCRenderProfile
+{
+    struct DX8PhaseAcc { __int64 start; __int64 total_ticks; unsigned calls; };
+    static DX8PhaseAcc g_dx8_phase_acc[PHASE_COUNT];
+
+    void Begin(Phase phase)
+    {
+        LARGE_INTEGER c;
+        QueryPerformanceCounter(&c);
+        g_dx8_phase_acc[phase].start = c.QuadPart;
+    }
+    void End(Phase phase)
+    {
+        LARGE_INTEGER c;
+        QueryPerformanceCounter(&c);
+        g_dx8_phase_acc[phase].total_ticks += c.QuadPart - g_dx8_phase_acc[phase].start;
+        g_dx8_phase_acc[phase].calls++;
+    }
+    void EndFrame()
+    {
+        for (int i = 0; i < PHASE_COUNT; ++i)
+        {
+            g_dx8_phase_acc[i].total_ticks = 0;
+            g_dx8_phase_acc[i].calls = 0;
+        }
+    }
+}
 
 namespace
 {
