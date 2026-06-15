@@ -209,6 +209,39 @@ extern "C" int GGC_GetBgfxHdrEnabled()
 	return 1;
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Cheap fullscreen post effects.
+// params: x = vignette strength, y = chromatic aberration amount, z = film grain
+// strength. Zero means off.
+extern "C" void GGC_GetBgfxPostFx2Params(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0f;
+	params[1] = 0.0f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	if (TheGlobalData->m_bgfxVignette)
+	{
+		params[0] = TheGlobalData->m_bgfxVignetteStrength;
+	}
+	if (TheGlobalData->m_bgfxChromaticAberration)
+	{
+		params[1] = TheGlobalData->m_bgfxChromaticAberrationAmount;
+	}
+	if (TheGlobalData->m_bgfxFilmGrain)
+	{
+		params[2] = TheGlobalData->m_bgfxFilmGrainStrength;
+	}
+}
+
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
 {
 	if (logStats)
@@ -343,6 +376,12 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxBloomThreshold",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxBloomThreshold ) },
 	{ "BgfxBloomIntensity",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxBloomIntensity ) },
 	{ "BgfxHdr",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxHdr ) },
+	{ "BgfxVignette",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxVignette ) },
+	{ "BgfxVignetteStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxVignetteStrength ) },
+	{ "BgfxChromaticAberration",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxChromaticAberration ) },
+	{ "BgfxChromaticAberrationAmount",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxChromaticAberrationAmount ) },
+	{ "BgfxFilmGrain",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxFilmGrain ) },
+	{ "BgfxFilmGrainStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxFilmGrainStrength ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
@@ -924,6 +963,12 @@ GlobalData::GlobalData()
 	m_bgfxBloomThreshold = 0.7f;
 	m_bgfxBloomIntensity = 0.5f;
 	m_bgfxHdr = FALSE;
+	m_bgfxVignette = FALSE;
+	m_bgfxVignetteStrength = 0.4f;
+	m_bgfxChromaticAberration = FALSE;
+	m_bgfxChromaticAberrationAmount = 0.5f;
+	m_bgfxFilmGrain = FALSE;
+	m_bgfxFilmGrainStrength = 0.08f;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;

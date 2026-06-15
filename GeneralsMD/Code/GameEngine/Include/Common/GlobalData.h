@@ -164,6 +164,12 @@ public:
 	Real m_bgfxBloomThreshold;
 	Real m_bgfxBloomIntensity;
 	Bool m_bgfxHdr;
+	Bool m_bgfxVignette;
+	Real m_bgfxVignetteStrength;
+	Bool m_bgfxChromaticAberration;
+	Real m_bgfxChromaticAberrationAmount;
+	Bool m_bgfxFilmGrain;
+	Real m_bgfxFilmGrainStrength;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
 	Real m_bgfxHeatHazeOpacityScale;
