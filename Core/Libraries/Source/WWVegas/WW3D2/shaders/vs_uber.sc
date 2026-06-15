@@ -4,21 +4,35 @@ $output v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_s
 #include <bgfx_shader.sh>
 
 uniform vec4 u_texcoordSelect;
-uniform vec4 u_texcoordSelect2; // .x > 0.5 = use texcoord1 for stage 1, .y > 0.5 = stage 1 transform active
-uniform vec4 u_texcoordSource; // .x: 0=mesh UV, 1=camera normal, 2=camera reflection, 3=camera position
-uniform vec4 u_vertexColorFlags; // .x > 0.5 = FVF supplies COLOR0; else use D3D8's white default
 uniform vec4 u_shroudParams; // xy = offset, zw = scale
-uniform vec4 u_cloudParams;  // xy = scroll offset, z = stretch factor, w = enable flag
-uniform vec4 u_texTransform0; // stage-0 texture matrix column for u': dot(source xyzw)
-uniform vec4 u_texTransform1; // stage-0 texture matrix column for v': dot(source xyzw)
-uniform vec4 u_texTransform0Z; // stage-0 texture matrix column for w' (projected): dot(source xyzw)
-uniform vec4 u_tex1Transform0; // stage-1 texture matrix column for u': dot(source xyzw)
-uniform vec4 u_tex1Transform1; // stage-1 texture matrix column for v': dot(source xyzw)
-uniform vec4 u_tex1TransformZ; // stage-1 texture matrix column for w' (projected): dot(source xyzw)
-uniform vec4 u_tex2Transform0; // stage-2 texture matrix column for u': dot(source xyzw)
-uniform vec4 u_tex2Transform1; // stage-2 texture matrix column for v': dot(source xyzw)
-uniform vec4 u_texProjected; // .x > 0.5 = stage 0 D3DTTFF_PROJECTED, .y same for stage 1
-uniform vec4 u_zBias;        // .x = post-projection clip-space Z offset. .y = object-space normal offset for authored coplanar opposite faces.
+
+// TheSuperHackers @performance bobtista 15/06/2026 Packed per-draw material uniforms.
+// Index order MUST match MaterialUniformSlot in BgfxBackend.cpp.
+uniform vec4 u_material[24];
+#define u_matDiffuse            u_material[0]
+#define u_matAmbient            u_material[1]
+#define u_matEmissive           u_material[2]
+#define u_tssOps0               u_material[3]
+#define u_tssOps1               u_material[4]
+#define u_atestParams           u_material[5]
+#define u_texcoordSource        u_material[6]
+#define u_vertexColorFlags      u_material[7]
+#define u_texcoordSelect2       u_material[8]
+#define u_projectedDecalMode    u_material[9]
+#define u_grayscaleEnable       u_material[10]
+#define u_objectShroudDim       u_material[11]
+#define u_cloudParams           u_material[12]
+#define u_texTransform0         u_material[13]
+#define u_texTransform1         u_material[14]
+#define u_texTransform0Z        u_material[15]
+#define u_tex1Transform0        u_material[16]
+#define u_tex1Transform1        u_material[17]
+#define u_tex1TransformZ        u_material[18]
+#define u_tex2Transform0        u_material[19]
+#define u_tex2Transform1        u_material[20]
+#define u_texProjected          u_material[21]
+#define u_legacyPixelShaderMode u_material[22]
+#define u_zBias                 u_material[23]
 
 void main()
 {
