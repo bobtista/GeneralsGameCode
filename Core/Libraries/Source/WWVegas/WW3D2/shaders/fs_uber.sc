@@ -566,7 +566,9 @@ void main()
 		// for lit meshes. Recompute current as tex-only * lighting.
 		vec3 matDiffuse = (u_vertexColorFlags.y > 0.5) ? diffuse.rgb : u_matDiffuse.rgb;
 		vec3 matAmbient = (u_vertexColorFlags.z > 0.5) ? diffuse.rgb : u_matAmbient.rgb;
-		vec3 matEmissive = (u_vertexColorFlags.w > 0.5) ? diffuse.rgb : u_matEmissive.rgb;
+		// TheSuperHackers @feature bobtista 15/06/2026 Optional emissive boost (u_matFx.w,
+		// neutral 1.0) brightens self-illuminated material so it reads and feeds bloom.
+		vec3 matEmissive = (u_vertexColorFlags.w > 0.5) ? diffuse.rgb : (u_matEmissive.rgb * u_matFx.w);
 
 		// TheSuperHackers @bugfix bobtista 05/06/2026 Guard normalize against a zero
 		// normal (degenerate geometry) which would yield NaN and bleed into the color.
