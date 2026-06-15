@@ -25,6 +25,10 @@ uniform vec4 u_bloomParams;
 // set, the scene target is RGBA16F and the final output is ACES-tonemapped instead
 // of hard-clamped, giving highlight rolloff and richer bloom.
 uniform vec4 u_hdrParams;
+// TheSuperHackers @feature bobtista 15/06/2026 Cheap post effects. x = vignette
+// strength, y = chromatic aberration amount, z = film grain strength, w = grain
+// time seed. Each is 0 when its effect is off.
+uniform vec4 u_postFx2Params;
 
 // TheSuperHackers @tweak bobtista 05/06/2026 BT.601 luma weights (matches fs_uber.sc).
 #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
@@ -48,6 +52,16 @@ void main()
 {
 	vec4 color = texture2D(s_tex0, v_texcoord0);
 	vec3 rawColor = color.rgb;
+
+	// Chromatic aberration: split the red/blue channels along the radial direction,
+	// stronger toward the screen edges. Captured after rawColor so the wipe's
+	// before side stays clean.
+	if (u_postFx2Params.y > 0.001)
+	{
+		vec2 caOffset = (v_texcoord0 - vec2(0.5, 0.5)) * (u_postFx2Params.y * 0.012);
+		color.r = texture2D(s_tex0, v_texcoord0 + caOffset).r;
+		color.b = texture2D(s_tex0, v_texcoord0 - caOffset).b;
+	}
 
 	// u_postParams.x = sharpen amount, y = saturation, z = contrast,
 	// w = edge-aware FXAA-style smoothing amount. Defaults are identity:
@@ -130,6 +144,22 @@ void main()
 		processedOut += texture2D(s_bloom, v_texcoord0).rgb * u_bloomParams.y;
 	}
 	processedOut = clamp(processedOut, 0.0, 1.0);
+
+	// Vignette: darken toward the screen corners.
+	if (u_postFx2Params.x > 0.001)
+	{
+		vec2 vd = v_texcoord0 - vec2(0.5, 0.5);
+		float vig = 1.0 - dot(vd, vd) * (u_postFx2Params.x * 2.0);
+		processedOut *= clamp(vig, 0.0, 1.0);
+	}
+
+	// Film grain: add animated per-pixel noise (time seed in .w keeps it moving).
+	if (u_postFx2Params.z > 0.001)
+	{
+		float grain = fract(sin(dot(v_texcoord0 * (u_postFx2Params.w + 1.0), vec2(12.9898, 78.233))) * 43758.5453);
+		processedOut += (grain - 0.5) * u_postFx2Params.z;
+		processedOut = clamp(processedOut, 0.0, 1.0);
+	}
 
 	vec3 outRgb = processedOut;
 	if (u_wipeParams.y > 0.5)
