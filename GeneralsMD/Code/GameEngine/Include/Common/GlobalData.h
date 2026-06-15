@@ -160,6 +160,9 @@ public:
 	Real m_bgfxColorGradeStrength;
 	Real m_bgfxColorGradeTemperature;
 	Real m_bgfxColorGradeTint;
+	Bool m_bgfxBloom;
+	Real m_bgfxBloomThreshold;
+	Real m_bgfxBloomIntensity;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
 	Real m_bgfxHeatHazeOpacityScale;

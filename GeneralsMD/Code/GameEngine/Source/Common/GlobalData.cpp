@@ -174,6 +174,29 @@ extern "C" void GGC_GetBgfxColorGradeParams(float * params)
 	params[3] = TheGlobalData->m_bgfxColorGradeTint;
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Expose bloom controls to the bgfx
+// composite/bloom passes. params: x = enabled, y = threshold, z = intensity.
+extern "C" void GGC_GetBgfxBloomParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0f;
+	params[1] = 0.75f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData || !TheGlobalData->m_bgfxBloom)
+	{
+		return;
+	}
+
+	params[0] = 1.0f;
+	params[1] = TheGlobalData->m_bgfxBloomThreshold;
+	params[2] = TheGlobalData->m_bgfxBloomIntensity;
+}
+
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
 {
 	if (logStats)
@@ -304,6 +327,9 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxColorGradeStrength",		INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxColorGradeStrength ) },
 	{ "BgfxColorGradeTemperature",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxColorGradeTemperature ) },
 	{ "BgfxColorGradeTint",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxColorGradeTint ) },
+	{ "BgfxBloom",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxBloom ) },
+	{ "BgfxBloomThreshold",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxBloomThreshold ) },
+	{ "BgfxBloomIntensity",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxBloomIntensity ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
@@ -878,6 +904,9 @@ GlobalData::GlobalData()
 	m_bgfxColorGradeStrength = 1.0f;
 	m_bgfxColorGradeTemperature = 0.0f;
 	m_bgfxColorGradeTint = 0.0f;
+	m_bgfxBloom = FALSE;
+	m_bgfxBloomThreshold = 0.75f;
+	m_bgfxBloomIntensity = 0.6f;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;
