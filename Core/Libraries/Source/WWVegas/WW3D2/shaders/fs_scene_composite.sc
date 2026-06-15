@@ -29,9 +29,19 @@ uniform vec4 u_hdrParams;
 // TheSuperHackers @tweak bobtista 05/06/2026 BT.601 luma weights (matches fs_uber.sc).
 #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
 
-vec3 acesTonemap(vec3 x)
+// TheSuperHackers @tweak bobtista 15/06/2026 Gentle highlight rolloff. Identity in
+// the SDR range (so the base scene is unchanged and never washed out), smoothly
+// compressing only values above the knee toward 1.0 so genuine highlights do not
+// clip and feed bloom cleanly. This game's art is display-referred, so a full
+// filmic tonemap over-brightens it; this only touches the over-bright extremes.
+vec3 tonemapHighlights(vec3 x)
 {
-	return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+	float knee = 0.80;
+	float headroom = 1.0 - knee;
+	vec3 lo = min(x, vec3(knee, knee, knee));
+	vec3 hi = max(x - vec3(knee, knee, knee), vec3(0.0, 0.0, 0.0));
+	hi = hi / (1.0 + hi / headroom);
+	return clamp(lo + hi, 0.0, 1.0);
 }
 
 void main()
@@ -100,22 +110,26 @@ void main()
 		color.rgb = mix(color.rgb, graded, u_colorGradeParams.y);
 	}
 
-	if (u_bloomParams.y > 0.001)
-	{
-		color.rgb += texture2D(s_bloom, v_texcoord0).rgb * u_bloomParams.y;
-	}
-
-	// Map the fully-processed scene to display range: ACES tonemap (HDR) or hard
-	// clamp (LDR).
+	// Map the scene to display range first: highlight rolloff (HDR) or hard clamp
+	// (LDR).
 	vec3 processedOut;
 	if (u_hdrParams.x > 0.5)
 	{
-		processedOut = acesTonemap(color.rgb);
+		processedOut = tonemapHighlights(color.rgb);
 	}
 	else
 	{
 		processedOut = clamp(color.rgb, 0.0, 1.0);
 	}
+
+	// TheSuperHackers @tweak bobtista 15/06/2026 Add bloom AFTER tonemap/clamp so the
+	// HDR highlight rolloff does not compress the glow back down - bloom is additive
+	// light on top of the display-range image.
+	if (u_bloomParams.y > 0.001)
+	{
+		processedOut += texture2D(s_bloom, v_texcoord0).rgb * u_bloomParams.y;
+	}
+	processedOut = clamp(processedOut, 0.0, 1.0);
 
 	vec3 outRgb = processedOut;
 	if (u_wipeParams.y > 0.5)
