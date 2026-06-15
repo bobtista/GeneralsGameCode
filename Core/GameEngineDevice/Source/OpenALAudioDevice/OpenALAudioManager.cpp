@@ -849,7 +849,9 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 					return;
 				}
 
+#ifdef INTENSIVE_AUDIO_DEBUG
 				DEBUG_LOG(("Received audio frame\n"));
+#endif
 
 				AVSampleFormat sampleFmt = static_cast<AVSampleFormat>(frame->format);
 				const int bytesPerSample = av_get_bytes_per_sample(sampleFmt);
@@ -3088,7 +3090,9 @@ ALuint OpenALAudioManager::playSample3D(AudioEventRTS* event, PlayingAudio* samp
 			alSource3f(source, AL_POSITION, x, y, z);
 			alSourcei(source, AL_BUFFER, handle);
 			alSourcef(source, AL_GAIN, getEffectiveVolume(event));
+#ifdef INTENSIVE_AUDIO_DEBUG
 			DEBUG_LOG(("Playing 3D sample '%s' at %f, %f, %f\n", event->getEventName().str(), x, y, z));
+#endif
 
 			// Start playback
 			alSourcePlay(source);
