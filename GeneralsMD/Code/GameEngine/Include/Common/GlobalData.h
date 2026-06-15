@@ -156,6 +156,10 @@ public:
 	Bool m_bgfxWipeEnabled;
 	Bool m_bgfxWipeFollowMouse;
 	Real m_bgfxWipeSplit;
+	Bool m_bgfxColorGrade;
+	Real m_bgfxColorGradeStrength;
+	Real m_bgfxColorGradeTemperature;
+	Real m_bgfxColorGradeTint;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
 	Real m_bgfxHeatHazeOpacityScale;

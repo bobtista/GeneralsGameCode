@@ -150,6 +150,30 @@ extern "C" void GGC_GetBgfxWipeParams(float * params)
 	params[1] = 1.0f;
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Expose color-grade controls to the
+// bgfx composite pass. params: x = enabled, y = strength, z = temperature, w = tint.
+extern "C" void GGC_GetBgfxColorGradeParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0f;
+	params[1] = 1.0f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData || !TheGlobalData->m_bgfxColorGrade)
+	{
+		return;
+	}
+
+	params[0] = 1.0f;
+	params[1] = TheGlobalData->m_bgfxColorGradeStrength;
+	params[2] = TheGlobalData->m_bgfxColorGradeTemperature;
+	params[3] = TheGlobalData->m_bgfxColorGradeTint;
+}
+
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
 {
 	if (logStats)
@@ -276,6 +300,10 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxWipeEnabled",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxWipeEnabled ) },
 	{ "BgfxWipeFollowMouse",			INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxWipeFollowMouse ) },
 	{ "BgfxWipeSplit",						INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxWipeSplit ) },
+	{ "BgfxColorGrade",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxColorGrade ) },
+	{ "BgfxColorGradeStrength",		INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxColorGradeStrength ) },
+	{ "BgfxColorGradeTemperature",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxColorGradeTemperature ) },
+	{ "BgfxColorGradeTint",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxColorGradeTint ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
@@ -846,6 +874,10 @@ GlobalData::GlobalData()
 	m_bgfxWipeEnabled = FALSE;
 	m_bgfxWipeFollowMouse = TRUE;
 	m_bgfxWipeSplit = 0.5f;
+	m_bgfxColorGrade = FALSE;
+	m_bgfxColorGradeStrength = 1.0f;
+	m_bgfxColorGradeTemperature = 0.0f;
+	m_bgfxColorGradeTint = 0.0f;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;
