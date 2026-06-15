@@ -8,6 +8,7 @@ $input v_texcoord0
 
 SAMPLER2D(s_tex0, 0);
 SAMPLER2D(s_bloom, 2);
+SAMPLER2D(s_ssao, 3);
 
 uniform vec4 u_postParams;
 uniform vec4 u_postTexelSize;
@@ -61,6 +62,12 @@ void main()
 		vec2 caOffset = (v_texcoord0 - vec2(0.5, 0.5)) * (u_postFx2Params.y * 0.012);
 		color.r = texture2D(s_tex0, v_texcoord0 + caOffset).r;
 		color.b = texture2D(s_tex0, v_texcoord0 - caOffset).b;
+	}
+
+	// SSAO: darken the scene by the ambient-occlusion factor (u_hdrParams.y = apply).
+	if (u_hdrParams.y > 0.5)
+	{
+		color.rgb *= texture2D(s_ssao, v_texcoord0).r;
 	}
 
 	// u_postParams.x = sharpen amount, y = saturation, z = contrast,
