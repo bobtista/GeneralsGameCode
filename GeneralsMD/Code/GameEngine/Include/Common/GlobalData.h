@@ -163,6 +163,7 @@ public:
 	Bool m_bgfxBloom;
 	Real m_bgfxBloomThreshold;
 	Real m_bgfxBloomIntensity;
+	Bool m_bgfxHdr;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
 	Real m_bgfxHeatHazeOpacityScale;

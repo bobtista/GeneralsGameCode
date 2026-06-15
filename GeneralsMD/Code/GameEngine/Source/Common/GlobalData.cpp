@@ -197,6 +197,18 @@ extern "C" void GGC_GetBgfxBloomParams(float * params)
 	params[2] = TheGlobalData->m_bgfxBloomIntensity;
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Opt-in HDR scene color. When set,
+// the bgfx scene/bloom targets use RGBA16F and the composite applies ACES
+// tonemapping, giving richer bloom and highlight rolloff. Default off.
+extern "C" int GGC_GetBgfxHdrEnabled()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxHdr)
+	{
+		return 0;
+	}
+	return 1;
+}
+
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
 {
 	if (logStats)
@@ -330,6 +342,7 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxBloom",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxBloom ) },
 	{ "BgfxBloomThreshold",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxBloomThreshold ) },
 	{ "BgfxBloomIntensity",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxBloomIntensity ) },
+	{ "BgfxHdr",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxHdr ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
@@ -907,6 +920,7 @@ GlobalData::GlobalData()
 	m_bgfxBloom = FALSE;
 	m_bgfxBloomThreshold = 0.75f;
 	m_bgfxBloomIntensity = 0.6f;
+	m_bgfxHdr = FALSE;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;
