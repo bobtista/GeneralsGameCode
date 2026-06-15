@@ -127,6 +127,7 @@ struct BgfxDevice
     bgfx::ProgramHandle sceneCompositeProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle bloomBrightProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle bloomBlurProgram = BGFX_INVALID_HANDLE;
+    bgfx::ProgramHandle ssaoProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle sceneDepthProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle smudgeProgram = BGFX_INVALID_HANDLE;
 
@@ -144,6 +145,10 @@ struct BgfxDevice
     bgfx::FrameBufferHandle bloomBrightFB  = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     bloomBlurTex   = BGFX_INVALID_HANDLE;
     bgfx::FrameBufferHandle bloomBlurFB    = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     ssaoTex        = BGFX_INVALID_HANDLE;
+    bgfx::FrameBufferHandle ssaoFB         = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     ssaoBlurTex    = BGFX_INVALID_HANDLE;
+    bgfx::FrameBufferHandle ssaoBlurFB     = BGFX_INVALID_HANDLE;
     uint16_t                sceneWidth = 0;
     uint16_t                sceneHeight = 0;
     uint16_t                bloomWidth = 0;
@@ -234,6 +239,10 @@ struct BgfxUniforms
     bgfx::UniformHandle sBloom               = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uHdrParams           = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uPostFx2Params       = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uSsaoParams          = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uSsaoInvProj         = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uSsaoProj            = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle sSsao                = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uSoftParticleParams  = BGFX_INVALID_HANDLE;
     // Polygon-offset equivalent for stencil-shadow-volume passes. bgfx has no state bit for polygon offset, so the post-projection Z bias is applied in vs_shadow_volume.sc. .x is the offset; negative = toward the camera.
     bgfx::UniformHandle uShadowBias          = BGFX_INVALID_HANDLE;
