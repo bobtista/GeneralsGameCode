@@ -156,6 +156,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #ifdef RTS_ZEROHOUR
 extern "C" void GGC_GetBgfxPostProcessParams(float * params);
 extern "C" void GGC_GetBgfxWipeParams(float * params);
+extern "C" void GGC_GetBgfxColorGradeParams(float * params);
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
 extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
 extern "C" int  GGC_GetBgfxScreenshotFrame();
@@ -2046,6 +2047,28 @@ static void GetWipeParams(float * params)
 #endif
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Pull color-grade params, with an
+// env override (GGC_BGFX_COLORGRADE) for dev iteration without editing INI.
+static void GetColorGradeParams(float * params)
+{
+    params[0] = 0.0f;
+    params[1] = 1.0f;
+    params[2] = 0.0f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxColorGradeParams(params);
+#endif
+    static int forced = -1;
+    if (forced < 0)
+    {
+        forced = (std::getenv("GGC_BGFX_COLORGRADE") != nullptr) ? 1 : 0;
+    }
+    if (forced == 1)
+    {
+        params[0] = 1.0f;
+    }
+}
+
 static void GetSoftParticleParams(float * params)
 {
     params[0] = 1.0f;
@@ -2296,14 +2319,21 @@ static void SubmitSceneComposite()
     {
         bgfx::setUniform(g_uniforms.uWipeParams, wipeParams);
     }
+    float colorGradeParams[4];
+    GetColorGradeParams(colorGradeParams);
+    if (bgfx::isValid(g_uniforms.uColorGradeParams))
+    {
+        bgfx::setUniform(g_uniforms.uColorGradeParams, colorGradeParams);
+    }
     static bool s_loggedComposite = false;
     if (!s_loggedComposite)
     {
         s_loggedComposite = true;
         std::fprintf(stderr,
-                     "[ggc] composite post=(%.3f,%.3f,%.3f,%.3f) wipe=(split %.3f, enabled %.1f)\n",
+                     "[ggc] composite post=(%.3f,%.3f,%.3f,%.3f) wipe=(split %.3f, enabled %.1f) grade=(on %.1f, str %.3f, temp %.3f, tint %.3f)\n",
                      postParams[0], postParams[1], postParams[2], postParams[3],
-                     wipeParams[0], wipeParams[1]);
+                     wipeParams[0], wipeParams[1],
+                     colorGradeParams[0], colorGradeParams[1], colorGradeParams[2], colorGradeParams[3]);
     }
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
@@ -2781,6 +2811,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uPostParams = bgfx::createUniform("u_postParams", bgfx::UniformType::Vec4);
     g_uniforms.uPostTexelSize = bgfx::createUniform("u_postTexelSize", bgfx::UniformType::Vec4);
     g_uniforms.uWipeParams = bgfx::createUniform("u_wipeParams", bgfx::UniformType::Vec4);
+    g_uniforms.uColorGradeParams = bgfx::createUniform("u_colorGradeParams", bgfx::UniformType::Vec4);
     g_uniforms.uSoftParticleParams = bgfx::createUniform("u_softParticleParams", bgfx::UniformType::Vec4);
 
     // Keep view order explicit. Stencil shadow volumes, sorted decals/effects,
@@ -2964,6 +2995,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uPostParams);
         DestroyBgfxHandle(g_uniforms.uPostTexelSize);
         DestroyBgfxHandle(g_uniforms.uWipeParams);
+        DestroyBgfxHandle(g_uniforms.uColorGradeParams);
         DestroyBgfxHandle(g_uniforms.uSoftParticleParams);
         DestroyBgfxHandle(g_uniforms.uShadowBias);
         DestroyBgfxHandle(g_uniforms.uMatEmissive);
