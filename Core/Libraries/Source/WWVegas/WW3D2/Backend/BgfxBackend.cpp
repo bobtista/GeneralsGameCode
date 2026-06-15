@@ -155,6 +155,7 @@ int DX8Wrapper_PreserveFPU = 0;
 
 #ifdef RTS_ZEROHOUR
 extern "C" void GGC_GetBgfxPostProcessParams(float * params);
+extern "C" void GGC_GetBgfxWipeParams(float * params);
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
 extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
 extern "C" int  GGC_GetBgfxScreenshotFrame();
@@ -2032,6 +2033,19 @@ static void GetPostParams(float * params)
     }
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Drive the composite split-screen
+// wipe from engine state so any post effect can be compared before/after.
+static void GetWipeParams(float * params)
+{
+    params[0] = 0.5f;
+    params[1] = 0.0f;
+    params[2] = 0.0f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxWipeParams(params);
+#endif
+}
+
 static void GetSoftParticleParams(float * params)
 {
     params[0] = 1.0f;
@@ -2275,6 +2289,21 @@ static void SubmitSceneComposite()
     if (bgfx::isValid(g_uniforms.uPostTexelSize))
     {
         bgfx::setUniform(g_uniforms.uPostTexelSize, postTexelSize);
+    }
+    float wipeParams[4];
+    GetWipeParams(wipeParams);
+    if (bgfx::isValid(g_uniforms.uWipeParams))
+    {
+        bgfx::setUniform(g_uniforms.uWipeParams, wipeParams);
+    }
+    static bool s_loggedComposite = false;
+    if (!s_loggedComposite)
+    {
+        s_loggedComposite = true;
+        std::fprintf(stderr,
+                     "[ggc] composite post=(%.3f,%.3f,%.3f,%.3f) wipe=(split %.3f, enabled %.1f)\n",
+                     postParams[0], postParams[1], postParams[2], postParams[3],
+                     wipeParams[0], wipeParams[1]);
     }
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
@@ -2751,6 +2780,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uShadowBias  = bgfx::createUniform("u_shadowBias",  bgfx::UniformType::Vec4);
     g_uniforms.uPostParams = bgfx::createUniform("u_postParams", bgfx::UniformType::Vec4);
     g_uniforms.uPostTexelSize = bgfx::createUniform("u_postTexelSize", bgfx::UniformType::Vec4);
+    g_uniforms.uWipeParams = bgfx::createUniform("u_wipeParams", bgfx::UniformType::Vec4);
     g_uniforms.uSoftParticleParams = bgfx::createUniform("u_softParticleParams", bgfx::UniformType::Vec4);
 
     // Keep view order explicit. Stencil shadow volumes, sorted decals/effects,
@@ -2933,6 +2963,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uShadowColor);
         DestroyBgfxHandle(g_uniforms.uPostParams);
         DestroyBgfxHandle(g_uniforms.uPostTexelSize);
+        DestroyBgfxHandle(g_uniforms.uWipeParams);
         DestroyBgfxHandle(g_uniforms.uSoftParticleParams);
         DestroyBgfxHandle(g_uniforms.uShadowBias);
         DestroyBgfxHandle(g_uniforms.uMatEmissive);
