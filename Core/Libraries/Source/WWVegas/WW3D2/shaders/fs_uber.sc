@@ -672,10 +672,19 @@ void main()
 			current.a = applyAlphaOp(secAlphaOp, tex1.a, current.a);
 		}
 
-		// TheSuperHackers @feature bobtista 15/06/2026 Add Blinn-Phong specular on top of
-		// the lit/textured result, gated by u_matFx.x (0 = off) so the retail look is
-		// unchanged unless explicitly enabled.
-		current.rgb += specAccum * u_matSpecular.rgb * u_matFx.x;
+		// TheSuperHackers @feature bobtista 15/06/2026 Add Blinn-Phong specular and a
+		// fresnel rim term on top of the lit/textured result. Both are gated by u_matFx
+		// strengths (0 = off) so the retail look is unchanged unless explicitly enabled.
+		// Fade the additive FX on transparent and alpha-tested surfaces: billboard
+		// foliage, infantry cards, and blended effect meshes have flat or grazing
+		// normals that otherwise wash out to white. Solid meshes keep the full effect.
+		float fxMask = (u_atestParams.y > 0.5) ? 0.0 : current.a;
+		float rim = pow(1.0 - max(0.0, dot(nrm, viewDir)), u_matFx.z) * u_matFx.y;
+		vec3 fxAdd = (specAccum * u_matSpecular.rgb * u_matFx.x + rim * litDiffuse.rgb) * fxMask;
+		// Exposure-style soft add: brightens toward white but can never overshoot it, so
+		// strong settings roll grazing-angle surfaces (tunnel walls, vehicle bodies) into
+		// a smooth highlight instead of hard-clamping them to a flat white blob.
+		current.rgb = 1.0 - (1.0 - current.rgb) * exp(-fxAdd);
 	}
 	else
 	{
