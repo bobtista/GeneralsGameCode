@@ -322,6 +322,10 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # identity pass copies it to the swapchain before UI draws.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_scene_composite.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_scene_composite.sc)
+    # TheSuperHackers @feature bobtista 15/06/2026 Bloom bright-pass and separable
+    # blur. Reuse vs_scene_composite as the fullscreen vertex stage.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_bloom_bright.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_bloom_blur.sc)
     # TheSuperHackers @feature bobtista 27/04/2026 Readable scene-depth
     # pass. Opaque world draws populate an R32F texture for future post
     # effects and soft particles.
