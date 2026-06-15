@@ -177,6 +177,9 @@ public:
 	Real m_bgfxRenderScale;
 	Bool m_bgfxSpecular;
 	Real m_bgfxSpecularStrength;
+	Bool m_bgfxRimLight;
+	Real m_bgfxRimStrength;
+	Real m_bgfxRimPower;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
 	Real m_bgfxHeatHazeOpacityScale;
