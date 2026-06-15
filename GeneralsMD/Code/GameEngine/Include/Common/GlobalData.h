@@ -170,6 +170,9 @@ public:
 	Real m_bgfxChromaticAberrationAmount;
 	Bool m_bgfxFilmGrain;
 	Real m_bgfxFilmGrainStrength;
+	Bool m_bgfxSSAO;
+	Real m_bgfxSSAORadius;
+	Real m_bgfxSSAOIntensity;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
 	Real m_bgfxHeatHazeOpacityScale;

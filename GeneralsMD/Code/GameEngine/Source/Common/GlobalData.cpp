@@ -242,6 +242,29 @@ extern "C" void GGC_GetBgfxPostFx2Params(float * params)
 	}
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Screen-space ambient occlusion.
+// params: x = enabled, y = radius (world units), z = intensity.
+extern "C" void GGC_GetBgfxSSAOParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0f;
+	params[1] = 1.0f;
+	params[2] = 1.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData || !TheGlobalData->m_bgfxSSAO)
+	{
+		return;
+	}
+
+	params[0] = 1.0f;
+	params[1] = TheGlobalData->m_bgfxSSAORadius;
+	params[2] = TheGlobalData->m_bgfxSSAOIntensity;
+}
+
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
 {
 	if (logStats)
@@ -382,6 +405,9 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxChromaticAberrationAmount",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxChromaticAberrationAmount ) },
 	{ "BgfxFilmGrain",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxFilmGrain ) },
 	{ "BgfxFilmGrainStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxFilmGrainStrength ) },
+	{ "BgfxSSAO",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSSAO ) },
+	{ "BgfxSSAORadius",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSSAORadius ) },
+	{ "BgfxSSAOIntensity",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSSAOIntensity ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
@@ -969,6 +995,11 @@ GlobalData::GlobalData()
 	m_bgfxChromaticAberrationAmount = 0.5f;
 	m_bgfxFilmGrain = FALSE;
 	m_bgfxFilmGrainStrength = 0.08f;
+	m_bgfxSSAO = FALSE;
+	// Radius is in world units; Generals' camera is far, so contact AO needs a
+	// fairly large radius to read at all.
+	m_bgfxSSAORadius = 12.0f;
+	m_bgfxSSAOIntensity = 1.0f;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;
