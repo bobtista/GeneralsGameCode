@@ -16,7 +16,15 @@ void main()
 {
 	vec3 c = texture2D(s_tex0, v_texcoord0).rgb;
 	float luma = dot(c, LUMA_WEIGHTS);
-	float contrib = max(luma - u_bloomParams.x, 0.0);
-	vec3 bright = c * (contrib / max(luma, 0.0001));
-	gl_FragColor = vec4(bright, 1.0);
+	float threshold = u_bloomParams.x;
+	// TheSuperHackers @tweak bobtista 15/06/2026 Soft-knee bright-pass with a tight
+	// knee so bloom only catches pixels right at/above the threshold. A wide knee
+	// effectively lowers the threshold and makes large bright areas (sunlit terrain,
+	// dirt roads) glow and wash the scene out.
+	float knee = 0.05;
+	float soft = clamp(luma - threshold + knee, 0.0, 2.0 * knee);
+	soft = (soft * soft) / (4.0 * knee + 0.0001);
+	float contrib = max(soft, luma - threshold);
+	contrib = contrib / max(luma, 0.0001);
+	gl_FragColor = vec4(c * contrib, 1.0);
 }
