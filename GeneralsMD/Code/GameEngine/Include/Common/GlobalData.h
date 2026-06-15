@@ -153,6 +153,9 @@ public:
 	Real m_bgfxPostSaturation;
 	Real m_bgfxPostContrast;
 	Real m_bgfxPostFxaaAmount;
+	Bool m_bgfxWipeEnabled;
+	Bool m_bgfxWipeFollowMouse;
+	Real m_bgfxWipeSplit;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
 	Real m_bgfxHeatHazeOpacityScale;

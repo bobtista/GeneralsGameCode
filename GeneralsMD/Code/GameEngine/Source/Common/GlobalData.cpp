@@ -64,6 +64,8 @@
 #include "GameLogic/Module/BodyModule.h"
 
 #include "GameClient/Color.h"
+#include "GameClient/Display.h"
+#include "GameClient/Mouse.h"
 #include "GameClient/TerrainVisual.h"
 
 #include "GameNetwork/FirewallHelper.h"
@@ -104,6 +106,48 @@ extern "C" void GGC_GetBgfxPostProcessParams(float * params)
 		params[2] = TheGlobalData->m_bgfxPostContrast;
 		params[3] = TheGlobalData->m_bgfxPostFxaaAmount;
 	}
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Expose the split-screen wipe state
+// to the bgfx composite pass. params: x = split position 0..1, y = enabled.
+extern "C" void GGC_GetBgfxWipeParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.5f;
+	params[1] = 0.0f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData || !TheGlobalData->m_bgfxWipeEnabled)
+	{
+		return;
+	}
+
+	Real split = TheGlobalData->m_bgfxWipeSplit;
+	if (TheGlobalData->m_bgfxWipeFollowMouse && TheMouse && TheDisplay)
+	{
+		const Int width = (Int)TheDisplay->getWidth();
+		const MouseIO *status = TheMouse->getMouseStatus();
+		if (width > 0 && status)
+		{
+			split = (Real)status->pos.x / (Real)width;
+		}
+	}
+
+	if (split < 0.0f)
+	{
+		split = 0.0f;
+	}
+	if (split > 1.0f)
+	{
+		split = 1.0f;
+	}
+
+	params[0] = split;
+	params[1] = 1.0f;
 }
 
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
@@ -229,6 +273,9 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxPostSaturation",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostSaturation ) },
 	{ "BgfxPostContrast",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostContrast ) },
 	{ "BgfxPostFxaaAmount",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostFxaaAmount ) },
+	{ "BgfxWipeEnabled",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxWipeEnabled ) },
+	{ "BgfxWipeFollowMouse",			INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxWipeFollowMouse ) },
+	{ "BgfxWipeSplit",						INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxWipeSplit ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
@@ -796,6 +843,9 @@ GlobalData::GlobalData()
 	m_bgfxPostSaturation = 1.015f;
 	m_bgfxPostContrast = 1.01f;
 	m_bgfxPostFxaaAmount = 0.35f;
+	m_bgfxWipeEnabled = FALSE;
+	m_bgfxWipeFollowMouse = TRUE;
+	m_bgfxWipeSplit = 0.5f;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;
