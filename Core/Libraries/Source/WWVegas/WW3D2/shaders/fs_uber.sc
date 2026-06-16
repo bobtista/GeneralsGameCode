@@ -188,17 +188,29 @@ vec3 sampleCloudShadow(vec2 cloudUV)
 	return max(cloudSample, vec3_splat(CLOUD_SHADOW_MIN));
 }
 
+// World-space normal offset for the shadow receive point, tuned to the shadow-map
+// texel footprint (ortho extent ~1400 over 2048 texels ~= 0.7 units/texel).
+#define SUN_SHADOW_NORMAL_OFFSET 1.4
+
 // TheSuperHackers @feature bobtista 15/06/2026 Sun shadow-map lookup. Projects the
 // world position into the sun's light space and compares against the stored caster
-// depth (3x3 PCF). Returns the lit fraction in [0,1]: 1 = fully lit, 0 = fully shadowed.
-// nrm is the world-space surface normal, used for a slope-scaled bias against acne.
+// depth (5x5 PCF). Returns the lit fraction in [0,1]: 1 = fully lit, 0 = fully shadowed.
+// nrm is the world-space surface normal.
 float sampleSunShadow(vec3 worldPos, vec3 nrm)
 {
 	if (u_shadowParams.w < 0.5)
 	{
 		return 1.0;
 	}
-	vec4 sc = mul(u_shadowMatrix, vec4(worldPos, 1.0));
+	vec3 n = normalize(nrm);
+	float ndotl = clamp(dot(n, normalize(u_lightDirs[0].xyz)), 0.0, 1.0);
+	// TheSuperHackers @tweak bobtista 16/06/2026 Normal-offset bias: push the receive
+	// point along its surface normal (more on grazing surfaces) so the depth test clears
+	// the caster geometry. This removes self-shadow acne without the peter-panning (light
+	// leak under objects) that a large constant depth bias causes; a tiny depth bias from
+	// u_shadowParams.y then only mops up remaining precision noise.
+	vec3 biasedPos = worldPos + n * (SUN_SHADOW_NORMAL_OFFSET * (1.0 + 2.0 * (1.0 - ndotl)));
+	vec4 sc = mul(u_shadowMatrix, vec4(biasedPos, 1.0));
 	if (sc.w <= 0.0)
 	{
 		return 1.0;
@@ -212,22 +224,19 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 	{
 		return 1.0;
 	}
-	// Slope-scaled bias: surfaces facing away from the sun need more bias to avoid
-	// self-shadowing acne. u_lightDirs[0] points toward the sun.
-	float ndotl = clamp(dot(normalize(nrm), normalize(u_lightDirs[0].xyz)), 0.0, 1.0);
-	float bias = u_shadowParams.y * (1.0 + 4.0 * (1.0 - ndotl));
-	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
+	float curDepth = clamp(ndc.z, 0.0, 1.0) - u_shadowParams.y;
 	float texel = u_shadowParams.x;
+	// 5x5 PCF for a softer penumbra than the original 3x3.
 	float lit = 0.0;
-	for (int dy = -1; dy <= 1; ++dy)
+	for (int dy = -2; dy <= 2; ++dy)
 	{
-		for (int dx = -1; dx <= 1; ++dx)
+		for (int dx = -2; dx <= 2; ++dx)
 		{
 			float storedDepth = texture2D(s_shadowMap, uv + vec2(float(dx), float(dy)) * texel).x;
 			lit += (curDepth <= storedDepth) ? 1.0 : 0.0;
 		}
 	}
-	return lit / 9.0;
+	return lit / 25.0;
 }
 
 void main()
