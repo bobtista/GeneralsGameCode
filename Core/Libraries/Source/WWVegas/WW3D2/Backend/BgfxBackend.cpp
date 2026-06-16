@@ -172,6 +172,7 @@ extern "C" void GGC_GetBgfxSSAOParams(float * params);
 extern "C" void GGC_GetBgfxMaterialFxParams(float * params);
 extern "C" int  GGC_GetBgfxShadowMapEnabled();
 extern "C" void GGC_GetBgfxShadowMapParams(float * params);
+extern "C" int  GGC_GetBgfxPointFilter();
 extern "C" int   GGC_GetBgfxMsaaSamples();
 extern "C" float GGC_GetBgfxRenderScale();
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
@@ -7711,9 +7712,36 @@ static void BindSoftParticleDepth(bool enable)
     }
 }
 
+// TheSuperHackers @feature bobtista 16/06/2026 Debug toggle to force nearest/point
+// texture filtering on the game texture stages, so the smooth linear/trilinear
+// renderer baseline can be A/B'd against the old blocky look. Cached per frame so the
+// global is read once rather than on every texture bind.
+static bool ForcePointFilterEnabled()
+{
+    static uint32_t s_frame = 0xFFFFFFFFu;
+    static bool s_value = false;
+    if (s_frame != g_stats.frameIndex)
+    {
+        s_frame = g_stats.frameIndex;
+        s_value = std::getenv("GGC_BGFX_POINT_FILTER") != nullptr;
+#ifdef RTS_ZEROHOUR
+        if (!s_value && GGC_GetBgfxPointFilter() != 0)
+        {
+            s_value = true;
+        }
+#endif
+    }
+    return s_value;
+}
+
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
 {
-    return (stage < 4) ? g_draw.samplerFlags[stage] : 0;
+    uint32_t flags = (stage < 4) ? g_draw.samplerFlags[stage] : 0;
+    if (ForcePointFilterEnabled())
+    {
+        flags |= BGFX_SAMPLER_POINT;
+    }
+    return flags;
 }
 
 static bool IsCurrentStageMipFilterDisabled(unsigned stage)
