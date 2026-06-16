@@ -1324,7 +1324,10 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 	nShadowDecalVertsInBuf = 0xffff;
 	nShadowDecalIndicesInBuf = 0xffff;
 
-	if (TheGlobalData->m_useShadowDecals)
+	// TheSuperHackers @feature bobtista 16/06/2026 Suppress blob/decal shadows while the
+	// bgfx sun shadow map is active: infantry and other cutout casters now cast real
+	// silhouettes into the map, so the decals would double up.
+	if (TheGlobalData->m_useShadowDecals && !TheGlobalData->m_bgfxShadowMaps)
 	{
 		// Render the object
 		TheDX8MeshRenderer.Set_Camera(&rinfo.Camera);
