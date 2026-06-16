@@ -816,12 +816,18 @@ void main()
 	// TheSuperHackers @feature bobtista 15/06/2026 Apply the sun shadow as a final
 	// multiply so it covers both pre-lit terrain and dynamically-lit objects. Shadowed
 	// pixels are darkened toward an ambient floor (1 - strength), not to black.
+	// TheSuperHackers @bugfix bobtista 16/06/2026 Only shadow surfaces that actually face
+	// the sun. Surfaces facing away (wheel undersides, back walls) receive no direct sun
+	// anyway, so shadowing them just double-darkens them toward black. Scaling the shadow
+	// by the sun-facing term keeps those areas at their ambient level.
 	if (u_shadowParams.w > 0.5)
 	{
 		float shadowNrmLen = length(v_normal);
 		vec3 shadowNrm = (shadowNrmLen > 1e-5) ? (v_normal / shadowNrmLen) : vec3(0.0, 0.0, 1.0);
+		float sunFacing = smoothstep(0.0, 0.35, dot(shadowNrm, normalize(u_lightDirs[0].xyz)));
 		float lit = sampleSunShadow(v_worldPos, shadowNrm);
-		current.rgb *= mix(1.0 - u_shadowParams.z, 1.0, lit);
+		float effStrength = u_shadowParams.z * sunFacing;
+		current.rgb *= mix(1.0 - effStrength, 1.0, lit);
 	}
 
 	gl_FragColor = current;
