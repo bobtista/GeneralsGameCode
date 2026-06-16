@@ -14,6 +14,9 @@ SAMPLER2D(s_sceneDepth, 6);
 uniform vec4 u_matSpecular; // rgb = specular color, w = shininess (Blinn-Phong power)
 uniform vec4 u_matFx; // x specular strength, y rim strength, z rim power, w emissive boost
 uniform vec4 u_eyePos; // xyz = world-space camera position
+SAMPLER2D(s_shadowMap, 7);
+uniform mat4 u_shadowMatrix; // world -> sun shadow clip
+uniform vec4 u_shadowParams; // x texel size, y depth bias, z strength, w enabled
 uniform vec4 u_lightDirs[4];    // per-light direction (xyz=toward light, w=enabled)
 uniform vec4 u_lightColors[4]; // per-light diffuse color (rgb)
 uniform vec4 u_lightAmbients[4]; // per-light ambient color (rgb)
@@ -183,6 +186,48 @@ vec3 sampleCloudShadow(vec2 cloudUV)
 {
 	vec3 cloudSample = texture2D(s_cloudMap, cloudUV).rgb;
 	return max(cloudSample, vec3_splat(CLOUD_SHADOW_MIN));
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Sun shadow-map lookup. Projects the
+// world position into the sun's light space and compares against the stored caster
+// depth (3x3 PCF). Returns the lit fraction in [0,1]: 1 = fully lit, 0 = fully shadowed.
+// nrm is the world-space surface normal, used for a slope-scaled bias against acne.
+float sampleSunShadow(vec3 worldPos, vec3 nrm)
+{
+	if (u_shadowParams.w < 0.5)
+	{
+		return 1.0;
+	}
+	vec4 sc = mul(u_shadowMatrix, vec4(worldPos, 1.0));
+	if (sc.w <= 0.0)
+	{
+		return 1.0;
+	}
+	vec3 ndc = sc.xyz / sc.w;
+	vec2 uv = ndc.xy * 0.5 + 0.5;
+#if !BGFX_SHADER_LANGUAGE_GLSL
+	uv.y = 1.0 - uv.y;
+#endif
+	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0)
+	{
+		return 1.0;
+	}
+	// Slope-scaled bias: surfaces facing away from the sun need more bias to avoid
+	// self-shadowing acne. u_lightDirs[0] points toward the sun.
+	float ndotl = clamp(dot(normalize(nrm), normalize(u_lightDirs[0].xyz)), 0.0, 1.0);
+	float bias = u_shadowParams.y * (1.0 + 4.0 * (1.0 - ndotl));
+	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
+	float texel = u_shadowParams.x;
+	float lit = 0.0;
+	for (int dy = -1; dy <= 1; ++dy)
+	{
+		for (int dx = -1; dx <= 1; ++dx)
+		{
+			float storedDepth = texture2D(s_shadowMap, uv + vec2(float(dx), float(dy)) * texel).x;
+			lit += (curDepth <= storedDepth) ? 1.0 : 0.0;
+		}
+	}
+	return lit / 9.0;
 }
 
 void main()
@@ -745,6 +790,17 @@ void main()
 	{
 		float luma = dot(current.rgb, LUMA_WEIGHTS);
 		current.rgb = vec3(luma, luma, luma);
+	}
+
+	// TheSuperHackers @feature bobtista 15/06/2026 Apply the sun shadow as a final
+	// multiply so it covers both pre-lit terrain and dynamically-lit objects. Shadowed
+	// pixels are darkened toward an ambient floor (1 - strength), not to black.
+	if (u_shadowParams.w > 0.5)
+	{
+		float shadowNrmLen = length(v_normal);
+		vec3 shadowNrm = (shadowNrmLen > 1e-5) ? (v_normal / shadowNrmLen) : vec3(0.0, 0.0, 1.0);
+		float lit = sampleSunShadow(v_worldPos, shadowNrm);
+		current.rgb *= mix(1.0 - u_shadowParams.z, 1.0, lit);
 	}
 
 	gl_FragColor = current;
