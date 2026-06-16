@@ -170,6 +170,8 @@ extern "C" int  GGC_GetBgfxHdrEnabled();
 extern "C" void GGC_GetBgfxPostFx2Params(float * params);
 extern "C" void GGC_GetBgfxSSAOParams(float * params);
 extern "C" void GGC_GetBgfxMaterialFxParams(float * params);
+extern "C" int  GGC_GetBgfxShadowMapEnabled();
+extern "C" void GGC_GetBgfxShadowMapParams(float * params);
 extern "C" int   GGC_GetBgfxMsaaSamples();
 extern "C" float GGC_GetBgfxRenderScale();
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
@@ -1829,7 +1831,12 @@ const bgfx::ViewId kBgfxBloomBlurVView   = 16;
 const bgfx::ViewId kBgfxSsaoView         = 17;
 const bgfx::ViewId kBgfxSsaoBlurHView    = 18;
 const bgfx::ViewId kBgfxSsaoBlurVView    = 19;
+// TheSuperHackers @feature bobtista 15/06/2026 Sun shadow map. Caster geometry is
+// duplicated here from the sun's POV into an R32F depth target (reusing the
+// scene-depth program); the uber shader samples it to shadow the sun's diffuse term.
+const bgfx::ViewId kBgfxShadowMapView    = 20;
 const uint8_t kBgfxSceneDepthSamplerStage = 6;
+const uint8_t kBgfxShadowMapSamplerStage = 7;
 const float kSoftParticleDepthFadeScale  = 80.0f;
 const int kSwayTableEntries              = 11;
 const float kPostSharpenAmount           = 0.08f;
@@ -2293,6 +2300,107 @@ static bool IsBgfxSSAOEnabled()
     return false;
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Sun shadow map toggle. Renders a
+// light-POV depth pass and shadows the sun's diffuse term in the uber shader.
+static bool IsBgfxShadowMapEnabled()
+{
+    if (std::getenv("GGC_BGFX_SHADOWMAP") != nullptr)
+    {
+        return true;
+    }
+#ifdef RTS_ZEROHOUR
+    if (GGC_GetBgfxShadowMapEnabled() != 0)
+    {
+        return true;
+    }
+#endif
+    return false;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Build the sun's light view-projection
+// for this frame and arm the shadow-map view. The ortho box is centered on the ground
+// point the camera looks at and sized to a fixed world radius, so it follows scrolling.
+static void SetupSunShadowView()
+{
+    g_frame.shadowActive = false;
+    if (!IsBgfxShadowMapEnabled() || !bgfx::isValid(g_device.shadowMapFB))
+    {
+        // Neutralize the view so a stale framebuffer handle is never processed
+        // after the shadow map is toggled off and its target destroyed.
+        bgfx::setViewFrameBuffer(kBgfxShadowMapView, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxShadowMapView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+        return;
+    }
+    // Sun direction (xyz = toward the light) from directional slot 0.
+    float sx = g_draw.lightDirs[0][0];
+    float sy = g_draw.lightDirs[0][1];
+    float sz = g_draw.lightDirs[0][2];
+    float slen = sqrtf(sx * sx + sy * sy + sz * sz);
+    if (slen < 1e-4f)
+    {
+        return;
+    }
+    sx /= slen; sy /= slen; sz /= slen;
+
+    // Camera eye + forward recovered from the rigid camera view matrix.
+    const float * v = g_frame.cameraView;
+    float eye[3];
+    eye[0] = -(v[0] * v[12] + v[1] * v[13] + v[2] * v[14]);
+    eye[1] = -(v[4] * v[12] + v[5] * v[13] + v[6] * v[14]);
+    eye[2] = -(v[8] * v[12] + v[9] * v[13] + v[10] * v[14]);
+    float fwd[3] = { -v[2], -v[6], -v[10] };
+    float flen = sqrtf(fwd[0] * fwd[0] + fwd[1] * fwd[1] + fwd[2] * fwd[2]);
+    if (flen > 1e-5f)
+    {
+        fwd[0] /= flen; fwd[1] /= flen; fwd[2] /= flen;
+    }
+
+    // Ground (z=0) intersection of the camera's central ray = view center.
+    float center[3] = { eye[0], eye[1], 0.0f };
+    if (fabsf(fwd[2]) > 1e-4f)
+    {
+        float t = -eye[2] / fwd[2];
+        if (t > 0.0f && t < 100000.0f)
+        {
+            center[0] = eye[0] + fwd[0] * t;
+            center[1] = eye[1] + fwd[1] * t;
+            center[2] = eye[2] + fwd[2] * t;
+        }
+    }
+
+    const float D = 2000.0f; // light distance along the sun direction
+    const float H = 700.0f;  // ortho half-extent in world units around the view center
+    const bx::Vec3 lightPos(center[0] + sx * D, center[1] + sy * D, center[2] + sz * D);
+    const bx::Vec3 at(center[0], center[1], center[2]);
+    const bx::Vec3 up = (fabsf(sz) > 0.95f) ? bx::Vec3(0.0f, 1.0f, 0.0f) : bx::Vec3(0.0f, 0.0f, 1.0f);
+
+    float lightView[16];
+    bx::mtxLookAt(lightView, lightPos, at, up);
+    const bgfx::Caps * caps = bgfx::getCaps();
+    float lightProj[16];
+    bx::mtxOrtho(lightProj, -H, H, -H, H, 1.0f, 2.0f * D + H, 0.0f, caps->homogeneousDepth);
+
+    // bgfx builds modelViewProj as mtxMul(model, view) then mtxMul(that, proj),
+    // so the world->shadow-clip matrix is mtxMul(view, proj) (view applied first).
+    bx::mtxMul(g_frame.shadowMatrix, lightView, lightProj);
+
+    bgfx::setViewFrameBuffer(kBgfxShadowMapView, g_device.shadowMapFB);
+    bgfx::setViewRect(kBgfxShadowMapView, 0, 0, g_device.shadowMapSize, g_device.shadowMapSize);
+    bgfx::setViewClear(kBgfxShadowMapView, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
+    bgfx::setViewTransform(kBgfxShadowMapView, lightView, lightProj);
+    g_frame.shadowActive = true;
+
+    static bool s_loggedShadow = false;
+    if (!s_loggedShadow)
+    {
+        std::fprintf(stderr,
+            "[ggc] sun shadow map %ux%u armed: sunDir=(%.2f,%.2f,%.2f) center=(%.0f,%.0f,%.0f) halfExtent=%.0f\n",
+            g_device.shadowMapSize, g_device.shadowMapSize, sx, sy, sz,
+            center[0], center[1], center[2], H);
+        s_loggedShadow = true;
+    }
+}
+
 // TheSuperHackers @refactor bobtista 16/04/2026 No aspect correction needed:
 // bgfx renders into the game's window and the engine's projection matrix
 // already matches the framebuffer aspect.
@@ -2368,6 +2476,14 @@ static void DestroySceneFramebuffer()
     g_device.ssaoTex = BGFX_INVALID_HANDLE;
     g_device.ssaoBlurFB = BGFX_INVALID_HANDLE;
     g_device.ssaoBlurTex = BGFX_INVALID_HANDLE;
+    if (bgfx::isValid(g_device.shadowMapFB))
+    {
+        bgfx::destroy(g_device.shadowMapFB);
+    }
+    g_device.shadowMapFB = BGFX_INVALID_HANDLE;
+    g_device.shadowMapTex = BGFX_INVALID_HANDLE;
+    g_device.shadowMapDepth = BGFX_INVALID_HANDLE;
+    g_device.shadowMapSize = 0;
     g_device.bloomWidth = 0;
     g_device.bloomHeight = 0;
     g_device.sceneFB = BGFX_INVALID_HANDLE;
@@ -2549,6 +2665,49 @@ static bool CreateSceneFramebuffer()
             }
             WWDEBUG_SAY(("[BgfxBackend] Readable scene depth creation FAILED (%dx%d).",
                          w, h));
+        }
+    }
+
+    // TheSuperHackers @feature bobtista 15/06/2026 Sun shadow map: a fixed-size
+    // R32F depth target (plus its own depth buffer) rendered from the sun's POV.
+    // Independent of the scene resolution; only allocated while the toggle is on.
+    if (IsBgfxShadowMapEnabled())
+    {
+        const uint16_t shadowSize = 2048;
+        const uint64_t shadowColorFlags = BGFX_TEXTURE_RT
+            | BGFX_SAMPLER_POINT
+            | BGFX_SAMPLER_U_CLAMP
+            | BGFX_SAMPLER_V_CLAMP;
+        bgfx::TextureHandle shadowColor = bgfx::createTexture2D(
+            shadowSize, shadowSize, false, 1, bgfx::TextureFormat::R32F, shadowColorFlags);
+        bgfx::TextureHandle shadowDepth = bgfx::createTexture2D(
+            shadowSize, shadowSize, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::FrameBufferHandle shadowFB = BGFX_INVALID_HANDLE;
+        if (bgfx::isValid(shadowColor) && bgfx::isValid(shadowDepth))
+        {
+            bgfx::TextureHandle shadowAttachments[2] = { shadowColor, shadowDepth };
+            shadowFB = bgfx::createFrameBuffer(2, shadowAttachments, true);
+        }
+        if (bgfx::isValid(shadowFB))
+        {
+            g_device.shadowMapFB = shadowFB;
+            g_device.shadowMapTex = shadowColor;
+            g_device.shadowMapDepth = shadowDepth;
+            g_device.shadowMapSize = shadowSize;
+            bgfx::setName(g_device.shadowMapTex, "sunShadowMapR32F");
+            bgfx::setName(g_device.shadowMapDepth, "sunShadowMapD24S8");
+        }
+        else
+        {
+            if (bgfx::isValid(shadowColor))
+            {
+                bgfx::destroy(shadowColor);
+            }
+            if (bgfx::isValid(shadowDepth))
+            {
+                bgfx::destroy(shadowDepth);
+            }
+            WWDEBUG_SAY(("[BgfxBackend] Sun shadow map creation FAILED."));
         }
     }
 
@@ -3259,6 +3418,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uMatSpecular = bgfx::createUniform("u_matSpecular", bgfx::UniformType::Vec4);
     g_uniforms.uMatFx       = bgfx::createUniform("u_matFx",       bgfx::UniformType::Vec4);
     g_uniforms.uEyePos      = bgfx::createUniform("u_eyePos",      bgfx::UniformType::Vec4);
+    g_uniforms.uShadowMatrix = bgfx::createUniform("u_shadowMatrix", bgfx::UniformType::Mat4);
+    g_uniforms.uShadowParams = bgfx::createUniform("u_shadowParams", bgfx::UniformType::Vec4);
+    g_uniforms.sShadowMap   = bgfx::createUniform("s_shadowMap",   bgfx::UniformType::Sampler);
     g_uniforms.uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
     g_uniforms.uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
     g_uniforms.uTssOps1     = bgfx::createUniform("u_tssOps1",     bgfx::UniformType::Vec4);
@@ -3552,6 +3714,9 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uMatSpecular);
         DestroyBgfxHandle(g_uniforms.uMatFx);
         DestroyBgfxHandle(g_uniforms.uEyePos);
+        DestroyBgfxHandle(g_uniforms.uShadowMatrix);
+        DestroyBgfxHandle(g_uniforms.uShadowParams);
+        DestroyBgfxHandle(g_uniforms.sShadowMap);
         DestroyBgfxHandle(g_uniforms.uGrayscaleEnable);
         DestroyBgfxHandle(g_device.defaultWhiteTexture);
         DestroyBgfxHandle(g_device.defaultTransparentTexture);
@@ -4715,6 +4880,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     bgfx::ViewId viewOrder[] = {
         kBgfxDebugView,            // 0 — full-canvas clear quad, must run first
         kBgfxRTTView,              // 3
+        kBgfxShadowMapView,        // 20 — sun shadow map (before engine, which samples it)
         kBgfxEngineView,           // 1
         kBgfxSceneDepthView,       // 11 — readable opaque scene depth
         kBgfxShadowVolumeView,     // 6 — stencil shadow volume fill
@@ -7634,6 +7800,37 @@ static void UploadLightUniforms()
         eye[2] = -(v[8] * v[12] + v[9] * v[13] + v[10] * v[14]);
         eye[3] = 0.0f;
         bgfx::setUniform(g_uniforms.uEyePos, eye);
+    }
+    if (bgfx::isValid(g_uniforms.uShadowMatrix))
+    {
+        bgfx::setUniform(g_uniforms.uShadowMatrix, g_frame.shadowMatrix);
+    }
+    if (bgfx::isValid(g_uniforms.uShadowParams))
+    {
+        float shadowParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        if (g_frame.shadowActive && bgfx::isValid(g_device.shadowMapTex)
+            && g_device.shadowMapSize > 0)
+        {
+            float p[4] = { 0.0015f, 1.0f, 0.0f, 0.0f };
+            GGC_GetBgfxShadowMapParams(p);
+            shadowParams[0] = 1.0f / static_cast<float>(g_device.shadowMapSize); // texel size
+            shadowParams[1] = p[0]; // depth bias
+            shadowParams[2] = p[1]; // shadow strength
+            shadowParams[3] = 1.0f; // enabled
+        }
+        bgfx::setUniform(g_uniforms.uShadowParams, shadowParams);
+    }
+    if (bgfx::isValid(g_uniforms.sShadowMap))
+    {
+        const bgfx::TextureHandle shadowTex =
+            (g_frame.shadowActive && bgfx::isValid(g_device.shadowMapTex))
+                ? g_device.shadowMapTex
+                : g_device.defaultWhiteTexture;
+        if (bgfx::isValid(shadowTex))
+        {
+            bgfx::setTexture(kBgfxShadowMapSamplerStage, g_uniforms.sShadowMap, shadowTex,
+                             BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        }
     }
     if (bgfx::isValid(g_uniforms.uMatFx))
     {
@@ -10574,6 +10771,9 @@ void SubmitEngineDraw(unsigned short start_index,
             std::memcpy(g_frame.cameraView, g_frame.view, sizeof(g_frame.cameraView));
             std::memcpy(g_frame.cameraProj, g_frame.proj, sizeof(g_frame.cameraProj));
             g_frame.cameraCaptured = true;
+            // The sun shadow view is fit to the camera, so arm it once the camera
+            // matrices are known (before any caster is submitted into view 20).
+            SetupSunShadowView();
         }
         bgfx::setViewTransform(kBgfxEngineView, g_frame.view, g_frame.proj);
         // Shadow-volume view shares the engine camera; push the same
@@ -11186,13 +11386,15 @@ void SubmitEngineDraw(unsigned short start_index,
         || bgfx::isValid(g_draw.vb);
     if (isSceneDepthCaster
         && bgfx::isValid(g_device.sceneDepthProgram)
-        && bgfx::isValid(g_device.sceneReadableDepthFB)
+        && (bgfx::isValid(g_device.sceneReadableDepthFB) || g_frame.shadowActive)
         && hasVB)
     {
         // TheSuperHackers @feature bobtista 27/04/2026 Duplicate opaque
         // non-alpha-tested world geometry into a sampleable R32F scene-depth
         // target. Alpha-tested draws are skipped until the depth shader also
         // mirrors fs_uber's texture alpha discard.
+        // TheSuperHackers @feature bobtista 15/06/2026 The same opaque caster
+        // geometry also feeds the sun shadow-map view (from the light's POV).
         if (g_draw.useTransientVB)
         {
             bgfx::setVertexBuffer(0, &g_draw.transientVB,
@@ -11243,8 +11445,25 @@ void SubmitEngineDraw(unsigned short start_index,
             | (state & BGFX_STATE_CULL_MASK)
             | (state & BGFX_STATE_PT_MASK);
         bgfx::setState(depthState);
-        bgfx::submit(kBgfxSceneDepthView, g_device.sceneDepthProgram);
-        g_stats.sceneDepthSubmits++;
+        const bool toDepth = bgfx::isValid(g_device.sceneReadableDepthFB);
+        const bool toShadow = g_frame.shadowActive && bgfx::isValid(g_device.shadowMapFB);
+        if (toDepth && toShadow)
+        {
+            // Preserve the bound VB/IB/transform/state so the same geometry can be
+            // submitted again to the shadow-map view from the light's POV.
+            bgfx::submit(kBgfxSceneDepthView, g_device.sceneDepthProgram, 0, BGFX_DISCARD_NONE);
+            bgfx::submit(kBgfxShadowMapView, g_device.sceneDepthProgram);
+            g_stats.sceneDepthSubmits++;
+        }
+        else if (toShadow)
+        {
+            bgfx::submit(kBgfxShadowMapView, g_device.sceneDepthProgram);
+        }
+        else
+        {
+            bgfx::submit(kBgfxSceneDepthView, g_device.sceneDepthProgram);
+            g_stats.sceneDepthSubmits++;
+        }
     }
 }
 }
