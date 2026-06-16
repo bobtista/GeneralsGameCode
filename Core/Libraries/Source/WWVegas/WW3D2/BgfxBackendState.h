@@ -151,6 +151,11 @@ struct BgfxDevice
     bgfx::FrameBufferHandle ssaoFB         = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     ssaoBlurTex    = BGFX_INVALID_HANDLE;
     bgfx::FrameBufferHandle ssaoBlurFB     = BGFX_INVALID_HANDLE;
+    // Sun shadow map: light-POV depth (R32F) rendered with sceneDepthProgram.
+    bgfx::TextureHandle     shadowMapTex   = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     shadowMapDepth = BGFX_INVALID_HANDLE;
+    bgfx::FrameBufferHandle shadowMapFB    = BGFX_INVALID_HANDLE;
+    uint16_t                shadowMapSize  = 0;
     uint16_t                sceneWidth = 0;
     uint16_t                sceneHeight = 0;
     // Supersampled scene render size = content size * render scale (1.0-2.0).
@@ -212,6 +217,11 @@ struct BgfxUniforms
     bgfx::UniformHandle uLightParams     = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uSceneAmbient    = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uLightingEnabled = BGFX_INVALID_HANDLE;
+
+    // Sun shadow map sampling.
+    bgfx::UniformHandle uShadowMatrix = BGFX_INVALID_HANDLE; // light view-proj (world -> shadow clip)
+    bgfx::UniformHandle uShadowParams = BGFX_INVALID_HANDLE; // x texel size, y depth bias, z strength, w enabled
+    bgfx::UniformHandle sShadowMap    = BGFX_INVALID_HANDLE;
 
     // Misc per-draw flags / params
     bgfx::UniformHandle uTexcoordSelect      = BGFX_INVALID_HANDLE;
@@ -486,6 +496,10 @@ struct BgfxFrame
     float cameraView[16]     = {};
     float cameraProj[16]     = {};
     bool  cameraCaptured     = false;
+
+    // Sun shadow map: light view-proj for the current frame, and whether it is active.
+    float shadowMatrix[16]   = {};
+    bool  shadowActive       = false;
 
     float sortWorld[16]      = {};
     float sortWorldRaw[16]   = {};
