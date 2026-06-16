@@ -219,7 +219,7 @@ struct BgfxUniforms
     bgfx::UniformHandle uLightingEnabled = BGFX_INVALID_HANDLE;
 
     // Sun shadow map sampling.
-    bgfx::UniformHandle uShadowMatrix = BGFX_INVALID_HANDLE; // light view-proj (world -> shadow clip)
+    bgfx::UniformHandle uShadowMatrices = BGFX_INVALID_HANDLE; // per-cascade light view-proj (world -> shadow clip)
     bgfx::UniformHandle uShadowParams = BGFX_INVALID_HANDLE; // x texel size, y depth bias, z strength, w enabled
     bgfx::UniformHandle sShadowMap    = BGFX_INVALID_HANDLE;
 
@@ -497,8 +497,9 @@ struct BgfxFrame
     float cameraProj[16]     = {};
     bool  cameraCaptured     = false;
 
-    // Sun shadow map: light view-proj for the current frame, and whether it is active.
-    float shadowMatrix[16]   = {};
+    // Sun shadow map: per-cascade light view-proj for the current frame, and whether
+    // the shadow pass is active. 3 cascades; matrices are contiguous for setUniform.
+    float shadowMatrices[3 * 16] = {};
     bool  shadowActive       = false;
 
     float sortWorld[16]      = {};
