@@ -184,6 +184,7 @@ public:
 	Bool m_bgfxShadowMaps;
 	Real m_bgfxShadowMapBias;
 	Real m_bgfxShadowMapStrength;
+	Bool m_bgfxPointFilter;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
 	Real m_bgfxHeatHazeOpacityScale;
