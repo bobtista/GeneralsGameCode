@@ -232,15 +232,15 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 			vec2 auv = tileOffset + cuv * 0.5;
 			float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
 			float lit = 0.0;
-			for (int dy = -2; dy <= 2; ++dy)
+			for (int dy = -1; dy <= 1; ++dy)
 			{
-				for (int dx = -2; dx <= 2; ++dx)
+				for (int dx = -1; dx <= 1; ++dx)
 				{
 					float storedDepth = texture2D(s_shadowMap, auv + vec2(float(dx), float(dy)) * texel).x;
 					lit += (curDepth <= storedDepth) ? 1.0 : 0.0;
 				}
 			}
-			return lit / 25.0;
+			return lit / 9.0;
 		}
 	}
 	return 1.0; // outside all cascades = lit
