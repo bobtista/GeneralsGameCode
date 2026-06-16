@@ -181,6 +181,9 @@ public:
 	Real m_bgfxRimPower;
 	Bool m_bgfxEmissiveBoost;
 	Real m_bgfxEmissiveBoostScale;
+	Bool m_bgfxShadowMaps;
+	Real m_bgfxShadowMapBias;
+	Real m_bgfxShadowMapStrength;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
 	Real m_bgfxHeatHazeOpacityScale;

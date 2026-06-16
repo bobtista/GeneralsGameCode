@@ -325,6 +325,38 @@ extern "C" void GGC_GetBgfxMaterialFxParams(float * params)
 	}
 }
 
+// TheSuperHackers @feature bobtista 15/06/2026 Sun shadow map. Render-only directional
+// shadows from the sun's POV as a modern alternative to stencil volumes / blob decals.
+extern "C" int GGC_GetBgfxShadowMapEnabled()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxShadowMaps)
+	{
+		return 0;
+	}
+	return 1;
+}
+
+// params: x = depth bias, y = shadow strength (0 = none, 1 = full).
+extern "C" void GGC_GetBgfxShadowMapParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0015f;
+	params[1] = 0.7f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	params[0] = TheGlobalData->m_bgfxShadowMapBias;
+	params[1] = TheGlobalData->m_bgfxShadowMapStrength;
+}
+
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
 {
 	if (logStats)
@@ -476,6 +508,9 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxRimPower",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxRimPower ) },
 	{ "BgfxEmissiveBoost",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxEmissiveBoost ) },
 	{ "BgfxEmissiveBoostScale",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxEmissiveBoostScale ) },
+	{ "BgfxShadowMaps",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxShadowMaps ) },
+	{ "BgfxShadowMapBias",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapBias ) },
+	{ "BgfxShadowMapStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapStrength ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
@@ -1076,6 +1111,9 @@ GlobalData::GlobalData()
 	m_bgfxRimPower = 3.0f;
 	m_bgfxEmissiveBoost = FALSE;
 	m_bgfxEmissiveBoostScale = 2.0f;
+	m_bgfxShadowMaps = FALSE;
+	m_bgfxShadowMapBias = 0.0015f;
+	m_bgfxShadowMapStrength = 0.7f;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;
