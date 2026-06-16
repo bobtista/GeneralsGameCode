@@ -335,6 +335,10 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # effects and soft particles.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_scene_depth.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_scene_depth.sc)
+    # TheSuperHackers @feature bobtista 16/06/2026 Shadow-map caster pass with
+    # alpha-test, so cutout geometry (infantry, foliage) casts its real silhouette.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_caster.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_caster.sc)
     # TheSuperHackers @feature bobtista 27/04/2026 Dedicated smudge /
     # heat-haze pass. This samples the scene-color snapshot without going
     # through the fixed-function uber shader.
