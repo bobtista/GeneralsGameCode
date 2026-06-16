@@ -130,6 +130,7 @@ struct BgfxDevice
     bgfx::ProgramHandle ssaoProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle copyProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle sceneDepthProgram = BGFX_INVALID_HANDLE;
+    bgfx::ProgramHandle shadowCasterProgram = BGFX_INVALID_HANDLE; // alpha-aware shadow caster
     bgfx::ProgramHandle smudgeProgram = BGFX_INVALID_HANDLE;
 
     // Scene color/depth RT. World, water, sorted translucency, and effects

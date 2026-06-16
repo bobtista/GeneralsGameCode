@@ -124,6 +124,8 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "fs_copy_metal.bin.h"
 #include "vs_scene_depth_metal.bin.h"
 #include "fs_scene_depth_metal.bin.h"
+#include "vs_shadow_caster_metal.bin.h"
+#include "fs_shadow_caster_metal.bin.h"
 #include "vs_smudge_metal.bin.h"
 #include "fs_smudge_metal.bin.h"
 #define GGC_BGFX_SHADER(name) name##_metal
@@ -154,6 +156,8 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "fs_copy_dx11.bin.h"
 #include "vs_scene_depth_dx11.bin.h"
 #include "fs_scene_depth_dx11.bin.h"
+#include "vs_shadow_caster_dx11.bin.h"
+#include "fs_shadow_caster_dx11.bin.h"
 #include "vs_smudge_dx11.bin.h"
 #include "fs_smudge_dx11.bin.h"
 #define GGC_BGFX_SHADER(name) name##_dx11
@@ -3408,6 +3412,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_device.sceneDepthProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_scene_depth), sizeof(GGC_BGFX_SHADER(vs_scene_depth)), "vs_scene_depth",
         GGC_BGFX_SHADER(fs_scene_depth), sizeof(GGC_BGFX_SHADER(fs_scene_depth)), "fs_scene_depth");
+    g_device.shadowCasterProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_shadow_caster), sizeof(GGC_BGFX_SHADER(vs_shadow_caster)), "vs_shadow_caster",
+        GGC_BGFX_SHADER(fs_shadow_caster), sizeof(GGC_BGFX_SHADER(fs_shadow_caster)), "fs_shadow_caster");
     g_device.smudgeProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_smudge), sizeof(GGC_BGFX_SHADER(vs_smudge)), "vs_smudge",
         GGC_BGFX_SHADER(fs_smudge), sizeof(GGC_BGFX_SHADER(fs_smudge)), "fs_smudge");
@@ -3668,6 +3675,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_device.ssaoProgram);
         DestroyBgfxHandle(g_device.copyProgram);
         DestroyBgfxHandle(g_device.sceneDepthProgram);
+        DestroyBgfxHandle(g_device.shadowCasterProgram);
         DestroyBgfxHandle(g_device.smudgeProgram);
         DestroyBgfxHandle(g_device.fullscreenClearVB);
         DestroyBgfxHandle(g_device.uberProgram);
@@ -11370,6 +11378,14 @@ void SubmitEngineDraw(unsigned short start_index,
         && writesDepth
         && !isBlended
         && !isAlphaTested;
+    // TheSuperHackers @feature bobtista 16/06/2026 The sun shadow map also accepts
+    // alpha-tested cutout geometry (infantry, foliage) so they cast a real silhouette;
+    // the caster shader re-applies the alpha test. Blended effects/particles stay out.
+    const bool isShadowCaster =
+        submitView == kBgfxEngineView
+        && !g_views.overlay2DActive
+        && writesDepth
+        && !isBlended;
 
     // Sorted translucent/effect draws (particles, lasers, material decals)
     // are submitted after the world pass and should not inherit stale stencil
@@ -11435,17 +11451,21 @@ void SubmitEngineDraw(unsigned short start_index,
     const bool hasVB = g_draw.useTransientVB
         || (g_draw.useStaticVB && bgfx::isValid(g_draw.staticVB))
         || bgfx::isValid(g_draw.vb);
-    if (isSceneDepthCaster
+    const bool casterToDepth = isSceneDepthCaster
         && bgfx::isValid(g_device.sceneDepthProgram)
-        && (bgfx::isValid(g_device.sceneReadableDepthFB) || g_frame.shadowActive)
-        && hasVB)
+        && bgfx::isValid(g_device.sceneReadableDepthFB);
+    const bool casterToShadow = isShadowCaster
+        && g_frame.shadowActive
+        && bgfx::isValid(g_device.shadowMapFB)
+        && bgfx::isValid(g_device.shadowCasterProgram);
+    if ((casterToDepth || casterToShadow) && hasVB)
     {
         // TheSuperHackers @feature bobtista 27/04/2026 Duplicate opaque
-        // non-alpha-tested world geometry into a sampleable R32F scene-depth
-        // target. Alpha-tested draws are skipped until the depth shader also
-        // mirrors fs_uber's texture alpha discard.
-        // TheSuperHackers @feature bobtista 15/06/2026 The same opaque caster
-        // geometry also feeds the sun shadow-map view (from the light's POV).
+        // non-alpha-tested world geometry into a sampleable R32F scene-depth target.
+        // TheSuperHackers @feature bobtista 16/06/2026 The same geometry feeds the sun
+        // shadow cascades from the light's POV. Alpha-tested cutouts (infantry, foliage)
+        // are excluded from the scene-depth target but still cast into the shadow map via
+        // the alpha-aware caster shader.
         if (g_draw.useTransientVB)
         {
             bgfx::setVertexBuffer(0, &g_draw.transientVB,
@@ -11496,30 +11516,57 @@ void SubmitEngineDraw(unsigned short start_index,
             | (state & BGFX_STATE_CULL_MASK)
             | (state & BGFX_STATE_PT_MASK);
         bgfx::setState(depthState);
-        const bool toDepth = bgfx::isValid(g_device.sceneReadableDepthFB);
-        const bool toShadow = g_frame.shadowActive && bgfx::isValid(g_device.shadowMapFB);
-        if (toShadow)
+        // The alpha-aware shadow caster shader samples the base texture and re-applies
+        // the draw's alpha test; bind both so cutout geometry casts its real silhouette.
+        // Opaque draws pass an inactive test (y = 0) and skip the discard. Preserved
+        // across the cascade submits via BGFX_DISCARD_NONE.
+        if (casterToShadow)
         {
-            // Preserve the bound VB/IB/transform/state (BGFX_DISCARD_NONE) so the same
-            // caster geometry can be submitted into the readable depth target and every
-            // cascade tile; each view carries its own light view-proj + atlas viewport.
-            if (toDepth)
+            bgfx::TextureHandle baseTex = g_draw.tex[0];
+            if (!bgfx::isValid(baseTex))
             {
-                bgfx::submit(kBgfxSceneDepthView, g_device.sceneDepthProgram, 0, BGFX_DISCARD_NONE);
-                g_stats.sceneDepthSubmits++;
+                baseTex = g_device.defaultWhiteTexture;
             }
+            if (bgfx::isValid(baseTex) && bgfx::isValid(g_uniforms.sTex0))
+            {
+                bgfx::setTexture(0, g_uniforms.sTex0, baseTex, GetCurrentStageSamplerFlags(0));
+            }
+            if (bgfx::isValid(g_uniforms.uAtestParams))
+            {
+                float shadowAtest[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+                if (isAlphaTested)
+                {
+                    shadowAtest[0] = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
+                    shadowAtest[1] = 1.0f;
+                }
+                bgfx::setUniform(g_uniforms.uAtestParams, shadowAtest);
+            }
+        }
+        if (casterToDepth)
+        {
+            const uint8_t discard = casterToShadow ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL;
+            bgfx::submit(kBgfxSceneDepthView, g_device.sceneDepthProgram, 0, discard);
+            g_stats.sceneDepthSubmits++;
+        }
+        if (casterToShadow)
+        {
+            // Submit the same caster geometry into every cascade tile; each view carries
+            // its own cascade light view-proj + atlas viewport.
             for (int c = 0; c < kNumShadowCascades; ++c)
             {
                 const uint8_t discard =
                     (c == kNumShadowCascades - 1) ? BGFX_DISCARD_ALL : BGFX_DISCARD_NONE;
                 bgfx::submit(static_cast<bgfx::ViewId>(kBgfxShadowMapView + c),
-                             g_device.sceneDepthProgram, 0, discard);
+                             g_device.shadowCasterProgram, 0, discard);
             }
-        }
-        else if (toDepth)
-        {
-            bgfx::submit(kBgfxSceneDepthView, g_device.sceneDepthProgram);
-            g_stats.sceneDepthSubmits++;
+            static int s_loggedAlphaCaster = 0;
+            if (isAlphaTested && s_loggedAlphaCaster < 1)
+            {
+                std::fprintf(stderr, "[ggc] alpha-tested shadow caster submitted (atestRef=%.2f) "
+                                     "- infantry/foliage now cast real silhouettes\n",
+                             g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef);
+                s_loggedAlphaCaster = 1;
+            }
         }
     }
 }
