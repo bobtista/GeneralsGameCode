@@ -726,6 +726,11 @@ void main()
 		// foliage, infantry cards, and blended effect meshes have flat or grazing
 		// normals that otherwise wash out to white. Solid meshes keep the full effect.
 		float fxMask = (u_atestParams.y > 0.5) ? 0.0 : current.a;
+		// Headroom guard: fade the additive FX as the surface approaches white, so bright
+		// sun-facing roofs and glossy domes (which already sit near 1.0) cannot be pushed
+		// to a flat white. Specular/rim stay visible on darker, mid-tone surfaces.
+		float fxHeadroom = max(0.0, 1.0 - max(max(current.r, current.g), current.b));
+		fxMask *= fxHeadroom;
 		float rim = pow(1.0 - max(0.0, dot(nrm, viewDir)), u_matFx.z) * u_matFx.y;
 		vec3 fxAdd = (specAccum * u_matSpecular.rgb * u_matFx.x + rim * litDiffuse.rgb) * fxMask;
 		// Exposure-style soft add: brightens toward white but can never overshoot it, so
