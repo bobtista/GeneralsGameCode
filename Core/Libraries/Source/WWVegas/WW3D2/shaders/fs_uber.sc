@@ -246,6 +246,24 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 	return 1.0; // outside all cascades = lit
 }
 
+// TheSuperHackers @feature bobtista 16/06/2026 Sun-shadow color multiplier. Returns the
+// factor to multiply a lit surface by. Only sun-facing surfaces are shadowed (back faces
+// are already dark; shadowing them just crushes them to black), and shadowed pixels are
+// darkened toward an ambient floor (1 - strength), never to black. Shared by the terrain
+// pixel-shader branch and the generic material path so both ground and objects shadow.
+float sunShadowFactor(vec3 worldPos, vec3 rawNormal)
+{
+	if (u_shadowParams.w < 0.5)
+	{
+		return 1.0;
+	}
+	float nLen = length(rawNormal);
+	vec3 n = (nLen > 1e-5) ? (rawNormal / nLen) : vec3(0.0, 0.0, 1.0);
+	float sunFacing = smoothstep(0.0, 0.35, dot(n, normalize(u_lightDirs[0].xyz)));
+	float lit = sampleSunShadow(worldPos, n);
+	return mix(1.0 - u_shadowParams.z * sunFacing, 1.0, lit);
+}
+
 void main()
 {
 	vec4 diffuse = v_color0;
@@ -288,6 +306,11 @@ void main()
 		{
 			result.rgb *= sampleCloudShadow(v_cloudUV);
 		}
+
+		// TheSuperHackers @bugfix bobtista 16/06/2026 Terrain returns from this branch
+		// before the generic shadow apply below, so the sun shadow has to be applied here
+		// too - otherwise cast shadows land on roads/decals/objects but skip the ground.
+		result.rgb *= sunShadowFactor(v_worldPos, v_normal);
 
 		gl_FragColor = result;
 		return;
@@ -820,15 +843,7 @@ void main()
 	// the sun. Surfaces facing away (wheel undersides, back walls) receive no direct sun
 	// anyway, so shadowing them just double-darkens them toward black. Scaling the shadow
 	// by the sun-facing term keeps those areas at their ambient level.
-	if (u_shadowParams.w > 0.5)
-	{
-		float shadowNrmLen = length(v_normal);
-		vec3 shadowNrm = (shadowNrmLen > 1e-5) ? (v_normal / shadowNrmLen) : vec3(0.0, 0.0, 1.0);
-		float sunFacing = smoothstep(0.0, 0.35, dot(shadowNrm, normalize(u_lightDirs[0].xyz)));
-		float lit = sampleSunShadow(v_worldPos, shadowNrm);
-		float effStrength = u_shadowParams.z * sunFacing;
-		current.rgb *= mix(1.0 - effStrength, 1.0, lit);
-	}
+	current.rgb *= sunShadowFactor(v_worldPos, v_normal);
 
 	gl_FragColor = current;
 }
