@@ -2334,6 +2334,21 @@ static void SetupSunShadowView()
     g_frame.shadowActive = false;
     if (!IsBgfxShadowMapEnabled() || !bgfx::isValid(g_device.shadowMapFB))
     {
+        // Diagnostic: the toggle is on but the target is gone => the scene loses all shadows.
+        // Logged once per transition so a recreation that drops the target is visible.
+        static bool s_loggedNoFB = false;
+        if (IsBgfxShadowMapEnabled() && !bgfx::isValid(g_device.shadowMapFB))
+        {
+            if (!s_loggedNoFB)
+            {
+                std::fprintf(stderr, "[ggc] sun shadow ENABLED but target missing - no shadows this frame.\n");
+                s_loggedNoFB = true;
+            }
+        }
+        else
+        {
+            s_loggedNoFB = false;
+        }
         // Neutralize the views so a stale framebuffer handle is never processed
         // after the shadow map is toggled off and its target destroyed.
         for (int c = 0; c < kNumShadowCascades; ++c)
@@ -2720,8 +2735,14 @@ static bool CreateSceneFramebuffer()
 
     // TheSuperHackers @feature bobtista 15/06/2026 Sun shadow map: a fixed-size
     // R32F depth target (plus its own depth buffer) rendered from the sun's POV.
-    // Independent of the scene resolution; only allocated while the toggle is on.
-    if (IsBgfxShadowMapEnabled())
+    // TheSuperHackers @bugfix bobtista 16/06/2026 ALWAYS allocate it with the scene
+    // framebuffer, never gated on the toggle. The shell->game load transition recreates the
+    // scene framebuffer; if the shadow target is only made when the toggle reads enabled at
+    // that instant, any transient where it reads disabled (e.g. TheGlobalData mid-load)
+    // leaves the target gone for the rest of the session — the sun map then renders nothing
+    // and (because the toggle suppresses the legacy stencil/blob shadows) the scene loses ALL
+    // shadows after the first frame. The render-time toggle (SetupSunShadowView) decides
+    // whether to use it; the target itself is cheap (one 2048 R32F + D24S8) and harmless idle.
     {
         const uint16_t shadowSize = 2048;
         const uint64_t shadowColorFlags = BGFX_TEXTURE_RT
@@ -2746,6 +2767,8 @@ static bool CreateSceneFramebuffer()
             g_device.shadowMapSize = shadowSize;
             bgfx::setName(g_device.shadowMapTex, "sunShadowMapR32F");
             bgfx::setName(g_device.shadowMapDepth, "sunShadowMapD24S8");
+            std::fprintf(stderr, "[ggc] sun shadow map target allocated (%ux%u).\n",
+                         shadowSize, shadowSize);
         }
         else
         {
@@ -2758,6 +2781,7 @@ static bool CreateSceneFramebuffer()
                 bgfx::destroy(shadowDepth);
             }
             WWDEBUG_SAY(("[BgfxBackend] Sun shadow map creation FAILED."));
+            std::fprintf(stderr, "[ggc] sun shadow map target allocation FAILED.\n");
         }
     }
 
