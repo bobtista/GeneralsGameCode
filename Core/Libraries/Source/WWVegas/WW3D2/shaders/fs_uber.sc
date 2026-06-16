@@ -836,14 +836,12 @@ void main()
 		current.rgb = vec3(luma, luma, luma);
 	}
 
-	// TheSuperHackers @feature bobtista 15/06/2026 Apply the sun shadow as a final
-	// multiply so it covers both pre-lit terrain and dynamically-lit objects. Shadowed
-	// pixels are darkened toward an ambient floor (1 - strength), not to black.
-	// TheSuperHackers @bugfix bobtista 16/06/2026 Only shadow surfaces that actually face
-	// the sun. Surfaces facing away (wheel undersides, back walls) receive no direct sun
-	// anyway, so shadowing them just double-darkens them toward black. Scaling the shadow
-	// by the sun-facing term keeps those areas at their ambient level.
-	current.rgb *= sunShadowFactor(v_worldPos, v_normal);
+	// TheSuperHackers @bugfix bobtista 16/06/2026 Objects (units, structures) CAST into the
+	// sun shadow map but do NOT receive it on themselves. A small solid caster like an
+	// infantryman occludes its own near side in the shadow map, so receiving the map back
+	// onto its body paints a dark self-shadow blob across the model (the "blob shadow" that
+	// is not a real ground shadow). Only the terrain receives the sun shadow (handled in the
+	// terrain pixel-shader branch above), so cast silhouettes still land on the ground.
 
 	gl_FragColor = current;
 }
