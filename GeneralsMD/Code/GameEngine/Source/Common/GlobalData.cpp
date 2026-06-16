@@ -1124,7 +1124,7 @@ GlobalData::GlobalData()
 	m_bgfxEmissiveBoost = FALSE;
 	m_bgfxEmissiveBoostScale = 2.0f;
 	m_bgfxShadowMaps = FALSE;
-	m_bgfxShadowMapBias = 0.0015f;
+	m_bgfxShadowMapBias = 0.0006f;
 	m_bgfxShadowMapStrength = 0.7f;
 	m_bgfxPointFilter = FALSE;
 	m_bgfxSoftParticles = FALSE;
