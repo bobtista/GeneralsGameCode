@@ -246,22 +246,21 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 	return 1.0; // outside all cascades = lit
 }
 
-// TheSuperHackers @feature bobtista 16/06/2026 Sun-shadow color multiplier. Returns the
-// factor to multiply a lit surface by. Only sun-facing surfaces are shadowed (back faces
-// are already dark; shadowing them just crushes them to black), and shadowed pixels are
-// darkened toward an ambient floor (1 - strength), never to black. Shared by the terrain
-// pixel-shader branch and the generic material path so both ground and objects shadow.
+// TheSuperHackers @feature bobtista 16/06/2026 Sun-shadow color multiplier for the ground.
+// Returns the factor to multiply a lit terrain pixel by; shadowed pixels darken toward an
+// ambient floor (1 - strength), never to black. Only TERRAIN receives the sun shadow now
+// (objects cast only), and the terrain mesh's vertex normal is degenerate (n.z ~ 0), so the
+// receiver uses world-up: the ground is sun-lit, so a cast shadow always darkens it. Do NOT
+// gate by a per-pixel dot(normal,sun) here - the bad terrain normal makes that gate ~0 and
+// silently cancels every shadow.
 float sunShadowFactor(vec3 worldPos, vec3 rawNormal)
 {
 	if (u_shadowParams.w < 0.5)
 	{
 		return 1.0;
 	}
-	float nLen = length(rawNormal);
-	vec3 n = (nLen > 1e-5) ? (rawNormal / nLen) : vec3(0.0, 0.0, 1.0);
-	float sunFacing = smoothstep(0.0, 0.35, dot(n, normalize(u_lightDirs[0].xyz)));
-	float lit = sampleSunShadow(worldPos, n);
-	return mix(1.0 - u_shadowParams.z * sunFacing, 1.0, lit);
+	float lit = sampleSunShadow(worldPos, vec3(0.0, 0.0, 1.0));
+	return mix(1.0 - u_shadowParams.z, 1.0, lit);
 }
 
 void main()

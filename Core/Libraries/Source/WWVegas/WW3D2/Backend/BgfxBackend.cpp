@@ -2326,11 +2326,23 @@ static bool IsBgfxShadowMapEnabled()
     return false;
 }
 
+// Diagnostic: number of caster draws submitted into the shadow map since the last frame.
+static int s_shadowCasterSubmitCount = 0;
+
 // TheSuperHackers @feature bobtista 15/06/2026 Build the sun's light view-projection
 // for this frame and arm the shadow-map view. The ortho box is centered on the ground
 // point the camera looks at and sized to a fixed world radius, so it follows scrolling.
 static void SetupSunShadowView()
 {
+    // Throttled diagnostic: confirm the caster pass actually fills the map every frame.
+    static int s_setupCalls = 0;
+    if ((s_setupCalls++ % 120) == 0)
+    {
+        std::fprintf(stderr, "[ggc] sun shadow setup call %d: casters submitted last frame=%d, enabled=%d, fbValid=%d\n",
+                     s_setupCalls, s_shadowCasterSubmitCount,
+                     IsBgfxShadowMapEnabled() ? 1 : 0, bgfx::isValid(g_device.shadowMapFB) ? 1 : 0);
+    }
+    s_shadowCasterSubmitCount = 0;
     g_frame.shadowActive = false;
     if (!IsBgfxShadowMapEnabled() || !bgfx::isValid(g_device.shadowMapFB))
     {
@@ -2368,6 +2380,23 @@ static void SetupSunShadowView()
         return;
     }
     sx /= slen; sy /= slen; sz /= slen;
+
+    // TheSuperHackers @tweak bobtista 16/06/2026 Clamp the sun ELEVATION used for shadow
+    // casting (not lighting). Maps like this one have a high afternoon sun (z~0.75, ~49deg),
+    // which makes ground objects throw a stubby shadow that hides under them and reads as
+    // "no shadows". Capping the elevation lengthens those shadows into clearly visible cast
+    // shadows while keeping the horizontal sun direction, so they still fall the right way.
+    const float kMaxShadowSunZ = 0.45f;
+    if (sz > kMaxShadowSunZ)
+    {
+        const float xyLen = sqrtf(sx * sx + sy * sy);
+        if (xyLen > 1e-4f)
+        {
+            const float targetXY = sqrtf(fmaxf(0.0f, 1.0f - kMaxShadowSunZ * kMaxShadowSunZ));
+            const float scale = targetXY / xyLen;
+            sx *= scale; sy *= scale; sz = kMaxShadowSunZ;
+        }
+    }
 
     // Camera eye + forward recovered from the rigid camera view matrix.
     const float * v = g_frame.cameraView;
@@ -3589,6 +3618,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     const bgfx::ViewId order[] = {
         kBgfxDebugView,
         kBgfxRTTView,
+        kBgfxShadowMapView,                                 // 20 — sun shadow cascades must
+        static_cast<bgfx::ViewId>(kBgfxShadowMapView + 1),  // 21   render BEFORE the engine
+        static_cast<bgfx::ViewId>(kBgfxShadowMapView + 2),  // 22   view that samples them
         kBgfxEngineView,
         kBgfxSceneDepthView,
         kBgfxShadowVolumeView,
@@ -7925,6 +7957,17 @@ static void UploadLightUniforms()
             shadowParams[2] = p[1]; // shadow strength
             shadowParams[3] = 1.0f; // enabled
         }
+        static int s_lastRecvState = -1;
+        const int recvState = (shadowParams[3] > 0.5f) ? 1 : 0;
+        if (recvState != s_lastRecvState)
+        {
+            std::fprintf(stderr,
+                "[ggc] shadow receiver enabled=%d (active=%d tex=%d size=%u) at content %dx%d swap %dx%d\n",
+                recvState, g_frame.shadowActive ? 1 : 0,
+                bgfx::isValid(g_device.shadowMapTex) ? 1 : 0, g_device.shadowMapSize,
+                g_device.width, g_device.height, g_device.swapWidth, g_device.swapHeight);
+            s_lastRecvState = recvState;
+        }
         bgfx::setUniform(g_uniforms.uShadowParams, shadowParams);
     }
     if (bgfx::isValid(g_uniforms.sShadowMap))
@@ -11607,6 +11650,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 bgfx::submit(static_cast<bgfx::ViewId>(kBgfxShadowMapView + c),
                              g_device.shadowCasterProgram, 0, discard);
             }
+            ++s_shadowCasterSubmitCount;
             static int s_loggedAlphaCaster = 0;
             if (isAlphaTested && s_loggedAlphaCaster < 1)
             {
