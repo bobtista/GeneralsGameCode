@@ -2388,8 +2388,12 @@ static void SetupSunShadowView()
     const bx::Vec3 at(center[0], center[1], center[2]);
     const bx::Vec3 up = (fabsf(sz) > 0.95f) ? bx::Vec3(0.0f, 1.0f, 0.0f) : bx::Vec3(0.0f, 0.0f, 1.0f);
 
-    float lightView[16];
-    bx::mtxLookAt(lightView, lightPos, at, up);
+    // Light-space right/up basis (independent of the focus point, since translating the
+    // eye does not change the view rotation). Used to texel-snap each cascade below.
+    float lightBasis[16];
+    bx::mtxLookAt(lightBasis, lightPos, at, up);
+    const float lrx = lightBasis[0], lry = lightBasis[4], lrz = lightBasis[8];
+    const float lux = lightBasis[1], luy = lightBasis[5], luz = lightBasis[9];
     const bgfx::Caps * caps = bgfx::getCaps();
 
     // 2x2 atlas tiling: cascade 0 top-left, 1 top-right, 2 bottom-left.
@@ -2400,6 +2404,26 @@ static void SetupSunShadowView()
     for (int c = 0; c < kNumShadowCascades; ++c)
     {
         const float H = cascadeExtent[c];
+
+        // TheSuperHackers @feature bobtista 16/06/2026 Texel-snap the cascade focus to
+        // this cascade's shadow-map grid. Without snapping the ortho box slides
+        // continuously as the camera pans, so every shadow edge crawls sub-texel and thin
+        // moving casters (aircraft) flicker in and out. Snapping the focus along the
+        // light's right/up axes to whole-texel steps makes the projection stable. The same
+        // snapped matrix feeds both the caster pass and the receiver sample, so the shadow
+        // stays self-consistent.
+        const float unitsPerTexel = (2.0f * H) / static_cast<float>(tileSize);
+        const float cR = center[0] * lrx + center[1] * lry + center[2] * lrz;
+        const float cU = center[0] * lux + center[1] * luy + center[2] * luz;
+        const float dR = floorf(cR / unitsPerTexel + 0.5f) * unitsPerTexel - cR;
+        const float dU = floorf(cU / unitsPerTexel + 0.5f) * unitsPerTexel - cU;
+        const bx::Vec3 snapCenter(center[0] + dR * lrx + dU * lux,
+                                  center[1] + dR * lry + dU * luy,
+                                  center[2] + dR * lrz + dU * luz);
+        const bx::Vec3 snapLightPos(snapCenter.x + sx * D, snapCenter.y + sy * D, snapCenter.z + sz * D);
+
+        float lightView[16];
+        bx::mtxLookAt(lightView, snapLightPos, snapCenter, up);
         float lightProj[16];
         bx::mtxOrtho(lightProj, -H, H, -H, H, 1.0f, 2.0f * D + H, 0.0f, caps->homogeneousDepth);
         // bgfx builds modelViewProj as mtxMul(model, view) then mtxMul(that, proj),
