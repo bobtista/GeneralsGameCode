@@ -3864,7 +3864,9 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
  	beY = bbox.Extent.Y;
  	beZ = bbox.Extent.Z;
 
-	if (m_shadowList && TheGlobalData->m_useShadowVolumes)
+	// TheSuperHackers @feature bobtista 15/06/2026 Suppress stencil volumes while the
+	// bgfx sun shadow map is active so the two systems do not double-darken.
+	if (m_shadowList && TheGlobalData->m_useShadowVolumes && !TheGlobalData->m_bgfxShadowMaps)
 	{
 
 		if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
