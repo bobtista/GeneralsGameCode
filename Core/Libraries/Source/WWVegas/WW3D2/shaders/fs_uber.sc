@@ -17,6 +17,7 @@ uniform vec4 u_eyePos; // xyz = world-space camera position
 SAMPLER2D(s_shadowMap, 7);
 uniform mat4 u_shadowMatrices[3]; // per-cascade world -> sun shadow clip
 uniform vec4 u_shadowParams; // x atlas texel size, y depth bias, z strength, w enabled
+uniform vec4 u_sunShadowReceive; // x>0.5 = this object draw receives the sun cast shadow
 uniform vec4 u_lightDirs[4];    // per-light direction (xyz=toward light, w=enabled)
 uniform vec4 u_lightColors[4]; // per-light diffuse color (rgb)
 uniform vec4 u_lightAmbients[4]; // per-light ambient color (rgb)
@@ -842,6 +843,16 @@ void main()
 		// This shares the cloud gate (w > 0.5) that already distinguishes ground draws from
 		// units/buildings/effects (which render after the terrain pass with w == 0 and only
 		// cast), so it cannot re-introduce the object self-shadow blob.
+		current.rgb *= sunShadowFactor(v_worldPos, v_normal);
+	}
+	else if (u_sunShadowReceive.x > 0.5)
+	{
+		// TheSuperHackers @feature bobtista 17/06/2026 Opaque/alpha-tested objects (units,
+		// structures, props) receive the sun cast shadow so they darken when standing inside a
+		// mountain/building shadow instead of staying bright. The engine sets u_sunShadowReceive
+		// only for the caster set (writes depth, not blended), so blended effects/particles are
+		// excluded. sampleSunShadow uses the object's real vertex normal for the normal-offset
+		// bias, which keeps the object from self-shadowing.
 		current.rgb *= sunShadowFactor(v_worldPos, v_normal);
 	}
 
