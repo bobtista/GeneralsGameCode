@@ -210,6 +210,7 @@ struct BgfxUniforms
     // Sun shadow map sampling.
     bgfx::UniformHandle uShadowMatrices = BGFX_INVALID_HANDLE; // per-cascade light view-proj (world -> shadow clip)
     bgfx::UniformHandle uShadowParams = BGFX_INVALID_HANDLE; // x texel size, y depth bias, z strength, w enabled
+    bgfx::UniformHandle uSunShadowReceive = BGFX_INVALID_HANDLE; // x>0.5 = this object draw receives the sun cast shadow
     bgfx::UniformHandle sShadowMap    = BGFX_INVALID_HANDLE;
 
     // Misc per-draw flags / params
@@ -393,6 +394,8 @@ struct BgfxDraw
     // floor emblems and decals from z-fighting with the terrain they sit on)
     // get equivalent behaviour under the bgfx pipeline.
     float zBias[4]            = { 0.0f, 0.0f, 0.0f, 0.0f };
+    // x>0.5 marks an opaque object draw (unit/structure/prop) that receives the sun cast shadow.
+    float sunShadowReceive[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     unsigned zBiasUnits       = 0;
     float normalBias[4]       = { 0.0f, 0.0f, 0.0f, 0.0f };
     float legacyPixelShaderMode[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
