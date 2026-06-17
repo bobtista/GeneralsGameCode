@@ -3600,6 +3600,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uEyePos      = bgfx::createUniform("u_eyePos",      bgfx::UniformType::Vec4);
     g_uniforms.uShadowMatrices = bgfx::createUniform("u_shadowMatrices", bgfx::UniformType::Mat4, kNumShadowCascades);
     g_uniforms.uShadowParams = bgfx::createUniform("u_shadowParams", bgfx::UniformType::Vec4);
+    g_uniforms.uSunShadowReceive = bgfx::createUniform("u_sunShadowReceive", bgfx::UniformType::Vec4);
     g_uniforms.sShadowMap   = bgfx::createUniform("s_shadowMap",   bgfx::UniformType::Sampler);
     g_uniforms.uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
     g_uniforms.uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
@@ -3900,6 +3901,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uEyePos);
         DestroyBgfxHandle(g_uniforms.uShadowMatrices);
         DestroyBgfxHandle(g_uniforms.uShadowParams);
+        DestroyBgfxHandle(g_uniforms.uSunShadowReceive);
         DestroyBgfxHandle(g_uniforms.sShadowMap);
         DestroyBgfxHandle(g_uniforms.uGrayscaleEnable);
         DestroyBgfxHandle(g_device.defaultWhiteTexture);
@@ -8347,6 +8349,10 @@ static void UploadMaterialUniforms_Body()
     {
         bgfx::setUniform(g_uniforms.uMatSpecular, g_draw.matSpecular);
     }
+    if (bgfx::isValid(g_uniforms.uSunShadowReceive))
+    {
+        bgfx::setUniform(g_uniforms.uSunShadowReceive, g_draw.sunShadowReceive);
+    }
     if (bgfx::isValid(g_uniforms.sCloudMap))
     {
         // WRAP addressing matches the DX8 cloud pass at W3DShaderManager.cpp:1742.
@@ -11245,6 +11251,22 @@ void SubmitEngineDraw(unsigned short start_index,
         g_draw.zBias[1] = normalBiasFromGeometry
             ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
             : 0.0f;
+        // TheSuperHackers @feature bobtista 17/06/2026 Mark opaque/alpha-tested objects (units,
+        // structures, props) as sun-shadow RECEIVERS via u_zBias.z so the fragment shader darkens
+        // them when they stand in a cast shadow. Mirrors the caster set (engine view, writes depth,
+        // not blended), so blended effects/particles are excluded and cannot be wrongly darkened.
+        // Terrain and ground decals already receive via their own shader paths; this adds the
+        // object path. Self-shadowing is avoided by the normal-offset bias in sampleSunShadow,
+        // which uses the object's real vertex normal.
+        static const bool s_noPropShadows = (std::getenv("GGC_NO_PROP_SHADOWS") != nullptr);
+        const bool sunShadowReceiver =
+            !s_noPropShadows
+            && g_frame.shadowActive
+            && submitView == kBgfxEngineView
+            && !is2D
+            && (routeState & BGFX_STATE_WRITE_Z) != 0
+            && (routeState & BGFX_STATE_BLEND_MASK) == 0;
+        g_draw.sunShadowReceive[0] = sunShadowReceiver ? 1.0f : 0.0f;
         // TheSuperHackers @bugfix bobtista 02/05/2026 Sorted material decals
         // (alpha-blend + DEPTH_WRITE_OFF + postdetail-alpha) such as the USA
         // strategy center floor emblem (ABBTCMDHQS.SWORD) sit coplanar with
