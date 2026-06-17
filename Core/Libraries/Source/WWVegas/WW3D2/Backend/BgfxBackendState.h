@@ -222,6 +222,7 @@ struct BgfxUniforms
     // Sun shadow map sampling.
     bgfx::UniformHandle uShadowMatrices = BGFX_INVALID_HANDLE; // per-cascade light view-proj (world -> shadow clip)
     bgfx::UniformHandle uShadowParams = BGFX_INVALID_HANDLE; // x texel size, y depth bias, z strength, w enabled
+    bgfx::UniformHandle uSunShadowReceive = BGFX_INVALID_HANDLE; // x>0.5 = this object draw receives the sun cast shadow
     bgfx::UniformHandle sShadowMap    = BGFX_INVALID_HANDLE;
 
     // Misc per-draw flags / params
@@ -404,6 +405,8 @@ struct BgfxDraw
     // in vs_uber.sc as gl_Position.z -= u_zBias.x * gl_Position.w; sourced from the
     // cached z-bias at submit time so decals keep their anti-z-fighting bias.
     float zBias[4]            = { 0.0f, 0.0f, 0.0f, 0.0f };
+    // x>0.5 marks an opaque object draw (unit/structure/prop) that receives the sun cast shadow.
+    float sunShadowReceive[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     unsigned zBiasUnits       = 0;
     float normalBias[4]       = { 0.0f, 0.0f, 0.0f, 0.0f };
     float legacyPixelShaderMode[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
