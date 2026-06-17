@@ -2329,6 +2329,20 @@ static bool IsBgfxShadowMapEnabled()
 // Diagnostic: number of caster draws submitted into the shadow map since the last frame.
 static int s_shadowCasterSubmitCount = 0;
 
+// TheSuperHackers @feature bobtista 17/06/2026 Sun-shadow caster cull region, published each frame
+// by SetupSunShadowView and read by the engine caster cull (RTS3DScene::Visibility_Check and
+// MeshClass::Render) via GGC_GetBgfxSunShadowCullBox / GGC_GetBgfxSunShadowDir. The sphere is
+// centered on the ground the camera looks at and sized to cover the cascade coverage; meshes whose
+// bounds intersect it are rendered even when off the camera frustum, so a caster that has scrolled
+// off-screen still casts into the visible ground (the camera frustum alone would drop it).
+static int   s_sunShadowCullActive = 0;
+static float s_sunShadowCullCenter[3] = { 0.0f, 0.0f, 0.0f };
+static float s_sunShadowCullRadius = 0.0f;
+// Clamped toward-sun direction (z > 0); the engine projects a caster's bounds down-sun with this
+// to test whether its shadow actually reaches the camera view (a tight keep that avoids submitting
+// every nearby object as a caster).
+static float s_sunShadowCullDir[3] = { 0.0f, 0.0f, 0.0f };
+
 // TheSuperHackers @feature bobtista 15/06/2026 Build the sun's light view-projection
 // for this frame and arm the shadow-map view. The ortho box is centered on the ground
 // point the camera looks at and sized to a fixed world radius, so it follows scrolling.
@@ -2344,6 +2358,9 @@ static void SetupSunShadowView()
     }
     s_shadowCasterSubmitCount = 0;
     g_frame.shadowActive = false;
+    // Cleared up front so every early return below leaves the engine cull disabled; armed only
+    // once the cascades are fully built at the end of this function.
+    s_sunShadowCullActive = 0;
     if (!IsBgfxShadowMapEnabled() || !bgfx::isValid(g_device.shadowMapFB))
     {
         // Diagnostic: the toggle is on but the target is gone => the scene loses all shadows.
@@ -2445,9 +2462,16 @@ static void SetupSunShadowView()
     const uint16_t tileX[kNumShadowCascades] = { 0, tileSize, 0 };
     const uint16_t tileY[kNumShadowCascades] = { 0, 0, tileSize };
 
+    // TheSuperHackers @feature bobtista 17/06/2026 Each cascade box is centered on the ground the
+    // camera looks at, kept as tight as possible for sharp shadows. Casters are collected from the
+    // sun-shadow cull sphere by RTS3DScene::Visibility_Check + MeshClass::Render (not by enlarging
+    // the cascade), so an off-screen caster up-sun of the view still lands in the tight cascade.
     for (int c = 0; c < kNumShadowCascades; ++c)
     {
         const float H = cascadeExtent[c];
+        const float bcx = center[0];
+        const float bcy = center[1];
+        const float bcz = center[2];
 
         // TheSuperHackers @feature bobtista 16/06/2026 Texel-snap the cascade focus to
         // this cascade's shadow-map grid. Without snapping the ortho box slides
@@ -2457,13 +2481,13 @@ static void SetupSunShadowView()
         // snapped matrix feeds both the caster pass and the receiver sample, so the shadow
         // stays self-consistent.
         const float unitsPerTexel = (2.0f * H) / static_cast<float>(tileSize);
-        const float cR = center[0] * lrx + center[1] * lry + center[2] * lrz;
-        const float cU = center[0] * lux + center[1] * luy + center[2] * luz;
+        const float cR = bcx * lrx + bcy * lry + bcz * lrz;
+        const float cU = bcx * lux + bcy * luy + bcz * luz;
         const float dR = floorf(cR / unitsPerTexel + 0.5f) * unitsPerTexel - cR;
         const float dU = floorf(cU / unitsPerTexel + 0.5f) * unitsPerTexel - cU;
-        const bx::Vec3 snapCenter(center[0] + dR * lrx + dU * lux,
-                                  center[1] + dR * lry + dU * luy,
-                                  center[2] + dR * lrz + dU * luz);
+        const bx::Vec3 snapCenter(bcx + dR * lrx + dU * lux,
+                                  bcy + dR * lry + dU * luy,
+                                  bcz + dR * lrz + dU * luz);
         const bx::Vec3 snapLightPos(snapCenter.x + sx * D, snapCenter.y + sy * D, snapCenter.z + sz * D);
 
         float lightView[16];
@@ -2481,6 +2505,20 @@ static void SetupSunShadowView()
         bgfx::setViewTransform(vid, lightView, lightProj);
     }
     g_frame.shadowActive = true;
+
+    // Publish the cull sphere so MeshClass::Render keeps casters covering the cascades even when
+    // they are off the camera frustum. Centered on the ground the camera looks at; the radius
+    // spans the largest cascade plus the up-sun bias so any caster a cascade needs is kept.
+    s_sunShadowCullCenter[0] = center[0];
+    s_sunShadowCullCenter[1] = center[1];
+    s_sunShadowCullCenter[2] = center[2];
+    // Cover the largest cascade plus a margin for the up-sun offset of elevated casters (aircraft),
+    // so a caster whose shadow lands in the cascades is kept even though it is off the camera.
+    s_sunShadowCullRadius = cascadeExtent[kNumShadowCascades - 1] + 600.0f;
+    s_sunShadowCullDir[0] = sx;
+    s_sunShadowCullDir[1] = sy;
+    s_sunShadowCullDir[2] = sz;
+    s_sunShadowCullActive = 1;
 
     static bool s_loggedShadow = false;
     if (!s_loggedShadow)
@@ -2508,6 +2546,39 @@ static void SetupSunShadowView()
 // corruption that hit vertex buffers.
 
 } // end anonymous namespace (helpers moved to BgfxBackendTextures.cpp)
+
+// TheSuperHackers @feature bobtista 17/06/2026 Expose the sun-shadow caster cull sphere. Returns 1
+// when the sun shadow map is armed this frame and fills center3/radius with a world sphere covering
+// the cascade region; 0 otherwise. MeshClass::Render keeps meshes intersecting it even when they
+// fall outside the camera frustum, so off-screen casters still cast into the visible ground.
+extern "C" int GGC_GetBgfxSunShadowCullBox(float * center3, float * radius)
+{
+    if (center3 != nullptr)
+    {
+        center3[0] = s_sunShadowCullCenter[0];
+        center3[1] = s_sunShadowCullCenter[1];
+        center3[2] = s_sunShadowCullCenter[2];
+    }
+    if (radius != nullptr)
+    {
+        *radius = s_sunShadowCullRadius;
+    }
+    return s_sunShadowCullActive;
+}
+
+// TheSuperHackers @feature bobtista 17/06/2026 Clamped toward-sun direction (z > 0) for the frame;
+// returns the armed flag. The engine projects a caster down-sun with this to keep only casters
+// whose shadow reaches the camera view (see RTS3DScene::Visibility_Check).
+extern "C" int GGC_GetBgfxSunShadowDir(float * dir3)
+{
+    if (dir3 != nullptr)
+    {
+        dir3[0] = s_sunShadowCullDir[0];
+        dir3[1] = s_sunShadowCullDir[1];
+        dir3[2] = s_sunShadowCullDir[2];
+    }
+    return s_sunShadowCullActive;
+}
 
 
 namespace { // reopen anonymous namespace
@@ -2773,7 +2844,10 @@ static bool CreateSceneFramebuffer()
     // shadows after the first frame. The render-time toggle (SetupSunShadowView) decides
     // whether to use it; the target itself is cheap (one 2048 R32F + D24S8) and harmless idle.
     {
-        const uint16_t shadowSize = 2048;
+        // TheSuperHackers @feature bobtista 17/06/2026 4096 atlas (2048 per cascade tile) halves the
+        // shadow texel size for crisp shadows when zoomed in; affordable now that the caster set is
+        // kept tight (only casters whose shadow reaches the view). One 4096 R32F + D24S8 ~= 96MB.
+        const uint16_t shadowSize = 4096;
         const uint64_t shadowColorFlags = BGFX_TEXTURE_RT
             | BGFX_SAMPLER_POINT
             | BGFX_SAMPLER_U_CLAMP
@@ -11469,9 +11543,11 @@ void SubmitEngineDraw(unsigned short start_index,
         && writesDepth
         && !isBlended
         && !isAlphaTested;
-    // TheSuperHackers @feature bobtista 16/06/2026 The sun shadow map also accepts
-    // alpha-tested cutout geometry (infantry, foliage) so they cast a real silhouette;
-    // the caster shader re-applies the alpha test. Blended effects/particles stay out.
+    // TheSuperHackers @feature bobtista 16/06/2026 The sun shadow map also accepts alpha-tested
+    // cutout geometry (infantry, foliage) so they cast a real silhouette; the caster shader
+    // re-applies the alpha test. Blended effects/particles stay out. Off-camera casters reach this
+    // path because MeshClass::Render keeps meshes inside the sun-shadow cull box (see mesh.cpp), so
+    // a caster that has scrolled off the screen still casts into the visible ground.
     const bool isShadowCaster =
         submitView == kBgfxEngineView
         && !g_views.overlay2DActive
