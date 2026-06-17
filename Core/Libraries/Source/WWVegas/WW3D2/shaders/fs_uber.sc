@@ -824,6 +824,13 @@ void main()
 	if (u_cloudParams.w > 0.5)
 	{
 		current.rgb *= sampleCloudShadow(v_cloudUV);
+		// TheSuperHackers @bugfix bobtista 17/06/2026 Ground decals drawn in the terrain
+		// pass (roads, bridges, map markings) receive the sun shadow too, so a cast shadow
+		// stays continuous as it crosses a road instead of vanishing on the road surface.
+		// This shares the cloud gate (w > 0.5) that already distinguishes ground draws from
+		// units/buildings/effects (which render after the terrain pass with w == 0 and only
+		// cast), so it cannot re-introduce the object self-shadow blob.
+		current.rgb *= sunShadowFactor(v_worldPos, v_normal);
 	}
 
 	// Grayscale output for disabled button state. Matches the D3D8 path
