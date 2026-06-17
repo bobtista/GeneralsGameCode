@@ -657,6 +657,14 @@ int MeshClass::Get_Num_Polys() const
  * HISTORY:                                                                                    *
  *   12/10/98   GTH : Created.                                                                 *
  *=============================================================================================*/
+#if defined(GGC_RENDER_BACKEND_BGFX)
+// TheSuperHackers @feature bobtista 17/06/2026 Defined in BgfxBackend. Returns nonzero when the sun
+// shadow map is armed this frame, filling a world cull sphere (center3 + radius) that covers the
+// shadow cascades. MeshClass::Render keeps meshes intersecting it even when they are outside the
+// camera frustum, so a caster that has scrolled off-screen still casts into the visible ground.
+extern "C" int GGC_GetBgfxSunShadowCullBox(float * center3, float * radius);
+#endif
+
 void MeshClass::Render(RenderInfoClass & rinfo)
 {
 	WWPROFILE("Mesh::Render");
@@ -690,8 +698,35 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 
 		const FrustumClass & frustum=rinfo.Camera.Get_Frustum();
 
-		if (	Model->Get_Flag(MeshGeometryClass::SKIN) ||
-				CollisionMath::Overlap_Test(frustum,Get_Bounding_Box())!=CollisionMath::OUTSIDE )
+		bool meshInView = Model->Get_Flag(MeshGeometryClass::SKIN) ||
+				CollisionMath::Overlap_Test(frustum,Get_Bounding_Box())!=CollisionMath::OUTSIDE;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+		// TheSuperHackers @feature bobtista 17/06/2026 Also render a mesh that is outside the camera
+		// frustum but inside the sun-shadow cull sphere, so off-screen casters still cast into the
+		// visible ground. Such a mesh is GPU-clipped from the color view (it produces no visible
+		// pixels); it exists only to fill the shadow cascades via the caster piggyback.
+		if (!meshInView)
+		{
+			float sc[3];
+			float sr = 0.0f;
+			if (GGC_GetBgfxSunShadowCullBox(sc, &sr) != 0 && sr > 0.0f)
+			{
+				const AABoxClass & bb = Get_Bounding_Box();
+				const float adx = bb.Center.X - sc[0];
+				const float ady = bb.Center.Y - sc[1];
+				const float adz = bb.Center.Z - sc[2];
+				const float dx = (adx < 0.0f ? -adx : adx) - bb.Extent.X;
+				const float dy = (ady < 0.0f ? -ady : ady) - bb.Extent.Y;
+				const float dz = (adz < 0.0f ? -adz : adz) - bb.Extent.Z;
+				float distSq = 0.0f;
+				if (dx > 0.0f) { distSq += dx * dx; }
+				if (dy > 0.0f) { distSq += dy * dy; }
+				if (dz > 0.0f) { distSq += dz * dz; }
+				if (distSq <= sr * sr) { meshInView = true; }
+			}
+		}
+#endif
+		if ( meshInView )
 		{
 			bool rendered_something = false;
 
