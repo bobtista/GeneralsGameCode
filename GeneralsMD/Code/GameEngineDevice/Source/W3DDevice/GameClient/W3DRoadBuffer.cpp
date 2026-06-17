@@ -176,7 +176,16 @@ void RoadType::loadTexture(AsciiString path, Int ID)
 	/// @todo - delay loading textures and only load textures referenced by map.
 	WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @bugfix bobtista 17/06/2026 Road shape is encoded in the texture's alpha
+	// channel and the road is alpha-blended over the terrain. With mipmaps the alpha averages down
+	// at distance, so far-away roads fade to fully transparent and appear cut off (the cut shifts as
+	// the camera scrolls). bgfx mips the alpha more aggressively than the DX8 path, so keep road
+	// textures unmipped on bgfx to preserve the road silhouette into the distance.
+	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_1);
+#else
 	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3);
+#endif
 	//Hack to disable texture reduction
 	//m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3, WW3D_FORMAT_UNKNOWN,true,TextureBaseClass::TEX_REGULAR, false);
 
