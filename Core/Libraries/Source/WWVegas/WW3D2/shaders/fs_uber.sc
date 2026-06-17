@@ -231,16 +231,28 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 			else if (c == 2) { tileOffset = vec2(0.0, 0.5); }
 			vec2 auv = tileOffset + cuv * 0.5;
 			float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
+			// Soft PCF: a 3x3 grid of bilinearly-interpolated comparison taps. Each tap blends its
+			// four neighbouring texels by the sub-texel fraction (removing hard per-texel steps), and
+			// the 3x3 spread widens the penumbra so the texel-resolution silhouette reads as a smooth
+			// soft shadow edge rather than a blocky one when the camera is zoomed in close.
+			float invTexel = 1.0 / texel;
 			float lit = 0.0;
 			for (int dy = -1; dy <= 1; ++dy)
 			{
 				for (int dx = -1; dx <= 1; ++dx)
 				{
-					float storedDepth = texture2D(s_shadowMap, auv + vec2(float(dx), float(dy)) * texel).x;
-					lit += (curDepth <= storedDepth) ? 1.0 : 0.0;
+					vec2 sampUV = auv + vec2(float(dx), float(dy)) * texel;
+					vec2 texelCoord = sampUV * invTexel - 0.5;
+					vec2 fracPart = fract(texelCoord);
+					vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
+					float s00 = (curDepth <= texture2D(s_shadowMap, baseUV).x) ? 1.0 : 0.0;
+					float s10 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
+					float s01 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
+					float s11 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
+					lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
 				}
 			}
-			return lit / 9.0;
+			return lit * (1.0 / 9.0);
 		}
 	}
 	return 1.0; // outside all cascades = lit
