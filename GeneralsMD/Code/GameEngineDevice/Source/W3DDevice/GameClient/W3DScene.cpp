@@ -117,6 +117,39 @@ static Bool SceneDiagEnabled()
 	return enabled != 0;
 }
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+// TheSuperHackers @feature bobtista 17/06/2026 Defined in BgfxBackend. Fills dir3 with the clamped
+// toward-sun direction (z > 0) and returns the armed flag. Used here to keep only off-camera
+// casters whose shadow actually reaches the camera view. (MeshClass::Render uses the companion
+// GGC_GetBgfxSunShadowCullBox so those kept meshes are not re-dropped by the per-mesh cull.)
+extern "C" int GGC_GetBgfxSunShadowDir(float * dir3);
+
+// True when the caster's cast shadow reaches the camera view. The shadow occupies the ground from
+// the caster's footprint to where a ray along the sun direction meets z=0; we test a sphere
+// enclosing that whole segment against the camera frustum. This keeps exactly the off-camera
+// casters whose shadow can land on visible ground - far fewer than every nearby object - so the
+// shadow caster set stays small while a chinook that scrolled off-screen still casts.
+static Bool ShadowReachesView(const CameraClass *camera, const SphereClass &sphere, const float *sunDir)
+{
+	const float sz = sunDir[2];
+	if (sz < 1e-3f)
+	{
+		return false;
+	}
+	const Vector3 &p = sphere.Center;
+	const float t = (p.Z > 0.0f) ? (p.Z / sz) : 0.0f;
+	const float tipX = p.X - sunDir[0] * t;
+	const float tipY = p.Y - sunDir[1] * t;
+	const float midX = 0.5f * (p.X + tipX);
+	const float midY = 0.5f * (p.Y + tipY);
+	const float halfX = 0.5f * (tipX - p.X);
+	const float halfY = 0.5f * (tipY - p.Y);
+	const float halfLen = sqrtf(halfX * halfX + halfY * halfY);
+	const SphereClass shadowSpan(Vector3(midX, midY, 0.0f), halfLen + sphere.Radius);
+	return !camera->Cull_Sphere(shadowSpan);
+}
+#endif
+
 static FILE *SceneDiagFile()
 {
 	static FILE *fp = nullptr;
@@ -588,6 +621,31 @@ void RTS3DScene::Visibility_Check(CameraClass * camera)
 			{
 				g_sceneDiag.visibilityFrustumVisible++;
 			}
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+			// TheSuperHackers @feature bobtista 17/06/2026 Keep an off-camera caster in the render
+			// list when it lies inside the sun-shadow cull sphere, so it still casts into the visible
+			// ground. Respect shroud/hidden so fog-of-war is never revealed through a shadow. The
+			// object is off-screen (GPU-clipped from the color view) and flagged plain so it skips
+			// the occluder/translucent bookkeeping. MeshClass::Render keeps the same meshes (via the
+			// identical cull sphere) so the per-mesh camera-frustum cull does not re-drop them.
+			if (!isVisible)
+			{
+				DrawableInfo *sdInfo = (DrawableInfo *)robj->Get_User_Data();
+				Drawable *sdDraw = sdInfo ? sdInfo->m_drawable : nullptr;
+				float sunDir[3] = { 0.0f, 0.0f, 0.0f };
+				if (sdDraw
+					&& !sdDraw->isDrawableEffectivelyHidden()
+					&& !sdDraw->getFullyObscuredByShroud()
+					&& GGC_GetBgfxSunShadowDir(sunDir) != 0
+					&& ShadowReachesView(camera, robj->Get_Bounding_Sphere(), sunDir))
+				{
+					sdInfo->m_flags = DrawableInfo::ERF_IS_NORMAL;
+					robj->Set_Visible(true);
+					continue;
+				}
+			}
+#endif
 
 			if (isVisible)
 			{
