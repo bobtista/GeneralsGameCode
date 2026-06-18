@@ -224,7 +224,15 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 #if !BGFX_SHADER_LANGUAGE_GLSL
 		cuv.y = 1.0 - cuv.y;
 #endif
-		// Tightest containing cascade, with a margin to keep the PCF kernel in-tile.
+		// Containing cascade (with a margin to keep the PCF kernel in-tile). Cascades are
+		// concentric, so a pixel is inside cascade 0 AND 1 AND 2; the loop visits them
+		// tightest-first. TheSuperHackers @bugfix bobtista 18/06/2026 Do not stop at the first
+		// (tightest) containing cascade: a tall off-screen caster (e.g. a Command Center radar
+		// dish) can sit just outside the tight cascade's ortho while its shadow lands on ground
+		// the tight cascade DOES cover, so the tight cascade's map has no caster and reports
+		// "lit". Use the tight cascade when it finds a shadow (sharp), but if it is fully lit,
+		// fall through to the coarser cascade that does contain the caster. This keeps cast
+		// shadows from vanishing when the camera zooms in past the caster.
 		if (cuv.x > 0.02 && cuv.x < 0.98 && cuv.y > 0.02 && cuv.y < 0.98)
 		{
 			vec2 tileOffset = vec2(0.0, 0.0);
@@ -253,10 +261,15 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 					lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
 				}
 			}
-			return lit * (1.0 / 9.0);
+			lit *= (1.0 / 9.0);
+			if (lit < 0.999)
+			{
+				return lit; // shadow found in the tightest cascade that has one - keep it sharp
+			}
+			// fully lit here; continue to the coarser cascade that may contain the caster
 		}
 	}
-	return 1.0; // outside all cascades = lit
+	return 1.0; // lit in every containing cascade
 }
 
 // TheSuperHackers @feature bobtista 16/06/2026 Sun-shadow color multiplier for the ground.
