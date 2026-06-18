@@ -2343,6 +2343,40 @@ static float s_sunShadowCullRadius = 0.0f;
 // every nearby object as a caster).
 static float s_sunShadowCullDir[3] = { 0.0f, 0.0f, 0.0f };
 
+// TheSuperHackers @bugfix bobtista 18/06/2026 Stable scene sun direction (toward the light), locked
+// in the first time a draw presents a clearly sun-like primary light (pointing well above the
+// horizon). The sun shadow CSM builds its cascades from this rather than the live per-draw slot-0
+// light: a bright dynamic light (e.g. the Particle Cannon charge/beam) can hijack slot 0, and the
+// first opaque draw's light is not always the sun either. The sun is map-constant, so locking the
+// first sun-like value keeps cast shadows steady. See MaybeCaptureSceneSun.
+static float s_sceneSunDir[3] = { 0.0f, 0.0f, 0.0f };
+static int s_sceneSunValid = 0;
+static void MaybeCaptureSceneSun()
+{
+    if (s_sceneSunValid != 0)
+    {
+        return;
+    }
+    const float x = g_draw.lightDirs[0][0];
+    const float y = g_draw.lightDirs[0][1];
+    const float z = g_draw.lightDirs[0][2];
+    const float len = sqrtf(x * x + y * y + z * z);
+    if (len < 1e-3f)
+    {
+        return;
+    }
+    // Only lock a clearly sun-like light: toward-the-light well above the horizon. Ground-level
+    // dynamic lights (the Particle Cannon charge) point near-horizontal/down and are skipped.
+    if ((z / len) < 0.2f)
+    {
+        return;
+    }
+    s_sceneSunDir[0] = x / len;
+    s_sceneSunDir[1] = y / len;
+    s_sceneSunDir[2] = z / len;
+    s_sceneSunValid = 1;
+}
+
 // TheSuperHackers @feature bobtista 15/06/2026 Build the sun's light view-projection
 // for this frame and arm the shadow-map view. The ortho box is centered on the ground
 // point the camera looks at and sized to a fixed world radius, so it follows scrolling.
@@ -2387,10 +2421,14 @@ static void SetupSunShadowView()
         }
         return;
     }
-    // Sun direction (xyz = toward the light) from directional slot 0.
-    float sx = g_draw.lightDirs[0][0];
-    float sy = g_draw.lightDirs[0][1];
-    float sz = g_draw.lightDirs[0][2];
+    // Sun direction (xyz = toward the light). Use the stable scene sun locked by MaybeCaptureSceneSun
+    // (the first sun-like draw of the level); only fall back to the current draw's slot-0 light if it
+    // has not been captured yet. The per-draw light is unreliable here: a bright dynamic light - e.g.
+    // the Particle Cannon charge/beam - can occupy slot 0 and swing/stretch the cascades, and even
+    // normally the first opaque draw's light is not guaranteed to be the sun.
+    float sx = (s_sceneSunValid != 0) ? s_sceneSunDir[0] : g_draw.lightDirs[0][0];
+    float sy = (s_sceneSunValid != 0) ? s_sceneSunDir[1] : g_draw.lightDirs[0][1];
+    float sz = (s_sceneSunValid != 0) ? s_sceneSunDir[2] : g_draw.lightDirs[0][2];
     float slen = sqrtf(sx * sx + sy * sy + sz * sz);
     if (slen < 1e-4f)
     {
@@ -10851,6 +10889,9 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
     g_stats.drawCalls++;
+    // Lock in the scene sun for the shadow CSM from the first sun-like draw of the level (before
+    // SetupSunShadowView runs below), so dynamic lights cannot later swing the cast shadows.
+    MaybeCaptureSceneSun();
     if (!g_draw.alphaBlendExplicitlySet)
     {
         g_draw.alphaBlendEnabled = g_draw.shaderAlphaBlendEnabled;
