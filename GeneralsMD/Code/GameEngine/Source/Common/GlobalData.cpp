@@ -1133,7 +1133,7 @@ GlobalData::GlobalData()
 	m_bgfxLogStats = FALSE;
 	m_bgfxNoSceneFramebuffer = FALSE;
 	m_bgfxNoPostFx = FALSE;
-	m_bgfxMsaa = 0;
+	m_bgfxMsaa = 4;
 	m_bgfxScreenshotAfter = 0;
 	m_bgfxScreenshotPath = "";
 	m_textureReductionFactor = -1;
