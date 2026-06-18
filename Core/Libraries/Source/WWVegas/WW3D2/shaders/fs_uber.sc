@@ -198,7 +198,61 @@ vec3 sampleCloudShadow(vec2 cloudUV)
 // 2:(0,.5)). For each pixel the tightest cascade that contains it (with a margin so the
 // 5x5 PCF kernel never crosses a tile boundary) is sampled. Returns the lit fraction in
 // [0,1]: 1 = fully lit, 0 = fully shadowed. nrm is the world-space surface normal.
-float sampleSunShadow(vec3 worldPos, vec3 nrm)
+// PCF lit fraction for a single cascade. Returns the lit fraction in [0,1], or a negative
+// sentinel when the point falls outside this cascade's tile (so the caller can try another).
+// edgeProximity (out) is ~0 at the cascade centre and ~0.96 at its outer margin; the caller uses
+// it to crossfade into the next coarser cascade so a receiver never snaps between texel grids.
+float sampleSunCascade(vec3 worldPos, vec3 n, float slope, float bias, float texel, int c, out float edgeProximity)
+{
+	edgeProximity = 0.0;
+	// Normal-offset bias scaled per cascade (coarser cascades = bigger texels = need more
+	// offset to clear self-shadow acne without peter-panning).
+	vec3 biasedPos = worldPos + n * (SUN_SHADOW_NORMAL_OFFSET * (1.0 + float(c)) * slope);
+	vec4 sc = mul(u_shadowMatrices[c], vec4(biasedPos, 1.0));
+	if (sc.w <= 0.0)
+	{
+		return -1.0;
+	}
+	vec3 ndc = sc.xyz / sc.w;
+	vec2 cuv = ndc.xy * 0.5 + 0.5;
+#if !BGFX_SHADER_LANGUAGE_GLSL
+	cuv.y = 1.0 - cuv.y;
+#endif
+	// Margin keeps the 3x3 PCF kernel inside this cascade's atlas tile.
+	if (cuv.x <= 0.02 || cuv.x >= 0.98 || cuv.y <= 0.02 || cuv.y >= 0.98)
+	{
+		return -1.0;
+	}
+	edgeProximity = max(abs(cuv.x - 0.5), abs(cuv.y - 0.5)) * 2.0;
+	vec2 tileOffset = vec2(0.0, 0.0);
+	if (c == 1) { tileOffset = vec2(0.5, 0.0); }
+	else if (c == 2) { tileOffset = vec2(0.0, 0.5); }
+	vec2 auv = tileOffset + cuv * 0.5;
+	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
+	// Soft PCF: a 3x3 grid of bilinearly-interpolated comparison taps. Each tap blends its four
+	// neighbouring texels by the sub-texel fraction (removing hard per-texel steps), and the 3x3
+	// spread widens the penumbra so the texel-resolution silhouette reads as a smooth soft edge.
+	float invTexel = 1.0 / texel;
+	float lit = 0.0;
+	for (int dy = -1; dy <= 1; ++dy)
+	{
+		for (int dx = -1; dx <= 1; ++dx)
+		{
+			vec2 sampUV = auv + vec2(float(dx), float(dy)) * texel;
+			vec2 texelCoord = sampUV * invTexel - 0.5;
+			vec2 fracPart = fract(texelCoord);
+			vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
+			float s00 = (curDepth <= texture2D(s_shadowMap, baseUV).x) ? 1.0 : 0.0;
+			float s10 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
+			float s01 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
+			float s11 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
+			lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
+		}
+	}
+	return lit * (1.0 / 9.0);
+}
+
+float sampleSunShadow(vec3 worldPos, vec3 nrm, bool allowFallthrough)
 {
 	if (u_shadowParams.w < 0.5)
 	{
@@ -209,64 +263,40 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 	float slope = 1.0 + 2.0 * (1.0 - ndotl);
 	float texel = u_shadowParams.x; // atlas texel = 1/atlasSize
 	float bias = u_shadowParams.y;
+	// Cascades are concentric (0 tightest .. 2 coarsest); visit them tightest-first.
 	for (int c = 0; c < 3; ++c)
 	{
-		// Normal-offset bias scaled per cascade (coarser cascades = bigger texels =
-		// need more offset to clear self-shadow acne without peter-panning).
-		vec3 biasedPos = worldPos + n * (SUN_SHADOW_NORMAL_OFFSET * (1.0 + float(c)) * slope);
-		vec4 sc = mul(u_shadowMatrices[c], vec4(biasedPos, 1.0));
-		if (sc.w <= 0.0)
+		float edge;
+		float lit = sampleSunCascade(worldPos, n, slope, bias, texel, c, edge);
+		if (lit < 0.0)
 		{
-			continue;
+			continue; // outside this cascade's tile; try the next coarser one
 		}
-		vec3 ndc = sc.xyz / sc.w;
-		vec2 cuv = ndc.xy * 0.5 + 0.5;
-#if !BGFX_SHADER_LANGUAGE_GLSL
-		cuv.y = 1.0 - cuv.y;
-#endif
-		// Containing cascade (with a margin to keep the PCF kernel in-tile). Cascades are
-		// concentric, so a pixel is inside cascade 0 AND 1 AND 2; the loop visits them
-		// tightest-first. TheSuperHackers @bugfix bobtista 18/06/2026 Do not stop at the first
-		// (tightest) containing cascade: a tall off-screen caster (e.g. a Command Center radar
-		// dish) can sit just outside the tight cascade's ortho while its shadow lands on ground
-		// the tight cascade DOES cover, so the tight cascade's map has no caster and reports
-		// "lit". Use the tight cascade when it finds a shadow (sharp), but if it is fully lit,
-		// fall through to the coarser cascade that does contain the caster. This keeps cast
-		// shadows from vanishing when the camera zooms in past the caster.
-		if (cuv.x > 0.02 && cuv.x < 0.98 && cuv.y > 0.02 && cuv.y < 0.98)
+		// TheSuperHackers @bugfix bobtista 18/06/2026 Cascade blend. Concentric cascades have
+		// different texel grids, so a receiver crossing a cascade boundary (e.g. a building wall
+		// as the camera zooms and the focus shifts) snaps between two shadow positions. Near this
+		// cascade's outer margin, crossfade into the next coarser cascade - which contains the same
+		// point well inside it - so the transition reads as a smooth fade instead of a hard pop.
+		float blendT = smoothstep(0.78, 0.94, edge);
+		if (blendT > 0.0 && c < 2)
 		{
-			vec2 tileOffset = vec2(0.0, 0.0);
-			if (c == 1) { tileOffset = vec2(0.5, 0.0); }
-			else if (c == 2) { tileOffset = vec2(0.0, 0.5); }
-			vec2 auv = tileOffset + cuv * 0.5;
-			float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
-			// Soft PCF: a 3x3 grid of bilinearly-interpolated comparison taps. Each tap blends its
-			// four neighbouring texels by the sub-texel fraction (removing hard per-texel steps), and
-			// the 3x3 spread widens the penumbra so the texel-resolution silhouette reads as a smooth
-			// soft shadow edge rather than a blocky one when the camera is zoomed in close.
-			float invTexel = 1.0 / texel;
-			float lit = 0.0;
-			for (int dy = -1; dy <= 1; ++dy)
+			float edge2;
+			float lit2 = sampleSunCascade(worldPos, n, slope, bias, texel, c + 1, edge2);
+			if (lit2 >= 0.0)
 			{
-				for (int dx = -1; dx <= 1; ++dx)
-				{
-					vec2 sampUV = auv + vec2(float(dx), float(dy)) * texel;
-					vec2 texelCoord = sampUV * invTexel - 0.5;
-					vec2 fracPart = fract(texelCoord);
-					vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
-					float s00 = (curDepth <= texture2D(s_shadowMap, baseUV).x) ? 1.0 : 0.0;
-					float s10 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
-					float s01 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
-					float s11 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
-					lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
-				}
+				lit = mix(lit, lit2, blendT);
 			}
-			lit *= (1.0 / 9.0);
-			if (lit < 0.999)
-			{
-				return lit; // shadow found in the tightest cascade that has one - keep it sharp
-			}
-			// fully lit here; continue to the coarser cascade that may contain the caster
+		}
+		// Use the tightest containing cascade when it finds a shadow (keeps it sharp). Only GROUND
+		// receivers fall through to a coarser cascade when fully lit, to recover a caster sitting
+		// just outside this tile (e.g. a tall off-screen radar dish whose shadow lands on covered
+		// ground). TheSuperHackers @bugfix bobtista 18/06/2026 Object receivers (building walls) do
+		// NOT fall through: the lit-vs-shadowed fall-through decision flips hard with small zoom
+		// changes, snapping a wall between light and dark. Walls use only their containing cascade
+		// (blended), which is stable; their own structure casts onto them within the same cascade.
+		if (lit < 0.999 || !allowFallthrough)
+		{
+			return lit;
 		}
 	}
 	return 1.0; // lit in every containing cascade
@@ -279,13 +309,13 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 // receiver uses world-up: the ground is sun-lit, so a cast shadow always darkens it. Do NOT
 // gate by a per-pixel dot(normal,sun) here - the bad terrain normal makes that gate ~0 and
 // silently cancels every shadow.
-float sunShadowFactor(vec3 worldPos, vec3 rawNormal)
+float sunShadowFactor(vec3 worldPos, vec3 rawNormal, bool allowFallthrough)
 {
 	if (u_shadowParams.w < 0.5)
 	{
 		return 1.0;
 	}
-	float lit = sampleSunShadow(worldPos, vec3(0.0, 0.0, 1.0));
+	float lit = sampleSunShadow(worldPos, vec3(0.0, 0.0, 1.0), allowFallthrough);
 	return mix(1.0 - u_shadowParams.z, 1.0, lit);
 }
 
@@ -366,7 +396,7 @@ void main()
 		// TheSuperHackers @bugfix bobtista 16/06/2026 Terrain returns from this branch
 		// before the generic shadow apply below, so the sun shadow has to be applied here
 		// too - otherwise cast shadows land on roads/decals/objects but skip the ground.
-		result.rgb *= sunShadowFactor(v_worldPos, v_normal);
+		result.rgb *= sunShadowFactor(v_worldPos, v_normal, true);
 
 		gl_FragColor = result;
 		return;
@@ -887,7 +917,7 @@ void main()
 		// This shares the cloud gate (w > 0.5) that already distinguishes ground draws from
 		// units/buildings/effects (which render after the terrain pass with w == 0 and only
 		// cast), so it cannot re-introduce the object self-shadow blob.
-		current.rgb *= sunShadowFactor(v_worldPos, v_normal);
+		current.rgb *= sunShadowFactor(v_worldPos, v_normal, true);
 	}
 	else if (u_sunShadowReceive.x > 0.5)
 	{
@@ -896,8 +926,10 @@ void main()
 		// mountain/building shadow instead of staying bright. The engine sets u_sunShadowReceive
 		// only for the caster set (writes depth, not blended), so blended effects/particles are
 		// excluded. sampleSunShadow uses the object's real vertex normal for the normal-offset
-		// bias, which keeps the object from self-shadowing.
-		current.rgb *= sunShadowFactor(v_worldPos, v_normal);
+		// bias, which keeps the object from self-shadowing. Objects do NOT fall through to coarser
+		// cascades (allowFallthrough=false): the binary fall-through decision snaps a wall between
+		// light and dark across cascades as the camera zooms; walls use their containing cascade only.
+		current.rgb *= sunShadowFactor(v_worldPos, v_normal, false);
 	}
 
 	// Grayscale output for disabled button state. Matches the D3D8 path
