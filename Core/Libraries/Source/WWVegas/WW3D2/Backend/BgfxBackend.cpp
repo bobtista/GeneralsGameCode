@@ -924,8 +924,16 @@ public:
         // string, so we can classify before formatting and skip the vsnprintf entirely
         // for suppressed lines.
         static const bool s_verbose = (std::getenv("GGC_TRACE") != nullptr);
-        const bool isImportant = (format != nullptr)
+        bool isImportant = (format != nullptr)
             && (std::strstr(format, "WARN") != nullptr || std::strstr(format, "ERROR") != nullptr);
+        // TheSuperHackers @tweak bobtista 18/06/2026 bgfx emits a "RefCount is N (expected 0)"
+        // WARN for every transient vertex/index buffer still mid-flight when the device tears
+        // down on resize/shutdown. It is benign teardown chatter (dozens per swap), so demote
+        // it out of the always-on path and let it through only under GGC_TRACE.
+        if (isImportant && format != nullptr && std::strstr(format, "RefCount is") != nullptr)
+        {
+            isImportant = false;
+        }
         if (!s_verbose && !isImportant)
         {
             return;
@@ -2326,6 +2334,15 @@ static bool IsBgfxShadowMapEnabled()
     return false;
 }
 
+// TheSuperHackers @tweak bobtista 18/06/2026 The [ggc] render diagnostics below are
+// development aids; keep them silent by default and surface them only when the operator
+// opts in via GGC_TRACE (the same switch that unmutes bgfx's own informational trace).
+static bool BgfxDiagVerbose()
+{
+    static const bool s_verbose = (std::getenv("GGC_TRACE") != nullptr);
+    return s_verbose;
+}
+
 // Diagnostic: number of caster draws submitted into the shadow map since the last frame.
 static int s_shadowCasterSubmitCount = 0;
 
@@ -2384,7 +2401,7 @@ static void SetupSunShadowView()
 {
     // Throttled diagnostic: confirm the caster pass actually fills the map every frame.
     static int s_setupCalls = 0;
-    if ((s_setupCalls++ % 120) == 0)
+    if (BgfxDiagVerbose() && (s_setupCalls++ % 120) == 0)
     {
         std::fprintf(stderr, "[ggc] sun shadow setup call %d: casters submitted last frame=%d, enabled=%d, fbValid=%d\n",
                      s_setupCalls, s_shadowCasterSubmitCount,
@@ -2559,7 +2576,7 @@ static void SetupSunShadowView()
     s_sunShadowCullActive = 1;
 
     static bool s_loggedShadow = false;
-    if (!s_loggedShadow)
+    if (BgfxDiagVerbose() && !s_loggedShadow)
     {
         std::fprintf(stderr,
             "[ggc] sun shadow CSM %ux%u atlas, %d cascades (%.0f/%.0f/%.0f) armed: "
@@ -2908,8 +2925,11 @@ static bool CreateSceneFramebuffer()
             g_device.shadowMapSize = shadowSize;
             bgfx::setName(g_device.shadowMapTex, "sunShadowMapR32F");
             bgfx::setName(g_device.shadowMapDepth, "sunShadowMapD24S8");
-            std::fprintf(stderr, "[ggc] sun shadow map target allocated (%ux%u).\n",
-                         shadowSize, shadowSize);
+            if (BgfxDiagVerbose())
+            {
+                std::fprintf(stderr, "[ggc] sun shadow map target allocated (%ux%u).\n",
+                             shadowSize, shadowSize);
+            }
         }
         else
         {
@@ -3206,7 +3226,7 @@ static void SubmitSceneComposite()
         bgfx::setUniform(g_uniforms.uPostFx2Params, postFx2);
     }
     static bool s_loggedComposite = false;
-    if (!s_loggedComposite)
+    if (BgfxDiagVerbose() && !s_loggedComposite)
     {
         s_loggedComposite = true;
         std::fprintf(stderr,
@@ -8073,7 +8093,7 @@ static void UploadLightUniforms()
         }
         static int s_lastRecvState = -1;
         const int recvState = (shadowParams[3] > 0.5f) ? 1 : 0;
-        if (recvState != s_lastRecvState)
+        if (BgfxDiagVerbose() && recvState != s_lastRecvState)
         {
             std::fprintf(stderr,
                 "[ggc] shadow receiver enabled=%d (active=%d tex=%d size=%u) at content %dx%d swap %dx%d\n",
@@ -8102,7 +8122,7 @@ static void UploadLightUniforms()
         GGC_GetBgfxMaterialFxParams(matFx);
         bgfx::setUniform(g_uniforms.uMatFx, matFx);
         static bool s_loggedMatFx = false;
-        if (!s_loggedMatFx && (matFx[0] > 0.0f || matFx[1] > 0.0f || matFx[3] != 1.0f))
+        if (BgfxDiagVerbose() && !s_loggedMatFx && (matFx[0] > 0.0f || matFx[1] > 0.0f || matFx[3] != 1.0f))
         {
             std::fprintf(stderr,
                 "[ggc] material FX active: spec=%.2f rim=%.2f rimPow=%.2f emissive=%.2f"
@@ -11813,7 +11833,7 @@ void SubmitEngineDraw(unsigned short start_index,
             }
             ++s_shadowCasterSubmitCount;
             static int s_loggedAlphaCaster = 0;
-            if (isAlphaTested && s_loggedAlphaCaster < 1)
+            if (BgfxDiagVerbose() && isAlphaTested && s_loggedAlphaCaster < 1)
             {
                 std::fprintf(stderr, "[ggc] alpha-tested shadow caster submitted (atestRef=%.2f) "
                                      "- infantry/foliage now cast real silhouettes\n",
