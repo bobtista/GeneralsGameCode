@@ -289,6 +289,37 @@ float sunShadowFactor(vec3 worldPos, vec3 rawNormal)
 	return mix(1.0 - u_shadowParams.z, 1.0, lit);
 }
 
+// TheSuperHackers @feature bobtista 18/06/2026 Lightweight anisotropic base-texture sampling.
+// bgfx's hardware anisotropy is all-or-nothing (16x or off): 16x over-sharpens grazing surfaces
+// into a striped/aliased look, while plain trilinear leaves a dark fringe where high-contrast
+// texture detail (building panel lines, foundation-slab edges) aliases at the RTS camera's near-
+// horizontal viewing angle. This samples up to 4 taps spread along the texture footprint's major
+// axis, each fetched with the minor-axis gradient so it lands on the sharper mip, yielding a
+// capped ~4x anisotropic result that clears the fringe without the 16x striping. The tap count
+// scales with the footprint's anisotropy ratio, so a roughly square footprint costs a single tap.
+vec4 sampleAniso(sampler2D smp, vec2 uv)
+{
+	vec2 dx = dFdx(uv);
+	vec2 dy = dFdy(uv);
+	float lenSqX = dot(dx, dx);
+	float lenSqY = dot(dy, dy);
+	vec2 majorAxis = (lenSqX > lenSqY) ? dx : dy;
+	vec2 minorAxis = (lenSqX > lenSqY) ? dy : dx;
+	float ratio = sqrt(max(lenSqX, lenSqY) / max(min(lenSqX, lenSqY), 1e-12));
+	float taps = clamp(ceil(ratio), 1.0, 4.0);
+	vec4 sum = vec4_splat(0.0);
+	for (int i = 0; i < 4; ++i)
+	{
+		if (float(i) >= taps)
+		{
+			break;
+		}
+		float t = (float(i) + 0.5) / taps - 0.5;
+		sum += texture2DGrad(smp, uv + majorAxis * t, minorAxis, minorAxis);
+	}
+	return sum / taps;
+}
+
 void main()
 {
 	vec4 diffuse = v_color0;
@@ -341,7 +372,7 @@ void main()
 		return;
 	}
 
-	vec4 tex0 = texture2D(s_tex0, stage0UV);
+	vec4 tex0 = sampleAniso(s_tex0, stage0UV);
 	vec4 tex1 = texture2D(s_tex1, stage1UV);
 	vec4 tex2 = texture2D(s_tex2, v_stage2UV);
 	vec2 stage3UV = v_texcoord0;
