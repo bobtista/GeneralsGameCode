@@ -11643,10 +11643,24 @@ void SubmitEngineDraw(unsigned short start_index,
     const bool casterToDepth = isSceneDepthCaster
         && bgfx::isValid(g_device.sceneDepthProgram)
         && bgfx::isValid(g_device.sceneReadableDepthFB);
-    const bool casterToShadow = isShadowCaster
+    bool casterToShadow = isShadowCaster
         && g_frame.shadowActive
         && bgfx::isValid(g_device.shadowMapFB)
         && bgfx::isValid(g_device.shadowCasterProgram);
+    // TheSuperHackers @feature bobtista 18/06/2026 The spinning Chinook rotor renders as an
+    // alpha-blended "rotor blur" disc in the sorted pass, so it is excluded from the normal caster
+    // set (opaque, engine view). Cast it into the sun shadow map anyway, as an alpha-tested
+    // silhouette of the blur texture, so the rotor throws a disc shadow on the ground like retail.
+    static const bool s_noRotorShadow = (std::getenv("GGC_NO_ROTOR_SHADOW") != nullptr);
+    const bool rotorShadowCaster = !s_noRotorShadow
+        && IsSortedRotorBlur(state)
+        && g_frame.shadowActive
+        && bgfx::isValid(g_device.shadowMapFB)
+        && bgfx::isValid(g_device.shadowCasterProgram);
+    if (rotorShadowCaster)
+    {
+        casterToShadow = true;
+    }
     if ((casterToDepth || casterToShadow) && hasVB)
     {
         // TheSuperHackers @feature bobtista 27/04/2026 Duplicate opaque
@@ -11726,6 +11740,14 @@ void SubmitEngineDraw(unsigned short start_index,
                 if (isAlphaTested)
                 {
                     shadowAtest[0] = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
+                    shadowAtest[1] = 1.0f;
+                }
+                else if (rotorShadowCaster)
+                {
+                    // The rotor blur has no alpha test of its own; force a threshold so the caster
+                    // shader discards the transparent corners and casts only the blur disc. The
+                    // disc is intentionally faint - a spinning rotor is mostly air.
+                    shadowAtest[0] = 0.12f;
                     shadowAtest[1] = 1.0f;
                 }
                 bgfx::setUniform(g_uniforms.uAtestParams, shadowAtest);
