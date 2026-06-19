@@ -1805,6 +1805,31 @@ WW3DErrorType MeshModelClass::read_prelit_material (ChunkLoadClass &cload, MeshL
  *=============================================================================================*/
 void MeshModelClass::post_process()
 {
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (stricmp(Get_Name(), "ABSTRATEGY.AC BOX") == 0
+		&& Get_Vertex_Count() > 59
+		&& DefMatDesc->Get_UV_Array(0, 0) != nullptr) {
+		Vector2 *uv = DefMatDesc->Get_UV_Array(0, 0);
+		const int side_vertices[][4] = {
+			{ 44, 45, 46, 47 },
+			{ 48, 49, 50, 51 },
+			{ 52, 53, 54, 55 },
+			{ 56, 57, 58, 59 },
+		};
+		const float u0 = 44.0f / 256.0f;
+		const float u1 = 68.0f / 256.0f;
+		const float v0 = 216.0f / 256.0f;
+		const float v1 = 240.0f / 256.0f;
+
+		for (int face = 0; face < 4; ++face) {
+			uv[side_vertices[face][0]].Set(u0, v0);
+			uv[side_vertices[face][1]].Set(u0, v1);
+			uv[side_vertices[face][2]].Set(u1, v1);
+			uv[side_vertices[face][3]].Set(u1, v0);
+		}
+	}
+#endif
+
 #if 0
 	// we want to allow this now due to usage of the static sort
 	// Ensure no sorting, multipass meshes (for they are abomination...)

@@ -7743,9 +7743,16 @@ static bool ForcePointFilterEnabled()
     return s_value;
 }
 
+static bool IsStrategyCenterSlabTexture(TextureBaseClass *texture);
+
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
 {
     uint32_t flags = (stage < 4) ? g_draw.samplerFlags[stage] : 0;
+    if (stage == 0 && IsStrategyCenterSlabTexture(g_draw.sourceTextures[stage]))
+    {
+        flags &= ~(BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC);
+        flags |= BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MIP_POINT;
+    }
     if (ForcePointFilterEnabled())
     {
         flags |= BGFX_SAMPLER_POINT;
@@ -7780,6 +7787,12 @@ static bool ShouldBindSortedParticleBaseMip(unsigned stage)
         && IsSortedParticleEffect(GetEffectiveDrawState());
 }
 
+static bool IsStrategyCenterSlabTexture(TextureBaseClass *texture)
+{
+    const char *name = TextureDebugName(texture);
+    return ContainsCaseInsensitive(name, "atstratslab");
+}
+
 static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
 {
     if (stage >= 4)
@@ -7788,6 +7801,13 @@ static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
     }
 
     TextureBaseClass *texture = g_draw.sourceTextures[stage];
+    if (stage == 0 && texture != nullptr && IsStrategyCenterSlabTexture(texture))
+    {
+        // The Strategy Center side ledge maps ATStratSlab across a very short
+        // vertical face. Its authored lower mips average the black atlas inset
+        // into the entire slab, which appears as a zoom-dependent black band.
+        return EnsureBgfxTexture(texture, true);
+    }
     if (texture != nullptr && ShouldBindSortedParticleBaseMip(stage))
     {
         return EnsureBgfxTexture(texture, true);
