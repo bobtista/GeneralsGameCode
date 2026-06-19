@@ -112,6 +112,59 @@ namespace
 		return Should_Use_CPU_Only_Surface_Textures() && asset_type != TextureBaseClass::TEX_REGULAR;
 	}
 
+	bool Is_Strategy_Center_Slab_Texture(const char *name)
+	{
+		if (name == nullptr)
+		{
+			return false;
+		}
+
+		const char *base = std::strrchr(name, '\\');
+		const char *slash = std::strrchr(name, '/');
+		if (slash != nullptr && (base == nullptr || slash > base))
+		{
+			base = slash;
+		}
+		base = (base != nullptr) ? base + 1 : name;
+
+		char stem[64] = {};
+		std::size_t i = 0;
+		for (; base[i] != '\0' && base[i] != '.' && i + 1 < sizeof(stem); ++i)
+		{
+			stem[i] = base[i];
+		}
+
+		return stricmp(stem, "atstratslab") == 0
+			|| stricmp(stem, "atstratslab_d") == 0
+			|| stricmp(stem, "atstratslab_ds") == 0
+			|| stricmp(stem, "atstratslab_e") == 0
+			|| stricmp(stem, "atstratslab_es") == 0
+			|| stricmp(stem, "atstratslab_s") == 0;
+	}
+
+	void Apply_Texture_Compatibility_Filter_Overrides(TextureClass *texture, const char *name)
+	{
+#if defined(GGC_RENDER_BACKEND_BGFX)
+		if (texture == nullptr)
+		{
+			return;
+		}
+
+		if (Is_Strategy_Center_Slab_Texture(name))
+		{
+			// The Strategy Center's foundation side-wall UVs touch the exact 0/1
+			// atlas borders. Repeating causes bgfx anisotropic taps to pull pixels
+			// from the opposite atlas edge at full zoom; the original asset expects
+			// edge sampling instead.
+			texture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
+			texture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
+		}
+#else
+		(void)texture;
+		(void)name;
+#endif
+	}
+
 	MipCountType Legacy_Texture_Mip_Count_For_Construct(void *legacy_texture)
 	{
 #if defined(GGC_RENDER_BACKEND_BGFX)
@@ -1997,6 +2050,8 @@ TextureClass* Load_Texture(ChunkLoadClass & cload)
 		{
 			newtex = WW3DAssetManager::Get_Instance()->Get_Texture(name);
 		}
+
+		Apply_Texture_Compatibility_Filter_Overrides(newtex, name);
 
 		WWASSERT(newtex);
 	}
