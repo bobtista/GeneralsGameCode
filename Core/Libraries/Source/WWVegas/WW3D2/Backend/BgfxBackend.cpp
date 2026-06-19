@@ -9037,6 +9037,11 @@ void BgfxBackend::Submit_Instanced_Batch(unsigned index_offset,
 void BgfxBackend::Set_Shader(const ShaderClass & shader)
 {
     FixedFunctionState::Set_Shader(shader);
+    // DX8 applies the shader's cull mode as part of the fixed-function state. bgfx keeps
+    // that semantic cull state separately for legacy overrides, so keep it synchronized
+    // here; otherwise a two-sided effect shader can leak RB_CULL_NONE into later opaque
+    // draws and make their sun-shadow caster duplicate render both sides.
+    Set_Cull_Mode(shader.Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE ? RB_CULL_CW : RB_CULL_NONE);
     g_draw.program = g_device.uberProgram;
     g_draw.state   = BuildBgfxStateForShader(shader);
     const uint64_t srcBits = TranslateBlendFactor(shader.Get_Src_Blend_Func());
