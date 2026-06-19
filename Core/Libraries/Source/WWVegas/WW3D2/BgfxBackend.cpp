@@ -2321,9 +2321,9 @@ static bool IsBgfxSSAOEnabled()
 // light-POV depth pass and shadows the sun's diffuse term in the uber shader.
 static bool IsBgfxShadowMapEnabled()
 {
-    if (std::getenv("GGC_BGFX_SHADOWMAP") != nullptr)
+    if (const char * sm = std::getenv("GGC_BGFX_SHADOWMAP"))
     {
-        return true;
+        return sm[0] != '0'; // GGC_BGFX_SHADOWMAP=0 forces OFF (diagnostic A/B)
     }
 #ifdef RTS_ZEROHOUR
     if (GGC_GetBgfxShadowMapEnabled() != 0)
@@ -2409,11 +2409,17 @@ static void SetupSunShadowView()
     }
     s_shadowCasterSubmitCount = 0;
     g_frame.shadowActive = false;
-    // Cleared up front so every early return below leaves the engine cull disabled; armed only
-    // once the cascades are fully built at the end of this function.
-    s_sunShadowCullActive = 0;
+    // TheSuperHackers @bugfix bobtista 18/06/2026 Do NOT clear s_sunShadowCullActive up front.
+    // The scene is visibility-checked more than once per frame (shadow caster pass + main color
+    // pass), and the off-screen-caster keep in RTS3DScene::Visibility_Check reads this flag. A
+    // transient mid-frame clear made some passes see "no cull region" and drop a tall off-screen
+    // caster (e.g. the Strategy Center antenna at full zoom), so its shadow flickered out. The
+    // cull region is published atomically at the end of this function on success, and set inactive
+    // only on the genuine shadows-disabled early returns below; between frames it holds the last
+    // armed region (the camera barely moves frame-to-frame, so it stays valid).
     if (!IsBgfxShadowMapEnabled() || !bgfx::isValid(g_device.shadowMapFB))
     {
+        s_sunShadowCullActive = 0;
         // Diagnostic: the toggle is on but the target is gone => the scene loses all shadows.
         // Logged once per transition so a recreation that drops the target is visible.
         static bool s_loggedNoFB = false;
@@ -2449,6 +2455,7 @@ static void SetupSunShadowView()
     float slen = sqrtf(sx * sx + sy * sy + sz * sz);
     if (slen < 1e-4f)
     {
+        s_sunShadowCullActive = 0;
         return;
     }
     sx /= slen; sy /= slen; sz /= slen;
@@ -2497,79 +2504,112 @@ static void SetupSunShadowView()
     }
 
     const float D = 2000.0f; // light distance along the sun direction
-    // Concentric cascade half-extents around the view center: cascade 0 is small and
-    // sharp (near the focus), each subsequent one covers a larger, coarser area.
-    const float cascadeExtent[kNumShadowCascades] = { 320.0f, 700.0f, 1500.0f };
-    const bx::Vec3 lightPos(center[0] + sx * D, center[1] + sy * D, center[2] + sz * D);
-    const bx::Vec3 at(center[0], center[1], center[2]);
-    const bx::Vec3 up = (fabsf(sz) > 0.95f) ? bx::Vec3(0.0f, 1.0f, 0.0f) : bx::Vec3(0.0f, 0.0f, 1.0f);
+    const bgfx::Caps * caps = bgfx::getCaps();
+    const float shadowSize = static_cast<float>(g_device.shadowMapSize);
 
-    // Light-space right/up basis (independent of the focus point, since translating the
-    // eye does not change the view rotation). Used to texel-snap each cascade below.
+    // TheSuperHackers @refactor bobtista 18/06/2026 Single camera-fit sun shadow map (replaces the
+    // 3 concentric cascades). The ortho is fit to the camera's visible ground footprint, so it is
+    // sharp when zoomed in (small footprint -> small texels) and only softens when zoomed far out.
+    // Key property: a caster and its ground shadow share the same light-space position, so fitting
+    // the ortho to the ground footprint automatically covers every caster whose shadow lands in
+    // view - no cascade, no tight/coarse caster-receiver mismatch, no per-zoom fall-through.
+
+    // Light right/up basis from a provisional look toward the view centre. Translating the eye does
+    // not change this rotation, so it is a stable axis frame for fitting and texel-snapping.
+    const bx::Vec3 up = (fabsf(sz) > 0.95f) ? bx::Vec3(0.0f, 1.0f, 0.0f) : bx::Vec3(0.0f, 0.0f, 1.0f);
     float lightBasis[16];
-    bx::mtxLookAt(lightBasis, lightPos, at, up);
+    bx::mtxLookAt(lightBasis, bx::Vec3(center[0] + sx * D, center[1] + sy * D, center[2] + sz * D),
+                  bx::Vec3(center[0], center[1], center[2]), up);
     const float lrx = lightBasis[0], lry = lightBasis[4], lrz = lightBasis[8];
     const float lux = lightBasis[1], luy = lightBasis[5], luz = lightBasis[9];
-    const bgfx::Caps * caps = bgfx::getCaps();
 
-    // 2x2 atlas tiling: cascade 0 top-left, 1 top-right, 2 bottom-left.
-    const uint16_t tileSize = static_cast<uint16_t>(g_device.shadowMapSize / 2);
-    const uint16_t tileX[kNumShadowCascades] = { 0, tileSize, 0 };
-    const uint16_t tileY[kNumShadowCascades] = { 0, 0, tileSize };
-
-    // TheSuperHackers @feature bobtista 17/06/2026 Each cascade box is centered on the ground the
-    // camera looks at, kept as tight as possible for sharp shadows. Casters are collected from the
-    // sun-shadow cull sphere by RTS3DScene::Visibility_Check + MeshClass::Render (not by enlarging
-    // the cascade), so an off-screen caster up-sun of the view still lands in the tight cascade.
-    for (int c = 0; c < kNumShadowCascades; ++c)
+    // Camera world-space basis (columns of the view rotation) + half-FOV tangents from the proj
+    // diagonal, used to shoot the four frustum-corner rays and intersect them with the ground.
+    const float * pj = g_frame.cameraProj;
+    const float tanX = (fabsf(pj[0]) > 1e-6f) ? (1.0f / pj[0]) : 1.0f;
+    const float tanY = (fabsf(pj[5]) > 1e-6f) ? (1.0f / pj[5]) : 1.0f;
+    const float rightW[3] = { v[0], v[4], v[8] };
+    const float upW[3]    = { v[1], v[5], v[9] };
+    float cR0 = center[0] * lrx + center[1] * lry + center[2] * lrz;
+    float cU0 = center[0] * lux + center[1] * luy + center[2] * luz;
+    float maxExtent = 0.0f;
+    for (int sR = -1; sR <= 1; sR += 2)
     {
-        const float H = cascadeExtent[c];
-        const float bcx = center[0];
-        const float bcy = center[1];
-        const float bcz = center[2];
+        for (int sU = -1; sU <= 1; sU += 2)
+        {
+            float dir[3] = {
+                fwd[0] + float(sR) * tanX * rightW[0] + float(sU) * tanY * upW[0],
+                fwd[1] + float(sR) * tanX * rightW[1] + float(sU) * tanY * upW[1],
+                fwd[2] + float(sR) * tanX * rightW[2] + float(sU) * tanY * upW[2] };
+            float gx = center[0];
+            float gy = center[1];
+            if (dir[2] < -1e-3f) // ray heading down toward the ground
+            {
+                float t = -eye[2] / dir[2];
+                if (t > 0.0f)
+                {
+                    gx = eye[0] + dir[0] * t;
+                    gy = eye[1] + dir[1] * t;
+                }
+            }
+            const float gR = gx * lrx + gy * lry;
+            const float gU = gx * lux + gy * luy;
+            maxExtent = fmaxf(maxExtent, fmaxf(fabsf(gR - cR0), fabsf(gU - cU0)));
+        }
+    }
+    // TheSuperHackers @bugfix bobtista 18/06/2026 Size the ortho to the visible ground
+    // footprint plus a small margin; an oversized ortho collapses on-screen shadow resolution
+    // until thin shadows wash out and vanish.
+    float H = maxExtent * 1.2f + 128.0f;
+    H = (H < 256.0f) ? 256.0f : ((H > 2400.0f) ? 2400.0f : H);
+    // Quantize H to discrete steps so it holds steady through a smooth zoom. With H constant, the
+    // texel-snapped centre lands on a fixed world grid every frame, so the shadow edge stays put
+    // instead of crawling/jittering as the continuously-changing H reshuffled the texel grid.
+    const float kHQuantum = 64.0f;
+    H = ceilf(H / kHQuantum) * kHQuantum;
 
-        // TheSuperHackers @feature bobtista 16/06/2026 Texel-snap the cascade focus to
-        // this cascade's shadow-map grid. Without snapping the ortho box slides
-        // continuously as the camera pans, so every shadow edge crawls sub-texel and thin
-        // moving casters (aircraft) flicker in and out. Snapping the focus along the
-        // light's right/up axes to whole-texel steps makes the projection stable. The same
-        // snapped matrix feeds both the caster pass and the receiver sample, so the shadow
-        // stays self-consistent.
-        const float unitsPerTexel = (2.0f * H) / static_cast<float>(tileSize);
-        const float cR = bcx * lrx + bcy * lry + bcz * lrz;
-        const float cU = bcx * lux + bcy * luy + bcz * luz;
-        const float dR = floorf(cR / unitsPerTexel + 0.5f) * unitsPerTexel - cR;
-        const float dU = floorf(cU / unitsPerTexel + 0.5f) * unitsPerTexel - cU;
-        const bx::Vec3 snapCenter(bcx + dR * lrx + dU * lux,
-                                  bcy + dR * lry + dU * luy,
-                                  bcz + dR * lrz + dU * luz);
-        const bx::Vec3 snapLightPos(snapCenter.x + sx * D, snapCenter.y + sy * D, snapCenter.z + sz * D);
+    // Texel-snap the centre along the light right/up axes so panning does not crawl the shadow edge.
+    const float unitsPerTexel = (2.0f * H) / shadowSize;
+    const float dR = floorf(cR0 / unitsPerTexel + 0.5f) * unitsPerTexel - cR0;
+    const float dU = floorf(cU0 / unitsPerTexel + 0.5f) * unitsPerTexel - cU0;
+    const bx::Vec3 snapCenter(center[0] + dR * lrx + dU * lux,
+                              center[1] + dR * lry + dU * luy,
+                              center[2] + dR * lrz + dU * luz);
+    const bx::Vec3 snapLightPos(snapCenter.x + sx * D, snapCenter.y + sy * D, snapCenter.z + sz * D);
 
-        float lightView[16];
-        bx::mtxLookAt(lightView, snapLightPos, snapCenter, up);
-        float lightProj[16];
-        bx::mtxOrtho(lightProj, -H, H, -H, H, 1.0f, 2.0f * D + H, 0.0f, caps->homogeneousDepth);
-        // bgfx builds modelViewProj as mtxMul(model, view) then mtxMul(that, proj),
-        // so the world->shadow-clip matrix is mtxMul(view, proj) (view applied first).
-        bx::mtxMul(&g_frame.shadowMatrices[c * 16], lightView, lightProj);
+    float lightView[16];
+    bx::mtxLookAt(lightView, snapLightPos, snapCenter, up);
+    float lightProj[16];
+    bx::mtxOrtho(lightProj, -H, H, -H, H, 1.0f, 2.0f * D + H, 0.0f, caps->homogeneousDepth);
+    bx::mtxMul(&g_frame.shadowMatrices[0], lightView, lightProj);
 
-        const bgfx::ViewId vid = static_cast<bgfx::ViewId>(kBgfxShadowMapView + c);
-        bgfx::setViewFrameBuffer(vid, g_device.shadowMapFB);
-        bgfx::setViewRect(vid, tileX[c], tileY[c], tileSize, tileSize);
-        bgfx::setViewClear(vid, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
-        bgfx::setViewTransform(vid, lightView, lightProj);
+    // One full-resolution shadow view; neutralize the two legacy cascade tiles.
+    bgfx::setViewFrameBuffer(kBgfxShadowMapView, g_device.shadowMapFB);
+    bgfx::setViewRect(kBgfxShadowMapView, 0, 0,
+                      static_cast<uint16_t>(g_device.shadowMapSize), static_cast<uint16_t>(g_device.shadowMapSize));
+    bgfx::setViewClear(kBgfxShadowMapView, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
+    bgfx::setViewTransform(kBgfxShadowMapView, lightView, lightProj);
+    for (int c = 1; c < kNumShadowCascades; ++c)
+    {
+        bgfx::setViewFrameBuffer(kBgfxShadowMapView + c, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxShadowMapView + c, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     }
     g_frame.shadowActive = true;
 
-    // Publish the cull sphere so MeshClass::Render keeps casters covering the cascades even when
-    // they are off the camera frustum. Centered on the ground the camera looks at; the radius
-    // spans the largest cascade plus the up-sun bias so any caster a cascade needs is kept.
+    // Publish the cull region so RTS3DScene::Visibility_Check keeps casters that are off the camera
+    // frustum but whose shadow lands in the footprint. It matches the ortho half-extent (plus a small
+    // bbox allowance) so the engine keeps exactly the casters the ortho will actually render - keeping
+    // more would submit casters that get clipped out of the map (wasted) and keeping fewer would drop
+    // casters the ortho covers.
     s_sunShadowCullCenter[0] = center[0];
     s_sunShadowCullCenter[1] = center[1];
     s_sunShadowCullCenter[2] = center[2];
-    // Cover the largest cascade plus a margin for the up-sun offset of elevated casters (aircraft),
-    // so a caster whose shadow lands in the cascades is kept even though it is off the camera.
-    s_sunShadowCullRadius = cascadeExtent[kNumShadowCascades - 1] + 600.0f;
+    // Decoupled from H: the cull radius is a 3D-distance test, so it must allow for a caster's full
+    // height (Z) and a generous edge slack, not just the ortho's R/U half-extent. Keeping it generous
+    // means a tall off-screen caster is never dropped from the caster pass; if such a caster's shadow
+    // is actually off-screen it simply gets clipped (in R/U) out of the tight ortho, costing nothing
+    // visible. Keeping H tight (above) is what preserves on-screen shadow resolution.
+    s_sunShadowCullRadius = fmaxf(H, maxExtent + 600.0f);
     s_sunShadowCullDir[0] = sx;
     s_sunShadowCullDir[1] = sy;
     s_sunShadowCullDir[2] = sz;
@@ -2579,11 +2619,8 @@ static void SetupSunShadowView()
     if (BgfxDiagVerbose() && !s_loggedShadow)
     {
         std::fprintf(stderr,
-            "[ggc] sun shadow CSM %ux%u atlas, %d cascades (%.0f/%.0f/%.0f) armed: "
-            "sunDir=(%.2f,%.2f,%.2f) center=(%.0f,%.0f,%.0f)\n",
-            g_device.shadowMapSize, g_device.shadowMapSize, kNumShadowCascades,
-            cascadeExtent[0], cascadeExtent[1], cascadeExtent[2],
-            sx, sy, sz, center[0], center[1], center[2]);
+            "[ggc] sun shadow single-map %ux%u armed: H=%.0f sunDir=(%.2f,%.2f,%.2f) center=(%.0f,%.0f,%.0f)\n",
+            g_device.shadowMapSize, g_device.shadowMapSize, H, sx, sy, sz, center[0], center[1], center[2]);
         s_loggedShadow = true;
     }
 }
@@ -11633,14 +11670,20 @@ void SubmitEngineDraw(unsigned short start_index,
         && !isAlphaTested;
     // TheSuperHackers @feature bobtista 16/06/2026 The sun shadow map also accepts alpha-tested
     // cutout geometry (infantry, foliage) so they cast a real silhouette; the caster shader
-    // re-applies the alpha test. Blended effects/particles stay out. Off-camera casters reach this
-    // path because MeshClass::Render keeps meshes inside the sun-shadow cull box (see mesh.cpp), so
-    // a caster that has scrolled off the screen still casts into the visible ground.
+    // re-applies the alpha test. Blended effects/particles and projected decals stay out.
+    // Off-camera casters reach this path because MeshClass::Render keeps meshes inside the
+    // sun-shadow cull box (see mesh.cpp), so a caster that has scrolled off the screen still casts
+    // into the visible ground.
+    // Projected decals are visual receiver-space overlays, not physical casters. Mirroring them
+    // into the sun shadow map would turn effects/ground marks into real occluders.
+    const bool isProjectedDecal =
+        GetEffectiveProjectedDecalModeForCurrentDraw() != RB_PROJECTED_DECAL_NONE;
     const bool isShadowCaster =
         submitView == kBgfxEngineView
         && !g_views.overlay2DActive
         && writesDepth
-        && !isBlended;
+        && !isBlended
+        && !isProjectedDecal;
 
     // Sorted translucent/effect draws (particles, lasers, material decals)
     // are submitted after the world pass and should not inherit stale stencil
@@ -11726,6 +11769,54 @@ void SubmitEngineDraw(unsigned short start_index,
     if (rotorShadowCaster)
     {
         casterToShadow = true;
+    }
+    // Diagnostic: GGC_LOG_SHADOW_CASTER_AUDIT=1 dumps each world draw that could feed the
+    // sun shadow map, including excluded candidates. Use GGC_LOG_SHADOW_CASTER_START/END
+    // to bracket the particle-cannon firing window without filling stderr for the whole run.
+    static const bool s_logShadowCasterAudit = (std::getenv("GGC_LOG_SHADOW_CASTER_AUDIT") != nullptr);
+    if (s_logShadowCasterAudit)
+    {
+        static const int s_logShadowCasterStart =
+            (std::getenv("GGC_LOG_SHADOW_CASTER_START") != nullptr)
+                ? std::atoi(std::getenv("GGC_LOG_SHADOW_CASTER_START")) : 0;
+        static const int s_logShadowCasterEnd =
+            (std::getenv("GGC_LOG_SHADOW_CASTER_END") != nullptr)
+                ? std::atoi(std::getenv("GGC_LOG_SHADOW_CASTER_END")) : 0x7fffffff;
+        const int frame = static_cast<int>(g_stats.frameIndex);
+        const bool inAuditWindow = frame >= s_logShadowCasterStart && frame <= s_logShadowCasterEnd;
+        const bool auditCandidate =
+            ((submitView == kBgfxEngineView
+              && !g_views.overlay2DActive
+              && writesDepth
+              && !isBlended
+              && hasVB)
+             || (rotorShadowCaster && hasVB));
+        if (inAuditWindow && auditCandidate)
+        {
+            const TextureBaseClass * at = FixedFunctionState::Render_State().Textures[0];
+            const char * an = (at != nullptr && at->Get_Texture_Name().str() != nullptr
+                               && at->Get_Texture_Name().str()[0] != '\0')
+                ? at->Get_Texture_Name().str() : "<none>";
+            const unsigned texW = (at != nullptr) ? at->Get_Width() : 0;
+            const unsigned texH = (at != nullptr) ? at->Get_Height() : 0;
+            std::fprintf(stderr,
+                "[ggc-shadowcaster] f=%u cast=%d view=%u polys=%u verts=%u idx=%u "
+                "world=(%.1f,%.1f,%.1f) tex=%s texSize=%ux%u atest=%d blend=%d "
+                "proj=%d terrain=%d high=%d untex=%d rotor=%d transientVB=%d transientIB=%d "
+                "tcsel=(%.1f,%.1f) state=0x%llx\n",
+                g_stats.frameIndex, casterToShadow ? 1 : 0, submitView,
+                polygon_count, vertex_count, indexCount,
+                worldMtx[12], worldMtx[13], worldMtx[14],
+                an, texW, texH, isAlphaTested ? 1 : 0, isBlended ? 1 : 0,
+                static_cast<int>(GetEffectiveProjectedDecalModeForCurrentDraw()),
+                (g_draw.texcoordSelect[1] > 0.5f) ? 1 : 0,
+                (worldMtx[14] > 100.0f) ? 1 : 0,
+                (at == nullptr) ? 1 : 0,
+                rotorShadowCaster ? 1 : 0, g_draw.useTransientVB ? 1 : 0,
+                g_draw.useTransientIB ? 1 : 0,
+                g_draw.texcoordSelect[0], g_draw.texcoordSelect[1],
+                static_cast<unsigned long long>(state));
+        }
     }
     if ((casterToDepth || casterToShadow) && hasVB)
     {
@@ -11827,15 +11918,9 @@ void SubmitEngineDraw(unsigned short start_index,
         }
         if (casterToShadow)
         {
-            // Submit the same caster geometry into every cascade tile; each view carries
-            // its own cascade light view-proj + atlas viewport.
-            for (int c = 0; c < kNumShadowCascades; ++c)
-            {
-                const uint8_t discard =
-                    (c == kNumShadowCascades - 1) ? BGFX_DISCARD_ALL : BGFX_DISCARD_NONE;
-                bgfx::submit(static_cast<bgfx::ViewId>(kBgfxShadowMapView + c),
-                             g_device.shadowCasterProgram, 0, discard);
-            }
+            // TheSuperHackers @refactor bobtista 18/06/2026 Submit the caster into the single
+            // camera-fit shadow view (the cascades were retired - see SetupSunShadowView).
+            bgfx::submit(kBgfxShadowMapView, g_device.shadowCasterProgram, 0, BGFX_DISCARD_ALL);
             ++s_shadowCasterSubmitCount;
             static int s_loggedAlphaCaster = 0;
             if (BgfxDiagVerbose() && isAlphaTested && s_loggedAlphaCaster < 1)
