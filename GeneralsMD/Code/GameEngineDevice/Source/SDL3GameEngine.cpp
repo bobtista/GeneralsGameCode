@@ -58,6 +58,10 @@
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 
+// TheSuperHackers @feature bobtista 15/06/2026 LOCAL DEV AID (uncommitted): request
+// a bgfx scene-framebuffer rebuild so the HDR hotkey can toggle RGBA8<->RGBA16F live.
+extern "C" void GGC_RequestBgfxFramebufferRebuild();
+
 extern Mouse *TheMouse;
 extern Keyboard *TheKeyboard;
 
@@ -353,6 +357,186 @@ void SDL3GameEngine::handleKeyboardEvent(const SDL_KeyboardEvent &event)
 	if (keyboard != NULL)
 	{
 		keyboard->addSDL3KeyEvent(event);
+	}
+
+	// TheSuperHackers @feature bobtista 15/06/2026 Dev hotkeys to A/B the bgfx post
+	// effects live without restarting or editing INI. Hold Ctrl+Alt and press
+	// W (wipe), G (color grade), B (bloom), or D (desaturate). Each toggle also
+	// sets demonstrative parameter values so the change is clearly visible.
+	if (event.down != 0 && event.repeat == 0 && TheWritableGlobalData != NULL
+		&& (event.mod & SDL_KMOD_CTRL) != 0 && (event.mod & SDL_KMOD_ALT) != 0)
+	{
+		GlobalData *gd = TheWritableGlobalData;
+		switch (event.scancode)
+		{
+			case SDL_SCANCODE_W:
+				// Cycle: OFF -> static center -> follow mouse -> OFF.
+				if (!gd->m_bgfxWipeEnabled)
+				{
+					gd->m_bgfxWipeEnabled = TRUE;
+					gd->m_bgfxWipeFollowMouse = FALSE;
+					gd->m_bgfxWipeSplit = 0.5f;
+					if (TheInGameUI != NULL) { TheInGameUI->message(L"Wipe ON (center)"); }
+				}
+				else if (!gd->m_bgfxWipeFollowMouse)
+				{
+					gd->m_bgfxWipeFollowMouse = TRUE;
+					if (TheInGameUI != NULL) { TheInGameUI->message(L"Wipe ON (follow mouse)"); }
+				}
+				else
+				{
+					gd->m_bgfxWipeEnabled = FALSE;
+					gd->m_bgfxWipeFollowMouse = FALSE;
+					if (TheInGameUI != NULL) { TheInGameUI->message(L"Wipe OFF"); }
+				}
+				break;
+			case SDL_SCANCODE_G:
+				gd->m_bgfxColorGrade = !gd->m_bgfxColorGrade;
+				gd->m_bgfxColorGradeStrength = 1.0f;
+				gd->m_bgfxColorGradeTemperature = 2.5f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Color Grade %s", gd->m_bgfxColorGrade ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_B:
+				// Bloom is highlight-only and needs HDR to have over-bright content
+				// to catch, so enabling bloom also turns HDR on (and rebuilds the
+				// framebuffer for the format switch).
+				gd->m_bgfxBloom = !gd->m_bgfxBloom;
+				gd->m_bgfxBloomIntensity = 0.6f;
+				if (gd->m_bgfxBloom && !gd->m_bgfxHdr)
+				{
+					gd->m_bgfxHdr = TRUE;
+					GGC_RequestBgfxFramebufferRebuild();
+				}
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Bloom %s  threshold %d  (HDR %s)", gd->m_bgfxBloom ? L"ON" : L"OFF", (Int)(gd->m_bgfxBloomThreshold * 100.0f), gd->m_bgfxHdr ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_D:
+				// Saturation lives in the baseline post chain; make sure that master is
+				// on so the toggle is never silently swallowed.
+				gd->m_bgfxPostProcessing = TRUE;
+				gd->m_bgfxPostSaturation = (gd->m_bgfxPostSaturation > 0.5f) ? 0.0f : 1.015f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Desaturate %s", (gd->m_bgfxPostSaturation < 0.5f) ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_H:
+				// HDR changes the scene render-target format, so toggling it requires
+				// rebuilding the framebuffer (unlike the per-frame shader effects).
+				gd->m_bgfxHdr = !gd->m_bgfxHdr;
+				GGC_RequestBgfxFramebufferRebuild();
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"HDR %s", gd->m_bgfxHdr ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_MINUS:
+				// Lower the bloom threshold (more blooms) to find the sweet spot live.
+				gd->m_bgfxBloomThreshold = (gd->m_bgfxBloomThreshold > 0.15f) ? (gd->m_bgfxBloomThreshold - 0.05f) : 0.10f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Bloom threshold %d", (Int)(gd->m_bgfxBloomThreshold * 100.0f)); }
+				break;
+			case SDL_SCANCODE_EQUALS:
+				// Raise the bloom threshold (less blooms).
+				gd->m_bgfxBloomThreshold = gd->m_bgfxBloomThreshold + 0.05f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Bloom threshold %d", (Int)(gd->m_bgfxBloomThreshold * 100.0f)); }
+				break;
+			case SDL_SCANCODE_V:
+				gd->m_bgfxVignette = !gd->m_bgfxVignette;
+				gd->m_bgfxVignetteStrength = 0.4f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Vignette %s", gd->m_bgfxVignette ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_C:
+				gd->m_bgfxChromaticAberration = !gd->m_bgfxChromaticAberration;
+				gd->m_bgfxChromaticAberrationAmount = 0.8f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Chromatic Aberration %s", gd->m_bgfxChromaticAberration ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_F:
+				gd->m_bgfxFilmGrain = !gd->m_bgfxFilmGrain;
+				gd->m_bgfxFilmGrainStrength = 0.1f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Film Grain %s", gd->m_bgfxFilmGrain ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_O:
+				// SSAO allocates depth + AO targets at framebuffer-creation time, so
+				// toggling it needs a rebuild like HDR.
+				gd->m_bgfxSSAO = !gd->m_bgfxSSAO;
+				GGC_RequestBgfxFramebufferRebuild();
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"SSAO %s", gd->m_bgfxSSAO ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_M:
+				// Cycle scene MSAA 0 -> 2 -> 4 -> 8; the sample count is read at
+				// framebuffer creation, so rebuild on change.
+				if (gd->m_bgfxMsaa >= 8) { gd->m_bgfxMsaa = 0; }
+				else if (gd->m_bgfxMsaa >= 4) { gd->m_bgfxMsaa = 8; }
+				else if (gd->m_bgfxMsaa >= 2) { gd->m_bgfxMsaa = 4; }
+				else { gd->m_bgfxMsaa = 2; }
+				GGC_RequestBgfxFramebufferRebuild();
+				if (TheInGameUI != NULL)
+				{
+					if (gd->m_bgfxMsaa > 0) { TheInGameUI->message(L"MSAA %dx", gd->m_bgfxMsaa); }
+					else { TheInGameUI->message(L"MSAA OFF"); }
+				}
+				break;
+			case SDL_SCANCODE_R:
+				// Cycle render scale 1.0 -> 1.25 -> 1.5 -> 2.0; read at framebuffer
+				// creation, so rebuild on change.
+				if (gd->m_bgfxRenderScale >= 1.99f) { gd->m_bgfxRenderScale = 1.0f; }
+				else if (gd->m_bgfxRenderScale >= 1.49f) { gd->m_bgfxRenderScale = 2.0f; }
+				else if (gd->m_bgfxRenderScale >= 1.24f) { gd->m_bgfxRenderScale = 1.5f; }
+				else { gd->m_bgfxRenderScale = 1.25f; }
+				GGC_RequestBgfxFramebufferRebuild();
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Render scale %d%%", (Int)(gd->m_bgfxRenderScale * 100.0f + 0.5f)); }
+				break;
+			case SDL_SCANCODE_P:
+				gd->m_bgfxSpecular = !gd->m_bgfxSpecular;
+				gd->m_bgfxSpecularStrength = 1.0f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Specular %s", gd->m_bgfxSpecular ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_L:
+				gd->m_bgfxRimLight = !gd->m_bgfxRimLight;
+				gd->m_bgfxRimStrength = 0.3f;
+				gd->m_bgfxRimPower = 3.0f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Rim Light %s", gd->m_bgfxRimLight ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_K:
+				gd->m_bgfxEmissiveBoost = !gd->m_bgfxEmissiveBoost;
+				gd->m_bgfxEmissiveBoostScale = 2.0f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Emissive Boost %s", gd->m_bgfxEmissiveBoost ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_Y:
+				// Sun shadow map allocates a light-POV depth target at framebuffer
+				// creation, so toggling it needs a rebuild like HDR/SSAO.
+				gd->m_bgfxShadowMaps = !gd->m_bgfxShadowMaps;
+				GGC_RequestBgfxFramebufferRebuild();
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Sun Shadows %s", gd->m_bgfxShadowMaps ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_T:
+				// Force nearest/point texture filtering (old blocky look) vs the smooth
+				// linear/trilinear renderer baseline. Applies at bind time, no rebuild.
+				gd->m_bgfxPointFilter = !gd->m_bgfxPointFilter;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Texture Filter: %s", gd->m_bgfxPointFilter ? L"Blocky (point)" : L"Smooth (linear)"); }
+				break;
+			case SDL_SCANCODE_X:
+				// Master toggle for the always-on baseline post (FXAA + sharpen +
+				// saturation + contrast). Lets the baked-in look be A/B'd as a whole.
+				gd->m_bgfxPostProcessing = !gd->m_bgfxPostProcessing;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Baseline Post %s", gd->m_bgfxPostProcessing ? L"ON" : L"OFF"); }
+				break;
+			case SDL_SCANCODE_LEFTBRACKET:
+				gd->m_bgfxPostProcessing = TRUE;
+				gd->m_bgfxPostFxaaAmount = (gd->m_bgfxPostFxaaAmount > 0.05f) ? (gd->m_bgfxPostFxaaAmount - 0.05f) : 0.0f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"FXAA %d%%", (Int)(gd->m_bgfxPostFxaaAmount * 100.0f + 0.5f)); }
+				break;
+			case SDL_SCANCODE_RIGHTBRACKET:
+				gd->m_bgfxPostProcessing = TRUE;
+				gd->m_bgfxPostFxaaAmount = (gd->m_bgfxPostFxaaAmount < 0.95f) ? (gd->m_bgfxPostFxaaAmount + 0.05f) : 1.0f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"FXAA %d%%", (Int)(gd->m_bgfxPostFxaaAmount * 100.0f + 0.5f)); }
+				break;
+			case SDL_SCANCODE_SEMICOLON:
+				gd->m_bgfxPostProcessing = TRUE;
+				gd->m_bgfxPostSharpenAmount = (gd->m_bgfxPostSharpenAmount > 0.02f) ? (gd->m_bgfxPostSharpenAmount - 0.02f) : 0.0f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Sharpen %d%%", (Int)(gd->m_bgfxPostSharpenAmount * 100.0f + 0.5f)); }
+				break;
+			case SDL_SCANCODE_APOSTROPHE:
+				gd->m_bgfxPostProcessing = TRUE;
+				gd->m_bgfxPostSharpenAmount = (gd->m_bgfxPostSharpenAmount < 0.98f) ? (gd->m_bgfxPostSharpenAmount + 0.02f) : 1.0f;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Sharpen %d%%", (Int)(gd->m_bgfxPostSharpenAmount * 100.0f + 0.5f)); }
+				break;
+			default:
+				break;
+		}
 	}
 
 	// TheSuperHackers @bugfix bobtista 09/06/2026 SDL does not emit a TEXT_INPUT event for Return,
