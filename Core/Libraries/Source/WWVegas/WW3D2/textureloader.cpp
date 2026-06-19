@@ -797,7 +797,7 @@ void TextureLoader::Validate_Texture_Size
 #if !defined(GGC_RENDER_BACKEND_BGFX)
 static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
 {
-	WWASSERT(Is_Main_Render_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 
 	ThumbnailClass* thumb=nullptr;
 	thumb=ThumbnailManagerClass::Peek_Thumbnail_Instance_From_Any_Manager(filename);
@@ -1025,7 +1025,7 @@ LegacyLoaderSurface * Load_Legacy_Surface_Immediate(
 		"Load_Legacy_Surface_Immediate: standalone bgfx cannot create fake-D3D surfaces");
 	return nullptr;
 #else
-	WWASSERT(Is_Main_Render_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 
 	bool compressed=Is_Format_Compressed(texture_format,allow_compression);
 
