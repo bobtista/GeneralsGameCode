@@ -122,32 +122,7 @@ static Bool SceneDiagEnabled()
 // toward-sun direction (z > 0) and returns the armed flag. Used here to keep only off-camera
 // casters whose shadow actually reaches the camera view. (MeshClass::Render uses the companion
 // GGC_GetBgfxSunShadowCullBox so those kept meshes are not re-dropped by the per-mesh cull.)
-extern "C" int GGC_GetBgfxSunShadowDir(float * dir3);
-
-// True when the caster's cast shadow reaches the camera view. The shadow occupies the ground from
-// the caster's footprint to where a ray along the sun direction meets z=0; we test a sphere
-// enclosing that whole segment against the camera frustum. This keeps exactly the off-camera
-// casters whose shadow can land on visible ground - far fewer than every nearby object - so the
-// shadow caster set stays small while a chinook that scrolled off-screen still casts.
-static Bool ShadowReachesView(const CameraClass *camera, const SphereClass &sphere, const float *sunDir)
-{
-	const float sz = sunDir[2];
-	if (sz < 1e-3f)
-	{
-		return false;
-	}
-	const Vector3 &p = sphere.Center;
-	const float t = (p.Z > 0.0f) ? (p.Z / sz) : 0.0f;
-	const float tipX = p.X - sunDir[0] * t;
-	const float tipY = p.Y - sunDir[1] * t;
-	const float midX = 0.5f * (p.X + tipX);
-	const float midY = 0.5f * (p.Y + tipY);
-	const float halfX = 0.5f * (tipX - p.X);
-	const float halfY = 0.5f * (tipY - p.Y);
-	const float halfLen = sqrtf(halfX * halfX + halfY * halfY);
-	const SphereClass shadowSpan(Vector3(midX, midY, 0.0f), halfLen + sphere.Radius);
-	return !camera->Cull_Sphere(shadowSpan);
-}
+extern "C" int GGC_GetBgfxSunShadowCullBox(float * center3, float * radius);
 #endif
 
 static FILE *SceneDiagFile()
@@ -630,31 +605,6 @@ void RTS3DScene::Visibility_Check(CameraClass * camera)
 			{
 				g_sceneDiag.visibilityFrustumVisible++;
 			}
-
-#if defined(GGC_RENDER_BACKEND_BGFX)
-			// TheSuperHackers @feature bobtista 17/06/2026 Keep an off-camera caster in the render
-			// list when it lies inside the sun-shadow cull sphere, so it still casts into the visible
-			// ground. Respect shroud/hidden so fog-of-war is never revealed through a shadow. The
-			// object is off-screen (GPU-clipped from the color view) and flagged plain so it skips
-			// the occluder/translucent bookkeeping. MeshClass::Render keeps the same meshes (via the
-			// identical cull sphere) so the per-mesh camera-frustum cull does not re-drop them.
-			if (!isVisible)
-			{
-				DrawableInfo *sdInfo = (DrawableInfo *)robj->Get_User_Data();
-				Drawable *sdDraw = sdInfo ? sdInfo->m_drawable : nullptr;
-				float sunDir[3] = { 0.0f, 0.0f, 0.0f };
-				if (sdDraw
-					&& !sdDraw->isDrawableEffectivelyHidden()
-					&& !sdDraw->getFullyObscuredByShroud()
-					&& GGC_GetBgfxSunShadowDir(sunDir) != 0
-					&& ShadowReachesView(camera, robj->Get_Bounding_Sphere(), sunDir))
-				{
-					sdInfo->m_flags = DrawableInfo::ERF_IS_NORMAL;
-					robj->Set_Visible(true);
-					continue;
-				}
-			}
-#endif
 
 			if (isVisible)
 			{
@@ -1594,6 +1544,57 @@ void RTS3DScene::Customized_Render( RenderInfoClass &rinfo )
 			}
 		}
 	}
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @feature bobtista 18/06/2026 Dedicated sun-shadow caster pass for off-camera
+	// casters. A caster that has fully scrolled off the camera frustum (e.g. the Strategy Center
+	// antenna or the Command Center dish at high zoom) is never drawn by the main loop above, so the
+	// shadow-map piggyback in SubmitEngineDraw never sees it and its ground shadow vanishes. Here we
+	// render those off-camera casters directly: their geometry is GPU-clipped out of the color view
+	// (it is outside the camera frustum, producing no visible pixels) but the same piggyback fans it
+	// into the sun shadow map from the light's POV, so its shadow still lands in the visible footprint.
+	// On-camera casters are skipped (they were already drawn and piggybacked by the loop above).
+	if (!ShaderClass::Is_Backface_Culling_Inverted() &&
+		Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
+	{
+		float shCullC[3] = { 0.0f, 0.0f, 0.0f };
+		float shCullR = 0.0f;
+		if (GGC_GetBgfxSunShadowCullBox(shCullC, &shCullR) != 0 && shCullR > 0.0f)
+		{
+			RefRenderObjListIterator castIt(&RenderList);
+			for (castIt.First(); !castIt.Is_Done(); castIt.Next())
+			{
+				RenderObjClass *crobj = castIt.Peek_Obj();
+				if (crobj->Class_ID() == RenderObjClass::CLASSID_TILEMAP)
+				{
+					continue;
+				}
+				DrawableInfo *cdi = (DrawableInfo *)crobj->Get_User_Data();
+				Drawable *cdraw = cdi ? cdi->m_drawable : nullptr;
+				if (cdraw == nullptr
+					|| cdraw->isDrawableEffectivelyHidden()
+					|| cdraw->getFullyObscuredByShroud())
+				{
+					continue;
+				}
+				const SphereClass &cbs = crobj->Get_Bounding_Sphere();
+				if (!rinfo.Camera.Cull_Sphere(cbs))
+				{
+					continue;
+				}
+				const float sdx = cbs.Center.X - shCullC[0];
+				const float sdy = cbs.Center.Y - shCullC[1];
+				const float sdz = cbs.Center.Z - shCullC[2];
+				const float sreach = shCullR + cbs.Radius;
+				if ((sdx * sdx + sdy * sdy + sdz * sdz) > sreach * sreach)
+				{
+					continue;
+				}
+				crobj->Render(rinfo);
+			}
+		}
+	}
+#endif
 
 	//Tell shadow manager to render shadows at the end of this frame
 	//Don't draw shadows if there is no terrain present.
