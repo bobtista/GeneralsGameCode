@@ -189,45 +189,43 @@ vec3 sampleCloudShadow(vec2 cloudUV)
 	return max(cloudSample, vec3_splat(CLOUD_SHADOW_MIN));
 }
 
-// World-space normal offset (cascade 0) for the shadow receive point, tuned to the
-// finest cascade's texel footprint; coarser cascades scale it up.
+// World-space normal offset for the shadow receive point, pushing the sample off the surface
+// along its normal to clear self-shadow acne without visibly detaching the shadow (peter-pan).
 #define SUN_SHADOW_NORMAL_OFFSET 1.2
 
-// TheSuperHackers @feature bobtista 16/06/2026 Cascaded sun shadow lookup. Three
-// concentric cascades share one 2x2 atlas (tile scale 0.5; offsets 0:(0,0) 1:(.5,0)
-// 2:(0,.5)). For each pixel the tightest cascade that contains it (with a margin so the
-// 5x5 PCF kernel never crosses a tile boundary) is sampled. Returns the lit fraction in
-// [0,1]: 1 = fully lit, 0 = fully shadowed. nrm is the world-space surface normal.
-// PCF lit fraction for a single cascade. Returns the lit fraction in [0,1], or a negative
-// sentinel when the point falls outside this cascade's tile (so the caller can try another).
-// edgeProximity (out) is ~0 at the cascade centre and ~0.96 at its outer margin; the caller uses
-// it to crossfade into the next coarser cascade so a receiver never snaps between texel grids.
-float sampleSunCascade(vec3 worldPos, vec3 n, float slope, float bias, float texel, int c, out float edgeProximity)
+// TheSuperHackers @refactor bobtista 18/06/2026 Single camera-fit sun shadow lookup (replaces the
+// 3 concentric cascades). One ortho map is fit to the visible ground footprint in SetupSunShadowView,
+// so a caster and the ground its shadow lands on are always in the same map - no cascade selection,
+// no tight/coarse caster-receiver mismatch, no per-zoom fall-through or cascade-blend. u_shadowMatrices[0]
+// is the world->shadow-clip matrix; u_shadowParams = (uv texel, depth bias, strength, enabled).
+// Returns the lit fraction in [0,1]: 1 = fully lit, 0 = fully shadowed. nrm is the surface normal.
+float sampleSunShadow(vec3 worldPos, vec3 nrm)
 {
-	edgeProximity = 0.0;
-	// Normal-offset bias scaled per cascade (coarser cascades = bigger texels = need more
-	// offset to clear self-shadow acne without peter-panning).
-	vec3 biasedPos = worldPos + n * (SUN_SHADOW_NORMAL_OFFSET * (1.0 + float(c)) * slope);
-	vec4 sc = mul(u_shadowMatrices[c], vec4(biasedPos, 1.0));
+	if (u_shadowParams.w < 0.5)
+	{
+		return 1.0;
+	}
+	vec3 n = normalize(nrm);
+	vec3 lightDir = normalize(u_lightDirs[0].xyz);
+	float ndotl = clamp(dot(n, lightDir), 0.0, 1.0);
+	float slope = 1.0 + 2.0 * (1.0 - ndotl);
+	float texel = u_shadowParams.x; // shadow-map texel in UV (1 / map size)
+	float bias = u_shadowParams.y;
+	vec3 biasedPos = worldPos + lightDir * (SUN_SHADOW_NORMAL_OFFSET * slope);
+	vec4 sc = mul(u_shadowMatrices[0], vec4(biasedPos, 1.0));
 	if (sc.w <= 0.0)
 	{
-		return -1.0;
+		return 1.0;
 	}
 	vec3 ndc = sc.xyz / sc.w;
 	vec2 cuv = ndc.xy * 0.5 + 0.5;
 #if !BGFX_SHADER_LANGUAGE_GLSL
 	cuv.y = 1.0 - cuv.y;
 #endif
-	// Margin keeps the 3x3 PCF kernel inside this cascade's atlas tile.
-	if (cuv.x <= 0.02 || cuv.x >= 0.98 || cuv.y <= 0.02 || cuv.y >= 0.98)
+	if (cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0)
 	{
-		return -1.0;
+		return 1.0; // outside the shadow footprint = lit
 	}
-	edgeProximity = max(abs(cuv.x - 0.5), abs(cuv.y - 0.5)) * 2.0;
-	vec2 tileOffset = vec2(0.0, 0.0);
-	if (c == 1) { tileOffset = vec2(0.5, 0.0); }
-	else if (c == 2) { tileOffset = vec2(0.0, 0.5); }
-	vec2 auv = tileOffset + cuv * 0.5;
 	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
 	// Soft PCF: a 3x3 grid of bilinearly-interpolated comparison taps. Each tap blends its four
 	// neighbouring texels by the sub-texel fraction (removing hard per-texel steps), and the 3x3
@@ -238,7 +236,7 @@ float sampleSunCascade(vec3 worldPos, vec3 n, float slope, float bias, float tex
 	{
 		for (int dx = -1; dx <= 1; ++dx)
 		{
-			vec2 sampUV = auv + vec2(float(dx), float(dy)) * texel;
+			vec2 sampUV = cuv + vec2(float(dx), float(dy)) * texel;
 			vec2 texelCoord = sampUV * invTexel - 0.5;
 			vec2 fracPart = fract(texelCoord);
 			vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
@@ -252,71 +250,21 @@ float sampleSunCascade(vec3 worldPos, vec3 n, float slope, float bias, float tex
 	return lit * (1.0 / 9.0);
 }
 
-float sampleSunShadow(vec3 worldPos, vec3 nrm, bool allowFallthrough)
+// TheSuperHackers @feature bobtista 16/06/2026 Sun-shadow color multiplier. Returns the factor to
+// multiply a lit pixel by; shadowed pixels darken toward an ambient floor (1 - strength), never to
+// black. Terrain passes world-up because its mesh normal is degenerate (n.z ~ 0); objects pass
+// their real normal so the normal-offset bias keeps them from self-shadowing their own facing side.
+float sunShadowFactor(vec3 worldPos, vec3 rawNormal)
 {
 	if (u_shadowParams.w < 0.5)
 	{
 		return 1.0;
 	}
-	vec3 n = normalize(nrm);
-	float ndotl = clamp(dot(n, normalize(u_lightDirs[0].xyz)), 0.0, 1.0);
-	float slope = 1.0 + 2.0 * (1.0 - ndotl);
-	float texel = u_shadowParams.x; // atlas texel = 1/atlasSize
-	float bias = u_shadowParams.y;
-	// Cascades are concentric (0 tightest .. 2 coarsest); visit them tightest-first.
-	for (int c = 0; c < 3; ++c)
-	{
-		float edge;
-		float lit = sampleSunCascade(worldPos, n, slope, bias, texel, c, edge);
-		if (lit < 0.0)
-		{
-			continue; // outside this cascade's tile; try the next coarser one
-		}
-		// TheSuperHackers @bugfix bobtista 18/06/2026 Cascade blend. Concentric cascades have
-		// different texel grids, so a receiver crossing a cascade boundary (e.g. a building wall
-		// as the camera zooms and the focus shifts) snaps between two shadow positions. Near this
-		// cascade's outer margin, crossfade into the next coarser cascade - which contains the same
-		// point well inside it - so the transition reads as a smooth fade instead of a hard pop.
-		float blendT = smoothstep(0.78, 0.94, edge);
-		if (blendT > 0.0 && c < 2)
-		{
-			float edge2;
-			float lit2 = sampleSunCascade(worldPos, n, slope, bias, texel, c + 1, edge2);
-			if (lit2 >= 0.0)
-			{
-				lit = mix(lit, lit2, blendT);
-			}
-		}
-		// Use the tightest containing cascade when it finds a shadow (keeps it sharp). Only GROUND
-		// receivers fall through to a coarser cascade when fully lit, to recover a caster sitting
-		// just outside this tile (e.g. a tall off-screen radar dish whose shadow lands on covered
-		// ground). TheSuperHackers @bugfix bobtista 18/06/2026 Object receivers (building walls) do
-		// NOT fall through: the lit-vs-shadowed fall-through decision flips hard with small zoom
-		// changes, snapping a wall between light and dark. Walls use only their containing cascade
-		// (blended), which is stable; their own structure casts onto them within the same cascade.
-		if (lit < 0.999 || !allowFallthrough)
-		{
-			return lit;
-		}
-	}
-	return 1.0; // lit in every containing cascade
-}
-
-// TheSuperHackers @feature bobtista 16/06/2026 Sun-shadow color multiplier for the ground.
-// Returns the factor to multiply a lit terrain pixel by; shadowed pixels darken toward an
-// ambient floor (1 - strength), never to black. Only TERRAIN receives the sun shadow now
-// (objects cast only), and the terrain mesh's vertex normal is degenerate (n.z ~ 0), so the
-// receiver uses world-up: the ground is sun-lit, so a cast shadow always darkens it. Do NOT
-// gate by a per-pixel dot(normal,sun) here - the bad terrain normal makes that gate ~0 and
-// silently cancels every shadow.
-float sunShadowFactor(vec3 worldPos, vec3 rawNormal, bool allowFallthrough)
-{
-	if (u_shadowParams.w < 0.5)
-	{
-		return 1.0;
-	}
-	float lit = sampleSunShadow(worldPos, vec3(0.0, 0.0, 1.0), allowFallthrough);
-	return mix(1.0 - u_shadowParams.z, 1.0, lit);
+	float normalLen2 = dot(rawNormal, rawNormal);
+	vec3 receiverNormal = (normalLen2 > 1e-6) ? rawNormal : vec3(0.0, 0.0, 1.0);
+	float lit = sampleSunShadow(worldPos, receiverNormal);
+	float receiverWeight = smoothstep(0.20, 0.45, receiverNormal.z);
+	return mix(1.0, mix(1.0 - u_shadowParams.z, 1.0, lit), receiverWeight);
 }
 
 // TheSuperHackers @feature bobtista 18/06/2026 Lightweight anisotropic base-texture sampling.
@@ -396,7 +344,7 @@ void main()
 		// TheSuperHackers @bugfix bobtista 16/06/2026 Terrain returns from this branch
 		// before the generic shadow apply below, so the sun shadow has to be applied here
 		// too - otherwise cast shadows land on roads/decals/objects but skip the ground.
-		result.rgb *= sunShadowFactor(v_worldPos, v_normal, true);
+		result.rgb *= sunShadowFactor(v_worldPos, vec3(0.0, 0.0, 1.0));
 
 		gl_FragColor = result;
 		return;
@@ -749,6 +697,15 @@ void main()
 		// data and geometry normals (no new art).
 		vec3 viewDir = normalize(u_eyePos.xyz - v_worldPos);
 		vec3 specAccum = vec3(0.0, 0.0, 0.0);
+		// The old W3D files often carry broad, nearly-white specular values with
+		// shininess near zero. For the optional bgfx material FX path, treat those
+		// as hints and remap them to a narrower modern highlight instead of using
+		// them literally.
+		float authoredShininess = max(u_matSpecular.w, 0.0);
+		float specPower = (authoredShininess < 2.0)
+			? (10.0 + authoredShininess * 22.0)
+			: min(max(authoredShininess, 10.0), 96.0);
+		vec3 specFxColor = min(u_matSpecular.rgb, vec3_splat(0.85));
 		// D3D fixed-function folds emissive into the material color before
 		// texture-stage modulation. Adding it after sampling bleaches tinted
 		// self-lit textures like the shellmap police roof lights to white.
@@ -777,8 +734,7 @@ void main()
 				{
 					vec3 halfV = normalize(ldir + viewDir);
 					float nDotH = max(0.0, dot(nrm, halfV));
-					float shininess = max(u_matSpecular.w, 1.0);
-					specAccum += u_lightColors[li].rgb * pow(nDotH, shininess) * atten;
+					specAccum += u_lightColors[li].rgb * pow(nDotH, specPower) * atten;
 				}
 			}
 		}
@@ -851,17 +807,19 @@ void main()
 		// foliage, infantry cards, and blended effect meshes have flat or grazing
 		// normals that otherwise wash out to white. Solid meshes keep the full effect.
 		float fxMask = (u_atestParams.y > 0.5) ? 0.0 : current.a;
-		// Headroom guard: fade the additive FX as the surface approaches white, so bright
-		// sun-facing roofs and glossy domes (which already sit near 1.0) cannot be pushed
-		// to a flat white. Specular/rim stay visible on darker, mid-tone surfaces.
+		// Headroom guard: keep additive FX bounded as the surface approaches white, so
+		// bright sun-facing roofs and glossy domes still get a visible highlight without
+		// being pushed into a flat white blob.
 		float fxHeadroom = max(0.0, 1.0 - max(max(current.r, current.g), current.b));
-		fxMask *= fxHeadroom;
+		fxMask *= (0.45 + 0.55 * fxHeadroom);
 		float rim = pow(1.0 - max(0.0, dot(nrm, viewDir)), u_matFx.z) * u_matFx.y;
-		vec3 fxAdd = (specAccum * u_matSpecular.rgb * u_matFx.x + rim * litDiffuse.rgb) * fxMask;
+		vec3 fxAdd = (specAccum * specFxColor * u_matFx.x + rim * litDiffuse.rgb) * fxMask;
 		// Exposure-style soft add: brightens toward white but can never overshoot it, so
 		// strong settings roll grazing-angle surfaces (tunnel walls, vehicle bodies) into
 		// a smooth highlight instead of hard-clamping them to a flat white blob.
-		current.rgb = 1.0 - (1.0 - current.rgb) * exp(-fxAdd);
+		vec3 fxLit = 1.0 - (1.0 - current.rgb) * exp(-fxAdd);
+		float maxFxLift = 0.14 + 0.22 * fxHeadroom;
+		current.rgb = min(fxLit, current.rgb + vec3_splat(maxFxLift));
 	}
 	else
 	{
@@ -917,7 +875,7 @@ void main()
 		// This shares the cloud gate (w > 0.5) that already distinguishes ground draws from
 		// units/buildings/effects (which render after the terrain pass with w == 0 and only
 		// cast), so it cannot re-introduce the object self-shadow blob.
-		current.rgb *= sunShadowFactor(v_worldPos, v_normal, true);
+		current.rgb *= sunShadowFactor(v_worldPos, vec3(0.0, 0.0, 1.0));
 	}
 	else if (u_sunShadowReceive.x > 0.5)
 	{
@@ -929,7 +887,7 @@ void main()
 		// bias, which keeps the object from self-shadowing. Objects do NOT fall through to coarser
 		// cascades (allowFallthrough=false): the binary fall-through decision snaps a wall between
 		// light and dark across cascades as the camera zooms; walls use their containing cascade only.
-		current.rgb *= sunShadowFactor(v_worldPos, v_normal, false);
+		current.rgb *= sunShadowFactor(v_worldPos, v_normal);
 	}
 
 	// Grayscale output for disabled button state. Matches the D3D8 path
