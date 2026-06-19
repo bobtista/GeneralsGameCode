@@ -1569,16 +1569,18 @@ void TerrainShader2Stage::updateNoise1(Matrix4x4 *destMatrix, const Matrix4x4 *c
 	#define STRETCH_FACTOR ((float)(1/(63.0*MAP_XY_FACTOR/2))) /* covers 63/2 tiles */
 
 	Matrix4x4 scale = W3DShaderManager_MakeTextureScale(STRETCH_FACTOR, STRETCH_FACTOR, 1);
-	*destMatrix = *curViewInverse * scale;
-
 	Matrix4x4 offset = W3DShaderManager_MakeTextureTranslation(m_xOffset, m_yOffset, 0);
-	*destMatrix = *destMatrix * offset;
+	// TheSuperHackers @bugfix bobtista 19/06/2026 Column-vector Matrix4x4 multiply order is the
+	// reverse of the original D3DX row-vector order; with To_D3DMATRIX transposing on the way out,
+	// curViewInverse must be the rightmost (first-applied) factor or the cloud projection skews
+	// into scrolling diagonal bands on the terrain.
+	*destMatrix = offset * scale * (*curViewInverse);
 }
 
 void TerrainShader2Stage::updateNoise2(Matrix4x4 *destMatrix, const Matrix4x4 *curViewInverse, Bool doUpdate)
 {
 	Matrix4x4 scale = W3DShaderManager_MakeTextureScale(STRETCH_FACTOR, STRETCH_FACTOR, 1);
-	*destMatrix = *curViewInverse * scale;
+	*destMatrix = scale * (*curViewInverse);
 }
 
 Int TerrainShader2Stage::set(Int pass)
