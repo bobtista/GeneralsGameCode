@@ -1349,17 +1349,22 @@ void DX8Backend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & 
     {
         Set_Texture(i, state.textures[i]);
     }
+    // TheSuperHackers @bugfix bobtista 19/06/2026 state.world/view are RenderStateStruct's
+    // LegacyTransformMatrix (== D3DMATRIX, already row-major device-ready) reinterpret-cast to
+    // Matrix4x4 by the sorting renderer. Running them through To_D3DMATRIX transposes a second
+    // time, corrupting every sorted/translucent draw's transform (e.g. helicopter rotor blur
+    // vanishes). Reinterpret straight back to D3DMATRIX to match the original passthrough.
     if (state.world != nullptr)
     {
         DX8Wrapper::_Set_DX8_Transform(
             D3DTS_WORLD,
-            To_D3DMATRIX(*state.world));
+            reinterpret_cast<const D3DMATRIX &>(*state.world));
     }
     if (state.view != nullptr)
     {
         DX8Wrapper::_Set_DX8_Transform(
             D3DTS_VIEW,
-            To_D3DMATRIX(*state.view));
+            reinterpret_cast<const D3DMATRIX &>(*state.view));
     }
     for (int i = 0; i < 4; ++i)
     {
