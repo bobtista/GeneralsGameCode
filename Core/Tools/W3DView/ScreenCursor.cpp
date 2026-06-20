@@ -300,7 +300,7 @@ void ScreenCursorClass::Render(RenderInfoClass& rinfo)
 	Get_Obj_Space_Bounding_Sphere(sphere);
 
 	SortingRendererClass::Insert_Triangles(
-	  sphere,
+	  &sphere,
 	  0,
 	  FACE_COUNT * 3,
 	  0,
