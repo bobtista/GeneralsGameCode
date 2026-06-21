@@ -2978,27 +2978,27 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 		WW3D::Get_Render_Backend()->Override_Alpha_Blend_Enable(true);
 		WW3D::Get_Render_Backend()->Override_Material_Opacity(WATER_MESH_OPACITY);
 
-			// TheSuperHackers @bugfix bobtista 22/06/2026 The shoreline pass authors the
-			// back-buffer alpha gradient on the dx8 reference (renderShoreLines), so the
-			// soft-water DESTALPHA edge reads a real gradient there just like the original.
-			// Keep bgfx on source-alpha water: the dest-alpha mask is heightmap-only and
-			// treats mesh rocks as deep water, which paints opaque blue collars around them.
-			if (WW3D::Get_Render_Backend()->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
-				&& TheGlobalData->m_showSoftWaterEdge
-				&& TheWaterTransparency->m_transparentWaterDepth !=0
-				&& !WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+		// TheSuperHackers @bugfix bobtista 22/06/2026 The shoreline pass authors the
+		// back-buffer alpha gradient on the dx8 reference (renderShoreLines), so the
+		// soft-water DESTALPHA edge reads a real gradient there just like the original.
+		// Keep bgfx on source-alpha water: the dest-alpha mask is heightmap-only and
+		// treats mesh rocks as deep water, which paints opaque blue collars around them.
+		if (WW3D::Get_Render_Backend()->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
+			&& TheGlobalData->m_showSoftWaterEdge
+			&& TheWaterTransparency->m_transparentWaterDepth !=0
+			&& !WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+		{
+			if (TheWaterTransparency->m_additiveBlend)
 			{
-				if (TheWaterTransparency->m_additiveBlend)
-				{
 				WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_ONE);
 			}
 			else
 			{
-					WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
-				}
+				WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
 			}
+		}
 
-			CullMode cull = WW3D::Get_Render_Backend()->Get_Cull_Mode();
+		CullMode cull = WW3D::Get_Render_Backend()->Get_Cull_Mode();
 		WW3D::Get_Render_Backend()->Set_Cull_Mode(RB_CULL_NONE);
 
 		WW3D::Get_Render_Backend()->Draw_Triangles(	0,totalRectangleCount*2, 0,	batchVertexCount);
