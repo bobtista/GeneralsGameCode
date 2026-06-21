@@ -252,6 +252,7 @@ struct BgfxUniforms
     bgfx::UniformHandle uShadowColor         = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uPostParams          = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uPostTexelSize       = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uSmudgeClip          = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uWipeParams          = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uColorGradeParams    = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uBloomParams         = BGFX_INVALID_HANDLE;
@@ -474,6 +475,11 @@ struct BgfxViewFlags
     bool waterOverlayActive        = false;
     bool effectOverlayActive       = false;
     bool smudgeActive              = false;
+    float smudgeClip[4]            = { 1.0f, 1.0f, 1.0f, 1.0f };
+    uint16_t sceneViewportX        = 0;
+    uint16_t sceneViewportY        = 0;
+    uint16_t sceneViewportW        = 0;
+    uint16_t sceneViewportH        = 0;
     bool inSortFlush               = false;
     bool treeShaderActive          = false;
     bool shadowVolumeActive        = false;
