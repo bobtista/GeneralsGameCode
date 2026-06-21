@@ -187,7 +187,6 @@ public:
 	Bool m_bgfxPointFilter;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
-	Real m_bgfxHeatHazeOpacityScale;
 	Bool m_bgfxLogStats;
 	Bool m_bgfxNoSceneFramebuffer;
 	Bool m_bgfxNoPostFx;

@@ -525,7 +525,6 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxPointFilter",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxPointFilter ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
-	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
 	{ "BgfxLogStats",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxLogStats ) },
 	{ "BgfxNoSceneFramebuffer",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoSceneFramebuffer ) },
 	{ "BgfxNoPostFx",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoPostFx ) },
@@ -1129,7 +1128,6 @@ GlobalData::GlobalData()
 	m_bgfxPointFilter = FALSE;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
-	m_bgfxHeatHazeOpacityScale = 1.0f;
 	m_bgfxLogStats = FALSE;
 	m_bgfxNoSceneFramebuffer = FALSE;
 	m_bgfxNoPostFx = FALSE;
