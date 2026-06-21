@@ -1720,6 +1720,19 @@ void DX8Backend::Set_Depth_Func(CompareFunc func)
 
 unsigned DX8Backend::Get_Color_Write_Mask() const
 {
+    // TheSuperHackers @bugfix bobtista 22/06/2026 Read the live device, not the
+    // redundancy cache. The occluded-player wash and stencil-shadow fill save and
+    // restore COLORWRITEENABLE around their masked passes; a stale cache made them
+    // restore the wrong value and leak the mask. Baseline read the device here.
+    IDirect3DDevice8 * device = DX8Wrapper::_Get_D3D_Device8();
+    if (device != nullptr)
+    {
+        DWORD value = 0;
+        if (SUCCEEDED(device->GetRenderState(D3DRS_COLORWRITEENABLE, &value)))
+        {
+            return value;
+        }
+    }
     return DX8Wrapper::Get_DX8_Render_State(D3DRS_COLORWRITEENABLE);
 }
 
