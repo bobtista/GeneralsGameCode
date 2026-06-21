@@ -2635,9 +2635,7 @@ void GameLogic::processCommandList(CommandList* list)
 	m_cachedCRCs.clear();
 	m_shouldValidateCRCs = FALSE;
 
-	GameMessage* msg;
-
-	for (msg = list->getFirstMessage(); msg; msg = msg->next())
+	for (GameMessage* msg = list->getFirstMessage(); msg; msg = msg->next())
 	{
 #ifdef RTS_DEBUG
 		DEBUG_ASSERTCRASH(msg != nullptr && msg != (GameMessage*)0xdeadbeef, ("bad msg"));
@@ -2647,65 +2645,72 @@ void GameLogic::processCommandList(CommandList* list)
 
 	if (m_shouldValidateCRCs && !TheNetwork->sawCRCMismatch())
 	{
-		Bool sawCRCMismatch = FALSE;
-		Int numPlayers = 0;
-		DEBUG_ASSERTCRASH(TheNetwork, ("No Network!"));
-		if (TheNetwork)
+		checkForMismatch();
+	}
+}
+
+// ------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
+void GameLogic::checkForMismatch()
+{
+	DEBUG_ASSERTCRASH(TheNetwork, ("No Network!"));
+
+	Bool sawCRCMismatch = FALSE;
+	Int numPlayers = 0;
+
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		if (TheNetwork->isPlayerConnected(i))
+			++numPlayers;
+	}
+
+	if (m_cachedCRCs.size() < numPlayers)
+	{
+		DEBUG_CRASH(("Not enough CRCs!"));
+		sawCRCMismatch = TRUE;
+	}
+	else
+	{
+		Bool hasReferenceCRC = FALSE;
+		UnsignedInt referenceCRC = 0;
+
+		for (CachedCRCMap::const_iterator it = m_cachedCRCs.begin(); it != m_cachedCRCs.end(); ++it)
 		{
-			for (Int i = 0; i < MAX_SLOTS; ++i)
+			// TheSuperHackers @bugfix Caball009 14/06/2026 Check if player is still connected,
+			// to avoid spurious mismatches at low CRC intervals, e.g. every frame.
+			if (!TheNetwork->isPlayerConnected(it->first))
+				continue;
+
+			const UnsignedInt crc = it->second;
+
+			if (!hasReferenceCRC)
 			{
-				if (TheNetwork->isPlayerConnected(i))
-					++numPlayers;
+				hasReferenceCRC = TRUE;
+				referenceCRC = crc;
+				continue;
 			}
 
-			if (m_cachedCRCs.size() < numPlayers)
+			if (referenceCRC != crc)
 			{
-				DEBUG_CRASH(("Not enough CRCs!"));
+				DEBUG_CRASH(("CRC mismatch!"));
 				sawCRCMismatch = TRUE;
 			}
-			else
-			{
-				Bool hasReferenceCRC = FALSE;
-				UnsignedInt referenceCRC = 0;
-
-				for (CachedCRCMap::const_iterator it = m_cachedCRCs.begin(); it != m_cachedCRCs.end(); ++it)
-				{
-					// TheSuperHackers @bugfix Caball009 14/06/2026 Check if player is still connected,
-					// to avoid spurious mismatches at low CRC intervals, e.g. every frame.
-					if (!TheNetwork->isPlayerConnected(it->first))
-						continue;
-
-					const UnsignedInt crc = it->second;
-
-					if (!hasReferenceCRC)
-					{
-						hasReferenceCRC = TRUE;
-						referenceCRC = crc;
-						continue;
-					}
-
-					if (referenceCRC != crc)
-					{
-						DEBUG_CRASH(("CRC mismatch!"));
-						sawCRCMismatch = TRUE;
-					}
-				}
-			}
 		}
+	}
 
-		if (sawCRCMismatch)
-		{
+	if (sawCRCMismatch)
+	{
 #ifdef DEBUG_LOGGING
-			DEBUG_LOG(("CRC Mismatch - saw %d CRCs from %d players", m_cachedCRCs.size(), numPlayers));
-			for (CachedCRCMap::const_iterator crcIt = m_cachedCRCs.begin(); crcIt != m_cachedCRCs.end(); ++crcIt)
-			{
-				Player* player = ThePlayerList->getNthPlayer(crcIt->first);
-				DEBUG_LOG(("CRC from player %d (%ls) = %X", crcIt->first,
-				           player ? player->getPlayerDisplayName().str() : L"<NONE>", crcIt->second));
-			}
-#endif    // DEBUG_LOGGING
-			TheNetwork->setSawCRCMismatch();
+		DEBUG_LOG(("CRC Mismatch - saw %d CRCs from %d players", m_cachedCRCs.size(), numPlayers));
+		for (CachedCRCMap::const_iterator crcIt = m_cachedCRCs.begin(); crcIt != m_cachedCRCs.end(); ++crcIt)
+		{
+			Player* player = ThePlayerList->getNthPlayer(crcIt->first);
+			DEBUG_LOG(("CRC from player %d (%ls) = %X", crcIt->first,
+			           player ? player->getPlayerDisplayName().str() : L"<NONE>", crcIt->second));
 		}
+#endif    // DEBUG_LOGGING
+
+		TheNetwork->setSawCRCMismatch();
 	}
 }
 
