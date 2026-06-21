@@ -192,11 +192,12 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 		return 1.0;
 	}
 	vec3 n = normalize(nrm);
-	float ndotl = clamp(dot(n, normalize(u_lightDirs[0].xyz)), 0.0, 1.0);
+	vec3 lightDir = normalize(u_lightDirs[0].xyz);
+	float ndotl = clamp(dot(n, lightDir), 0.0, 1.0);
 	float slope = 1.0 + 2.0 * (1.0 - ndotl);
 	float texel = u_shadowParams.x; // shadow-map texel in UV (1 / map size)
 	float bias = u_shadowParams.y;
-	vec3 biasedPos = worldPos + n * (SUN_SHADOW_NORMAL_OFFSET * slope);
+	vec3 biasedPos = worldPos + lightDir * (SUN_SHADOW_NORMAL_OFFSET * slope);
 	vec4 sc = mul(u_shadowMatrices[0], vec4(biasedPos, 1.0));
 	if (sc.w <= 0.0)
 	{
@@ -245,8 +246,11 @@ float sunShadowFactor(vec3 worldPos, vec3 rawNormal)
 	{
 		return 1.0;
 	}
-	float lit = sampleSunShadow(worldPos, vec3(0.0, 0.0, 1.0));
-	return mix(1.0 - u_shadowParams.z, 1.0, lit);
+	float normalLen2 = dot(rawNormal, rawNormal);
+	vec3 receiverNormal = (normalLen2 > 1e-6) ? rawNormal : vec3(0.0, 0.0, 1.0);
+	float lit = sampleSunShadow(worldPos, receiverNormal);
+	float receiverWeight = smoothstep(0.20, 0.45, receiverNormal.z);
+	return mix(1.0, mix(1.0 - u_shadowParams.z, 1.0, lit), receiverWeight);
 }
 
 // TheSuperHackers @feature bobtista 18/06/2026 Lightweight anisotropic base-texture sampling.
@@ -326,7 +330,7 @@ void main()
 		// TheSuperHackers @bugfix bobtista 16/06/2026 Terrain returns from this branch
 		// before the generic shadow apply below, so the sun shadow has to be applied here
 		// too - otherwise cast shadows land on roads/decals/objects but skip the ground.
-		result.rgb *= sunShadowFactor(v_worldPos, v_normal);
+		result.rgb *= sunShadowFactor(v_worldPos, vec3(0.0, 0.0, 1.0));
 
 		gl_FragColor = result;
 		return;
@@ -670,6 +674,15 @@ void main()
 		// data and geometry normals (no new art).
 		vec3 viewDir = normalize(u_eyePos.xyz - v_worldPos);
 		vec3 specAccum = vec3(0.0, 0.0, 0.0);
+		// The old W3D files often carry broad, nearly-white specular values with
+		// shininess near zero. For the optional bgfx material FX path, treat those
+		// as hints and remap them to a narrower modern highlight instead of using
+		// them literally.
+		float authoredShininess = max(u_matSpecular.w, 0.0);
+		float specPower = (authoredShininess < 2.0)
+			? (10.0 + authoredShininess * 22.0)
+			: min(max(authoredShininess, 10.0), 96.0);
+		vec3 specFxColor = min(u_matSpecular.rgb, vec3_splat(0.85));
 		// D3D fixed-function folds emissive into the material color before
 		// texture-stage modulation. Adding it after sampling bleaches tinted
 		// self-lit textures like the shellmap police roof lights to white.
@@ -698,8 +711,7 @@ void main()
 				{
 					vec3 halfV = normalize(ldir + viewDir);
 					float nDotH = max(0.0, dot(nrm, halfV));
-					float shininess = max(u_matSpecular.w, 1.0);
-					specAccum += u_lightColors[li].rgb * pow(nDotH, shininess) * atten;
+					specAccum += u_lightColors[li].rgb * pow(nDotH, specPower) * atten;
 				}
 			}
 		}
@@ -772,17 +784,19 @@ void main()
 		// foliage, infantry cards, and blended effect meshes have flat or grazing
 		// normals that otherwise wash out to white. Solid meshes keep the full effect.
 		float fxMask = (u_atestParams.y > 0.5) ? 0.0 : current.a;
-		// Headroom guard: fade the additive FX as the surface approaches white, so bright
-		// sun-facing roofs and glossy domes (which already sit near 1.0) cannot be pushed
-		// to a flat white. Specular/rim stay visible on darker, mid-tone surfaces.
+		// Headroom guard: keep additive FX bounded as the surface approaches white, so
+		// bright sun-facing roofs and glossy domes still get a visible highlight without
+		// being pushed into a flat white blob.
 		float fxHeadroom = max(0.0, 1.0 - max(max(current.r, current.g), current.b));
-		fxMask *= fxHeadroom;
+		fxMask *= (0.45 + 0.55 * fxHeadroom);
 		float rim = pow(1.0 - max(0.0, dot(nrm, viewDir)), u_matFx.z) * u_matFx.y;
-		vec3 fxAdd = (specAccum * u_matSpecular.rgb * u_matFx.x + rim * litDiffuse.rgb) * fxMask;
+		vec3 fxAdd = (specAccum * specFxColor * u_matFx.x + rim * litDiffuse.rgb) * fxMask;
 		// Exposure-style soft add: brightens toward white but can never overshoot it, so
 		// strong settings roll grazing-angle surfaces (tunnel walls, vehicle bodies) into
 		// a smooth highlight instead of hard-clamping them to a flat white blob.
-		current.rgb = 1.0 - (1.0 - current.rgb) * exp(-fxAdd);
+		vec3 fxLit = 1.0 - (1.0 - current.rgb) * exp(-fxAdd);
+		float maxFxLift = 0.14 + 0.22 * fxHeadroom;
+		current.rgb = min(fxLit, current.rgb + vec3_splat(maxFxLift));
 	}
 	else
 	{
@@ -838,7 +852,7 @@ void main()
 		// This shares the cloud gate (w > 0.5) that already distinguishes ground draws from
 		// units/buildings/effects (which render after the terrain pass with w == 0 and only
 		// cast), so it cannot re-introduce the object self-shadow blob.
-		current.rgb *= sunShadowFactor(v_worldPos, v_normal);
+		current.rgb *= sunShadowFactor(v_worldPos, vec3(0.0, 0.0, 1.0));
 	}
 	else if (u_sunShadowReceive.x > 0.5)
 	{
