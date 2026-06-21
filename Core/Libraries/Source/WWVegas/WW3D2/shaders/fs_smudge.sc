@@ -21,5 +21,7 @@ void main()
 	vec2 clipUV = clamp(u_smudgeClip.zw, vec2(0.0, 0.0), vec2(1.0, 1.0));
 	vec2 uv = clamp(v_texcoord0, vec2(0.0, 0.0), clipUV);
 	vec3 scene = texture2D(s_tex0, uv).rgb;
-	gl_FragColor = vec4(scene, mask);
+	// Warm modulation matching the DX8 0xffeedd smudge diffuse tint.
+	vec3 warmTint = vec3(1.0, 0.9333, 0.8667);
+	gl_FragColor = vec4(scene * warmTint, mask);
 }
