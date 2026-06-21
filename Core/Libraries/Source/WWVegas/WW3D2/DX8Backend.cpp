@@ -724,7 +724,9 @@ RenderBackendTextureLimits DX8Backend::Get_Texture_Limits() const
         dx8caps.MaxTextureWidth,
         dx8caps.MaxTextureHeight,
         dx8caps.MaxVolumeExtent,
-        dx8caps.MaxTextureAspectRatio != 0 ? dx8caps.MaxTextureAspectRatio : 8
+        // TheSuperHackers @bugfix bobtista 22/06/2026 The original clamped to a literal 8
+        // regardless of the (often 0 = unrestricted) MaxTextureAspectRatio cap; keep that.
+        8u
     };
 }
 
@@ -1345,7 +1347,16 @@ void DX8Backend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & 
         Set_Shader(*state.shader);
     }
     Set_Material(state.material);
-    for (unsigned i = 0; i < RB_MAX_TEXTURE_STAGES; ++i)
+    // TheSuperHackers @bugfix bobtista 22/06/2026 Bind only the stages the device
+    // supports (the original sorted-draw path looped Get_Max_Textures_Per_Pass()).
+    // Setting beyond the cap trips a debug assert in Commit_Fixed_Function_Texture.
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    unsigned max_stages = RB_MAX_TEXTURE_STAGES;
+    if (caps != nullptr && (unsigned)caps->Get_Max_Textures_Per_Pass() < max_stages)
+    {
+        max_stages = (unsigned)caps->Get_Max_Textures_Per_Pass();
+    }
+    for (unsigned i = 0; i < max_stages; ++i)
     {
         Set_Texture(i, state.textures[i]);
     }
