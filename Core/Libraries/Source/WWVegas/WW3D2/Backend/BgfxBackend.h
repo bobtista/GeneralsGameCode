@@ -301,7 +301,8 @@ public:
     virtual void End_Water_Overlay() override;
     virtual void Begin_Effect_Overlay() override;
     virtual void End_Effect_Overlay() override;
-    virtual bool Begin_Smudge_Distortion() override;
+    virtual bool Begin_Smudge_Distortion(float tactical_width_fraction = 1.0f,
+                                         float tactical_height_fraction = 1.0f) override;
     virtual void End_Smudge_Distortion() override;
 
     // Tree / grass sway shader hooks (see IRenderBackend.h).
