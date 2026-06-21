@@ -4762,19 +4762,29 @@ static uint64_t g_dvwVerts = 0;
 
 class ScopedSectionTimer
 {
-    PerfSection & m_section;
+    PerfSection * m_section;
     long long m_start;
 public:
     explicit ScopedSectionTimer(PerfSectionId id)
-        : m_section(g_perf_sections[id])
+        : m_section(nullptr)
+        , m_start(0)
     {
+        if (g_timing.target_frame <= 0 || g_timing.base_path[0] == '\0')
+        {
+            return;
+        }
+        m_section = &g_perf_sections[id];
         LARGE_INTEGER c; QueryPerformanceCounter(&c); m_start = c.QuadPart;
     }
     ~ScopedSectionTimer()
     {
+        if (m_section == nullptr)
+        {
+            return;
+        }
         LARGE_INTEGER c; QueryPerformanceCounter(&c);
-        m_section.total_ticks += c.QuadPart - m_start;
-        m_section.calls++;
+        m_section->total_ticks += c.QuadPart - m_start;
+        m_section->calls++;
     }
 };
 #define PERF_TIME(id) ScopedSectionTimer _pst_##id(id)
@@ -7230,34 +7240,40 @@ static bool IsMissingOrUnavailableTexture(TextureBaseClass * texture, bgfx::Text
 
 static bool ShouldLogBgfxShroudPass()
 {
-    return std::getenv("GGC_BGFX_SHROUD_PASS_DIAG") != nullptr;
+    static const bool enabled = std::getenv("GGC_BGFX_SHROUD_PASS_DIAG") != nullptr;
+    return enabled;
 }
 
 static bool ShouldLogBgfxSortedDecals()
 {
-    return std::getenv("GGC_BGFX_SORTED_DECAL_DIAG") != nullptr;
+    static const bool enabled = std::getenv("GGC_BGFX_SORTED_DECAL_DIAG") != nullptr;
+    return enabled;
 }
 
 static bool ShouldLogBgfxRevealDiag()
 {
-    return std::getenv("GGC_BGFX_REVEAL_DIAG") != nullptr;
+    static const bool enabled = std::getenv("GGC_BGFX_REVEAL_DIAG") != nullptr;
+    return enabled;
 }
 
 static bool ShouldLogBgfxRevealDiagVerbose()
 {
-    return std::getenv("GGC_BGFX_REVEAL_DIAG_VERBOSE") != nullptr;
+    static const bool enabled = std::getenv("GGC_BGFX_REVEAL_DIAG_VERBOSE") != nullptr;
+    return enabled;
 }
 
 static bool ShouldLogBgfxEffectSubmitDiag()
 {
-    return std::getenv("GGC_BGFX_EFFECT_SUBMIT_DIAG") != nullptr;
+    static const bool enabled = std::getenv("GGC_BGFX_EFFECT_SUBMIT_DIAG") != nullptr;
+    return enabled;
 }
 
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage);
 
 static bool ShouldAllowBgfxDiagnosticDrawOverrides()
 {
-    return std::getenv("GGC_BGFX_ENABLE_DIAGNOSTIC_OVERRIDES") != nullptr;
+    static const bool enabled = std::getenv("GGC_BGFX_ENABLE_DIAGNOSTIC_OVERRIDES") != nullptr;
+    return enabled;
 }
 
 static const char * TextureDebugName(TextureBaseClass * texture)
@@ -7795,8 +7811,17 @@ static bool ShouldBindSortedParticleBaseMip(unsigned stage)
 
 static bool IsStrategyCenterSlabTexture(TextureBaseClass *texture)
 {
+    static TextureBaseClass *s_lastTexture = nullptr;
+    static bool s_lastResult = false;
+    if (texture == s_lastTexture)
+    {
+        return s_lastResult;
+    }
+
+    s_lastTexture = texture;
     const char *name = TextureDebugName(texture);
-    return ContainsCaseInsensitive(name, "atstratslab");
+    s_lastResult = ContainsCaseInsensitive(name, "atstratslab");
+    return s_lastResult;
 }
 
 static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
@@ -11550,6 +11575,9 @@ void SubmitEngineDraw(unsigned short start_index,
     const bool writesDepth = (state & BGFX_STATE_WRITE_Z) != 0;
     const bool isBlended = (state & BGFX_STATE_BLEND_MASK) != 0;
     const bool isAlphaTested = g_overrides.atestActive ? (g_overrides.atestFunc > 0.0f) : g_draw.atestEnabled;
+    // Projected decals are receiver-space overlays, not physical casters.
+    const bool isProjectedDecal =
+        GetEffectiveProjectedDecalModeForCurrentDraw() != RB_PROJECTED_DECAL_NONE;
     const bool isSceneDepthCaster =
         submitView == kBgfxEngineView
         && !g_views.overlay2DActive
@@ -11564,8 +11592,6 @@ void SubmitEngineDraw(unsigned short start_index,
     // into the visible ground.
     // Projected decals are visual receiver-space overlays, not physical casters. Mirroring them
     // into the sun shadow map would turn effects/ground marks into real occluders.
-    const bool isProjectedDecal =
-        GetEffectiveProjectedDecalModeForCurrentDraw() != RB_PROJECTED_DECAL_NONE;
     const bool isShadowCaster =
         submitView == kBgfxEngineView
         && !g_views.overlay2DActive
