@@ -185,9 +185,9 @@ Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int hei
 Bool W3DSmudgeManager::testHardwareSupport()
 {
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 27/04/2026 Standalone bgfx samples
-	// the scene-color framebuffer directly for smudge/heat-haze distortion,
-	// so it no longer needs the old DX8 CopyRects support test.
+	// TheSuperHackers @feature bobtista 27/04/2026 Standalone bgfx resolves
+	// the scene framebuffer internally for smudge distortion, so it no longer
+	// needs the old DX8 CopyRects support test.
 	m_hardwareSupportStatus = SMUDGE_SUPPORT_YES;
 	return TRUE;
 #else
@@ -358,6 +358,11 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 	Real texClampX = (Real)TheTacticalView->getWidth()/(Real)surface_desc.Width;
 	Real texClampY = (Real)TheTacticalView->getHeight()/(Real)surface_desc.Height;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	const ViewportClass &viewport = camera.Get_Viewport();
+	texClampX = viewport.Max.X;
+	texClampY = viewport.Max.Y;
+#endif
 
 	Real texScaleX = texClampX*0.5f;
 	Real texScaleY = texClampY*0.5f;
@@ -408,12 +413,10 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 				Vector2 &thisUV=verts[i].uv;
 
-				// Zero coordinates that fall outside valid texel bounds
-				if (thisUV.X < 0 || thisUV.X > texClampX)
-					offset.X = 0;
-
-				if (thisUV.Y < 0 || thisUV.Y > texClampY)
-					offset.Y = 0;
+				// Clamp corner sample coordinates without damping the center offset;
+				// this matches the fixed DX8 smudge behavior from PR #1073.
+				thisUV.X = WWMath::Clamp(thisUV.X, 0.0f, texClampX);
+				thisUV.Y = WWMath::Clamp(thisUV.Y, 0.0f, texClampY);
 			}
 
 			//Finish center vertex
@@ -467,7 +470,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 		m_backgroundTexture->Update_Surface_Level_From_Surface(0, image);
 	}
 #else
-	if (!g_renderBackend || !g_renderBackend->Begin_Smudge_Distortion())
+	if (!g_renderBackend || !g_renderBackend->Begin_Smudge_Distortion(texClampX, texClampY))
 		return;
 
 	bgfxSmudgeActive = TRUE;
@@ -534,22 +537,6 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 					//Set center vertex opacity.
 					Real opacity = smudge->m_opacity;
-#if defined(GGC_RENDER_BACKEND_BGFX)
-#if defined(RTS_ZEROHOUR)
-					if (TheGlobalData)
-					{
-						opacity *= TheGlobalData->m_bgfxHeatHazeOpacityScale;
-						if (opacity < 0.0f)
-						{
-							opacity = 0.0f;
-						}
-						else if (opacity > 1.0f)
-						{
-							opacity = 1.0f;
-						}
-					}
-#endif
-#endif
 					vertexDiffuse[4] = ((Int)(opacity * 255.0f) << 24) | THE_COLOR;
 
 					for (Int i=0; i<5; i++)
