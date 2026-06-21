@@ -1117,7 +1117,7 @@ GlobalData::GlobalData()
 	m_bgfxSSAOIntensity = 1.0f;
 	m_bgfxRenderScale = 1.0f;
 	m_bgfxSpecular = FALSE;
-	m_bgfxSpecularStrength = 1.0f;
+	m_bgfxSpecularStrength = 3.0f;
 	m_bgfxRimLight = FALSE;
 	m_bgfxRimStrength = 0.3f;
 	m_bgfxRimPower = 3.0f;
