@@ -3770,6 +3770,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uShadowBias  = bgfx::createUniform("u_shadowBias",  bgfx::UniformType::Vec4);
     g_uniforms.uPostParams = bgfx::createUniform("u_postParams", bgfx::UniformType::Vec4);
     g_uniforms.uPostTexelSize = bgfx::createUniform("u_postTexelSize", bgfx::UniformType::Vec4);
+    g_uniforms.uSmudgeClip = bgfx::createUniform("u_smudgeClip", bgfx::UniformType::Vec4);
     g_uniforms.uWipeParams = bgfx::createUniform("u_wipeParams", bgfx::UniformType::Vec4);
     g_uniforms.uColorGradeParams = bgfx::createUniform("u_colorGradeParams", bgfx::UniformType::Vec4);
     g_uniforms.uBloomParams = bgfx::createUniform("u_bloomParams", bgfx::UniformType::Vec4);
@@ -3977,6 +3978,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uShadowColor);
         DestroyBgfxHandle(g_uniforms.uPostParams);
         DestroyBgfxHandle(g_uniforms.uPostTexelSize);
+        DestroyBgfxHandle(g_uniforms.uSmudgeClip);
         DestroyBgfxHandle(g_uniforms.uWipeParams);
         DestroyBgfxHandle(g_uniforms.uColorGradeParams);
         DestroyBgfxHandle(g_uniforms.uBloomParams);
@@ -4533,6 +4535,10 @@ void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
     bgfx::setViewRect(kBgfxSceneDepthView, sx, sy, sw, sh);
     bgfx::setViewRect(kBgfxSmudgeCopyView, sx, sy, sw, sh);
     bgfx::setViewRect(kBgfxSmudgeView, sx, sy, sw, sh);
+    g_views.sceneViewportX = sx;
+    g_views.sceneViewportY = sy;
+    g_views.sceneViewportW = sw;
+    g_views.sceneViewportH = sh;
     bgfx::setViewRect(kBgfxRTTView, x, y, w, h);
 }
 
@@ -10016,7 +10022,8 @@ void BgfxBackend::End_Effect_Overlay()
     g_views.effectOverlayActive = false;
 }
 
-bool BgfxBackend::Begin_Smudge_Distortion()
+bool BgfxBackend::Begin_Smudge_Distortion(float tactical_width_fraction,
+                                          float tactical_height_fraction)
 {
     const BgfxDiagnosticFlags diagnostics = GetBgfxDiagnosticFlags();
     if (diagnostics.noSceneFramebuffer
@@ -10032,9 +10039,35 @@ bool BgfxBackend::Begin_Smudge_Distortion()
         return false;
     }
 
-    // Resolve-draw the (possibly MSAA) scene color into the single-sample snapshot;
-    // bgfx::blit cannot read a multisampled source. The view rect/transform/target
-    // are set up in the per-frame view setup.
+    const float sceneWidth = static_cast<float>(g_device.sceneRenderWidth != 0 ? g_device.sceneRenderWidth : g_device.width);
+    const float sceneHeight = static_cast<float>(g_device.sceneRenderHeight != 0 ? g_device.sceneRenderHeight : g_device.height);
+    uint16_t viewportX = g_views.sceneViewportW != 0 ? g_views.sceneViewportX : 0;
+    uint16_t viewportY = g_views.sceneViewportH != 0 ? g_views.sceneViewportY : 0;
+    uint16_t viewportW = g_views.sceneViewportW != 0 ? g_views.sceneViewportW : static_cast<uint16_t>(sceneWidth);
+    uint16_t viewportH = g_views.sceneViewportH != 0 ? g_views.sceneViewportH : static_cast<uint16_t>(sceneHeight);
+    const float passedClipX = WWMath::Clamp(tactical_width_fraction, 0.0f, 1.0f);
+    const float passedClipY = WWMath::Clamp(tactical_height_fraction, 0.0f, 1.0f);
+    if (sceneWidth > 0.0f && sceneHeight > 0.0f
+        && (passedClipX < 0.999f || passedClipY < 0.999f))
+    {
+        viewportX = 0;
+        viewportY = 0;
+        viewportW = static_cast<uint16_t>(sceneWidth * passedClipX + 0.5f);
+        viewportH = static_cast<uint16_t>(sceneHeight * passedClipY + 0.5f);
+    }
+    bgfx::setViewRect(kBgfxSmudgeCopyView, 0, 0,
+                      static_cast<uint16_t>(sceneWidth),
+                      static_cast<uint16_t>(sceneHeight));
+    bgfx::setViewRect(kBgfxSmudgeView, viewportX, viewportY, viewportW, viewportH);
+    g_views.smudgeClip[0] = sceneWidth > 0.0f ? 1.0f / sceneWidth : 1.0f;
+    g_views.smudgeClip[1] = sceneHeight > 0.0f ? 1.0f / sceneHeight : 1.0f;
+    g_views.smudgeClip[2] = sceneWidth > 0.0f
+        ? WWMath::Clamp(static_cast<float>(viewportX + viewportW) / sceneWidth, 0.0f, 1.0f)
+        : passedClipX;
+    g_views.smudgeClip[3] = sceneHeight > 0.0f
+        ? WWMath::Clamp(static_cast<float>(viewportY + viewportH) / sceneHeight, 0.0f, 1.0f)
+        : passedClipY;
+
     bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor,
                      BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
@@ -11244,18 +11277,19 @@ void SubmitEngineDraw(unsigned short start_index,
 
     if (g_views.smudgeActive)
     {
-        if (bgfx::isValid(g_device.smudgeProgram)
-            && bgfx::isValid(g_device.sceneSmudgeCopy)
-            && bgfx::isValid(g_uniforms.sTex0))
+        if (bgfx::isValid(g_device.smudgeProgram))
         {
             bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneSmudgeCopy,
                              BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
-            g_stats.textureBinds++;
-            bgfx::setState(BGFX_STATE_WRITE_RGB
-                           | BGFX_STATE_DEPTH_TEST_ALWAYS
-                           | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
-                                                   BGFX_STATE_BLEND_INV_SRC_ALPHA)
-                           | BGFX_STATE_MSAA);
+			if (bgfx::isValid(g_uniforms.uSmudgeClip))
+			{
+				bgfx::setUniform(g_uniforms.uSmudgeClip, g_views.smudgeClip);
+			}
+			bgfx::setState(BGFX_STATE_WRITE_RGB
+						   | BGFX_STATE_DEPTH_TEST_ALWAYS
+						   | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
+												   BGFX_STATE_BLEND_INV_SRC_ALPHA)
+						   | BGFX_STATE_MSAA);
             bgfx::submit(kBgfxSmudgeView, g_device.smudgeProgram);
             g_stats.smudgeSubmits++;
         }

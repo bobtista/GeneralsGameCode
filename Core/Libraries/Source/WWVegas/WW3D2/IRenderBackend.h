@@ -1037,7 +1037,8 @@ public:
     // Used by dazzle/lens-flare effects that need to render on top of water.
     virtual void Begin_Effect_Overlay() {}
     virtual void End_Effect_Overlay() {}
-    virtual bool Begin_Smudge_Distortion() { return false; }
+    virtual bool Begin_Smudge_Distortion(float tactical_width_fraction = 1.0f,
+                                         float tactical_height_fraction = 1.0f) { return false; }
     virtual void End_Smudge_Distortion() {}
     virtual void Clear_State_Overrides() {}
 
