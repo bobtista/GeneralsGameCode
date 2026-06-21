@@ -2978,27 +2978,27 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 		g_renderBackend->Override_Alpha_Blend_Enable(true);
 		g_renderBackend->Override_Material_Opacity(WATER_MESH_OPACITY);
 
-			// TheSuperHackers @bugfix bobtista 22/06/2026 The shoreline pass authors the
-			// back-buffer alpha gradient on the dx8 reference (renderShoreLines), so the
-			// soft-water DESTALPHA edge reads a real gradient there just like the original.
-			// Keep bgfx on source-alpha water: the dest-alpha mask is heightmap-only and
-			// treats mesh rocks as deep water, which paints opaque blue collars around them.
-			if (g_renderBackend->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
-				&& TheGlobalData->m_showSoftWaterEdge
-				&& TheWaterTransparency->m_transparentWaterDepth !=0
-				&& !g_renderBackend->Has_Shader_Pipeline())
+		// TheSuperHackers @bugfix bobtista 22/06/2026 The shoreline pass authors the
+		// back-buffer alpha gradient on the dx8 reference (renderShoreLines), so the
+		// soft-water DESTALPHA edge reads a real gradient there just like the original.
+		// Keep bgfx on source-alpha water: the dest-alpha mask is heightmap-only and
+		// treats mesh rocks as deep water, which paints opaque blue collars around them.
+		if (g_renderBackend->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
+			&& TheGlobalData->m_showSoftWaterEdge
+			&& TheWaterTransparency->m_transparentWaterDepth !=0
+			&& !g_renderBackend->Has_Shader_Pipeline())
+		{
+			if (TheWaterTransparency->m_additiveBlend)
 			{
-				if (TheWaterTransparency->m_additiveBlend)
-				{
 				g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_ONE);
 			}
 			else
 			{
-					g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
-				}
+				g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
 			}
+		}
 
-			CullMode cull = g_renderBackend->Get_Cull_Mode();
+		CullMode cull = g_renderBackend->Get_Cull_Mode();
 		g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
 
 		g_renderBackend->Draw_Triangles(	0,totalRectangleCount*2, 0,	batchVertexCount);
