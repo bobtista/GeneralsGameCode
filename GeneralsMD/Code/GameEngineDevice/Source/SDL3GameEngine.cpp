@@ -481,7 +481,7 @@ void SDL3GameEngine::handleKeyboardEvent(const SDL_KeyboardEvent &event)
 				break;
 			case SDL_SCANCODE_P:
 				gd->m_bgfxSpecular = !gd->m_bgfxSpecular;
-				gd->m_bgfxSpecularStrength = 1.0f;
+				gd->m_bgfxSpecularStrength = 3.0f;
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Specular %s", gd->m_bgfxSpecular ? L"ON" : L"OFF"); }
 				break;
 			case SDL_SCANCODE_L:
