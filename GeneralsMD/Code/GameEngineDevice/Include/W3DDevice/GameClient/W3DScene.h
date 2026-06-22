@@ -89,6 +89,9 @@ public:
 	void destroyLightsIterator(RefRenderObjListIterator * it);
 	RefRenderObjListClass *getDynamicLights() {return &m_dynamicLightList;};
 	W3DDynamicLight *getADynamicLight();
+	// TheSuperHackers @feature bobtista 23/06/2026 Returns the brightest enabled CastsShadows
+	// dynamic light (by current diffuse magnitude), or NULL. Drives the single point-shadow map.
+	W3DDynamicLight *getStrongestShadowCastingDynamicLight(void);
 	void setGlobalLight(LightClass *pLight,Int lightIndex=0);
 	LightEnvironmentClass &getDefaultLightEnv() {return m_defaultLightEnv;}
 
