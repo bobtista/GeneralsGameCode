@@ -50,6 +50,7 @@
 #include "GameClient/Display.h"
 #include "GameClient/View.h"
 #include "W3DDevice/GameClient/HeightMap.h"
+#include "W3DDevice/GameClient/W3DDisplay.h"
 #include "W3DDevice/GameClient/W3DScene.h"
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
@@ -2092,6 +2093,49 @@ W3DDynamicLight * RTS3DScene::getStrongestShadowCastingDynamicLight(void)
 	}
 	return best;
 }
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+// TheSuperHackers @feature bobtista 23/06/2026 Engine accessor mirroring the GGC_GetBgfx* family:
+// the bgfx backend (Core) calls this to find the strongest shadow-casting dynamic light in the live
+// scene so it can render a perspective shadow map from that light's POV. Fills outPosRange with the
+// light's world position (xyz) and far-attenuation range (w), and outDiffuseBias with its current
+// diffuse magnitude (x) and shadow bias (y). Returns 1 when an active caster light exists, 0 otherwise.
+extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias)
+{
+	RTS3DScene *scene = W3DDisplay::m_3DScene;
+	if (scene == NULL)
+	{
+		return 0;
+	}
+	W3DDynamicLight *light = scene->getStrongestShadowCastingDynamicLight();
+	if (light == NULL)
+	{
+		return 0;
+	}
+
+	const Vector3 pos = light->Get_Position();
+	double farStart = 0.0;
+	double farEnd = 0.0;
+	light->Get_Far_Attenuation_Range(farStart, farEnd);
+	Vector3 diffuse;
+	light->Get_Diffuse(&diffuse);
+	const Real diffuseMag = diffuse.X + diffuse.Y + diffuse.Z;
+
+	if (outPosRange != NULL)
+	{
+		outPosRange[0] = pos.X;
+		outPosRange[1] = pos.Y;
+		outPosRange[2] = pos.Z;
+		outPosRange[3] = static_cast<float>(farEnd);
+	}
+	if (outDiffuseBias != NULL)
+	{
+		outDiffuseBias[0] = diffuseMag;
+		outDiffuseBias[1] = light->getShadowBias();
+	}
+	return 1;
+}
+#endif
 
 //=============================================================================
 // RTS3DScene::removeDynamicLight
