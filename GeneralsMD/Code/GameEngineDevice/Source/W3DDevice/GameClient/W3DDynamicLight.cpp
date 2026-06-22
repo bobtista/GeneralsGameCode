@@ -35,6 +35,8 @@ LightClass(LightClass::POINT)
 
 	m_priorEnable = false;
 	m_enabled = true;
+	m_castsShadows = FALSE;
+	m_shadowBias = 0.0f;
 
 }
 

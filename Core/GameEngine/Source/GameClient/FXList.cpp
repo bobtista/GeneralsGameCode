@@ -315,7 +315,7 @@ class LightPulseFXNugget : public FXNugget
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(LightPulseFXNugget, "LightPulseFXNugget")
 public:
 
-	LightPulseFXNugget() : m_radius(0), m_increaseFrames(0), m_decreaseFrames(0), m_boundingCirclePct(0)
+	LightPulseFXNugget() : m_radius(0), m_increaseFrames(0), m_decreaseFrames(0), m_boundingCirclePct(0), m_castsShadows(false), m_shadowBias(0.0f)
 	{
 		m_color.red = m_color.green = m_color.blue = 0;
 	}
@@ -329,7 +329,7 @@ public:
 			if (m_boundingCirclePct > 0)
 				radius = (primary->getGeometryInfo().getBoundingCircleRadius() * m_boundingCirclePct);
 
-			TheDisplay->createLightPulse(primary->getPosition(), &m_color, 1, radius, m_increaseFrames, m_decreaseFrames);
+			TheDisplay->createLightPulse(primary->getPosition(), &m_color, 1, radius, m_increaseFrames, m_decreaseFrames, m_castsShadows, m_shadowBias);
 		}
 		else
 		{
@@ -341,7 +341,7 @@ public:
 	{
 		if (primary)
 		{
-			TheDisplay->createLightPulse(primary, &m_color, 1, m_radius, m_increaseFrames, m_decreaseFrames);
+			TheDisplay->createLightPulse(primary, &m_color, 1, m_radius, m_increaseFrames, m_decreaseFrames, m_castsShadows, m_shadowBias);
 		}
 		else
 		{
@@ -358,6 +358,8 @@ public:
 			{ "RadiusAsPercentOfObjectSize",		INI::parsePercentToReal,	nullptr, offsetof( LightPulseFXNugget, m_boundingCirclePct ) },
 			{ "IncreaseTime",			INI::parseDurationUnsignedInt,	nullptr, offsetof( LightPulseFXNugget, m_increaseFrames ) },
 			{ "DecreaseTime",			INI::parseDurationUnsignedInt,	nullptr, offsetof( LightPulseFXNugget, m_decreaseFrames ) },
+			{ "CastsShadows",			INI::parseBool,									nullptr, offsetof( LightPulseFXNugget, m_castsShadows ) },
+			{ "ShadowBias",				INI::parseReal,									nullptr, offsetof( LightPulseFXNugget, m_shadowBias ) },
 			{ nullptr, nullptr, nullptr, 0 }
 		};
 
@@ -372,6 +374,8 @@ private:
 	Real					m_boundingCirclePct;
 	UnsignedInt		m_increaseFrames;
 	UnsignedInt		m_decreaseFrames;
+	Bool					m_castsShadows;
+	Real					m_shadowBias;
 };
 EMPTY_DTOR(LightPulseFXNugget)
 
