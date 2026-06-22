@@ -11300,15 +11300,15 @@ void SubmitEngineDraw(unsigned short start_index,
         {
             bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneSmudgeCopy,
                              BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
-			if (bgfx::isValid(g_uniforms.uSmudgeClip))
-			{
-				bgfx::setUniform(g_uniforms.uSmudgeClip, g_views.smudgeClip);
-			}
-			bgfx::setState(BGFX_STATE_WRITE_RGB
-						   | BGFX_STATE_DEPTH_TEST_ALWAYS
-						   | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
-												   BGFX_STATE_BLEND_INV_SRC_ALPHA)
-						   | BGFX_STATE_MSAA);
+            if (bgfx::isValid(g_uniforms.uSmudgeClip))
+            {
+                bgfx::setUniform(g_uniforms.uSmudgeClip, g_views.smudgeClip);
+            }
+            bgfx::setState(BGFX_STATE_WRITE_RGB
+                           | BGFX_STATE_DEPTH_TEST_ALWAYS
+                           | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
+                                                   BGFX_STATE_BLEND_INV_SRC_ALPHA)
+                           | BGFX_STATE_MSAA);
             bgfx::submit(kBgfxSmudgeView, g_device.smudgeProgram);
             g_stats.smudgeSubmits++;
         }
