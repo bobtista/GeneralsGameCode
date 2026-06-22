@@ -1856,6 +1856,9 @@ const bgfx::ViewId kBgfxSsaoBlurVView    = 19;
 // around the camera focus. Views kBgfxShadowMapView + c render cascade c's tile.
 const int kNumShadowCascades             = 3;
 const bgfx::ViewId kBgfxShadowMapView    = 20;
+// TheSuperHackers @feature bobtista 23/06/2026 Perspective shadow map for one bright dynamic
+// point light (e.g. the nuke fireball). Renders before the engine view that samples it.
+const bgfx::ViewId kBgfxPointShadowView  = 23;
 const uint8_t kBgfxSceneDepthSamplerStage = 6;
 const uint8_t kBgfxShadowMapSamplerStage = 7;
 const float kSoftParticleDepthFadeScale  = 80.0f;
@@ -2757,6 +2760,12 @@ static void DestroySceneFramebuffer()
     g_device.shadowMapTex = BGFX_INVALID_HANDLE;
     g_device.shadowMapDepth = BGFX_INVALID_HANDLE;
     g_device.shadowMapSize = 0;
+    if (bgfx::isValid(g_device.pointShadowFB))
+    {
+        bgfx::destroy(g_device.pointShadowFB);
+    }
+    g_device.pointShadowFB  = BGFX_INVALID_HANDLE;
+    g_device.pointShadowTex = BGFX_INVALID_HANDLE;
     g_device.bloomWidth = 0;
     g_device.bloomHeight = 0;
     g_device.sceneFB = BGFX_INVALID_HANDLE;
@@ -2996,6 +3005,51 @@ static bool CreateSceneFramebuffer()
             }
             WWDEBUG_SAY(("[BgfxBackend] Sun shadow map creation FAILED."));
             std::fprintf(stderr, "[ggc] sun shadow map target allocation FAILED.\n");
+        }
+    }
+
+    // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map: 1024x1024 perspective
+    // depth target for the brightest dynamic point light (e.g. nuke fireball).
+    {
+        const uint16_t pointShadowSize = 1024;
+        const uint64_t pointShadowColorFlags = BGFX_TEXTURE_RT
+            | BGFX_SAMPLER_POINT
+            | BGFX_SAMPLER_U_CLAMP
+            | BGFX_SAMPLER_V_CLAMP;
+        bgfx::TextureHandle pointShadowColor = bgfx::createTexture2D(
+            pointShadowSize, pointShadowSize, false, 1, bgfx::TextureFormat::R32F, pointShadowColorFlags);
+        bgfx::TextureHandle pointShadowDepth = bgfx::createTexture2D(
+            pointShadowSize, pointShadowSize, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::FrameBufferHandle pointShadowFB = BGFX_INVALID_HANDLE;
+        if (bgfx::isValid(pointShadowColor) && bgfx::isValid(pointShadowDepth))
+        {
+            bgfx::TextureHandle pointShadowAttachments[2] = { pointShadowColor, pointShadowDepth };
+            pointShadowFB = bgfx::createFrameBuffer(2, pointShadowAttachments, true);
+        }
+        if (bgfx::isValid(pointShadowFB))
+        {
+            g_device.pointShadowFB  = pointShadowFB;
+            g_device.pointShadowTex = pointShadowColor;
+            bgfx::setName(g_device.pointShadowTex, "pointShadowMapR32F");
+            bgfx::setName(pointShadowDepth, "pointShadowMapD24S8");
+            if (BgfxDiagVerbose())
+            {
+                std::fprintf(stderr, "[ggc] point shadow map target allocated (%ux%u).\n",
+                             pointShadowSize, pointShadowSize);
+            }
+        }
+        else
+        {
+            if (bgfx::isValid(pointShadowColor))
+            {
+                bgfx::destroy(pointShadowColor);
+            }
+            if (bgfx::isValid(pointShadowDepth))
+            {
+                bgfx::destroy(pointShadowDepth);
+            }
+            WWDEBUG_SAY(("[BgfxBackend] Point shadow map creation FAILED."));
+            std::fprintf(stderr, "[ggc] point shadow map target allocation FAILED.\n");
         }
     }
 
@@ -3720,6 +3774,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uShadowQuality = bgfx::createUniform("u_shadowQuality", bgfx::UniformType::Vec4);
     g_uniforms.uSunShadowReceive = bgfx::createUniform("u_sunShadowReceive", bgfx::UniformType::Vec4);
     g_uniforms.sShadowMap   = bgfx::createUniform("s_shadowMap",   bgfx::UniformType::Sampler);
+    g_uniforms.uPointShadowMatrix = bgfx::createUniform("u_pointShadowMatrix", bgfx::UniformType::Mat4);
+    g_uniforms.uPointShadowParams = bgfx::createUniform("u_pointShadowParams", bgfx::UniformType::Vec4);
+    g_uniforms.sPointShadowMap    = bgfx::createUniform("s_pointShadowMap",    bgfx::UniformType::Sampler);
     g_uniforms.uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
     g_uniforms.uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
     g_uniforms.uTssOps1     = bgfx::createUniform("u_tssOps1",     bgfx::UniformType::Vec4);
@@ -3815,6 +3872,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         kBgfxShadowMapView,                                 // 20 — sun shadow cascades must
         static_cast<bgfx::ViewId>(kBgfxShadowMapView + 1),  // 21   render BEFORE the engine
         static_cast<bgfx::ViewId>(kBgfxShadowMapView + 2),  // 22   view that samples them
+        kBgfxPointShadowView,                               // 23 — point-light shadow must also
         kBgfxEngineView,
         kBgfxSceneDepthView,
         kBgfxShadowVolumeView,
@@ -4024,6 +4082,9 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uShadowQuality);
         DestroyBgfxHandle(g_uniforms.uSunShadowReceive);
         DestroyBgfxHandle(g_uniforms.sShadowMap);
+        DestroyBgfxHandle(g_uniforms.uPointShadowMatrix);
+        DestroyBgfxHandle(g_uniforms.uPointShadowParams);
+        DestroyBgfxHandle(g_uniforms.sPointShadowMap);
         DestroyBgfxHandle(g_uniforms.uGrayscaleEnable);
         DestroyBgfxHandle(g_device.defaultWhiteTexture);
         DestroyBgfxHandle(g_device.defaultTransparentTexture);
