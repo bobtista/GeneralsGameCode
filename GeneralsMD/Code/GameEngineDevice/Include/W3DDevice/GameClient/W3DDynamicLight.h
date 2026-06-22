@@ -50,6 +50,11 @@ protected:
 
 	Bool		m_enabled;
 
+	// TheSuperHackers @feature bobtista 23/06/2026 Opt-in: this dynamic light renders a
+	// perspective shadow map and shadows its own per-light contribution in the uber shader.
+	Bool		m_castsShadows;
+	Real		m_shadowBias;
+
 	Bool		m_decayRange;
 	Bool		m_decayColor;
 	UnsignedInt m_curDecayFrameCount;
@@ -70,6 +75,11 @@ public:
 
 	void setEnabled(Bool enabled) { m_enabled = enabled; m_decayRange = false; m_decayFrameCount = 0; m_decayColor = false; m_increaseFrameCount = 0;};
 	Bool isEnabled() {return m_enabled;};
+
+	void setCastsShadows(Bool b) { m_castsShadows = b; }
+	Bool getCastsShadows() const { return m_castsShadows; }
+	void setShadowBias(Real b) { m_shadowBias = b; }
+	Real getShadowBias() const { return m_shadowBias; }
 
 
 	/// 0 frameIncreaseTime means it starts out full size/intensity, 0 decay time means it lasts forever.

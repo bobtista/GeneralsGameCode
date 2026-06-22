@@ -2401,8 +2401,8 @@ Bool W3DDisplay::isLetterBoxed()
 void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
 																	 Real innerRadius, Real attenuationWidth,
 																	 UnsignedInt increaseFrameTime,
-																	 UnsignedInt decayFrameTime//, Bool donut
-																	 )
+																	 UnsignedInt decayFrameTime,
+																	 Bool castsShadows, Real shadowBias )
 {
 	if (m_3DScene == nullptr)
 		return;
@@ -2420,7 +2420,8 @@ void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
 	theDynamicLight->setFrameFade(increaseFrameTime, decayFrameTime);
 	theDynamicLight->setDecayRange();
 	theDynamicLight->setDecayColor();
-	//theDynamicLight->setDonut(donut);
+	theDynamicLight->setCastsShadows(castsShadows);
+	theDynamicLight->setShadowBias(shadowBias);
 	// (gth) CNC3 enable far attenuation.  C&C3 defaults to disabled.  Must enable to match Generals. MW 8-06-03
 	theDynamicLight->Set_Flag(LightClass::FAR_ATTENUATION,true);
 }
