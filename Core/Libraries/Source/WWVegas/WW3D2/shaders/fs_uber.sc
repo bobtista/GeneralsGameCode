@@ -15,6 +15,13 @@ uniform vec4 u_matSpecular; // rgb = specular color, w = shininess (Blinn-Phong 
 uniform vec4 u_matFx; // x specular strength, y rim strength, z rim power, w emissive boost
 uniform vec4 u_eyePos; // xyz = world-space camera position
 SAMPLER2D(s_shadowMap, 7);
+// TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map sampler and uniforms.
+// s_pointShadowMap is the depth map rendered from the strongest CastsShadows dynamic light.
+// u_pointShadowMatrix is the world->shadow-clip matrix for that light.
+// u_pointShadowParams: x=lightIndex(-1=none), y=bias, z=texel(1/mapSize), w=strength.
+SAMPLER2D(s_pointShadowMap, 8);
+uniform mat4 u_pointShadowMatrix;
+uniform vec4 u_pointShadowParams;
 uniform mat4 u_shadowMatrices[3]; // per-cascade world -> sun shadow clip
 uniform vec4 u_shadowParams; // x atlas texel size, y depth bias, z strength, w enabled
 uniform vec4 u_shadowQuality; // x: >0.5 = full 36-fetch PCF, else reduced 9-fetch (default)
@@ -283,6 +290,60 @@ float sunShadowFactor(vec3 worldPos, vec3 rawNormal)
 	float lit = sampleSunShadow(worldPos, receiverNormal);
 	float receiverWeight = smoothstep(0.20, 0.45, receiverNormal.z);
 	return mix(1.0, mix(1.0 - u_shadowParams.z, 1.0, lit), receiverWeight);
+}
+
+// TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow lookup. Mirrors sampleSunShadow
+// but projects through u_pointShadowMatrix (a perspective map) and offsets the sample position
+// toward the point light instead of the sun direction. Returns lit fraction [0,1].
+float samplePointShadow(vec3 worldPos, vec3 nrm)
+{
+	if (u_pointShadowParams.x < 0.0)
+	{
+		return 1.0;
+	}
+	int idx = int(u_pointShadowParams.x);
+	vec3 n = normalize(nrm);
+	vec3 toLight = u_lightPositions[idx].xyz - worldPos;
+	float dist = length(toLight);
+	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
+	float ndotl = clamp(dot(n, lightDir), 0.0, 1.0);
+	float slope = 1.0 + 2.0 * (1.0 - ndotl);
+	float texel = u_pointShadowParams.z;
+	float bias = u_pointShadowParams.y;
+	vec3 biasedPos = worldPos + lightDir * (SUN_SHADOW_NORMAL_OFFSET * slope);
+	vec4 sc = mul(u_pointShadowMatrix, vec4(biasedPos, 1.0));
+	if (sc.w <= 0.0)
+	{
+		return 1.0;
+	}
+	vec3 ndc = sc.xyz / sc.w;
+	vec2 cuv = ndc.xy * 0.5 + 0.5;
+#if !BGFX_SHADER_LANGUAGE_GLSL
+	cuv.y = 1.0 - cuv.y;
+#endif
+	if (cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0)
+	{
+		return 1.0;
+	}
+	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
+	float invTexel = 1.0 / texel;
+	float lit = 0.0;
+	for (int dy = -1; dy <= 1; ++dy)
+	{
+		for (int dx = -1; dx <= 1; ++dx)
+		{
+			vec2 sampUV = cuv + vec2(float(dx), float(dy)) * texel;
+			vec2 texelCoord = sampUV * invTexel - 0.5;
+			vec2 fracPart = fract(texelCoord);
+			vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
+			float s00 = (curDepth <= texture2D(s_pointShadowMap, baseUV).x) ? 1.0 : 0.0;
+			float s10 = (curDepth <= texture2D(s_pointShadowMap, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
+			float s01 = (curDepth <= texture2D(s_pointShadowMap, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
+			float s11 = (curDepth <= texture2D(s_pointShadowMap, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
+			lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
+		}
+	}
+	return lit * (1.0 / 9.0);
 }
 
 // TheSuperHackers @feature bobtista 18/06/2026 Lightweight anisotropic base-texture sampling.
@@ -824,6 +885,13 @@ void main()
 					float inner = u_lightParams[li].x;
 					float outer = max(u_lightParams[li].y, inner + 0.0001);
 					atten = 1.0 - clamp((dist - inner) / (outer - inner), 0.0, 1.0);
+					// TheSuperHackers @feature bobtista 23/06/2026 Darken only this light's
+					// contribution when it is the point-shadow caster. The sun term is untouched.
+					if (u_pointShadowParams.x >= 0.0 && float(li) == u_pointShadowParams.x)
+					{
+						float plit = samplePointShadow(v_worldPos, nrm);
+						atten *= mix(1.0 - u_pointShadowParams.w, 1.0, plit);
+					}
 				}
 				float nDotL = max(0.0, dot(nrm, ldir));
 				litColor += (u_lightAmbients[li].rgb * matAmbient + u_lightColors[li].rgb * nDotL * matDiffuse) * atten;
