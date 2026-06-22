@@ -163,6 +163,7 @@ struct BgfxDevice
     // point light (e.g. the nuke fireball). 1024x1024 perspective depth target.
     bgfx::FrameBufferHandle pointShadowFB  = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     pointShadowTex = BGFX_INVALID_HANDLE;
+    uint16_t                pointShadowMapSize = 0;
     uint16_t                sceneWidth = 0;
     uint16_t                sceneHeight = 0;
     // Supersampled scene render size = content size * render scale (1.0-2.0).
@@ -415,6 +416,10 @@ struct BgfxDraw
     // and params (x=lightIndex(-1=none), y=bias, z=texel, w=strength) for the brightest point light.
     float pointShadowMatrix[16] = { 0.0f };
     float pointShadowParams[4]  = { -1.0f, 0.0f, 0.0f, 0.0f };
+    // World position of the caster light, published by SetupPointShadowView and matched against the
+    // uploaded point-light slots in Set_Light_Environment to resolve pointShadowParams[0] (lightIndex).
+    float pointShadowLightPos[3] = { 0.0f, 0.0f, 0.0f };
+    bool  pointShadowLightValid  = false;
     float sceneAmbient[4]     = { 0.45f, 0.45f, 0.45f, 1.0f };
     float lightingEnabled[4]  = { 1.0f, 0.0f, 0.0f, 0.0f };
     bool  fvfHasNormal        = false;
