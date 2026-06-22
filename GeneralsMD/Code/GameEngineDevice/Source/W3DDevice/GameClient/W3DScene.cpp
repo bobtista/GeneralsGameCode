@@ -2064,6 +2064,36 @@ W3DDynamicLight * RTS3DScene::getADynamicLight()
 }
 
 //=============================================================================
+// RTS3DScene::getStrongestShadowCastingDynamicLight
+//=============================================================================
+// TheSuperHackers @feature bobtista 23/06/2026 Returns the brightest enabled CastsShadows
+// dynamic light (by current diffuse magnitude), or NULL. Drives the single point-shadow map.
+//=============================================================================
+W3DDynamicLight * RTS3DScene::getStrongestShadowCastingDynamicLight(void)
+{
+	W3DDynamicLight *best = NULL;
+	Real bestMag = 0.0f;
+	RefRenderObjListIterator dynaLightIt(&m_dynamicLightList);
+	for (dynaLightIt.First(); !dynaLightIt.Is_Done(); dynaLightIt.Next())
+	{
+		W3DDynamicLight *light = (W3DDynamicLight *)dynaLightIt.Peek_Obj();
+		if (light == NULL || !light->isEnabled() || !light->getCastsShadows())
+		{
+			continue;
+		}
+		Vector3 diffuse;
+		light->Get_Diffuse(&diffuse);
+		const Real mag = diffuse.X + diffuse.Y + diffuse.Z;
+		if (mag > bestMag)
+		{
+			bestMag = mag;
+			best = light;
+		}
+	}
+	return best;
+}
+
+//=============================================================================
 // RTS3DScene::removeDynamicLight
 //=============================================================================
 /** Removes a dynamic light. */
