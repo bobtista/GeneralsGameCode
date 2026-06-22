@@ -159,6 +159,10 @@ struct BgfxDevice
     bgfx::TextureHandle     shadowMapDepth = BGFX_INVALID_HANDLE;
     bgfx::FrameBufferHandle shadowMapFB    = BGFX_INVALID_HANDLE;
     uint16_t                shadowMapSize  = 0;
+    // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map for one bright dynamic
+    // point light (e.g. the nuke fireball). 1024x1024 perspective depth target.
+    bgfx::FrameBufferHandle pointShadowFB  = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     pointShadowTex = BGFX_INVALID_HANDLE;
     uint16_t                sceneWidth = 0;
     uint16_t                sceneHeight = 0;
     // Supersampled scene render size = content size * render scale (1.0-2.0).
@@ -227,6 +231,11 @@ struct BgfxUniforms
     bgfx::UniformHandle uShadowQuality = BGFX_INVALID_HANDLE; // x: >0.5 = full 36-fetch PCF, else reduced 9-fetch
     bgfx::UniformHandle uSunShadowReceive = BGFX_INVALID_HANDLE; // x>0.5 = this object draw receives the sun cast shadow
     bgfx::UniformHandle sShadowMap    = BGFX_INVALID_HANDLE;
+    // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map uniforms.
+    // u_pointShadowParams: x=lightIndex(-1=none), y=bias, z=texel, w=strength.
+    bgfx::UniformHandle uPointShadowMatrix = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPointShadowParams = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle sPointShadowMap    = BGFX_INVALID_HANDLE;
 
     // Misc per-draw flags / params
     bgfx::UniformHandle uTexcoordSelect      = BGFX_INVALID_HANDLE;
@@ -402,6 +411,10 @@ struct BgfxDraw
         { 0.0f, 0.0f, 0.0f, 0.0f },
         { 0.0f, 0.0f, 0.0f, 0.0f }
     };
+    // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow: world->shadowClip matrix
+    // and params (x=lightIndex(-1=none), y=bias, z=texel, w=strength) for the brightest point light.
+    float pointShadowMatrix[16] = { 0.0f };
+    float pointShadowParams[4]  = { -1.0f, 0.0f, 0.0f, 0.0f };
     float sceneAmbient[4]     = { 0.45f, 0.45f, 0.45f, 1.0f };
     float lightingEnabled[4]  = { 1.0f, 0.0f, 0.0f, 0.0f };
     bool  fvfHasNormal        = false;
