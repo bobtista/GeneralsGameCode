@@ -107,7 +107,8 @@ public:
 	// methods that we need to stub
 	virtual void setTimeOfDay( TimeOfDay tod ) override {}
 	virtual void createLightPulse( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real attenuationWidth,
-																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime ) override {}
+																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime,
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f ) override {}
 	virtual void setShroudLevel(Int x, Int y, CellShroudStatus setting) override {}
 	virtual void setBorderShroudLevel(UnsignedByte level) override {}
 	virtual void clearShroud() override {}
