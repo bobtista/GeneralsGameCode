@@ -94,6 +94,10 @@ uniform vec4 u_material[24];
 #define PROJECTED_DECAL_MULTIPLY    4.0
 
 #define CLOUD_SHADOW_MIN 0.72
+// TheSuperHackers @tweak bobtista 23/06/2026 Keep the restored bgfx cloud-shadow
+// layer subtle. Applying TSCloudMed at full strength creates a map-wide 14-18%
+// terrain dim that reads like unrelated superweapon/explosion smoke.
+#define CLOUD_SHADOW_STRENGTH 0.35
 // BT.601 luminance weights (matches the BGRA bytes of the D3D8 TFACTOR=0x80A5CA8E cascade used by the disabled-button grayscale path).
 #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
 // Additive projector/effect textures often carry a pure-black matte around
@@ -198,7 +202,8 @@ float applyAlphaOp(float op, float arg1, float arg2)
 vec3 sampleCloudShadow(vec2 cloudUV)
 {
 	vec3 cloudSample = texture2D(s_cloudMap, cloudUV).rgb;
-	return max(cloudSample, vec3_splat(CLOUD_SHADOW_MIN));
+	vec3 cloudShadow = max(cloudSample, vec3_splat(CLOUD_SHADOW_MIN));
+	return mix(vec3_splat(1.0), cloudShadow, CLOUD_SHADOW_STRENGTH);
 }
 
 // World-space normal offset for the shadow receive point, pushing the sample off the surface
