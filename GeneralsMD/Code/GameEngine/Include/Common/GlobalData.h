@@ -370,6 +370,8 @@ public:
 	Bool m_afterIntro;    ///< we need to tell the game our intro is done
 	Bool m_allowExitOutOfMovies;    ///< flag to allow exit out of movies only after the Intro has played
 
+	Bool m_replayLocalPlayerCRC;    ///< flag to validate CRC messages only from the player who recorded a replay
+
 	Bool m_loadScreenRender;    ///< flag to disallow rendering of almost everything during a loadscreen
 
 	Real m_keyboardScrollFactor;    ///< Factor applied to game scrolling speed via keyboard scrolling

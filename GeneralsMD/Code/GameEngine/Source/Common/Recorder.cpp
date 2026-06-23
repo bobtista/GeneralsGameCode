@@ -1302,7 +1302,7 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 #endif
 
 	Bool isMultiplayer = m_gameInfo.getSlot(header.localPlayerIndex)->getIP() != 0;
-	m_crcInfo.init(isMultiplayer, -1);
+	m_crcInfo.init(isMultiplayer, TheGlobalData->m_replayLocalPlayerCRC ? header.localPlayerIndex : -1);
 	REPLAY_CRC_INTERVAL = m_gameInfo.getCRCInterval();
 	DEBUG_LOG(("Player index is %d, replay CRC interval is %d", header.localPlayerIndex, REPLAY_CRC_INTERVAL));
 
