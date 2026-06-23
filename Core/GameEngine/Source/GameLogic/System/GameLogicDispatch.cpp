@@ -2374,6 +2374,9 @@ bool GameLogic::onLogicCrc(MAYBE_UNUSED GameMessage* msg)
 	Player* msgPlayer = getMessagePlayer(msg);
 	if (TheNetwork)
 	{
+		if (TheNetwork->sawCRCMismatch())
+			return false;
+
 		Int slotIndex = -1;
 		for (Int i = 0; i < MAX_SLOTS; ++i)
 		{
@@ -2392,17 +2395,14 @@ bool GameLogic::onLogicCrc(MAYBE_UNUSED GameMessage* msg)
 #if defined(RTS_DEBUG)
 			// don't even put this in release, cause someone might hack it.
 			if (!TheDebugIgnoreSyncErrors)
-			{
 #endif
-				m_shouldValidateCRCs = TRUE;
-#if defined(RTS_DEBUG)
-			}
-#endif
+				m_validationModeCRC = CRCMODE_NETWORK;
 		}
 
-		UnsignedInt newCRC = msg->getArgument(0)->integer;
+		const UnsignedInt newCRC = msg->getArgument(0)->integer;
 		// DEBUG_LOG(("Received CRC of %8.8X from %ls on frame %d", newCRC,
 		// msgPlayer->getPlayerDisplayName().str(), m_frame));
+
 		m_cachedCRCs[msgPlayer->getPlayerIndex()] = newCRC;
 	}
 	else if (TheRecorder && TheRecorder->isPlaybackMode())
@@ -2412,17 +2412,23 @@ bool GameLogic::onLogicCrc(MAYBE_UNUSED GameMessage* msg)
 		                  ("CRC message origin is unexpected; playback message argument doesn't match message player index"));
 #endif
 
-		UnsignedInt newCRC = msg->getArgument(0)->integer;
-		// DEBUG_LOG(("Saw CRC of %X from player %d.  Our CRC is %X.  Arg count is %d",
+		if (TheRecorder->sawCRCMismatch())
+			return false;
+
+		const UnsignedInt newCRC = msg->getArgument(0)->integer;
+		// DEBUG_LOG(("Saw CRC of %X from player %d. Our CRC is %X. Arg count is %d",
 		// newCRC, msgPlayer->getPlayerIndex(), getCRC(), msg->getArgumentCount()));
 
 		if (msgPlayer->isLocalPlayer())
 		{
-			TheRecorder->handleCRCMessage(newCRC, msgPlayer->getPlayerIndex(), true);
+			// TheSuperHackers @info The replay observer / playback player is the local player during playback mode.
+			TheRecorder->handlePlaybackCRCMessage(newCRC);
 		}
 		else
 		{
-			TheRecorder->handleCRCMessage(newCRC, msgPlayer->getPlayerIndex(), false);
+			TheRecorder->handlePlayerCRCMessage(msgPlayer->getPlayerIndex(), newCRC);
+
+			m_validationModeCRC = CRCMODE_REPLAY;
 		}
 	}
 
