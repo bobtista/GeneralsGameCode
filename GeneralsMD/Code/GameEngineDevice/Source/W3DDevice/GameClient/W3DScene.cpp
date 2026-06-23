@@ -2100,7 +2100,7 @@ W3DDynamicLight * RTS3DScene::getStrongestShadowCastingDynamicLight(void)
 // scene so it can render a perspective shadow map from that light's POV. Fills outPosRange with the
 // light's world position (xyz) and far-attenuation range (w), and outDiffuseBias with its current
 // diffuse magnitude (x) and shadow bias (y). Returns 1 when an active caster light exists, 0 otherwise.
-extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias)
+extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias, float * outShadowStrength)
 {
 	RTS3DScene *scene = W3DDisplay::m_3DScene;
 	if (scene == NULL)
@@ -2135,6 +2135,12 @@ extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffu
 		outDiffuseBias[1] = diffuse.Y;
 		outDiffuseBias[2] = diffuse.Z;
 		outDiffuseBias[3] = light->getShadowBias();
+	}
+	// Per-light shadow strength: 0 = glow only (no shadow map), >0 = casts a shadow that darkens
+	// occluded surfaces by that amount. Lets a nuke shadow and a particle-cannon glow coexist.
+	if (outShadowStrength != NULL)
+	{
+		*outShadowStrength = light->getShadowStrength();
 	}
 	return 1;
 }

@@ -135,7 +135,16 @@ public:
 	virtual void setTimeOfDay( TimeOfDay tod ) = 0;								///< Set the time of day for this display
 	virtual void createLightPulse( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real attenuationWidth,
 																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime,
-																 Bool castsShadows = FALSE, Real shadowBias = 0.0f ) = 0;
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f ) = 0;
+
+	// TheSuperHackers @feature bobtista 23/06/2026 A single persistent "tracking" dynamic light that
+	// a moving emitter (e.g. the particle-cannon beam) repositions every frame, instead of spawning a
+	// fresh light per frame (which flickers as the strongest-light pick jumps between overlapping
+	// pulses). Refresh it each active frame and clear it when the emitter stops. Default no-ops so
+	// non-W3D displays need not implement.
+	virtual void updateTrackingLight( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real attenuationWidth,
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f ) { }
+	virtual void clearTrackingLight( void ) { }
 
 	/// draw a line on the display in pixel coordinates with the specified color
 	virtual void drawLine( Int startX, Int startY, Int endX, Int endY,
