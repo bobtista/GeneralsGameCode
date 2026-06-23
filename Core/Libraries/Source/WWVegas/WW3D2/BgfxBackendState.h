@@ -233,10 +233,14 @@ struct BgfxUniforms
     bgfx::UniformHandle uSunShadowReceive = BGFX_INVALID_HANDLE; // x>0.5 = this object draw receives the sun cast shadow
     bgfx::UniformHandle sShadowMap    = BGFX_INVALID_HANDLE;
     // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map uniforms.
-    // u_pointShadowParams: x=lightIndex(-1=none), y=bias, z=texel, w=strength.
-    bgfx::UniformHandle uPointShadowMatrix = BGFX_INVALID_HANDLE;
-    bgfx::UniformHandle uPointShadowParams = BGFX_INVALID_HANDLE;
-    bgfx::UniformHandle sPointShadowMap    = BGFX_INVALID_HANDLE;
+    // u_pointShadowParams: x=active(1)/none(-1), y=bias, z=texel, w=strength.
+    // The nuke caster is a dedicated light (not a LightEnvironment slot): u_pointShadowLightPos
+    // = world xyz + outer range, u_pointShadowLightColor = diffuse rgb.
+    bgfx::UniformHandle uPointShadowMatrix     = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPointShadowParams     = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPointShadowLightPos   = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPointShadowLightColor = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle sPointShadowMap        = BGFX_INVALID_HANDLE;
 
     // Misc per-draw flags / params
     bgfx::UniformHandle uTexcoordSelect      = BGFX_INVALID_HANDLE;
@@ -416,10 +420,12 @@ struct BgfxDraw
     // and params (x=lightIndex(-1=none), y=bias, z=texel, w=strength) for the brightest point light.
     float pointShadowMatrix[16] = { 0.0f };
     float pointShadowParams[4]  = { -1.0f, 0.0f, 0.0f, 0.0f };
-    // World position of the caster light, published by SetupPointShadowView and matched against the
-    // uploaded point-light slots in Set_Light_Environment to resolve pointShadowParams[0] (lightIndex).
-    float pointShadowLightPos[3] = { 0.0f, 0.0f, 0.0f };
-    bool  pointShadowLightValid  = false;
+    // The dedicated nuke caster light published by SetupPointShadowView: world xyz + outer range
+    // in pointShadowLightPos, diffuse rgb in pointShadowLightColor. fs_uber applies this light and
+    // its shadow directly (dynamic lights never enter the per-object LightEnvironment).
+    float pointShadowLightPos[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float pointShadowLightColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    bool  pointShadowLightValid    = false;
     float sceneAmbient[4]     = { 0.45f, 0.45f, 0.45f, 1.0f };
     float lightingEnabled[4]  = { 1.0f, 0.0f, 0.0f, 0.0f };
     bool  fvfHasNormal        = false;
