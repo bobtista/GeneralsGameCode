@@ -2792,8 +2792,9 @@ static void SetupPointShadowView()
 }
 
 // TheSuperHackers @feature bobtista 23/06/2026 Debug blit: when GGC_POINT_SHADOW_VIZ is set,
-// draw the point shadow map R32F texture into a quarter-width corner quad at the bottom-left of
-// the screen so developers can confirm the shadow map has caster depth. Reuses the copyProgram
+// draw the point shadow map R32F texture into a quarter-width corner quad at the top-left of
+// the screen (clear of the bottom command bar) so developers can confirm the shadow map has
+// caster depth. Reuses the copyProgram
 // (fs_copy) and fullscreenClearVB quad that the smudge path uses, constrained to a sub-rect.
 // Reads the env var once and caches it as a static bool.
 static void SubmitPointShadowViz()
@@ -2816,7 +2817,7 @@ static void SubmitPointShadowViz()
     const uint16_t w = static_cast<uint16_t>(g_device.width  / 4);
     const uint16_t h = static_cast<uint16_t>(g_device.height / 4);
     const uint16_t x = static_cast<uint16_t>(g_device.presentOffsetX);
-    const uint16_t y = static_cast<uint16_t>(g_device.presentOffsetY + g_device.height - h);
+    const uint16_t y = static_cast<uint16_t>(g_device.presentOffsetY);
 
     float identity[16];
     IdentityMatrix(identity);
