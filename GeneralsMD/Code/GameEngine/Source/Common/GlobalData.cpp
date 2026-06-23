@@ -336,6 +336,17 @@ extern "C" int GGC_GetBgfxShadowMapEnabled()
 	return 1;
 }
 
+// TheSuperHackers @feature bobtista 23/06/2026 Perspective point-light shadow map toggle.
+// Default FALSE; enable via INI BgfxDynamicLightShadows=Yes or the Ctrl+Alt dev hotkey.
+extern "C" int GGC_GetBgfxDynamicLightShadowsEnabled()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxDynamicLightShadows)
+	{
+		return 0;
+	}
+	return 1;
+}
+
 // params: x = depth bias, y = shadow strength (0 = none, 1 = full).
 extern "C" void GGC_GetBgfxShadowMapParams(float * params)
 {
@@ -522,6 +533,7 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxShadowMaps",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxShadowMaps ) },
 	{ "BgfxShadowMapBias",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapBias ) },
 	{ "BgfxShadowMapStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapStrength ) },
+	{ "BgfxDynamicLightShadows",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxDynamicLightShadows ) },
 	{ "BgfxPointFilter",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxPointFilter ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
@@ -1126,6 +1138,7 @@ GlobalData::GlobalData()
 	m_bgfxShadowMaps = FALSE;
 	m_bgfxShadowMapBias = 0.0006f;
 	m_bgfxShadowMapStrength = 0.35f;
+	m_bgfxDynamicLightShadows = FALSE;
 	m_bgfxPointFilter = FALSE;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
