@@ -87,7 +87,10 @@ public:
 	/// @todo Replace these light management routines with a LightManager singleton
 	virtual void createLightPulse( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real outerRadius,
 																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime,
-																 Bool castsShadows = FALSE, Real shadowBias = 0.0f ) override;
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f ) override;
+	virtual void updateTrackingLight( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real attenuationWidth,
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f ) override;
+	virtual void clearTrackingLight( void ) override;
 	virtual void setTimeOfDay ( TimeOfDay tod ) override;
 
 	/// draw a line on the display in screen coordinates
@@ -170,6 +173,7 @@ protected:
 
 	Byte m_initialized;												///< TRUE when system is initialized
 	LightClass *m_myLight[LightEnvironmentClass::MAX_LIGHTS];										///< light hack for now
+	class W3DDynamicLight *m_trackingLight;		///< persistent light a moving emitter repositions (e.g. particle-cannon beam)
 	Render2DClass *m_2DRender;								///< interface for common 2D functions
 	IRegion2D m_clipRegion;									///< the clipping region for images
 	Bool m_isClippedEnabled;	///<used by 2D drawing operations to define clip re
