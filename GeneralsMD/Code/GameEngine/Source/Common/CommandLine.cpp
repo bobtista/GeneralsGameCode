@@ -133,6 +133,22 @@ Int parseWin(char *args[], int)
 
 //=============================================================================
 //=============================================================================
+// TheSuperHackers @feature bobtista 24/06/2026 Enable the bgfx renderer's optional
+// lighting effects in one switch (for demos/sharing). These all default off (CRC-safe)
+// and are no-ops on the DX8 backend. Equivalent to the Ctrl+Alt+N / +Y / +R / +K dev hotkeys.
+Int parseBgfxEffects(char *args[], int)
+{
+	TheWritableGlobalData->m_bgfxDynamicLightShadows = TRUE; // nuke + particle-cannon lights/shadows
+	TheWritableGlobalData->m_bgfxShadowMaps = TRUE;          // sun shadow map
+	TheWritableGlobalData->m_bgfxRimLight = TRUE;            // rim light
+	TheWritableGlobalData->m_bgfxEmissiveBoost = TRUE;       // emissive boost
+	TheWritableGlobalData->m_bgfxEmissiveBoostScale = 2.0f;
+
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
 Int parseNoMusic(char *args[], int)
 {
 	TheWritableGlobalData->m_musicOn = false;
@@ -1365,6 +1381,7 @@ static CommandLineParam paramsForStartup[] =
 static CommandLineParam paramsForEngineInit[] =
 {
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
+	{ "-bgfxEffects", parseBgfxEffects }, // must be in this (post-INI) table so it overrides GameData.ini
 	{ "-noshellmap", parseNoShellMap },
 	{ "-noShellAnim", parseNoWindowAnimation }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-xres", parseXRes },
