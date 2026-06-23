@@ -30,6 +30,7 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 #include "Common/GameState.h"
+#include "Common/GlobalData.h"
 #include "Common/Player.h"
 #include "Common/Xfer.h"
 #include "GameClient/FXList.h"
@@ -248,17 +249,18 @@ UpdateSleepTime NeutronMissileSlowDeathBehavior::update()
 		FXList::doFXPos( modData->m_fxList, &pos );
 
 		// TheSuperHackers @feature bobtista 23/06/2026 Spawn a shadow-casting dynamic light at the
-		// nuke blast so the detonation lights the surrounding area and structures cast real shadows
-		// (the BGFX dynamic-light shadow feature). Render-only: a client display light, no CRC effect.
-		if( TheDisplay != NULL )
+		// nuke blast so the detonation lights the surrounding area and structures cast real shadows.
+		// Gated on the BGFX dynamic-light shadow feature so it is a no-op on the DX8 reference path
+		// (which never reads the shadow flag). Render-only: a client display light, no CRC effect.
+		if( TheDisplay != NULL && TheGlobalData != NULL && TheGlobalData->m_bgfxDynamicLightShadows )
 		{
 			Coord3D lightPos = pos;
-			lightPos.z += 160.0f;
+			lightPos.z += 70.0f;
 			RGBColor blastColor;
-			blastColor.red = 3.0f;
-			blastColor.green = 2.4f;
-			blastColor.blue = 1.4f;
-			TheDisplay->createLightPulse( &lightPos, &blastColor, 250.0f, 1400.0f, 2, 180, TRUE, 0.0015f );
+			blastColor.red = 0.85f;
+			blastColor.green = 0.65f;
+			blastColor.blue = 0.4f;
+			TheDisplay->createLightPulse( &lightPos, &blastColor, 150.0f, 850.0f, 15, 200, TRUE, 0.0015f );
 		}
 	}
 
