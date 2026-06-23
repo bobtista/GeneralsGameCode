@@ -520,6 +520,12 @@ void SDL3GameEngine::handleKeyboardEvent(const SDL_KeyboardEvent &event)
 				GGC_RequestBgfxFramebufferRebuild();
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Sun Shadows %s", gd->m_bgfxShadowMaps ? L"ON" : L"OFF"); }
 				break;
+			case SDL_SCANCODE_N:
+				// TheSuperHackers @feature bobtista 23/06/2026 Toggle perspective point-light
+				// shadow map (e.g. nuke fireball). No rebuild needed; the pass is gated per-frame.
+				gd->m_bgfxDynamicLightShadows = !gd->m_bgfxDynamicLightShadows;
+				if (TheInGameUI != NULL) { TheInGameUI->message(L"Dynamic Light Shadows %s", gd->m_bgfxDynamicLightShadows ? L"ON" : L"OFF"); }
+				break;
 			case SDL_SCANCODE_T:
 				// Force nearest/point texture filtering (old blocky look) vs the smooth
 				// linear/trilinear renderer baseline. Applies at bind time, no rebuild.
