@@ -37,6 +37,8 @@ LightClass(LightClass::POINT)
 	m_enabled = true;
 	m_castsShadows = FALSE;
 	m_shadowBias = 0.0f;
+	m_shadowStrength = 1.0f;
+	m_targetShadowStrength = 1.0f;
 
 }
 
@@ -74,6 +76,7 @@ void W3DDynamicLight::On_Frame_Update()
 	if (m_decayColor) {
 		this->Ambient = m_targetAmbient*factor;
 		this->Diffuse = m_targetDiffuse*factor;
+		m_shadowStrength = m_targetShadowStrength*factor;
 	}
 }
 
