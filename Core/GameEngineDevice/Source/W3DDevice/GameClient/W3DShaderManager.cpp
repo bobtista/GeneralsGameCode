@@ -1444,6 +1444,7 @@ public:
 	float m_ySlidePerSecond ;	 ///< How far the clouds move per second.
 	float m_xOffset;
 	float m_yOffset;
+	unsigned int m_lastCloudUpdateFrame;
 
 	virtual Int set(Int pass) override;		///<setup shader for the specified rendering pass.
 	virtual Int init() override;			///<perform any one time initialization and validation
@@ -1525,6 +1526,7 @@ Int TerrainShader2Stage::init()
 	m_ySlidePerSecond =  1.50f * m_xSlidePerSecond;
 	m_xOffset = 0;
 	m_yOffset = 0;
+	m_lastCloudUpdateFrame = (unsigned int)-1;
 
 	//no special device validation needed - anything in our min spec should handle this.
 
@@ -1555,6 +1557,13 @@ void TerrainShader2Stage::reset()
 
 void TerrainShader2Stage::updateCloud()
 {
+	const unsigned int frame = WW3D::Get_Frame_Count();
+	if (m_lastCloudUpdateFrame == frame)
+	{
+		return;
+	}
+	m_lastCloudUpdateFrame = frame;
+
 	const float frame_time = WW3D::Get_Logic_Frame_Time_Seconds();
 	m_xOffset += m_xSlidePerSecond * frame_time;
 	m_yOffset += m_ySlidePerSecond * frame_time;
