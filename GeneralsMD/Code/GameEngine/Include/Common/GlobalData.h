@@ -185,6 +185,8 @@ public:
 	Bool m_bgfxShadowMaps;
 	Real m_bgfxShadowMapBias;
 	Real m_bgfxShadowMapStrength;
+	// TheSuperHackers @feature bobtista 23/06/2026 Toggle for the perspective point-light shadow map.
+	Bool m_bgfxDynamicLightShadows;
 	Bool m_bgfxPointFilter;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
