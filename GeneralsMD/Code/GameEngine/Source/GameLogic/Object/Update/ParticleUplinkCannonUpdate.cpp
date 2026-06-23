@@ -42,9 +42,12 @@
 
 #include "GameClient/ControlBar.h"
 #include "GameClient/GameClient.h"
+#include "GameClient/Display.h"
 #include "GameClient/Drawable.h"
 #include "GameClient/ParticleSys.h"
 #include "GameClient/FXList.h"
+
+#include "Common/GlobalData.h"
 
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/PartitionManager.h"
@@ -655,11 +658,44 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 				audioPos.z += ORBITAL_BEAM_AUDIO_Z_OFFSET;
 				beam->setPosition( &audioPos );
 			}
+
 			// TheSuperHackers @refactor helmutbuhler/xezon 17/05/2025
 			// Originally the damageRadius was calculated with a value updated by LaserUpdate::clientUpdate.
 			// To no longer rely on GameClient updates, this class now maintains a copy of the LaserRadiusUpdate.
 			m_orbitToTargetLaserRadius.updateRadius();
 			const Real logicalLaserRadius = templateLaserRadius * m_orbitToTargetLaserRadius.getWidthScale();
+
+			// TheSuperHackers @feature bobtista 23/06/2026 Coloured light that rides the beam, washing
+			// nearby vehicles/buildings in the beam's faction colour (blue, or magenta for the
+			// Superweapon General) with a specular glint and a cast shadow. Gated on the BGFX
+			// dynamic-light feature so it is a no-op on the DX8 reference path; render-only, no CRC
+			// effect. One persistent light is repositioned each frame (no per-frame flicker). Its
+			// intensity follows the logic-owned laser radius rather than the client drawable's current
+			// width, so the light/shadow envelope decays smoothly with the beam instead of snapping on
+			// client update ordering.
+			static const Bool disableParticleCannonTrackingLight = (getenv( "GGC_DISABLE_PARTICLE_CANNON_TRACKING_LIGHT" ) != NULL);
+			if( !disableParticleCannonTrackingLight && TheDisplay != NULL && TheGlobalData != NULL && TheGlobalData->m_bgfxDynamicLightShadows )
+			{
+				Real intensity = (templateLaserRadius > 0.0f) ? (logicalLaserRadius / templateLaserRadius) : 1.0f;
+				if( intensity > 1.0f ) { intensity = 1.0f; }
+				if( intensity < 0.0f ) { intensity = 0.0f; }
+				const Bool isSuperweapon = (strstr( data->m_particleBeamLaserName.str(), "SupW" ) != NULL);
+				RGBColor beamColor;
+				if( isSuperweapon )
+				{
+					beamColor.red = 1.25f; beamColor.green = 0.1f; beamColor.blue = 1.25f;
+				}
+				else
+				{
+					beamColor.red = 0.06f; beamColor.green = 0.18f; beamColor.blue = 0.85f;
+				}
+				beamColor.red *= intensity;
+				beamColor.green *= intensity;
+				beamColor.blue *= intensity;
+				Coord3D beamLightPos = m_currentTargetPosition;
+				beamLightPos.z += 95.0f;
+				TheDisplay->updateTrackingLight( &beamLightPos, &beamColor, 190.0f, 560.0f, TRUE, 0.0015f, 0.48f * intensity );
+			}
 			damageRadius = logicalLaserRadius * data->m_damageRadiusScalar;
 			scorchRadius = logicalLaserRadius * data->m_scorchMarkScalar;
 #if defined(RETAIL_COMPATIBLE_CRC)
