@@ -193,6 +193,8 @@ extern "C" int  GGC_GetCurrentLogicFrame();
 // scene. Fills outPosRange={x,y,z,range} and outDiffuseBias={diffuseMag,bias,_,_}; returns non-zero
 // when a caster light is active. Drives SetupPointShadowView's perspective shadow map.
 extern "C" int  GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias);
+// TheSuperHackers @feature bobtista 23/06/2026 Global toggle for the dynamic-light shadow-map pass.
+extern "C" int  GGC_GetBgfxDynamicLightShadowsEnabled();
 #endif
 
 // Render-state globals. Defined here (external linkage), declared `extern`
@@ -1863,6 +1865,9 @@ const bgfx::ViewId kBgfxShadowMapView    = 20;
 // TheSuperHackers @feature bobtista 23/06/2026 Perspective shadow map for one bright dynamic
 // point light (e.g. the nuke fireball). Renders before the engine view that samples it.
 const bgfx::ViewId kBgfxPointShadowView  = 23;
+// TheSuperHackers @feature bobtista 23/06/2026 Debug blit for GGC_POINT_SHADOW_VIZ: blits the
+// point shadow map R32F texture to a screen-corner quad after the scene composite.
+const bgfx::ViewId kBgfxPointShadowVizView = 24;
 const uint8_t kBgfxSceneDepthSamplerStage = 6;
 const uint8_t kBgfxShadowMapSamplerStage = 7;
 // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map sampler (next free stage
@@ -2655,15 +2660,23 @@ static void SetupSunShadowView()
 // strongest shadow-casting dynamic light (e.g. nuke fireball) and arm the point-shadow view. The
 // eye is the light's world position; it looks toward the ground point the camera is focused on (the
 // same focus the sun setup fits to), and the perspective near/far are derived from the light's
-// attenuation range. When no caster light is active this sets pointShadowParams[0] = -1 and skips
-// the view, so the pass is a no-op (the shader does not sample the map yet - see Task 5).
+// attenuation range. When no caster light is active (or the feature is disabled) this sets
+// pointShadowParams[0] = -1 and skips the view so the pass is a no-op.
+// u_pointShadowParams layout: x=lightIndex(-1=none), y=bias, z=texel, w=strength.
+// kPointShadowStrength = full darkening (1.0); tunable later without touching the shader.
+static const float kPointShadowStrength = 1.0f;
 static void SetupPointShadowView()
 {
-    // Default to "no caster" until proven otherwise. The lightIndex slot is resolved in
-    // Set_Light_Environment by matching this position against the uploaded point lights.
+    // Reset every frame so a vanished caster light cannot leave a stale position that
+    // accidentally matches a different point-light slot in Set_Light_Environment.
     g_draw.pointShadowParams[0] = -1.0f;
+    g_draw.pointShadowLightValid = false;
 
-    if (!bgfx::isValid(g_device.pointShadowFB))
+    int featureEnabled = 0;
+#ifdef RTS_ZEROHOUR
+    featureEnabled = GGC_GetBgfxDynamicLightShadowsEnabled();
+#endif
+    if (featureEnabled == 0 || !bgfx::isValid(g_device.pointShadowFB))
     {
         bgfx::setViewFrameBuffer(kBgfxPointShadowView, BGFX_INVALID_HANDLE);
         bgfx::setViewClear(kBgfxPointShadowView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
@@ -2755,10 +2768,12 @@ static void SetupPointShadowView()
 
     // x = lightIndex: -1 here; the matching point-light slot is filled in Set_Light_Environment so
     // the shader knows which per-light contribution this map shadows. y = bias, z = texel, w = strength.
+    // diffuseBias[1] = getShadowBias() (INI ShadowBias). strength uses the named constant so it can
+    // be tuned without touching the shader or the accessor.
     g_draw.pointShadowParams[0] = -1.0f;
     g_draw.pointShadowParams[1] = diffuseBias[1];
     g_draw.pointShadowParams[2] = (pointShadowSize > 0.0f) ? (1.0f / pointShadowSize) : 0.0f;
-    g_draw.pointShadowParams[3] = 1.0f;
+    g_draw.pointShadowParams[3] = kPointShadowStrength;
 
     // Stash the caster light's world position so Set_Light_Environment can match it to a slot.
     g_draw.pointShadowLightPos[0] = lightPos[0];
@@ -2774,6 +2789,46 @@ static void SetupPointShadowView()
             lightPos[0], lightPos[1], lightPos[2], range, znear, zfar, diffuseBias[1]);
         s_loggedPointShadow = true;
     }
+}
+
+// TheSuperHackers @feature bobtista 23/06/2026 Debug blit: when GGC_POINT_SHADOW_VIZ is set,
+// draw the point shadow map R32F texture into a quarter-width corner quad at the bottom-left of
+// the screen so developers can confirm the shadow map has caster depth. Reuses the copyProgram
+// (fs_copy) and fullscreenClearVB quad that the smudge path uses, constrained to a sub-rect.
+// Reads the env var once and caches it as a static bool.
+static void SubmitPointShadowViz()
+{
+    static const bool s_viz = (std::getenv("GGC_POINT_SHADOW_VIZ") != nullptr);
+    if (!s_viz)
+    {
+        bgfx::touch(kBgfxPointShadowVizView);
+        return;
+    }
+    if (!bgfx::isValid(g_device.pointShadowTex)
+        || !bgfx::isValid(g_device.copyProgram)
+        || !bgfx::isValid(g_device.fullscreenClearVB)
+        || !bgfx::isValid(g_uniforms.sTex0))
+    {
+        bgfx::touch(kBgfxPointShadowVizView);
+        return;
+    }
+
+    const uint16_t w = static_cast<uint16_t>(g_device.width  / 4);
+    const uint16_t h = static_cast<uint16_t>(g_device.height / 4);
+    const uint16_t x = static_cast<uint16_t>(g_device.presentOffsetX);
+    const uint16_t y = static_cast<uint16_t>(g_device.presentOffsetY + g_device.height - h);
+
+    float identity[16];
+    IdentityMatrix(identity);
+    bgfx::setViewFrameBuffer(kBgfxPointShadowVizView, BGFX_INVALID_HANDLE);
+    bgfx::setViewClear(kBgfxPointShadowVizView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxPointShadowVizView, x, y, w, h);
+    bgfx::setViewTransform(kBgfxPointShadowVizView, identity, identity);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.pointShadowTex,
+                     BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_DEPTH_TEST_ALWAYS);
+    bgfx::submit(kBgfxPointShadowVizView, g_device.copyProgram);
 }
 
 // TheSuperHackers @refactor bobtista 16/04/2026 No aspect correction needed:
@@ -4024,6 +4079,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         kBgfxSsaoBlurHView,
         kBgfxSsaoBlurVView,
         kBgfxSceneCompositeView,
+        kBgfxPointShadowVizView,                            // 24 — GGC_POINT_SHADOW_VIZ debug blit
         kBgfxUIView,
     };
     bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(order), order);
@@ -5211,6 +5267,7 @@ void BgfxBackend::Begin_Scene()
         bgfx::touch(kBgfxSceneDepthView);
     }
     bgfx::touch(kBgfxSceneCompositeView);
+    bgfx::touch(kBgfxPointShadowVizView);
     bgfx::touch(kBgfxUIView);
     g_views.overlay2DActive = false;
     // TheSuperHackers @fix bobtista 21/04/2026 Reset ALL 3D view rects to full canvas at
@@ -5417,6 +5474,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         kBgfxSsaoBlurHView,        // 18 — SSAO horizontal blur
         kBgfxSsaoBlurVView,        // 19 — SSAO vertical blur
         kBgfxSceneCompositeView,   // 9 — scene color to swapchain
+        kBgfxPointShadowVizView,   // 24 — GGC_POINT_SHADOW_VIZ debug blit (no-op when env unset)
         kBgfxUIView,               // 10 — 2D UI overlay (last)
     };
     bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(viewOrder), viewOrder);
@@ -5426,6 +5484,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     SubmitBloom(bloomPass);
     SubmitSSAO();
     SubmitSceneComposite();
+    SubmitPointShadowViz();
     LogFrameStats();
     UpdateBgfxStatsLog();
 
