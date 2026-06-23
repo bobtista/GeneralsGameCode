@@ -18,10 +18,14 @@ SAMPLER2D(s_shadowMap, 7);
 // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map sampler and uniforms.
 // s_pointShadowMap is the depth map rendered from the strongest CastsShadows dynamic light.
 // u_pointShadowMatrix is the world->shadow-clip matrix for that light.
-// u_pointShadowParams: x=lightIndex(-1=none), y=bias, z=texel(1/mapSize), w=strength.
+// u_pointShadowParams: x=active(1)/none(-1), y=bias, z=texel(1/mapSize), w=strength.
+// The nuke caster is a dedicated light (not a LightEnvironment slot):
+// u_pointShadowLightPos = world xyz + outer range, u_pointShadowLightColor = diffuse rgb.
 SAMPLER2D(s_pointShadowMap, 8);
 uniform mat4 u_pointShadowMatrix;
 uniform vec4 u_pointShadowParams;
+uniform vec4 u_pointShadowLightPos;
+uniform vec4 u_pointShadowLightColor;
 uniform mat4 u_shadowMatrices[3]; // per-cascade world -> sun shadow clip
 uniform vec4 u_shadowParams; // x atlas texel size, y depth bias, z strength, w enabled
 uniform vec4 u_shadowQuality; // x: >0.5 = full 36-fetch PCF, else reduced 9-fetch (default)
@@ -301,9 +305,8 @@ float samplePointShadow(vec3 worldPos, vec3 nrm)
 	{
 		return 1.0;
 	}
-	int idx = int(u_pointShadowParams.x);
 	vec3 n = normalize(nrm);
-	vec3 toLight = u_lightPositions[idx].xyz - worldPos;
+	vec3 toLight = u_pointShadowLightPos.xyz - worldPos;
 	float dist = length(toLight);
 	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
 	float ndotl = clamp(dot(n, lightDir), 0.0, 1.0);
@@ -885,13 +888,6 @@ void main()
 					float inner = u_lightParams[li].x;
 					float outer = max(u_lightParams[li].y, inner + 0.0001);
 					atten = 1.0 - clamp((dist - inner) / (outer - inner), 0.0, 1.0);
-					// TheSuperHackers @feature bobtista 23/06/2026 Darken only this light's
-					// contribution when it is the point-shadow caster. The sun term is untouched.
-					if (u_pointShadowParams.x >= 0.0 && float(li) == u_pointShadowParams.x)
-					{
-						float plit = samplePointShadow(v_worldPos, nrm);
-						atten *= mix(1.0 - u_pointShadowParams.w, 1.0, plit);
-					}
 				}
 				float nDotL = max(0.0, dot(nrm, ldir));
 				litColor += (u_lightAmbients[li].rgb * matAmbient + u_lightColors[li].rgb * nDotL * matDiffuse) * atten;
@@ -903,6 +899,26 @@ void main()
 				}
 			}
 		}
+			// TheSuperHackers @feature bobtista 23/06/2026 Dedicated nuke point light: dynamic lights never
+			// reach the per-object LightEnvironment, so apply the caster light here directly and shadow it
+			// with the point-shadow map. Lights AND shadows objects from the fireball.
+			if (u_pointShadowParams.x >= 0.0)
+			{
+				vec3 plToLight = u_pointShadowLightPos.xyz - v_worldPos;
+				float plDist = length(plToLight);
+				float plRange = max(u_pointShadowLightPos.w, 1.0);
+				float plAtten = clamp(1.0 - plDist / plRange, 0.0, 1.0);
+				plAtten *= plAtten;
+				vec3 plDir = (plDist > 0.0001) ? (plToLight / plDist) : vec3(0.0, 0.0, 1.0);
+				float plNdotL = max(0.0, dot(nrm, plDir));
+				float plVis = mix(1.0 - u_pointShadowParams.w, 1.0, samplePointShadow(v_worldPos, nrm));
+				litColor += u_pointShadowLightColor.rgb * matDiffuse * plNdotL * plAtten * plVis;
+				if (plNdotL > 0.0)
+				{
+					vec3 plHalf = normalize(plDir + viewDir);
+					specAccum += u_pointShadowLightColor.rgb * pow(max(0.0, dot(nrm, plHalf)), specPower) * plAtten * plVis;
+				}
+			}
 		vec4 litDiffuse = vec4(min(vec3_splat(1.0), litColor), u_matDiffuse.a);
 		float litAlpha = current.a * u_matDiffuse.a;
 		if (priColorOp > 0.5 && priColorOp < 1.5)

@@ -2742,7 +2742,6 @@ static void SetupPointShadowView()
     // FOV out of magic-number territory while the near/far come from the light's own state. bx::mtxProj
     // takes the vertical FOV in radians.
     const float kPointShadowFovDegrees = 90.0f;
-    const float pointShadowFovRadians = kPointShadowFovDegrees * (3.14159265358979323846f / 180.0f);
 
     const bgfx::Caps * caps = bgfx::getCaps();
     const float pointShadowSize = static_cast<float>(g_device.pointShadowMapSize);
@@ -2756,7 +2755,8 @@ static void SetupPointShadowView()
     float lightView[16];
     bx::mtxLookAt(lightView, eyeV, atV, up);
     float lightProj[16];
-    bx::mtxProj(lightProj, pointShadowFovRadians, 1.0f, znear, zfar, caps->homogeneousDepth);
+    // bx::mtxProj takes the vertical FOV in DEGREES (it applies toRad internally).
+    bx::mtxProj(lightProj, kPointShadowFovDegrees, 1.0f, znear, zfar, caps->homogeneousDepth);
     bx::mtxMul(g_draw.pointShadowMatrix, lightView, lightProj);
 
     bgfx::setViewFrameBuffer(kBgfxPointShadowView, g_device.pointShadowFB);
@@ -2766,19 +2766,23 @@ static void SetupPointShadowView()
     bgfx::setViewClear(kBgfxPointShadowView, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
     bgfx::setViewTransform(kBgfxPointShadowView, lightView, lightProj);
 
-    // x = lightIndex: -1 here; the matching point-light slot is filled in Set_Light_Environment so
-    // the shader knows which per-light contribution this map shadows. y = bias, z = texel, w = strength.
-    // diffuseBias[1] = getShadowBias() (INI ShadowBias). strength uses the named constant so it can
-    // be tuned without touching the shader or the accessor.
-    g_draw.pointShadowParams[0] = -1.0f;
-    g_draw.pointShadowParams[1] = diffuseBias[1];
+    // The nuke light is NOT part of the per-object LightEnvironment (dynamic lights never reach
+    // objects there), so fs_uber applies it as a dedicated shadowed point light from these uniforms.
+    // x = active (1 = a caster light is present, -1 = none), y = bias, z = texel, w = strength.
+    g_draw.pointShadowParams[0] = 1.0f;
+    g_draw.pointShadowParams[1] = diffuseBias[3];
     g_draw.pointShadowParams[2] = (pointShadowSize > 0.0f) ? (1.0f / pointShadowSize) : 0.0f;
     g_draw.pointShadowParams[3] = kPointShadowStrength;
 
-    // Stash the caster light's world position so Set_Light_Environment can match it to a slot.
+    // The dedicated light: world position (xyz) and outer attenuation range, plus diffuse colour.
     g_draw.pointShadowLightPos[0] = lightPos[0];
     g_draw.pointShadowLightPos[1] = lightPos[1];
     g_draw.pointShadowLightPos[2] = lightPos[2];
+    g_draw.pointShadowLightPos[3] = range;
+    g_draw.pointShadowLightColor[0] = diffuseBias[0];
+    g_draw.pointShadowLightColor[1] = diffuseBias[1];
+    g_draw.pointShadowLightColor[2] = diffuseBias[2];
+    g_draw.pointShadowLightColor[3] = 1.0f;
     g_draw.pointShadowLightValid = true;
 
     static bool s_loggedPointShadow = false;
@@ -3966,6 +3970,8 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.sShadowMap   = bgfx::createUniform("s_shadowMap",   bgfx::UniformType::Sampler);
     g_uniforms.uPointShadowMatrix = bgfx::createUniform("u_pointShadowMatrix", bgfx::UniformType::Mat4);
     g_uniforms.uPointShadowParams = bgfx::createUniform("u_pointShadowParams", bgfx::UniformType::Vec4);
+    g_uniforms.uPointShadowLightPos = bgfx::createUniform("u_pointShadowLightPos", bgfx::UniformType::Vec4);
+    g_uniforms.uPointShadowLightColor = bgfx::createUniform("u_pointShadowLightColor", bgfx::UniformType::Vec4);
     g_uniforms.sPointShadowMap    = bgfx::createUniform("s_pointShadowMap",    bgfx::UniformType::Sampler);
     g_uniforms.uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
     g_uniforms.uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
@@ -4275,6 +4281,8 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.sShadowMap);
         DestroyBgfxHandle(g_uniforms.uPointShadowMatrix);
         DestroyBgfxHandle(g_uniforms.uPointShadowParams);
+        DestroyBgfxHandle(g_uniforms.uPointShadowLightPos);
+        DestroyBgfxHandle(g_uniforms.uPointShadowLightColor);
         DestroyBgfxHandle(g_uniforms.sPointShadowMap);
         DestroyBgfxHandle(g_uniforms.uGrayscaleEnable);
         DestroyBgfxHandle(g_device.defaultWhiteTexture);
@@ -8567,6 +8575,8 @@ static void UploadLightUniforms()
     {
         bgfx::setUniform(g_uniforms.uPointShadowMatrix, g_draw.pointShadowMatrix);
         bgfx::setUniform(g_uniforms.uPointShadowParams, g_draw.pointShadowParams);
+        bgfx::setUniform(g_uniforms.uPointShadowLightPos, g_draw.pointShadowLightPos);
+        bgfx::setUniform(g_uniforms.uPointShadowLightColor, g_draw.pointShadowLightColor);
     }
     if (bgfx::isValid(g_uniforms.sPointShadowMap))
     {
@@ -11195,13 +11205,6 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
         g_draw.sceneAmbient[1] = ambient.Y;
         g_draw.sceneAmbient[2] = ambient.Z;
 
-        // TheSuperHackers @feature bobtista 23/06/2026 Resolve which uploaded point-light slot is the
-        // caster light SetupPointShadowView armed, by matching its world position. -1 = no slot in this
-        // object's light set casts the shadow map (so the point-shadow caster submit is skipped for it).
-        if (g_draw.pointShadowLightValid)
-        {
-            g_draw.pointShadowParams[0] = -1.0f;
-        }
         const int count = light_env->Get_Light_Count();
         for (int i = 0; i < 4; ++i)
         {
@@ -11230,17 +11233,6 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
                     g_draw.lightParams[i][1] = light_env->getPointOrad(i);
                     g_draw.lightParams[i][2] = 1.0f;
                     g_draw.lightParams[i][3] = 1.0f;
-                    if (g_draw.pointShadowLightValid)
-                    {
-                        const float dx = pos.X - g_draw.pointShadowLightPos[0];
-                        const float dy = pos.Y - g_draw.pointShadowLightPos[1];
-                        const float dz = pos.Z - g_draw.pointShadowLightPos[2];
-                        const float kMatchEpsSq = 1.0f; // 1 world unit, squared
-                        if ((dx * dx + dy * dy + dz * dz) < kMatchEpsSq)
-                        {
-                            g_draw.pointShadowParams[0] = static_cast<float>(i);
-                        }
-                    }
                 }
                 else
                 {
