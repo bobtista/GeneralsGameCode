@@ -2119,7 +2119,6 @@ extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffu
 	light->Get_Far_Attenuation_Range(farStart, farEnd);
 	Vector3 diffuse;
 	light->Get_Diffuse(&diffuse);
-	const Real diffuseMag = diffuse.X + diffuse.Y + diffuse.Z;
 
 	if (outPosRange != NULL)
 	{
@@ -2128,10 +2127,14 @@ extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffu
 		outPosRange[2] = pos.Z;
 		outPosRange[3] = static_cast<float>(farEnd);
 	}
+	// outDiffuseBias: rgb = the light's current diffuse colour (drives the dedicated
+	// shadowed point-light term in fs_uber), w = shadow depth bias.
 	if (outDiffuseBias != NULL)
 	{
-		outDiffuseBias[0] = diffuseMag;
-		outDiffuseBias[1] = light->getShadowBias();
+		outDiffuseBias[0] = diffuse.X;
+		outDiffuseBias[1] = diffuse.Y;
+		outDiffuseBias[2] = diffuse.Z;
+		outDiffuseBias[3] = light->getShadowBias();
 	}
 	return 1;
 }
