@@ -35,6 +35,7 @@
 #include "GameClient/FXList.h"
 #include "GameClient/Drawable.h"
 #include "GameClient/GameClient.h"
+#include "GameClient/Display.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/ObjectIter.h"
@@ -245,6 +246,20 @@ UpdateSleepTime NeutronMissileSlowDeathBehavior::update()
 		m_activationFrame = currFrame;
 
 		FXList::doFXPos( modData->m_fxList, &pos );
+
+		// TheSuperHackers @feature bobtista 23/06/2026 Spawn a shadow-casting dynamic light at the
+		// nuke blast so the detonation lights the surrounding area and structures cast real shadows
+		// (the BGFX dynamic-light shadow feature). Render-only: a client display light, no CRC effect.
+		if( TheDisplay != NULL )
+		{
+			Coord3D lightPos = pos;
+			lightPos.z += 160.0f;
+			RGBColor blastColor;
+			blastColor.red = 3.0f;
+			blastColor.green = 2.4f;
+			blastColor.blue = 1.4f;
+			TheDisplay->createLightPulse( &lightPos, &blastColor, 250.0f, 1400.0f, 2, 180, TRUE, 0.0015f );
+		}
 	}
 
 	// see if it's time for any explosions
