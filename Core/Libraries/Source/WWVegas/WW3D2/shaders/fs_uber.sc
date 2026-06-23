@@ -352,12 +352,14 @@ float samplePointShadow(vec3 worldPos, vec3 nrm)
 // TheSuperHackers @feature bobtista 23/06/2026 Dedicated nuke point light contribution. Dynamic
 // lights never reach the per-object LightEnvironment, so the caster light is applied directly here -
 // to objects and to terrain (which returns from its own branch) - and shadowed by the perspective
-// point-shadow map. Returns the diffuse colour to add.
-vec3 nukePointLight(vec3 worldPos, vec3 nrm, vec3 albedo)
+// point-shadow map. It both brightens lit surfaces the blast reaches and darkens occluded ones, so
+// the cast shadow reads as real darkness rather than just an absence of bonus light.
+// u_pointShadowParams.w controls how strongly occluded areas are darkened.
+void applyNukePointLight(inout vec3 color, vec3 worldPos, vec3 nrm, vec3 albedo)
 {
 	if (u_pointShadowParams.x < 0.0)
 	{
-		return vec3(0.0, 0.0, 0.0);
+		return;
 	}
 	vec3 toLight = u_pointShadowLightPos.xyz - worldPos;
 	float dist = length(toLight);
@@ -366,8 +368,11 @@ vec3 nukePointLight(vec3 worldPos, vec3 nrm, vec3 albedo)
 	atten *= atten;
 	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
 	float ndotl = max(0.0, dot(nrm, lightDir));
-	float vis = mix(1.0 - u_pointShadowParams.w, 1.0, samplePointShadow(worldPos, nrm));
-	return u_pointShadowLightColor.rgb * albedo * ndotl * atten * vis;
+	float shadow = samplePointShadow(worldPos, nrm); // 1 = lit, 0 = occluded
+	// Brighten the lit surfaces the blast actually reaches.
+	color += u_pointShadowLightColor.rgb * albedo * ndotl * atten * shadow;
+	// Darken occluded surfaces within the blast's reach so the cast shadow is clearly visible.
+	color *= (1.0 - u_pointShadowParams.w * atten * (1.0 - shadow));
 }
 
 // TheSuperHackers @feature bobtista 18/06/2026 Lightweight anisotropic base-texture sampling.
@@ -452,7 +457,7 @@ void main()
 		// TheSuperHackers @feature bobtista 23/06/2026 Terrain also receives the dedicated nuke point
 		// light and its cast shadow (terrain returns here, never reaching the object lighting path),
 		// so the blast lights the ground and structures throw shadows across it.
-		result.rgb += nukePointLight(v_worldPos, vec3(0.0, 0.0, 1.0), blended);
+		applyNukePointLight(result.rgb, v_worldPos, vec3(0.0, 0.0, 1.0), blended);
 
 		gl_FragColor = result;
 		return;
@@ -927,7 +932,7 @@ void main()
 		}
 			// TheSuperHackers @feature bobtista 23/06/2026 Apply the dedicated nuke point light + cast
 			// shadow to objects (dynamic lights never reach the per-object LightEnvironment).
-			litColor += nukePointLight(v_worldPos, nrm, matDiffuse);
+			applyNukePointLight(litColor, v_worldPos, nrm, matDiffuse);
 		vec4 litDiffuse = vec4(min(vec3_splat(1.0), litColor), u_matDiffuse.a);
 		float litAlpha = current.a * u_matDiffuse.a;
 		if (priColorOp > 0.5 && priColorOp < 1.5)
