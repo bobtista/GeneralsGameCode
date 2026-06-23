@@ -335,7 +335,7 @@ float samplePointShadow(vec3 worldPos, vec3 nrm)
 	{
 		for (int dx = -1; dx <= 1; ++dx)
 		{
-			vec2 sampUV = cuv + vec2(float(dx), float(dy)) * texel;
+			vec2 sampUV = cuv + vec2(float(dx), float(dy)) * (texel * 1.35);
 			vec2 texelCoord = sampUV * invTexel - 0.5;
 			vec2 fracPart = fract(texelCoord);
 			vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
@@ -355,7 +355,7 @@ float samplePointShadow(vec3 worldPos, vec3 nrm)
 // point-shadow map. It both brightens lit surfaces the blast reaches and darkens occluded ones, so
 // the cast shadow reads as real darkness rather than just an absence of bonus light.
 // u_pointShadowParams.w controls how strongly occluded areas are darkened.
-void applyNukePointLight(inout vec3 color, vec3 worldPos, vec3 nrm, vec3 albedo)
+void applyNukePointLight(inout vec3 color, vec3 worldPos, vec3 nrm, vec3 albedo, vec3 viewDir, float specPower)
 {
 	if (u_pointShadowParams.x < 0.0)
 	{
@@ -364,15 +364,28 @@ void applyNukePointLight(inout vec3 color, vec3 worldPos, vec3 nrm, vec3 albedo)
 	vec3 toLight = u_pointShadowLightPos.xyz - worldPos;
 	float dist = length(toLight);
 	float range = max(u_pointShadowLightPos.w, 1.0);
-	float atten = clamp(1.0 - dist / range, 0.0, 1.0);
-	atten *= atten;
+	float radial = clamp(1.0 - dist / range, 0.0, 1.0);
+	float atten = radial * radial;
 	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
 	float ndotl = max(0.0, dot(nrm, lightDir));
-	float shadow = samplePointShadow(worldPos, nrm); // 1 = lit, 0 = occluded
-	// Brighten the lit surfaces the blast actually reaches.
+	// Only sample the shadow map when this light actually casts one (state >= 1); a glow-only light
+	// (state 0, e.g. the particle cannon beam) lights and glints without shadowing.
+	float shadow = (u_pointShadowParams.x >= 0.5) ? samplePointShadow(worldPos, nrm) : 1.0;
+	// Brighten the lit surfaces the light reaches.
 	color += u_pointShadowLightColor.rgb * albedo * ndotl * atten * shadow;
-	// Darken occluded surfaces within the blast's reach so the cast shadow is clearly visible.
-	color *= (1.0 - u_pointShadowParams.w * atten * (1.0 - shadow));
+	// Specular glint: a bright coloured highlight on shiny surfaces (e.g. vehicle hulls) where the
+	// light reflects toward the eye. specPower 0 (terrain) produces no glint.
+	if (specPower > 0.0 && ndotl > 0.0)
+	{
+		vec3 halfV = normalize(lightDir + viewDir);
+		color += u_pointShadowLightColor.rgb * pow(max(0.0, dot(nrm, halfV)), specPower) * atten * shadow;
+	}
+	// Darken occluded surfaces within reach so the cast shadow reads as real darkness. Use a broader
+	// falloff than the glow itself; otherwise nearby objects light up while their cast shadows vanish
+	// unless they are almost directly under the beam/blast.
+	float shadowAtten = clamp(radial * 1.18, 0.0, 1.0);
+	shadowAtten = shadowAtten * (2.0 - shadowAtten);
+	color *= (1.0 - u_pointShadowParams.w * shadowAtten * (1.0 - shadow));
 }
 
 // TheSuperHackers @feature bobtista 18/06/2026 Lightweight anisotropic base-texture sampling.
@@ -457,7 +470,7 @@ void main()
 		// TheSuperHackers @feature bobtista 23/06/2026 Terrain also receives the dedicated nuke point
 		// light and its cast shadow (terrain returns here, never reaching the object lighting path),
 		// so the blast lights the ground and structures throw shadows across it.
-		applyNukePointLight(result.rgb, v_worldPos, vec3(0.0, 0.0, 1.0), blended);
+		applyNukePointLight(result.rgb, v_worldPos, vec3(0.0, 0.0, 1.0), blended, vec3(0.0, 0.0, 1.0), 0.0);
 
 		gl_FragColor = result;
 		return;
@@ -930,9 +943,6 @@ void main()
 				}
 			}
 		}
-			// TheSuperHackers @feature bobtista 23/06/2026 Apply the dedicated nuke point light + cast
-			// shadow to objects (dynamic lights never reach the per-object LightEnvironment).
-			applyNukePointLight(litColor, v_worldPos, nrm, matDiffuse);
 		vec4 litDiffuse = vec4(min(vec3_splat(1.0), litColor), u_matDiffuse.a);
 		float litAlpha = current.a * u_matDiffuse.a;
 		if (priColorOp > 0.5 && priColorOp < 1.5)
@@ -1020,6 +1030,24 @@ void main()
 	{
 		// Pre-lit or unlit: vertex color contains baked lighting.
 		current *= u_matDiffuse;
+	}
+
+	// TheSuperHackers @feature bobtista 23/06/2026 Apply the dedicated dynamic light after the
+	// object texture/lighting path has converged. Many Generals buildings and vehicles use pre-lit
+	// or unlit combiner states, so applying this only inside the lit-material branch made the
+	// particle-cannon/nuke light visible on terrain and some organic meshes while skipping those
+	// larger opaque receivers.
+	if (u_pointShadowParams.x >= 0.0
+		&& u_softParticleParams.x < 0.5
+		&& u_texcoordSelect2.w < 0.5)
+	{
+		float pointNrmLen = length(v_normal);
+		vec3 pointNrm = (pointNrmLen > 1e-5) ? (v_normal / pointNrmLen) : vec3(0.0, 0.0, 1.0);
+		vec3 pointViewDir = normalize(u_eyePos.xyz - v_worldPos);
+		float authoredShininess = max(u_matSpecular.w, 0.0);
+		float pointSpecPower = (authoredShininess >= 2.0) ? min(max(authoredShininess, 10.0), 96.0) : 0.0;
+		applyNukePointLight(current.rgb, v_worldPos, pointNrm, current.rgb, pointViewDir, pointSpecPower);
+		current.rgb = min(current.rgb, vec3_splat(1.0));
 	}
 
 	// Additive black texels are mathematical no-ops in the D3D8 fixed-function

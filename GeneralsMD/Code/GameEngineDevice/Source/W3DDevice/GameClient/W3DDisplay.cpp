@@ -433,6 +433,7 @@ W3DDisplay::W3DDisplay()
 	Int i;
 
 	m_initialized = false;
+	m_trackingLight = nullptr;
 	m_assetManager = nullptr;
 	m_3DScene = nullptr;
 	m_2DScene = nullptr;
@@ -2402,7 +2403,7 @@ void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
 																	 Real innerRadius, Real attenuationWidth,
 																	 UnsignedInt increaseFrameTime,
 																	 UnsignedInt decayFrameTime,
-																	 Bool castsShadows, Real shadowBias )
+																	 Bool castsShadows, Real shadowBias, Real shadowStrength )
 {
 	if (m_3DScene == nullptr)
 		return;
@@ -2422,8 +2423,80 @@ void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
 	theDynamicLight->setDecayColor();
 	theDynamicLight->setCastsShadows(castsShadows);
 	theDynamicLight->setShadowBias(shadowBias);
+	theDynamicLight->setShadowStrength(shadowStrength);
 	// (gth) CNC3 enable far attenuation.  C&C3 defaults to disabled.  Must enable to match Generals. MW 8-06-03
 	theDynamicLight->Set_Flag(LightClass::FAR_ATTENUATION,true);
+}
+
+// TheSuperHackers @feature bobtista 23/06/2026 Reposition a single persistent dynamic light each
+// frame for a moving emitter (particle-cannon beam), instead of spawning a fresh pulse per frame.
+// The light's colour and shadow strength ease toward the requested beam intensity, with a longer
+// decay window kept armed so the light tails off if the emitter stops refreshing it. This avoids both
+// per-frame flicker from overlapping pulses and building receiver snaps at beam start/end.
+void W3DDisplay::updateTrackingLight( const Coord3D *pos, const RGBColor *color,
+																		 Real innerRadius, Real attenuationWidth,
+																		 Bool castsShadows, Real shadowBias, Real shadowStrength )
+{
+	if (m_3DScene == nullptr)
+		return;
+	const Bool hadActiveTrackingLight = (m_trackingLight != nullptr && m_trackingLight->isEnabled());
+	if (m_trackingLight == nullptr || !m_trackingLight->isEnabled())
+	{
+		m_trackingLight = m_3DScene->getADynamicLight();
+	}
+	W3DDynamicLight *light = m_trackingLight;
+	Vector3 desiredColor( color->red, color->green, color->blue );
+	Real desiredShadowStrength = shadowStrength;
+	Vector3 currentColor( 0.0f, 0.0f, 0.0f );
+	Real currentShadowStrength = 0.0f;
+	if (hadActiveTrackingLight)
+	{
+		light->Get_Diffuse( &currentColor );
+		currentShadowStrength = light->getShadowStrength();
+	}
+	const Real upBlend = 0.02f;
+	const Real downSmooth = 0.96f;
+	const Real shadowUpBlend = 0.08f;
+	const Real shadowDownSmooth = 0.98f;
+	if (desiredColor.X >= currentColor.X) { desiredColor.X = currentColor.X + (desiredColor.X - currentColor.X) * upBlend; }
+	else if (desiredColor.X < currentColor.X * downSmooth) { desiredColor.X = currentColor.X * downSmooth; }
+	if (desiredColor.Y >= currentColor.Y) { desiredColor.Y = currentColor.Y + (desiredColor.Y - currentColor.Y) * upBlend; }
+	else if (desiredColor.Y < currentColor.Y * downSmooth) { desiredColor.Y = currentColor.Y * downSmooth; }
+	if (desiredColor.Z >= currentColor.Z) { desiredColor.Z = currentColor.Z + (desiredColor.Z - currentColor.Z) * upBlend; }
+	else if (desiredColor.Z < currentColor.Z * downSmooth) { desiredColor.Z = currentColor.Z * downSmooth; }
+	if (desiredShadowStrength >= currentShadowStrength)
+	{
+		desiredShadowStrength = currentShadowStrength + (desiredShadowStrength - currentShadowStrength) * shadowUpBlend;
+	}
+	else if (desiredShadowStrength < currentShadowStrength * shadowDownSmooth)
+	{
+		desiredShadowStrength = currentShadowStrength * shadowDownSmooth;
+	}
+	light->setEnabled(true);
+	light->Set_Ambient( desiredColor );
+	light->Set_Diffuse( desiredColor );
+	light->Set_Position( Vector3( pos->x, pos->y, pos->z ) );
+	light->Set_Far_Attenuation_Range( innerRadius, innerRadius + attenuationWidth );
+	// Keep a decay window armed every refresh. If the emitter stops calling updateTrackingLight, the
+	// current eased colour/shadow strength tails off instead of disappearing on the next render frame.
+	light->setFrameFade(0, 45);
+	light->setCastsShadows(castsShadows);
+	light->setShadowBias(shadowBias);
+	light->setShadowStrength(desiredShadowStrength);
+	light->setDecayRange();
+	light->setDecayColor();
+	light->Set_Flag(LightClass::FAR_ATTENUATION, true);
+}
+
+void W3DDisplay::clearTrackingLight( void )
+{
+	if (m_trackingLight != nullptr)
+	{
+		m_trackingLight->setFrameFade(0, 45);
+		m_trackingLight->setDecayRange();
+		m_trackingLight->setDecayColor();
+		m_trackingLight = nullptr;
+	}
 }
 
 void W3DDisplay::toggleLetterBox()

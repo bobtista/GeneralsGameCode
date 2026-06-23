@@ -50,10 +50,14 @@ protected:
 
 	Bool		m_enabled;
 
-	// TheSuperHackers @feature bobtista 23/06/2026 Opt-in: this dynamic light renders a
-	// perspective shadow map and shadows its own per-light contribution in the uber shader.
+	// TheSuperHackers @feature bobtista 23/06/2026 Opt-in: this dynamic light is applied as a
+	// dedicated coloured point light in the uber shader (objects + terrain). m_shadowStrength controls
+	// how strongly it darkens occluded surfaces: 0 = glow only (no shadow map rendered), >0 = casts a
+	// perspective shadow that darkens by that amount.
 	Bool		m_castsShadows;
 	Real		m_shadowBias;
+	Real		m_shadowStrength;
+	Real		m_targetShadowStrength;
 
 	Bool		m_decayRange;
 	Bool		m_decayColor;
@@ -80,6 +84,8 @@ public:
 	Bool getCastsShadows() const { return m_castsShadows; }
 	void setShadowBias(Real b) { m_shadowBias = b; }
 	Real getShadowBias() const { return m_shadowBias; }
+	void setShadowStrength(Real s) { m_shadowStrength = s; m_targetShadowStrength = s; }
+	Real getShadowStrength() const { return m_shadowStrength; }
 
 
 	/// 0 frameIncreaseTime means it starts out full size/intensity, 0 decay time means it lasts forever.

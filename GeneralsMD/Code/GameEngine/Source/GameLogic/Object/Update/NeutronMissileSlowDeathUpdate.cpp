@@ -260,7 +260,7 @@ UpdateSleepTime NeutronMissileSlowDeathBehavior::update()
 			blastColor.red = 0.85f;
 			blastColor.green = 0.65f;
 			blastColor.blue = 0.4f;
-			TheDisplay->createLightPulse( &lightPos, &blastColor, 150.0f, 850.0f, 15, 200, TRUE, 0.0015f );
+			TheDisplay->createLightPulse( &lightPos, &blastColor, 150.0f, 850.0f, 15, 200, TRUE, 0.0015f, 0.85f );
 		}
 	}
 
