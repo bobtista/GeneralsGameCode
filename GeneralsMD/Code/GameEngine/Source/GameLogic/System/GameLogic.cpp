@@ -3831,11 +3831,16 @@ void GameLogic::update()
 	if (generateForSolo || generateForMP)
 	{
 		m_CRC = getCRC(CRC_RECALC);
-		bool isPlayback = (TheRecorder && TheRecorder->isPlaybackMode());
 
 		GameMessage* msg = newInstance(GameMessage)(GameMessage::MSG_LOGIC_CRC);
 		msg->appendIntegerArgument(m_CRC);
+
+#if RETAIL_COMPATIBLE_CRC
+		// TheSuperHackers @tweak Caball009 21/06/2026 Playback argument serves no purpose anymore
+		// other than to be able play replays from newer retail compatible builds on older builds or retail.
+		const bool isPlayback = (TheRecorder && TheRecorder->isPlaybackMode());
 		msg->appendBooleanArgument(isPlayback);
+#endif
 
 		// TheSuperHackers @info helmutbuhler 13/04/2025
 		// During replay simulation, we bypass TheMessageStream and instead put the CRC message
@@ -3845,7 +3850,7 @@ void GameLogic::update()
 			messageList = TheCommandList;
 		messageList->appendMessage(msg);
 
-		DEBUG_LOG(("Appended %sCRC on frame %d: %8.8X", isPlayback ? "Playback " : "", m_frame, m_CRC));
+		DEBUG_LOG(("Appended %sCRC on frame %d: %8.8X", (TheRecorder && TheRecorder->isPlaybackMode()) ? "Playback " : "", m_frame, m_CRC));
 	}
 
 	// collect stats

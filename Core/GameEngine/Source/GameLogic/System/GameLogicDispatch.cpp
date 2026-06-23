@@ -2407,11 +2407,23 @@ bool GameLogic::onLogicCrc(MAYBE_UNUSED GameMessage* msg)
 	}
 	else if (TheRecorder && TheRecorder->isPlaybackMode())
 	{
+#if RETAIL_COMPATIBLE_CRC
+		DEBUG_ASSERTCRASH(msg->getArgument(1)->boolean == msgPlayer->isLocalPlayer(),
+		                  ("CRC message origin is unexpected; playback message argument doesn't match message player index"));
+#endif
+
 		UnsignedInt newCRC = msg->getArgument(0)->integer;
 		// DEBUG_LOG(("Saw CRC of %X from player %d.  Our CRC is %X.  Arg count is %d",
 		// newCRC, msgPlayer->getPlayerIndex(), getCRC(), msg->getArgumentCount()));
 
-		TheRecorder->handleCRCMessage(newCRC, msgPlayer->getPlayerIndex(), (msg->getArgument(1)->boolean));
+		if (msgPlayer->isLocalPlayer())
+		{
+			TheRecorder->handleCRCMessage(newCRC, msgPlayer->getPlayerIndex(), true);
+		}
+		else
+		{
+			TheRecorder->handleCRCMessage(newCRC, msgPlayer->getPlayerIndex(), false);
+		}
 	}
 
 	return true;
