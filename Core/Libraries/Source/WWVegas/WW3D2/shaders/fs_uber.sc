@@ -349,6 +349,27 @@ float samplePointShadow(vec3 worldPos, vec3 nrm)
 	return lit * (1.0 / 9.0);
 }
 
+// TheSuperHackers @feature bobtista 23/06/2026 Dedicated nuke point light contribution. Dynamic
+// lights never reach the per-object LightEnvironment, so the caster light is applied directly here -
+// to objects and to terrain (which returns from its own branch) - and shadowed by the perspective
+// point-shadow map. Returns the diffuse colour to add.
+vec3 nukePointLight(vec3 worldPos, vec3 nrm, vec3 albedo)
+{
+	if (u_pointShadowParams.x < 0.0)
+	{
+		return vec3(0.0, 0.0, 0.0);
+	}
+	vec3 toLight = u_pointShadowLightPos.xyz - worldPos;
+	float dist = length(toLight);
+	float range = max(u_pointShadowLightPos.w, 1.0);
+	float atten = clamp(1.0 - dist / range, 0.0, 1.0);
+	atten *= atten;
+	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
+	float ndotl = max(0.0, dot(nrm, lightDir));
+	float vis = mix(1.0 - u_pointShadowParams.w, 1.0, samplePointShadow(worldPos, nrm));
+	return u_pointShadowLightColor.rgb * albedo * ndotl * atten * vis;
+}
+
 // TheSuperHackers @feature bobtista 18/06/2026 Lightweight anisotropic base-texture sampling.
 // bgfx's hardware anisotropy is all-or-nothing (16x or off): 16x over-sharpens grazing surfaces
 // into a striped/aliased look, while plain trilinear leaves a dark fringe where high-contrast
@@ -427,6 +448,11 @@ void main()
 		// before the generic shadow apply below, so the sun shadow has to be applied here
 		// too - otherwise cast shadows land on roads/decals/objects but skip the ground.
 		result.rgb *= sunShadowFactor(v_worldPos, vec3(0.0, 0.0, 1.0));
+
+		// TheSuperHackers @feature bobtista 23/06/2026 Terrain also receives the dedicated nuke point
+		// light and its cast shadow (terrain returns here, never reaching the object lighting path),
+		// so the blast lights the ground and structures throw shadows across it.
+		result.rgb += nukePointLight(v_worldPos, vec3(0.0, 0.0, 1.0), blended);
 
 		gl_FragColor = result;
 		return;
@@ -899,26 +925,9 @@ void main()
 				}
 			}
 		}
-			// TheSuperHackers @feature bobtista 23/06/2026 Dedicated nuke point light: dynamic lights never
-			// reach the per-object LightEnvironment, so apply the caster light here directly and shadow it
-			// with the point-shadow map. Lights AND shadows objects from the fireball.
-			if (u_pointShadowParams.x >= 0.0)
-			{
-				vec3 plToLight = u_pointShadowLightPos.xyz - v_worldPos;
-				float plDist = length(plToLight);
-				float plRange = max(u_pointShadowLightPos.w, 1.0);
-				float plAtten = clamp(1.0 - plDist / plRange, 0.0, 1.0);
-				plAtten *= plAtten;
-				vec3 plDir = (plDist > 0.0001) ? (plToLight / plDist) : vec3(0.0, 0.0, 1.0);
-				float plNdotL = max(0.0, dot(nrm, plDir));
-				float plVis = mix(1.0 - u_pointShadowParams.w, 1.0, samplePointShadow(v_worldPos, nrm));
-				litColor += u_pointShadowLightColor.rgb * matDiffuse * plNdotL * plAtten * plVis;
-				if (plNdotL > 0.0)
-				{
-					vec3 plHalf = normalize(plDir + viewDir);
-					specAccum += u_pointShadowLightColor.rgb * pow(max(0.0, dot(nrm, plHalf)), specPower) * plAtten * plVis;
-				}
-			}
+			// TheSuperHackers @feature bobtista 23/06/2026 Apply the dedicated nuke point light + cast
+			// shadow to objects (dynamic lights never reach the per-object LightEnvironment).
+			litColor += nukePointLight(v_worldPos, nrm, matDiffuse);
 		vec4 litDiffuse = vec4(min(vec3_splat(1.0), litColor), u_matDiffuse.a);
 		float litAlpha = current.a * u_matDiffuse.a;
 		if (priColorOp > 0.5 && priColorOp < 1.5)
