@@ -2663,8 +2663,9 @@ static void SetupSunShadowView()
 // attenuation range. When no caster light is active (or the feature is disabled) this sets
 // pointShadowParams[0] = -1 and skips the view so the pass is a no-op.
 // u_pointShadowParams layout: x=lightIndex(-1=none), y=bias, z=texel, w=strength.
-// kPointShadowStrength = full darkening (1.0); tunable later without touching the shader.
-static const float kPointShadowStrength = 1.0f;
+// kPointShadowStrength = how strongly occluded surfaces are darkened by the cast shadow (0..1),
+// scaled by the light's distance attenuation in the shader; tunable without touching the shader.
+static const float kPointShadowStrength = 0.85f;
 static void SetupPointShadowView()
 {
     // Reset every frame so a vanished caster light cannot leave a stale position that
