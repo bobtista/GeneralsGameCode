@@ -190,9 +190,9 @@ extern "C" const char * GGC_GetBgfxScreenshotPath();
 extern "C" void GGC_ClearBgfxScreenshotRequest();
 extern "C" int  GGC_GetCurrentLogicFrame();
 // TheSuperHackers @feature bobtista 23/06/2026 Strongest shadow-casting dynamic light in the live
-// scene. Fills outPosRange={x,y,z,range} and outDiffuseBias={diffuseMag,bias,_,_}; returns non-zero
+// scene. Fills outPosRange={x,y,z,range} and outDiffuseBias={r,g,b,bias}; returns non-zero
 // when a caster light is active. Drives SetupPointShadowView's perspective shadow map.
-extern "C" int  GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias);
+extern "C" int  GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias, float * outShadowStrength);
 // TheSuperHackers @feature bobtista 23/06/2026 Global toggle for the dynamic-light shadow-map pass.
 extern "C" int  GGC_GetBgfxDynamicLightShadowsEnabled();
 #endif
@@ -2662,10 +2662,8 @@ static void SetupSunShadowView()
 // same focus the sun setup fits to), and the perspective near/far are derived from the light's
 // attenuation range. When no caster light is active (or the feature is disabled) this sets
 // pointShadowParams[0] = -1 and skips the view so the pass is a no-op.
-// u_pointShadowParams layout: x=lightIndex(-1=none), y=bias, z=texel, w=strength.
-// kPointShadowStrength = how strongly occluded surfaces are darkened by the cast shadow (0..1),
-// scaled by the light's distance attenuation in the shader; tunable without touching the shader.
-static const float kPointShadowStrength = 0.85f;
+// u_pointShadowParams layout: x=state(-1=none,0=glow only,1=light+shadow), y=bias, z=texel,
+// w=shadow darkening strength (per-light, 0 = glow only). The strength comes from the light itself.
 static void SetupPointShadowView()
 {
     // Reset every frame so a vanished caster light cannot leave a stale position that
@@ -2686,9 +2684,10 @@ static void SetupPointShadowView()
 
     float posRange[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     float diffuseBias[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float lightStrength = 1.0f;
     int hasLight = 0;
 #ifdef RTS_ZEROHOUR
-    hasLight = GGC_GetBgfxPointShadowLight(posRange, diffuseBias);
+    hasLight = GGC_GetBgfxPointShadowLight(posRange, diffuseBias, &lightStrength);
 #endif
     if (hasLight == 0)
     {
@@ -2696,34 +2695,15 @@ static void SetupPointShadowView()
         bgfx::setViewClear(kBgfxPointShadowView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
         return;
     }
-
-    // Camera eye + forward recovered from the rigid camera view matrix (mirrors SetupSunShadowView).
-    const float * v = g_frame.cameraView;
-    float eye[3];
-    eye[0] = -(v[0] * v[12] + v[1] * v[13] + v[2] * v[14]);
-    eye[1] = -(v[4] * v[12] + v[5] * v[13] + v[6] * v[14]);
-    eye[2] = -(v[8] * v[12] + v[9] * v[13] + v[10] * v[14]);
-    float fwd[3] = { -v[2], -v[6], -v[10] };
-    float flen = sqrtf(fwd[0] * fwd[0] + fwd[1] * fwd[1] + fwd[2] * fwd[2]);
-    if (flen > 1e-5f)
-    {
-        fwd[0] /= flen; fwd[1] /= flen; fwd[2] /= flen;
-    }
-
-    // Ground (z=0) intersection of the camera's central ray = the focus the light looks toward.
-    float focus[3] = { eye[0], eye[1], 0.0f };
-    if (fabsf(fwd[2]) > 1e-4f)
-    {
-        float t = -eye[2] / fwd[2];
-        if (t > 0.0f && t < 100000.0f)
-        {
-            focus[0] = eye[0] + fwd[0] * t;
-            focus[1] = eye[1] + fwd[1] * t;
-            focus[2] = eye[2] + fwd[2] * t;
-        }
-    }
+    // A glow-only light (strength 0) lights and glints surfaces but renders no shadow map.
+    const bool castsShadow = (lightStrength > 0.0f);
 
     const float lightPos[3] = { posRange[0], posRange[1], posRange[2] };
+    // Dynamic point shadows are local effects (nuke fireball, particle-cannon column). Aim the
+    // single perspective map down the light column instead of toward the camera focus; otherwise a
+    // beam near the edge of the view can light receivers while its caster silhouettes land outside
+    // the point-shadow cone.
+    const float focus[3] = { lightPos[0], lightPos[1], lightPos[2] - 1.0f };
     float toFocus[3] = { focus[0] - lightPos[0], focus[1] - lightPos[1], focus[2] - lightPos[2] };
     float dist = sqrtf(toFocus[0] * toFocus[0] + toFocus[1] * toFocus[1] + toFocus[2] * toFocus[2]);
     if (dist < 1e-3f)
@@ -2739,10 +2719,9 @@ static void SetupPointShadowView()
     const float zfar = (range > dist) ? range : dist;
     const float znear = fmaxf(1.0f, zfar * 0.01f);
 
-    // Wide cone so a low light still covers the ground it lights. A single named constant keeps the
-    // FOV out of magic-number territory while the near/far come from the light's own state. bx::mtxProj
-    // takes the vertical FOV in radians.
-    const float kPointShadowFovDegrees = 90.0f;
+    // Wide cone so the beam's local shadow map covers nearby structures/vehicles instead of only the
+    // death-radius footprint directly under the light.
+    const float kPointShadowFovDegrees = 130.0f;
 
     const bgfx::Caps * caps = bgfx::getCaps();
     const float pointShadowSize = static_cast<float>(g_device.pointShadowMapSize);
@@ -2753,27 +2732,36 @@ static void SetupPointShadowView()
     const float dirZ = toFocus[2] / dist;
     const bx::Vec3 up = (fabsf(dirZ) > 0.95f) ? bx::Vec3(0.0f, 1.0f, 0.0f) : bx::Vec3(0.0f, 0.0f, 1.0f);
 
-    float lightView[16];
-    bx::mtxLookAt(lightView, eyeV, atV, up);
-    float lightProj[16];
-    // bx::mtxProj takes the vertical FOV in DEGREES (it applies toRad internally).
-    bx::mtxProj(lightProj, kPointShadowFovDegrees, 1.0f, znear, zfar, caps->homogeneousDepth);
-    bx::mtxMul(g_draw.pointShadowMatrix, lightView, lightProj);
+    if (castsShadow)
+    {
+        float lightView[16];
+        bx::mtxLookAt(lightView, eyeV, atV, up);
+        float lightProj[16];
+        // bx::mtxProj takes the vertical FOV in DEGREES (it applies toRad internally).
+        bx::mtxProj(lightProj, kPointShadowFovDegrees, 1.0f, znear, zfar, caps->homogeneousDepth);
+        bx::mtxMul(g_draw.pointShadowMatrix, lightView, lightProj);
 
-    bgfx::setViewFrameBuffer(kBgfxPointShadowView, g_device.pointShadowFB);
-    bgfx::setViewRect(kBgfxPointShadowView, 0, 0,
-                      static_cast<uint16_t>(g_device.pointShadowMapSize),
-                      static_cast<uint16_t>(g_device.pointShadowMapSize));
-    bgfx::setViewClear(kBgfxPointShadowView, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
-    bgfx::setViewTransform(kBgfxPointShadowView, lightView, lightProj);
+        bgfx::setViewFrameBuffer(kBgfxPointShadowView, g_device.pointShadowFB);
+        bgfx::setViewRect(kBgfxPointShadowView, 0, 0,
+                          static_cast<uint16_t>(g_device.pointShadowMapSize),
+                          static_cast<uint16_t>(g_device.pointShadowMapSize));
+        bgfx::setViewClear(kBgfxPointShadowView, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
+        bgfx::setViewTransform(kBgfxPointShadowView, lightView, lightProj);
+    }
+    else
+    {
+        // Glow-only light: light/glint surfaces but render no shadow map this frame.
+        bgfx::setViewFrameBuffer(kBgfxPointShadowView, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxPointShadowView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    }
 
-    // The nuke light is NOT part of the per-object LightEnvironment (dynamic lights never reach
-    // objects there), so fs_uber applies it as a dedicated shadowed point light from these uniforms.
-    // x = active (1 = a caster light is present, -1 = none), y = bias, z = texel, w = strength.
-    g_draw.pointShadowParams[0] = 1.0f;
+    // The dedicated light is applied in fs_uber (objects + terrain) from these uniforms; dynamic
+    // lights never reach the per-object LightEnvironment. params.x: 1 = light + shadow, 0 = glow
+    // only (no shadow sampling), -1 = no light. y = bias, z = texel, w = shadow darkening strength.
+    g_draw.pointShadowParams[0] = castsShadow ? 1.0f : 0.0f;
     g_draw.pointShadowParams[1] = diffuseBias[3];
     g_draw.pointShadowParams[2] = (pointShadowSize > 0.0f) ? (1.0f / pointShadowSize) : 0.0f;
-    g_draw.pointShadowParams[3] = kPointShadowStrength;
+    g_draw.pointShadowParams[3] = castsShadow ? lightStrength : 0.0f;
 
     // The dedicated light: world position (xyz) and outer attenuation range, plus diffuse colour.
     g_draw.pointShadowLightPos[0] = lightPos[0];
@@ -11550,6 +11538,14 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::discard(BGFX_DISCARD_ALL);
         return;
     }
+    if (ShouldAllowBgfxDiagnosticDrawOverrides()
+        && std::getenv("GGC_BGFX_SKIP_SORTED_DRAWS") != nullptr
+        && submitView == kBgfxEngineSortView)
+    {
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
     // Push the engine view+projection when they change. setViewTransform
     // applies until the next change so we do not need to call it per
     // submit, only when the engine has updated either matrix. Sort view
@@ -12232,6 +12228,11 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         casterToShadow = true;
     }
+    const bool pointShadowArmed = g_draw.pointShadowParams[0] >= 0.5f
+        && bgfx::isValid(g_device.pointShadowFB)
+        && bgfx::isValid(g_device.shadowCasterProgram);
+    const bool casterToPointShadow = pointShadowArmed
+        && (isSceneDepthCaster || isShadowCaster || rotorShadowCaster);
     // Diagnostic: GGC_LOG_SHADOW_CASTER_AUDIT=1 dumps each world draw that could feed the
     // sun shadow map, including excluded candidates. Use GGC_LOG_SHADOW_CASTER_START/END
     // to bracket the particle-cannon firing window without filling stderr for the whole run.
@@ -12280,7 +12281,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 static_cast<unsigned long long>(state));
         }
     }
-    if ((casterToDepth || casterToShadow) && hasVB)
+    if ((casterToDepth || casterToShadow || casterToPointShadow) && hasVB)
     {
         // TheSuperHackers @feature bobtista 27/04/2026 Duplicate opaque
         // non-alpha-tested world geometry into a sampleable R32F scene-depth target.
@@ -12342,7 +12343,7 @@ void SubmitEngineDraw(unsigned short start_index,
         // the draw's alpha test; bind both so cutout geometry casts its real silhouette.
         // Opaque draws pass an inactive test (y = 0) and skip the discard. Preserved
         // across the cascade submits via BGFX_DISCARD_NONE.
-        if (casterToShadow)
+        if (casterToShadow || casterToPointShadow)
         {
             bgfx::TextureHandle baseTex = g_draw.tex[0];
             if (!bgfx::isValid(baseTex))
@@ -12374,7 +12375,7 @@ void SubmitEngineDraw(unsigned short start_index,
         }
         if (casterToDepth)
         {
-            const uint8_t discard = casterToShadow ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL;
+            const uint8_t discard = (casterToShadow || casterToPointShadow) ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL;
             // Instanced batches cast every instance in one submit via the instanced caster program;
             // the instance buffer is consumed per submit, so re-bind it before each recast submit.
             if (g_draw.drawIsInstanced)
@@ -12386,20 +12387,18 @@ void SubmitEngineDraw(unsigned short start_index,
             bgfx::submit(kBgfxSceneDepthView, depthProg, 0, discard);
             g_stats.sceneDepthSubmits++;
         }
+        if (casterToPointShadow)
+        {
+            // TheSuperHackers @feature bobtista 23/06/2026 Cast eligible world geometry into the
+            // perspective point-shadow map when a caster dynamic light is armed this frame. This is not
+            // limited to the sun-shadow caster set: solid buildings/vehicles can be ordinary depth
+            // casters even when they are not otherwise being submitted to the sun map, and the particle
+            // cannon beam still needs their silhouettes.
+            bgfx::submit(kBgfxPointShadowView, g_device.shadowCasterProgram, 0,
+                         casterToShadow ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL);
+        }
         if (casterToShadow)
         {
-            // TheSuperHackers @feature bobtista 23/06/2026 Cast the same caster geometry into the
-            // perspective point-shadow map when a caster dynamic light is armed this frame. Submitted
-            // with BGFX_DISCARD_NONE so the bound VB/IB/transform/texture/atest/state persist for the
-            // sun-map submit below (which keeps BGFX_DISCARD_ALL). Gated on pointShadowParams[0] >= 0,
-            // set in Set_Light_Environment once the caster light matched a point-light slot.
-            const bool casterToPointShadow = g_draw.pointShadowParams[0] >= 0.0f
-                && bgfx::isValid(g_device.pointShadowFB)
-                && bgfx::isValid(g_device.shadowCasterProgram);
-            if (casterToPointShadow)
-            {
-                bgfx::submit(kBgfxPointShadowView, g_device.shadowCasterProgram, 0, BGFX_DISCARD_NONE);
-            }
             // TheSuperHackers @refactor bobtista 18/06/2026 Submit the caster into the single
             // camera-fit shadow view (the cascades were retired - see SetupSunShadowView).
             if (g_draw.drawIsInstanced)
