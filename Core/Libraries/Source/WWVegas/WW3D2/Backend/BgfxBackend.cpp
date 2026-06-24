@@ -50,6 +50,7 @@
 #include <unordered_map>
 
 #include <rts/profile.h>
+// TheSuperHackers @perf bobtista 24/06/2026 rts/profile.h pulls in Tracy.hpp (C++ API) but the bgfx profiler callbacks use the Tracy C API.
 #if defined(RTS_PROFILE_TRACY)
 #include <tracy/TracyC.h>
 #endif
@@ -122,6 +123,13 @@ namespace
 class BgfxLoggingCallback : public bgfx::CallbackI
 {
 public:
+#if defined(RTS_PROFILE_TRACY)
+    BgfxLoggingCallback()
+        : m_profilerDepth(0)
+        , m_profilerOverflow(0)
+    {
+    }
+#endif
     ~BgfxLoggingCallback() override {}
 
     void fatal(const char * filePath, uint16_t line, bgfx::Fatal::Enum code, const char * str) override
