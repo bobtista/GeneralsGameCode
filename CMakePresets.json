@@ -191,6 +191,15 @@
             }
         },
         {
+            "name": "macos-generalsmd-sdl3-bgfx-profile",
+            "inherits": "macos-generalsmd-sdl3-bgfx",
+            "displayName": "macOS GeneralsMD SDL3 bgfx Profile (Tracy)",
+            "cacheVariables": {
+                "RTS_BUILD_OPTION_PROFILE_TRACY": "ON",
+                "RTS_CRASHDUMP_ENABLE": "OFF"
+            }
+        },
+        {
             "name": "mingw-w64-i686",
             "displayName": "MinGW-w64 32-bit (i686) Release",
             "generator": "Unix Makefiles",
