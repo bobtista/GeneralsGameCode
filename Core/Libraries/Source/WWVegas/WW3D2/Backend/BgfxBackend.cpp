@@ -1819,6 +1819,7 @@ void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
 
 void BgfxBackend::Begin_Scene()
 {
+    PROFILER_SECTION_NAME("bgfx Begin_Scene");
     if (!g_device.initialized)
     {
         return;
@@ -1925,6 +1926,7 @@ void BgfxBackend::Begin_Scene()
 
 void BgfxBackend::End_Scene(bool /*flip_frame*/)
 {
+    PROFILER_SECTION_NAME("bgfx End_Scene");
     if (!g_device.initialized)
     {
         return;
@@ -1987,6 +1989,22 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(viewOrder), viewOrder);
 
     bgfx::frame();
+    // TheSuperHackers @perf bobtista 24/06/2026 Feed per-frame bgfx stats to
+    // Tracy plots so CPU time, draw count, and GPU time share one timeline.
+#if defined(RTS_PROFILE_TRACY)
+    {
+        const bgfx::Stats * pstats = bgfx::getStats();
+        if (pstats != NULL && pstats->cpuTimerFreq != 0 && pstats->gpuTimerFreq != 0)
+        {
+            const double toMsCpu = 1000.0 / double(pstats->cpuTimerFreq);
+            const double toMsGpu = 1000.0 / double(pstats->gpuTimerFreq);
+            PROFILER_PLOT("draws", double(pstats->numDraw));
+            PROFILER_PLOT("cpu frame ms", double(pstats->cpuTimeEnd - pstats->cpuTimeBegin) * toMsCpu);
+            PROFILER_PLOT("gpu frame ms", double(pstats->gpuTimeEnd - pstats->gpuTimeBegin) * toMsGpu);
+            PROFILER_PLOT("transient vb kb", double(pstats->transientVbUsed) / 1024.0);
+        }
+    }
+#endif
 
     // Rotate deferred texture destroy buffers. Current frame's deferred
     // handles move to "prev" — they'll be destroyed at the NEXT Begin_Scene
