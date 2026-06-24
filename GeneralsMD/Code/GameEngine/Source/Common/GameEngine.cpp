@@ -107,6 +107,7 @@
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 
 #include "Common/version.h"
+#include <rts/profile.h>
 
 
 //-------------------------------------------------------------------------------------------------
@@ -909,6 +910,7 @@ void GameEngine::update()
 	USE_PERF_TIMER(GameEngine_update)
 	{
 		{
+			PROFILER_SECTION_NAME("client update");
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
 
@@ -929,6 +931,7 @@ void GameEngine::update()
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
 		{
+			PROFILER_SECTION_NAME("logic update");
 			TheGameLogic->UPDATE();
 
 			if (!TheFramePacer->isTimeFrozen())
