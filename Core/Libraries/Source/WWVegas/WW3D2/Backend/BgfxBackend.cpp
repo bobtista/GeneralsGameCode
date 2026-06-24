@@ -49,6 +49,11 @@
 
 #include <unordered_map>
 
+#include <rts/profile.h>
+#if defined(RTS_PROFILE_TRACY)
+#include <tracy/TracyC.h>
+#endif
+
 // Including the bgfx header here is intentional: it forces a compile-time
 // dependency on the bgfx headers when GGC_RENDER_BACKEND=bgfx. If bgfx
 // isn't available the build fails here, which is the right place to
@@ -133,9 +138,54 @@ public:
         while (len > 0 && (buf[len-1] == '\n' || buf[len-1] == '\r')) { buf[--len] = '\0'; }
         WWDEBUG_SAY(("[bgfx] %s:%u: %s", filePath ? filePath : "?", line, buf));
     }
-    void profilerBegin(const char *, uint32_t, const char *, uint16_t) override {}
-    void profilerBeginLiteral(const char *, uint32_t, const char *, uint16_t) override {}
-    void profilerEnd() override {}
+    void profilerBegin(const char * name, uint32_t /*abgr*/, const char * filePath, uint16_t line) override
+    {
+#if defined(RTS_PROFILE_TRACY)
+        if (m_profilerDepth >= kProfilerStackMax)
+        {
+            ++m_profilerOverflow;
+            return;
+        }
+        const uint64_t srcloc = ___tracy_alloc_srcloc_name(
+            line, filePath, std::strlen(filePath),
+            name, std::strlen(name),
+            name, std::strlen(name), 0);
+        m_profilerStack[m_profilerDepth] = ___tracy_emit_zone_begin_alloc(srcloc, 1);
+        ++m_profilerDepth;
+#else
+        (void)name; (void)filePath; (void)line;
+#endif
+    }
+    void profilerBeginLiteral(const char * name, uint32_t /*abgr*/, const char * filePath, uint16_t line) override
+    {
+#if defined(RTS_PROFILE_TRACY)
+        if (m_profilerDepth >= kProfilerStackMax)
+        {
+            ++m_profilerOverflow;
+            return;
+        }
+        const struct ___tracy_source_location_data srcloc = { name, name, filePath, line, 0 };
+        m_profilerStack[m_profilerDepth] = ___tracy_emit_zone_begin(&srcloc, 1);
+        ++m_profilerDepth;
+#else
+        (void)name; (void)filePath; (void)line;
+#endif
+    }
+    void profilerEnd() override
+    {
+#if defined(RTS_PROFILE_TRACY)
+        if (m_profilerOverflow > 0)
+        {
+            --m_profilerOverflow;
+            return;
+        }
+        if (m_profilerDepth > 0)
+        {
+            --m_profilerDepth;
+            ___tracy_emit_zone_end(m_profilerStack[m_profilerDepth]);
+        }
+#endif
+    }
     uint32_t cacheReadSize(uint64_t) override { return 0; }
     bool cacheRead(uint64_t, void *, uint32_t) override { return false; }
     void cacheWrite(uint64_t, const void *, uint32_t) override {}
@@ -144,6 +194,13 @@ public:
     void captureBegin(uint32_t, uint32_t, uint32_t, bgfx::TextureFormat::Enum, bool) override {}
     void captureEnd() override {}
     void captureFrame(const void *, uint32_t) override {}
+
+#if defined(RTS_PROFILE_TRACY)
+    static const int kProfilerStackMax = 64;
+    TracyCZoneCtx m_profilerStack[kProfilerStackMax];
+    int m_profilerDepth;
+    int m_profilerOverflow;
+#endif
 };
 
 BgfxLoggingCallback g_bgfxCallback;
