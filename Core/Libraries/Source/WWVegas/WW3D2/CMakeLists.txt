@@ -304,6 +304,13 @@ target_link_libraries(corei_ww3d2 INTERFACE
 # Link the backend's native libraries into whoever consumes corei_ww3d2.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_link_libraries(corei_ww3d2 INTERFACE bgfx bx bimg)
+    # TheSuperHackers @perf bobtista 24/06/2026 When the Tracy profiler is built
+    # in (RTS_BUILD_OPTION_PROFILE_TRACY=ON), turn on bgfx's internal profiler
+    # callbacks so its submit/encode work can be forwarded into the same Tracy
+    # timeline (see BgfxLoggingCallback). No effect on default builds.
+    if(RTS_BUILD_OPTION_PROFILE_TRACY)
+        target_compile_definitions(bgfx PUBLIC BGFX_CONFIG_PROFILER=1)
+    endif()
 elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
     target_link_libraries(corei_ww3d2 INTERFACE
         Diligent-GraphicsEngineD3D11-static
