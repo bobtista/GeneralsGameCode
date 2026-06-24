@@ -39,6 +39,7 @@ static void drawFramerateBar();
 #include <windows.h>
 #include <io.h>
 #include <time.h>
+#include <rts/profile.h>
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "Common/FramePacer.h"
@@ -1952,6 +1953,7 @@ void W3DDisplay::step()
 //DECLARE_PERF_TIMER(W3DDisplay_draw)
 void W3DDisplay::draw()
 {
+	PROFILER_SECTION;
 	//USE_PERF_TIMER(W3DDisplay_draw)
 
 	extern HWND ApplicationHWnd;
@@ -2090,10 +2092,14 @@ AGAIN:
 			// TheSuperHackers @info The views are updated in W3DDisplay::update, except in the repeated passes
 			// of this loop, which keep moving the camera while the time is frozen for a camera movement.
 			if (!viewsUpdated)
+			{
+				PROFILER_SECTION_NAME("update views");
 				updateViews();
+			}
 
 			TheParticleSystemManager->DRAW();
 
+			PROFILER_SECTION_NAME("render to texture");
 			if (TheWaterRenderObj && TheGlobalData->m_waterType == 2)
 				TheWaterRenderObj->updateRenderTargetTextures(primaryW3DView->get3DCamera());	//do a render into each texture
 
