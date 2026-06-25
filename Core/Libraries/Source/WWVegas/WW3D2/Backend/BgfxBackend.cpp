@@ -235,6 +235,17 @@ static unsigned long AllocateLegacyShaderHandle()
     return nextHandle++;
 }
 
+static bool CoalesceDynamicRangeUploadsEnabled()
+{
+    static int s_enabled = -1;
+    if (s_enabled < 0)
+    {
+        const char * env = std::getenv("GGC_BGFX_COALESCE_DYNAMIC_RANGE_UPLOADS");
+        s_enabled = (env == nullptr || env[0] == '\0' || std::atoi(env) != 0) ? 1 : 0;
+    }
+    return s_enabled != 0;
+}
+
 static std::unordered_map<unsigned long, RenderBackendLegacyPixelShaderMode> g_legacyPixelShaderModes;
 
 static void ResetFrameStats()
@@ -2792,6 +2803,7 @@ void BgfxBackend::Shutdown()
             }
         }
         g_caches.vb.clear();
+        g_caches.pendingVbRangeUploads.clear();
         for (auto & kv : g_caches.ib)
         {
             if (bgfx::isValid(kv.second.handle))
@@ -2800,6 +2812,7 @@ void BgfxBackend::Shutdown()
             }
         }
         g_caches.ib.clear();
+        g_caches.pendingIbRangeUploads.clear();
         for (auto & kv : g_caches.texture)
         {
             if (bgfx::isValid(kv.second))
@@ -2822,6 +2835,8 @@ void BgfxBackend::Shutdown()
         g_draw.ib         = BGFX_INVALID_HANDLE;
         g_draw.staticVB   = BGFX_INVALID_HANDLE;
         g_draw.staticIB   = BGFX_INVALID_HANDLE;
+        g_draw.vbOwner    = nullptr;
+        g_draw.ibOwner    = nullptr;
         g_draw.tex[0]   = BGFX_INVALID_HANDLE;
         g_draw.tex[1]   = BGFX_INVALID_HANDLE;
         g_draw.tex[2]   = BGFX_INVALID_HANDLE;
@@ -3696,6 +3711,8 @@ bgfx::DynamicVertexBufferHandle FindResourceVertexBufferHandle(const VertexBuffe
 bgfx::DynamicIndexBufferHandle FindResourceIndexBufferHandle(const IndexBufferClass * ib);
 bgfx::VertexBufferHandle FindResourceStaticVertexBufferHandle(const VertexBufferClass * vb);
 bgfx::IndexBufferHandle FindResourceStaticIndexBufferHandle(const IndexBufferClass * ib);
+void FlushPendingVertexRangeUpload(const VertexBufferClass * vb);
+void FlushPendingIndexRangeUpload(const IndexBufferClass * ib);
 void MirrorDynamicVertexHandleToResource(const VertexBufferClass * vb,
                                          bgfx::DynamicVertexBufferHandle handle);
 void MirrorDynamicIndexHandleToResource(const IndexBufferClass * ib,
@@ -3714,6 +3731,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
     g_draw.useTransientVB = false;
     g_draw.useStaticVB = false;
     g_draw.staticVB = BGFX_INVALID_HANDLE;
+    g_draw.vbOwner = nullptr;
     g_draw.activeTransientVBOwner = nullptr;
     g_draw.activeVertexNormalBias = false;
     // TheSuperHackers @bugfix bobtista 27/04/2026 Legacy fixed-function
@@ -3724,6 +3742,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
         && vb->FVF_Info().Has_Diffuse()) ? 1.0f : 0.0f;
     g_draw.fvfHasNormal = (vb != nullptr
         && vb->FVF_Info().Has_Normal());
+    FlushPendingVertexRangeUpload(vb);
     bgfx::VertexBufferHandle staticResourceHandle = FindResourceStaticVertexBufferHandle(vb);
     if (bgfx::isValid(staticResourceHandle))
     {
@@ -3737,6 +3756,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
         if (bgfx::isValid(resourceHandle))
         {
             g_draw.vb = resourceHandle;
+            g_draw.vbOwner = vb;
         }
         else
         {
@@ -3744,11 +3764,13 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
             if (it != g_caches.vb.end())
             {
                 g_draw.vb = it->second.handle;
+                g_draw.vbOwner = vb;
                 MirrorDynamicVertexHandleToResource(vb, it->second.handle);
             }
             else
             {
                 g_draw.vb = BGFX_INVALID_HANDLE;
+                g_draw.vbOwner = nullptr;
                 // Last-resort capture for static VBs that were written before bgfx
                 // registration/capture was active. Do not lock the legacy buffer here:
                 // bgfx must consume the backend-neutral CPU snapshot maintained by
@@ -3773,6 +3795,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
                             if (it2 != g_caches.vb.end())
                             {
                                 g_draw.vb = it2->second.handle;
+                                g_draw.vbOwner = vb;
                                 MirrorDynamicVertexHandleToResource(vb, it2->second.handle);
                             }
                         }
@@ -3792,6 +3815,7 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
         vba.FVF_Info().Has_Normal();
     g_draw.useStaticVB = false;
     g_draw.staticVB = BGFX_INVALID_HANDLE;
+    g_draw.vbOwner = nullptr;
     // If the matching Capture_Dynamic_Vertex_Data already
     // allocated a transient VB for this access class, claim it for the
     // next draw. Otherwise miss the cache and skip the bgfx submit.
@@ -3834,6 +3858,7 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
                              "miss");
         g_draw.useTransientVB = false;
         g_draw.vb         = BGFX_INVALID_HANDLE;
+        g_draw.vbOwner    = nullptr;
         g_draw.activeTransientVBOwner = nullptr;
         g_draw.activeVertexNormalBias = false;
     }
@@ -3845,7 +3870,9 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
     g_draw.useTransientIB = false;
     g_draw.useStaticIB = false;
     g_draw.staticIB = BGFX_INVALID_HANDLE;
+    g_draw.ibOwner = nullptr;
     g_draw.activeTransientIBOwner = nullptr;
+    FlushPendingIndexRangeUpload(ib);
     bgfx::IndexBufferHandle staticResourceHandle = FindResourceStaticIndexBufferHandle(ib);
     if (bgfx::isValid(staticResourceHandle))
     {
@@ -3859,6 +3886,7 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
         if (bgfx::isValid(resourceHandle))
         {
             g_draw.ib = resourceHandle;
+            g_draw.ibOwner = ib;
         }
         else
         {
@@ -3866,11 +3894,13 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
             if (it != g_caches.ib.end())
             {
                 g_draw.ib = it->second.handle;
+                g_draw.ibOwner = ib;
                 MirrorDynamicIndexHandleToResource(ib, it->second.handle);
             }
             else
             {
                 g_draw.ib = BGFX_INVALID_HANDLE;
+                g_draw.ibOwner = nullptr;
                 // Last-resort capture for static IBs not yet in cache. Use the
                 // backend-neutral CPU snapshot instead of locking a legacy index buffer.
                 if (ib != nullptr && g_device.initialized && ib->Has_CPU_Buffer_Data())
@@ -3892,6 +3922,7 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
                             if (it2 != g_caches.ib.end())
                             {
                                 g_draw.ib = it2->second.handle;
+                                g_draw.ibOwner = ib;
                                 MirrorDynamicIndexHandleToResource(ib, it2->second.handle);
                             }
                         }
@@ -3908,6 +3939,7 @@ void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned sh
     FixedFunctionState::Set_Index_Buffer(iba, index_base_offset);
     g_draw.useStaticIB = false;
     g_draw.staticIB = BGFX_INVALID_HANDLE;
+    g_draw.ibOwner = nullptr;
     if (g_draw.pendingIB.valid && g_draw.pendingIB.owner == &iba)
     {
         LogBgfxTransientDiag("set", "ib", &iba,
@@ -3944,6 +3976,7 @@ void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned sh
                              "miss");
         g_draw.useTransientIB = false;
         g_draw.ib         = BGFX_INVALID_HANDLE;
+        g_draw.ibOwner    = nullptr;
         g_draw.activeTransientIBOwner = nullptr;
     }
     g_draw.ibOffset = index_base_offset;
@@ -4356,6 +4389,7 @@ bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClas
             // earlier this frame may still reference it until bgfx::frame() executes.
             g_caches.deferredDestroyVB.push_back(it->second.handle);
         }
+        g_caches.pendingVbRangeUploads.erase(vb);
         g_caches.vb.erase(it);
     }
 
@@ -4418,6 +4452,7 @@ bgfx::DynamicIndexBufferHandle EnsureDynamicIndexBuffer(const IndexBufferClass *
             // Defer the destroy of the grown-out handle by one frame.
             g_caches.deferredDestroyIB.push_back(it->second.handle);
         }
+        g_caches.pendingIbRangeUploads.erase(ib);
         g_caches.ib.erase(it);
     }
     if (num_indices == 0)
@@ -4430,6 +4465,145 @@ bgfx::DynamicIndexBufferHandle EnsureDynamicIndexBuffer(const IndexBufferClass *
     g_caches.ib[ib] = e;
     MirrorDynamicIndexHandleToResource(ib, h);
     return h;
+}
+
+void MarkPendingRangeUpload(BgfxPendingRangeUpload & pending,
+                            uint32_t start_byte,
+                            uint32_t size_bytes)
+{
+    const uint64_t end_byte64 = static_cast<uint64_t>(start_byte) + size_bytes;
+    const uint32_t end_byte = end_byte64 > UINT32_MAX
+        ? UINT32_MAX
+        : static_cast<uint32_t>(end_byte64);
+    if (!pending.valid)
+    {
+        pending.startByte = start_byte;
+        pending.endByte = end_byte;
+        pending.valid = true;
+        return;
+    }
+    if (start_byte < pending.startByte)
+    {
+        pending.startByte = start_byte;
+    }
+    if (end_byte > pending.endByte)
+    {
+        pending.endByte = end_byte;
+    }
+}
+
+void FlushPendingVertexRangeUpload(const VertexBufferClass * vb)
+{
+    auto it = g_caches.pendingVbRangeUploads.find(vb);
+    if (it == g_caches.pendingVbRangeUploads.end() || !it->second.valid)
+    {
+        return;
+    }
+
+    BgfxPendingRangeUpload pending = it->second;
+    g_caches.pendingVbRangeUploads.erase(it);
+
+    const uint32_t stride = vb != nullptr ? vb->FVF_Info().Get_FVF_Size() : 0;
+    const uint32_t buffer_bytes =
+        (vb != nullptr) ? static_cast<uint32_t>(vb->Get_Vertex_Count()) * stride : 0;
+    if (!g_device.initialized
+        || vb == nullptr
+        || stride == 0
+        || buffer_bytes == 0
+        || !vb->Has_CPU_Buffer_Data()
+        || vb->Get_CPU_Buffer_Size() < buffer_bytes)
+    {
+        return;
+    }
+
+    uint32_t start_byte = pending.startByte - (pending.startByte % stride);
+    uint32_t end_byte = pending.endByte;
+    if (end_byte > buffer_bytes)
+    {
+        end_byte = buffer_bytes;
+    }
+    const uint32_t end_remainder = end_byte % stride;
+    if (end_remainder != 0)
+    {
+        end_byte += stride - end_remainder;
+        if (end_byte > buffer_bytes)
+        {
+            end_byte = buffer_bytes;
+        }
+    }
+    if (end_byte <= start_byte)
+    {
+        return;
+    }
+
+    bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
+    if (!bgfx::isValid(h))
+    {
+        return;
+    }
+
+    const uint32_t start_vertex = start_byte / stride;
+    const uint32_t size_bytes = end_byte - start_byte;
+    const unsigned char * src = vb->Peek_CPU_Buffer_Data() + start_byte;
+    const bgfx::Memory * mem = bgfx::copy(src, size_bytes);
+    LogBgfxBufferUpdate("vb-range-flush", vb, src, start_vertex, size_bytes, h.idx, mem);
+    bgfx::update(h, start_vertex, mem);
+}
+
+void FlushPendingIndexRangeUpload(const IndexBufferClass * ib)
+{
+    auto it = g_caches.pendingIbRangeUploads.find(ib);
+    if (it == g_caches.pendingIbRangeUploads.end() || !it->second.valid)
+    {
+        return;
+    }
+
+    BgfxPendingRangeUpload pending = it->second;
+    g_caches.pendingIbRangeUploads.erase(it);
+
+    const uint32_t index_size = sizeof(uint16_t);
+    const uint32_t buffer_bytes =
+        (ib != nullptr) ? static_cast<uint32_t>(ib->Get_Index_Count()) * index_size : 0;
+    if (!g_device.initialized
+        || ib == nullptr
+        || buffer_bytes == 0
+        || !ib->Has_CPU_Buffer_Data()
+        || ib->Get_CPU_Buffer_Size() < buffer_bytes)
+    {
+        return;
+    }
+
+    uint32_t start_byte = pending.startByte - (pending.startByte % index_size);
+    uint32_t end_byte = pending.endByte;
+    if (end_byte > buffer_bytes)
+    {
+        end_byte = buffer_bytes;
+    }
+    if ((end_byte % index_size) != 0)
+    {
+        end_byte += index_size - (end_byte % index_size);
+        if (end_byte > buffer_bytes)
+        {
+            end_byte = buffer_bytes;
+        }
+    }
+    if (end_byte <= start_byte)
+    {
+        return;
+    }
+
+    bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
+    if (!bgfx::isValid(h))
+    {
+        return;
+    }
+
+    const uint32_t start_index = start_byte / index_size;
+    const uint32_t size_bytes = end_byte - start_byte;
+    const unsigned char * src = ib->Peek_CPU_Buffer_Data() + start_byte;
+    const bgfx::Memory * mem = bgfx::copy(src, size_bytes);
+    LogBgfxBufferUpdate("ib-range-flush", ib, src, start_index, size_bytes, h.idx, mem);
+    bgfx::update(h, start_index, mem);
 }
 }
 
@@ -4467,6 +4641,7 @@ void BgfxBackend::Upload_Vertex_Buffer_Data(const VertexBufferClass * vb,
         }
         return;
     }
+    g_caches.pendingVbRangeUploads.erase(vb);
     if (TryCaptureStaticVertexBuffer(vb, data, size_bytes))
     {
         return;
@@ -4502,6 +4677,7 @@ void BgfxBackend::Upload_Index_Buffer_Data(const IndexBufferClass * ib,
         }
         return;
     }
+    g_caches.pendingIbRangeUploads.erase(ib);
     if (TryCaptureStaticIndexBuffer(ib, data, size_bytes))
     {
         return;
@@ -4563,6 +4739,17 @@ void BgfxBackend::Upload_Vertex_Buffer_Sub_Range(const VertexBufferClass * vb,
     {
         return;
     }
+    const uint32_t byte_offset = start_vertex * stride;
+    if (CoalesceDynamicRangeUploadsEnabled()
+        && vb->Has_CPU_Buffer_Data()
+        && vb->Get_CPU_Buffer_Size() >= buffer_bytes)
+    {
+        MarkPendingRangeUpload(g_caches.pendingVbRangeUploads[vb],
+                               byte_offset,
+                               size_bytes);
+        LogBgfxBufferUpdate("vb-range-defer", vb, data, start_vertex, size_bytes, h.idx, nullptr);
+        return;
+    }
     const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
     LogBgfxBufferUpdate("vb-range", vb, data, start_vertex, size_bytes, h.idx, mem);
     bgfx::update(h, start_vertex, mem);
@@ -4602,6 +4789,17 @@ void BgfxBackend::Upload_Index_Buffer_Sub_Range(const IndexBufferClass * ib,
     bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
     if (!bgfx::isValid(h))
     {
+        return;
+    }
+    const uint32_t byte_offset = start_index * sizeof(uint16_t);
+    if (CoalesceDynamicRangeUploadsEnabled()
+        && ib->Has_CPU_Buffer_Data()
+        && ib->Get_CPU_Buffer_Size() >= buffer_bytes)
+    {
+        MarkPendingRangeUpload(g_caches.pendingIbRangeUploads[ib],
+                               byte_offset,
+                               size_bytes);
+        LogBgfxBufferUpdate("ib-range-defer", ib, data, start_index, size_bytes, h.idx, nullptr);
         return;
     }
     const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
@@ -8519,6 +8717,47 @@ namespace
 // both Draw_Triangles overloads when we have a valid cached VB + IB +
 // program. State and program were cached by Set_Shader; the buffers were
 // cached by Set_Vertex_Buffer / Set_Index_Buffer.
+void FlushPendingBoundDynamicRangeUploads()
+{
+    if (!g_draw.useTransientVB && !g_draw.useStaticVB && g_draw.vbOwner != nullptr)
+    {
+        const VertexBufferClass * owner = g_draw.vbOwner;
+        FlushPendingVertexRangeUpload(owner);
+        bgfx::DynamicVertexBufferHandle h = FindResourceVertexBufferHandle(owner);
+        if (!bgfx::isValid(h))
+        {
+            auto it = g_caches.vb.find(owner);
+            if (it != g_caches.vb.end())
+            {
+                h = it->second.handle;
+            }
+        }
+        if (bgfx::isValid(h))
+        {
+            g_draw.vb = h;
+        }
+    }
+
+    if (!g_draw.useTransientIB && !g_draw.useStaticIB && g_draw.ibOwner != nullptr)
+    {
+        const IndexBufferClass * owner = g_draw.ibOwner;
+        FlushPendingIndexRangeUpload(owner);
+        bgfx::DynamicIndexBufferHandle h = FindResourceIndexBufferHandle(owner);
+        if (!bgfx::isValid(h))
+        {
+            auto it = g_caches.ib.find(owner);
+            if (it != g_caches.ib.end())
+            {
+                h = it->second.handle;
+            }
+        }
+        if (bgfx::isValid(h))
+        {
+            g_draw.ib = h;
+        }
+    }
+}
+
 void SubmitEngineDraw(unsigned short start_index,
                       unsigned short polygon_count,
                       unsigned short min_vertex_index,
@@ -8558,6 +8797,7 @@ void SubmitEngineDraw(unsigned short start_index,
         g_stats.skippedDraws++;
         return;
     }
+    FlushPendingBoundDynamicRangeUploads();
     const bool have_vb = g_draw.useTransientVB
         || (g_draw.useStaticVB && bgfx::isValid(g_draw.staticVB))
         || bgfx::isValid(g_draw.vb);
@@ -9711,6 +9951,12 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
         case BGFX_RR_KIND_VB:
         {
             const VertexBufferClass *owner = static_cast<const VertexBufferClass *>(entry.owner);
+            g_caches.pendingVbRangeUploads.erase(owner);
+            if (g_draw.vbOwner == owner)
+            {
+                g_draw.vb = BGFX_INVALID_HANDLE;
+                g_draw.vbOwner = nullptr;
+            }
             bool destroyedDynamic = false;
             auto vbIt = g_caches.vb.find(owner);
             if (vbIt != g_caches.vb.end())
@@ -9745,6 +9991,12 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
         case BGFX_RR_KIND_IB:
         {
             const IndexBufferClass *owner = static_cast<const IndexBufferClass *>(entry.owner);
+            g_caches.pendingIbRangeUploads.erase(owner);
+            if (g_draw.ibOwner == owner)
+            {
+                g_draw.ib = BGFX_INVALID_HANDLE;
+                g_draw.ibOwner = nullptr;
+            }
             bool destroyedDynamic = false;
             auto ibIt = g_caches.ib.find(owner);
             if (ibIt != g_caches.ib.end())
