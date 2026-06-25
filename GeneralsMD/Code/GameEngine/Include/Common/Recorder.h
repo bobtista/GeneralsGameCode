@@ -67,6 +67,13 @@ protected:
 	// corresponding replay CRC messages arrive. This class implements that queue.
 	class CRCInfo
 	{
+		enum CPP_11( : Byte)
+		{
+			CRC_LOCALPLAYER_SINGLEMISMATCH = 0,    // never ignore mismatch caused by local player (original behavior)
+			CRC_ALLPLAYERS_SINGLEMISMATCH = -1,    // never ignore mismatch caused by any player (default behavior)
+			CRC_ALLPLAYERS_MULTIPLEMISMATCH = -2,    // ignore mismatch unless indicated by multiple or all players (optional behavior)
+		};
+
 	public:
 		struct MismatchData
 		{

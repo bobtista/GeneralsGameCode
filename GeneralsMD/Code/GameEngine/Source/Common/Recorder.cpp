@@ -103,19 +103,31 @@ static FILE* openStatsLogFile()
 RecorderClass::CRCInfo::CRCInfo()
   : m_skippedOne(false)
   , m_sawCRCMismatch(false)
-  , m_localPlayerIndex(-1)
+  , m_localPlayerIndex(CRC_ALLPLAYERS_SINGLEMISMATCH)
 {
 	static_assert(ARRAY_SIZE(m_playerData) == MAX_PLAYER_COUNT, "array size must be equal to player count");
 }
 
 void RecorderClass::CRCInfo::init(Bool isMultiplayer, Int localPlayerIndex)
 {
-	DEBUG_ASSERTCRASH((localPlayerIndex >= 0 && localPlayerIndex < MAX_PLAYER_COUNT) || localPlayerIndex == -1,
+	DEBUG_ASSERTCRASH((localPlayerIndex >= 0 && localPlayerIndex < MAX_PLAYER_COUNT),
 	                  ("replay local player index is unexpected"));
 
 	m_skippedOne = !isMultiplayer;
 	m_sawCRCMismatch = false;
-	m_localPlayerIndex = static_cast<Byte>(localPlayerIndex);
+
+	if (TheGlobalData->m_replayCRCCheckMode == 2)
+	{
+		m_localPlayerIndex = static_cast<Byte>(localPlayerIndex);
+	}
+	else if (TheGlobalData->m_replayCRCCheckMode == 1)
+	{
+		m_localPlayerIndex = CRC_ALLPLAYERS_MULTIPLEMISMATCH;
+	}
+	else
+	{
+		m_localPlayerIndex = CRC_ALLPLAYERS_SINGLEMISMATCH;
+	}
 
 	m_playbackData.clear();
 
@@ -139,18 +151,18 @@ void RecorderClass::CRCInfo::pushPlaybackCRC(UnsignedInt val)
 	}
 
 	m_playbackData.push_back(val);
-	// DEBUG_LOG(("CRCInfo::addPlaybackCRC() - crc %8.8X pushes list to %d entries", val, m_playbackData.size()));
+	// DEBUG_LOG(("CRCInfo::pushPlaybackCRC() - crc %8.8X pushes list to %d entries", val, m_playbackData.size()));
 }
 
 void RecorderClass::CRCInfo::pushPlayerCRC(Int playerIndex, UnsignedInt val)
 {
-	if (const Bool isAllowedToAddPlayerCRC = (m_localPlayerIndex < 0 || playerIndex == m_localPlayerIndex))
+	if (const Bool isAllowedToAddPlayerCRC = (m_localPlayerIndex < CRC_LOCALPLAYER_SINGLEMISMATCH || playerIndex == m_localPlayerIndex))
 	{
 		const UnsignedInt index = static_cast<UnsignedInt>(playerIndex);
 		if (index < ARRAY_SIZE(m_playerData))
 		{
 			m_playerData[index].push_back(val);
-			// DEBUG_LOG(("CRCInfo::addPlayerCRC() - crc %8.8X pushes list to %d entries", val, m_playerData[index].size()));
+			// DEBUG_LOG(("CRCInfo::pushPlayerCRC() - crc %8.8X pushes list to %d entries", val, m_playerData[index].size()));
 		}
 	}
 }
@@ -202,22 +214,30 @@ RecorderClass::CRCInfo::MismatchData RecorderClass::CRCInfo::generateMismatchDat
 
 		if (mmData.mismatched)
 		{
-			if (const Bool allPlayersMismatch = (playerCount >= 2 && playerCount == mismatchPlayerCount))
+			const Bool ignoreMismatch = (m_localPlayerIndex == CRC_ALLPLAYERS_MULTIPLEMISMATCH && playerCount >= 2 && mismatchPlayerCount <= 1);
+			if (ignoreMismatch)
 			{
-				mmData.playerIndex = CRCInfo::MismatchData::PLAYER_PLAYBACK;
+				mmData.mismatched = FALSE;
 			}
-			else if (const Bool cannotAttributeMismatch = (playerCount <= 1 || mismatchPlayerCount >= 2))
+			else
 			{
-				mmData.playerIndex = CRCInfo::MismatchData::PLAYER_UNKNOWN;
-			}
+				if (const Bool allPlayersMismatch = (playerCount >= 2 && playerCount == mismatchPlayerCount))
+				{
+					mmData.playerIndex = CRCInfo::MismatchData::PLAYER_PLAYBACK;
+				}
+				else if (const Bool cannotAttributeMismatch = (playerCount <= 1 || mismatchPlayerCount >= 2))
+				{
+					mmData.playerIndex = CRCInfo::MismatchData::PLAYER_UNKNOWN;
+				}
 
-			// leave the playback data in a valid state in case the caller ignores the mismatch
-			while (!m_playbackData.empty() && ++j < largestQueueSize)
-			{
-				m_playbackData.pop_front();
-			}
+				// leave the playback data in a valid state in case the caller ignores the mismatch
+				while (!m_playbackData.empty() && ++j < largestQueueSize)
+				{
+					m_playbackData.pop_front();
+				}
 
-			break;
+				break;
+			}
 		}
 	}
 
@@ -1301,8 +1321,8 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 	}
 #endif
 
-	Bool isMultiplayer = m_gameInfo.getSlot(header.localPlayerIndex)->getIP() != 0;
-	m_crcInfo.init(isMultiplayer, TheGlobalData->m_replayLocalPlayerCRC ? header.localPlayerIndex : -1);
+	const Bool isMultiplayer = m_gameInfo.getSlot(header.localPlayerIndex)->getIP() != 0;
+	m_crcInfo.init(isMultiplayer, header.localPlayerIndex);
 	REPLAY_CRC_INTERVAL = m_gameInfo.getCRCInterval();
 	DEBUG_LOG(("Player index is %d, replay CRC interval is %d", header.localPlayerIndex, REPLAY_CRC_INTERVAL));
 
