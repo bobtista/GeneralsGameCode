@@ -1760,6 +1760,9 @@ void BaseHeightMapRenderObjClass::initDestAlphaLUT()
 		}
 		m_destAlphaTexture->End_Mip_Write(0);
 
+		m_destAlphaTexture->Get_Filter().Set_Min_Filter(TextureFilterClass::FILTER_TYPE_FAST);
+		m_destAlphaTexture->Get_Filter().Set_Mag_Filter(TextureFilterClass::FILTER_TYPE_FAST);
+		m_destAlphaTexture->Get_Filter().Set_Mip_Mapping(TextureFilterClass::FILTER_TYPE_NONE);
 		m_destAlphaTexture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 		m_destAlphaTexture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 		m_currentMinWaterOpacity = TheWaterTransparency->m_minWaterOpacity;
@@ -2482,21 +2485,12 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 	m_numVisibleShoreLineTiles=0;
 
-	// TheSuperHackers @bugfix bobtista 01/06/2026 The shoreline-alpha
-	// soft water edge pass writes the back-buffer alpha channel for later
-	// DESTALPHA blending of the water surface. It was added as part of the
-	// bgfx render-to-texture work; the BgfxBackend manages mask
-	// restoration across its view-based draw queue. On dx8 nothing restores
-	// the color write mask after this pass — the function exits with
-	// Set_Color_Write_Enable(true,true,true,false) (RGB-only), masking the
-	// alpha output of every subsequent draw and silently breaking the
-	// water trapezoid + UI overlay passes. Gate the whole pass on
-	// Has_Shader_Pipeline() so backends without the per-view mask plumbing
-	// (i.e. dx8) skip it entirely and inherit the legacy hard-edge water.
-	if (g_renderBackend != nullptr && !g_renderBackend->Has_Shader_Pipeline())
-		return;
-
-	if (!TheGlobalData->m_showSoftWaterEdge || TheWaterTransparency->m_transparentWaterDepth==0 || m_numShoreLineTiles == 0)
+	// TheSuperHackers @bugfix bobtista 22/06/2026 The dx8 reference authors the
+	// shoreline dest-alpha gradient here for the soft water edge and restores the
+	// RGB mask on exit, same as the original. Do not gate this off for dx8.
+	if (!TheGlobalData->m_showSoftWaterEdge
+		|| TheWaterTransparency->m_transparentWaterDepth==0
+		|| m_numShoreLineTiles == 0)
 		return;
 
 	//Check if video card is capable of using this effect
@@ -2526,6 +2520,12 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 	//Enabled writes to destination alpha only
 	g_renderBackend->Set_Color_Write_Enable(false, false, false, true);
 	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+	g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
+	g_renderBackend->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
+	g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 
 
 	while (j != m_numShoreLineTiles)
@@ -2659,14 +2659,9 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 {
 	m_numVisibleShoreLineTiles=0;
 
-	// See the matching comment in renderShoreLines above — the shoreline
-	// alpha pass leaves the color write mask in a non-default state that
-	// only the bgfx view system restores. Skip on dx8 / any non-shader
-	// backend.
-	if (g_renderBackend != nullptr && !g_renderBackend->Has_Shader_Pipeline())
-		return;
-
-	if (!TheGlobalData->m_showSoftWaterEdge || TheWaterTransparency->m_transparentWaterDepth==0 || m_numShoreLineTiles == 0)
+	if (!TheGlobalData->m_showSoftWaterEdge
+		|| TheWaterTransparency->m_transparentWaterDepth==0
+		|| m_numShoreLineTiles == 0)
 		return;
 
 	//Check if video card is capable of using this effect
@@ -2717,6 +2712,12 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 	//Enabled writes to destination alpha only
 	g_renderBackend->Set_Color_Write_Enable(false, false, false, true);
 	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+	g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
+	g_renderBackend->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
+	g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 
 	Bool isDone=FALSE;
 	Int lastRenderedTile=0;
