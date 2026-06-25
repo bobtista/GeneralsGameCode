@@ -49,6 +49,13 @@ struct BgfxIbCacheEntry {
     uint32_t num_indices;
 };
 
+struct BgfxPendingRangeUpload
+{
+    uint32_t startByte = 0;
+    uint32_t endByte = 0;
+    bool valid = false;
+};
+
 struct TextureCacheInfo
 {
     unsigned revision;
@@ -227,6 +234,8 @@ struct BgfxDraw
     bgfx::DynamicIndexBufferHandle  ib       = BGFX_INVALID_HANDLE;
     bgfx::VertexBufferHandle        staticVB = BGFX_INVALID_HANDLE;
     bgfx::IndexBufferHandle         staticIB = BGFX_INVALID_HANDLE;
+    const VertexBufferClass *       vbOwner  = nullptr;
+    const IndexBufferClass *        ibOwner  = nullptr;
     unsigned short                  ibOffset = 0;
     bool                        useStaticVB = false;
     bool                        useStaticIB = false;
@@ -474,6 +483,8 @@ struct BgfxCaches
 {
     std::unordered_map<const VertexBufferClass *, BgfxVbCacheEntry>      vb;
     std::unordered_map<const IndexBufferClass  *, BgfxIbCacheEntry>      ib;
+    std::unordered_map<const VertexBufferClass *, BgfxPendingRangeUpload> pendingVbRangeUploads;
+    std::unordered_map<const IndexBufferClass  *, BgfxPendingRangeUpload> pendingIbRangeUploads;
     std::unordered_map<const TextureBaseClass  *, bgfx::TextureHandle>   texture;
     std::unordered_map<const TextureBaseClass  *, TextureCacheInfo>      textureInfo;
     std::unordered_map<const TextureBaseClass  *, bgfx::TextureHandle>   textureBaseMip;
