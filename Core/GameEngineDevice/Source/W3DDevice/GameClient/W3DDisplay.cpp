@@ -1057,14 +1057,27 @@ void W3DDisplay::init()
 			extern SDL_Window *TheSDL3Window;
 			if (TheSDL3Window != nullptr)
 			{
-				int wPts = 0, hPts = 0;
-				SDL_GetWindowSize(TheSDL3Window, &wPts, &hPts);
-				if (wPts > 0 && hPts > 0)
+				// TheSuperHackers @bugfix bobtista 25/06/2026 In windowed mode the SDL window is created at
+				// a fixed default size before the saved Option Preferences (or -xres/-yres) are parsed, so
+				// size it to the resolution set above (TheGlobalData->m_xResolution) rather than overwriting
+				// that resolution with the default window size - otherwise the saved windowed resolution
+				// never persists across launches. Fullscreen still adopts the actual drawable size.
+				if (TheGlobalData->m_windowed)
 				{
-					setWidth(wPts);
-					setHeight(hPts);
-					TheWritableGlobalData->m_xResolution = wPts;
-					TheWritableGlobalData->m_yResolution = hPts;
+					SDL_SetWindowSize(TheSDL3Window, getWidth(), getHeight());
+					SDL_SyncWindow(TheSDL3Window);
+				}
+				else
+				{
+					int wPts = 0, hPts = 0;
+					SDL_GetWindowSize(TheSDL3Window, &wPts, &hPts);
+					if (wPts > 0 && hPts > 0)
+					{
+						setWidth(wPts);
+						setHeight(hPts);
+						TheWritableGlobalData->m_xResolution = wPts;
+						TheWritableGlobalData->m_yResolution = hPts;
+					}
 				}
 			}
 #endif
