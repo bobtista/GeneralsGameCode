@@ -188,6 +188,10 @@ void SDL3GameEngine::pollSDL3Events()
 	}
 }
 
+// TheSuperHackers @bugfix bobtista 25/06/2026 Defined in MainMenu.cpp; rebuilds the resolution
+// confirmation dialog at the current resolution after a resize settles.
+extern void RecreateResolutionDialogIfActive();
+
 void SDL3GameEngine::applyPendingWindowResize()
 {
 	m_resizePending = false;
@@ -199,6 +203,19 @@ void SDL3GameEngine::applyPendingWindowResize()
 	if (m_sdlWindow != NULL)
 	{
 		SDL_GetWindowSize(m_sdlWindow, &actualW, &actualH);
+		// TheSuperHackers @bugfix bobtista 25/06/2026 In exclusive fullscreen, macOS transiently
+		// reports the pixel drawable size (not logical points) from SDL_GetWindowSize while the
+		// mode-switch settles, which corrupts the UI resolution for ~1s. The requested fullscreen
+		// mode is stable from the moment it is set, so prefer it to skip the transient size.
+		if (TheDisplay != NULL && !TheDisplay->getWindowed())
+		{
+			const SDL_DisplayMode *fullscreenMode = SDL_GetWindowFullscreenMode(m_sdlWindow);
+			if (fullscreenMode != NULL && fullscreenMode->w > 0 && fullscreenMode->h > 0)
+			{
+				actualW = fullscreenMode->w;
+				actualH = fullscreenMode->h;
+			}
+		}
 	}
 	Int newWidth = actualW;
 	Int newHeight = actualH;
@@ -287,6 +304,11 @@ void SDL3GameEngine::applyPendingWindowResize()
 			1.0f);
 		TheTacticalView->setZoomToDefault();
 	}
+
+	// TheSuperHackers @bugfix bobtista 25/06/2026 The resolution-confirm dialog is a runtime modal,
+	// not part of the shell layouts recreated above, so rebuild it here too when it is open -
+	// otherwise it stays laid out at the pre-resize resolution and renders mis-scaled.
+	RecreateResolutionDialogIfActive();
 
 	DEBUG_LOG(("SDL3GameEngine::applyPendingWindowResize done at %dx%d", newWidth, newHeight));
 }

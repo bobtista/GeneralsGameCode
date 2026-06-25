@@ -204,7 +204,7 @@ static Bool launchChallengeMenu = FALSE;
 
 static Bool dontAllowTransitions = FALSE;
 
-const Int /*TIME_OUT = 15,*/ CORNER = 10;
+//const Int TIME_OUT = 15, CORNER = 10;
 void AcceptResolution();
 void DeclineResolution();
 GameWindow *resAcceptMenu = nullptr;
@@ -693,6 +693,9 @@ void AcceptResolution()
 	//set to off
 	oldDispSettings = newDispSettings;
 	dispChanged = FALSE;
+	// TheSuperHackers @bugfix bobtista 25/06/2026 Clear the tracked dialog window so the resize-driven
+	// RecreateResolutionDialogIfActive does not touch the now-destroyed box.
+	resAcceptMenu = nullptr;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -726,6 +729,9 @@ void DeclineResolution()
 
 		TheInGameUI->recreateControlBar();
 	}
+	// TheSuperHackers @bugfix bobtista 25/06/2026 Clear the tracked dialog window so the resize-driven
+	// RecreateResolutionDialogIfActive does not touch the now-destroyed box.
+	resAcceptMenu = nullptr;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -743,10 +749,32 @@ void DoResolutionDialog()
 	resTimerString.concat(resolutionNew);
 
 
-	resAcceptMenu = TheWindowManager->gogoMessageBox( CORNER, CORNER, -1, -1,MSG_BOX_OK | MSG_BOX_CANCEL ,
+	// TheSuperHackers @bugfix bobtista 25/06/2026 Center the resolution confirmation box (-1,-1) instead of corner-positioning it; gogoMessageBox's reposition path moves only the parent frame, leaving the OK/Cancel buttons and text detached at their default layout positions.
+	resAcceptMenu = TheWindowManager->gogoMessageBox( -1, -1, -1, -1,MSG_BOX_OK | MSG_BOX_CANCEL ,
 																									 TheGameText->fetch("GUI:Resolution"),
 																									 resTimerString, nullptr, nullptr, AcceptResolution,
 																									 DeclineResolution);
+}
+
+//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 25/06/2026 Rebuild the resolution-confirm dialog at the live
+// resolution. On macOS a fullscreen resolution change settles asynchronously after the dialog is
+// created, so the box gets laid out at the pre-change resolution and then renders mis-scaled once
+// the display reaches the new mode. The engine resize path calls this after the display settles so
+// the dialog is recreated to match. dispChanged is true only while a confirmation is pending.
+//-------------------------------------------------------------------------------------------------
+void RecreateResolutionDialogIfActive()
+{
+	// Only act when the confirmation dialog is actually open: dispChanged becomes true the moment the
+	// resolution is changed in the options menu - before the dialog is created on menu exit - so the
+	// live resAcceptMenu guard prevents creating the dialog prematurely.
+	if (!dispChanged || resAcceptMenu == nullptr)
+	{
+		return;
+	}
+	TheWindowManager->winDestroy(resAcceptMenu);
+	resAcceptMenu = nullptr;
+	DoResolutionDialog();
 }
 
 /* This function is not being currently used because we do not need a timer on the
