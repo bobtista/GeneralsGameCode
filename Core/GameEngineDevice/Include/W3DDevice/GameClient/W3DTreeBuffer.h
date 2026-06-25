@@ -92,6 +92,7 @@ typedef struct {
 	Real		cos;							///< Cosine of the rotation angle at location.
 	Int			treeType;					///< Type of tree.
 	Bool		visible;					///< Visible flag, updated each frame.
+	Bool		shadowCasterVisible;		///< Off-camera tree still needed by the bgfx sun-shadow map.
 	SphereClass bounds;				///< Bounding sphere for culling to set the visible flag.
 	Real		sortKey;					///< Sort key, essentially the distance along the look at vector.
 	DrawableID		drawableID;	///< Drawable this tree corresponds to.
