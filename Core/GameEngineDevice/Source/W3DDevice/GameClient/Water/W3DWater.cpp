@@ -85,9 +85,45 @@ static inline void W3DWater_BindTexture(unsigned stage, TextureClass * tex)
 		g_renderBackend->Bind_Texture_Immediate(stage, tex);
 }
 
-static inline bool W3DWater_UseBackendSeaBatch()
+static inline bool W3DWater_UseBackendWater()
 {
 	return g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline();
+}
+
+static inline UnsignedInt W3DWater_ScaleDiffuseAlpha(UnsignedInt diffuse, Real scale)
+{
+	Int alpha = (diffuse >> 24) & 0xff;
+	alpha = static_cast<Int>(alpha * WWMath::Clamp(scale, 0.0f, 1.0f) + 0.5f);
+	return (diffuse & 0x00ffffff) | (static_cast<UnsignedInt>(alpha) << 24);
+}
+
+static inline Real W3DWater_GetBgfxShoreAlpha(Real x, Real y, Real waterZ, Real fadeDepthScale, Bool quadraticFade)
+{
+	if (!W3DWater_UseBackendWater()
+		|| !TheGlobalData
+		|| !TheGlobalData->m_showSoftWaterEdge
+		|| !TheWaterTransparency
+		|| TheWaterTransparency->m_transparentWaterDepth <= 0.0f
+		|| !TheTerrainRenderObject
+		|| !TheTerrainRenderObject->getMap())
+	{
+		return 1.0f;
+	}
+
+	const Real terrainZ = TheTerrainRenderObject->getHeightMapHeight(x, y, nullptr);
+	const Real depth = waterZ - terrainZ;
+	if (depth <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	const Real fadeDepth = TheWaterTransparency->m_transparentWaterDepth * fadeDepthScale;
+	Real alpha = WWMath::Clamp(depth / fadeDepth, 0.0f, 1.0f);
+	if (quadraticFade)
+	{
+		return alpha * alpha;
+	}
+	return alpha * alpha * (3.0f - 2.0f * alpha);
 }
 
 static void W3DWater_FillWhiteTexture(TextureClass *texture)
@@ -1108,7 +1144,7 @@ void WaterRenderObjClass::loadSetting( Setting *setting, TimeOfDay timeOfDay )
 void WaterRenderObjClass::updateRenderTargetTextures(CameraClass *cam)
 {
 #if !defined(GGC_BGFX_STANDALONE)
-	if (!W3DWater_UseBackendSeaBatch() &&
+	if (!W3DWater_UseBackendWater() &&
 		m_waterType == WATER_TYPE_2_PVSHADER && getClippedWaterPlane(cam, nullptr) &&
 		TheTerrainRenderObject && TheTerrainRenderObject->getMap())
 		renderMirror(cam);	//generate texture containing reflected scene
@@ -1497,7 +1533,14 @@ void WaterRenderObjClass::drawSeaBatch(RenderInfoClass & rinfo)
 						vb->x=x;
 						vb->y=y;
 						vb->z=m_level;
-						vb->diffuse=m_settings[m_tod].transparentWaterDiffuse;
+						UnsignedInt diffuse = m_settings[m_tod].transparentWaterDiffuse;
+						if (W3DWater_UseBackendWater())
+						{
+							diffuse = W3DWater_ScaleDiffuseAlpha(
+								diffuse,
+								W3DWater_GetBgfxShoreAlpha(x, y, m_level, 4.0f, TRUE));
+						}
+						vb->diffuse=diffuse;
 						vb->u1=(Real)i*PATCH_UV_SCALE + m_uOffset;
 						vb->v1=(Real)j*PATCH_UV_SCALE + m_vOffset;
 						vb->u2=x*inverseBumpSize;
@@ -1520,6 +1563,14 @@ void WaterRenderObjClass::drawSeaBatch(RenderInfoClass & rinfo)
 		g_renderBackend->Set_Texture(2,nullptr);
 		g_renderBackend->Set_Texture(3,nullptr);
 		g_renderBackend->Set_Material(m_vertexMaterialClass);
+		g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Alpha_Argument(0, 2, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+		g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 		{
 			ShaderClass waterShader = ShaderClass::_PresetAlphaShader;
 			waterShader.Set_Cull_Mode(ShaderClass::CULL_MODE_DISABLE);
@@ -1527,6 +1578,20 @@ void WaterRenderObjClass::drawSeaBatch(RenderInfoClass & rinfo)
 			g_renderBackend->Set_Shader(waterShader);
 		}
 		g_renderBackend->Override_Alpha_Blend_Enable(true);
+		if (g_renderBackend->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
+			&& TheGlobalData->m_showSoftWaterEdge
+			&& TheWaterTransparency->m_transparentWaterDepth !=0
+			&& !g_renderBackend->Has_Shader_Pipeline())
+		{
+			if (TheWaterTransparency->m_additiveBlend)
+			{
+				g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_ONE);
+			}
+			else
+			{
+				g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
+			}
+		}
 		g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
 		g_renderBackend->Draw_Triangles(0,batchTriangleCount,0,batchVertexCount);
 
@@ -1541,6 +1606,14 @@ void WaterRenderObjClass::drawSeaBatch(RenderInfoClass & rinfo)
 			W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 		}
 
+		if (!TheWaterTransparency->m_additiveBlend)
+		{
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
+		}
+		else
+		{
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ONE);
+		}
 		g_renderBackend->Clear_State_Overrides();
 		batchStart = batchEnd;
 	}
@@ -2817,7 +2890,14 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 							wave = (sin(phase) - 1.0f) * amplitude;
 
 							vb->z = (vertex.Z + wave);
-							vb->diffuse = customDiffuse;
+							UnsignedInt vertexDiffuse = customDiffuse;
+							if (W3DWater_UseBackendWater())
+							{
+								vertexDiffuse = W3DWater_ScaleDiffuseAlpha(
+									vertexDiffuse,
+									W3DWater_GetBgfxShoreAlpha(vertex.X, vertex.Y, vertex.Z, 0.75f, FALSE));
+							}
+							vb->diffuse = vertexDiffuse;
 							vb->u1 = (vertex.X/waterFactor) + 0.02*cos(11*m_riverVOrigin)*wave;
 							vb->v1 = (vertex.Y/waterFactor) + 0.02*cos(5*m_riverVOrigin)*wave;
 							vb->u2 = vertex.X/BUMP_SIZE;
@@ -2856,7 +2936,14 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 							vb->y=vertex.Y;
 							vb->z=vertex.Z;
 
-							vb->diffuse= diffuse;
+							UnsignedInt vertexDiffuse = diffuse;
+							if (W3DWater_UseBackendWater())
+							{
+								vertexDiffuse = W3DWater_ScaleDiffuseAlpha(
+									vertexDiffuse,
+									W3DWater_GetBgfxShoreAlpha(vertex.X, vertex.Y, vertex.Z, 0.75f, FALSE));
+							}
+							vb->diffuse= vertexDiffuse;
 							vb->u1=vertex.X*ooWaterFactor + constA*WWMath::Fast_Sin(constC+vertex.X*constD);
 							vb->v1=vertex.Y*ooWaterFactor + constB*WWMath::Fast_Sin(constC+vertex.Y*constD);
 							vb->u2 = vertex.X/BUMP_SIZE;
@@ -2891,50 +2978,27 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 		g_renderBackend->Override_Alpha_Blend_Enable(true);
 		g_renderBackend->Override_Material_Opacity(WATER_MESH_OPACITY);
 
-		// TheSuperHackers @bugfix bobtista 01/06/2026 The bgfx render-to-texture
-		// water pipeline introduced two interacting changes that both have to be
-		// skipped on backends without the bgfx per-view state plumbing (dx8):
-		//
-		//  1) The DESTALPHA / INV_DESTALPHA blend below reads the back-buffer
-		//     alpha channel that the shoreline pass authors. On dx8 nothing
-		//     writes that alpha, so DESTALPHA = 0 and water draws as a
-		//     no-op (terrain shows through where water should be).
-		//
-		//  2) Several upstream passes (terrain HeightMap::Render, the
-		//     shoreline alpha pass, W3DShaderManager::startRenderToTexture)
-		//     leave the color write mask in `(true,true,true,false)` —
-		//     RGB-only — to preserve that alpha channel for water. BgfxBackend
-		//     re-applies the right mask per-view; DX8Backend has no
-		//     equivalent and the mask leaks into the water + UI 2D overlay,
-		//     making every alpha-using late-frame draw invisible.
-		//
-		// Gate both on Has_Shader_Pipeline() so dx8 falls back to a hard-
-		// edge water with the legacy SRC_ALPHA / INV_SRC_ALPHA blend set by
-		// Override_Alpha_Blend_Enable() and _PresetAlphaShader. Soft water
-		// edges remain a bgfx-only feature.
-		if (g_renderBackend->Has_Shader_Pipeline()
-			&& g_renderBackend->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
-			&& TheGlobalData->m_showSoftWaterEdge
-			&& TheWaterTransparency->m_transparentWaterDepth !=0)
-		{
-			if (TheWaterTransparency->m_additiveBlend)
+			// TheSuperHackers @bugfix bobtista 22/06/2026 The shoreline pass authors the
+			// back-buffer alpha gradient on the dx8 reference (renderShoreLines), so the
+			// soft-water DESTALPHA edge reads a real gradient there just like the original.
+			// Keep bgfx on source-alpha water: the dest-alpha mask is heightmap-only and
+			// treats mesh rocks as deep water, which paints opaque blue collars around them.
+			if (g_renderBackend->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
+				&& TheGlobalData->m_showSoftWaterEdge
+				&& TheWaterTransparency->m_transparentWaterDepth !=0
+				&& !g_renderBackend->Has_Shader_Pipeline())
 			{
+				if (TheWaterTransparency->m_additiveBlend)
+				{
 				g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_ONE);
 			}
 			else
 			{
-				g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
+					g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
+				}
 			}
-		}
-		else if (!g_renderBackend->Has_Shader_Pipeline())
-		{
-			// Restore full RGBA color write so the water draw's alpha output
-			// reaches the framebuffer. Upstream terrain / shoreline passes
-			// leak (true,true,true,false) here on dx8 (see comment above).
-			g_renderBackend->Set_Color_Write_Enable(true, true, true, true);
-		}
 
-		CullMode cull = g_renderBackend->Get_Cull_Mode();
+			CullMode cull = g_renderBackend->Get_Cull_Mode();
 		g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
 
 		g_renderBackend->Draw_Triangles(	0,totalRectangleCount*2, 0,	batchVertexCount);
