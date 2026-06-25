@@ -78,6 +78,10 @@ enum
 #include "GameClient/ClientRandomValue.h"
 #include "GameClient/FXList.h"
 #include "W3DDevice/GameClient/TerrainTex.h"
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+extern "C" int GGC_GetBgfxSunShadowCullBox(float * center3, float * radius);
+#endif
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
 #include "W3DDevice/GameClient/Module/W3DTreeDraw.h"
@@ -287,6 +291,42 @@ ShaderClass ShaderClass::_PresetAlpha2DShader(SC_ALPHA_2D);
 //         Private Functions
 //-----------------------------------------------------------------------------
 
+static Bool TreeShadowDecalIntersectsCamera(const CameraClass *camera, const TTree &tree, const TTreeType &treeType)
+{
+	if (tree.visible)
+	{
+		return true;
+	}
+
+	// Tree decals are flat ground quads centered at the tree origin. Cull them with their own
+	// footprint instead of the tree mesh sphere so an edge-overlapping shadow is queued before
+	// the tree itself enters the camera frustum.
+	SphereClass shadowBounds;
+	shadowBounds.Center = tree.location;
+	shadowBounds.Center.Z = 0.0f;
+	shadowBounds.Radius = treeType.m_shadowSize * 0.75f + 8.0f;
+	return !camera->Cull_Sphere(shadowBounds);
+}
+
+static Bool TreeShadowCasterIntersectsSunCull(const TTree &tree)
+{
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	float shadowCullCenter[3] = { 0.0f, 0.0f, 0.0f };
+	float shadowCullRadius = 0.0f;
+	if (GGC_GetBgfxSunShadowCullBox(shadowCullCenter, &shadowCullRadius) == 0 || shadowCullRadius <= 0.0f) {
+		return false;
+	}
+
+	const float dx = tree.bounds.Center.X - shadowCullCenter[0];
+	const float dy = tree.bounds.Center.Y - shadowCullCenter[1];
+	const float dz = tree.bounds.Center.Z - shadowCullCenter[2];
+	const float reach = shadowCullRadius + tree.bounds.Radius;
+	return (dx * dx + dy * dy + dz * dz) <= (reach * reach);
+#else
+	return false;
+#endif
+}
+
 //=============================================================================
 // W3DTreeBuffer::cull
 //=============================================================================
@@ -308,12 +348,21 @@ void W3DTreeBuffer::cull(const CameraClass * camera)
 	for (curTree=0; curTree<m_numTrees; curTree++) {
 		Bool doKey = false;	// We calculate the key when a tree becomes visible.
 		Bool visible = !camera->Cull_Sphere(m_trees[curTree].bounds);
+		Bool shadowCasterVisible = false;
+		Int type = m_trees[curTree].treeType;
+		if (!visible && type >= 0 && type < m_numTreeTypes && m_treeTypes[type].m_mesh != nullptr) {
+			shadowCasterVisible = TreeShadowCasterIntersectsSunCull(m_trees[curTree]);
+		}
 		if (visible != m_trees[curTree].visible) {
 			m_trees[curTree].visible=visible;
 			m_anythingChanged = true;
 			if (visible) {
 				doKey = true;
 			}
+		}
+		if (shadowCasterVisible != m_trees[curTree].shadowCasterVisible) {
+			m_trees[curTree].shadowCasterVisible = shadowCasterVisible;
+			m_anythingChanged = true;
 		}
 		// Also calculate sort key if a tree is visible, and the view changed setting m_updateAllKeys to true.
 		if (doKey || (visible&&m_updateAllKeys)) {
@@ -747,7 +796,7 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 			if (type<0 || m_treeTypes[type].m_mesh == nullptr) {
 				continue; // Deleted tree or missing mesh. [6/9/2003]
 			}
-			if (!m_trees[curTree].visible) continue;
+			if (!m_trees[curTree].visible && !m_trees[curTree].shadowCasterVisible) continue;
 			Real scale = m_trees[curTree].scale;
 			Vector3 loc = m_trees[curTree].location;
 			Real theSin = m_trees[curTree].sin;
@@ -941,7 +990,7 @@ void W3DTreeBuffer::updateVertexBuffer()
 				continue; // not toppling or pushed, no need to update. jba [7/11/2003]
 			}
 			m_anyPushChanged = true;
-			if (!m_trees[curTree].visible) continue;
+			if (!m_trees[curTree].visible && !m_trees[curTree].shadowCasterVisible) continue;
 			Real scale = m_trees[curTree].scale;
 			Vector3 loc = m_trees[curTree].location;
 			Real theSin = m_trees[curTree].sin;
@@ -1360,6 +1409,7 @@ void W3DTreeBuffer::addTree(DrawableID id, Coord3D location, Real scale, Real an
 	m_trees[m_numTrees].bounds.Center += m_trees[m_numTrees].location;
 	// Initially set it invisible.  cull will update it's visibility flag.
 	m_trees[m_numTrees].visible = false;
+	m_trees[m_numTrees].shadowCasterVisible = false;
 	m_trees[m_numTrees].drawableID = id;
 
 	m_trees[m_numTrees].firstIndex = 0;
@@ -1502,12 +1552,15 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			if (type<0) { // deleted.
 				continue;
 			}
-			if (!m_trees[curTree].visible || !m_treeTypes[type].m_doShadow) {
+			if (!m_treeTypes[type].m_doShadow) {
 				continue;
 			}
 
 			if (m_trees[curTree].m_toppleState == TOPPLE_FALLING ||
 					m_trees[curTree].m_toppleState == TOPPLE_DOWN) {
+				continue;
+			}
+			if (!TreeShadowDecalIntersectsCamera(camera, m_trees[curTree], m_treeTypes[type])) {
 				continue;
 			}
 			m_shadow->setSize(m_treeTypes[type].m_shadowSize, m_treeTypes[type].m_shadowSize);
