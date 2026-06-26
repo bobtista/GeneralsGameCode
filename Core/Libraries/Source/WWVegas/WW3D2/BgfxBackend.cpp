@@ -8626,10 +8626,13 @@ static void UploadLightUniforms()
     // does not sample these yet (Task 5); pointShadowParams[0] = -1 keeps the term inert until then.
     if (bgfx::isValid(g_uniforms.uPointShadowMatrix))
     {
-        bgfx::setUniform(g_uniforms.uPointShadowMatrix, g_draw.pointShadowMatrix);
         bgfx::setUniform(g_uniforms.uPointShadowParams, g_draw.pointShadowParams);
-        bgfx::setUniform(g_uniforms.uPointShadowLightPos, g_draw.pointShadowLightPos);
-        bgfx::setUniform(g_uniforms.uPointShadowLightColor, g_draw.pointShadowLightColor);
+        if (g_draw.pointShadowParams[0] >= 0.0f)
+        {
+            bgfx::setUniform(g_uniforms.uPointShadowMatrix, g_draw.pointShadowMatrix);
+            bgfx::setUniform(g_uniforms.uPointShadowLightPos, g_draw.pointShadowLightPos);
+            bgfx::setUniform(g_uniforms.uPointShadowLightColor, g_draw.pointShadowLightColor);
+        }
     }
     if (bgfx::isValid(g_uniforms.sPointShadowMap))
     {
