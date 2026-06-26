@@ -11,6 +11,7 @@ option(RTS_BUILD_OPTION_VC6_FULL_DEBUG "Build VC6 with full debug info." OFF)
 cmake_dependent_option(RTS_BUILD_OPTION_TESTS "Build the unit tests." OFF "NOT IS_VS6_BUILD" OFF)
 cmake_dependent_option(RTS_BUILD_OPTION_BENCHMARKS "Build the benchmarks." OFF "NOT IS_VS6_BUILD" OFF)
 option(SAGE_USE_SDL3 "Use SDL3 for GeneralsMD windowing and input (cross-platform alternative to the Win32 path; macOS and Windows)." OFF)
+option(SAGE_USE_OPENAL "Use OpenAL for GeneralsMD audio (cross-platform alternative to the Windows audio path; macOS and Windows)." OFF)
 
 if(NOT RTS_BUILD_ZEROHOUR AND NOT RTS_BUILD_GENERALS)
     set(RTS_BUILD_ZEROHOUR TRUE)
@@ -29,6 +30,7 @@ add_feature_info(FFmpegSupport RTS_BUILD_OPTION_FFMPEG "Building with FFmpeg sup
 add_feature_info(Tests RTS_BUILD_OPTION_TESTS "Building the unit tests")
 add_feature_info(Benchmarks RTS_BUILD_OPTION_BENCHMARKS "Building the benchmarks")
 add_feature_info(SDL3Windowing SAGE_USE_SDL3 "Using SDL3 for GeneralsMD windowing and input")
+add_feature_info(OpenALAudio SAGE_USE_OPENAL "Using OpenAL for GeneralsMD audio")
 
 set(RTS_BUILD_OUTPUT_SUFFIX "" CACHE STRING "Suffix appended to output names of installable targets")
 
@@ -76,6 +78,10 @@ endif()
 
 if(SAGE_USE_SDL3)
     target_compile_definitions(core_config INTERFACE SAGE_USE_SDL3)
+endif()
+
+if(SAGE_USE_OPENAL)
+    target_compile_definitions(core_config INTERFACE SAGE_USE_OPENAL RTS_HAS_OPENAL RTS_USE_OPENAL)
 endif()
 
 if(RTS_BUILD_OPTION_DEBUG)
