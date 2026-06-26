@@ -1065,6 +1065,10 @@ void W3DDisplay::init()
 				if (TheGlobalData->m_windowed)
 				{
 					SDL_SetWindowSize(TheSDL3Window, getWidth(), getHeight());
+					// TheSuperHackers @bugfix bobtista 25/06/2026 Re-center after resizing: SDL_SetWindowSize
+					// keeps the top-left corner, so growing from the default window size leaves the window
+					// off-center (and partly off-screen at larger resolutions).
+					SDL_SetWindowPosition(TheSDL3Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 					SDL_SyncWindow(TheSDL3Window);
 				}
 				else
