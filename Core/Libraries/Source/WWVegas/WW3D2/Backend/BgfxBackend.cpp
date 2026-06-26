@@ -5646,7 +5646,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
             if (f != nullptr) {
                 if (!s_headerWritten) {
                     std::fprintf(f,
-                        "frame,inter_us,scene_us,frame_us,total_us,draws,binds,uniforms,"
+                        "frame,logic_frame,inter_us,scene_us,frame_us,total_us,draws,binds,uniforms,"
                         "world_draws,sort_draws,shadow_submits,water_draws,"
                         "tex_creates,tex_uploads,inst_saved,"
                         "set_tex_us,set_tex_n,set_vb_us,set_vb_n,set_ib_us,set_ib_n,"
@@ -5667,6 +5667,10 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                 const long long total_ticks = (s_prev_t3 > 0)
                     ? (g_timing.t3_post_frame - s_prev_t3) : 0;
                 s_prev_t3 = g_timing.t3_post_frame;
+                int logicFrame = -1;
+#ifdef RTS_ZEROHOUR
+                logicFrame = GGC_GetCurrentLogicFrame();
+#endif
                 // TheSuperHackers @perf bobtista 03/06/2026 bgfx internal timers
                 // separate GPU time from CPU-submit time. High wait_ren = render
                 // thread idle waiting on submit (CPU-submit bound); high wait_sub
@@ -5687,13 +5691,14 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                     bgfx_ndraw = bstats->numDraw;
                 }
                 std::fprintf(f,
-                    "%u,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
+                    "%u,%d,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
                     "%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,"
                     "%.1f,%u,%.1f,%u,%.1f,%u,%llu,"
                     "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
                     "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
                     "%.1f,%.1f,%.1f,%.1f,%u\n",
                     g_stats.frameIndex,
+                    logicFrame,
                     inter_ticks * us_per_tick,
                     scene_ticks * us_per_tick,
                     frame_ticks * us_per_tick,
