@@ -133,6 +133,8 @@ AnimateWindowManager::AnimateWindowManager()
 	m_winList.clear();
 	m_needsUpdate = FALSE;
 	m_reverse = FALSE;
+	m_lastUpdateTime = 0;
+	m_updateAccumulator = 0.0f;
 	m_winMustFinishList.clear();
 }
 AnimateWindowManager::~AnimateWindowManager()
@@ -159,6 +161,8 @@ void AnimateWindowManager::init()
 	clearWinList(m_winMustFinishList);
 	m_needsUpdate = FALSE;
 	m_reverse = FALSE;
+	m_lastUpdateTime = 0;
+	m_updateAccumulator = 0.0f;
 }
 
 void AnimateWindowManager::reset()
@@ -168,9 +172,43 @@ void AnimateWindowManager::reset()
 	clearWinList(m_winMustFinishList);
 	m_needsUpdate = FALSE;
 	m_reverse = FALSE;
+	m_lastUpdateTime = 0;
+	m_updateAccumulator = 0.0f;
 }
 
+// TheSuperHackers @tweak bobtista 27/06/2026 Decouple GUI window-move animations from the
+// render frame rate. The animation logic runs at the historic base rate; here we run the
+// number of base-rate steps that match the elapsed wall-clock time, carrying the fractional
+// remainder between updates. This is independent of how often update() is called, so callers
+// pumped per render frame and callers throttled to a fixed rate both animate at the same speed.
 void AnimateWindowManager::update()
+{
+	const UnsignedInt now = timeGetTime();
+	if (m_lastUpdateTime == 0)
+	{
+		m_lastUpdateTime = now;
+	}
+	const UnsignedInt elapsed = now - m_lastUpdateTime;
+	m_lastUpdateTime = now;
+
+	m_updateAccumulator += (Real)elapsed * ((Real)BaseFps / 1000.0f);
+	Int steps = (Int)m_updateAccumulator;
+	m_updateAccumulator -= (Real)steps;
+
+	// Cap the catch-up burst so a long stall (load, alt-tab) cannot snap an animation instantly.
+	const Int maxSteps = 6;
+	if (steps > maxSteps)
+	{
+		steps = maxSteps;
+	}
+
+	while (steps-- > 0)
+	{
+		updateStep();
+	}
+}
+
+void AnimateWindowManager::updateStep()
 {
 
 	ProcessAnimateWindow *processAnim = nullptr;

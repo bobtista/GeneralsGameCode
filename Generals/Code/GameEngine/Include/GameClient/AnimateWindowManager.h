@@ -192,6 +192,10 @@ private:
 	ProcessAnimateWindowSlideFromTopFast *m_slideFromTopFast;			///< holds the process in wich the windows slide from the top,fast
 	ProcessAnimateWindow *getProcessAnimate( AnimTypes animType);		///< returns the process for the kind of animation we need.
 
+	void updateStep();													///< Runs a single base-rate step of all registered window animations
+	UnsignedInt m_lastUpdateTime;								///< Wall-clock time of the previous update, for frame-rate independent pacing
+	Real m_updateAccumulator;										///< Carries fractional base-rate steps between updates
+
 };
 
 //-----------------------------------------------------------------------------
