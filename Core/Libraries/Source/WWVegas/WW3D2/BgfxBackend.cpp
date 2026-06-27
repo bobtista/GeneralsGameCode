@@ -5317,15 +5317,12 @@ static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
             // for shadow caster submissions.
         }
     }
-    // Store raw sortWorld (model-to-world only) in bgfx column-major form.
-    // This is used when sorted world decals need to render through a normal
-    // camera view rather than the pre-view-multiplied sort view.
-    // TheSuperHackers @bugfix bobtista 17/05/2026 sortWorldRaw must match the
-    // bgfx HLSL column-vector convention (D3D row vectors transposed), same as
-    // sortWorld above. Storing as [c*4+r] left the matrix transposed relative
-    // to what bgfx::setTransform expects, so the rotor-blur draw's world
-    // transform applied incorrectly: vertices wobbled around the hub instead of
-    // rotating with it. Use [r*4+c] to match sortWorld's layout.
+    // Store raw sortWorld (model-to-world only). sortWorld is captured from
+    // RenderStateStruct's legacy D3DMATRIX storage, reinterpreted as Matrix4x4
+    // by the sorting renderer; do not run it through the normal W3D matrix
+    // conversion helper or it gets transposed a second time. Sorted local-model
+    // cards such as the Comanche rotor blur render through the normal camera
+    // view and need this raw per-mesh world matrix.
     for (int r = 0; r < 4; ++r)
     {
         for (int c = 0; c < 4; ++c)
@@ -6977,15 +6974,17 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     // has no batch-wrapped Apply_Render_State - it uses the per-mesh world
     // set by the caller via g_renderBackend->Set_Transform).
     const uint64_t earlyState = GetEffectiveDrawState();
-    const bool copLightSprite = IsSortedCopLightSprite(earlyState);
-    const bgfx::ViewId submitView = copLightSprite ? kBgfxEngineView : kBgfxEngineSortView;
+    const bool localModelSortedDraw =
+        IsSortedRotorBlur(earlyState)
+        || IsSneakAttackAlphaDepthDecal(earlyState)
+        || IsSortedCopLightSprite(earlyState);
+    const bgfx::ViewId submitView = localModelSortedDraw ? kBgfxEngineView : kBgfxEngineSortView;
     const float * worldMtx = g_views.inSortFlush ? g_frame.sortWorld : g_frame.world;
-    if (copLightSprite)
+    if (localModelSortedDraw)
     {
-        // Coplight glow quads are authored in model space the same way the
-        // Chinook rotor blur is. Use the raw per-mesh world so each bone's
-        // animated position lands the quad on the lightbar instead of folding
-        // through the sort view's pre-multiplied matrix.
+        // These sorted quads are authored in model space. Use the raw per-mesh
+        // world so animated local geometry lands on the object instead of
+        // folding through the sort view's pre-multiplied matrix.
         worldMtx = g_frame.sortWorldRaw;
     }
     bgfx::setTransform(worldMtx);
