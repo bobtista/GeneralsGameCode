@@ -431,6 +431,7 @@ protected:
 
 	CursorCaptureMode m_cursorCaptureMode;
 	CursorCaptureBlockReasonInt m_captureBlockReasonBits;
+	Bool m_cursorCaptureInitialized;
 
 };
 
