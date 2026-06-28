@@ -229,6 +229,22 @@ void main()
 	}
 	vec4 tex3 = texture2D(s_tex3, stage3UV);
 
+	if (u_texcoordSelect2.z > 3.5)
+	{
+		// Zero Hour command-center driveway emblems are player-recolored
+		// sorted decals. The generic material path can inherit zero opacity
+		// from nearby water/shroud work, while the remapped texture carries
+		// its matte as black RGB rather than a reliable alpha channel.
+		float mask = max(max(tex0.r, tex0.g), tex0.b);
+		float alpha = clamp(mask * 4.0 * diffuse.a, 0.0, 1.0);
+		if (alpha <= ALPHA_MASK_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = vec4(tex0.rgb, alpha);
+		return;
+	}
+
 	if (u_texcoordSelect2.z > 2.5)
 	{
 		// Sneak Attack ground dirt is authored as a sorted translucent W3D
