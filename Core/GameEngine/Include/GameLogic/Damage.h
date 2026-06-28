@@ -236,19 +236,33 @@ typedef UnsignedInt DeathTypeFlags;
 const DeathTypeFlags DEATH_TYPE_FLAGS_ALL = 0xffffffff;
 const DeathTypeFlags DEATH_TYPE_FLAGS_NONE = 0x00000000;
 
+// TheSuperHackers @bugfix bobtista 28/06/2026 The original build computed the DEATH_NORMAL
+// flag as 1UL << (DEATH_NORMAL - 1), i.e. 1UL << -1, which is undefined behavior in C++. On
+// x86 the shift count is masked to its low 5 bits, so it happened to resolve to bit 31; other
+// compilers and non-x86 targets (e.g. Clang/ARM) are free to produce a different bit, which
+// desyncs cross-platform multiplayer and save CRCs. Reproduce the x86 shift-count masking
+// explicitly so every target matches the retail bit layout: DEATH_NORMAL maps to bit 31 and
+// every other type to bit (dt - 1), with no behavior change on x86.
+static_assert(DEATH_NUM_TYPES <= 32, "DeathTypeFlags is a 32-bit mask; bit indices must fit in [0,31]");
+
+inline UnsignedInt getDeathTypeFlagBit(DeathType dt)
+{
+	return (static_cast<UnsignedInt>(dt) - 1u) & 31u;
+}
+
 inline Bool getDeathTypeFlag(DeathTypeFlags flags, DeathType dt)
 {
-	return (flags & (1UL << (dt - 1))) != 0;
+	return (flags & (1UL << getDeathTypeFlagBit(dt))) != 0;
 }
 
 inline DeathTypeFlags setDeathTypeFlag(DeathTypeFlags flags, DeathType dt)
 {
-	return (flags | (1UL << (dt - 1)));
+	return (flags | (1UL << getDeathTypeFlagBit(dt)));
 }
 
 inline DeathTypeFlags clearDeathTypeFlag(DeathTypeFlags flags, DeathType dt)
 {
-	return (flags & ~(1UL << (dt - 1)));
+	return (flags & ~(1UL << getDeathTypeFlagBit(dt)));
 }
 
 //-------------------------------------------------------------------------------------------------
