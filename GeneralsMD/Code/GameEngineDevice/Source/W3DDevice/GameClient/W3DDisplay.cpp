@@ -60,6 +60,7 @@ static void drawFramerateBar();
 #include "GameClient/Drawable.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GraphDraw.h"
+#include "GameClient/Image.h"
 #include "GameClient/Line2D.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/GlobalLanguage.h"
@@ -126,6 +127,46 @@ static Real theLightXOffset = 0.1f;
 static Real theLightYOffset = 0.07f;
 static Int theFlashCount = 0;
 #endif
+
+static RectClass makeAtlasSafeUVRect(const Image *image)
+{
+	const Region2D *uv = image->getUV();
+	RectClass uvRect(uv->lo.x, uv->lo.y, uv->hi.x, uv->hi.y);
+
+	if (BitIsSet(image->getStatus(), IMAGE_STATUS_RAW_TEXTURE))
+	{
+		return uvRect;
+	}
+
+	const ICoord2D *textureSize = image->getTextureSize();
+	if (textureSize == nullptr || textureSize->x <= 0 || textureSize->y <= 0)
+	{
+		return uvRect;
+	}
+
+	const bool isAtlasSubRect =
+		uvRect.Left > 0.0f || uvRect.Top > 0.0f ||
+		uvRect.Right < 1.0f || uvRect.Bottom < 1.0f;
+	if (!isAtlasSubRect)
+	{
+		return uvRect;
+	}
+
+	const float halfU = 0.5f / static_cast<float>(textureSize->x);
+	const float halfV = 0.5f / static_cast<float>(textureSize->y);
+	if (uvRect.Width() > halfU * 2.0f)
+	{
+		uvRect.Left += halfU;
+		uvRect.Right -= halfU;
+	}
+	if (uvRect.Height() > halfV * 2.0f)
+	{
+		uvRect.Top += halfV;
+		uvRect.Bottom -= halfV;
+	}
+
+	return uvRect;
+}
 
 //*****************************************************************************************
 //*****************************************************************************************
@@ -2898,8 +2939,6 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 	// but it not derived on the W3DDisplay
 	// !!
 
-	const Region2D *uv = image->getUV();
-
 	TextureClass *tex = nullptr;
 	if (BitIsSet(image->getStatus(), IMAGE_STATUS_RAW_TEXTURE))
 		tex = (TextureClass *)(image->getRawTextureData());
@@ -2932,7 +2971,7 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 	setup2DRenderState(tex, mode, grayscale);
 
 	RectClass screen_rect(startX,startY,endX,endY);
-	RectClass uv_rect(uv->lo.x,uv->lo.y,uv->hi.x,uv->hi.y);
+	RectClass uv_rect = makeAtlasSafeUVRect(image);
 
 	if (m_isClippedEnabled)
 	{	//need to clip this quad to clip rectangle
