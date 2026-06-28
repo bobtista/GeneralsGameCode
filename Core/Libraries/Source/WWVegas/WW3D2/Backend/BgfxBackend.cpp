@@ -5390,6 +5390,7 @@ void BgfxBackend::Set_Streak_Render_Active(bool active)
 
 static const char * TextureDebugName(TextureBaseClass * texture);
 static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
+static bool IsCommandCenterEmblemTextureName(const char *name);
 
 void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
 {
@@ -5412,7 +5413,8 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     // the live per-mesh world so the replay places and rotates them correctly.
     const char *texName = TextureDebugName(g_draw.sourceTextures[0]);
     if (texName != nullptr
-        && (ContainsCaseInsensitive(texName, "avcomanche_p")
+        && (IsCommandCenterEmblemTextureName(texName)
+            || ContainsCaseInsensitive(texName, "avcomanche_p")
             || ContainsCaseInsensitive(texName, "ubsnkatak_01")
             || ContainsCaseInsensitive(texName, "coplight")))
     {
@@ -5679,6 +5681,7 @@ static bool IsSortedMaterialDecal(uint64_t state)
 
 static const char * TextureDebugName(TextureBaseClass * texture);
 static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
+static bool IsCommandCenterEmblemTextureName(const char *name);
 
 static bool IsSortedAlphaDepthDecal(uint64_t state)
 {
@@ -5935,6 +5938,27 @@ static bool ContainsCaseInsensitive(const char *haystack, const char *needle)
     return false;
 }
 
+static bool IsCommandCenterEmblemTextureName(const char *name)
+{
+    // The command-center driveway/bib emblems use this small faction texture
+    // family. Do not match every ZHCA_* texture; that prefix also appears on
+    // infantry, hero, and UI materials in W3DZH.big.
+    return ContainsCaseInsensitive(name, "zhca_ab")
+        || ContainsCaseInsensitive(name, "zhca_atlaser")
+        || ContainsCaseInsensitive(name, "zhca_ch")
+        || ContainsCaseInsensitive(name, "zhca_nb")
+        || ContainsCaseInsensitive(name, "zhca_gl")
+        || ContainsCaseInsensitive(name, "zhca_gdemo")
+        || ContainsCaseInsensitive(name, "zhca_gstlth")
+        || ContainsCaseInsensitive(name, "zhca_gtoxin");
+}
+
+static bool IsCommandCenterEmblemTexture(TextureBaseClass *texture)
+{
+    const char *name = TextureDebugName(texture);
+    return IsCommandCenterEmblemTextureName(name);
+}
+
 static bool IsRevealRelevantTextureName(const char *name)
 {
     return ContainsCaseInsensitive(name, "exgrid")
@@ -6183,6 +6207,14 @@ static void UpdateAlphaMaskAndSortedEffectModes(uint64_t state)
         // pass, which makes the wide dirt stain disappear while the opaque
         // mound geometry remains. Keep this path texture-alpha driven.
         g_draw.texcoordSelect2[2] = 3.0f;
+    }
+    else if (IsCommandCenterEmblemTexture(g_draw.sourceTextures[0]))
+    {
+        // ZH command-center driveway emblems are sorted local-model decals
+        // with player color baked into tex0 and black RGB used as the matte.
+        // Keep them out of the generic material-opacity path, which can
+        // inherit zero alpha from surrounding water/shroud submits.
+        g_draw.texcoordSelect2[2] = 4.0f;
     }
 }
 
@@ -6977,7 +7009,9 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     const bool localModelSortedDraw =
         IsSortedRotorBlur(earlyState)
         || IsSneakAttackAlphaDepthDecal(earlyState)
-        || IsSortedCopLightSprite(earlyState);
+        || IsSortedCopLightSprite(earlyState)
+        || (g_views.inSortFlush
+            && IsCommandCenterEmblemTexture(g_draw.sourceTextures[0]));
     const bgfx::ViewId submitView = localModelSortedDraw ? kBgfxEngineView : kBgfxEngineSortView;
     const float * worldMtx = g_views.inSortFlush ? g_frame.sortWorld : g_frame.world;
     if (localModelSortedDraw)
@@ -9364,7 +9398,9 @@ void SubmitEngineDraw(unsigned short start_index,
     const uint64_t routeState = GetEffectiveDrawState();
     if (IsSortedRotorBlur(routeState)
         || IsSneakAttackAlphaDepthDecal(routeState)
-        || IsSortedCopLightSprite(routeState))
+        || IsSortedCopLightSprite(routeState)
+        || (g_views.inSortFlush
+            && IsCommandCenterEmblemTexture(g_draw.sourceTextures[0])))
     {
         // These sorted meshes need their raw model world matrix and the normal
         // camera view. The pre-view-multiplied sort matrix lands local W3D
@@ -9434,7 +9470,9 @@ void SubmitEngineDraw(unsigned short start_index,
         : g_frame.world;
     if (IsSortedRotorBlur(routeState)
         || IsSneakAttackAlphaDepthDecal(routeState)
-        || IsSortedCopLightSprite(routeState))
+        || IsSortedCopLightSprite(routeState)
+        || (g_views.inSortFlush
+            && IsCommandCenterEmblemTexture(g_draw.sourceTextures[0])))
     {
         worldMtx = g_frame.sortWorldRaw;
     }
@@ -9580,7 +9618,7 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         CaptureMaterialStateForBgfx(g_draw.sourceMaterial);
     }
-    if (submitView == kBgfxEngineSortView && IsSortedMaterialDecal(GetEffectiveDrawState()))
+    if (IsSortedMaterialDecal(GetEffectiveDrawState()))
     {
         // Terrain rendering leaves this flag set until reset by the shader
         // manager. Sorted material decals use the fixed-function TSS path and
@@ -9912,6 +9950,10 @@ void SubmitEngineDraw(unsigned short start_index,
         && (IsSortedMaterialDecal(state)
             || IsSortedAlphaDepthDecal(state)
             || IsSortedRotorBlur(state));
+    const bool localModelMaterialDecal =
+        g_views.inSortFlush
+        && IsCommandCenterEmblemTexture(g_draw.sourceTextures[0])
+        && IsSortedMaterialDecal(state);
     // Sort-flushed material decals (command-center driveway emblems, upgrade
     // floor marks) are ordinary alpha decals. The wrapper can still have
     // stencil state cached from shroud/player-color passes; applying it here
@@ -9919,7 +9961,8 @@ void SubmitEngineDraw(unsigned short start_index,
     const bool applyStencil = g_draw.stencilEnabled
         && submitView != kBgfxUIView
         && !sortedTranslucentEffect
-        && !sortedMaterialDecal;
+        && !sortedMaterialDecal
+        && !localModelMaterialDecal;
 
     bgfx::setState(state);
     if (applyStencil)
