@@ -242,7 +242,12 @@ void AISkirmishPlayer::processBaseBuilding()
 				}
 				continue;
 			}
-			if (TheBuildAssistant->canMakeUnit(dozer, bldgPlan) != CANMAKE_OK)
+			// TheSuperHackers @bugfix mohamedelabbas1996 Pass the current build-list
+			// entry (curPlan) to canMakeUnit, not the accumulated candidate (bldgPlan,
+			// which is still null here). Using bldgPlan made the buildability check fail
+			// for entries relying on AutomaticallyBuild=Yes (or the default when the
+			// field is omitted), so the AI never selected them. Fixes issue #2407.
+			if (TheBuildAssistant->canMakeUnit(dozer, curPlan) != CANMAKE_OK)
 			{
 				if (info->isBuildable())
 				{
