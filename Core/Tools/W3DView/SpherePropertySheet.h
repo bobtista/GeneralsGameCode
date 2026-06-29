@@ -39,6 +39,7 @@
 #include "SphereColorPropPage.h"
 #include "SphereGeneralPropPage.h"
 #include "SphereSizePropPage.h"
+#include "ref_ptr.h"
 
 // Forward declarations
 class ParticleEmitterClass;
@@ -102,7 +103,7 @@ private:
 	SphereGeneralPropPageClass m_GeneralPage;
 	SphereColorPropPageClass m_ColorPage;
 	SphereSizePropPageClass m_ScalePage;
-	SphereRenderObjClass* m_RenderObj;
+	RefCountPtr<SphereRenderObjClass> m_RenderObj;
 	CString m_LastSavedName;
 };
 

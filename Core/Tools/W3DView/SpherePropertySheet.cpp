@@ -45,10 +45,9 @@ SpherePropertySheetClass::SpherePropertySheetClass(
   UINT nIDCaption,
   CWnd* pParentWnd,
   UINT iSelectPage)
-  : m_RenderObj(nullptr)
-  , CPropertySheet(nIDCaption, pParentWnd, iSelectPage)
+  : CPropertySheet(nIDCaption, pParentWnd, iSelectPage)
+  , m_RenderObj(RefCountPtr<SphereRenderObjClass>::Create_AddRef(sphere))
 {
-	REF_PTR_SET(m_RenderObj, sphere);
 	Initialize();
 }
 
@@ -62,10 +61,9 @@ SpherePropertySheetClass::SpherePropertySheetClass(
   LPCTSTR pszCaption,
   CWnd* pParentWnd,
   UINT iSelectPage)
-  : m_RenderObj(nullptr)
-  , CPropertySheet(pszCaption, pParentWnd, iSelectPage)
+  : CPropertySheet(pszCaption, pParentWnd, iSelectPage)
+  , m_RenderObj(RefCountPtr<SphereRenderObjClass>::Create_AddRef(sphere))
 {
-	REF_PTR_SET(m_RenderObj, sphere);
 	Initialize();
 }
 
@@ -76,7 +74,6 @@ SpherePropertySheetClass::SpherePropertySheetClass(
 /////////////////////////////////////////////////////////////////////////////
 SpherePropertySheetClass::~SpherePropertySheetClass()
 {
-	REF_PTR_RELEASE(m_RenderObj);
 }
 
 BEGIN_MESSAGE_MAP(SpherePropertySheetClass, CPropertySheet)
@@ -167,7 +164,7 @@ void SpherePropertySheetClass::Add_Object_To_Viewer()
 		//
 		// Create a new prototype for this object
 		//
-		SpherePrototypeClass* prototype = new SpherePrototypeClass(m_RenderObj);
+		SpherePrototypeClass* prototype = new SpherePrototypeClass(m_RenderObj.Peek());
 
 		//
 		// Update the asset manager with the new prototype
@@ -189,14 +186,14 @@ void SpherePropertySheetClass::Add_Object_To_Viewer()
 		//
 		doc->Reload_Displayed_Object();
 		m_LastSavedName = m_RenderObj->Get_Name();
-		REF_PTR_SET(m_RenderObj, (SphereRenderObjClass*)doc->GetDisplayedObject());
+		m_RenderObj = RefCountPtr<SphereRenderObjClass>::Create_AddRef((SphereRenderObjClass*)doc->GetDisplayedObject());
 
 		//
 		// Pass the object along to the pages
 		//
-		m_GeneralPage.Set_Sphere(m_RenderObj);
-		m_ColorPage.Set_Sphere(m_RenderObj);
-		m_ScalePage.Set_Sphere(m_RenderObj);
+		m_GeneralPage.Set_Sphere(m_RenderObj.Peek());
+		m_ColorPage.Set_Sphere(m_RenderObj.Peek());
+		m_ScalePage.Set_Sphere(m_RenderObj.Peek());
 	}
 }
 
@@ -229,9 +226,9 @@ void SpherePropertySheetClass::Initialize()
 	//
 	// Pass the object along to the pages
 	//
-	m_GeneralPage.Set_Sphere(m_RenderObj);
-	m_ColorPage.Set_Sphere(m_RenderObj);
-	m_ScalePage.Set_Sphere(m_RenderObj);
+	m_GeneralPage.Set_Sphere(m_RenderObj.Peek());
+	m_ColorPage.Set_Sphere(m_RenderObj.Peek());
+	m_ScalePage.Set_Sphere(m_RenderObj.Peek());
 
 	//
 	// Add the pages to the sheet
@@ -255,11 +252,11 @@ void SpherePropertySheetClass::Initialize()
 /////////////////////////////////////////////////////////////
 void SpherePropertySheetClass::Create_New_Object()
 {
-	m_RenderObj = new SphereRenderObjClass;
+	m_RenderObj = RefCountPtr<SphereRenderObjClass>::Create_NoAddRef(new SphereRenderObjClass);
 	m_RenderObj->Set_Name("Sphere");
 
 	//
 	//	Display the new object
 	//
-	::GetCurrentDocument()->DisplayObject(m_RenderObj);
+	::GetCurrentDocument()->DisplayObject(m_RenderObj.Peek());
 }

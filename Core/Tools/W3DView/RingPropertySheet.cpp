@@ -45,10 +45,9 @@ RingPropertySheetClass::RingPropertySheetClass(
   UINT nIDCaption,
   CWnd* pParentWnd,
   UINT iSelectPage)
-  : m_RenderObj(nullptr)
-  , CPropertySheet(nIDCaption, pParentWnd, iSelectPage)
+  : CPropertySheet(nIDCaption, pParentWnd, iSelectPage)
+  , m_RenderObj(RefCountPtr<RingRenderObjClass>::Create_AddRef(ring))
 {
-	REF_PTR_SET(m_RenderObj, ring);
 	Initialize();
 }
 
@@ -62,10 +61,9 @@ RingPropertySheetClass::RingPropertySheetClass(
   LPCTSTR pszCaption,
   CWnd* pParentWnd,
   UINT iSelectPage)
-  : m_RenderObj(nullptr)
-  , CPropertySheet(pszCaption, pParentWnd, iSelectPage)
+  : CPropertySheet(pszCaption, pParentWnd, iSelectPage)
+  , m_RenderObj(RefCountPtr<RingRenderObjClass>::Create_AddRef(ring))
 {
-	REF_PTR_SET(m_RenderObj, ring);
 	Initialize();
 }
 
@@ -76,7 +74,6 @@ RingPropertySheetClass::RingPropertySheetClass(
 /////////////////////////////////////////////////////////////////////////////
 RingPropertySheetClass::~RingPropertySheetClass()
 {
-	REF_PTR_RELEASE(m_RenderObj);
 }
 
 BEGIN_MESSAGE_MAP(RingPropertySheetClass, CPropertySheet)
@@ -167,7 +164,7 @@ void RingPropertySheetClass::Add_Object_To_Viewer()
 		//
 		// Create a new prototype for this object
 		//
-		RingPrototypeClass* prototype = new RingPrototypeClass(m_RenderObj);
+		RingPrototypeClass* prototype = new RingPrototypeClass(m_RenderObj.Peek());
 
 		//
 		// Update the asset manager with the new prototype
@@ -189,14 +186,14 @@ void RingPropertySheetClass::Add_Object_To_Viewer()
 		//
 		doc->Reload_Displayed_Object();
 		m_LastSavedName = m_RenderObj->Get_Name();
-		REF_PTR_SET(m_RenderObj, (RingRenderObjClass*)doc->GetDisplayedObject());
+		m_RenderObj = RefCountPtr<RingRenderObjClass>::Create_AddRef((RingRenderObjClass*)doc->GetDisplayedObject());
 
 		//
 		// Pass the object along to the pages
 		//
-		m_GeneralPage.Set_Ring(m_RenderObj);
-		m_ColorPage.Set_Ring(m_RenderObj);
-		m_ScalePage.Set_Ring(m_RenderObj);
+		m_GeneralPage.Set_Ring(m_RenderObj.Peek());
+		m_ColorPage.Set_Ring(m_RenderObj.Peek());
+		m_ScalePage.Set_Ring(m_RenderObj.Peek());
 	}
 }
 
@@ -229,9 +226,9 @@ void RingPropertySheetClass::Initialize()
 	//
 	// Pass the object along to the pages
 	//
-	m_GeneralPage.Set_Ring(m_RenderObj);
-	m_ColorPage.Set_Ring(m_RenderObj);
-	m_ScalePage.Set_Ring(m_RenderObj);
+	m_GeneralPage.Set_Ring(m_RenderObj.Peek());
+	m_ColorPage.Set_Ring(m_RenderObj.Peek());
+	m_ScalePage.Set_Ring(m_RenderObj.Peek());
 
 	//
 	// Add the pages to the sheet
@@ -255,11 +252,11 @@ void RingPropertySheetClass::Initialize()
 /////////////////////////////////////////////////////////////
 void RingPropertySheetClass::Create_New_Object()
 {
-	m_RenderObj = new RingRenderObjClass;
+	m_RenderObj = RefCountPtr<RingRenderObjClass>::Create_NoAddRef(new RingRenderObjClass);
 	m_RenderObj->Set_Name("Ring");
 
 	//
 	//	Display the new object
 	//
-	::GetCurrentDocument()->DisplayObject(m_RenderObj);
+	::GetCurrentDocument()->DisplayObject(m_RenderObj.Peek());
 }
