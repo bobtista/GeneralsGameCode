@@ -123,8 +123,10 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "fs_ssao_metal.bin.h"
 #include "fs_copy_metal.bin.h"
 #include "vs_scene_depth_metal.bin.h"
+#include "vs_scene_depth_instanced_metal.bin.h"
 #include "fs_scene_depth_metal.bin.h"
 #include "vs_shadow_caster_metal.bin.h"
+#include "vs_shadow_caster_instanced_metal.bin.h"
 #include "fs_shadow_caster_metal.bin.h"
 #include "vs_smudge_metal.bin.h"
 #include "fs_smudge_metal.bin.h"
@@ -155,8 +157,10 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "fs_ssao_dx11.bin.h"
 #include "fs_copy_dx11.bin.h"
 #include "vs_scene_depth_dx11.bin.h"
+#include "vs_scene_depth_instanced_dx11.bin.h"
 #include "fs_scene_depth_dx11.bin.h"
 #include "vs_shadow_caster_dx11.bin.h"
+#include "vs_shadow_caster_instanced_dx11.bin.h"
 #include "fs_shadow_caster_dx11.bin.h"
 #include "vs_smudge_dx11.bin.h"
 #include "fs_smudge_dx11.bin.h"
@@ -3658,8 +3662,14 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_device.sceneDepthProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_scene_depth), sizeof(GGC_BGFX_SHADER(vs_scene_depth)), "vs_scene_depth",
         GGC_BGFX_SHADER(fs_scene_depth), sizeof(GGC_BGFX_SHADER(fs_scene_depth)), "fs_scene_depth");
+    g_device.sceneDepthInstancedProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_depth_instanced), sizeof(GGC_BGFX_SHADER(vs_scene_depth_instanced)), "vs_scene_depth_instanced",
+        GGC_BGFX_SHADER(fs_scene_depth), sizeof(GGC_BGFX_SHADER(fs_scene_depth)), "fs_scene_depth");
     g_device.shadowCasterProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_shadow_caster), sizeof(GGC_BGFX_SHADER(vs_shadow_caster)), "vs_shadow_caster",
+        GGC_BGFX_SHADER(fs_shadow_caster), sizeof(GGC_BGFX_SHADER(fs_shadow_caster)), "fs_shadow_caster");
+    g_device.shadowCasterInstancedProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_shadow_caster_instanced), sizeof(GGC_BGFX_SHADER(vs_shadow_caster_instanced)), "vs_shadow_caster_instanced",
         GGC_BGFX_SHADER(fs_shadow_caster), sizeof(GGC_BGFX_SHADER(fs_shadow_caster)), "fs_shadow_caster");
     g_device.smudgeProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_smudge), sizeof(GGC_BGFX_SHADER(vs_smudge)), "vs_smudge",
@@ -9075,7 +9085,13 @@ void BgfxBackend::Add_Instance(const float * world_matrix_4x4)
     if (!g_draw.instanceBatchActive || g_draw.instanceCount >= g_draw.instanceMax) {
         return;
     }
-    std::memcpy(g_draw.instanceBatch.data + g_draw.instanceCount * 64, world_matrix_4x4, 64);
+    // TheSuperHackers @bugfix bobtista 28/06/2026 The engine passes a W3D Matrix3D (3x4 row-major,
+    // 48 bytes); the instanced VS reads a column-major 4x4 via mtxFromCols, exactly like the
+    // non-instanced setTransform path (Set_Transform -> W3DMatrix3DToBgfx). The old raw 64-byte
+    // memcpy used the wrong layout AND over-read 16 bytes past the 48-byte matrix, so instanced
+    // opaque meshes (vehicles/ships) got garbage transforms and vanished. Convert properly.
+    W3DMatrix3DToBgfx(*reinterpret_cast<const Matrix3D *>(world_matrix_4x4),
+                      reinterpret_cast<float *>(g_draw.instanceBatch.data + g_draw.instanceCount * 64));
     g_draw.instanceCount++;
 }
 
@@ -9113,6 +9129,7 @@ void BgfxBackend::Submit_Instanced_Batch(unsigned index_offset,
 
     bgfx::ProgramHandle savedProgram = g_draw.program;
     g_draw.program = g_device.uberInstancedProgram;
+    g_draw.drawIsInstanced = true;
 
     Draw_Triangles(
         static_cast<unsigned short>(index_offset),
@@ -9120,6 +9137,7 @@ void BgfxBackend::Submit_Instanced_Batch(unsigned index_offset,
         static_cast<unsigned short>(min_vertex_index),
         static_cast<unsigned short>(vertex_count));
 
+    g_draw.drawIsInstanced = false;
     g_draw.program = savedProgram;
     g_stats.instancedSavedDrawCalls += g_draw.instanceCount - 1;
 }
@@ -11997,14 +12015,28 @@ void SubmitEngineDraw(unsigned short start_index,
         if (casterToDepth)
         {
             const uint8_t discard = casterToShadow ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL;
-            bgfx::submit(kBgfxSceneDepthView, g_device.sceneDepthProgram, 0, discard);
+            // Instanced batches cast every instance in one submit via the instanced caster program;
+            // the instance buffer is consumed per submit, so re-bind it before each recast submit.
+            if (g_draw.drawIsInstanced)
+            {
+                bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+            }
+            const bgfx::ProgramHandle depthProg = g_draw.drawIsInstanced
+                ? g_device.sceneDepthInstancedProgram : g_device.sceneDepthProgram;
+            bgfx::submit(kBgfxSceneDepthView, depthProg, 0, discard);
             g_stats.sceneDepthSubmits++;
         }
         if (casterToShadow)
         {
             // TheSuperHackers @refactor bobtista 18/06/2026 Submit the caster into the single
             // camera-fit shadow view (the cascades were retired - see SetupSunShadowView).
-            bgfx::submit(kBgfxShadowMapView, g_device.shadowCasterProgram, 0, BGFX_DISCARD_ALL);
+            if (g_draw.drawIsInstanced)
+            {
+                bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+            }
+            const bgfx::ProgramHandle sunProg = g_draw.drawIsInstanced
+                ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram;
+            bgfx::submit(kBgfxShadowMapView, sunProg, 0, BGFX_DISCARD_ALL);
             ++s_shadowCasterSubmitCount;
             static int s_loggedAlphaCaster = 0;
             if (BgfxDiagVerbose() && isAlphaTested && s_loggedAlphaCaster < 1)
