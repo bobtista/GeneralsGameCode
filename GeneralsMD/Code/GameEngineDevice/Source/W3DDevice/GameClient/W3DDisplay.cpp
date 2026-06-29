@@ -1738,11 +1738,8 @@ void W3DDisplay::calculateTerrainLOD()
 			case TERRAIN_LOD_MAX:
 				curLOD = TERRAIN_LOD_NO_WATER;
 				break;
-			case TERRAIN_LOD_HALF_CLOUDS:
-				curLOD = TERRAIN_LOD_DISABLE;
-				break;
 			case TERRAIN_LOD_NO_WATER:
-				curLOD = TERRAIN_LOD_HALF_CLOUDS;
+				curLOD = TERRAIN_LOD_DISABLE;
 				break;
 		}
 		if (curLOD == TERRAIN_LOD_DISABLE)
