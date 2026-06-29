@@ -3695,6 +3695,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uEyePos      = bgfx::createUniform("u_eyePos",      bgfx::UniformType::Vec4);
     g_uniforms.uShadowMatrices = bgfx::createUniform("u_shadowMatrices", bgfx::UniformType::Mat4, kNumShadowCascades);
     g_uniforms.uShadowParams = bgfx::createUniform("u_shadowParams", bgfx::UniformType::Vec4);
+    g_uniforms.uShadowQuality = bgfx::createUniform("u_shadowQuality", bgfx::UniformType::Vec4);
     g_uniforms.uSunShadowReceive = bgfx::createUniform("u_sunShadowReceive", bgfx::UniformType::Vec4);
     g_uniforms.sShadowMap   = bgfx::createUniform("s_shadowMap",   bgfx::UniformType::Sampler);
     g_uniforms.uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
@@ -3998,6 +3999,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uEyePos);
         DestroyBgfxHandle(g_uniforms.uShadowMatrices);
         DestroyBgfxHandle(g_uniforms.uShadowParams);
+        DestroyBgfxHandle(g_uniforms.uShadowQuality);
         DestroyBgfxHandle(g_uniforms.uSunShadowReceive);
         DestroyBgfxHandle(g_uniforms.sShadowMap);
         DestroyBgfxHandle(g_uniforms.uGrayscaleEnable);
@@ -8185,6 +8187,14 @@ static void UploadLightUniforms()
             s_lastRecvState = recvState;
         }
         bgfx::setUniform(g_uniforms.uShadowParams, shadowParams);
+    }
+    if (bgfx::isValid(g_uniforms.uShadowQuality))
+    {
+        // TheSuperHackers @performance bobtista 28/06/2026 Default reduced 9-fetch PCF;
+        // GGC_BGFX_SHADOW_FULL_PCF=1 restores the original 36-fetch path for a quality/perf A/B.
+        static const float s_fullPcf = (std::getenv("GGC_BGFX_SHADOW_FULL_PCF") != nullptr) ? 1.0f : 0.0f;
+        const float shadowQuality[4] = { s_fullPcf, 0.0f, 0.0f, 0.0f };
+        bgfx::setUniform(g_uniforms.uShadowQuality, shadowQuality);
     }
     if (bgfx::isValid(g_uniforms.sShadowMap))
     {
