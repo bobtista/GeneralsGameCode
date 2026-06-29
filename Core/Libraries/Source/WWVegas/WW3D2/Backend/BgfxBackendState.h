@@ -130,7 +130,9 @@ struct BgfxDevice
     bgfx::ProgramHandle ssaoProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle copyProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle sceneDepthProgram = BGFX_INVALID_HANDLE;
+    bgfx::ProgramHandle sceneDepthInstancedProgram = BGFX_INVALID_HANDLE; // per-instance world matrix
     bgfx::ProgramHandle shadowCasterProgram = BGFX_INVALID_HANDLE; // alpha-aware shadow caster
+    bgfx::ProgramHandle shadowCasterInstancedProgram = BGFX_INVALID_HANDLE; // per-instance world matrix
     bgfx::ProgramHandle smudgeProgram = BGFX_INVALID_HANDLE;
 
     // Scene color/depth RT. World, water, sorted translucency, and effects
@@ -425,6 +427,9 @@ struct BgfxDraw
     unsigned instanceCount = 0;
     unsigned instanceMax = 0;
     bool instanceBatchActive = false;
+    // True only while the instanced batch submits, so the shadow/depth recast re-binds the instance
+    // buffer and uses the instanced caster programs instead of the single-copy path.
+    bool drawIsInstanced = false;
 };
 
 // Overrides: transient per-shader overrides. Reset by Clear_State_Overrides (called from Set_Shader).
