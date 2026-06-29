@@ -67,3 +67,7 @@ build.ninja
 ## Python
 __pycache__/
 *.pyc
+
+## vcpkg
+vcpkg_installed/
+vcpkg_installed

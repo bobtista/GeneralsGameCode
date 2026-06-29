@@ -1166,6 +1166,21 @@ else()
 endif()
 
 
+if (NOT IS_VS6_BUILD)
+    find_package(nlohmann_json CONFIG)
+    if (TARGET nlohmann_json::nlohmann_json)
+        # Uses nlohmann-json from vcpkg
+        set(NLOHMANN_JSON_TARGET nlohmann_json::nlohmann_json)
+    else()
+        # Uses nlohmann-json from github repository
+        include(${CMAKE_SOURCE_DIR}/cmake/nlohmann-json.cmake)
+        set(NLOHMANN_JSON_TARGET nlohmann_json)
+    endif()
+else()
+    # VC6 doesn't support C++11, so nlohmann-json is not available
+    set(NLOHMANN_JSON_TARGET "")
+endif()
+
 add_library(corei_gameengine_private INTERFACE)
 add_library(corei_gameengine_public INTERFACE)
 
@@ -1181,6 +1196,7 @@ target_link_libraries(corei_gameengine_private INTERFACE
 
 target_compile_definitions(corei_gameengine_private INTERFACE
     IG_DEBUG_STACKTRACE
+    $<$<NOT:$<BOOL:${IS_VS6_BUILD}>>:RTS_HAS_JSON_CHUNK>
 )
 
 target_precompile_headers(corei_gameengine_private INTERFACE
@@ -1198,6 +1214,7 @@ target_link_libraries(corei_gameengine_public INTERFACE
     d3d8lib
     gamespy::gamespy
     stlport
+    $<$<NOT:$<BOOL:${IS_VS6_BUILD}>>:${NLOHMANN_JSON_TARGET}>
 )
 
 # ReactOS ATL for MinGW-w64 only (MSVC uses native ATL)
