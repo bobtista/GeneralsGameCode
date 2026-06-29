@@ -583,6 +583,15 @@ public:
 	Int getNumParameters() {return m_numParms;}
 	Int getUiStrings(AsciiString strings[MAX_PARMS]);
 
+	// TheSuperHackers @feature bobtista 29/06/2026 Set a parameter slot (used by JSON import)
+	void setParameter(Int ndx, Parameter* param)
+	{
+		if (ndx >= 0 && ndx < MAX_PARMS)
+		{
+			m_parms[ndx] = param;
+		}
+	}
+
 	static void WriteActionDataChunk(DataChunkOutput &chunkWriter, ScriptAction *pAct);
 	static Bool ParseActionDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
 	static void WriteActionFalseDataChunk(DataChunkOutput &chunkWriter, ScriptAction *pAct);
@@ -1019,6 +1028,15 @@ public:
 
 	Int getCustomFrame() const {return m_customFrame;}
 	void setCustomFrame(Int val) { m_customFrame = val;}
+
+	// TheSuperHackers @feature bobtista 29/06/2026 Set a parameter slot (used by JSON import)
+	void setParameter(Int ndx, Parameter* param)
+	{
+		if (ndx >= 0 && ndx < MAX_PARMS)
+		{
+			m_parms[ndx] = param;
+		}
+	}
 
 	static void WriteConditionDataChunk(DataChunkOutput &chunkWriter, Condition *pCond);
 	static Bool ParseConditionDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
