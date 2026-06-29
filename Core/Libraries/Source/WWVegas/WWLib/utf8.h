@@ -25,18 +25,6 @@
 // On non-Windows platforms wchar_t is typically UTF-32, so a future cross-platform
 // implementation should migrate the wide parameters to uint16_t / char16_t.
 
-// Returns the number of bytes in a UTF-8 character based on its lead byte.
-// Returns 0 if the lead byte is invalid.
-size_t Utf8_Num_Bytes(char lead);
-
-// Returns the number of invalid bytes at the end of the string due to an
-// incomplete multi-byte sequence. Returns 0 if the string ends on a complete sequence.
-size_t Utf8_Trailing_Invalid_Bytes(const char* str, size_t length);
-
-// Returns true if the null-terminated string is valid UTF-8, false otherwise.
-bool Utf8_Validate(const char* str);
-bool Utf8_Validate(const char* str, size_t length);
-
 // Returns the number of bytes needed for the UTF-8 representation of srcLen UTF-16LE
 // characters from src, not counting a null terminator. Returns 0 on failure or if srcLen is 0.
 size_t Utf16Le_To_Utf8_Len(const wchar_t* src, size_t srcLen);
