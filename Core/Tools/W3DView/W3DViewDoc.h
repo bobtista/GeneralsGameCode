@@ -112,12 +112,12 @@ public:
 	CameraClass *			Get2DCamera () const				{ return m_pC2DCamera; }
 	CameraClass *			GetBackObjectCamera () const		{ return m_pCBackObjectCamera; }
 	SceneClass *			Get2DScene () const					{ return m_pC2DScene; }
-	SceneClass *			GetCursorScene () const			{ return m_pCursorScene; }
+	SceneClass *			GetCursorScene () const			{ return m_pCursorScene.Peek(); }
 	ViewerSceneClass *	GetScene () const					{ return m_pCScene; }
 	SceneClass *			GetBackObjectScene () const		{ return m_pCBackObjectScene; }
 	LightClass *			GetSceneLight () const				{ return m_pCSceneLight; }
-	RenderObjClass *		GetDisplayedObject () const		{ return m_pCRenderObj; }
-	HAnimClass *			GetCurrentAnimation () const		{ return m_pCAnimation; }
+	RenderObjClass *		GetDisplayedObject () const		{ return m_pCRenderObj.Peek(); }
+	HAnimClass *			GetCurrentAnimation () const		{ return m_pCAnimation.Peek(); }
 	const HTreeClass *	Get_Current_HTree () const;
 
 	//
@@ -291,18 +291,18 @@ private:
 	//////////////////////////////////////////////////////////////////
 	ViewerSceneClass *	m_pCScene;
 	SceneClass *			m_pC2DScene;
-	SceneClass *			m_pCursorScene;
+	RefCountPtr<SceneClass>			m_pCursorScene;
 	SceneClass *			m_pCBackObjectScene;
 	DazzleLayerClass *	m_pDazzleLayer;
-	RenderObjClass *		m_pCRenderObj;
+	RefCountPtr<RenderObjClass>		m_pCRenderObj;
 	RenderObjClass *		m_pCBackgroundObject;
-	HAnimClass *			m_pCAnimation;
+	RefCountPtr<HAnimClass>			m_pCAnimation;
 	HAnimComboClass *		m_pCAnimCombo;
 	LightClass *			m_pCSceneLight;
 	Bitmap2DObjClass *	m_pCBackgroundBMP;
 	CameraClass *			m_pC2DCamera;
 	CameraClass *			m_pCBackObjectCamera;
-	ScreenCursorClass *	m_pCursor;
+	RefCountPtr<ScreenCursorClass>	m_pCursor;
 	Vector3					m_backgroundColor;
 	CString					m_stringBackgroundBMP;
 	CString					m_stringBackgroundObject;
