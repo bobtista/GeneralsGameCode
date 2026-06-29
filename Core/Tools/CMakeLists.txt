@@ -26,6 +26,7 @@ endif()
 if(RTS_BUILD_GENERALS_TOOLS OR RTS_BUILD_ZEROHOUR_TOOLS)
     add_subdirectory(ImagePacker)
     add_subdirectory(MapCacheBuilder)
+    add_subdirectory(ScriptConverter)
     add_subdirectory(W3DView)
 endif()
 
