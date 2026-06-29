@@ -17,6 +17,7 @@ uniform vec4 u_eyePos; // xyz = world-space camera position
 SAMPLER2D(s_shadowMap, 7);
 uniform mat4 u_shadowMatrices[3]; // per-cascade world -> sun shadow clip
 uniform vec4 u_shadowParams; // x atlas texel size, y depth bias, z strength, w enabled
+uniform vec4 u_shadowQuality; // x: >0.5 = full 36-fetch PCF, else reduced 9-fetch (default)
 uniform vec4 u_sunShadowReceive; // x>0.5 = this object draw receives the sun cast shadow
 uniform vec4 u_lightDirs[4];    // per-light direction (xyz=toward light, w=enabled)
 uniform vec4 u_lightColors[4]; // per-light diffuse color (rgb)
@@ -227,24 +228,41 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 		return 1.0; // outside the shadow footprint = lit
 	}
 	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
-	// Soft PCF: a 3x3 grid of bilinearly-interpolated comparison taps. Each tap blends its four
-	// neighbouring texels by the sub-texel fraction (removing hard per-texel steps), and the 3x3
-	// spread widens the penumbra so the texel-resolution silhouette reads as a smooth soft edge.
-	float invTexel = 1.0 / texel;
+	// TheSuperHackers @performance bobtista 28/06/2026 The sun-shadow PCF is the single biggest
+	// full-screen frame cost. The original 3x3 grid did 4 manual-bilinear point fetches per tap = 36
+	// shadow-map fetches per pixel. The reduced path collapses each tap to one point fetch (9 fetches,
+	// 4x fewer): the 3x3 spread still softens the edge, only the sub-texel bilinear is lost (slightly
+	// harder texel stepping). u_shadowQuality.x selects: >0.5 = original 36-fetch, else reduced 9-fetch
+	// (default). GGC_BGFX_SHADOW_FULL_PCF=1 restores the original for a quality/perf A/B in one binary.
 	float lit = 0.0;
-	for (int dy = -1; dy <= 1; ++dy)
+	if (u_shadowQuality.x > 0.5)
 	{
-		for (int dx = -1; dx <= 1; ++dx)
+		float invTexel = 1.0 / texel;
+		for (int dy = -1; dy <= 1; ++dy)
 		{
-			vec2 sampUV = cuv + vec2(float(dx), float(dy)) * texel;
-			vec2 texelCoord = sampUV * invTexel - 0.5;
-			vec2 fracPart = fract(texelCoord);
-			vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
-			float s00 = (curDepth <= texture2D(s_shadowMap, baseUV).x) ? 1.0 : 0.0;
-			float s10 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
-			float s01 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
-			float s11 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
-			lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
+			for (int dx = -1; dx <= 1; ++dx)
+			{
+				vec2 sampUV = cuv + vec2(float(dx), float(dy)) * texel;
+				vec2 texelCoord = sampUV * invTexel - 0.5;
+				vec2 fracPart = fract(texelCoord);
+				vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
+				float s00 = (curDepth <= texture2D(s_shadowMap, baseUV).x) ? 1.0 : 0.0;
+				float s10 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
+				float s01 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
+				float s11 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
+				lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
+			}
+		}
+	}
+	else
+	{
+		for (int dy = -1; dy <= 1; ++dy)
+		{
+			for (int dx = -1; dx <= 1; ++dx)
+			{
+				vec2 sampUV = cuv + vec2(float(dx), float(dy)) * texel;
+				lit += (curDepth <= texture2D(s_shadowMap, sampUV).x) ? 1.0 : 0.0;
+			}
 		}
 	}
 	return lit * (1.0 / 9.0);
