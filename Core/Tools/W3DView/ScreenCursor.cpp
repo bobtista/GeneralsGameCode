@@ -51,8 +51,6 @@
 ///////////////////////////////////////////////////////////////////
 ScreenCursorClass::ScreenCursorClass()
   : m_ScreenPos(0, 0)
-  , m_pTexture(nullptr)
-  , m_pVertMaterial(nullptr)
   , m_Width(0)
   , m_Height(0)
   , m_hWnd(nullptr)
@@ -67,9 +65,7 @@ ScreenCursorClass::ScreenCursorClass()
 ///////////////////////////////////////////////////////////////////
 ScreenCursorClass::ScreenCursorClass(const ScreenCursorClass& src)
   : m_ScreenPos(0, 0)
-  , m_pTexture(nullptr)
   , m_hWnd(nullptr)
-  , m_pVertMaterial(nullptr)
   , m_Width(0)
   , m_Height(0)
   , RenderObjClass(src)
@@ -84,8 +80,6 @@ ScreenCursorClass::ScreenCursorClass(const ScreenCursorClass& src)
 ///////////////////////////////////////////////////////////////////
 ScreenCursorClass::~ScreenCursorClass()
 {
-	REF_PTR_RELEASE(m_pTexture);
-	REF_PTR_RELEASE(m_pVertMaterial);
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -95,10 +89,8 @@ ScreenCursorClass::~ScreenCursorClass()
 ///////////////////////////////////////////////////////////////////
 void ScreenCursorClass::Initialize()
 {
-	REF_PTR_RELEASE(m_pVertMaterial);
-
 	// Create default vertex material
-	m_pVertMaterial = NEW_REF(VertexMaterialClass, ());
+	m_pVertMaterial = RefCountPtr<VertexMaterialClass>::Create_NoAddRef(NEW_REF(VertexMaterialClass, ()));
 	m_pVertMaterial->Set_Diffuse(1.0F, 1.0F, 1.0F);
 	m_pVertMaterial->Set_Emissive(0.0F, 0.0F, 0.0F);
 	m_pVertMaterial->Set_Specular(1.0F, 1.0F, 1.0F);
@@ -141,7 +133,7 @@ void ScreenCursorClass::Initialize()
 ///////////////////////////////////////////////////////////////////
 void ScreenCursorClass::Set_Texture(TextureClass* texture)
 {
-	REF_PTR_SET(m_pTexture, texture);
+	m_pTexture = RefCountPtr<TextureClass>::Create_AddRef(texture);
 
 	// Find the dimensions of the texture:
 	if (m_pTexture != nullptr)
@@ -289,9 +281,9 @@ void ScreenCursorClass::Render(RenderInfoClass& rinfo)
 	/*
 	** Apply the shader and material
 	*/
-	DX8Wrapper::Set_Material(m_pVertMaterial);
+	DX8Wrapper::Set_Material(m_pVertMaterial.Peek());
 	DX8Wrapper::Set_Shader(ShaderClass::_PresetATestBlend2DShader);
-	DX8Wrapper::Set_Texture(0, m_pTexture);
+	DX8Wrapper::Set_Texture(0, m_pTexture.Peek());
 
 	DX8Wrapper::Set_Vertex_Buffer(vbaccess);
 	DX8Wrapper::Set_Index_Buffer(ibaccess, 0);
