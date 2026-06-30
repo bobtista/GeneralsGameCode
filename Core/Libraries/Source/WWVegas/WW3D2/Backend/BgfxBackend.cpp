@@ -5087,8 +5087,51 @@ static bool IsSortedCopLightSprite(uint64_t /*state*/)
         && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "coplight");
 }
 
+// TheSuperHackers @bugfix bobtista 30/06/2026 A draw whose material carries an
+// explicit emissive color is deliberately self-illuminated and depends on the
+// uber shader's lit branch to add that emissive. The force-unlit-for-baked-color
+// heuristic below targets particles/decals/additive sprites that bake intensity
+// into vertex color (no material emissive), so emissive-bearing passes must be
+// exempt. The detected-stealth "heat vision" pass is the case in point: it is an
+// additive (ONE/ONE) textureless pass whose only visible output is the orange
+// material emissive. Forcing it unlit drops the emissive and the additive pass
+// renders black, leaving detected stealth objects invisible.
+static bool DrawHasSelfIllumEmissive()
+{
+    return g_draw.matEmissive[0] > 0.001f
+        || g_draw.matEmissive[1] > 0.001f
+        || g_draw.matEmissive[2] > 0.001f;
+}
+
 static bool ShouldForceUnlitForBakedColorDraw(uint64_t state)
 {
+    // TheSuperHackers @bugfix bobtista 02/07/2026 The force-unlit exists to keep
+    // additive particles/dazzles that bake their intensity into vertex diffuse
+    // from being overwritten by the shader's computed lighting. A real geometry
+    // mesh with material lighting enabled but NO baked vertex color (e.g. the
+    // additive night-detail pass on building roofs, atcemwall04) has no baked
+    // color to preserve — forcing it unlit dumps the raw full-bright texture,
+    // so it glows tan at night. Keep such draws lit.
+    if (g_draw.lightingEnabled[0] > 0.5f
+        && g_draw.vertexColorFlags[0] <= 0.5f
+        && g_draw.fvfHasNormal)
+    {
+        return false;
+    }
+    if (DrawHasSelfIllumEmissive())
+    {
+        static const bool s_trace = (std::getenv("GGC_TRACE") != nullptr);
+        static bool s_loggedSelfIllumExempt = false;
+        if (s_trace && !s_loggedSelfIllumExempt && IsAnyAdditiveBlend(state))
+        {
+            std::fprintf(stderr,
+                "[ggc] heat-vision/self-illum additive pass kept lit: emissive=(%.2f,%.2f,%.2f) priColorOp=%.0f lightingEnabled=%.0f\n",
+                g_draw.matEmissive[0], g_draw.matEmissive[1], g_draw.matEmissive[2],
+                g_draw.tssOps0[0], g_draw.lightingEnabled[0]);
+            s_loggedSelfIllumExempt = true;
+        }
+        return false;
+    }
     return IsAnyAdditiveBlend(state)
         || IsSortedParticleEffect(state)
         || IsSoftParticleCandidate(state)
