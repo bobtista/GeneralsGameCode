@@ -34,11 +34,68 @@
 
 #include <filesystem>
 
-StdLocalFileSystem::StdLocalFileSystem() : LocalFileSystem()
-{
-}
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
-StdLocalFileSystem::~StdLocalFileSystem() {
+// TheSuperHackers @fix bobtista 30/06/2026 Convert between narrow strings and
+// std::filesystem::path without throwing. MSVC's narrow path constructor and
+// path::string() convert against the system ANSI codepage with the
+// *_ERR_INVALID_CHARS flag set, which throws std::system_error
+// (ERROR_NO_UNICODE_TRANSLATION) on machines whose codepage cannot map a byte
+// (e.g. the "Use Unicode UTF-8" beta or a DBCS system locale). The unhandled
+// throw terminates the game at startup. Convert here without that flag so
+// unmappable bytes are substituted instead of crashing.
+namespace
+{
+#ifdef _WIN32
+	std::filesystem::path narrowToPath(const std::string &str)
+	{
+		if (str.empty())
+		{
+			return std::filesystem::path();
+		}
+		int wlen = MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), nullptr, 0);
+		std::wstring wide(wlen, L'\0');
+		if (wlen > 0)
+		{
+			MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), &wide[0], wlen);
+		}
+		return std::filesystem::path(std::move(wide));
+	}
+
+	std::string pathToString(const std::filesystem::path &path)
+	{
+		const std::wstring &wide = path.native();
+		if (wide.empty())
+		{
+			return std::string();
+		}
+		int len = WideCharToMultiByte(CP_ACP, 0, wide.c_str(), (int)wide.size(), nullptr, 0, nullptr, nullptr);
+		std::string narrow(len, '\0');
+		if (len > 0)
+		{
+			WideCharToMultiByte(CP_ACP, 0, wide.c_str(), (int)wide.size(), &narrow[0], len, nullptr, nullptr);
+		}
+		return narrow;
+	}
+#else
+	inline std::filesystem::path narrowToPath(const std::string &str)
+	{
+		return std::filesystem::path(str);
+	}
+
+	inline std::string pathToString(const std::filesystem::path &path)
+	{
+		return path.string();
+	}
+#endif
 }
 
 //DECLARE_PERF_TIMER(StdLocalFileSystem_openFile)
@@ -56,7 +113,7 @@ static std::filesystem::path fixFilenameFromWindowsPath(const Char *filename, In
 #endif
 
 	// Convert the filename to a std::filesystem::path and pass that
-	std::filesystem::path path(std::move(fixedFilename));
+	std::filesystem::path path = narrowToPath(fixedFilename);
 
 #ifndef _WIN32
 	// check if the file exists to see if fixup is required
@@ -152,7 +209,7 @@ File * StdLocalFileSystem::openFile(const Char *filename, Int access, size_t buf
 		std::error_code ec;
 		if (!std::filesystem::exists(dir, ec) || ec) {
 			if(!std::filesystem::create_directories(dir, ec) || ec) {
-				DEBUG_LOG(("StdLocalFileSystem::openFile - Error creating directory %s", dir.string().c_str()));
+				DEBUG_LOG(("StdLocalFileSystem::openFile - Error creating directory %s", pathToString(dir).c_str()));
 				return nullptr;
 			}
 		}
@@ -160,7 +217,7 @@ File * StdLocalFileSystem::openFile(const Char *filename, Int access, size_t buf
 
 	StdLocalFile *file = newInstance( StdLocalFile );
 
-	if (file->open(path.string().c_str(), access, bufferSize) == FALSE) {
+	if (file->open(pathToString(path).c_str(), access, bufferSize) == FALSE) {
 		deleteInstance(file);
 		file = nullptr;
 	} else {
@@ -219,7 +276,7 @@ void StdLocalFileSystem::getFileListInDirectory(const AsciiString& currentDirect
 	AsciiString asciisearch;
 	asciisearch = originalDirectory;
 	asciisearch.concat(currentDirectory);
-	auto searchExt = std::filesystem::path(searchName.str()).extension();
+	auto searchExt = narrowToPath(searchName.str()).extension();
 	if (asciisearch.isEmpty()) {
 		asciisearch = ".";
 	}
@@ -234,7 +291,7 @@ void StdLocalFileSystem::getFileListInDirectory(const AsciiString& currentDirect
 	Bool done = FALSE;
 	std::error_code ec;
 
-	auto iter = std::filesystem::directory_iterator(fixedDirectory.c_str(), ec);
+	auto iter = std::filesystem::directory_iterator(narrowToPath(fixedDirectory), ec);
 	// The default iterator constructor creates an end iterator
 	done = iter == std::filesystem::directory_iterator();
 
@@ -244,12 +301,12 @@ void StdLocalFileSystem::getFileListInDirectory(const AsciiString& currentDirect
 	}
 
 	while (!done)	{
-		std::string filenameStr = iter->path().filename().string();
+		std::string filenameStr = pathToString(iter->path().filename());
 		if (!iter->is_directory() && iter->path().extension() == searchExt &&
 			(strcmp(filenameStr.c_str(), ".") != 0 && strcmp(filenameStr.c_str(), "..") != 0)) {
 			// if we haven't already, add this filename to the list.
 			// a stl set should only allow one copy of each filename
-			AsciiString newFilename = iter->path().string().c_str();
+			AsciiString newFilename = pathToString(iter->path()).c_str();
 			if (filenameList.find(newFilename) == filenameList.end()) {
 				filenameList.insert(newFilename);
 			}
@@ -260,7 +317,7 @@ void StdLocalFileSystem::getFileListInDirectory(const AsciiString& currentDirect
 	}
 
 	if (searchSubdirectories) {
-		auto iter = std::filesystem::directory_iterator(fixedDirectory, ec);
+		auto iter = std::filesystem::directory_iterator(narrowToPath(fixedDirectory), ec);
 
 		if (ec) {
 			DEBUG_LOG(("StdLocalFileSystem::getFileListInDirectory - Error opening subdirectory %s", fixedDirectory.c_str()));
@@ -271,7 +328,7 @@ void StdLocalFileSystem::getFileListInDirectory(const AsciiString& currentDirect
 		done = iter == std::filesystem::directory_iterator();
 
 		while (!done) {
-			std::string filenameStr = iter->path().filename().string();
+			std::string filenameStr = pathToString(iter->path().filename());
 			if(iter->is_directory() &&
 				(strcmp(filenameStr.c_str(), ".") != 0 && strcmp(filenameStr.c_str(), "..") != 0)) {
 				AsciiString tempsearchstr(filenameStr.c_str());
@@ -330,7 +387,7 @@ Bool StdLocalFileSystem::createDirectory(AsciiString directory)
 
 	if ((!fixedDirectory.empty()) && (fixedDirectory.length() < _MAX_DIR)) {
 		// Convert to host path
-		std::filesystem::path path(std::move(fixedDirectory));
+		std::filesystem::path path = narrowToPath(fixedDirectory);
 
 		std::error_code ec;
 		result = std::filesystem::create_directory(path, ec);
@@ -346,8 +403,8 @@ AsciiString StdLocalFileSystem::normalizePath(const AsciiString& filePath) const
 	std::string nonNormalized(filePath.str());
 #ifndef _WIN32
 	// Replace backslashes with forward slashes on non-Windows platforms
-	std::replace(unNormalized.begin(), unNormalized.end(), '\\', '/');
+	std::replace(nonNormalized.begin(), nonNormalized.end(), '\\', '/');
 #endif
-	std::filesystem::path pathNonNormalized(nonNormalized);
-	return AsciiString(pathNonNormalized.lexically_normal().string().c_str());
+	std::filesystem::path pathNonNormalized = narrowToPath(nonNormalized);
+	return AsciiString(pathToString(pathNonNormalized.lexically_normal()).c_str());
 }
