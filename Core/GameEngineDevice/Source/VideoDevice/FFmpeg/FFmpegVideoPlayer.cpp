@@ -207,14 +207,6 @@ VideoStreamInterface* FFmpegVideoPlayer::createStream( File* file )
 		stream->m_next = m_firstStream;
 		stream->m_player = this;
 		m_firstStream = stream;
-
-		// never let volume go to 0, as Bink will interpret that as "play at full volume".
-		Int mod = (Int) ((TheAudio->getVolume(AudioAffect_Speech) * 0.8f) * 100) + 1;
-		[[maybe_unused]]  Int volume = (32768 * mod) / 100;
-		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - About to set volume (%g -> %d -> %d",
-			TheAudio->getVolume(AudioAffect_Speech), mod, volume));
-		//BinkSetVolume( stream->m_handle,0, volume);
-		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - set volume"));
 	}
 
 	return stream;
@@ -315,6 +307,9 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
 	// Release the audio handle if it's already in use
 	OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
 	audioStream->reset();
+
+	// TheSuperHackers @bugfix bobtista 01/07/2026 Apply speech volume to movie audio; the Bink port left this unset so videos ignored the volume sliders.
+	audioStream->setVolume(TheAudio->getVolume(AudioAffect_Speech));
 #endif
 
 	// Decode until we have our first video frame
