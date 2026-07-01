@@ -6016,7 +6016,7 @@ static bool IsCommandCenterEmblemTextureName(const char *name);
 // these run for ~1k particle draws/frame. Get_Full_Path returns a stable member ref (no
 // alloc), but the repeated case-insensitive scans add up. Cache the four marker results
 // keyed by the bound texture pointer so consecutive draws of one texture reuse them.
-struct SortedTexNameFlags { bool snk01; bool snk0; bool rotor; bool coplight; bool commandCenterEmblem; };
+struct SortedTexNameFlags { bool snk01; bool snk0; bool rotor; bool coplight; bool commandCenterEmblem; bool lightbeam; };
 static const SortedTexNameFlags & GetSortedTexNameFlags();
 
 static bool IsSortedAlphaDepthDecal(uint64_t state)
@@ -6087,6 +6087,16 @@ static bool IsSortedCopLightSprite(uint64_t /*state*/)
 {
     return g_views.inSortFlush
         && GetSortedTexNameFlags().coplight;
+}
+
+// TheSuperHackers @bugfix bobtista 01/07/2026 Structure searchlight/beacon beams (lightbeam*.tga,
+// e.g. the China power-plant beacons) are model-space sorted quads. Left on the sort view they fold
+// through its pre-view-multiplied matrix and land in screen space, drawing a fixed diagonal light
+// streak across the map. Route them like the coplight/rotor sprites: engine view + raw model world.
+static bool IsSortedLightBeam(uint64_t /*state*/)
+{
+    return g_views.inSortFlush
+        && GetSortedTexNameFlags().lightbeam;
 }
 
 // TheSuperHackers @bugfix bobtista 30/06/2026 A draw whose material carries an
@@ -6297,7 +6307,7 @@ static const SortedTexNameFlags & GetSortedTexNameFlags()
 {
     static const TextureBaseClass * s_cachedTex = nullptr;
     static bool s_valid = false;
-    static SortedTexNameFlags s_flags = { false, false, false, false, false };
+    static SortedTexNameFlags s_flags = { false, false, false, false, false, false };
     TextureBaseClass * tex = g_draw.sourceTextures[0];
     if (!s_valid || tex != s_cachedTex)
     {
@@ -6307,6 +6317,7 @@ static const SortedTexNameFlags & GetSortedTexNameFlags()
         s_flags.rotor    = ContainsCaseInsensitive(n, "avcomanche_p");
         s_flags.coplight = ContainsCaseInsensitive(n, "coplight");
         s_flags.commandCenterEmblem = IsCommandCenterEmblemTextureName(n);
+        s_flags.lightbeam = ContainsCaseInsensitive(n, "lightbeam");
         s_cachedTex = tex;
         s_valid = true;
     }
@@ -7309,6 +7320,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         IsSortedRotorBlur(earlyState)
         || IsSneakAttackAlphaDepthDecal(earlyState)
         || IsSortedCopLightSprite(earlyState)
+        || IsSortedLightBeam(earlyState)
         || (g_views.inSortFlush
             && IsCommandCenterEmblemTexture(g_draw.sourceTextures[0]));
     const bgfx::ViewId submitView = localModelSortedDraw ? kBgfxEngineView : kBgfxEngineSortView;
@@ -9723,6 +9735,7 @@ void SubmitEngineDraw(unsigned short start_index,
     if (IsSortedRotorBlur(routeState)
         || IsSneakAttackAlphaDepthDecal(routeState)
         || IsSortedCopLightSprite(routeState)
+        || IsSortedLightBeam(routeState)
         || (g_views.inSortFlush
             && IsCommandCenterEmblemTexture(g_draw.sourceTextures[0])))
     {
