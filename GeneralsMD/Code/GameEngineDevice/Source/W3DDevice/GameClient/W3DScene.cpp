@@ -215,13 +215,6 @@ RTS3DScene::RTS3DScene()
 #else
 	m_shroudMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
 #endif
-	m_objectClearShroudMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
-	m_objectClearShroudMaterialPass->enableTransparentObjectPass(TRUE);
-	m_objectClearShroudMaterialPass->Enable_On_Translucent_Meshes(true);
-	m_objectClearShroudMaterialPass->setObjectShroudDimFactor(1.0f);
-	m_objectFogMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
-	m_objectFogMaterialPass->enableTransparentObjectPass(TRUE);
-	m_objectFogMaterialPass->Enable_On_Translucent_Meshes(true);
 	m_objectShroudMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
 	m_objectShroudMaterialPass->enableTransparentObjectPass(TRUE);
 	m_objectShroudMaterialPass->Enable_On_Translucent_Meshes(true);
@@ -330,8 +323,6 @@ RTS3DScene::~RTS3DScene()
 	REF_PTR_RELEASE(m_scratchLight);
 
 	REF_PTR_RELEASE(m_shroudMaterialPass);
-	REF_PTR_RELEASE(m_objectClearShroudMaterialPass);
-	REF_PTR_RELEASE(m_objectFogMaterialPass);
 	REF_PTR_RELEASE(m_objectShroudMaterialPass);
 
 	REF_PTR_RELEASE(m_maskMaterialPass);
@@ -915,21 +906,10 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 		{
 			//Must be ghost object because we don't fog normal things.  Fogged objects always have a predefined
 			//lighting environment applied which emulates the look of fog.
+		// TheSuperHackers @bugfix bobtista 01/07/2026 Ghost objects are darkened solely by the
+		// fogged light environment, like retail DX8; a shroud overlay on top double-darkens them.
 			rinfo.light_environment = &m_foggedLightEnv;
 			robj->Render(rinfo);
-			if (g_renderBackend && g_renderBackend->Requires_Delayed_Object_Shroud_Pass())
-			{
-				const float clearAlpha = TheGlobalData->m_clearAlpha != 0
-					? static_cast<float>(TheGlobalData->m_clearAlpha)
-					: 255.0f;
-				m_objectFogMaterialPass->setObjectShroudDimFactor(
-					static_cast<float>(TheGlobalData->m_fogAlpha) / clearAlpha);
-				rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);
-				rinfo.Push_Material_Pass(m_objectFogMaterialPass);
-				robj->Render(rinfo);
-				rinfo.Pop_Material_Pass();
-				rinfo.Pop_Override_Flags();
-			}
 			rinfo.light_environment = nullptr;
 			return;
 		}
@@ -999,7 +979,7 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 					if (scheduleClearPass)
 					{
 						rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);
-						rinfo.Push_Material_Pass(m_objectClearShroudMaterialPass);
+						rinfo.Push_Material_Pass(m_objectShroudMaterialPass);
 						robj->Render(rinfo);
 						rinfo.Pop_Material_Pass();
 						rinfo.Pop_Override_Flags();
@@ -1020,14 +1000,9 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 					}
 					if (g_renderBackend && g_renderBackend->Requires_Delayed_Object_Shroud_Pass())
 					{
-						const float clearAlpha = TheGlobalData->m_clearAlpha != 0 ? static_cast<float>(TheGlobalData->m_clearAlpha) : 255.0f;
-						m_objectFogMaterialPass->setObjectShroudDimFactor(static_cast<float>(TheGlobalData->m_fogAlpha) / clearAlpha);
-						m_objectShroudMaterialPass->setObjectShroudDimFactor(static_cast<float>(TheGlobalData->m_shroudAlpha) / clearAlpha);
-						W3DShroudMaterialPassClass *objectShroudPass =
-							(ss >= OBJECTSHROUD_SHROUDED) ? m_objectShroudMaterialPass : m_objectFogMaterialPass;
 						robj->Render(rinfo);
 						rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);
-						rinfo.Push_Material_Pass(objectShroudPass);
+						rinfo.Push_Material_Pass(m_objectShroudMaterialPass);
 						robj->Render(rinfo);
 						rinfo.Pop_Material_Pass();
 						rinfo.Pop_Override_Flags();
