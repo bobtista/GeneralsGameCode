@@ -2342,8 +2342,8 @@ void OpenALAudioManager::adjustVolumeOfPlayingAudio(AsciiString eventName, Real 
 		if (playing && playing->m_audioEventRTS && playing->m_audioEventRTS->getEventName() == eventName) {
 			// Adjust it
 			playing->m_audioEventRTS->setVolume(newVolume);
-			Real desiredVolume = playing->m_audioEventRTS->getVolume() * playing->m_audioEventRTS->getVolumeShift();
-			alSourcef(playing->m_source, AL_GAIN, desiredVolume);
+			// TheSuperHackers @bugfix bobtista 01/07/2026 Use getEffectiveVolume so overrides honor the master volume, matching the Miles path.
+			alSourcef(playing->m_source, AL_GAIN, getEffectiveVolume(playing->m_audioEventRTS));
 		}
 	}
 
@@ -2352,18 +2352,16 @@ void OpenALAudioManager::adjustVolumeOfPlayingAudio(AsciiString eventName, Real 
 		if (playing && playing->m_audioEventRTS && playing->m_audioEventRTS->getEventName() == eventName) {
 			// Adjust it
 			playing->m_audioEventRTS->setVolume(newVolume);
-			Real desiredVolume = playing->m_audioEventRTS->getVolume() * playing->m_audioEventRTS->getVolumeShift();
-			alSourcef(playing->m_source, AL_GAIN, desiredVolume);
+			alSourcef(playing->m_source, AL_GAIN, getEffectiveVolume(playing->m_audioEventRTS));
 		}
 	}
 
 	for (it = m_playingStreams.begin(); it != m_playingStreams.end(); ++it) {
 		playing = *it;
-		if (playing && playing->m_audioEventRTS && playing->m_audioEventRTS->getEventName() == eventName) {
+		if (playing && playing->m_audioEventRTS && playing->m_stream && playing->m_audioEventRTS->getEventName() == eventName) {
 			// Adjust it
 			playing->m_audioEventRTS->setVolume(newVolume);
-			Real desiredVolume = playing->m_audioEventRTS->getVolume() * playing->m_audioEventRTS->getVolumeShift();
-			alSourcef(playing->m_source, AL_GAIN, desiredVolume);
+			alSourcef(playing->m_stream->getSource(), AL_GAIN, getEffectiveVolume(playing->m_audioEventRTS));
 		}
 	}
 }
