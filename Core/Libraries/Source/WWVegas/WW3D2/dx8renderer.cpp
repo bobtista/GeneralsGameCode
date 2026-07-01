@@ -1693,7 +1693,13 @@ void DX8TextureCategoryClass::Render()
 
 	bool renderTasksRemaining=false;
 
-	static const bool s_instancingEnabled = std::getenv("GGC_BGFX_INSTANCING") != nullptr;
+	// TheSuperHackers @performance bobtista 01/07/2026 Batch consecutive identical rigid meshes into
+	// one instanced draw. Default ON: the bgfx Metal backend reserves a fixed uniform-buffer slot per
+	// draw submit, so a heavy scene's thousands of per-mesh draws can exhaust bgfx's fixed 8MB Metal
+	// uniform buffer and fault the render thread (repro: China Nuke general challenge). Instancing
+	// collapses the repeated-prop draws that dominate that count. Gated by Supports_Instancing(), so
+	// it is a no-op on backends without instancing caps. Opt out with GGC_BGFX_NO_INSTANCING.
+	static const bool s_instancingEnabled = std::getenv("GGC_BGFX_NO_INSTANCING") == nullptr;
 	if (s_instancingEnabled && render_task_head != nullptr)
 	{
 		unsigned count = 0;
