@@ -8625,19 +8625,6 @@ void BgfxBackend::Set_Object_Shroud_Alpha_Mask_Texture(TextureBaseClass * textur
     }
 }
 
-void BgfxBackend::Set_Object_Shroud_Dim_Factor(float factor)
-{
-    if (factor < 0.0f)
-    {
-        factor = 0.0f;
-    }
-    else if (factor > 1.0f)
-    {
-        factor = 1.0f;
-    }
-    g_draw.objectShroudDim[0] = factor;
-}
-
 void BgfxBackend::Set_Shroud_Texture_Params(float offset_x, float offset_y,
                                              float scale_x, float scale_y)
 {
