@@ -926,7 +926,6 @@ void W3DShroudMaterialPassClass::Install_Materials() const
 		{
 			if (m_isTransparentObjectPass)
 			{
-				WW3D::Get_Render_Backend()->Set_Object_Shroud_Dim_Factor(m_objectShroudDimFactor);
 				WW3D::Get_Render_Backend()->Set_Object_Shroud_Alpha_Mask_Texture(m_contextTexture);
 			}
 			WW3D::Get_Render_Backend()->Set_Object_Shroud_Texture_Pass_Active(m_isTransparentObjectPass);
