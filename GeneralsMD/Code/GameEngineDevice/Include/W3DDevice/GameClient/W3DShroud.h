@@ -45,16 +45,14 @@ typedef UnsignedByte W3DShroudLevel;
 class W3DShroudMaterialPassClass : public MaterialPassClass
 {
 public:
-	W3DShroudMaterialPassClass() : m_isTransparentObjectPass(FALSE), m_objectShroudDimFactor(1.0f), m_contextTexture(nullptr) {}
+	W3DShroudMaterialPassClass() : m_isTransparentObjectPass(FALSE), m_contextTexture(nullptr) {}
 	virtual void	Install_Materials() const override;
 	virtual void	UnInstall_Materials() const override;
 	virtual void	Set_Context_Texture(TextureClass * Texture,int stage = 0) override { if (stage == 0) m_contextTexture = Texture; }
 	void enableTransparentObjectPass(Bool enable) {m_isTransparentObjectPass = enable;}
-	void setObjectShroudDimFactor(Real factor) {m_objectShroudDimFactor = factor;}
 protected:
 	//customized version to deal with transparent (alpha-tested) polys.
 	Bool m_isTransparentObjectPass;
-	Real m_objectShroudDimFactor;
 	mutable TextureClass *m_contextTexture;
 };
 

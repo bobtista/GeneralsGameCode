@@ -119,9 +119,7 @@ protected:
 	LightEnvironmentClass	m_foggedLightEnv;		///<default light environment applied to objects without custom/dynamic lighting.
 
 	W3DShroudMaterialPassClass	*m_shroudMaterialPass;	///< Custom render pass which applies shrouds to objects
-	W3DShroudMaterialPassClass	*m_objectClearShroudMaterialPass;	///< Per-pixel building shroud pass for clear bgfx structures
-	W3DShroudMaterialPassClass	*m_objectFogMaterialPass;	///< Fog object pass delayed for bgfx overlays
-	W3DShroudMaterialPassClass	*m_objectShroudMaterialPass;	///< Shroud pass delayed for bgfx object overlays
+	W3DShroudMaterialPassClass	*m_objectShroudMaterialPass;	///< Delayed per-pixel object shroud overlay for bgfx structures (clear/fogged/shrouded)
 	W3DMaskMaterialPassClass *m_maskMaterialPass;			///< Custom render pass applied to entire scene used to mask out pixels.
 	MaterialPassClass *m_heatVisionMaterialPass;			///< Custom render passed applied on top of objects with heatvision effect.
 	MaterialPassClass *m_heatVisionOnlyPass;					///< Custom render pass applied in place of regular pass on objects with heat vision effect.

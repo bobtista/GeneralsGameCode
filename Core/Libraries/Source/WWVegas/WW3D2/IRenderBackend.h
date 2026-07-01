@@ -1019,7 +1019,6 @@ public:
     virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) {}
     virtual void Set_Object_Shroud_Texture_Pass_Active(bool active) {}
     virtual void Set_Object_Shroud_Alpha_Mask_Texture(TextureBaseClass * texture) {}
-    virtual void Set_Object_Shroud_Dim_Factor(float factor) {}
     virtual void Set_Shroud_Texture_Params(float offset_x, float offset_y,
                                            float scale_x, float scale_y) {}
     // Some backends need object shroud material passes delayed until after all
