@@ -147,7 +147,6 @@ class W3DVolumetricShadow	: public Shadow
 		// shadow volume access
 		void constructVolume( Vector3 *lightPos, Real shadowExtrudeDistance, Int volumeIndex, Int meshIndex );
 		void constructVolumeVB( Vector3 *lightPosObject,Real shadowExtrudeDistance, Int volumeIndex, Int meshIndex );
-		void constructVerticalProjectedSilhouette( const Matrix4x4 &objectToWorld, const Matrix4x4 &worldToObject, Real floorZWorld, Int volumeIndex, Int meshIndex );
 		Bool shouldUseClosedShadowVolume() const;
 		Bool allocateShadowVolume( Int volumeIndex, Int meshIndex );  // allocate mem
 		void deleteShadowVolume( Int volumeIndex );  // delete all volume data
