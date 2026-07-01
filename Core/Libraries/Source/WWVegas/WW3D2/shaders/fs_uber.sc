@@ -306,10 +306,11 @@ void main()
 			}
 			shroud.a *= maskAlpha;
 		}
-		if (u_objectShroudDim.x < 0.999)
-		{
-			shroud.rgb *= u_objectShroudDim.x;
-		}
+		// TheSuperHackers @bugfix bobtista 01/07/2026 The shroud texture RGB already
+		// encodes the per-cell level (level * shroudColor: fogged ~0.5, clear 1.0,
+		// shrouded 0), so it is the sole darkening term here just like the terrain
+		// shroud pass and retail DX8. An extra fogAlpha/clearAlpha dim factor would
+		// darken fogged structures a second time (0.5 * 0.5), rendering them near-black.
 		gl_FragColor = shroud;
 		return;
 	}
