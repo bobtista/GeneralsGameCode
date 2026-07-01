@@ -684,7 +684,6 @@ void AIUpdateInterface::setTurretTargetObject(WhichTurretType tur, Object* o, Bo
 {
 	if (m_turretAI[tur])
 	{
-		getObject()->setNeedUpdateTurretPositioning(TRUE);
 		m_turretAI[tur]->setTurretTargetObject(o, forceAttacking);
 	}
 }
@@ -709,7 +708,6 @@ void AIUpdateInterface::setTurretTargetPosition(WhichTurretType tur, const Coord
 {
 	if (m_turretAI[tur])
 	{
-		getObject()->setNeedUpdateTurretPositioning(TRUE);
 		m_turretAI[tur]->setTurretTargetPosition(pos);
 	}
 }
@@ -719,7 +717,6 @@ void AIUpdateInterface::setTurretEnabled(WhichTurretType tur, Bool enabled)
 {
 	if (m_turretAI[tur])
 	{
-		getObject()->setNeedUpdateTurretPositioning(TRUE);
 		m_turretAI[tur]->setTurretEnabled(enabled);
 	}
 }
@@ -729,7 +726,6 @@ void AIUpdateInterface::recenterTurret(WhichTurretType tur)
 {
 	if (m_turretAI[tur])
 	{
-		getObject()->setNeedUpdateTurretPositioning(TRUE);
 		m_turretAI[tur]->recenterTurret();
 	}
 }
