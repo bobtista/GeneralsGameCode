@@ -7202,9 +7202,18 @@ static void ApplySortedMaterialSnapshotForBgfx(const RenderBackendSortedMaterial
         g_draw.matAmbient[i] = material.ambient[i];
         g_draw.matEmissive[i] = material.emissive[i];
         g_draw.matSpecular[i] = material.specular[i];
-        g_draw.vertexColorFlags[i] = material.vertex_color_flags[i];
-        g_draw.lightingEnabled[i] = material.lighting_enabled[i];
     }
+    // TheSuperHackers @bugfix bobtista 02/07/2026 Mirror Set_Material exactly: it
+    // writes only vertexColorFlags[1..3] (the material color sources) and
+    // lightingEnabled[0]. vertexColorFlags[0] is owned by Set_Vertex_Buffer (the
+    // "bound FVF has a per-vertex diffuse" flag) and must not be touched here. The
+    // snapshot never populated index [0], so copying all four stomped it to 0,
+    // making the shader substitute the fixed-function white default and rendering
+    // every per-vertex-colored sorted particle white (propaganda, smoke, EMP rings).
+    g_draw.vertexColorFlags[1] = material.vertex_color_flags[1];
+    g_draw.vertexColorFlags[2] = material.vertex_color_flags[2];
+    g_draw.vertexColorFlags[3] = material.vertex_color_flags[3];
+    g_draw.lightingEnabled[0] = material.lighting_enabled[0];
 }
 
 void BgfxBackend::Begin_Sorted_Batch_Pass()
