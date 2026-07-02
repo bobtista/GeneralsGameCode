@@ -48,11 +48,20 @@ namespace GGCRenderProfile
 		SORT_FLUSH,         // SortingRendererClass::Flush (sorted translucents)
 		PARTICLES,          // DoParticles (particle render build, subset of RENDER_TOTAL)
 		TERRAIN,            // terrain heightmap render (nested detail)
+		POINTGROUP_COMPRESS, // PointGroupClass::Render active-point compression
+		POINTGROUP_VIEW_XFORM, // point center world->view transform
+		POINTGROUP_UPDATE_ARRAYS, // particle sprite vertex/uv/color expansion
+		POINTGROUP_GROUND_FIXUP, // bgfx ground-aligned view-space fixup
+		POINTGROUP_VB_FILL, // dynamic VB lock/fill for point groups
+		SORT_POOL_BUILD,    // SortingRenderer pool VB/index metadata build
+		SORT_POOL_SORT,     // transparent triangle sort/coalesce
+		SORT_POOL_DRAW,     // sorted dynamic IB build + draw-run replay
 		PHASE_COUNT
 	};
 
 	void Begin(Phase phase);
 	void End(Phase phase);
+	long long SnapshotTicks(Phase phase);
 	// Snapshot+reset the accumulators at a frame boundary (call at the top of the
 	// per-frame draw, before any scope of the new frame opens). The CSV emit reads
 	// the snapshot, so scopes that enclose the emit still report complete times.
