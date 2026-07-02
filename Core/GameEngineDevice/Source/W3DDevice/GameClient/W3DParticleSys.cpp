@@ -48,6 +48,75 @@
 static const float BGFX_ADDITIVE_FOAM_SIZE_BOOST = 2.0f;
 static const float BGFX_ADDITIVE_FOAM_COLOR_BOOST = 1.5f;
 
+static bool containsCaseInsensitive(const char *text, const char *needle)
+{
+	if (text == nullptr || needle == nullptr || *needle == '\0')
+	{
+		return false;
+	}
+	for (const char *cursor = text; *cursor != '\0'; ++cursor)
+	{
+		const char *a = cursor;
+		const char *b = needle;
+		while (*a != '\0' && *b != '\0')
+		{
+			const char ca = (*a >= 'A' && *a <= 'Z') ? static_cast<char>(*a - 'A' + 'a') : *a;
+			const char cb = (*b >= 'A' && *b <= 'Z') ? static_cast<char>(*b - 'A' + 'a') : *b;
+			if (ca != cb)
+			{
+				break;
+			}
+			++a;
+			++b;
+		}
+		if (*b == '\0')
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool shouldUseEmpPointGroupDepthOverride(TextureClass *texture)
+{
+	const char *name = texture != nullptr ? texture->Get_Full_Path().str() : nullptr;
+	return containsCaseInsensitive(name, "exempring")
+		|| containsCaseInsensitive(name, "exlnzflar");
+}
+
+static ShaderClass getParticlePointGroupShader(ParticleSystemInfo::ParticleShaderType shaderType, Bool billboard, TextureClass *texture)
+{
+	ShaderClass shader = ShaderClass::_PresetAlphaSpriteShader;
+	switch( shaderType )
+	{
+		case ParticleSystemInfo::ADDITIVE:
+			shader = ShaderClass::_PresetAdditiveSpriteShader;
+			break;
+		case ParticleSystemInfo::ALPHA:
+			shader = ShaderClass::_PresetAlphaSpriteShader;
+			break;
+		case ParticleSystemInfo::ALPHA_TEST:
+			shader = ShaderClass::_PresetATestSpriteShader;
+			break;
+		case ParticleSystemInfo::MULTIPLY:
+			shader = ShaderClass::_PresetMultiplicativeSpriteShader;
+			break;
+	}
+
+	if (g_renderBackend != nullptr
+		&& g_renderBackend->Has_Shader_Pipeline()
+		&& shaderType == ParticleSystemInfo::ADDITIVE
+		&& !billboard)
+	{
+		if (shouldUseEmpPointGroupDepthOverride(texture))
+		{
+			shader.Set_Depth_Compare(ShaderClass::PASS_ALWAYS);
+		}
+	}
+
+	return shader;
+}
+
 //------------------------------------------------------------------------------ Performance Timers
 //#include "Common/PerfMetrics.h"
 //#include "Common/PerfTimer.h"
@@ -126,22 +195,7 @@ void W3DParticleSystemManager::flushPointGroupBatch(RenderInfoClass &rinfo, Text
 
 	m_pointGroup->Set_Texture( texture );
 	m_pointGroup->Set_Flag( PointGroupClass::TRANSFORM, true );	// transform to screen space
-
-	switch( shaderType )
-	{
-		case ParticleSystemInfo::ADDITIVE:
-			m_pointGroup->Set_Shader( ShaderClass::_PresetAdditiveSpriteShader );
-			break;
-		case ParticleSystemInfo::ALPHA:
-			m_pointGroup->Set_Shader( ShaderClass::_PresetAlphaSpriteShader );
-			break;
-		case ParticleSystemInfo::ALPHA_TEST:
-			m_pointGroup->Set_Shader( ShaderClass::_PresetATestSpriteShader );
-			break;
-		case ParticleSystemInfo::MULTIPLY:
-			m_pointGroup->Set_Shader( ShaderClass::_PresetMultiplicativeSpriteShader );
-			break;
-	}
+	m_pointGroup->Set_Shader( getParticlePointGroupShader(shaderType, billboard, texture) );
 
 	m_pointGroup->Set_Point_Mode( PointGroupClass::QUADS );
 	m_pointGroup->Set_Arrays( m_posBuffer, m_RGBABuffer, nullptr, m_sizeBuffer, m_angleBuffer, nullptr, count );
@@ -540,21 +594,7 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 				texture->Release_Ref();//release reference since it's held by pointGroup
 				m_pointGroup->Set_Flag( PointGroupClass::TRANSFORM, true );	// transform to screen space
 
-				switch( sys->getShaderType() )
-				{
-					case ParticleSystemInfo::ADDITIVE:
-						m_pointGroup->Set_Shader( ShaderClass::_PresetAdditiveSpriteShader );
-						break;
-					case ParticleSystemInfo::ALPHA:
-						m_pointGroup->Set_Shader( ShaderClass::_PresetAlphaSpriteShader );
-						break;
-					case ParticleSystemInfo::ALPHA_TEST:
-						m_pointGroup->Set_Shader( ShaderClass::_PresetATestSpriteShader );
-						break;
-					case ParticleSystemInfo::MULTIPLY:
-						m_pointGroup->Set_Shader( ShaderClass::_PresetMultiplicativeSpriteShader );
-						break;
-				}
+				m_pointGroup->Set_Shader( getParticlePointGroupShader(sys->getShaderType(), sys->shouldBillboard(), texture) );
 
 				/// @todo Use both QUADS and TRIS for particles
 				m_pointGroup->Set_Point_Mode( PointGroupClass::QUADS );
