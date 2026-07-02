@@ -61,6 +61,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
+#include <stdlib.h>
 #include "scene.h"
 #include "WWMath/plane.h"
 #include "camera.h"
@@ -600,6 +601,10 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 		rinfo.light_environment=&lenv;
 	}
 
+	static const bool s_probeNoSceneObjectRender = getenv("GGC_PROBE_NO_SCENE_OBJECT_RENDER") != nullptr;
+	if (s_probeNoSceneObjectRender) {
+		return;
+	}
 
 	// loop through all render objects in the list:
 	for (it.First(&RenderList); !it.Is_Done(); it.Next()) {
