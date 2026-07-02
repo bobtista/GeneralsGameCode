@@ -47,6 +47,7 @@
 #include "WWMath/sphere.h"
 #include "WWDebug/wwprofile.h"
 #include <limits.h>
+#include <stdlib.h>
 #include "WWMath/vp.h"
 #include "texture.h"
 #include "WWMath/vector3.h"
@@ -816,6 +817,10 @@ int ParticleBufferClass::Get_Particle_Count() const
 void ParticleBufferClass::Render(RenderInfoClass & rinfo)
 {
 	WWPROFILE("ParticleBuffer::Render");
+	static const bool s_probeNoParticleRender = getenv("GGC_PROBE_NO_PARTICLE_RENDER") != nullptr;
+	if (s_probeNoParticleRender) {
+		return;
+	}
 
 	unsigned int sort_level = SORT_LEVEL_NONE;
 

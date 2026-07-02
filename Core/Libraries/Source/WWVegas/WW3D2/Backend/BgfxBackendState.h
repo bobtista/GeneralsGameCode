@@ -523,6 +523,7 @@ struct BgfxViewFlags
     bool streakRenderActive        = false;
     bool meshRenderActive          = false;
     unsigned sortedBatchDrawFlags  = 0;
+    bool sortedBatchMaterialCaptured = false;
 };
 
 // Frame: per-frame matrices and captured view/proj copies.
@@ -578,6 +579,11 @@ struct BgfxStats
     uint32_t textureCopies = 0;
     uint32_t materialUniformUploads = 0;
     uint32_t lightUniformUploads = 0;
+    uint32_t uniformCommands = 0;
+    uint32_t materialUniformCommands = 0;
+    uint32_t lightUniformCommands = 0;
+    uint32_t shadowUniformCommands = 0;
+    uint32_t pointShadowUniformCommands = 0;
     uint32_t textureTransformUpdates = 0;
     uint32_t renderStateCopies = 0;
 
@@ -588,6 +594,13 @@ struct BgfxStats
     uint32_t dynamicVbAllocations = 0;
     uint32_t dynamicIbAllocations = 0;
     uint32_t instancedSavedDrawCalls = 0;
+    uint32_t sortedReplayCalls = 0;
+    long long sortedReplayTotalTicks = 0;
+    long long sortedReplayShaderTicks = 0;
+    long long sortedReplayMaterialTicks = 0;
+    long long sortedReplayTextureTicks = 0;
+    long long sortedReplayTransformTicks = 0;
+    long long sortedReplayLightTicks = 0;
 };
 
 // Caches: long-lived resource maps.
