@@ -382,6 +382,85 @@ void main()
 	}
 	vec4 tex3 = texture2D(s_tex3, stage3UV);
 
+	if (u_texcoordSelect2.z > 6.5)
+	{
+		vec2 uv = v_texcoord0;
+		vec4 ringTex = texture2D(s_tex0, uv);
+		float intensity = max(max(ringTex.r, ringTex.g), ringTex.b);
+		vec2 p = (uv - vec2_splat(0.5)) * vec2(1.05, 1.32);
+		float radius = length(p);
+		float softDisc = 1.0 - smoothstep(0.50, 0.64, radius);
+		float rim = smoothstep(0.22, 0.58, radius) * (1.0 - smoothstep(0.58, 0.92, radius));
+		float centerDamp = 0.22 + 0.78 * smoothstep(0.08, 0.36, radius);
+		float radialBloom = 1.0 - smoothstep(0.08, 0.56, radius);
+		float textureMask = smoothstep(0.10, 0.42, intensity) * centerDamp;
+		float mask = max(textureMask, radialBloom * 0.30) * softDisc;
+		vec3 violet = vec3(0.34, 0.08, 0.95);
+		vec3 lavender = vec3(0.68, 0.32, 1.00);
+		vec3 cyanEdge = vec3(0.03, 0.58, 1.25);
+		vec3 authored = ringTex.rgb * vec3(0.12, 0.46, 1.05);
+		float drawAlpha = clamp(diffuse.a * u_matDiffuse.a, 0.0, 1.0);
+		vec3 color = mix(authored, violet, 0.18) * mask * 0.070 * drawAlpha;
+		color += mix(cyanEdge, lavender, 0.18) * rim * mask * 0.040 * drawAlpha;
+		color += vec3(0.34, 0.28, 1.18) * radialBloom * softDisc * 0.038 * drawAlpha;
+		color += vec3(0.80, 0.80, 1.24) * radialBloom * radialBloom * softDisc * 0.020 * drawAlpha;
+		if (max(max(color.r, color.g), color.b) <= ADDITIVE_MATTE_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = vec4(color, clamp(mask * 0.056 * drawAlpha, 0.0, 1.0));
+		return;
+	}
+
+	if (u_texcoordSelect2.z > 5.5)
+	{
+		vec4 lightningTex = texture2D(s_tex0, stage0UV);
+		float drawAlpha = clamp(diffuse.a * u_matDiffuse.a, 0.0, 1.0);
+		float texMask = max(max(lightningTex.r, lightningTex.g), lightningTex.b);
+		float body = smoothstep(0.035, 0.22, texMask);
+		float filament = smoothstep(0.15, 0.54, texMask);
+		float hotFilament = smoothstep(0.56, 0.88, texMask);
+		if (body <= 0.01)
+		{
+			discard;
+		}
+		vec3 normal = normalize(v_normal);
+		vec3 viewDir = normalize(u_eyePos.xyz - v_worldPos);
+		float facing = clamp(dot(normal, viewDir), 0.0, 1.0);
+		float rim = pow(1.0 - facing, 1.25);
+		vec3 authored = lightningTex.rgb * vec3(0.06, 0.68, 1.55);
+		vec3 color = vec3(0.00, 0.48, 0.88) * body * (0.18 + 0.30 * rim);
+		color += authored * filament * 0.56;
+		color += vec3(0.00, 0.36, 1.05) * rim * filament * 0.38;
+		color = mix(color, vec3(0.22, 0.92, 1.15) * filament, hotFilament * 0.28);
+		color *= max(max(max(diffuse.r, diffuse.g), diffuse.b), 0.68);
+		color *= drawAlpha;
+		if (max(max(color.r, color.g), color.b) <= ADDITIVE_MATTE_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = vec4(color, clamp((body * 0.20 + filament * 0.34) * drawAlpha, 0.0, 0.62));
+		return;
+	}
+
+	if (u_texcoordSelect2.z > 4.5)
+	{
+		vec2 uv = v_texcoord0;
+		float drawAlpha = clamp(diffuse.a * u_matDiffuse.a, 0.0, 1.0);
+		vec2 p = uv - vec2_splat(0.5);
+		float core = 1.0 - smoothstep(0.02, 0.20, length(p * vec2(1.0, 1.35)));
+		float bloom = 1.0 - smoothstep(0.10, 0.52, length(p * vec2(1.0, 1.12)));
+		float mask = max(bloom * 0.13, core * 0.30) * drawAlpha;
+		vec3 color = vec3(0.28, 0.24, 1.10) * bloom * mask * 0.58;
+		color += vec3(0.84, 0.82, 1.24) * core * mask * 0.68;
+		if (max(max(color.r, color.g), color.b) <= ADDITIVE_MATTE_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = vec4(color, clamp(mask * 0.34, 0.0, 1.0));
+		return;
+	}
+
 	if (u_texcoordSelect2.z > 3.5)
 	{
 		// Zero Hour command-center driveway emblems are player-recolored
