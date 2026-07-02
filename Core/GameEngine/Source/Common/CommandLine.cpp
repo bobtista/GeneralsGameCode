@@ -149,6 +149,152 @@ Int parseBgfxEffects(char *args[], int)
 
 //=============================================================================
 //=============================================================================
+Int parseBgfxNoEffects(char *args[], int)
+{
+	TheWritableGlobalData->m_bgfxDynamicLightShadows = FALSE;
+	TheWritableGlobalData->m_bgfxShadowMaps = FALSE;
+	TheWritableGlobalData->m_bgfxRimLight = FALSE;
+	TheWritableGlobalData->m_bgfxEmissiveBoost = FALSE;
+
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
+static Int parseSetEnvFlag(const char *name)
+{
+	setenv(name, "1", 1);
+	return 1;
+}
+
+Int parseBgfxProbeNullSubmit(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_NULL_SUBMIT");
+}
+
+Int parseBgfxProbeFreezeState(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_FREEZE_STATE");
+}
+
+Int parseBgfxProbeNoSorted(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_NO_SORTED");
+}
+
+Int parseBgfxProbeNoTexBind(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_NO_TEXBIND");
+}
+
+Int parseBgfxProbeNoMaterialUniform(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_NO_MATUNIFORM");
+}
+
+Int parseBgfxProbeNoLightUniform(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_NO_LIGHTUNIFORM");
+}
+
+Int parseBgfxProbeNoRenderThread(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_BGFX_NO_RENDER_THREAD");
+}
+
+Int parseBgfxProbeNoParticleRender(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_NO_PARTICLE_RENDER");
+}
+
+Int parseBgfxProbeNoSortFlush(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_NO_SORT_FLUSH");
+}
+
+Int parseBgfxProbeNoSceneObjectRender(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_NO_SCENE_OBJECT_RENDER");
+}
+
+Int parseBgfxProbeIdentityInstances(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_IDENTITY_INSTANCES");
+}
+
+Int parseBgfxProbeTransposeInstances(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_PROBE_TRANSPOSE_INSTANCES");
+}
+
+Int parseBgfxInstancing(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_BGFX_INSTANCING");
+}
+
+Int parseBgfxInstancingNoReorder(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_BGFX_INSTANCING_NO_REORDER");
+}
+
+Int parseBgfxDisableInstancing(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_BGFX_DISABLE_INSTANCING");
+}
+
+Int parseBgfxDisableSortedMaterialRecaptureSkip(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_BGFX_DISABLE_SORTED_MATERIAL_RECAPTURE_SKIP");
+}
+
+Int parseBgfxDisableSortedMaterialSnapshot(char *args[], int)
+{
+	return parseSetEnvFlag("GGC_BGFX_DISABLE_SORTED_MATERIAL_SNAPSHOT");
+}
+
+Int parseBgfxFrameTimingAfter(char *args[], int num)
+{
+	if (num > 1)
+	{
+		setenv("GGC_BGFX_FRAME_TIMING_AFTER", args[1], 1);
+		return 2;
+	}
+	return 1;
+}
+
+Int parseBgfxFrameTimingInterval(char *args[], int num)
+{
+	if (num > 1)
+	{
+		setenv("GGC_BGFX_FRAME_TIMING_INTERVAL", args[1], 1);
+		return 2;
+	}
+	return 1;
+}
+
+Int parseBgfxFrameTimingPath(char *args[], int num)
+{
+	if (num > 1)
+	{
+		setenv("GGC_BGFX_FRAME_TIMING_PATH", args[1], 1);
+		return 2;
+	}
+	return 1;
+}
+
+Int parseBgfxSortedPacketCollectorDiag(char *args[], int num)
+{
+	setenv("GGC_BGFX_SORTED_PACKET_COLLECTOR_DIAG", "1", 1);
+	if (num > 1 && args[1][0] != '-')
+	{
+		setenv("GGC_BGFX_SORTED_PACKET_COLLECTOR_DIAG_LIMIT", args[1], 1);
+		return 2;
+	}
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
 Int parseNoMusic(char *args[], int)
 {
 	TheWritableGlobalData->m_musicOn = false;
@@ -1203,6 +1349,35 @@ Int parseLogBgfxStats(char *args[], int num)
 	return 1;
 }
 
+Int parsePerfAutoExitSeconds(char *args[], int num)
+{
+	if (num > 1)
+	{
+		int seconds = atoi(args[1]);
+		if (seconds > 0)
+		{
+			char buf[16];
+			snprintf(buf, sizeof(buf), "%d", seconds);
+			setenv("GGC_AUTO_EXIT_SECONDS", buf, 1);
+		}
+		return 2;
+	}
+
+	return 1;
+}
+
+Int parseBgfxSkipStaticVolumeShadows(char *args[], int)
+{
+	setenv("GGC_BGFX_SKIP_STATIC_VOLUME_SHADOWS", "1", 1);
+	return 1;
+}
+
+Int parseBgfxKeepStaticVolumeShadows(char *args[], int)
+{
+	setenv("GGC_BGFX_KEEP_STATIC_VOLUME_SHADOWS", "1", 1);
+	return 1;
+}
+
 Int parseBgfxNoSceneFramebuffer(char *args[], int num)
 {
 	TheWritableGlobalData->m_bgfxNoSceneFramebuffer = TRUE;
@@ -1382,6 +1557,7 @@ static CommandLineParam paramsForEngineInit[] =
 {
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-bgfxEffects", parseBgfxEffects }, // must be in this (post-INI) table so it overrides GameData.ini
+	{ "-bgfxNoEffects", parseBgfxNoEffects }, // must be post-INI so parity/perf runs can override GameData.ini
 	{ "-noshellmap", parseNoShellMap },
 	{ "-noShellAnim", parseNoWindowAnimation }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-xres", parseXRes },
@@ -1402,6 +1578,30 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noFPSLimit", parseNoFPSLimit },
 	{ "-maxRenderFPS", parseMaxRenderFPS },
 	{ "-fixedLogicFPS", parseFixedLogicFPS },
+	{ "-perfAutoExitSeconds", parsePerfAutoExitSeconds },
+	{ "-bgfxSkipStaticVolumeShadows", parseBgfxSkipStaticVolumeShadows },
+	{ "-bgfxKeepStaticVolumeShadows", parseBgfxKeepStaticVolumeShadows },
+	{ "-bgfxProbeNullSubmit", parseBgfxProbeNullSubmit },
+	{ "-bgfxProbeFreezeState", parseBgfxProbeFreezeState },
+	{ "-bgfxProbeNoSorted", parseBgfxProbeNoSorted },
+	{ "-bgfxProbeNoTexBind", parseBgfxProbeNoTexBind },
+	{ "-bgfxProbeNoMaterialUniform", parseBgfxProbeNoMaterialUniform },
+	{ "-bgfxProbeNoLightUniform", parseBgfxProbeNoLightUniform },
+	{ "-bgfxProbeNoRenderThread", parseBgfxProbeNoRenderThread },
+	{ "-bgfxProbeNoParticleRender", parseBgfxProbeNoParticleRender },
+	{ "-bgfxProbeNoSortFlush", parseBgfxProbeNoSortFlush },
+	{ "-bgfxProbeNoSceneObjectRender", parseBgfxProbeNoSceneObjectRender },
+	{ "-bgfxProbeIdentityInstances", parseBgfxProbeIdentityInstances },
+	{ "-bgfxProbeTransposeInstances", parseBgfxProbeTransposeInstances },
+	{ "-bgfxInstancing", parseBgfxInstancing },
+	{ "-bgfxInstancingNoReorder", parseBgfxInstancingNoReorder },
+	{ "-bgfxDisableInstancing", parseBgfxDisableInstancing },
+	{ "-bgfxDisableSortedMaterialRecaptureSkip", parseBgfxDisableSortedMaterialRecaptureSkip },
+	{ "-bgfxDisableSortedMaterialSnapshot", parseBgfxDisableSortedMaterialSnapshot },
+	{ "-bgfxFrameTimingAfter", parseBgfxFrameTimingAfter },
+	{ "-bgfxFrameTimingInterval", parseBgfxFrameTimingInterval },
+	{ "-bgfxFrameTimingPath", parseBgfxFrameTimingPath },
+	{ "-bgfxSortedPacketCollectorDiag", parseBgfxSortedPacketCollectorDiag },
 	{ "-msaa", parseMsaa },
 	{ "-srgb", parseSrgb },
 	{ "-logFrameTimes", parseLogFrameTimes },

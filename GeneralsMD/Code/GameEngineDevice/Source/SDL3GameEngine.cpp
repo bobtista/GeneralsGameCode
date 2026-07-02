@@ -115,6 +115,23 @@ void SDL3GameEngine::update()
 	pollSDL3Events();
 	GameEngine::update();
 
+	static bool autoExitInitialized = false;
+	static Uint64 autoExitStartTicks = 0;
+	static int autoExitSeconds = 0;
+	if (!autoExitInitialized)
+	{
+		autoExitInitialized = true;
+		autoExitStartTicks = SDL_GetTicks();
+		if (const char *env = std::getenv("GGC_AUTO_EXIT_SECONDS"))
+		{
+			autoExitSeconds = std::atoi(env);
+		}
+	}
+	if (autoExitSeconds > 0 && SDL_GetTicks() - autoExitStartTicks >= static_cast<Uint64>(autoExitSeconds) * 1000)
+	{
+		std::exit(0);
+	}
+
 	// TheSuperHackers @bugfix bobtista 08/06/2026 Apply a settled window resize between
 	// frames; the full relayout destroys live GameWindow trees and crashes mid event-poll.
 	if (m_resizeReadyToApply)
