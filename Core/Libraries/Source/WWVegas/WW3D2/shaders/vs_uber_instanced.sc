@@ -36,6 +36,11 @@ uniform vec4 u_material[24];
 
 void main()
 {
+	// TheSuperHackers @bugfix bobtista 02/07/2026 i_data0-3 must use bgfx's canonical descending
+	// TEXCOORD7-4 semantics in varying.def.sc (which cannot hold comments). The D3D11 backend
+	// hardcodes TEXCOORD7=i_data0 down to TEXCOORD4=i_data3 in its input layout; the previous
+	// ascending TEXCOORD6-9 mapping swapped matrix columns 0/1 and left columns 2/3 unbound,
+	// garbling instanced world transforms on DX11. Metal binds by attribute name, unaffected.
 	mat4 worldMtx = mtxFromCols(i_data0, i_data1, i_data2, i_data3);
 
 	vec3 position = a_position;
