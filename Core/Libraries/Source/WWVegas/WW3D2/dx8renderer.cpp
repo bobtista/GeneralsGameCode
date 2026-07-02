@@ -1698,9 +1698,16 @@ void DX8TextureCategoryClass::Render()
 	// draw submit, so a heavy scene's thousands of per-mesh draws can exhaust bgfx's fixed 8MB Metal
 	// uniform buffer and fault the render thread (repro: China Nuke general challenge). Instancing
 	// collapses the repeated-prop draws that dominate that count. Gated by Supports_Instancing(), so
-	// it is a no-op on backends without instancing caps. Opt out with GGC_BGFX_NO_INSTANCING.
-	static const bool s_instancingEnabled = std::getenv("GGC_BGFX_NO_INSTANCING") == nullptr;
-	if (s_instancingEnabled && render_task_head != nullptr)
+	// it is a no-op on backends without instancing caps. Opt out with GGC_BGFX_NO_INSTANCING
+	// or GGC_BGFX_DISABLE_INSTANCING.
+	static const bool s_instancingEnabled =
+		std::getenv("GGC_BGFX_NO_INSTANCING") == nullptr
+		&& std::getenv("GGC_BGFX_DISABLE_INSTANCING") == nullptr;
+	static const bool s_instancingReorder = std::getenv("GGC_BGFX_INSTANCING_NO_REORDER") == nullptr;
+	if (s_instancingEnabled
+		&& s_instancingReorder
+		&& g_renderBackend->Supports_Instancing()
+		&& render_task_head != nullptr)
 	{
 		unsigned count = 0;
 		for (PolyRenderTaskClass * c = render_task_head; c != nullptr; c = c->Get_Next_Visible()) {
@@ -1932,17 +1939,25 @@ void DX8TextureCategoryClass::Render()
 			else
 			{
 				bool instanced = false;
+				const bool currentInstancingEligible =
+					!coplanarNormalBias
+					&& mesh->Get_ObjectScale() == 1.0f
+					&& mesh->Get_Base_Vertex_Offset() != VERTEX_BUFFER_OVERFLOW
+					&& !mesh->Peek_Model()->Get_Flag(MeshModelClass::ALIGNED)
+					&& !mesh->Peek_Model()->Get_Flag(MeshModelClass::ORIENTED)
+					&& !mesh->Peek_Model()->Get_Flag(MeshModelClass::SKIN)
+					&& !((!!mesh->Peek_Model()->Get_Flag(MeshGeometryClass::SORT)) && WW3D::Is_Sorting_Enabled());
 				if (s_instancingEnabled
 					&& g_renderBackend->Supports_Instancing()
-					&& !coplanarNormalBias
-					&& mesh->Get_ObjectScale() == 1.0f)
+					&& currentInstancingEligible)
 				{
 					static unsigned s_instDiag = 0;
 					PolyRenderTaskClass * nextScan = prt->Get_Next_Visible();
 						if (nextScan != nullptr
 						&& nextScan->Peek_Polygon_Renderer() == renderer
 						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() != VERTEX_BUFFER_OVERFLOW
-						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() == mesh->Get_Base_Vertex_Offset())
+						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() == mesh->Get_Base_Vertex_Offset()
+						&& nextScan->Peek_Mesh()->Get_Lighting_Environment() == lenv)
 					{
 						unsigned batchCount = 1;
 						for (PolyRenderTaskClass * s = nextScan; s != nullptr; s = s->Get_Next_Visible())
@@ -1952,6 +1967,7 @@ void DX8TextureCategoryClass::Render()
 								|| sm->Get_Base_Vertex_Offset() != mesh->Get_Base_Vertex_Offset()
 								|| sm->Get_Base_Vertex_Offset() == VERTEX_BUFFER_OVERFLOW
 								|| sm->Get_Alpha_Override() != 1.0f
+								|| sm->Get_Lighting_Environment() != lenv
 								|| (sm->Get_User_Data() && *(int *)sm->Get_User_Data() == RenderObjClass::USER_DATA_MATERIAL_OVERRIDE)
 								|| sm->Peek_Model()->Get_Flag(MeshModelClass::ALIGNED)
 								|| sm->Peek_Model()->Get_Flag(MeshModelClass::ORIENTED)

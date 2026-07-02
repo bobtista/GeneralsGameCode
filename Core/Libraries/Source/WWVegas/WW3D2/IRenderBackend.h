@@ -201,6 +201,17 @@ struct RenderBackendMaterialState
     float power;
 };
 
+struct RenderBackendSortedMaterialSnapshot
+{
+    float diffuse[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    float ambient[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    float specular[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    float emissive[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float vertex_color_flags[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float lighting_enabled[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    bool valid = false;
+};
+
 struct RenderBackendDeviceIdentity
 {
     unsigned int vendor_id;
@@ -227,6 +238,7 @@ struct RenderBackendSortedBatchState
     const Matrix4x4 * world;
     const Matrix4x4 * view;
     RenderBackendLightState lights;
+    RenderBackendSortedMaterialSnapshot material_snapshot;
     unsigned int draw_flags;
 };
 

@@ -479,6 +479,11 @@ struct BgfxStatsLogWindow
     uint32_t textureCopies;
     uint32_t materialUniformUploads;
     uint32_t lightUniformUploads;
+    uint32_t uniformCommands;
+    uint32_t materialUniformCommands;
+    uint32_t lightUniformCommands;
+    uint32_t shadowUniformCommands;
+    uint32_t pointShadowUniformCommands;
     uint32_t textureTransformUpdates;
     uint32_t renderStateCopies;
     uint32_t transientVbAllocations;
@@ -488,12 +493,20 @@ struct BgfxStatsLogWindow
     uint32_t dynamicVbAllocations;
     uint32_t dynamicIbAllocations;
     uint32_t instancedSavedDrawCalls;
+    uint32_t sortedReplayCalls;
+    long long sortedReplayTotalTicks;
+    long long sortedReplayShaderTicks;
+    long long sortedReplayMaterialTicks;
+    long long sortedReplayTextureTicks;
+    long long sortedReplayTransformTicks;
+    long long sortedReplayLightTicks;
     double bgfxTransientVbUsed;
     double bgfxTransientIbUsed;
     int64_t textureMemoryUsed;
     int64_t rtMemoryUsed;
     uint16_t numTextures;
     uint16_t numFrameBuffers;
+    long long renderPhaseTicks[GGCRenderProfile::PHASE_COUNT];
 };
 
 static BgfxStatsLogWindow g_bgfxStatsLog = {};
@@ -647,6 +660,11 @@ static void ResetBgfxStatsLogWindow()
     g_bgfxStatsLog.textureCopies = 0;
     g_bgfxStatsLog.materialUniformUploads = 0;
     g_bgfxStatsLog.lightUniformUploads = 0;
+    g_bgfxStatsLog.uniformCommands = 0;
+    g_bgfxStatsLog.materialUniformCommands = 0;
+    g_bgfxStatsLog.lightUniformCommands = 0;
+    g_bgfxStatsLog.shadowUniformCommands = 0;
+    g_bgfxStatsLog.pointShadowUniformCommands = 0;
     g_bgfxStatsLog.textureTransformUpdates = 0;
     g_bgfxStatsLog.renderStateCopies = 0;
     g_bgfxStatsLog.transientVbAllocations = 0;
@@ -655,12 +673,20 @@ static void ResetBgfxStatsLogWindow()
     g_bgfxStatsLog.transientIbDraws = 0;
     g_bgfxStatsLog.dynamicVbAllocations = 0;
     g_bgfxStatsLog.dynamicIbAllocations = 0;
+    g_bgfxStatsLog.sortedReplayCalls = 0;
+    g_bgfxStatsLog.sortedReplayTotalTicks = 0;
+    g_bgfxStatsLog.sortedReplayShaderTicks = 0;
+    g_bgfxStatsLog.sortedReplayMaterialTicks = 0;
+    g_bgfxStatsLog.sortedReplayTextureTicks = 0;
+    g_bgfxStatsLog.sortedReplayTransformTicks = 0;
+    g_bgfxStatsLog.sortedReplayLightTicks = 0;
     g_bgfxStatsLog.bgfxTransientVbUsed = 0.0;
     g_bgfxStatsLog.bgfxTransientIbUsed = 0.0;
     g_bgfxStatsLog.textureMemoryUsed = 0;
     g_bgfxStatsLog.rtMemoryUsed = 0;
     g_bgfxStatsLog.numTextures = 0;
     g_bgfxStatsLog.numFrameBuffers = 0;
+    std::memset(g_bgfxStatsLog.renderPhaseTicks, 0, sizeof(g_bgfxStatsLog.renderPhaseTicks));
 }
 
 // TheSuperHackers @bugfix bobtista 28/05/2026 Allow the perf-log directory to be overridden by GGC_BGFX_PERF_DIR and fall back to the current working directory; the previous hard-coded "C:\\tmp\\bgfx_perf" only ever worked on Windows.
@@ -692,7 +718,7 @@ static void InitializeBgfxStatsLog()
     FILE * file = fopen(logPath.c_str(), "wt");
     if (file != nullptr)
     {
-        fprintf(file, "elapsed_seconds,window_seconds,window_frames,bgfx_num_draw_avg,bgfx_num_blit_avg,bgfx_cpu_frame_ms_avg,bgfx_gpu_ms_avg,bgfx_wait_render_ms_avg,bgfx_wait_submit_ms_avg,backend_draws_avg,backend_skipped_avg,base_submits_avg,scene_depth_submits_avg,shadow_volume_submits_avg,shadow_apply_submits_avg,smudge_submits_avg,scene_composite_submits_avg,debug_submits_avg,world_draws_avg,ui_draws_avg,water_draws_avg,sorted_draws_avg,effect_draws_avg,rtt_draws_avg,smudge_draws_avg,texture_binds_avg,texture_creates_avg,texture_uploads_avg,texture_copies_avg,material_uniforms_avg,light_uniforms_avg,texture_transform_updates_avg,render_state_copies_avg,transient_vb_alloc_avg,transient_ib_alloc_avg,transient_vb_draw_avg,transient_ib_draw_avg,dynamic_vb_alloc_avg,dynamic_ib_alloc_avg,bgfx_transient_vb_used_avg,bgfx_transient_ib_used_avg,bgfx_texture_memory,bgfx_rt_memory,bgfx_num_textures,bgfx_num_framebuffers\n");
+        fprintf(file, "elapsed_seconds,window_seconds,window_frames,bgfx_num_draw_avg,bgfx_num_blit_avg,bgfx_cpu_frame_ms_avg,bgfx_gpu_ms_avg,bgfx_wait_render_ms_avg,bgfx_wait_submit_ms_avg,backend_draws_avg,backend_skipped_avg,base_submits_avg,scene_depth_submits_avg,shadow_volume_submits_avg,shadow_apply_submits_avg,smudge_submits_avg,scene_composite_submits_avg,debug_submits_avg,world_draws_avg,ui_draws_avg,water_draws_avg,sorted_draws_avg,effect_draws_avg,rtt_draws_avg,smudge_draws_avg,texture_binds_avg,texture_creates_avg,texture_uploads_avg,texture_copies_avg,material_uniforms_avg,light_uniforms_avg,uniform_cmds_avg,material_uniform_cmds_avg,light_uniform_cmds_avg,shadow_uniform_cmds_avg,pointshadow_uniform_cmds_avg,texture_transform_updates_avg,render_state_copies_avg,transient_vb_alloc_avg,transient_ib_alloc_avg,transient_vb_draw_avg,transient_ib_draw_avg,dynamic_vb_alloc_avg,dynamic_ib_alloc_avg,bgfx_transient_vb_used_avg,bgfx_transient_ib_used_avg,bgfx_texture_memory,bgfx_rt_memory,bgfx_num_textures,bgfx_num_framebuffers,phase_frame_draw_us_avg,phase_draw_views_us_avg,phase_render_total_us_avg,phase_traversal_us_avg,phase_mesh_flush_us_avg,phase_sort_flush_us_avg,phase_particles_us_avg,phase_terrain_us_avg,phase_pointgroup_update_arrays_us_avg,phase_pointgroup_vb_fill_us_avg,phase_sort_pool_build_us_avg,phase_sort_pool_sort_us_avg,phase_sort_pool_draw_us_avg,sorted_replay_calls_avg,sorted_replay_total_us_avg,sorted_replay_shader_us_avg,sorted_replay_material_us_avg,sorted_replay_texture_us_avg,sorted_replay_transform_us_avg,sorted_replay_light_us_avg\n");
         fclose(file);
     }
     else
@@ -714,7 +740,10 @@ static void FlushBgfxStatsLogWindow()
     {
         const double frames = static_cast<double>(g_bgfxStatsLog.frames);
         // TheSuperHackers @bugfix bobtista 28/05/2026 Format string and arg list got out of sync: drop one stray %.3f and use portable %lld/%llu instead of MSVC-only %I64d.
-        fprintf(file, "%.3f,%.3f,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%lld,%lld,%u,%u\n",
+        const double phaseUsPerFrame = g_bgfxStatsLog.frequency.QuadPart > 0
+            ? 1000000.0 / static_cast<double>(g_bgfxStatsLog.frequency.QuadPart) / frames
+            : 0.0;
+        fprintf(file, "%.3f,%.3f,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%lld,%lld,%u,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
             g_bgfxStatsLog.elapsedSeconds,
             g_bgfxStatsLog.windowSeconds,
             g_bgfxStatsLog.frames,
@@ -746,6 +775,11 @@ static void FlushBgfxStatsLogWindow()
             static_cast<double>(g_bgfxStatsLog.textureCopies) / frames,
             static_cast<double>(g_bgfxStatsLog.materialUniformUploads) / frames,
             static_cast<double>(g_bgfxStatsLog.lightUniformUploads) / frames,
+            static_cast<double>(g_bgfxStatsLog.uniformCommands) / frames,
+            static_cast<double>(g_bgfxStatsLog.materialUniformCommands) / frames,
+            static_cast<double>(g_bgfxStatsLog.lightUniformCommands) / frames,
+            static_cast<double>(g_bgfxStatsLog.shadowUniformCommands) / frames,
+            static_cast<double>(g_bgfxStatsLog.pointShadowUniformCommands) / frames,
             static_cast<double>(g_bgfxStatsLog.textureTransformUpdates) / frames,
             static_cast<double>(g_bgfxStatsLog.renderStateCopies) / frames,
             static_cast<double>(g_bgfxStatsLog.transientVbAllocations) / frames,
@@ -759,7 +793,27 @@ static void FlushBgfxStatsLogWindow()
             static_cast<long long>(g_bgfxStatsLog.textureMemoryUsed),
             static_cast<long long>(g_bgfxStatsLog.rtMemoryUsed),
             g_bgfxStatsLog.numTextures,
-            g_bgfxStatsLog.numFrameBuffers);
+            g_bgfxStatsLog.numFrameBuffers,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::FRAME_DRAW]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::DRAW_VIEWS]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::RENDER_TOTAL]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::TRAVERSAL]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::MESH_FLUSH]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORT_FLUSH]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::PARTICLES]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::TERRAIN]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::POINTGROUP_UPDATE_ARRAYS]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::POINTGROUP_VB_FILL]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORT_POOL_BUILD]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORT_POOL_SORT]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORT_POOL_DRAW]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayCalls) / frames,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayTotalTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayShaderTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayMaterialTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayTextureTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayTransformTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayLightTicks) * phaseUsPerFrame);
         fclose(file);
     }
 
@@ -853,6 +907,11 @@ static void UpdateBgfxStatsLog()
     g_bgfxStatsLog.textureCopies += g_stats.textureCopies;
     g_bgfxStatsLog.materialUniformUploads += g_stats.materialUniformUploads;
     g_bgfxStatsLog.lightUniformUploads += g_stats.lightUniformUploads;
+    g_bgfxStatsLog.uniformCommands += g_stats.uniformCommands;
+    g_bgfxStatsLog.materialUniformCommands += g_stats.materialUniformCommands;
+    g_bgfxStatsLog.lightUniformCommands += g_stats.lightUniformCommands;
+    g_bgfxStatsLog.shadowUniformCommands += g_stats.shadowUniformCommands;
+    g_bgfxStatsLog.pointShadowUniformCommands += g_stats.pointShadowUniformCommands;
     g_bgfxStatsLog.textureTransformUpdates += g_stats.textureTransformUpdates;
     g_bgfxStatsLog.renderStateCopies += g_stats.renderStateCopies;
     g_bgfxStatsLog.transientVbAllocations += g_stats.transientVbAllocations;
@@ -862,6 +921,18 @@ static void UpdateBgfxStatsLog()
     g_bgfxStatsLog.dynamicVbAllocations += g_stats.dynamicVbAllocations;
     g_bgfxStatsLog.dynamicIbAllocations += g_stats.dynamicIbAllocations;
     g_bgfxStatsLog.instancedSavedDrawCalls += g_stats.instancedSavedDrawCalls;
+    g_bgfxStatsLog.sortedReplayCalls += g_stats.sortedReplayCalls;
+    g_bgfxStatsLog.sortedReplayTotalTicks += g_stats.sortedReplayTotalTicks;
+    g_bgfxStatsLog.sortedReplayShaderTicks += g_stats.sortedReplayShaderTicks;
+    g_bgfxStatsLog.sortedReplayMaterialTicks += g_stats.sortedReplayMaterialTicks;
+    g_bgfxStatsLog.sortedReplayTextureTicks += g_stats.sortedReplayTextureTicks;
+    g_bgfxStatsLog.sortedReplayTransformTicks += g_stats.sortedReplayTransformTicks;
+    g_bgfxStatsLog.sortedReplayLightTicks += g_stats.sortedReplayLightTicks;
+    for (int phase = 0; phase < GGCRenderProfile::PHASE_COUNT; ++phase)
+    {
+        g_bgfxStatsLog.renderPhaseTicks[phase] +=
+            GGCRenderProfile::SnapshotTicks(static_cast<GGCRenderProfile::Phase>(phase));
+    }
 
     if (g_bgfxStatsLog.windowSeconds >= 1.0)
     {
@@ -1910,6 +1981,42 @@ const float kFilmGrainForcedStrength     = 0.08f;
 const float kSsaoDefaultRadius           = 1.0f;
 const float kSsaoDefaultIntensity        = 1.0f;
 const float kSsaoDefaultBias             = 0.025f;
+
+static bool BgfxProbeFlag(const char *name)
+{
+    static const bool s_nullSubmit = std::getenv("GGC_PROBE_NULL_SUBMIT") != nullptr;
+    static const bool s_freezeState = std::getenv("GGC_PROBE_FREEZE_STATE") != nullptr;
+    static const bool s_noSorted = std::getenv("GGC_PROBE_NO_SORTED") != nullptr;
+    static const bool s_noTexBind = std::getenv("GGC_PROBE_NO_TEXBIND") != nullptr;
+    static const bool s_noMaterialUniform = std::getenv("GGC_PROBE_NO_MATUNIFORM") != nullptr;
+    static const bool s_noLightUniform = std::getenv("GGC_PROBE_NO_LIGHTUNIFORM") != nullptr;
+
+    if (std::strcmp(name, "GGC_PROBE_NULL_SUBMIT") == 0)
+    {
+        return s_nullSubmit;
+    }
+    if (std::strcmp(name, "GGC_PROBE_FREEZE_STATE") == 0)
+    {
+        return s_freezeState;
+    }
+    if (std::strcmp(name, "GGC_PROBE_NO_SORTED") == 0)
+    {
+        return s_noSorted;
+    }
+    if (std::strcmp(name, "GGC_PROBE_NO_TEXBIND") == 0)
+    {
+        return s_noTexBind;
+    }
+    if (std::strcmp(name, "GGC_PROBE_NO_MATUNIFORM") == 0)
+    {
+        return s_noMaterialUniform;
+    }
+    if (std::strcmp(name, "GGC_PROBE_NO_LIGHTUNIFORM") == 0)
+    {
+        return s_noLightUniform;
+    }
+    return false;
+}
 
 // Render-to-texture state. Set by Set_Render_Target_With_Z, cleared
 // when the back buffer is restored. SubmitEngineDraw routes to
@@ -5067,6 +5174,10 @@ namespace GGCRenderProfile
         g_phase_acc[phase].total_ticks += c.QuadPart - g_phase_acc[phase].start;
         g_phase_acc[phase].calls++;
     }
+    long long SnapshotTicks(Phase phase)
+    {
+        return g_phase_snapshot[phase].total_ticks;
+    }
     void EndFrame()
     {
         for (int i = 0; i < PHASE_COUNT; ++i)
@@ -5655,6 +5766,8 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                         "dvw_us,dvw_n,dvw_scan_us,dvw_scan_n,dvw_alloc_us,dvw_alloc_n,dvw_verts,"
                         "frame_draw_us,update_views_us,particle_update_us,rtt_us,draw_views_us,ui_draw_us,end_render_us,render_unattributed_us,main_loop_other_us,"
                         "render_total_us,traversal_us,mesh_flush_us,sort_flush_us,particles_us,terrain_us,"
+                        "pointgroup_compress_us,pointgroup_view_xform_us,pointgroup_update_arrays_us,pointgroup_ground_fixup_us,pointgroup_vb_fill_us,"
+                        "sort_pool_build_us,sort_pool_sort_us,sort_pool_draw_us,"
                         "gpu_us,cpu_us,wait_sub_us,wait_ren_us,bgfx_ndraw\n");
                     s_headerWritten = true;
                 }
@@ -5696,6 +5809,8 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                     "%.1f,%u,%.1f,%u,%.1f,%u,%llu,"
                     "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
                     "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
+                    "%.1f,%.1f,%.1f,%.1f,%.1f,"
+                    "%.1f,%.1f,%.1f,"
                     "%.1f,%.1f,%.1f,%.1f,%u\n",
                     g_stats.frameIndex,
                     logicFrame,
@@ -5764,6 +5879,14 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                     GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::SORT_FLUSH].total_ticks * us_per_tick,
                     GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::PARTICLES].total_ticks * us_per_tick,
                     GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::TERRAIN].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::POINTGROUP_COMPRESS].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::POINTGROUP_VIEW_XFORM].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::POINTGROUP_UPDATE_ARRAYS].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::POINTGROUP_GROUND_FIXUP].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::POINTGROUP_VB_FILL].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::SORT_POOL_BUILD].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::SORT_POOL_SORT].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::SORT_POOL_DRAW].total_ticks * us_per_tick,
                     gpu_us, cpu_us, wait_sub_us, wait_ren_us, bgfx_ndraw);
                 std::fclose(f);
             }
@@ -7045,9 +7168,50 @@ void BgfxBackend::Upload_Index_Buffer_Sub_Range(const IndexBufferClass * ib,
 // the flag that routes SubmitEngineDraw to kBgfxEngineSortView; Capture stores the
 // per-batch world as sortView^T * sortWorld^T directly in bgfx column-major layout.
 
+static bool s_sortedTransformCacheValid = false;
+static unsigned char s_sortedTransformWorldCache[sizeof(Matrix4x4)];
+static unsigned char s_sortedTransformViewCache[sizeof(Matrix4x4)];
+
+static void InvalidateSortedTransformCache()
+{
+    s_sortedTransformCacheValid = false;
+}
+
+static bool DisableSortedMaterialRecaptureSkip()
+{
+    static const bool s_disabled =
+        std::getenv("GGC_BGFX_DISABLE_SORTED_MATERIAL_RECAPTURE_SKIP") != nullptr;
+    return s_disabled;
+}
+
+static bool DisableSortedMaterialSnapshot()
+{
+    static const bool s_disabled =
+        std::getenv("GGC_BGFX_DISABLE_SORTED_MATERIAL_SNAPSHOT") != nullptr;
+    return s_disabled;
+}
+
+static void ApplySortedMaterialSnapshotForBgfx(const RenderBackendSortedMaterialSnapshot & material,
+                                               const VertexMaterialClass * sourceMaterial)
+{
+    g_draw.sourceMaterial = sourceMaterial;
+    g_draw.explicitMaterialState = false;
+    for (int i = 0; i < 4; ++i)
+    {
+        g_draw.matDiffuse[i] = material.diffuse[i];
+        g_draw.matAmbient[i] = material.ambient[i];
+        g_draw.matEmissive[i] = material.emissive[i];
+        g_draw.matSpecular[i] = material.specular[i];
+        g_draw.vertexColorFlags[i] = material.vertex_color_flags[i];
+        g_draw.lightingEnabled[i] = material.lighting_enabled[i];
+    }
+}
+
 void BgfxBackend::Begin_Sorted_Batch_Pass()
 {
     g_views.inSortFlush = true;
+    g_views.sortedBatchMaterialCaptured = false;
+    InvalidateSortedTransformCache();
     if (!g_frame.sortProjCaptured)
     {
         std::memcpy(g_frame.sortProj, g_frame.proj, sizeof(g_frame.sortProj));
@@ -7059,6 +7223,8 @@ void BgfxBackend::End_Sorted_Batch_Pass()
 {
     g_views.inSortFlush = false;
     g_views.sortedBatchDrawFlags = RB_SORTED_DRAW_NONE;
+    g_views.sortedBatchMaterialCaptured = false;
+    InvalidateSortedTransformCache();
 }
 
 static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
@@ -7103,9 +7269,23 @@ static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
 
 void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state)
 {
+    static const bool s_trackSortedReplayPhases = IsBgfxStatsLoggingEnabled();
+    LARGE_INTEGER replayStart;
+    LARGE_INTEGER segmentStart;
+    LARGE_INTEGER segmentEnd;
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&replayStart);
+        g_stats.sortedReplayCalls++;
+    }
+
     g_views.sortedBatchDrawFlags = state.draw_flags;
     if (state.shader != nullptr)
     {
+        if (s_trackSortedReplayPhases)
+        {
+            QueryPerformanceCounter(&segmentStart);
+        }
         Set_Shader(*state.shader);
         // TheSuperHackers @bugfix bobtista 10/06/2026 The sorted replay restores the captured shader's
         // depth state through Set_Shader, but the cull face is read from the separate semantic cull
@@ -7115,15 +7295,80 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
         // making parts of the line vanish. Restore the captured shader's cull mode so two-sided sorted
         // geometry draws both faces, matching the DX8 path where applying a shader set the cull state.
         Set_Cull_Mode(state.shader->Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE ? RB_CULL_CW : RB_CULL_NONE);
+        if (s_trackSortedReplayPhases)
+        {
+            QueryPerformanceCounter(&segmentEnd);
+            g_stats.sortedReplayShaderTicks += segmentEnd.QuadPart - segmentStart.QuadPart;
+        }
     }
-    Set_Material(state.material);
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentStart);
+    }
+    const bool sortedMaterialSnapshotEnabled =
+        state.material_snapshot.valid
+        && !DisableSortedMaterialSnapshot()
+        && !DisableSortedMaterialRecaptureSkip();
+    if (sortedMaterialSnapshotEnabled)
+    {
+        ApplySortedMaterialSnapshotForBgfx(state.material_snapshot, state.material);
+        g_views.sortedBatchMaterialCaptured = true;
+    }
+    else
+    {
+        Set_Material(state.material);
+        g_views.sortedBatchMaterialCaptured = !DisableSortedMaterialRecaptureSkip();
+    }
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentEnd);
+        g_stats.sortedReplayMaterialTicks += segmentEnd.QuadPart - segmentStart.QuadPart;
+    }
+
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentStart);
+    }
     for (unsigned i = 0; i < RB_MAX_TEXTURE_STAGES; ++i)
     {
         Set_Texture(i, state.textures[i]);
     }
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentEnd);
+        g_stats.sortedReplayTextureTicks += segmentEnd.QuadPart - segmentStart.QuadPart;
+    }
+
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentStart);
+    }
     if (state.world != nullptr && state.view != nullptr)
     {
-        CaptureSortedBatchTransformsForBgfx(*state.world, *state.view);
+        static const bool s_disableSortedTransformRestoreSkip =
+            std::getenv("GGC_BGFX_DISABLE_SORTED_TRANSFORM_RESTORE_SKIP") != nullptr;
+        const bool sameTransform =
+            !s_disableSortedTransformRestoreSkip
+            && s_sortedTransformCacheValid
+            && std::memcmp(s_sortedTransformWorldCache, state.world, sizeof(Matrix4x4)) == 0
+            && std::memcmp(s_sortedTransformViewCache, state.view, sizeof(Matrix4x4)) == 0;
+        if (!sameTransform)
+        {
+            CaptureSortedBatchTransformsForBgfx(*state.world, *state.view);
+            std::memcpy(s_sortedTransformWorldCache, state.world, sizeof(Matrix4x4));
+            std::memcpy(s_sortedTransformViewCache, state.view, sizeof(Matrix4x4));
+            s_sortedTransformCacheValid = true;
+        }
+    }
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentEnd);
+        g_stats.sortedReplayTransformTicks += segmentEnd.QuadPart - segmentStart.QuadPart;
+    }
+
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentStart);
     }
     for (int i = 0; i < 4; ++i)
     {
@@ -7152,6 +7397,12 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
             g_draw.lightDirs[i][3] = 0.0f;
             g_draw.lightParams[i][3] = 0.0f;
         }
+    }
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentEnd);
+        g_stats.sortedReplayLightTicks += segmentEnd.QuadPart - segmentStart.QuadPart;
+        g_stats.sortedReplayTotalTicks += segmentEnd.QuadPart - replayStart.QuadPart;
     }
 }
 
@@ -7586,6 +7837,21 @@ static bool CoplanarBiasGateEnabled()
     // sorted-decal depth-bias regression is ever observed.
     static const bool s_enabled = (std::getenv("GGC_NO_COPLANAR_BIAS_GATE") == nullptr);
     return s_enabled;
+}
+
+static bool ShouldScanSubmittedNormalBiasForCurrentDynamicWrite()
+{
+    if (!CoplanarBiasGateEnabled())
+    {
+        return true;
+    }
+
+    if (g_views.pointGroupRenderActive || g_views.streakRenderActive)
+    {
+        return false;
+    }
+
+    return ShouldApplySubmittedNormalBias(GetEffectiveDrawState());
 }
 
 // TheSuperHackers @feature bobtista 07/07/2026 A replayed sorted batch flagged as
@@ -8541,31 +8807,77 @@ static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
     return g_draw.tex[stage];
 }
 
-static void UploadLightUniforms()
+static bool DisableUnlitLightInputSkip()
+{
+    static const bool s_disabled =
+        std::getenv("GGC_BGFX_DISABLE_UNLIT_LIGHT_INPUT_SKIP") != nullptr;
+    return s_disabled;
+}
+
+static bool DisableInactiveShadowUniformSkip()
+{
+    static const bool s_disabled =
+        std::getenv("GGC_BGFX_DISABLE_INACTIVE_SHADOW_UNIFORM_SKIP") != nullptr;
+    return s_disabled;
+}
+
+static bool UniformCommandCountersEnabled()
+{
+    return true;
+}
+
+static void CountUniformCommand(uint32_t & bucket)
+{
+    if (!UniformCommandCountersEnabled())
+    {
+        return;
+    }
+    g_stats.uniformCommands++;
+    bucket++;
+}
+
+static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded)
 {
     PERF_TIME(PERF_SECT_UPLOAD_LIGHTS);
     g_stats.lightUniformUploads++;
-    if (bgfx::isValid(g_uniforms.uLightDirs))
+    if (BgfxProbeFlag("GGC_PROBE_FREEZE_STATE")
+        || BgfxProbeFlag("GGC_PROBE_NO_LIGHTUNIFORM"))
     {
-        bgfx::setUniform(g_uniforms.uLightDirs, g_draw.lightDirs, 4);
+        return;
     }
-    if (bgfx::isValid(g_uniforms.uLightColors))
+    const bool uploadFixedFunctionLightInputs =
+        fixedFunctionLightInputsNeeded || DisableUnlitLightInputSkip();
+    if (uploadFixedFunctionLightInputs)
     {
-        bgfx::setUniform(g_uniforms.uLightColors, g_draw.lightColors, 4);
+        if (bgfx::isValid(g_uniforms.uLightDirs))
+        {
+            bgfx::setUniform(g_uniforms.uLightDirs, g_draw.lightDirs, 4);
+            CountUniformCommand(g_stats.lightUniformCommands);
+        }
+        if (bgfx::isValid(g_uniforms.uLightColors))
+        {
+            bgfx::setUniform(g_uniforms.uLightColors, g_draw.lightColors, 4);
+            CountUniformCommand(g_stats.lightUniformCommands);
+        }
+        if (bgfx::isValid(g_uniforms.uLightAmbients))
+        {
+            bgfx::setUniform(g_uniforms.uLightAmbients, g_draw.lightAmbients, 4);
+            CountUniformCommand(g_stats.lightUniformCommands);
+        }
+        if (bgfx::isValid(g_uniforms.uLightPositions))
+        {
+            bgfx::setUniform(g_uniforms.uLightPositions, g_draw.lightPositions, 4);
+            CountUniformCommand(g_stats.lightUniformCommands);
+        }
+        if (bgfx::isValid(g_uniforms.uLightParams))
+        {
+            bgfx::setUniform(g_uniforms.uLightParams, g_draw.lightParams, 4);
+            CountUniformCommand(g_stats.lightUniformCommands);
+        }
     }
-    if (bgfx::isValid(g_uniforms.uLightAmbients))
-    {
-        bgfx::setUniform(g_uniforms.uLightAmbients, g_draw.lightAmbients, 4);
-    }
-    if (bgfx::isValid(g_uniforms.uLightPositions))
-    {
-        bgfx::setUniform(g_uniforms.uLightPositions, g_draw.lightPositions, 4);
-    }
-    if (bgfx::isValid(g_uniforms.uLightParams))
-    {
-        bgfx::setUniform(g_uniforms.uLightParams, g_draw.lightParams, 4);
-    }
-    if (bgfx::isValid(g_uniforms.uEyePos))
+    const bool uploadEyePos =
+        uploadFixedFunctionLightInputs || g_draw.pointShadowParams[0] >= 0.0f;
+    if (uploadEyePos && bgfx::isValid(g_uniforms.uEyePos))
     {
         // World-space camera position recovered from the rigid view matrix:
         // eye = -transpose(R) * T (column-major bgfx layout).
@@ -8576,16 +8888,21 @@ static void UploadLightUniforms()
         eye[2] = -(v[8] * v[12] + v[9] * v[13] + v[10] * v[14]);
         eye[3] = 0.0f;
         bgfx::setUniform(g_uniforms.uEyePos, eye);
+        CountUniformCommand(g_stats.lightUniformCommands);
     }
-    if (bgfx::isValid(g_uniforms.uShadowMatrices))
+    const bool shadowMapActive = g_frame.shadowActive && bgfx::isValid(g_device.shadowMapTex)
+        && g_device.shadowMapSize > 0;
+    const bool uploadInactiveShadowInputs =
+        shadowMapActive || DisableInactiveShadowUniformSkip();
+    if (uploadInactiveShadowInputs && bgfx::isValid(g_uniforms.uShadowMatrices))
     {
         bgfx::setUniform(g_uniforms.uShadowMatrices, g_frame.shadowMatrices, kNumShadowCascades);
+        CountUniformCommand(g_stats.shadowUniformCommands);
     }
     if (bgfx::isValid(g_uniforms.uShadowParams))
     {
         float shadowParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-        if (g_frame.shadowActive && bgfx::isValid(g_device.shadowMapTex)
-            && g_device.shadowMapSize > 0)
+        if (shadowMapActive)
         {
             float p[4] = { 0.0015f, 1.0f, 0.0f, 0.0f };
             GGC_GetBgfxShadowMapParams(p);
@@ -8606,19 +8923,21 @@ static void UploadLightUniforms()
             s_lastRecvState = recvState;
         }
         bgfx::setUniform(g_uniforms.uShadowParams, shadowParams);
+        CountUniformCommand(g_stats.shadowUniformCommands);
     }
-    if (bgfx::isValid(g_uniforms.uShadowQuality))
+    if (uploadInactiveShadowInputs && bgfx::isValid(g_uniforms.uShadowQuality))
     {
         // TheSuperHackers @performance bobtista 28/06/2026 Default reduced 9-fetch PCF;
         // GGC_BGFX_SHADOW_FULL_PCF=1 restores the original 36-fetch path for a quality/perf A/B.
         static const float s_fullPcf = (std::getenv("GGC_BGFX_SHADOW_FULL_PCF") != nullptr) ? 1.0f : 0.0f;
         const float shadowQuality[4] = { s_fullPcf, 0.0f, 0.0f, 0.0f };
         bgfx::setUniform(g_uniforms.uShadowQuality, shadowQuality);
+        CountUniformCommand(g_stats.shadowUniformCommands);
     }
-    if (bgfx::isValid(g_uniforms.sShadowMap))
+    if (uploadInactiveShadowInputs && bgfx::isValid(g_uniforms.sShadowMap))
     {
         const bgfx::TextureHandle shadowTex =
-            (g_frame.shadowActive && bgfx::isValid(g_device.shadowMapTex))
+            shadowMapActive
                 ? g_device.shadowMapTex
                 : g_device.defaultWhiteTexture;
         if (bgfx::isValid(shadowTex))
@@ -8629,20 +8948,27 @@ static void UploadLightUniforms()
     }
     // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow uniforms + sampler. The shader
     // does not sample these yet (Task 5); pointShadowParams[0] = -1 keeps the term inert until then.
+    const bool pointShadowLightActive = g_draw.pointShadowParams[0] >= 0.0f;
+    const bool pointShadowMapActive = g_draw.pointShadowParams[0] >= 0.5f;
     if (bgfx::isValid(g_uniforms.uPointShadowMatrix))
     {
         bgfx::setUniform(g_uniforms.uPointShadowParams, g_draw.pointShadowParams);
-        if (g_draw.pointShadowParams[0] >= 0.0f)
+        CountUniformCommand(g_stats.pointShadowUniformCommands);
+        if (pointShadowLightActive)
         {
             bgfx::setUniform(g_uniforms.uPointShadowMatrix, g_draw.pointShadowMatrix);
+            CountUniformCommand(g_stats.pointShadowUniformCommands);
             bgfx::setUniform(g_uniforms.uPointShadowLightPos, g_draw.pointShadowLightPos);
+            CountUniformCommand(g_stats.pointShadowUniformCommands);
             bgfx::setUniform(g_uniforms.uPointShadowLightColor, g_draw.pointShadowLightColor);
+            CountUniformCommand(g_stats.pointShadowUniformCommands);
         }
     }
-    if (bgfx::isValid(g_uniforms.sPointShadowMap))
+    if ((pointShadowMapActive || DisableInactiveShadowUniformSkip())
+        && bgfx::isValid(g_uniforms.sPointShadowMap))
     {
         const bgfx::TextureHandle pointShadowTex =
-            bgfx::isValid(g_device.pointShadowTex)
+            pointShadowMapActive && bgfx::isValid(g_device.pointShadowTex)
                 ? g_device.pointShadowTex
                 : g_device.defaultWhiteTexture;
         if (bgfx::isValid(pointShadowTex))
@@ -8656,6 +8982,7 @@ static void UploadLightUniforms()
         float matFx[4];
         GGC_GetBgfxMaterialFxParams(matFx);
         bgfx::setUniform(g_uniforms.uMatFx, matFx);
+        CountUniformCommand(g_stats.materialUniformCommands);
         static bool s_loggedMatFx = false;
         if (BgfxDiagVerbose() && !s_loggedMatFx && (matFx[0] > 0.0f || matFx[1] > 0.0f || matFx[3] != 1.0f))
         {
@@ -8673,6 +9000,11 @@ static void UploadLightUniforms()
 static void BindTextureStages()
 {
     PERF_TIME(PERF_SECT_APPLY_TEX);
+    if (BgfxProbeFlag("GGC_PROBE_FREEZE_STATE")
+        || BgfxProbeFlag("GGC_PROBE_NO_TEXBIND"))
+    {
+        return;
+    }
     const uint64_t state = GetEffectiveDrawState();
     if (bgfx::isValid(g_uniforms.sTex0))
     {
@@ -8888,6 +9220,11 @@ static void UploadMaterialUniforms_Body();
 static void UploadMaterialUniforms()
 {
     PERF_TIME(PERF_SECT_UPLOAD_UNIFORMS);
+    if (BgfxProbeFlag("GGC_PROBE_FREEZE_STATE")
+        || BgfxProbeFlag("GGC_PROBE_NO_MATUNIFORM"))
+    {
+        return;
+    }
     UploadMaterialUniforms_Body();
 }
 static void UploadMaterialUniforms_Body()
@@ -8936,15 +9273,18 @@ static void UploadMaterialUniforms_Body()
         std::memcpy(m[MU_LegacyPixelShaderMode], g_draw.legacyPixelShaderMode, sizeof(float) * 4);
         std::memcpy(m[MU_ZBias],              g_draw.zBias,              sizeof(float) * 4);
         bgfx::setUniform(g_uniforms.uMaterial, m, MU_COUNT);
+        CountUniformCommand(g_stats.materialUniformCommands);
     }
     // u_matSpecular is not part of the packed material array, so upload it individually.
     if (bgfx::isValid(g_uniforms.uMatSpecular))
     {
         bgfx::setUniform(g_uniforms.uMatSpecular, g_draw.matSpecular);
+        CountUniformCommand(g_stats.materialUniformCommands);
     }
     if (bgfx::isValid(g_uniforms.uSunShadowReceive))
     {
         bgfx::setUniform(g_uniforms.uSunShadowReceive, g_draw.sunShadowReceive);
+        CountUniformCommand(g_stats.materialUniformCommands);
     }
     if (bgfx::isValid(g_uniforms.sCloudMap))
     {
@@ -9061,6 +9401,14 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         return;
     }
     g_stats.sortedDraws++;
+    if (BgfxProbeFlag("GGC_PROBE_NO_SORTED")
+        || BgfxProbeFlag("GGC_PROBE_NULL_SUBMIT"))
+    {
+        g_views.skipNextSubmitEngineDraw = true;
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
 
     // The inner dynamic buffers' WriteLockClass dtors already ran, so
     // Capture_Dynamic_Vertex_Data / Capture_Dynamic_Index_Data should
@@ -9169,7 +9517,11 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     {
         bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
     }
-    UploadLightUniforms();
+    const bool forceUnlitLighting = ShouldForceUnlitForBakedColorDraw(state);
+    const bool fixedFunctionLightInputsNeeded =
+        g_draw.lightingEnabled[0] > 0.5f
+        && !forceUnlitLighting;
+    UploadLightUniforms(fixedFunctionLightInputsNeeded);
     // Match SubmitEngineDraw for sorted dynamic particles/effects. Additive
     // sprites, soft alpha particles, and material decals bake intensity in
     // vertex diffuse or the source texture; the shader's lit branch would
@@ -9177,7 +9529,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     if (bgfx::isValid(g_uniforms.uLightingEnabled))
     {
         float lit[4] = { g_draw.lightingEnabled[0], 0.0f, 0.0f, 0.0f };
-        if (ShouldForceUnlitForBakedColorDraw(state))
+        if (forceUnlitLighting)
         {
             lit[0] = 0.0f;
         }
@@ -9340,8 +9692,8 @@ void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
     // TheSuperHackers @performance bobtista 04/06/2026 Gate the O(n^2) coplanar scan
     // on ShouldApplySubmittedNormalBias (see End_Dynamic_Vertex_Write) so it only runs
     // for the rare sorted decals that consume the result, not every particle batch.
-    g_draw.pendingVB.coplanarNormalBias = (!CoplanarBiasGateEnabled()
-            || ShouldApplySubmittedNormalBias(GetEffectiveDrawState()))
+    g_draw.pendingVB.coplanarNormalBias =
+        ShouldScanSubmittedNormalBiasForCurrentDynamicWrite()
         && HasSubmittedOppositeNormalPairs(vba->FVF_Info(), data, num_verts);
     LogBgfxTransientDiag("capture", "vb", vba, num_verts,
                          true,
@@ -9448,8 +9800,7 @@ void BgfxBackend::End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
     // re-checked identically at draw time, so gate the scan on it. Particles short-circuit.
     // (Split for measurement; semantics identical to the original (A||B)&&C short-circuit.)
     bool coplanarBias = false;
-    if (!CoplanarBiasGateEnabled()
-            || ShouldApplySubmittedNormalBias(GetEffectiveDrawState()))
+    if (ShouldScanSubmittedNormalBiasForCurrentDynamicWrite())
     {
         PERF_TIME(PERF_SECT_DVW_SCAN);
         coplanarBias = HasSubmittedOppositeNormalPairs(
@@ -9536,13 +9887,36 @@ void BgfxBackend::Add_Instance(const float * world_matrix_4x4)
     if (!g_draw.instanceBatchActive || g_draw.instanceCount >= g_draw.instanceMax) {
         return;
     }
+    static const bool s_probeIdentityInstances = std::getenv("GGC_PROBE_IDENTITY_INSTANCES") != nullptr;
+    if (s_probeIdentityInstances)
+    {
+        IdentityMatrix(reinterpret_cast<float *>(g_draw.instanceBatch.data + g_draw.instanceCount * 64));
+        g_draw.instanceCount++;
+        return;
+    }
     // TheSuperHackers @bugfix bobtista 28/06/2026 The engine passes a W3D Matrix3D (3x4 row-major,
     // 48 bytes); the instanced VS reads a column-major 4x4 via mtxFromCols, exactly like the
     // non-instanced setTransform path (Set_Transform -> W3DMatrix3DToBgfx). The old raw 64-byte
     // memcpy used the wrong layout AND over-read 16 bytes past the 48-byte matrix, so instanced
     // opaque meshes (vehicles/ships) got garbage transforms and vanished. Convert properly.
-    W3DMatrix3DToBgfx(*reinterpret_cast<const Matrix3D *>(world_matrix_4x4),
-                      reinterpret_cast<float *>(g_draw.instanceBatch.data + g_draw.instanceCount * 64));
+    float converted[16];
+    W3DMatrix3DToBgfx(*reinterpret_cast<const Matrix3D *>(world_matrix_4x4), converted);
+    float * dst = reinterpret_cast<float *>(g_draw.instanceBatch.data + g_draw.instanceCount * 64);
+    static const bool s_probeTransposeInstances = std::getenv("GGC_PROBE_TRANSPOSE_INSTANCES") != nullptr;
+    if (s_probeTransposeInstances)
+    {
+        for (unsigned r = 0; r < 4; ++r)
+        {
+            for (unsigned c = 0; c < 4; ++c)
+            {
+                dst[r * 4 + c] = converted[c * 4 + r];
+            }
+        }
+    }
+    else
+    {
+        std::memcpy(dst, converted, sizeof(converted));
+    }
     g_draw.instanceCount++;
 }
 
@@ -11626,6 +12000,13 @@ void SubmitEngineDraw(unsigned short start_index,
         case kBgfxSmudgeView:      g_stats.smudgeDraws++; break;
         default:                   g_stats.worldDraws++; break;
     }
+    if (BgfxProbeFlag("GGC_PROBE_NULL_SUBMIT")
+        || (BgfxProbeFlag("GGC_PROBE_NO_SORTED") && submitView == kBgfxEngineSortView))
+    {
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
     if (ShouldAllowBgfxDiagnosticDrawOverrides()
         && std::getenv("GGC_BGFX_SKIP_EFFECT_OVERLAY_DRAWS") != nullptr
         && submitView == kBgfxEffectOverlayView)
@@ -11879,10 +12260,15 @@ void SubmitEngineDraw(unsigned short start_index,
         g_draw.tex1TransformZ[2] = 1.0f;
         g_draw.tex1TransformZ[3] = 0.0f;
     }
-    if (!g_draw.explicitMaterialState)
+    const bool skipSortedMaterialRecapture =
+        g_views.inSortFlush
+        && g_views.sortedBatchMaterialCaptured
+        && !DisableSortedMaterialRecaptureSkip();
+    if (!g_draw.explicitMaterialState && !skipSortedMaterialRecapture)
     {
         CaptureMaterialStateForBgfx(g_draw.sourceMaterial);
     }
+    g_views.sortedBatchMaterialCaptured = false;
     if (IsSortedMaterialDecal(GetEffectiveDrawState()))
     {
         // Terrain rendering leaves this flag set until reset by the shader
@@ -11978,7 +12364,11 @@ void SubmitEngineDraw(unsigned short start_index,
             }
         }
     }
-    UploadLightUniforms();
+    const bool forceUnlitLighting = ShouldForceUnlitForBakedColorDraw(earlyState);
+    const bool fixedFunctionLightInputsNeeded =
+        g_draw.lightingEnabled[0] > 0.5f
+        && !forceUnlitLighting;
+    UploadLightUniforms(fixedFunctionLightInputsNeeded);
     if (bgfx::isValid(g_uniforms.uSceneAmbient))
     {
         bgfx::setUniform(g_uniforms.uSceneAmbient, g_draw.sceneAmbient);
@@ -11988,8 +12378,7 @@ void SubmitEngineDraw(unsigned short start_index,
         // TheSuperHackers @bugfix bobtista 15/04/2026 Force lighting off for additive/alpha
         // particle and sorted-decal draws that bake intensity or final color into vertex diffuse
         // or recolored tex0; the lit branch would otherwise ignore that baking.
-        uint64_t effectiveLightingState = earlyState;
-        if (ShouldForceUnlitForBakedColorDraw(effectiveLightingState))
+        if (forceUnlitLighting)
         {
             float forced[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
             bgfx::setUniform(g_uniforms.uLightingEnabled, forced);
@@ -12304,12 +12693,12 @@ void SubmitEngineDraw(unsigned short start_index,
         || (g_draw.useStaticVB && bgfx::isValid(g_draw.staticVB))
         || bgfx::isValid(g_draw.vb);
     const bool casterToDepth = isSceneDepthCaster
-        && bgfx::isValid(g_device.sceneDepthProgram)
+        && bgfx::isValid(g_draw.drawIsInstanced ? g_device.sceneDepthInstancedProgram : g_device.sceneDepthProgram)
         && bgfx::isValid(g_device.sceneReadableDepthFB);
     bool casterToShadow = isShadowCaster
         && g_frame.shadowActive
         && bgfx::isValid(g_device.shadowMapFB)
-        && bgfx::isValid(g_device.shadowCasterProgram);
+        && bgfx::isValid(g_draw.drawIsInstanced ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram);
     // TheSuperHackers @feature bobtista 18/06/2026 The spinning Chinook rotor renders as an
     // alpha-blended "rotor blur" disc in the sorted pass, so it is excluded from the normal caster
     // set (opaque, engine view). Cast it into the sun shadow map anyway, as an alpha-tested
@@ -12326,7 +12715,7 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     const bool pointShadowArmed = g_draw.pointShadowParams[0] >= 0.5f
         && bgfx::isValid(g_device.pointShadowFB)
-        && bgfx::isValid(g_device.shadowCasterProgram);
+        && bgfx::isValid(g_draw.drawIsInstanced ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram);
     const bool casterToPointShadow = pointShadowArmed
         && (isSceneDepthCaster || isShadowCaster || rotorShadowCaster);
     // Diagnostic: GGC_LOG_SHADOW_CASTER_AUDIT=1 dumps each world draw that could feed the
@@ -12485,12 +12874,18 @@ void SubmitEngineDraw(unsigned short start_index,
         }
         if (casterToPointShadow)
         {
+            if (g_draw.drawIsInstanced)
+            {
+                bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+            }
+            const bgfx::ProgramHandle pointProg = g_draw.drawIsInstanced
+                ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram;
             // TheSuperHackers @feature bobtista 23/06/2026 Cast eligible world geometry into the
             // perspective point-shadow map when a caster dynamic light is armed this frame. This is not
             // limited to the sun-shadow caster set: solid buildings/vehicles can be ordinary depth
             // casters even when they are not otherwise being submitted to the sun map, and the particle
             // cannon beam still needs their silhouettes.
-            bgfx::submit(kBgfxPointShadowView, g_device.shadowCasterProgram, 0,
+            bgfx::submit(kBgfxPointShadowView, pointProg, 0,
                          casterToShadow ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL);
         }
         if (casterToShadow)
