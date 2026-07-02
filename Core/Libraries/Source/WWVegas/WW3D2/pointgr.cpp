@@ -90,6 +90,7 @@
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "renderbufferclasses.h"
+#include "BgfxRenderProfile.h"
 
 #include <cmath>
 #include <cstdio>
@@ -836,6 +837,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	// If there is an active point table, use it to compress the point
 	// locations/colors/alphas/sizes/orientations/frames.
 	if (APT) {
+		GGC_RPROFILE(POINTGROUP_COMPRESS);
 		// Resize compressed result arrays if needed (2x guardband to prevent
 		// frequent reallocations):
 
@@ -907,6 +909,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 
 	// (gth) changed this 'if' to use OR rather than AND... The way it was caused all emitters to break
 	if (Get_Flag(TRANSFORM) && Billboard) {
+		GGC_RPROFILE(POINTGROUP_VIEW_XFORM);
 		// Resize transformed location array if needed (2x guardband to prevent
 		// frequent reallocations):
 		if (transformed_loc.Length() < PointCount) {
@@ -929,8 +932,11 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	// Update the arrays with the offsets.
 	int vnum, pnum;
 
-	Update_Arrays(current_loc, current_diffuse, current_size, current_orient, current_frame,
-		PointCount, PointLoc->Get_Count(), vnum, pnum);
+	{
+		GGC_RPROFILE(POINTGROUP_UPDATE_ARRAYS);
+		Update_Arrays(current_loc, current_diffuse, current_size, current_orient, current_frame,
+			PointCount, PointLoc->Get_Count(), vnum, pnum);
+	}
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned point groups skip the
@@ -938,6 +944,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	// camera view transform to each vertex inline here. BGFX-only; DX8 keeps its pipeline.
 	if (!Billboard && current_loc != nullptr)
 	{
+		GGC_RPROFILE(POINTGROUP_GROUND_FIXUP);
 		Vector3 *vertex_loc = &VertexLoc[0];
 		for (int p = 0; p < PointCount; p++)
 		{
@@ -1038,6 +1045,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 
 		// Copy in the data to the VB
 		{
+			GGC_RPROFILE(POINTGROUP_VB_FILL);
 			DynamicVBAccessClass::WriteLockClass Lock(&PointVerts);
 			int i;
 			unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
@@ -1815,6 +1823,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		// If there is an active point table, use it to compress the point
 		// locations/colors/alphas/sizes/orientations/frames.
 		if (APT) {
+			GGC_RPROFILE(POINTGROUP_COMPRESS);
 			// Resize compressed result arrays if needed (2x guardband to prevent
 			// frequent reallocations):
 
@@ -1884,6 +1893,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		// need to interrupt this processing. If we are not billboarding, then we need the actual position
 		// of the vertice to lay it down flat.
 		if (Get_Flag(TRANSFORM) && Billboard) {
+			GGC_RPROFILE(POINTGROUP_VIEW_XFORM);
 			// Resize transformed location array if needed (2x guardband to prevent
 			// frequent reallocations):
 			if (transformed_loc.Length() < PointCount) {
@@ -1931,8 +1941,11 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		//current_diffuse->Z *= attenuator;
 		//current_diffuse->W *= attenuator;
 
-		Update_Arrays(current_loc, current_diffuse, current_size, current_orient, current_frame,
-			PointCount, PointLoc->Get_Count(), vnum, pnum);
+		{
+			GGC_RPROFILE(POINTGROUP_UPDATE_ARRAYS);
+			Update_Arrays(current_loc, current_diffuse, current_size, current_orient, current_frame,
+				PointCount, PointLoc->Get_Count(), vnum, pnum);
+		}
 
 		// the locations are now in view space
 		// so set world and view matrices to identity and render
@@ -2009,6 +2022,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 			// Copy in the data to the VB
 			{
+				GGC_RPROFILE(POINTGROUP_VB_FILL);
 				DynamicVBAccessClass::WriteLockClass Lock(&PointVerts);
 				int i;
 				unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
@@ -2080,6 +2094,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 			}
 			DynamicVBAccessClass PointVerts(s_volMergeSort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, mergedDelta);
 			{
+				GGC_RPROFILE(POINTGROUP_VB_FILL);
 				DynamicVBAccessClass::WriteLockClass Lock(&PointVerts);
 				unsigned char *vb = (unsigned char*)Lock.Get_Formatted_Vertex_Array();
 				const FVFInfoClass& fvfinfo = PointVerts.FVF_Info();
