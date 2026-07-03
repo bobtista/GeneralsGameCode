@@ -1119,15 +1119,9 @@ public:
     // leaves unbalanced stencil counts. Default false keeps DX8 unchanged.
     virtual bool Needs_Closed_Shadow_Volumes() const { return false; }
 
-    // TheSuperHackers @feature bobtista 17/04/2026 Shroud texture capture
-    // for bgfx. The shroud system's destination texture is POOL_DEFAULT
-    // which bgfx cannot lock. This hook lets W3DShroud push the system-
-    // memory pixel data and the destination TextureClass pointer so the
-    // bgfx backend can create/update a matching bgfx texture and wire it
-    // into the texture cache. dst_width/dst_height are the full destination
-    // texture dimensions; src_width/src_height are the actual pixel data
-    // extents; dst_x/dst_y are the offset within the destination where the
-    // source rect is placed. No-op on DX8Backend.
+    // TheSuperHackers @feature bobtista 17/04/2026 Push shroud system-memory pixels to the
+    // backend (bgfx cannot lock the POOL_DEFAULT destination). border_pixel fills texels
+    // outside the source rect; off-map terrain samples that border ring. No-op on DX8Backend.
     virtual void Capture_Shroud_Texture(TextureClass * /*dst_texture*/,
                                         const void * /*pixel_data*/,
                                         unsigned /*dst_width*/,
@@ -1139,7 +1133,8 @@ public:
                                         unsigned /*dst_x*/,
                                         unsigned /*dst_y*/,
                                         unsigned /*pitch*/,
-                                        WW3DFormat /*format*/) {}
+                                        WW3DFormat /*format*/,
+                                        unsigned /*border_pixel*/ = 0xFFFFu) {}
 
     // -------------------------------------------------------------------------
     // Programmable pipeline (GPU vertex / pixel shaders)
