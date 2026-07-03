@@ -531,6 +531,41 @@ void W3DShroud::fillBorderShroudData(W3DShroudLevel level, SurfaceClass* pDestSu
 
 }
 
+// TheSuperHackers @bugfix bobtista 03/07/2026 Convert a shroud level to the
+// source texture pixel format, matching the conversion in fillBorderShroudData.
+// Used to hand the border shroud color to render backends that mirror the
+// destination texture instead of blitting it (fillBorderShroudData only fills
+// the DX8 destination surface).
+UnsignedShort W3DShroud::computeShroudPixel(W3DShroudLevel level)
+{
+	if (level < TheGlobalData->m_shroudAlpha)
+		level = TheGlobalData->m_shroudAlpha;
+
+#if defined(RTS_DEBUG)
+	if (TheGlobalData && TheGlobalData->m_fogOfWarOn)
+	{
+		Int redVal = TheGlobalData->m_shroudColor.red;
+		Int greenVal = TheGlobalData->m_shroudColor.green;
+		Int blueVal = TheGlobalData->m_shroudColor.blue;
+		Int alphaVal = 255 - level;
+
+		return ((blueVal>>4)&0xf) | (((greenVal>>4)&0xf)<<4) | (((redVal>>4)&0xf)<<8) | (((alphaVal>>4)&0xf)<<12);
+	}
+#endif
+
+	UnsignedInt bluepixel = (UnsignedInt)((Real)level*((Real)(TheGlobalData->m_shroudColor.getAsInt()&0xff)/255.0f));
+	UnsignedInt greenpixel = (UnsignedInt)((Real)level*((Real)((TheGlobalData->m_shroudColor.getAsInt()&0xff00)>>8)/255.0f));
+	UnsignedInt redpixel = (UnsignedInt)((Real)level*((Real)((TheGlobalData->m_shroudColor.getAsInt()&0xff0000)>>16)/255.0f));
+
+	if (level == 255)
+	{	//unshrouded pixels should be fully lit
+		redpixel = 255;
+		greenpixel = 255;
+		bluepixel = 255;
+	}
+	return ( ((bluepixel&0xf8) >> 3) | ((greenpixel&0xfc)<<3) | ((redpixel&0xf8)<<8));
+}
+
 /**Set the shroud color within the border area of the map*/
 void W3DShroud::setBorderShroudLevel(W3DShroudLevel level)
 {
@@ -844,6 +879,11 @@ void W3DShroud::render(CameraClass *cam)
 				++s_shroudDiagCount;
 			}
 		}
+		// TheSuperHackers @bugfix bobtista 03/07/2026 Pass the border shroud
+		// pixel so the backend can fill the destination texels outside the
+		// playable area with it. The terrain beyond the map boundary samples
+		// that border ring, and the bgfx mirror previously left it white,
+		// rendering the map edge fully lit instead of fading to black.
 		g_renderBackend->Capture_Shroud_Texture(
 			m_pDstTexture,
 			m_srcTextureData,
@@ -852,7 +892,8 @@ void W3DShroud::render(CameraClass *cam)
 			visStartX, visStartY,
 			dstPoint.x, dstPoint.y,
 			m_srcTexturePitch,
-			srcDesc.Format);
+			srcDesc.Format,
+			computeShroudPixel(m_boderShroudLevel));
 	}
 }
 
