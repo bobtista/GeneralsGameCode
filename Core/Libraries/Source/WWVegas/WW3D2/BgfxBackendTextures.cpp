@@ -1811,7 +1811,8 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
                                           unsigned dst_x,
                                           unsigned dst_y,
                                           unsigned pitch,
-                                          WW3DFormat format)
+                                          WW3DFormat format,
+                                          unsigned border_pixel)
 {
     if (!g_device.initialized || dst_texture == nullptr || pixel_data == nullptr)
     {
@@ -1877,6 +1878,17 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
         s_lastShroudH = dst_height;
     }
 
+    // TheSuperHackers @bugfix bobtista 03/07/2026 Refill and re-upload the
+    // whole mirror when the border shroud color changes (script-driven via
+    // setBorderShroudLevel), since the border ring lives only in the
+    // destination image and is untouched by the per-cell dirty tracking.
+    static unsigned s_lastBorderPixel = 0xFFFFu;
+    if (border_pixel != s_lastBorderPixel)
+    {
+        forceFullUpload = true;
+        s_lastBorderPixel = border_pixel;
+    }
+
     auto it = g_caches.texture.find(dst_texture);
     if (it == g_caches.texture.end() || !bgfx::isValid(it->second))
     {
@@ -1936,7 +1948,26 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
 
     if (s_fullShroudImage.size() != fullSize || forceFullUpload)
     {
-        s_fullShroudImage.assign(fullSize, 0xFF);
+        // TheSuperHackers @bugfix bobtista 03/07/2026 Fill the destination
+        // mirror with the border shroud pixel instead of hardcoded white.
+        // Terrain beyond the map boundary clamp-samples the border ring of
+        // this texture; white left the map edge fully lit instead of fading
+        // to the border shroud color (black by default) like DX8's
+        // fillBorderShroudData does.
+        s_fullShroudImage.resize(fullSize);
+        if (bpp == 2)
+        {
+            uint16_t * fillPtr = reinterpret_cast<uint16_t *>(s_fullShroudImage.data());
+            const uint16_t fillPixel = static_cast<uint16_t>(border_pixel);
+            for (unsigned i = 0; i < fullSize / 2u; ++i)
+            {
+                fillPtr[i] = fillPixel;
+            }
+        }
+        else
+        {
+            std::memset(s_fullShroudImage.data(), 0xFF, fullSize);
+        }
     }
 
     unsigned dirtyRowMin = src_height;

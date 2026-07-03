@@ -345,7 +345,8 @@ public:
                                         unsigned dst_x,
                                         unsigned dst_y,
                                         unsigned pitch,
-                                        WW3DFormat format) override;
+                                        WW3DFormat format,
+                                        unsigned border_pixel) override;
     virtual void Set_Texture_Factor(unsigned argb) override;
 
     virtual void Set_Z_Bias(int bias) override;
