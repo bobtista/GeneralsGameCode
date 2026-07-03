@@ -1383,12 +1383,84 @@ static bool UploadBgfxTextureMips(TextureClass *tex2d,
     return true;
 }
 
+// TheSuperHackers @bugfix bobtista 02/07/2026 Mid-game textures reusing freed GPU memory
+// (e.g. "_n" night textures) rendered stale on Metal via create-empty + updateTexture2D;
+// create immutably with data up front. Atlas-rebuild variants keep the mutable path.
+static bool TryCreateImmutableBaseMip(TextureClass *tex2d,
+    const std::vector<TextureBaseClass::TextureMipSnapshot> &mips,
+    const TextureUploadPlan &plan,
+    uint64_t texFlags,
+    bgfx::TextureHandle *outHandle)
+{
+    if (plan.cacheInfo.uploadVariant != kBgfxTextureUploadNormal
+        && plan.cacheInfo.uploadVariant != kBgfxTextureUploadBaseMipOnly
+        && plan.cacheInfo.uploadVariant != kBgfxTextureUploadDxt5Expanded)
+    {
+        return false;
+    }
+
+    const unsigned baseW = mips[0].Width;
+    const unsigned baseH = mips[0].Height;
+    unsigned levels = (plan.uploadMipCount < mips.size())
+        ? plan.uploadMipCount
+        : static_cast<unsigned>(mips.size());
+    if (levels == 0)
+    {
+        return false;
+    }
+    // createTexture2D with mem and _hasMips=true expects the complete mip chain.
+    // Only claim mips when we actually hold every level; otherwise upload the base
+    // level alone (still immutable, so the Metal upload lands).
+    const bool completeChain = (levels == GetFullMipCount(baseW, baseH)) && levels > 1;
+    const unsigned useLevels = completeChain ? levels : 1;
+    if (useLevels > 16)
+    {
+        return false;
+    }
+
+    const bgfx::Memory *levelMem[16] = { nullptr };
+    uint16_t levelW[16] = { 0 };
+    uint16_t levelH[16] = { 0 };
+    uint32_t totalBytes = 0;
+    for (unsigned mip = 0; mip < useLevels; ++mip)
+    {
+        if (!CopyTextureLevel(tex2d, plan.uploadFormat, mips[mip], mip,
+                              &levelMem[mip], &levelW[mip], &levelH[mip])
+            || levelMem[mip] == nullptr)
+        {
+            return false;
+        }
+        totalBytes += levelMem[mip]->size;
+    }
+
+    const bgfx::Memory *packed = bgfx::alloc(totalBytes);
+    uint32_t offset = 0;
+    for (unsigned mip = 0; mip < useLevels; ++mip)
+    {
+        std::memcpy(packed->data + offset, levelMem[mip]->data, levelMem[mip]->size);
+        offset += levelMem[mip]->size;
+    }
+
+    *outHandle = bgfx::createTexture2D(static_cast<uint16_t>(baseW),
+        static_cast<uint16_t>(baseH), completeChain, 1,
+        plan.createFormat, texFlags, packed);
+    return bgfx::isValid(*outHandle);
+}
+
 static bgfx::TextureHandle CreateBgfxTextureFromSnapshots(TextureClass *tex2d,
     const std::vector<TextureBaseClass::TextureMipSnapshot> &mips,
     const TextureUploadPlan &plan)
 {
     const TextureBaseClass::TextureMipSnapshot &baseMip = mips[0];
     const uint64_t texFlags = g_device.srgbEnabled ? BGFX_TEXTURE_SRGB : BGFX_TEXTURE_NONE;
+
+    bgfx::TextureHandle immutableHandle = BGFX_INVALID_HANDLE;
+    if (TryCreateImmutableBaseMip(tex2d, mips, plan, texFlags, &immutableHandle))
+    {
+        g_stats.textureCreates++;
+        return immutableHandle;
+    }
+
     bgfx::TextureHandle handle = bgfx::createTexture2D(
         static_cast<uint16_t>(baseMip.Width),
         static_cast<uint16_t>(baseMip.Height),
@@ -1468,9 +1540,21 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
             {
                 const TextureBaseClass::TextureMipSnapshot & baseMip = mips[0];
                 TextureUploadPlan plan;
-                if (baseMip.Width == cachedW
-                    && baseMip.Height == cachedH
-                    && BuildTextureUploadPlan(textureRevision, tex2d, mips, baseMipOnly, &plan))
+                // TheSuperHackers @bugfix bobtista 02/07/2026 The in-place
+                // updateTexture2D re-upload does not land on Metal for the same
+                // textures the immutable-create path fixes (mid-game "_n" night
+                // textures reusing freed day-texture memory), leaving the stale
+                // contents. When the content-changed re-upload targets an
+                // immutable-eligible texture, destroy and recreate it via the
+                // immutable path instead of updating in place.
+                const bool immutableEligible =
+                    BuildTextureUploadPlan(textureRevision, tex2d, mips, baseMipOnly, &plan)
+                    && (plan.cacheInfo.uploadVariant == kBgfxTextureUploadNormal
+                        || plan.cacheInfo.uploadVariant == kBgfxTextureUploadBaseMipOnly
+                        || plan.cacheInfo.uploadVariant == kBgfxTextureUploadDxt5Expanded);
+                if (!immutableEligible
+                    && baseMip.Width == cachedW
+                    && baseMip.Height == cachedH)
                 {
                     if (UploadBgfxTextureMips(tex2d, it->second, mips, plan))
                     {
@@ -1479,7 +1563,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
                     }
                 }
             }
-            // Dimensions or format changed — must destroy and recreate
+            // Immutable-eligible, dimensions, or format changed — destroy and recreate
             g_caches.deferredDestroys.push_back(it->second);
         }
         textureCache.erase(it);
