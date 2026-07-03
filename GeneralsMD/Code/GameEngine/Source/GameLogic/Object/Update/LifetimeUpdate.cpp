@@ -84,16 +84,8 @@ UnsignedInt LifetimeUpdate::calcSleepDelay(UnsignedInt minFrames, UnsignedInt ma
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime LifetimeUpdate::update()
 {
-	Object *obj = getObject();
-
-	if (obj->isEffectivelyDead())
-	{
-		TheGameLogic->destroyObject(obj);
-		return UPDATE_SLEEP_FOREVER;
-	}
-
 	// Kill (NOT destroy) if time is up
-	obj->kill();
+	getObject()->kill();
 	return UPDATE_SLEEP_FOREVER;
 }
 
@@ -138,6 +130,16 @@ void LifetimeUpdate::loadPostProcess()
 	UpdateModule::loadPostProcess();
 
 	Object *obj = getObject();
+
+	// TheSuperHackers @bugfix bobtista 03/07/2026 Destroy dead expired objects here instead of
+	// waking them for update(), so the live-simulation update path stays retail-identical
+	// (kill on an already dead object is a no-op) and this cleanup only applies on save load.
+	if (obj->isEffectivelyDead())
+	{
+		TheGameLogic->destroyObject(obj);
+		return;
+	}
+
 	UnsignedInt now = TheGameLogic->getFrame();
 	if (now == 0)
 	{
@@ -145,7 +147,7 @@ void LifetimeUpdate::loadPostProcess()
 	}
 
 	UnsignedInt wakeFrame = m_dieFrame;
-	if (obj->isEffectivelyDead() || wakeFrame < now)
+	if (wakeFrame < now)
 	{
 		wakeFrame = now;
 	}
