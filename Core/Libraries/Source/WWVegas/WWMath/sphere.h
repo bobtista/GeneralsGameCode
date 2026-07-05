@@ -30,22 +30,6 @@
  *                                                                                             *
  *                    $Revision:: 18                                                          $*
  *                                                                                             *
- *---------------------------------------------------------------------------------------------*
- * Functions:                                                                                  *
- *   SphereClass::SphereClass -- constructor                                                   *
- *   SphereClass::Init -- assign a new center and radius to this sphere                        *
- *   SphereClass::Re_Center -- move the center, update radius to enclose old sphere            *
- *   SphereClass::Add_Sphere -- expands 'this' sphere to enclose the given sphere              *
- *   SphereClass::Transform -- transforms this sphere                                          *
- *   SphereClass::Volume -- returns the volume of this sphere                                  *
- *   SphereClass::operator+= -- 'Add' a sphere to this one                                     *
- *   SphereClass::operator *= -- transform this sphere by the given radius                     *
- *   Spheres_Intersect -- test whether two spheres intersect                                   *
- *   Add_Spheres -- Add two spheres together, creating sphere which encloses both              *
- *   operator + -- Add two spheres together, creating a sphere which encloses both             *
- *   Transform Sphere -- transform a sphere                                                    *
- *   Transform_Sphere -- transform a sphere                                                    *
- *   operator * -- Transform a sphere                                                          *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #pragma once
@@ -88,18 +72,6 @@ public:
 	float Radius;
 };
 
-/***********************************************************************************************
- * SphereClass::SphereClass -- constructor                                                     *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline SphereClass::SphereClass(const Vector3& center, const SphereClass& s0)
 {
 	float dist = (s0.Center - center).Length();
@@ -247,36 +219,12 @@ inline SphereClass::SphereClass(const Vector3* Position, const int VertCount)
 	Radius = radius;
 }
 
-/***********************************************************************************************
- * SphereClass::Init -- assign a new center and radius to this sphere                          *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline void SphereClass::Init(const Vector3& pos, float radius)
 {
 	Center = pos;
 	Radius = radius;
 }
 
-/***********************************************************************************************
- * SphereClass::Init -- assign a new center and radius to this sphere                          *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline void SphereClass::Init(const Matrix3D& mtx, const Vector3& pos, float radius)
 {
 #ifdef ALLOW_TEMPORARIES
@@ -287,18 +235,6 @@ inline void SphereClass::Init(const Matrix3D& mtx, const Vector3& pos, float rad
 	Radius = radius;
 }
 
-/***********************************************************************************************
- * SphereClass::Re_Center -- move the center, update radius to enclose old sphere              *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline void SphereClass::Re_Center(const Vector3& center)
 {
 	float dist = (Center - center).Length();
@@ -306,18 +242,6 @@ inline void SphereClass::Re_Center(const Vector3& center)
 	Radius += dist;
 }
 
-/***********************************************************************************************
- * SphereClass::Add_Sphere -- expands 'this' sphere to enclose the given sphere                *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline void SphereClass::Add_Sphere(const SphereClass& s)
 {
 	if (s.IsEmpty())
@@ -359,18 +283,6 @@ inline void SphereClass::Add_Sphere(const SphereClass& s)
 	}
 }
 
-/***********************************************************************************************
- * SphereClass::Transform -- transforms this sphere                                            *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   3/12/99    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline void SphereClass::Transform(const Matrix3D& tm)
 {
 	// warning, assumes Orthogonal matrix
@@ -381,73 +293,23 @@ inline void SphereClass::Transform(const Matrix3D& tm)
 #endif
 }
 
-/***********************************************************************************************
- * SphereClass::Volume -- returns the volume of this sphere                                    *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   3/22/99    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline float SphereClass::Volume() const
 {
 	return (4.0 / 3.0) * WWMATH_PI * (Radius * Radius * Radius);
 }
 
-/***********************************************************************************************
- * SphereClass::operator+= -- 'Add' a sphere to this one                                       *
- *                                                                                             *
- *    Expands 'this' sphere to also enclose the given sphere                                   *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline SphereClass& SphereClass::operator+=(const SphereClass& s)
 {
 	Add_Sphere(s);
 	return *this;
 }
 
-/***********************************************************************************************
- * SphereClass::operator *= -- transform this sphere by the given radius                       *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline SphereClass& SphereClass::operator*=(const Matrix3D& m)
 {
 	Init(m, Center, Radius);
 	return *this;
 }
 
-/***********************************************************************************************
- * Spheres_Intersect -- test whether two spheres intersect                                     *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline bool Spheres_Intersect(const SphereClass& s0, const SphereClass& s1)
 {
 	Vector3 delta = s0.Center - s1.Center;
@@ -463,18 +325,6 @@ inline bool Spheres_Intersect(const SphereClass& s0, const SphereClass& s1)
 	}
 }
 
-/***********************************************************************************************
- * Add_Spheres -- Add two spheres together, creating sphere which encloses both                *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline SphereClass Add_Spheres(const SphereClass& s0, const SphereClass& s1)
 {
 	if (s0.IsEmpty())
@@ -489,53 +339,17 @@ inline SphereClass Add_Spheres(const SphereClass& s0, const SphereClass& s1)
 	}
 }
 
-/***********************************************************************************************
- * operator + -- Add two spheres together, creating a sphere which encloses both               *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline SphereClass operator+(const SphereClass& s0, const SphereClass& s1)
 {
 	return Add_Spheres(s0, s1);
 }
 
-/***********************************************************************************************
- * Transform Sphere -- transform a sphere                                                      *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline SphereClass Transform_Sphere(const Matrix3D& m, const SphereClass& s)
 {
 	// Warning, assumes Orthogonal matrix
 	return SphereClass(m, s.Center, s.Radius);
 }
 
-/***********************************************************************************************
- * Transform_Sphere -- transform a sphere                                                      *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline void Transform_Sphere(const Matrix3D& m, const SphereClass& s, SphereClass& res)
 {
 	// warning, assumes Orthogonal matrix
@@ -547,18 +361,6 @@ inline void Transform_Sphere(const Matrix3D& m, const SphereClass& s, SphereClas
 	res.Radius = s.Radius;
 }
 
-/***********************************************************************************************
- * operator * -- Transform a sphere                                                            *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   8/12/98    GTH : Created.                                                                 *
- *=============================================================================================*/
 inline SphereClass operator*(const Matrix3D& m, const SphereClass& s)
 {
 	return Transform_Sphere(m, s);
