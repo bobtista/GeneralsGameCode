@@ -1236,7 +1236,7 @@ void SegLineRendererClass::Render(
 
 		if (sorting)
 		{
-			SortingRendererClass::Insert_Triangles(&obj_sphere, 0, tidx, 0, vnum);
+			SortingRendererClass::Insert_Triangles(obj_sphere, 0, tidx, 0, vnum);
 		}
 		else
 		{

@@ -525,7 +525,7 @@ void SphereRenderObjClass::render_sphere()
 
 	if (sort)
 	{
-		SortingRendererClass::Insert_Triangles(&Get_Bounding_Sphere(), 0, mesh.face_ct, 0, mesh.Vertex_ct);
+		SortingRendererClass::Insert_Triangles(Get_Bounding_Sphere(), 0, mesh.face_ct, 0, mesh.Vertex_ct);
 	}
 	else
 	{

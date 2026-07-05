@@ -181,7 +181,7 @@ public:
 
 typedef std::list<SortingNodeStruct*> SortingNodeStructList;
 static SortingNodeStructList sorted_list;
-static SortingNodeStructList splicing_list;
+static SortingNodeStructList unsorted_list;
 static SortingNodeStructList clean_list;
 static unsigned total_sorting_vertices;
 
@@ -225,7 +225,7 @@ static TempIndexStruct* Get_Temp_Index_Array(unsigned count)
 // ----------------------------------------------------------------------------
 
 void SortingRendererClass::Insert_Triangles(
-  const SphereClass* bounding_sphere,
+  const SphereClass& bounding_sphere,
   unsigned short start_index,
   unsigned short polygon_count,
   unsigned short min_vertex_index,
@@ -255,10 +255,16 @@ void SortingRendererClass::Insert_Triangles(
 	state->min_vertex_index = min_vertex_index;
 	state->vertex_count = vertex_count;
 
-	if (bounding_sphere)
+	if (bounding_sphere.Radius <= 0.0)
+	{
+		// TheSuperHackers @perf stephanmeesters 04/07/2026 Nodes without bounding information do not require sorting.
+		state->transformed_center = Vector3(0.0f, 0.0f, 0.0f);
+		unsorted_list.push_back(state);
+	}
+	else
 	{
 		D3DXMATRIX mtx = (D3DXMATRIX&)state->sorting_state.world * (D3DXMATRIX&)state->sorting_state.view;
-		D3DXVECTOR3 vec = (D3DXVECTOR3&)bounding_sphere->Center;
+		D3DXVECTOR3 vec = (D3DXVECTOR3&)bounding_sphere.Center;
 		D3DXVECTOR4 transformed_vec;
 		D3DXVec3Transform(
 		  &transformed_vec,
@@ -267,12 +273,6 @@ void SortingRendererClass::Insert_Triangles(
 		state->transformed_center = Vector3(transformed_vec[0], transformed_vec[1], transformed_vec[2]);
 
 		Insert_To_Sorted_List(state);
-	}
-	else
-	{
-		// TheSuperHackers @perf stephanmeesters 04/07/2026 Nodes without bounding information do not require initial node sorting.
-		state->transformed_center = Vector3(0.0f, 0.0f, 0.0f);
-		splicing_list.push_back(state);
 	}
 
 #ifdef WWDEBUG
@@ -312,7 +312,8 @@ void SortingRendererClass::Insert_Triangles(
   unsigned short min_vertex_index,
   unsigned short vertex_count)
 {
-	Insert_Triangles(nullptr, start_index, polygon_count, min_vertex_index, vertex_count);
+	SphereClass sphere(Vector3(0.0f, 0.0f, 0.0f), 0.0f);
+	Insert_Triangles(sphere, start_index, polygon_count, min_vertex_index, vertex_count);
 }
 
 // ----------------------------------------------------------------------------
@@ -651,7 +652,7 @@ void SortingRendererClass::Flush()
 	{
 		++node;
 	}
-	sorted_list.splice(node, splicing_list);
+	sorted_list.splice(node, unsorted_list);
 
 	while (!sorted_list.empty())
 	{
@@ -700,6 +701,15 @@ void SortingRendererClass::Deinit()
 	{
 		delete sorted_list.front();
 		sorted_list.pop_front();
+	}
+
+	//
+	//	Flush the unsorted list
+	//
+	while (!unsorted_list.empty())
+	{
+		delete unsorted_list.front();
+		unsorted_list.pop_front();
 	}
 
 	//

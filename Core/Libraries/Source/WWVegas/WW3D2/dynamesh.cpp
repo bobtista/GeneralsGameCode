@@ -357,7 +357,7 @@ void DynamicMeshModel::Render(RenderInfoClass& rinfo)
 		{
 			if (buffer_type == BUFFER_TYPE_DYNAMIC_SORTING)
 			{
-				SortingRendererClass::Insert_Triangles(&sphere, 0, DynamicMeshPNum, 0, DynamicMeshVNum);
+				SortingRendererClass::Insert_Triangles(sphere, 0, DynamicMeshPNum, 0, DynamicMeshVNum);
 			}
 			else
 			{
@@ -400,7 +400,7 @@ void DynamicMeshModel::Render(RenderInfoClass& rinfo)
 				if (buffer_type == BUFFER_TYPE_DYNAMIC_SORTING)
 				{
 					SortingRendererClass::Insert_Triangles(
-					  &sphere,
+					  sphere,
 					  (start_tri_idx * 3),
 					  (1 + cur_tri_idx - start_tri_idx),
 					  min_vert_idx,
