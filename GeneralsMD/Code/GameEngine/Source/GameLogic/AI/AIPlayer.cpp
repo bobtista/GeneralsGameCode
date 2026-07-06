@@ -2286,7 +2286,7 @@ Bool AIPlayer::calcClosestConstructionZoneLocation(const ThingTemplate* construc
 	if (valid)
 	{
 		// We succeeded in calculating the best position.
-		location->set(&newPos);
+		location->set(newPos);
 		success = TRUE;
 	}
 	else

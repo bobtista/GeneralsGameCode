@@ -1662,7 +1662,7 @@ void Player::healAllObjects()
 }
 
 //=============================================================================
-void Player::iterateObjects(ObjectIterateFunc func, void* userData)
+void Player::iterateObjects(ObjectIterateFunc func, void* userData) const
 {
 	for (PlayerTeamList::const_iterator it = m_playerTeamPrototypes.begin();
 	     it != m_playerTeamPrototypes.end(); ++it)
@@ -2417,7 +2417,7 @@ void Player::doBountyForKill(const Object* killer, const Object* victim)
 		moneyString.format(TheGameText->fetch("GUI:AddCash"), bounty);
 		Coord3D pos;
 		pos.zero();
-		pos.add(killer->getPosition());
+		pos.add(*killer->getPosition());
 		pos.z += 10.0f;    // add a little z to make it show up above the unit.
 		TheInGameUI->addFloatingText(moneyString, &pos, GameMakeColor(255, 255, 0, 255));
 	}
@@ -3005,6 +3005,8 @@ void Player::removeUpgrade(const UpgradeTemplate* upgradeTemplate)
 
 		if (upgrade->getStatus() == UPGRADE_STATUS_COMPLETE)
 			onUpgradeRemoved();
+
+		deleteInstance(upgrade);
 	}
 }
 

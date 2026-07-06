@@ -28,4 +28,20 @@
 
 AudioRequest::~AudioRequest()
 {
+	if (m_usePendingEvent)
+	{
+		delete m_pendingEvent;
+	}
+}
+
+AudioEventRTS* AudioRequest::releasePendingEvent()
+{
+	if (m_usePendingEvent)
+	{
+		m_usePendingEvent = false;
+		AudioEventRTS* event = m_pendingEvent;
+		m_pendingEvent = nullptr;
+		return event;
+	}
+	return nullptr;
 }

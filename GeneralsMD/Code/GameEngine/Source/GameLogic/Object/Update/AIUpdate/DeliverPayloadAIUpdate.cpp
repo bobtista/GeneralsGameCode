@@ -214,9 +214,9 @@ UpdateSleepTime DeliverPayloadAIUpdate::update()
 					backwards.scale(0.33f);
 
 					Coord3D strafePoint = *getTargetPos();
-					strafePoint.sub(&backwards);
+					strafePoint.sub(backwards);
 
-					strafePoint.add(&velocity);
+					strafePoint.add(velocity);
 					strafePoint.z = TheTerrainLogic->getGroundHeight(strafePoint.x, strafePoint.y);
 
 					// lock it just till the weapon is empty or the attack is "done"
@@ -302,8 +302,8 @@ void DeliverPayloadAIUpdate::deliverPayloadViaModuleData(const Coord3D* moveToPo
 	//****************************************************
 
 	DeliverPayloadData dpData;
-	dpData.m_dropOffset.set(&data->m_dropOffset);
-	dpData.m_dropVariance.set(&data->m_dropVariance);
+	dpData.m_dropOffset.set(data->m_dropOffset);
+	dpData.m_dropVariance.set(data->m_dropVariance);
 	dpData.m_distToTarget = data->m_maxDistanceToTarget;
 	dpData.m_maxAttempts = data->m_maxNumberAttempts;
 	dpData.m_dropDelay = data->m_dropDelay;
@@ -377,7 +377,7 @@ Bool DeliverPayloadAIUpdate::isOffMap() const
 	Region3D mapRegion;
 	TheTerrainLogic->getExtentIncludingBorder(&mapRegion);
 
-	if (!mapRegion.isInRegionNoZ(getObject()->getPosition()))
+	if (!mapRegion.isInRegionNoZ(*getObject()->getPosition()))
 		return true;
 
 	return false;
@@ -822,7 +822,7 @@ StateReturnType DeliveringState::update()    // Kick a dude out every so often
 
 							Coord3D backPosition = *owner->getPhysics()->getVelocity();
 							backPosition.scale(-1.0f);
-							backPosition.add(payload->getPosition());
+							backPosition.add(*payload->getPosition());
 							payload->setPosition(&backPosition);
 						}
 

@@ -165,7 +165,7 @@ void SpectreGunshipUpdate::onObjectCreated()
 	}
 
 	m_specialPowerModule = obj->getSpecialPowerModule(data->m_specialPowerTemplate);
-	m_satellitePosition.set(obj->getPosition());
+	m_satellitePosition.set(*obj->getPosition());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -181,15 +181,15 @@ Bool SpectreGunshipUpdate::initiateIntentToDoSpecialPower(const SpecialPowerTemp
 
 	if (!BitIsSet(commandOptions, COMMAND_FIRED_BY_SCRIPT))
 	{
-		m_initialTargetPosition.set(targetPos);
-		m_overrideTargetDestination.set(targetPos);
-		m_gattlingTargetPosition.set(targetPos);
+		m_initialTargetPosition.set(*targetPos);
+		m_overrideTargetDestination.set(*targetPos);
+		m_gattlingTargetPosition.set(*targetPos);
 	}
 	else
 	{
 		UnsignedInt now = TheGameLogic->getFrame();
 		m_specialPowerModule->setReadyFrame(now);
-		m_initialTargetPosition.set(targetPos);
+		m_initialTargetPosition.set(*targetPos);
 		setLogicalStatus(GUNSHIP_STATUS_INSERTING);
 	}
 
@@ -285,7 +285,7 @@ Bool SpectreGunshipUpdate::isPointOffMap(const Coord3D& testPos) const
 	Region3D mapRegion;
 	TheTerrainLogic->getExtentIncludingBorder(&mapRegion);
 
-	if (!mapRegion.isInRegionNoZ(&testPos))
+	if (!mapRegion.isInRegionNoZ(testPos))
 		return true;
 
 	return false;
@@ -376,7 +376,7 @@ UpdateSleepTime SpectreGunshipUpdate::update()
 
 			// perigee is the point in the orbital arc nearest the satellite being captured
 			Coord3D perigee = *gunship->getPosition();
-			perigee.sub(&m_initialTargetPosition);
+			perigee.sub(m_initialTargetPosition);
 			perigee.z = zero;
 			Real distanceToTarget = perigee.length();
 			perigee.normalize();
@@ -412,7 +412,7 @@ UpdateSleepTime SpectreGunshipUpdate::update()
 
 			// Constrain Target Override to the targeting radius
 			Coord3D overrideTargetDelta = m_initialTargetPosition;
-			overrideTargetDelta.sub(&m_overrideTargetDestination);
+			overrideTargetDelta.sub(m_overrideTargetDestination);
 			if (overrideTargetDelta.length() > constraintRadius)
 			{
 				overrideTargetDelta.normalize();
@@ -568,7 +568,7 @@ UpdateSleepTime SpectreGunshipUpdate::update()
 					// whether an object's position or a cursor position
 
 					Coord3D delta = m_positionToShootAt;
-					delta.sub(&m_gattlingTargetPosition);
+					delta.sub(m_gattlingTargetPosition);
 					Real dist = delta.length();
 					if (dist < data->m_strafingIncrement)
 					{
@@ -580,7 +580,7 @@ UpdateSleepTime SpectreGunshipUpdate::update()
 						m_okToFireHowitzerCounter = ZERO;
 						delta.normalize();
 						delta.scale(data->m_strafingIncrement);
-						m_gattlingTargetPosition.add(&delta);
+						m_gattlingTargetPosition.add(delta);
 					}
 
 					const Player* localPlayer = rts::getObservedOrLocalPlayer();
@@ -703,7 +703,7 @@ void SpectreGunshipUpdate::disengageAndDepartAO(Object* gunship)
 		Real mapSize = 99999.0f;
 		exitPoint.x *= mapSize;
 		exitPoint.y *= mapSize;
-		exitPoint.add(gunship->getPosition());
+		exitPoint.add(*gunship->getPosition());
 
 		shipAI->aiMoveToPosition(&exitPoint, CMD_FROM_AI);
 	}

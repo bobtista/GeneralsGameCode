@@ -159,6 +159,8 @@ BattlePlanUpdate::~BattlePlanUpdate()
 	TheAudio->removeAudioEvent(m_searchAndDestroyPack.getPlayingHandle());
 	TheAudio->removeAudioEvent(m_holdTheLineUnpack.getPlayingHandle());
 	TheAudio->removeAudioEvent(m_holdTheLinePack.getPlayingHandle());
+
+	deleteInstance(m_bonuses);
 }
 
 // ------------------------------------------------------------------------------------------------

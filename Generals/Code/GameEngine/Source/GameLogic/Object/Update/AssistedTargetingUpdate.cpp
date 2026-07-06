@@ -49,8 +49,8 @@ void AssistedTargetingUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 	static const FieldParse dataFieldParse[] = {
 		{ "AssistingClipSize", INI::parseInt, nullptr, offsetof(AssistedTargetingUpdateModuleData, m_clipSize) },
 		{ "AssistingWeaponSlot", INI::parseLookupList, TheWeaponSlotTypeNamesLookupList, offsetof(AssistedTargetingUpdateModuleData, m_weaponSlot) },
-		{ "LaserFromAssisted", INI::parseThingTemplate, nullptr, offsetof(AssistedTargetingUpdateModuleData, m_laserFromAssisted) },
-		{ "LaserToTarget", INI::parseThingTemplate, nullptr, offsetof(AssistedTargetingUpdateModuleData, m_laserToTarget) },
+		{ "LaserFromAssisted", INI::parseAsciiString, nullptr, offsetof(AssistedTargetingUpdateModuleData, m_laserFromAssistedName) },
+		{ "LaserToTarget", INI::parseAsciiString, nullptr, offsetof(AssistedTargetingUpdateModuleData, m_laserToTargetName) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 	p.add(dataFieldParse);
@@ -61,7 +61,8 @@ void AssistedTargetingUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 AssistedTargetingUpdate::AssistedTargetingUpdate(Thing* thing, const ModuleData* moduleData)
   : UpdateModule(thing, moduleData)
 {
-	setWakeFrame(getObject(), UPDATE_SLEEP_FOREVER);
+	m_laserFromAssisted = nullptr;
+	m_laserToTarget = nullptr;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -96,10 +97,10 @@ void AssistedTargetingUpdate::assistAttack(const Object* requestingObject, Objec
 	me->setWeaponLock(md->m_weaponSlot, LOCKED_TEMPORARILY);
 	me->getAI()->aiAttackObject(victimObject, md->m_clipSize, CMD_FROM_AI);
 
-	if (md->m_laserFromAssisted)
-		makeFeedbackLaser(md->m_laserFromAssisted, requestingObject, me);
-	if (md->m_laserToTarget)
-		makeFeedbackLaser(md->m_laserToTarget, me, victimObject);
+	if (m_laserFromAssisted)
+		makeFeedbackLaser(m_laserFromAssisted, requestingObject, me);
+	if (m_laserToTarget)
+		makeFeedbackLaser(m_laserToTarget, me, victimObject);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -133,6 +134,11 @@ void AssistedTargetingUpdate::makeFeedbackLaser(const ThingTemplate* laserTempla
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime AssistedTargetingUpdate::update()
 {
+	const AssistedTargetingUpdateModuleData* d = getAssistedTargetingUpdateModuleData();
+
+	m_laserFromAssisted = TheThingFactory->findTemplate(d->m_laserFromAssistedName);
+	m_laserToTarget = TheThingFactory->findTemplate(d->m_laserToTargetName);
+
 	return UPDATE_SLEEP_FOREVER;
 }
 
@@ -168,6 +174,10 @@ void AssistedTargetingUpdate::xfer(Xfer* xfer)
 // ------------------------------------------------------------------------------------------------
 void AssistedTargetingUpdate::loadPostProcess()
 {
+	const AssistedTargetingUpdateModuleData* d = getAssistedTargetingUpdateModuleData();
+
+	m_laserFromAssisted = TheThingFactory->findTemplate(d->m_laserFromAssistedName);
+	m_laserToTarget = TheThingFactory->findTemplate(d->m_laserToTargetName);
 
 	// extend base class
 	UpdateModule::loadPostProcess();

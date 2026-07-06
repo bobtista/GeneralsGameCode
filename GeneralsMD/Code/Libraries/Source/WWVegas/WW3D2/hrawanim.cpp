@@ -237,9 +237,6 @@ int HRawAnimClass::Load_W3D(ChunkLoadClass& cload)
 	/*
 	** Now, read in all of the other chunks (motion channels).
 	*/
-	MotionChannelClass* newchan;
-	BitChannelClass* newbitchan;
-
 	while (cload.Open_Chunk())
 	{
 
@@ -247,6 +244,8 @@ int HRawAnimClass::Load_W3D(ChunkLoadClass& cload)
 		{
 
 			case W3D_CHUNK_ANIMATION_CHANNEL:
+			{
+				MotionChannelClass* newchan = nullptr;
 				if (!read_channel(cload, &newchan, pre30))
 				{
 					goto Error;
@@ -265,8 +264,11 @@ int HRawAnimClass::Load_W3D(ChunkLoadClass& cload)
 					delete newchan;
 				}
 				break;
+			}
 
 			case W3D_CHUNK_BIT_CHANNEL:
+			{
+				BitChannelClass* newbitchan = nullptr;
 				if (!read_bit_channel(cload, &newbitchan, pre30))
 				{
 					goto Error;
@@ -285,6 +287,7 @@ int HRawAnimClass::Load_W3D(ChunkLoadClass& cload)
 					delete newbitchan;
 				}
 				break;
+			}
 
 			default:
 				break;
@@ -314,16 +317,22 @@ Error:
  *=============================================================================================*/
 bool HRawAnimClass::read_channel(ChunkLoadClass& cload, MotionChannelClass** newchan, bool pre30)
 {
-	*newchan = W3DNEW MotionChannelClass;
-	bool result = (*newchan)->Load_W3D(cload);
-
-	if (result && pre30)
+	MotionChannelClass* channel = W3DNEW MotionChannelClass;
+	if (channel->Load_W3D(cload))
 	{
-		//		(*newchan)->PivotIdx += 1;
-		(*newchan)->Set_Pivot((*newchan)->Get_Pivot() + 1);
-	}
+		if (pre30)
+		{
+			channel->Set_Pivot(channel->Get_Pivot() + 1);
+		}
 
-	return result;
+		*newchan = channel;
+		return true;
+	}
+	else
+	{
+		delete channel;
+		return false;
+	}
 }
 
 /***********************************************************************************************
@@ -388,15 +397,22 @@ void HRawAnimClass::add_channel(MotionChannelClass* newchan)
  *=============================================================================================*/
 bool HRawAnimClass::read_bit_channel(ChunkLoadClass& cload, BitChannelClass** newchan, bool pre30)
 {
-	*newchan = W3DNEW BitChannelClass;
-	bool result = (*newchan)->Load_W3D(cload);
-
-	if (result && pre30)
+	BitChannelClass* channel = W3DNEW BitChannelClass;
+	if (channel->Load_W3D(cload))
 	{
-		(*newchan)->PivotIdx += 1;
-	}
+		if (pre30)
+		{
+			channel->PivotIdx += 1;
+		}
 
-	return result;
+		*newchan = channel;
+		return true;
+	}
+	else
+	{
+		delete channel;
+		return false;
+	}
 }
 
 /***********************************************************************************************

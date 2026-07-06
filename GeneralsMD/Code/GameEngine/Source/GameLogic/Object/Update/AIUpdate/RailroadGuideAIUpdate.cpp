@@ -324,7 +324,7 @@ void RailroadBehavior::onCollide(Object* other, const Coord3D* loc, const Coord3
 
 	// figure out the relative slope between them and me
 	Coord3D delta = *theirLoc;
-	delta.sub(myLoc);
+	delta.sub(*myLoc);
 	delta.normalize();
 	Real dot = delta.x * myDir->x + delta.y * myDir->y + delta.z * myDir->z;
 
@@ -373,7 +373,7 @@ void RailroadBehavior::onCollide(Object* other, const Coord3D* loc, const Coord3
 
 	const Coord3D up = { 0, 0, 1 };
 	Coord3D cross;
-	myDir->crossProduct(myDir, &up, &cross);
+	myDir->crossProduct(*myDir, up, cross);
 
 	delta.normalize();
 	Real deviationCOG = cross.x * delta.x + cross.y * delta.y + cross.z * delta.z;
@@ -524,7 +524,7 @@ void RailroadBehavior::loadTrackData()
 		trackPoint.m_isStation = scanner->getName().endsWith("Station");
 		trackPoint.m_isDisembark = scanner->getName().endsWith("Disembark");
 		trackPoint.m_isPingPong = FALSE;
-		trackPoint.m_position.set(scanner->getLocation());
+		trackPoint.m_position.set(*scanner->getLocation());
 		trackPoint.m_handle = scanner->getID();
 		track->push_back(trackPoint);
 	}
@@ -558,7 +558,7 @@ void RailroadBehavior::loadTrackData()
 				trackPoint.m_isStation = anotherWaypoint->getName().endsWith("Station");
 				trackPoint.m_isPingPong = scanner->getName().endsWith("PingPong");
 				trackPoint.m_isDisembark = scanner->getName().endsWith("Disembark");
-				trackPoint.m_position.set(anotherWaypoint->getLocation());
+				trackPoint.m_position.set(*anotherWaypoint->getLocation());
 				trackPoint.m_handle = scanner->getID();
 				track->push_back(trackPoint);
 			}
@@ -842,7 +842,7 @@ void RailroadBehavior::createCarriages()
 	Coord3D myHitchLoc = *self->getPosition();
 	Coord3D hitchOffset = *self->getUnitDirectionVector2D();    // copy that
 	hitchOffset.scale(-maxRadius);    // negative, since I want the back, not the front
-	myHitchLoc.add(&hitchOffset);
+	myHitchLoc.add(hitchOffset);
 
 	PartitionFilterIsValidCarriage pfivc(self, md);
 	PartitionFilter* filters[] = { &pfivc, nullptr };
@@ -986,7 +986,7 @@ void RailroadBehavior::hitchNewCarriagebyProximity(ObjectID locoID, TrainTrack* 
 	Coord3D myHitchLoc = *self->getPosition();
 	Coord3D hitchOffset = *self->getUnitDirectionVector2D();    // copy that
 	hitchOffset.scale(-maxRadius);    // negative, since I want the back, not the front
-	myHitchLoc.add(&hitchOffset);
+	myHitchLoc.add(hitchOffset);
 
 	PartitionFilterIsValidCarriage pfivc(self, md);
 	PartitionFilter* filters[] = { &pfivc, nullptr };
@@ -1083,7 +1083,7 @@ void alignToTerrain(Real angle, const Coord3D& pos, const Coord3D& normal, Matri
 	DEBUG_ASSERTCRASH(WWMath::Fabs(x.x * z.x + x.y * z.y + x.z * z.z) < 0.0001, ("dot is not zero"));
 
 	// now computing the y vector is trivial.
-	y.crossProduct(&z, &x, &y);
+	y.crossProduct(z, x, y);
 	y.normalize();
 
 	mtx.Set(x.x, y.x, z.x, pos.x,
@@ -1298,10 +1298,10 @@ void RailroadBehavior::FindPosByPathDistance(Coord3D* pos, const Real dist, cons
 
 				Coord3D delta = nextPoint->m_position;
 
-				delta.sub(&thisPointPos);
+				delta.sub(thisPointPos);
 				delta.normalize();
 				delta.scale(difference);
-				thisPointPos.add(&delta);
+				thisPointPos.add(delta);
 
 				*pos = thisPointPos;    // copy out
 				return;

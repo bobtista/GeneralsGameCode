@@ -1096,7 +1096,11 @@ WWINLINE long WWMath::Float_To_Long(double f)
 
 #elif defined(_MSC_VER) && defined(_M_IX86)
 	long retval;
-	__asm fld qword ptr[f] __asm fistp dword ptr[retval] return retval;
+	__asm {
+		fld	qword ptr [f]
+		fistp dword ptr [retval]
+	}
+	return retval;
 
 #else
 	return (long)f;

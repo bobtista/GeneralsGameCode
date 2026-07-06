@@ -172,7 +172,7 @@ void WaterOptions::OnChangeWaterEdit()
 		{
 			if (pTrig == theTrigger)
 				continue;    // don't check against yourself.
-			AsciiString trigName = pTrig->getTriggerName();
+			const AsciiString& trigName = pTrig->getTriggerName();
 			if (name == trigName)
 			{
 				if (pTrig->isValid())

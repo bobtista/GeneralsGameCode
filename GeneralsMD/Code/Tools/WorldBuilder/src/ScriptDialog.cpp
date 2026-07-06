@@ -1827,6 +1827,9 @@ void ScriptDialog::OnLoad()
 						msg += m_readPlayerNames[i].str();
 						msg += ", discarding scripts for this player.";
 						::AfxMessageBox(msg);
+
+						deleteInstance(scripts[i]);
+						scripts[i] = nullptr;
 						continue;
 					}
 				}
@@ -1835,8 +1838,8 @@ void ScriptDialog::OnLoad()
 					curSide = 0;
 					::AfxMessageBox("Imported scripts came from more players than exist in this map.  Additional scripts moved to Neutral player.");
 				}
-				ScriptList* pSL = m_sides.getSideInfo(curSide)->getScriptList();
 
+				ScriptList* pSL = m_sides.getSideInfo(curSide)->getScriptList();
 				if (pSL)
 				{
 					Script* pScr;
@@ -1863,6 +1866,11 @@ void ScriptDialog::OnLoad()
 					                      copied into the current scripts. */
 					scripts[i] = nullptr;
 					// reloadPlayer(curSide, pSL);
+				}
+				else
+				{
+					deleteInstance(scripts[i]);
+					scripts[i] = nullptr;
 				}
 			}
 
