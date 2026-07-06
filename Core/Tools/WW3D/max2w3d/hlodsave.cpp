@@ -42,46 +42,42 @@
  *   HLodSaveClass::save_proxy_array -- save the array of proxies (if any)                     *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-
 #include "hlodsave.h"
 #include "meshcon.h"
 #include "errclass.h"
 #include "util.h"
 #include "w3dappdata.h"
-#include "wwmath.h"	// NO_MAX_SCREEN_SIZE
+#include "wwmath.h"    // NO_MAX_SCREEN_SIZE
 #include "exportlog.h"
-
-
 
 /* Behold, the applicable snippets of code from w3d_file.h that are applicable to this module!
 
-	W3D_CHUNK_HLOD										=0x00000700,	// description of an HLod object (see HLodClass)
-		W3D_CHUNK_HLOD_HEADER,											// general information such as name and version
-		W3D_CHUNK_HLOD_LOD_ARRAY,										// wrapper around the array of objects for each level of detail
-			W3D_CHUNK_HLOD_LOD_ARRAY_HEADER,							// info on the objects in this level of detail array
-			W3D_CHUNK_HLOD_SUB_OBJECT,									// an object in this level of detail array
+  W3D_CHUNK_HLOD										=0x00000700,	// description of an HLod object (see HLodClass)
+    W3D_CHUNK_HLOD_HEADER,											// general information such as name and version
+    W3D_CHUNK_HLOD_LOD_ARRAY,										// wrapper around the array of objects for each level of detail
+      W3D_CHUNK_HLOD_LOD_ARRAY_HEADER,							// info on the objects in this level of detail array
+      W3D_CHUNK_HLOD_SUB_OBJECT,									// an object in this level of detail array
 
 struct W3dHLodHeaderStruct
 {
-	uint32					Version;
-	uint32					LodCount;
-	char						Name[W3D_NAME_LEN];
-	char						HierarchyName[W3D_NAME_LEN];		// name of the hierarchy tree to use (\0 if none)
+  uint32					Version;
+  uint32					LodCount;
+  char						Name[W3D_NAME_LEN];
+  char						HierarchyName[W3D_NAME_LEN];		// name of the hierarchy tree to use (\0 if none)
 };
 
 struct W3dHLodArrayHeaderStruct
 {
-	uint32					ModelCount;
-	float32					MaxScreenSize;		// if model is bigger than this, switch to higher lod.
+  uint32					ModelCount;
+  float32					MaxScreenSize;		// if model is bigger than this, switch to higher lod.
 };
 
 struct W3dHLodSubObjectStruct
 {
-	uint32					BoneIndex;
-	char						Name[W3D_NAME_LEN*2];
+  uint32					BoneIndex;
+  char						Name[W3D_NAME_LEN*2];
 };
 */
-
 
 /***********************************************************************************************
  * HLodSaveClass -- The constructor builds the whole HLOD tree in a form suitable for saving   *
@@ -96,10 +92,10 @@ struct W3dHLodSubObjectStruct
  * HISTORY:                                                                                    *
  *   9/14/1999  AJA : Created.                                                                 *
  *=============================================================================================*/
-HLodSaveClass::HLodSaveClass (MeshConnectionsClass **connections, int lod_count, TimeValue CurTime,
-										char *name, const char *htree_name, Progress_Meter_Class &meter,
-										INodeListClass *origin_list)
-:	lod_array(nullptr)
+HLodSaveClass::HLodSaveClass(MeshConnectionsClass** connections, int lod_count, TimeValue CurTime,
+                             char* name, const char* htree_name, Progress_Meter_Class& meter,
+                             INodeListClass* origin_list)
+  : lod_array(nullptr)
 {
 	/*
 	** Fill in the W3dHLodHeaderStruct
@@ -108,8 +104,8 @@ HLodSaveClass::HLodSaveClass (MeshConnectionsClass **connections, int lod_count,
 	header.LodCount = lod_count;
 	Set_W3D_Name(header.Name, name);
 	Set_W3D_Name(header.HierarchyName, htree_name);
-	ExportLog::printf("\nExporting HLOD object: %s\n",header.Name);
-	ExportLog::printf(" lod count: %d\n",header.LodCount);
+	ExportLog::printf("\nExporting HLOD object: %s\n", header.Name);
+	ExportLog::printf(" lod count: %d\n", header.LodCount);
 
 	/*
 	** Create the array of stuff for each LOD.
@@ -122,9 +118,9 @@ HLodSaveClass::HLodSaveClass (MeshConnectionsClass **connections, int lod_count,
 	for (i = 0; i < lod_count; i++)
 	{
 
-		ExportLog::printf(" Exporting LOD Array %d\n",i);
+		ExportLog::printf(" Exporting LOD Array %d\n", i);
 
-		INode *origin = connections[i]->Get_Origin();
+		INode* origin = connections[i]->Get_Origin();
 		int sub_obj_count = connections[i]->Get_Sub_Object_Count();
 		lod_array[i].Allocate_Sub_Objects(sub_obj_count);
 		lod_array[i].header.ModelCount = sub_obj_count;
@@ -138,75 +134,74 @@ HLodSaveClass::HLodSaveClass (MeshConnectionsClass **connections, int lod_count,
 		** Create the info per mesh in this LOD.
 		*/
 		int j;
-		W3dHLodSubObjectStruct *sub_obj = lod_array[i].sub_obj;
-		ExportLog::printf(" sub-object count: %d\n",sub_obj_count);
+		W3dHLodSubObjectStruct* sub_obj = lod_array[i].sub_obj;
+		ExportLog::printf(" sub-object count: %d\n", sub_obj_count);
 		for (j = 0; j < sub_obj_count; j++)
 		{
-			char	*mesh_name;
-			int	bone_index;
-			INode	*mesh_node;
+			char* mesh_name;
+			int bone_index;
+			INode* mesh_node;
 			if (!connections[i]->Get_Sub_Object_Data(j, &mesh_name, &bone_index, &mesh_node))
 				throw ErrorClass("Model %s  is missing connection data!", name);
 
 			strcpy(sub_obj[j].Name, mesh_name);
 			sub_obj[j].BoneIndex = bone_index;
 
-			ExportLog::printf("  Sub Object: %s Bone: %d\n",mesh_name,bone_index);
+			ExportLog::printf("  Sub Object: %s Bone: %d\n", mesh_name, bone_index);
 		}
 	}
 
 	/*
 	** Copy aggregates from the Top-Level LOD
 	*/
-	int agg_count = connections[lod_count-1]->Get_Aggregate_Count();
+	int agg_count = connections[lod_count - 1]->Get_Aggregate_Count();
 	aggregate_array.Allocate_Sub_Objects(agg_count);
 	aggregate_array.header.ModelCount = agg_count;
 	aggregate_array.header.MaxScreenSize = 0.0f;
 
 	ExportLog::printf(" Exporting Aggregates:\n");
-	ExportLog::printf(" aggregate count: %d\n",agg_count);
+	ExportLog::printf(" aggregate count: %d\n", agg_count);
 
-	for (i=0; i<agg_count; i++) {
+	for (i = 0; i < agg_count; i++)
+	{
 
-		char	*mesh_name;
-		int	bone_index;
-		INode	*mesh_node;
-		connections[lod_count-1]->Get_Aggregate_Data(i, &mesh_name, &bone_index, &mesh_node);
+		char* mesh_name;
+		int bone_index;
+		INode* mesh_node;
+		connections[lod_count - 1]->Get_Aggregate_Data(i, &mesh_name, &bone_index, &mesh_node);
 
-		W3dHLodSubObjectStruct & sub_obj = aggregate_array.sub_obj[i];
+		W3dHLodSubObjectStruct& sub_obj = aggregate_array.sub_obj[i];
 		strcpy(sub_obj.Name, mesh_name);
 		sub_obj.BoneIndex = bone_index;
 
-		ExportLog::printf("  Aggregate object: %s Bone: %d\n",mesh_name,bone_index);
-
+		ExportLog::printf("  Aggregate object: %s Bone: %d\n", mesh_name, bone_index);
 	}
 
 	/*
 	** Copy the proxy objects from the Top-Level LOD
 	*/
-	int proxy_count = connections[lod_count-1]->Get_Proxy_Count();
+	int proxy_count = connections[lod_count - 1]->Get_Proxy_Count();
 	proxy_array.Allocate_Sub_Objects(proxy_count);
 	proxy_array.header.ModelCount = proxy_count;
 	proxy_array.header.MaxScreenSize = 0.0f;
 
 	ExportLog::printf(" Exporting Proxies\n");
-	ExportLog::printf(" proxy count: %d\n",proxy_count);
-	for (i=0; i<proxy_count; i++) {
+	ExportLog::printf(" proxy count: %d\n", proxy_count);
+	for (i = 0; i < proxy_count; i++)
+	{
 
-		char	*mesh_name;
-		int	bone_index;
-		INode	*mesh_node;
-		connections[lod_count-1]->Get_Proxy_Data(i, &mesh_name, &bone_index, &mesh_node);
+		char* mesh_name;
+		int bone_index;
+		INode* mesh_node;
+		connections[lod_count - 1]->Get_Proxy_Data(i, &mesh_name, &bone_index, &mesh_node);
 
-		W3dHLodSubObjectStruct & sub_obj = proxy_array.sub_obj[i];
+		W3dHLodSubObjectStruct& sub_obj = proxy_array.sub_obj[i];
 		strcpy(sub_obj.Name, mesh_name);
 		sub_obj.BoneIndex = bone_index;
 
-		ExportLog::printf("  Proxy object: %s Bone: %d\n",mesh_name,bone_index);
+		ExportLog::printf("  Proxy object: %s Bone: %d\n", mesh_name, bone_index);
 	}
-
 }
-
 
 /***********************************************************************************************
  * ~HLodSaveClass -- Destructor blows away the dynamic memory we used.                         *
@@ -220,15 +215,14 @@ HLodSaveClass::HLodSaveClass (MeshConnectionsClass **connections, int lod_count,
  * HISTORY:                                                                                    *
  *   9/14/1999  AJA : Created.                                                                 *
  *=============================================================================================*/
-HLodSaveClass::~HLodSaveClass (void)
+HLodSaveClass::~HLodSaveClass(void)
 {
 	if (lod_array)
 	{
-		delete []lod_array;
+		delete[] lod_array;
 		lod_array = nullptr;
 	}
 }
-
 
 /***********************************************************************************************
  * HLodSaveClass::Save -- Method called when saving to a W3D file. Saves the chunks that       *
@@ -243,7 +237,7 @@ HLodSaveClass::~HLodSaveClass (void)
  * HISTORY:                                                                                    *
  *   9/14/1999  AJA : Created.                                                                 *
  *=============================================================================================*/
-bool HLodSaveClass::Save(ChunkSaveClass &csave)
+bool HLodSaveClass::Save(ChunkSaveClass& csave)
 {
 	if (!lod_array)
 		return false;
@@ -269,7 +263,6 @@ bool HLodSaveClass::Save(ChunkSaveClass &csave)
 	return true;
 }
 
-
 /***********************************************************************************************
  * HLodSaveClass::save_header -- Write the header                                              *
  *                                                                                             *
@@ -282,7 +275,7 @@ bool HLodSaveClass::Save(ChunkSaveClass &csave)
  * HISTORY:                                                                                    *
  *   9/14/1999  AJA : Created.                                                                 *
  *=============================================================================================*/
-bool HLodSaveClass::save_header (ChunkSaveClass &csave)
+bool HLodSaveClass::save_header(ChunkSaveClass& csave)
 {
 	if (!csave.Begin_Chunk(W3D_CHUNK_HLOD_HEADER))
 		return false;
@@ -296,7 +289,6 @@ bool HLodSaveClass::save_header (ChunkSaveClass &csave)
 	return true;
 }
 
-
 /***********************************************************************************************
  * HLodSaveClass::save_lod_arrays -- Writes each LOD                                           *
  *                                                                                             *
@@ -309,7 +301,7 @@ bool HLodSaveClass::save_header (ChunkSaveClass &csave)
  * HISTORY:                                                                                    *
  *   9/14/1999  AJA : Created.                                                                 *
  *=============================================================================================*/
-bool HLodSaveClass::save_lod_arrays(ChunkSaveClass &csave)
+bool HLodSaveClass::save_lod_arrays(ChunkSaveClass& csave)
 {
 	for (int i = 0; i < header.LodCount; i++)
 	{
@@ -326,8 +318,6 @@ bool HLodSaveClass::save_lod_arrays(ChunkSaveClass &csave)
 	return true;
 }
 
-
-
 /***********************************************************************************************
  * HLodSaveClass::save_aggregate_array -- save the aggregates (if any)                         *
  *                                                                                             *
@@ -340,9 +330,10 @@ bool HLodSaveClass::save_lod_arrays(ChunkSaveClass &csave)
  * HISTORY:                                                                                    *
  *   10/25/2000 gth : Created.                                                                 *
  *=============================================================================================*/
-bool HLodSaveClass::save_aggregate_array(ChunkSaveClass & csave)
+bool HLodSaveClass::save_aggregate_array(ChunkSaveClass& csave)
 {
-	if (aggregate_array.num_sub_objects > 0) {
+	if (aggregate_array.num_sub_objects > 0)
+	{
 		if (!csave.Begin_Chunk(W3D_CHUNK_HLOD_AGGREGATE_ARRAY))
 			return false;
 
@@ -354,7 +345,6 @@ bool HLodSaveClass::save_aggregate_array(ChunkSaveClass & csave)
 	}
 	return true;
 }
-
 
 /***********************************************************************************************
  * HLodSaveClass::save_proxy_array -- save the array of proxies (if any)                       *
@@ -368,9 +358,10 @@ bool HLodSaveClass::save_aggregate_array(ChunkSaveClass & csave)
  * HISTORY:                                                                                    *
  *   10/27/2000 gth : Created.                                                                 *
  *=============================================================================================*/
-bool HLodSaveClass::save_proxy_array(ChunkSaveClass & csave)
+bool HLodSaveClass::save_proxy_array(ChunkSaveClass& csave)
 {
-	if (proxy_array.num_sub_objects > 0) {
+	if (proxy_array.num_sub_objects > 0)
+	{
 		if (!csave.Begin_Chunk(W3D_CHUNK_HLOD_PROXY_ARRAY))
 			return false;
 
@@ -382,7 +373,6 @@ bool HLodSaveClass::save_proxy_array(ChunkSaveClass & csave)
 	}
 	return true;
 }
-
 
 /***********************************************************************************************
  * HLodSaveClass::save_sub_object_array -- Writes the mesh to bone connectivity info for each  *
@@ -397,7 +387,7 @@ bool HLodSaveClass::save_proxy_array(ChunkSaveClass & csave)
  * HISTORY:                                                                                    *
  *   9/14/1999  AJA : Created.                                                                 *
  *=============================================================================================*/
-bool HLodSaveClass::save_sub_object_array(ChunkSaveClass &csave, const HLodArrayEntry & array)
+bool HLodSaveClass::save_sub_object_array(ChunkSaveClass& csave, const HLodArrayEntry& array)
 {
 	if (!csave.Begin_Chunk(W3D_CHUNK_HLOD_SUB_OBJECT_ARRAY_HEADER))
 		return false;
@@ -422,5 +412,3 @@ bool HLodSaveClass::save_sub_object_array(ChunkSaveClass &csave, const HLodArray
 
 	return true;
 }
-
-

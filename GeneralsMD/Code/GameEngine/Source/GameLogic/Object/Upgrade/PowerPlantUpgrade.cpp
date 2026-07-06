@@ -28,7 +28,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/ModelState.h"
 #include "Common/Player.h"
@@ -41,17 +41,15 @@
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-PowerPlantUpgrade::PowerPlantUpgrade( Thing *thing, const ModuleData* moduleData ) :
-							UpgradeModule( thing, moduleData )
+PowerPlantUpgrade::PowerPlantUpgrade(Thing* thing, const ModuleData* moduleData)
+  : UpgradeModule(thing, moduleData)
 {
-
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 PowerPlantUpgrade::~PowerPlantUpgrade()
 {
-
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -60,49 +58,45 @@ void PowerPlantUpgrade::onDelete()
 {
 
 	// if we haven't been upgraded there is nothing to clean up
-	if( isAlreadyUpgraded() == FALSE )
+	if (isAlreadyUpgraded() == FALSE)
 		return;
 
 	// remove the power bonus from the player
-	Player *player = getObject()->getControllingPlayer();
-	if( player )
-		player->removePowerBonus( getObject() );
+	Player* player = getObject()->getControllingPlayer();
+	if (player)
+		player->removePowerBonus(getObject());
 
 	// this upgrade module is now "not upgraded"
 	setUpgradeExecuted(FALSE);
-
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void PowerPlantUpgrade::onCapture( Player *oldOwner, Player *newOwner )
+void PowerPlantUpgrade::onCapture(Player* oldOwner, Player* newOwner)
 {
 
 	// do nothing if we haven't upgraded yet
-	if( isAlreadyUpgraded() == FALSE )
+	if (isAlreadyUpgraded() == FALSE)
 		return;
 
 	if (getObject()->isDisabled())
 		return;
 
 	// remove power bonus from old owner
-	if( oldOwner )
+	if (oldOwner)
 	{
 
-		oldOwner->removePowerBonus( getObject() );
+		oldOwner->removePowerBonus(getObject());
 		setUpgradeExecuted(FALSE);
-
 	}
 
 	// add power bonus to the new owner
-	if( newOwner )
+	if (newOwner)
 	{
 
-		newOwner->addPowerBonus( getObject() );
+		newOwner->addPowerBonus(getObject());
 		setUpgradeExecuted(TRUE);
-
 	}
-
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -110,50 +104,46 @@ void PowerPlantUpgrade::onCapture( Player *oldOwner, Player *newOwner )
 void PowerPlantUpgrade::upgradeImplementation()
 {
 
-	Player *player = getObject()->getControllingPlayer();
+	Player* player = getObject()->getControllingPlayer();
 
 	// add the new power production to the object
-	if( player )
+	if (player)
 		player->addPowerBonus(getObject());
 
-
-	PowerPlantUpdateInterface *ppui;
-	for( BehaviorModule **umi = getObject()->getBehaviorModules(); *umi; ++umi)
+	PowerPlantUpdateInterface* ppui;
+	for (BehaviorModule** umi = getObject()->getBehaviorModules(); *umi; ++umi)
 	{
 		ppui = (*umi)->getPowerPlantUpdateInterface();
-		if( ppui )
+		if (ppui)
 			ppui->extendRods(TRUE);
 	}
-
 }
 
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void PowerPlantUpgrade::crc( Xfer *xfer )
+void PowerPlantUpgrade::crc(Xfer* xfer)
 {
 
 	// extend base class
-	UpgradeModule::crc( xfer );
-
+	UpgradeModule::crc(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
-	* Version Info:
-	* 1: Initial version */
+ * Version Info:
+ * 1: Initial version */
 // ------------------------------------------------------------------------------------------------
-void PowerPlantUpgrade::xfer( Xfer *xfer )
+void PowerPlantUpgrade::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// extend base class
-	UpgradeModule::xfer( xfer );
-
+	UpgradeModule::xfer(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -177,5 +167,4 @@ void PowerPlantUpgrade::loadPostProcess()
 			player->addPowerBonus(obj);
 		}
 	}
-
 }

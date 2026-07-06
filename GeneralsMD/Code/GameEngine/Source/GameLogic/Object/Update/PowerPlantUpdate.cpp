@@ -28,7 +28,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // USER INCLUDES //////////////////////////////////////////////////////////////////////////////////
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/ModelState.h"
 #include "Common/Xfer.h"
@@ -38,14 +38,12 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/Module/PowerPlantUpdate.h"
 
-
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 PowerPlantUpdateModuleData::PowerPlantUpdateModuleData()
 {
 
 	m_rodsExtendTime = 0;
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,36 +52,34 @@ PowerPlantUpdateModuleData::PowerPlantUpdateModuleData()
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-PowerPlantUpdate::PowerPlantUpdate( Thing *thing, const ModuleData *moduleData )
-												: UpdateModule( thing, moduleData )
+PowerPlantUpdate::PowerPlantUpdate(Thing* thing, const ModuleData* moduleData)
+  : UpdateModule(thing, moduleData)
 {
 
 	m_extended = FALSE;
 	setWakeFrame(getObject(), UPDATE_SLEEP_FOREVER);
-
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 PowerPlantUpdate::~PowerPlantUpdate()
 {
-
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void PowerPlantUpdate::extendRods( Bool extend )
+void PowerPlantUpdate::extendRods(Bool extend)
 {
 	if (extend)
 	{
 		if (!m_extended)
 		{
-			const PowerPlantUpdateModuleData *modData = getPowerPlantUpdateModuleData();
+			const PowerPlantUpdateModuleData* modData = getPowerPlantUpdateModuleData();
 
 			// set the model condition for radar extension
-			Drawable *draw = getObject()->getDrawable();
-			if( draw )
-				draw->setModelConditionState( MODELCONDITION_POWER_PLANT_UPGRADING );
+			Drawable* draw = getObject()->getDrawable();
+			if (draw)
+				draw->setModelConditionState(MODELCONDITION_POWER_PLANT_UPGRADING);
 
 			m_extended = TRUE;
 			setWakeFrame(getObject(), UPDATE_SLEEP(modData->m_rodsExtendTime));
@@ -92,15 +88,14 @@ void PowerPlantUpdate::extendRods( Bool extend )
 	else
 	{
 		// they de-extend instantly.
-		Drawable *draw = getObject()->getDrawable();
-		if( draw )
-			draw->clearModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_POWER_PLANT_UPGRADING,
-																														MODELCONDITION_POWER_PLANT_UPGRADED) );
+		Drawable* draw = getObject()->getDrawable();
+		if (draw)
+			draw->clearModelConditionFlags(MAKE_MODELCONDITION_MASK2(MODELCONDITION_POWER_PLANT_UPGRADING,
+			                                                         MODELCONDITION_POWER_PLANT_UPGRADED));
 
 		m_extended = FALSE;
 		setWakeFrame(getObject(), UPDATE_SLEEP_FOREVER);
 	}
-
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -108,10 +103,10 @@ void PowerPlantUpdate::extendRods( Bool extend )
 UpdateSleepTime PowerPlantUpdate::update()
 {
 	// remove the extending condition and set the extended condition
-	Drawable *draw = getObject()->getDrawable();
-	if( draw )
-		draw->clearAndSetModelConditionState( MODELCONDITION_POWER_PLANT_UPGRADING,
-																					MODELCONDITION_POWER_PLANT_UPGRADED );
+	Drawable* draw = getObject()->getDrawable();
+	if (draw)
+		draw->clearAndSetModelConditionState(MODELCONDITION_POWER_PLANT_UPGRADING,
+		                                     MODELCONDITION_POWER_PLANT_UPGRADED);
 
 	m_extended = TRUE;
 	return UPDATE_SLEEP_FOREVER;
@@ -120,33 +115,31 @@ UpdateSleepTime PowerPlantUpdate::update()
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void PowerPlantUpdate::crc( Xfer *xfer )
+void PowerPlantUpdate::crc(Xfer* xfer)
 {
 
 	// extend base class
-	UpdateModule::crc( xfer );
-
+	UpdateModule::crc(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
-	* Version Info:
-	* 1: Initial version */
+ * Version Info:
+ * 1: Initial version */
 // ------------------------------------------------------------------------------------------------
-void PowerPlantUpdate::xfer( Xfer *xfer )
+void PowerPlantUpdate::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// extend base class
-	UpdateModule::xfer( xfer );
+	UpdateModule::xfer(xfer);
 
 	// extend complete
-	xfer->xferBool( &m_extended );
-
+	xfer->xferBool(&m_extended);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -157,5 +150,4 @@ void PowerPlantUpdate::loadPostProcess()
 
 	// extend base class
 	UpdateModule::loadPostProcess();
-
 }

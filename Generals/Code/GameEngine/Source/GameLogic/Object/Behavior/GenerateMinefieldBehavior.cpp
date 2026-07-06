@@ -27,9 +27,8 @@
 // Desc:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 #define DEFINE_SLOWDEATHPHASE_NAMES
 
 #include "Common/GlobalData.h"
@@ -53,7 +52,6 @@
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/Weapon.h"
 
-
 //-------------------------------------------------------------------------------------------------
 GenerateMinefieldBehaviorModuleData::GenerateMinefieldBehaviorModuleData()
 {
@@ -74,12 +72,11 @@ GenerateMinefieldBehaviorModuleData::GenerateMinefieldBehaviorModuleData()
 /*static*/ void GenerateMinefieldBehaviorModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
 
-	static const FieldParse dataFieldParse[] =
-	{
-		{ "MineName", INI::parseAsciiString,	nullptr, offsetof( GenerateMinefieldBehaviorModuleData, m_mineName ) },
-		{ "GenerationFX", INI::parseFXList,	nullptr, offsetof( GenerateMinefieldBehaviorModuleData, m_genFX ) },
-		{ "DistanceAroundObject", INI::parseReal, nullptr, offsetof( GenerateMinefieldBehaviorModuleData, m_distanceAroundObject ) },
-		{ "MinesPerSquareFoot", INI::parseReal, nullptr, offsetof( GenerateMinefieldBehaviorModuleData, m_minesPerSquareFoot ) },
+	static const FieldParse dataFieldParse[] = {
+		{ "MineName", INI::parseAsciiString, nullptr, offsetof(GenerateMinefieldBehaviorModuleData, m_mineName) },
+		{ "GenerationFX", INI::parseFXList, nullptr, offsetof(GenerateMinefieldBehaviorModuleData, m_genFX) },
+		{ "DistanceAroundObject", INI::parseReal, nullptr, offsetof(GenerateMinefieldBehaviorModuleData, m_distanceAroundObject) },
+		{ "MinesPerSquareFoot", INI::parseReal, nullptr, offsetof(GenerateMinefieldBehaviorModuleData, m_minesPerSquareFoot) },
 		{ "GenerateOnlyOnDeath", INI::parseBool, nullptr, offsetof(GenerateMinefieldBehaviorModuleData, m_onDeath) },
 		{ "BorderOnly", INI::parseBool, nullptr, offsetof(GenerateMinefieldBehaviorModuleData, m_borderOnly) },
 		{ "SmartBorder", INI::parseBool, nullptr, offsetof(GenerateMinefieldBehaviorModuleData, m_smartBorder) },
@@ -90,14 +87,15 @@ GenerateMinefieldBehaviorModuleData::GenerateMinefieldBehaviorModuleData()
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  BehaviorModuleData::buildFieldParse(p);
-  p.add(dataFieldParse);
-  p.add(UpgradeMuxData::getFieldParse(), offsetof( GenerateMinefieldBehaviorModuleData, m_upgradeMuxData ));
+	BehaviorModuleData::buildFieldParse(p);
+	p.add(dataFieldParse);
+	p.add(UpgradeMuxData::getFieldParse(), offsetof(GenerateMinefieldBehaviorModuleData, m_upgradeMuxData));
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-GenerateMinefieldBehavior::GenerateMinefieldBehavior( Thing *thing, const ModuleData* moduleData ) : BehaviorModule( thing, moduleData )
+GenerateMinefieldBehavior::GenerateMinefieldBehavior(Thing* thing, const ModuleData* moduleData)
+  : BehaviorModule(thing, moduleData)
 {
 	m_target.zero();
 	m_generated = false;
@@ -119,7 +117,7 @@ void GenerateMinefieldBehavior::upgradeImplementation()
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void GenerateMinefieldBehavior::onDie( const DamageInfo *damageInfo )
+void GenerateMinefieldBehavior::onDie(const DamageInfo* damageInfo)
 {
 	const GenerateMinefieldBehaviorModuleData* d = getGenerateMinefieldBehaviorModuleData();
 
@@ -196,7 +194,7 @@ Object* GenerateMinefieldBehavior::placeMineAt(const Coord3D& pt, const ThingTem
 	GeometryInfo geom = mineTemplate->getTemplateGeometryInfo();
 	Real mineRadius = mineTemplate->getTemplateGeometryInfo().getBoundingCircleRadius();
 	geom.expandFootprint(mineRadius * -(1.0f - d->m_skipIfThisMuchUnderStructure));
-	ObjectIterator *iter = ThePartitionManager->iteratePotentialCollisions( &pt, geom, orient );
+	ObjectIterator* iter = ThePartitionManager->iteratePotentialCollisions(&pt, geom, orient);
 	MemoryPoolObjectHolder hold(iter);
 	for (Object* them = iter->first(); them; them = iter->next())
 	{
@@ -235,17 +233,17 @@ void GenerateMinefieldBehavior::placeMinesAlongLine(const Coord3D& posStart, con
 	Real len = sqrt(sqr(dx) + sqr(dy));
 	Real mineRadius = mineTemplate->getTemplateGeometryInfo().getBoundingCircleRadius();
 	Real mineDiameter = mineRadius * 2.0f;
-	Real mineJitter = mineRadius*d->m_randomJitter;
+	Real mineJitter = mineRadius * d->m_randomJitter;
 	Int numMines = REAL_TO_INT_CEIL(len / mineDiameter);
 	if (numMines < 1)
 		numMines = 1;
-	Real inc = len/numMines;
+	Real inc = len / numMines;
 	for (Real place = skipOneAtStart ? inc : 0; place <= len; place += inc)
 	{
 		Coord3D pt;
 		pt.x = posStart.x + place * dx / len;
 		pt.y = posStart.y + place * dy / len;
-		pt.z = TheTerrainLogic->getGroundHeight( pt.x, pt.y );
+		pt.z = TheTerrainLogic->getGroundHeight(pt.x, pt.y);
 		offsetBySmallRandomAmount(pt, mineJitter);
 		placeMineAt(pt, mineTemplate, team, obj);
 	}
@@ -273,10 +271,10 @@ void GenerateMinefieldBehavior::placeMinesAroundRect(const Coord3D& pos, Real ma
 	const Matrix3D* mtx = obj->getTransformMatrix();
 
 	Coord3D pt[4];
-	makeCorner(pos,  majorRadius,  minorRadius, *mtx, pt[0]);
-	makeCorner(pos, -majorRadius,  minorRadius, *mtx, pt[1]);
+	makeCorner(pos, majorRadius, minorRadius, *mtx, pt[0]);
+	makeCorner(pos, -majorRadius, minorRadius, *mtx, pt[1]);
 	makeCorner(pos, -majorRadius, -minorRadius, *mtx, pt[2]);
-	makeCorner(pos,  majorRadius, -minorRadius, *mtx, pt[3]);
+	makeCorner(pos, majorRadius, -minorRadius, *mtx, pt[3]);
 
 	placeMinesAlongLine(pt[0], pt[1], mineTemplate, true);
 	placeMinesAlongLine(pt[1], pt[2], mineTemplate, true);
@@ -295,18 +293,18 @@ void GenerateMinefieldBehavior::placeMinesAroundCircle(const Coord3D& pos, Real 
 	Real circum = 2.0f * PI * radius;
 	Real mineRadius = mineTemplate->getTemplateGeometryInfo().getBoundingCircleRadius();
 	Real mineDiameter = mineRadius * 2.0f;
-	Real mineJitter = mineRadius*d->m_randomJitter;
+	Real mineJitter = mineRadius * d->m_randomJitter;
 	Int numMines = REAL_TO_INT_CEIL(circum / mineDiameter);
 	if (numMines < 1)
 		numMines = 1;
-	Real angleInc = (2*PI)/numMines;
-	Real angleLim = (2*PI) - angleInc*0.5f;
+	Real angleInc = (2 * PI) / numMines;
+	Real angleLim = (2 * PI) - angleInc * 0.5f;
 	for (Real angle = 0; angle < angleLim; angle += angleInc)
 	{
 		Coord3D pt;
 		pt.x = pos.x + radius * Cos(angle);
 		pt.y = pos.y + radius * Sin(angle);
-		pt.z = TheTerrainLogic->getGroundHeight( pt.x, pt.y );
+		pt.z = TheTerrainLogic->getGroundHeight(pt.x, pt.y);
 		offsetBySmallRandomAmount(pt, mineJitter);
 		placeMineAt(pt, mineTemplate, team, obj);
 	}
@@ -340,12 +338,12 @@ void GenerateMinefieldBehavior::placeMinesInFootprint(const GeometryInfo& geom, 
 			pt.z += target->z;
 			--maxRetry;
 		} while (isAnythingTooClose2D(minesCreatedSoFar, pt, minDistSqr) && maxRetry > 0);
-		DEBUG_ASSERTCRASH(maxRetry>0,("ran out of retries %f",minDistSqr));
+		DEBUG_ASSERTCRASH(maxRetry > 0, ("ran out of retries %f", minDistSqr));
 
 		if (getObject()->getGeometryInfo().isPointInFootprint(*target, pt))
 			continue;
 
-		Object* mine = placeMineAt(pt, mineTemplate, team, obj);	// can return null.
+		Object* mine = placeMineAt(pt, mineTemplate, team, obj);    // can return null.
 		if (mine)
 			minesCreatedSoFar.push_back(mine);
 	}
@@ -365,7 +363,7 @@ void GenerateMinefieldBehavior::placeMines()
 	const ThingTemplate* mineTemplate = TheThingFactory->findTemplate(d->m_mineName);
 	if (!mineTemplate)
 	{
-		DEBUG_CRASH(("mine %s not found",d->m_mineName.str()));
+		DEBUG_CRASH(("mine %s not found", d->m_mineName.str()));
 		return;
 	}
 
@@ -425,47 +423,44 @@ void GenerateMinefieldBehavior::placeMines()
 	}
 
 	FXList::doFXObj(d->m_genFX, obj);
-
 }
 
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void GenerateMinefieldBehavior::crc( Xfer *xfer )
+void GenerateMinefieldBehavior::crc(Xfer* xfer)
 {
 
 	// extend base class
-	BehaviorModule::crc( xfer );
+	BehaviorModule::crc(xfer);
 
 	// extend base class
-	UpgradeMux::upgradeMuxCRC( xfer );
-
+	UpgradeMux::upgradeMuxCRC(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
-	* Version Info:
-	* 1: Initial version */
+ * Version Info:
+ * 1: Initial version */
 // ------------------------------------------------------------------------------------------------
-void GenerateMinefieldBehavior::xfer( Xfer *xfer )
+void GenerateMinefieldBehavior::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// base class
-	BehaviorModule::xfer( xfer );
+	BehaviorModule::xfer(xfer);
 
 	// mux "base class"
-	UpgradeMux::upgradeMuxXfer( xfer );
+	UpgradeMux::upgradeMuxXfer(xfer);
 
 	// generated
-	xfer->xferBool( &m_generated );
-	xfer->xferBool( &m_hasTarget );
-	xfer->xferCoord3D( &m_target );
-
+	xfer->xferBool(&m_generated);
+	xfer->xferBool(&m_hasTarget);
+	xfer->xferCoord3D(&m_target);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -479,5 +474,4 @@ void GenerateMinefieldBehavior::loadPostProcess()
 
 	// extend base class
 	UpgradeMux::upgradeMuxLoadPostProcess();
-
 }

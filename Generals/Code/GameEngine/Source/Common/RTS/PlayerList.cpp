@@ -42,7 +42,7 @@
 //
 //-----------------------------------------------------------------------------
 
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Errors.h"
 #include "Common/DataChunk.h"
@@ -55,23 +55,22 @@
 #include "Common/WellKnownKeys.h"
 #include "Common/Xfer.h"
 #ifdef RTS_DEBUG
-#include "GameLogic/Object.h"
+	#include "GameLogic/Object.h"
 #endif
 #include "GameLogic/SidesList.h"
 #include "GameNetwork/NetworkDefs.h"
 
+//-----------------------------------------------------------------------------
+/*extern*/ PlayerList* ThePlayerList = nullptr;
 
 //-----------------------------------------------------------------------------
-/*extern*/ PlayerList *ThePlayerList = nullptr;
-
-//-----------------------------------------------------------------------------
-PlayerList::PlayerList() :
-	m_local(nullptr),
-	m_playerCount(0)
+PlayerList::PlayerList()
+  : m_local(nullptr)
+  , m_playerCount(0)
 {
 	// we only allocate a few of these, so don't bother pooling 'em
 	for (Int i = 0; i < MAX_PLAYER_COUNT; i++)
-		m_players[ i ] = NEW Player( i );
+		m_players[i] = NEW Player(i);
 	init();
 }
 
@@ -82,23 +81,23 @@ PlayerList::~PlayerList()
 	// to avoid debug warnings
 	init();
 
-	for( Int i = 0; i < MAX_PLAYER_COUNT; ++i )
-		delete m_players[ i ];
+	for (Int i = 0; i < MAX_PLAYER_COUNT; ++i)
+		delete m_players[i];
 }
 
 //-----------------------------------------------------------------------------
-Player *PlayerList::getNthPlayer(Int i)
+Player* PlayerList::getNthPlayer(Int i)
 {
-	if( i < 0 || i >= MAX_PLAYER_COUNT )
+	if (i < 0 || i >= MAX_PLAYER_COUNT)
 	{
-//		DEBUG_CRASH( ("Illegal player index") );
+		//		DEBUG_CRASH( ("Illegal player index") );
 		return nullptr;
 	}
 	return m_players[i];
 }
 
 //-----------------------------------------------------------------------------
-Player *PlayerList::findPlayerWithNameKey(NameKeyType key)
+Player* PlayerList::findPlayerWithNameKey(NameKeyType key)
 {
 	for (Int i = 0; i < m_playerCount; i++)
 	{
@@ -117,7 +116,7 @@ void PlayerList::reset()
 	for (int i = 0; i < MAX_PLAYER_COUNT; i++)
 		m_players[i]->deletePlayerAI();
 
-	TheTeamFactory->clear(); // cleans up energy, among other things
+	TheTeamFactory->clear();    // cleans up energy, among other things
 	init();
 }
 
@@ -132,19 +131,19 @@ void PlayerList::newGame()
 
 	// ok, now create the rest of players we need.
 	Bool setLocal = false;
-	for( i = 0; i < TheSidesList->getNumSides(); i++)
+	for (i = 0; i < TheSidesList->getNumSides(); i++)
 	{
-		Dict *d = TheSidesList->getSideInfo(i)->getDict();
+		Dict* d = TheSidesList->getSideInfo(i)->getDict();
 		AsciiString pname = d->getAsciiString(TheKey_playerName);
 		if (pname.isEmpty())
-			continue;	// it's neutral, which we've already done, so skip it.
+			continue;    // it's neutral, which we've already done, so skip it.
 
 		/// @todo The Player class should have a reset() method, instead of directly calling initFromDict() (MSB)
 		Player* p = m_players[m_playerCount++];
 		p->initFromDict(d);
 
 		// Multiplayer override
-		Bool exists;	// throwaway, since we don't care if it exists
+		Bool exists;    // throwaway, since we don't care if it exists
 		if (d->getBool(TheKey_multiplayerIsLocal, &exists))
 		{
 			DEBUG_LOG(("Player %s is multiplayer local", pname.str()));
@@ -167,7 +166,7 @@ void PlayerList::newGame()
 	if (!setLocal)
 	{
 		DEBUG_ASSERTCRASH(TheNetwork, ("*** Map has no human player... picking first nonneutral player for control"));
-		for( i = 0; i < TheSidesList->getNumSides(); i++)
+		for (i = 0; i < TheSidesList->getNumSides(); i++)
 		{
 			Player* p = getNthPlayer(i);
 			if (p != getNeutralPlayer())
@@ -183,9 +182,9 @@ void PlayerList::newGame()
 	// must reset teams *after* creating players.
 	TheTeamFactory->initFromSides(TheSidesList);
 
-	for( i = 0; i < TheSidesList->getNumSides(); i++)
+	for (i = 0; i < TheSidesList->getNumSides(); i++)
 	{
-		Dict *d = TheSidesList->getSideInfo(i)->getDict();
+		Dict* d = TheSidesList->getSideInfo(i)->getDict();
 		Player* p = findPlayerWithNameKey(NAMEKEY(d->getAsciiString(TheKey_playerName)));
 
 		AsciiString tok;
@@ -193,28 +192,28 @@ void PlayerList::newGame()
 		AsciiString enemies = d->getAsciiString(TheKey_playerEnemies);
 		while (enemies.nextToken(&tok))
 		{
-			Player *p2 = findPlayerWithNameKey(NAMEKEY(tok));
+			Player* p2 = findPlayerWithNameKey(NAMEKEY(tok));
 			if (p2)
 			{
 				p->setPlayerRelationship(p2, ENEMIES);
 			}
 			else
 			{
-				DEBUG_LOG(("unknown enemy %s",tok.str()));
+				DEBUG_LOG(("unknown enemy %s", tok.str()));
 			}
 		}
 
 		AsciiString allies = d->getAsciiString(TheKey_playerAllies);
 		while (allies.nextToken(&tok))
 		{
-			Player *p2 = findPlayerWithNameKey(NAMEKEY(tok));
+			Player* p2 = findPlayerWithNameKey(NAMEKEY(tok));
 			if (p2)
 			{
 				p->setPlayerRelationship(p2, ALLIES);
 			}
 			else
 			{
-				DEBUG_LOG(("unknown ally %s",tok.str()));
+				DEBUG_LOG(("unknown ally %s", tok.str()));
 			}
 		}
 
@@ -225,7 +224,6 @@ void PlayerList::newGame()
 
 		p->setDefaultTeam();
 	}
-
 }
 
 //-----------------------------------------------------------------------------
@@ -239,35 +237,32 @@ void PlayerList::init()
 
 	// call setLocalPlayer so that becomingLocalPlayer() gets called appropriately
 	setLocalPlayer(m_players[0]);
-
 }
 
 //-----------------------------------------------------------------------------
 void PlayerList::update()
 {
 	// update all players
-	for( Int i = 0; i < MAX_PLAYER_COUNT; i++ )
+	for (Int i = 0; i < MAX_PLAYER_COUNT; i++)
 	{
 		m_players[i]->update();
 	}
-
 }
 
 //-----------------------------------------------------------------------------
 void PlayerList::newMap()
 {
 	// update all players
-	for( Int i = 0; i < MAX_PLAYER_COUNT; i++ )
+	for (Int i = 0; i < MAX_PLAYER_COUNT; i++)
 	{
 		m_players[i]->newMap();
 	}
-
 }
 
 // ------------------------------------------------------------------------
 void PlayerList::teamAboutToBeDeleted(Team* team)
 {
-	for( Int i = 0; i < MAX_PLAYER_COUNT; i++ )
+	for (Int i = 0; i < MAX_PLAYER_COUNT; i++)
 	{
 		m_players[i]->removeTeamRelationship(team);
 	}
@@ -277,20 +272,20 @@ void PlayerList::teamAboutToBeDeleted(Team* team)
 void PlayerList::updateTeamStates()
 {
 	// Clear team flags for all players.
-	for( Int i = 0; i < MAX_PLAYER_COUNT; i++ )
+	for (Int i = 0; i < MAX_PLAYER_COUNT; i++)
 	{
 		m_players[i]->updateTeamStates();
 	}
 }
 
 //-----------------------------------------------------------------------------
-Team *PlayerList::validateTeam( AsciiString owner )
+Team* PlayerList::validateTeam(AsciiString owner)
 {
 	// owner could be a player or team. first, check team names.
-	Team *t = TheTeamFactory->findTeam(owner);
+	Team* t = TheTeamFactory->findTeam(owner);
 	if (t)
 	{
-		//DEBUG_LOG(("assigned obj %08lx to team %s",obj,owner.str()));
+		// DEBUG_LOG(("assigned obj %08lx to team %s",obj,owner.str()));
 	}
 	else
 	{
@@ -301,7 +296,7 @@ Team *PlayerList::validateTeam( AsciiString owner )
 }
 
 //-----------------------------------------------------------------------------
-void PlayerList::setLocalPlayer(Player *player)
+void PlayerList::setLocalPlayer(Player* player)
 {
 	// can't set local player to null -- if you try, you get neutral.
 	if (player == nullptr)
@@ -324,12 +319,11 @@ void PlayerList::setLocalPlayer(Player *player)
 	{
 		// did you know? you can use "%ls" to print a doublebyte string, even in a single-byte printf...
 		DEBUG_LOG(("Switching local players. The new player is named '%ls' (%s) and owns the following objects:",
-			player->getPlayerDisplayName().str(),
-			TheNameKeyGenerator->keyToName(player->getPlayerNameKey()).str()
-		));
-		for (Object *obj = player->getFirstOwnedObject(); obj; obj = obj->getNextOwnedObject())
+		           player->getPlayerDisplayName().str(),
+		           TheNameKeyGenerator->keyToName(player->getPlayerNameKey()).str()));
+		for (Object* obj = player->getFirstOwnedObject(); obj; obj = obj->getNextOwnedObject())
 		{
-			DEBUG_LOG_RAW(("Obj %08lx is of type %s",obj,obj->getTemplate()->getName().str()));
+			DEBUG_LOG_RAW(("Obj %08lx is of type %s", obj, obj->getTemplate()->getName().str()));
 			if (!player->canBuild(obj->getTemplate()))
 			{
 				DEBUG_LOG_RAW((" (NOT BUILDABLE)"));
@@ -338,70 +332,66 @@ void PlayerList::setLocalPlayer(Player *player)
 		}
 	}
 #endif
-
 }
 
 //-----------------------------------------------------------------------------
-Player *PlayerList::getPlayerFromMask( PlayerMaskType mask )
+Player* PlayerList::getPlayerFromMask(PlayerMaskType mask)
 {
-	Player *player = nullptr;
+	Player* player = nullptr;
 	Int i;
 
-	for( i = 0; i < MAX_PLAYER_COUNT; i++ )
+	for (i = 0; i < MAX_PLAYER_COUNT; i++)
 	{
 
-		player = getNthPlayer( i );
-		if( player && player->getPlayerMask() == mask )
+		player = getNthPlayer(i);
+		if (player && player->getPlayerMask() == mask)
 			return player;
-
 	}
 
-	DEBUG_CRASH( ("Player does not exist for mask") );
-	return nullptr; // mask not found
-
+	DEBUG_CRASH(("Player does not exist for mask"));
+	return nullptr;    // mask not found
 }
 
 //-----------------------------------------------------------------------------
-Player *PlayerList::getEachPlayerFromMask( PlayerMaskType& maskToAdjust )
+Player* PlayerList::getEachPlayerFromMask(PlayerMaskType& maskToAdjust)
 {
-	Player *player = nullptr;
+	Player* player = nullptr;
 	Int i;
 
-	for( i = 0; i < MAX_PLAYER_COUNT; i++ )
+	for (i = 0; i < MAX_PLAYER_COUNT; i++)
 	{
 
-		player = getNthPlayer( i );
-		if ( player && BitIsSet(player->getPlayerMask(), maskToAdjust ))
+		player = getNthPlayer(i);
+		if (player && BitIsSet(player->getPlayerMask(), maskToAdjust))
 		{
 			maskToAdjust &= (~player->getPlayerMask());
 			return player;
 		}
 	}
 
-	DEBUG_CRASH( ("No players found that contain any matching masks.") );
+	DEBUG_CRASH(("No players found that contain any matching masks."));
 	maskToAdjust = 0;
-	return nullptr; // mask not found
+	return nullptr;    // mask not found
 }
 
-
 //-------------------------------------------------------------------------------------------------
-PlayerMaskType PlayerList::getPlayersWithRelationship( Int srcPlayerIndex, UnsignedInt allowedRelationships )
+PlayerMaskType PlayerList::getPlayersWithRelationship(Int srcPlayerIndex, UnsignedInt allowedRelationships)
 {
 	PlayerMaskType retVal = 0;
 
 	if (allowedRelationships == 0)
 		return retVal;
 
-	Player *srcPlayer = getNthPlayer(srcPlayerIndex);
+	Player* srcPlayer = getNthPlayer(srcPlayerIndex);
 	if (!srcPlayer)
 		return retVal;
 
 	if (BitIsSet(allowedRelationships, ALLOW_SAME_PLAYER))
 		BitSet(retVal, srcPlayer->getPlayerMask());
 
-	for ( Int i = 0; i < getPlayerCount(); ++i )
+	for (Int i = 0; i < getPlayerCount(); ++i)
 	{
-		Player *player = getNthPlayer(i);
+		Player* player = getNthPlayer(i);
 		if (!player)
 			continue;
 
@@ -431,47 +421,45 @@ PlayerMaskType PlayerList::getPlayersWithRelationship( Int srcPlayerIndex, Unsig
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void PlayerList::crc( Xfer *xfer )
+void PlayerList::crc(Xfer* xfer)
 {
-	xfer->xferInt( &m_playerCount );
+	xfer->xferInt(&m_playerCount);
 
-	for( Int i = 0; i < m_playerCount; ++i )
-		xfer->xferSnapshot( m_players[ i ] );
+	for (Int i = 0; i < m_playerCount; ++i)
+		xfer->xferSnapshot(m_players[i]);
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Xfer Method
-	* Version Info:
-	* 1: Initial version */
+ * Version Info:
+ * 1: Initial version */
 // ------------------------------------------------------------------------------------------------
-void PlayerList::xfer( Xfer *xfer )
+void PlayerList::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// xfer the player count
 	Int playerCount = m_playerCount;
-	xfer->xferInt( &playerCount );
+	xfer->xferInt(&playerCount);
 
 	//
 	// sanity, the player count read from the file should match our player count that
 	// was setup from the bare bones map load since that data can't change during run time
 	//
-	if( playerCount != m_playerCount )
+	if (playerCount != m_playerCount)
 	{
 
-		DEBUG_CRASH(( "Invalid player count '%d', should be '%d'", playerCount, m_playerCount ));
+		DEBUG_CRASH(("Invalid player count '%d', should be '%d'", playerCount, m_playerCount));
 		throw SC_INVALID_DATA;
-
 	}
 
 	// xfer each of the player data
-	for( Int i = 0; i < playerCount; ++i )
-		xfer->xferSnapshot( m_players[ i ] );
-
+	for (Int i = 0; i < playerCount; ++i)
+		xfer->xferSnapshot(m_players[i]);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -479,6 +467,4 @@ void PlayerList::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void PlayerList::loadPostProcess()
 {
-
 }
-

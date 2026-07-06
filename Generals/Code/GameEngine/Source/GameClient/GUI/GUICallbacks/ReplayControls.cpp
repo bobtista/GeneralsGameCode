@@ -28,7 +28,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 
 #include "GameClient/GameWindow.h"
 #include "GameClient/Gadget.h"
@@ -37,21 +37,20 @@
 //-------------------------------------------------------------------------------------------------
 /** Input procedure for the control bar */
 //-------------------------------------------------------------------------------------------------
-WindowMsgHandledType ReplayControlInput( GameWindow *window, UnsignedInt msg,
-																			WindowMsgData mData1, WindowMsgData mData2 )
+WindowMsgHandledType ReplayControlInput(GameWindow* window, UnsignedInt msg,
+                                        WindowMsgData mData1, WindowMsgData mData2)
 {
 
 	return MSG_IGNORED;
-
 }
 
 //-------------------------------------------------------------------------------------------------
 /** System callback for the control bar parent */
 //-------------------------------------------------------------------------------------------------
-WindowMsgHandledType ReplayControlSystem( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+WindowMsgHandledType ReplayControlSystem(GameWindow* window, UnsignedInt msg,
+                                         WindowMsgData mData1, WindowMsgData mData2)
 {
-	switch( msg )
+	switch (msg)
 	{
 
 		//---------------------------------------------------------------------------------------------
@@ -59,16 +58,12 @@ WindowMsgHandledType ReplayControlSystem( GameWindow *window, UnsignedInt msg,
 		{
 
 			break;
-
 		}
 
 		//---------------------------------------------------------------------------------------------
 		default:
 			return MSG_IGNORED;
-
 	}
 
 	return MSG_HANDLED;
-
 }
-

@@ -42,7 +42,5 @@ class W3DModuleFactory : public ModuleFactory
 {
 
 public:
-
 	virtual void init() override;
-
 };

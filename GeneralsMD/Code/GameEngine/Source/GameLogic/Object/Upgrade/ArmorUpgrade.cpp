@@ -50,7 +50,7 @@
 //-----------------------------------------------------------------------------
 // USER INCLUDES //////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Xfer.h"
 #include "Common/Player.h"
@@ -72,7 +72,8 @@
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-ArmorUpgrade::ArmorUpgrade( Thing *thing, const ModuleData* moduleData ) : UpgradeModule( thing, moduleData )
+ArmorUpgrade::ArmorUpgrade(Thing* thing, const ModuleData* moduleData)
+  : UpgradeModule(thing, moduleData)
 {
 }
 
@@ -89,16 +90,16 @@ void ArmorUpgrade::upgradeImplementation()
 	// Very simple; just need to flag the Object as having the player upgrade, and the WeaponSet chooser
 	// will do the work of picking the right one from ini.  This comment is as long as the code.
 	// STILL IN PROGRESS
-	Object *obj = getObject();
-	if( !obj )
+	Object* obj = getObject();
+	if (!obj)
 		return;
 
 	BodyModuleInterface* body = obj->getBodyModule();
-	if ( body )
-		body->setArmorSetFlag( ARMORSET_PLAYER_UPGRADE );
+	if (body)
+		body->setArmorSetFlag(ARMORSET_PLAYER_UPGRADE);
 
 	// Unique case for AMERICA to test for upgrade to set flag
-	if(isTriggeredBy("Upgrade_AmericaChemicalSuits"))
+	if (isTriggeredBy("Upgrade_AmericaChemicalSuits"))
 	{
 		obj->getDrawable()->setTerrainDecal(TERRAIN_DECAL_CHEMSUIT);
 	}
@@ -107,30 +108,28 @@ void ArmorUpgrade::upgradeImplementation()
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void ArmorUpgrade::crc( Xfer *xfer )
+void ArmorUpgrade::crc(Xfer* xfer)
 {
 
 	// extend base class
-	UpgradeModule::crc( xfer );
-
+	UpgradeModule::crc(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
-	* Version Info:
-	* 1: Initial version */
+ * Version Info:
+ * 1: Initial version */
 // ------------------------------------------------------------------------------------------------
-void ArmorUpgrade::xfer( Xfer *xfer )
+void ArmorUpgrade::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// extend base class
-	UpgradeModule::xfer( xfer );
-
+	UpgradeModule::xfer(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -141,5 +140,4 @@ void ArmorUpgrade::loadPostProcess()
 
 	// extend base class
 	UpgradeModule::loadPostProcess();
-
 }

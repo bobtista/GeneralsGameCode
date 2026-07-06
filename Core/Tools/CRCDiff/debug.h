@@ -24,13 +24,14 @@
 
 #ifdef DEBUG
 
-#include <cstdarg>
+	#include <cstdarg>
 
-void DebugLog( const char *fmt, ... );
-#define DEBUG_LOG(x) DebugLog x
+void DebugLog(const char* fmt, ...);
+	#define DEBUG_LOG(x) DebugLog x
 
-#else // DEBUG
+#else    // DEBUG
 
-#define DEBUG_LOG(x) {}
+	#define DEBUG_LOG(x) \
+		{}
 
-#endif // DEBUG
+#endif    // DEBUG

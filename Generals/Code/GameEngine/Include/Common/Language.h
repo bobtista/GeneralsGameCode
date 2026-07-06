@@ -72,9 +72,9 @@ typedef enum
 
 } LanguageID;
 
-#define GameArrayEnd(array) (array)[(sizeof(array)/sizeof((array)[0]))-1] = 0
+#define GameArrayEnd(array) (array)[(sizeof(array) / sizeof((array)[0])) - 1] = 0
 
 // INLINING ///////////////////////////////////////////////////////////////////
 
 // EXTERNALS //////////////////////////////////////////////////////////////////
-extern LanguageID OurLanguage;  ///< our current language definition
+extern LanguageID OurLanguage;    ///< our current language definition

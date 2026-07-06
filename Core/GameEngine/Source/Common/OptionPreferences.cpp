@@ -29,7 +29,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/AudioSettings.h"
 #include "Common/GameAudio.h"
@@ -127,7 +127,7 @@ UnsignedInt OptionPreferences::getLANIPAddress()
 {
 	AsciiString selectedIP = (*this)["IPAddress"];
 	IPEnumeration IPs;
-	EnumeratedIP *IPlist = IPs.getAddresses();
+	EnumeratedIP* IPlist = IPs.getAddresses();
 	while (IPlist)
 	{
 		if (selectedIP.compareNoCase(IPlist->getIPstring()) == 0)
@@ -155,7 +155,7 @@ UnsignedInt OptionPreferences::getOnlineIPAddress()
 {
 	AsciiString selectedIP = (*this)["GameSpyIPAddress"];
 	IPEnumeration IPs;
-	EnumeratedIP *IPlist = IPs.getAddresses();
+	EnumeratedIP* IPlist = IPs.getAddresses();
 	while (IPlist)
 	{
 		if (selectedIP.compareNoCase(IPlist->getIPstring()) == 0)
@@ -185,7 +185,8 @@ Bool OptionPreferences::getArchiveReplaysEnabled() const
 	if (it == end())
 		return FALSE;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -197,7 +198,8 @@ Bool OptionPreferences::getAlternateMouseModeEnabled()
 	if (it == end())
 		return TheGlobalData->m_useAlternateMouse;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -209,7 +211,8 @@ Bool OptionPreferences::getRightMouseScrollWithAlternateMouseEnabled() const
 	if (it == end())
 		return TheGlobalData->m_useRightMouseScrollWithAlternateMouse;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -221,7 +224,8 @@ Bool OptionPreferences::getRetaliationModeEnabled()
 	if (it == end())
 		return TheGlobalData->m_clientRetaliationModeEnabled;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -230,10 +234,10 @@ Bool OptionPreferences::getRetaliationModeEnabled()
 Bool OptionPreferences::getDoubleClickAttackMoveEnabled()
 {
 	OptionPreferences::const_iterator it = find("UseDoubleClickAttackMove");
-	if( it == end() )
+	if (it == end())
 		return TheGlobalData->m_doubleClickAttackMove;
 
-	if( stricmp( it->second.str(), "yes" ) == 0 )
+	if (stricmp(it->second.str(), "yes") == 0)
 		return TRUE;
 
 	return FALSE;
@@ -253,7 +257,7 @@ Real OptionPreferences::getScrollFactor()
 	if (factor < 1)
 		factor = 1;
 
-	return factor/100.0f;
+	return factor / 100.0f;
 }
 
 Bool OptionPreferences::getDrawScrollAnchor()
@@ -263,7 +267,8 @@ Bool OptionPreferences::getDrawScrollAnchor()
 	if (it == end())
 		return FALSE;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -276,7 +281,8 @@ Bool OptionPreferences::getMoveScrollAnchor()
 	if (it == end())
 		return TRUE;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -378,7 +384,8 @@ Bool OptionPreferences::usesSystemMapDir()
 	if (it == end())
 		return TRUE;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -390,7 +397,8 @@ Bool OptionPreferences::saveCameraInReplays()
 	if (it == end())
 		return TRUE;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -402,7 +410,8 @@ Bool OptionPreferences::useCameraInReplays()
 	if (it == end())
 		return TRUE;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -444,7 +453,8 @@ Bool OptionPreferences::getSendDelay()
 	if (it == end())
 		return TheGlobalData->m_firewallSendDelay;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -467,7 +477,8 @@ Int OptionPreferences::getFirewallBehavior()
 Short OptionPreferences::getFirewallPortAllocationDelta()
 {
 	OptionPreferences::const_iterator it = find("FirewallPortAllocationDelta");
-	if (it == end()) {
+	if (it == end())
+	{
 		return TheGlobalData->m_firewallPortAllocationDelta;
 	}
 
@@ -478,7 +489,8 @@ Short OptionPreferences::getFirewallPortAllocationDelta()
 UnsignedShort OptionPreferences::getFirewallPortOverride()
 {
 	OptionPreferences::const_iterator it = find("FirewallPortOverride");
-	if (it == end()) {
+	if (it == end())
+	{
 		return TheGlobalData->m_firewallPortOverride;
 	}
 
@@ -491,13 +503,15 @@ UnsignedShort OptionPreferences::getFirewallPortOverride()
 Bool OptionPreferences::getFirewallNeedToRefresh()
 {
 	OptionPreferences::const_iterator it = find("FirewallNeedToRefresh");
-	if (it == end()) {
+	if (it == end())
+	{
 		return FALSE;
 	}
 
 	Bool retval = FALSE;
 	AsciiString str = it->second;
-	if (str.compareNoCase("TRUE") == 0) {
+	if (str.compareNoCase("TRUE") == 0)
+	{
 		retval = TRUE;
 	}
 	return retval;
@@ -525,7 +539,7 @@ Real OptionPreferences::getSoundVolume()
 	if (it == end())
 	{
 		Real relative = TheAudio->getAudioSettings()->m_relative2DVolume;
-		if( relative < 0 )
+		if (relative < 0)
 		{
 			Real scale = 1.0f + relative;
 			return TheAudio->getAudioSettings()->m_defaultSoundVolume * 100.0f * scale;
@@ -533,7 +547,7 @@ Real OptionPreferences::getSoundVolume()
 		return TheAudio->getAudioSettings()->m_defaultSoundVolume * 100.0f;
 	}
 
-	Real volume = (Real) atof(it->second.str());
+	Real volume = (Real)atof(it->second.str());
 	if (volume < 0.0f)
 	{
 		volume = 0.0f;
@@ -547,7 +561,7 @@ Real OptionPreferences::get3DSoundVolume()
 	if (it == end())
 	{
 		Real relative = TheAudio->getAudioSettings()->m_relative2DVolume;
-		if( relative > 0 )
+		if (relative > 0)
 		{
 			Real scale = 1.0f - relative;
 			return TheAudio->getAudioSettings()->m_default3DSoundVolume * 100.0f * scale;
@@ -555,7 +569,7 @@ Real OptionPreferences::get3DSoundVolume()
 		return TheAudio->getAudioSettings()->m_default3DSoundVolume * 100.0f;
 	}
 
-	Real volume = (Real) atof(it->second.str());
+	Real volume = (Real)atof(it->second.str());
 	if (volume < 0.0f)
 	{
 		volume = 0.0f;
@@ -569,7 +583,7 @@ Real OptionPreferences::getSpeechVolume()
 	if (it == end())
 		return TheAudio->getAudioSettings()->m_defaultSpeechVolume * 100.0f;
 
-	Real volume = (Real) atof(it->second.str());
+	Real volume = (Real)atof(it->second.str());
 	if (volume < 0.0f)
 	{
 		volume = 0.0f;
@@ -583,7 +597,8 @@ Bool OptionPreferences::getCloudShadowsEnabled()
 	if (it == end())
 		return TheGlobalData->m_useCloudMap;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -595,7 +610,8 @@ Bool OptionPreferences::getLightmapEnabled()
 	if (it == end())
 		return TheGlobalData->m_useLightMap;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -607,7 +623,8 @@ Bool OptionPreferences::getSmoothWaterEnabled()
 	if (it == end())
 		return TheGlobalData->m_showSoftWaterEdge;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -619,7 +636,8 @@ Bool OptionPreferences::getTreesEnabled()
 	if (it == end())
 		return TheGlobalData->m_useTrees;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -631,8 +649,9 @@ Bool OptionPreferences::getExtraAnimationsDisabled()
 	if (it == end())
 		return TheGlobalData->m_useDrawModuleLOD;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
-		return FALSE;	//we are enabling extra animations, so disabled LOD
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
+		return FALSE;    // we are enabling extra animations, so disabled LOD
 	}
 	return TRUE;
 }
@@ -643,7 +662,8 @@ Bool OptionPreferences::getUseHeatEffects()
 	if (it == end())
 		return TheGlobalData->m_useHeatEffects;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -655,7 +675,8 @@ Bool OptionPreferences::getDynamicLODEnabled()
 	if (it == end())
 		return TheGlobalData->m_enableDynamicLOD;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -667,7 +688,8 @@ Bool OptionPreferences::getFPSLimitEnabled()
 	if (it == end())
 		return TheGlobalData->m_useFpsLimit;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -679,7 +701,8 @@ Bool OptionPreferences::get3DShadowsEnabled()
 	if (it == end())
 		return TheGlobalData->m_useShadowVolumes;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -691,7 +714,8 @@ Bool OptionPreferences::get2DShadowsEnabled()
 	if (it == end())
 		return TheGlobalData->m_useShadowDecals;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -703,7 +727,8 @@ Bool OptionPreferences::getBuildingOcclusionEnabled()
 	if (it == end())
 		return TheGlobalData->m_enableBehindBuildingMarkers;
 
-	if (stricmp(it->second.str(), "yes") == 0) {
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
 		return TRUE;
 	}
 	return FALSE;
@@ -715,8 +740,8 @@ Int OptionPreferences::getParticleCap()
 	if (it == end())
 		return TheGlobalData->m_maxParticleCount;
 
-	Int factor = (Int) atoi(it->second.str());
-	if (factor < 100)	//clamp to at least 100 particles.
+	Int factor = (Int)atoi(it->second.str());
+	if (factor < 100)    // clamp to at least 100 particles.
 		factor = 100;
 
 	return factor;
@@ -726,11 +751,11 @@ Int OptionPreferences::getTextureReduction()
 {
 	OptionPreferences::const_iterator it = find("TextureReduction");
 	if (it == end())
-		return -1;	//unknown texture reduction
+		return -1;    // unknown texture reduction
 
-	Int factor = (Int) atoi(it->second.str());
-	if (factor > 2)	//clamp it.
-		factor=2;
+	Int factor = (Int)atoi(it->second.str());
+	if (factor > 2)    // clamp it.
+		factor = 2;
 	return factor;
 }
 
@@ -740,11 +765,11 @@ Real OptionPreferences::getGammaValue()
 	if (it == end())
 		return 50.0f;
 
-	Real gamma = (Real) atoi(it->second.str());
+	Real gamma = (Real)atoi(it->second.str());
 	return gamma;
 }
 
-void OptionPreferences::getResolution(Int *xres, Int *yres)
+void OptionPreferences::getResolution(Int* xres, Int* yres)
 {
 	*xres = TheGlobalData->m_xResolution;
 	*yres = TheGlobalData->m_yResolution;
@@ -753,12 +778,12 @@ void OptionPreferences::getResolution(Int *xres, Int *yres)
 	if (it == end())
 		return;
 
-	Int selectedXRes,selectedYRes;
-	if (sscanf(it->second.str(),"%d%d", &selectedXRes, &selectedYRes) != 2)
+	Int selectedXRes, selectedYRes;
+	if (sscanf(it->second.str(), "%d%d", &selectedXRes, &selectedYRes) != 2)
 		return;
 
-	*xres=selectedXRes;
-	*yres=selectedYRes;
+	*xres = selectedXRes;
+	*yres = selectedYRes;
 }
 
 Real OptionPreferences::getMusicVolume()
@@ -767,7 +792,7 @@ Real OptionPreferences::getMusicVolume()
 	if (it == end())
 		return TheAudio->getAudioSettings()->m_defaultMusicVolume * 100.0f;
 
-	Real volume = (Real) atof(it->second.str());
+	Real volume = (Real)atof(it->second.str());
 	if (volume < 0.0f)
 	{
 		volume = 0.0f;
@@ -781,7 +806,7 @@ Real OptionPreferences::getMoneyTransactionVolume() const
 	if (it == end())
 		return TheAudio->getAudioSettings()->m_defaultMoneyTransactionVolume * 100.0f;
 
-	Real volume = (Real) atof(it->second.str());
+	Real volume = (Real)atof(it->second.str());
 	if (volume < 0.0f)
 		volume = 0.0f;
 
@@ -891,6 +916,6 @@ Real OptionPreferences::getGameWindowTransitionSpeedMultiplier() const
 	if (it == end())
 		return 1.0f;
 
-	Real speed = (Real) atof(it->second.str());
+	Real speed = (Real)atof(it->second.str());
 	return clamp(1.0f, speed, 1000.0f);
 }

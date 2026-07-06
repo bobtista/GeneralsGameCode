@@ -20,42 +20,42 @@
 
 #include <limits.h>
 #ifndef _WIN32
-#include <unistd.h>
+	#include <unistd.h>
 #endif
 #include "wstypes.h"
 
 #ifdef _REENTRANT
-#ifndef _WIN32
-#include <semaphore.h>
-#else
-#include <windows.h>
-#endif // _WIN32
-#endif // _REENTRANT
+	#ifndef _WIN32
+		#include <semaphore.h>
+	#else
+		#include <windows.h>
+	#endif    // _WIN32
+#endif    // _REENTRANT
 
 // Windows headers have a tendency to redefine IN
 #ifdef IN
-#undef IN
+	#undef IN
 #endif
 #define IN const
 
 class Sem4
 {
- private:
-  #ifdef _REENTRANT
-#ifndef _WIN32
-  sem_t sem;
-#else
-  HANDLE sem;
+private:
+#ifdef _REENTRANT
+	#ifndef _WIN32
+	sem_t sem;
+	#else
+	HANDLE sem;
+	#endif
 #endif
-  #endif
- public:
-               Sem4();
-               Sem4(uint32 value);
-              ~Sem4();
+public:
+	Sem4();
+	Sem4(uint32 value);
+	~Sem4();
 
-  sint32       Wait(void) const;
-  sint32       TryWait(void) const;
-  sint32       Post(void) const;
-  sint32       GetValue(int *sval) const;
-  sint32       Destroy(void);
+	sint32 Wait(void) const;
+	sint32 TryWait(void) const;
+	sint32 Post(void) const;
+	sint32 GetValue(int* sval) const;
+	sint32 Destroy(void);
 };

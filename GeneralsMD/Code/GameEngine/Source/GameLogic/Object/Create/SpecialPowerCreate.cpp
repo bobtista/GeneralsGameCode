@@ -28,7 +28,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Xfer.h"
 #include "GameLogic/Object.h"
@@ -37,16 +37,15 @@
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-SpecialPowerCreate::SpecialPowerCreate( Thing *thing, const ModuleData* moduleData ) : CreateModule( thing, moduleData )
+SpecialPowerCreate::SpecialPowerCreate(Thing* thing, const ModuleData* moduleData)
+  : CreateModule(thing, moduleData)
 {
-
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 SpecialPowerCreate::~SpecialPowerCreate()
 {
-
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -57,10 +56,10 @@ void SpecialPowerCreate::onCreate()
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerCreate::onBuildComplete()
 {
-	if( ! shouldDoOnBuildComplete() )
+	if (!shouldDoOnBuildComplete())
 		return;
 
-	CreateModule::onBuildComplete(); // extend
+	CreateModule::onBuildComplete();    // extend
 
 	for (BehaviorModule** m = getObject()->getBehaviorModules(); *m; ++m)
 	{
@@ -75,30 +74,28 @@ void SpecialPowerCreate::onBuildComplete()
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void SpecialPowerCreate::crc( Xfer *xfer )
+void SpecialPowerCreate::crc(Xfer* xfer)
 {
 
 	// extend base class
-	CreateModule::crc( xfer );
-
+	CreateModule::crc(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
-	* Version Info:
-	* 1: Initial version */
+ * Version Info:
+ * 1: Initial version */
 // ------------------------------------------------------------------------------------------------
-void SpecialPowerCreate::xfer( Xfer *xfer )
+void SpecialPowerCreate::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// extend base class
-	CreateModule::xfer( xfer );
-
+	CreateModule::xfer(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -109,5 +106,4 @@ void SpecialPowerCreate::loadPostProcess()
 
 	// extend base class
 	CreateModule::loadPostProcess();
-
 }

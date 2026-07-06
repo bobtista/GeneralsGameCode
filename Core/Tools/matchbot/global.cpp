@@ -16,7 +16,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <cstdlib> // for FILE ops
+#include <cstdlib>    // for FILE ops
 #include "global.h"
 
 GlobalClass Global;
@@ -24,9 +24,9 @@ GlobalClass Global;
 GlobalClass::GlobalClass(void)
 {}
 
-bool GlobalClass::ReadFile(const char *fname)
+bool GlobalClass::ReadFile(const char* fname)
 {
-	FILE *fp;
+	FILE* fp;
 	if ((fp = fopen(fname, "r")) == nullptr)
 		return false;
 	config.readFile(fp);
@@ -46,6 +46,4 @@ bool GlobalClass::GetString(const Wstring& key, Wstring& val)
 	}
 
 	return true;
-
 }
-

@@ -42,7 +42,7 @@
 //
 //-----------------------------------------------------------------------------
 
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 #include "Common/Money.h"
 
 #include "Common/AudioSettings.h"
@@ -97,10 +97,10 @@ void Money::deposit(UnsignedInt amountToDeposit, Bool playSound, Bool trackIncom
 
 	m_money += amountToDeposit;
 
-	if( amountToDeposit > 0 )
+	if (amountToDeposit > 0)
 	{
-		Player *player = ThePlayerList->getNthPlayer( m_playerIndex );
-		if( player )
+		Player* player = ThePlayerList->getNthPlayer(m_playerIndex);
+		if (player)
 		{
 			player->getAcademyStats()->recordIncome();
 		}
@@ -152,19 +152,18 @@ void Money::triggerAudioEvent(const AudioEventRTS& audioEvent)
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void Money::crc( Xfer *xfer )
+void Money::crc(Xfer* xfer)
 {
-
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
-	* Version Info:
-	* 1: Initial version
-	* 2: TheSuperHackers @tweak Serialize income tracking
-	*/
+ * Version Info:
+ * 1: Initial version
+ * 2: TheSuperHackers @tweak Serialize income tracking
+ */
 // ------------------------------------------------------------------------------------------------
-void Money::xfer( Xfer *xfer )
+void Money::xfer(Xfer* xfer)
 {
 
 	// version
@@ -174,10 +173,10 @@ void Money::xfer( Xfer *xfer )
 	XferVersion currentVersion = 2;
 #endif
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// money value
-	xfer->xferUnsignedInt( &m_money );
+	xfer->xferUnsignedInt(&m_money);
 
 	if (version <= 1)
 	{
@@ -197,18 +196,16 @@ void Money::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void Money::loadPostProcess()
 {
-
 }
-
 
 // ------------------------------------------------------------------------------------------------
 /** Parse a money amount for the ini file. E.g. DefaultStartingMoney = 10000 */
 // ------------------------------------------------------------------------------------------------
-void Money::parseMoneyAmount( INI *ini, void *instance, void *store, const void* userData )
+void Money::parseMoneyAmount(INI* ini, void* instance, void* store, const void* userData)
 {
-  // Someday, maybe, have multiple fields like Gold:10000 Wood:1000 Tiberian:10
-  Money * money = (Money *)store;
+	// Someday, maybe, have multiple fields like Gold:10000 Wood:1000 Tiberian:10
+	Money* money = (Money*)store;
 	UnsignedInt moneyAmount;
-	INI::parseUnsignedInt( ini, instance, &moneyAmount, userData );
+	INI::parseUnsignedInt(ini, instance, &moneyAmount, userData);
 	money->setStartingCash(moneyAmount);
 }

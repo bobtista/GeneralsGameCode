@@ -37,7 +37,8 @@
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-SubdualDamageHelper::SubdualDamageHelper( Thing *thing, const ModuleData *modData ) : ObjectHelper( thing, modData )
+SubdualDamageHelper::SubdualDamageHelper(Thing* thing, const ModuleData* modData)
+  : ObjectHelper(thing, modData)
 {
 	m_healingStepCountdown = 0;
 
@@ -48,17 +49,16 @@ SubdualDamageHelper::SubdualDamageHelper( Thing *thing, const ModuleData *modDat
 // ------------------------------------------------------------------------------------------------
 SubdualDamageHelper::~SubdualDamageHelper()
 {
-
 }
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 UpdateSleepTime SubdualDamageHelper::update()
 {
-	BodyModuleInterface *body = getObject()->getBodyModule();
+	BodyModuleInterface* body = getObject()->getBodyModule();
 
 	m_healingStepCountdown--;
-	if( m_healingStepCountdown > 0 )
+	if (m_healingStepCountdown > 0)
 		return UPDATE_SLEEP_NONE;
 
 	m_healingStepCountdown = body->getSubdualDamageHealRate();
@@ -68,7 +68,7 @@ UpdateSleepTime SubdualDamageHelper::update()
 	removeSubdueDamage.in.m_amount = -body->getSubdualDamageHealAmount();
 	body->attemptDamage(&removeSubdueDamage);
 
-	if( body->hasAnySubdualDamage() )
+	if (body->hasAnySubdualDamage())
 		return UPDATE_SLEEP_NONE;
 	else
 		return UPDATE_SLEEP_FOREVER;
@@ -76,9 +76,9 @@ UpdateSleepTime SubdualDamageHelper::update()
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-void SubdualDamageHelper::notifySubdualDamage( Real amount )
+void SubdualDamageHelper::notifySubdualDamage(Real amount)
 {
-	if( amount > 0 )
+	if (amount > 0)
 	{
 		m_healingStepCountdown = getObject()->getBodyModule()->getSubdualDamageHealRate();
 		setWakeFrame(getObject(), UPDATE_SLEEP_NONE);
@@ -88,32 +88,30 @@ void SubdualDamageHelper::notifySubdualDamage( Real amount )
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void SubdualDamageHelper::crc( Xfer *xfer )
+void SubdualDamageHelper::crc(Xfer* xfer)
 {
 
 	// object helper crc
-	ObjectHelper::crc( xfer );
-
+	ObjectHelper::crc(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
-	* Version Info;
-	* 1: Initial version */
+ * Version Info;
+ * 1: Initial version */
 // ------------------------------------------------------------------------------------------------
-void SubdualDamageHelper::xfer( Xfer *xfer )
+void SubdualDamageHelper::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// object helper base class
-	ObjectHelper::xfer( xfer );
+	ObjectHelper::xfer(xfer);
 
-	xfer->xferUnsignedInt( &m_healingStepCountdown );
-
+	xfer->xferUnsignedInt(&m_healingStepCountdown);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -124,6 +122,4 @@ void SubdualDamageHelper::loadPostProcess()
 
 	// object helper base class
 	ObjectHelper::loadPostProcess();
-
 }
-

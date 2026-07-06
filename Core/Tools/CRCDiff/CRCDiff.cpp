@@ -40,16 +40,17 @@ static void exitWait(void)
 //=============================================================================
 
 #define LINESIZE 1024
-static bool getNextLine(FILE *fp, char *line, int& frame, int& index) {
+static bool getNextLine(FILE* fp, char* line, int& frame, int& index)
+{
 	if (!fp)
 		return false;
 
 	char buf[LINESIZE];
-	while (fgets(buf, LINESIZE-1, fp) != nullptr)
+	while (fgets(buf, LINESIZE - 1, fp) != nullptr)
 	{
 		int len = strlen(buf);
-		if (buf[len-1] == '\n')
-			buf[len-1] = '\0';
+		if (buf[len - 1] == '\n')
+			buf[len - 1] = '\0';
 		if (sscanf(buf, "%d:%d ", &frame, &index) == 2)
 		{
 			strcpy(line, buf);
@@ -63,14 +64,15 @@ static bool getNextLine(FILE *fp, char *line, int& frame, int& index) {
 
 //=============================================================================
 
-static std::string readInFile(const char *fname) {
-	FILE *fp = fopen(fname, "rt");
+static std::string readInFile(const char* fname)
+{
+	FILE* fp = fopen(fname, "rt");
 	if (!fp)
 		return "";
 
 	std::string ret;
 	char buf[LINESIZE];
-	while (fgets(buf, LINESIZE-1, fp) != nullptr)
+	while (fgets(buf, LINESIZE - 1, fp) != nullptr)
 	{
 		ret.append(buf);
 	}
@@ -81,14 +83,14 @@ static std::string readInFile(const char *fname) {
 
 //=============================================================================
 
-static FILE *ofp = nullptr;
+static FILE* ofp = nullptr;
 
 void dumpQueued(void);
 
-static void outputLine(const char *line)
+static void outputLine(const char* line)
 {
 	dumpQueued();
-	//cout << line << endl;
+	// cout << line << endl;
 	if (ofp)
 	{
 		fputs(line, ofp);
@@ -98,8 +100,8 @@ static void outputLine(const char *line)
 //=============================================================================
 
 static void outputLine(int frame, int index, int linkNum,
-											 const char *class1, const char *line1,
-											 const char *class2, const char *line2, bool same = false)
+                       const char* class1, const char* line1,
+                       const char* class2, const char* line2, bool same = false)
 {
 	dumpQueued();
 	if (!line1)
@@ -119,21 +121,21 @@ static void outputLine(int frame, int index, int linkNum,
 	if (same)
 	{
 		e.addExpansion("NAME", "");
-		e.addExpansion("PREV", intToString(linkNum-1));
+		e.addExpansion("PREV", intToString(linkNum - 1));
 		e.addExpansion("NEXT", intToString(linkNum));
 	}
 	else
 	{
 		e.addExpansion("NAME", intToString(linkNum));
-		e.addExpansion("PREV", intToString(linkNum-1));
-		e.addExpansion("NEXT", intToString(linkNum+1));
+		e.addExpansion("PREV", intToString(linkNum - 1));
+		e.addExpansion("NEXT", intToString(linkNum + 1));
 	}
 
 	std::string out;
 	e.expand(tableRow, out);
-	const char *buf = out.c_str();
+	const char* buf = out.c_str();
 
-	//cout << buf << endl;
+	// cout << buf << endl;
 	if (ofp)
 	{
 		fputs(buf, ofp);
@@ -143,7 +145,7 @@ static void outputLine(int frame, int index, int linkNum,
 //=============================================================================
 
 std::list<std::string> queuedLines;
-static void queueLine(int frame, int index, const char *line1)
+static void queueLine(int frame, int index, const char* line1)
 {
 	if (!line1)
 		line1 = "&nbsp;";
@@ -164,7 +166,7 @@ static void queueLine(int frame, int index, const char *line1)
 	if (queuedLines.size() > 150)
 		queuedLines.pop_front();
 
-	//cout << buf << endl;
+	// cout << buf << endl;
 }
 
 void dumpQueued(void)
@@ -172,8 +174,8 @@ void dumpQueued(void)
 	while (!queuedLines.empty())
 	{
 		std::list<std::string>::iterator it = queuedLines.begin();
-		const char *buf = (*it).c_str();
-		//cout << buf << endl;
+		const char* buf = (*it).c_str();
+		// cout << buf << endl;
 		if (ofp)
 		{
 			fputs(buf, ofp);
@@ -185,12 +187,12 @@ void dumpQueued(void)
 
 //=============================================================================
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
 	atexit(exitWait);
-	const char *inFname[2];
-	const char *outFname = "out.html";
-	FILE *ifp[2] = { nullptr, nullptr};
+	const char* inFname[2];
+	const char* outFname = "out.html";
+	FILE* ifp[2] = { nullptr, nullptr };
 	std::string header, footer;
 
 	if (argc != 7)
@@ -201,7 +203,7 @@ int main(int argc, char *argv[])
 		footer = readInFile("bottom.html");
 		inFname[0] = "test1.txt";
 		inFname[1] = "test2.txt";
-		//return 0;
+		// return 0;
 	}
 	else
 	{
@@ -230,9 +232,9 @@ int main(int argc, char *argv[])
 	ofp = fopen(outFname, "wt");
 
 	char lastLine[2][LINESIZE];
-	int lastFrame[2] = {-1, -1};
-	int lastIndex[2] = {-1, -1};
-	bool fileOk[2] = {true, true};
+	int lastFrame[2] = { -1, -1 };
+	int lastIndex[2] = { -1, -1 };
+	bool fileOk[2] = { true, true };
 
 	outputLine(header.c_str());
 
@@ -244,41 +246,41 @@ int main(int argc, char *argv[])
 
 	while (fileOk[0] || fileOk[1])
 	{
-		for (int i=0; i<2; ++i)
+		for (int i = 0; i < 2; ++i)
 		{
 			if (fileOk[i] == true && lastFrame[i] < 0)
 			{
 				fileOk[i] = getNextLine(ifp[i], lastLine[i],
-					lastFrame[i], lastIndex[i]);
+				                        lastFrame[i], lastIndex[i]);
 			}
 		}
 
 		if (fileOk[0] && fileOk[1])
 		{
 			if (lastFrame[0] < lastFrame[1] ||
-				(lastFrame[0]==lastFrame[1] && lastIndex[0] < lastIndex[1]))
+			    (lastFrame[0] == lastFrame[1] && lastIndex[0] < lastIndex[1]))
 			{
-				//if (!seenLeft)
-					//cout << "Seen left on " << lastFrame[0] << ":" << lastIndex[0] << endl;
-				//seenLeft = true;
+				// if (!seenLeft)
+				// cout << "Seen left on " << lastFrame[0] << ":" << lastIndex[0] << endl;
+				// seenLeft = true;
 				if (seenRight && seenLeft)
 				{
 					outputLine(lastFrame[0], lastIndex[0], linkNum++,
-						"leftOnly", lastLine[0], nullptr, nullptr);
+					           "leftOnly", lastLine[0], nullptr, nullptr);
 					++numDiffs;
 				}
 				lastFrame[0] = -1;
 			}
 			else if (lastFrame[1] < lastFrame[0] ||
-				(lastFrame[1]==lastFrame[0] && lastIndex[1] < lastIndex[0]))
+			         (lastFrame[1] == lastFrame[0] && lastIndex[1] < lastIndex[0]))
 			{
-				//if (!seenRight)
-					//cout << "Seen right on " << lastFrame[1] << ":" << lastIndex[1] << endl;
-				//seenRight = true;
+				// if (!seenRight)
+				// cout << "Seen right on " << lastFrame[1] << ":" << lastIndex[1] << endl;
+				// seenRight = true;
 				if (seenRight && seenLeft)
 				{
 					outputLine(lastFrame[1], lastIndex[1], linkNum++,
-						nullptr, nullptr, "rightOnly", lastLine[1]);
+					           nullptr, nullptr, "rightOnly", lastLine[1]);
 					++numDiffs;
 				}
 				lastFrame[1] = -1;
@@ -286,31 +288,31 @@ int main(int argc, char *argv[])
 			else
 			{
 				int res = strcmp(lastLine[0], lastLine[1]);
-				if (res!=0)
+				if (res != 0)
 				{
 					if (!seenLeft || !seenRight)
 						cout << "Seen both on " << lastFrame[0] << ":" << lastIndex[0] << endl;
 					seenLeft = seenRight = true;
 					outputLine(lastFrame[0], lastIndex[0], linkNum++,
-						"leftDiff", lastLine[0], "rightDiff", lastLine[1]);
+					           "leftDiff", lastLine[0], "rightDiff", lastLine[1]);
 					++numDiffs;
 				}
 				else
 				{
-					//if (!seenLeft || !seenRight)
+					// if (!seenLeft || !seenRight)
 					//	cout << "Seen both on " << lastFrame[0] << ":" << lastIndex[0] << endl;
-					//seenLeft = seenRight = true;
+					// seenLeft = seenRight = true;
 					static bool printedFirst = false;
 					if (!printedFirst)
 					{
 						outputLine(lastFrame[0], lastIndex[0], linkNum,
-							"leftSame", lastLine[0], "rightSame", lastLine[1], true);
+						           "leftSame", lastLine[0], "rightSame", lastLine[1], true);
 						printedFirst = true;
 					}
 					else if (seenLeft && seenRight)
 					{
 						outputLine(lastFrame[0], lastIndex[0], linkNum,
-							"leftSame", lastLine[0], "rightSame", lastLine[1], true);
+						           "leftSame", lastLine[0], "rightSame", lastLine[1], true);
 						++numDiffs;
 					}
 					else
@@ -323,26 +325,26 @@ int main(int argc, char *argv[])
 		}
 		else if (fileOk[0])
 		{
-			//if (!seenLeft)
-				//cout << "Seen left on " << lastFrame[0] << ":" << lastIndex[0] << endl;
-			//seenLeft = true;
+			// if (!seenLeft)
+			// cout << "Seen left on " << lastFrame[0] << ":" << lastIndex[0] << endl;
+			// seenLeft = true;
 			if (seenRight && seenLeft)
 			{
 				outputLine(lastFrame[0], lastIndex[0], linkNum++,
-					"leftOnly", lastLine[0], nullptr, nullptr);
+				           "leftOnly", lastLine[0], nullptr, nullptr);
 				++numDiffs;
 			}
 			lastFrame[0] = -1;
 		}
 		else if (fileOk[1])
 		{
-			//if (!seenRight)
-				//cout << "Seen right on " << lastFrame[1] << ":" << lastIndex[1] << endl;
-			//seenRight = true;
+			// if (!seenRight)
+			// cout << "Seen right on " << lastFrame[1] << ":" << lastIndex[1] << endl;
+			// seenRight = true;
 			if (seenRight && seenLeft)
 			{
 				outputLine(lastFrame[1], lastIndex[1], linkNum++,
-					nullptr, nullptr, "rightOnly", lastLine[1]);
+				           nullptr, nullptr, "rightOnly", lastLine[1]);
 				++numDiffs;
 			}
 			lastFrame[1] = -1;
@@ -353,7 +355,7 @@ int main(int argc, char *argv[])
 	}
 
 	Expander e("((", "))");
-	e.addExpansion("LAST", intToString(linkNum-1));
+	e.addExpansion("LAST", intToString(linkNum - 1));
 	e.addExpansion("BOTTOM", intToString(linkNum));
 	std::string out;
 	e.expand(footer, out);

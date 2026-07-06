@@ -36,12 +36,12 @@
 
 #if 0
 
-#pragma once
+	#pragma once
 
-#include "always.h"
-#include "vector3.h"
-#include "bittype.h"
-#include "w3derr.h"
+	#include "always.h"
+	#include "vector3.h"
+	#include "bittype.h"
+	#include "w3derr.h"
 
 class MeshModelClass;
 class ChunkLoadClass;
@@ -96,6 +96,4 @@ protected:
 	friend class MeshClass;
 };
 
-
-
-#endif //0
+#endif    // 0

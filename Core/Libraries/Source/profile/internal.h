@@ -37,14 +37,14 @@
 #include <windows.h>
 
 #if !(defined(_MSC_VER) && _MSC_VER < 1300)
-#include <atomic>
-#include <Utility/intrin_compat.h>
+	#include <atomic>
+	#include <Utility/intrin_compat.h>
 #endif
 
 class ProfileFastCS
 {
-  ProfileFastCS(const ProfileFastCS&) CPP_11(= delete);
-  ProfileFastCS& operator=(const ProfileFastCS&) CPP_11(= delete);
+	ProfileFastCS(const ProfileFastCS&) CPP_11(= delete);
+	ProfileFastCS& operator=(const ProfileFastCS&) CPP_11(= delete);
 
 	static HANDLE testEvent;
 
@@ -53,9 +53,9 @@ class ProfileFastCS
 
 	void ThreadSafeSetFlag()
 	{
-		volatile unsigned& nFlag=m_Flag;
+		volatile unsigned& nFlag = m_Flag;
 
-		#define ts_lock _emit 0xF0
+	#define ts_lock _emit 0xF0
 		DASSERT(((unsigned)&nFlag % 4) == 0);
 
 		__asm {
@@ -67,9 +67,9 @@ class ProfileFastCS
 		return;
 
 	The_Bit_Was_Previously_Set_So_Try_Again:
-    // can't use SwitchToThread() here because Win9X doesn't have it!
-    if (testEvent)
-		  ::WaitForSingleObject(testEvent,1);
+		// can't use SwitchToThread() here because Win9X doesn't have it!
+		if (testEvent)
+			::WaitForSingleObject(testEvent, 1);
 		__asm {
 			mov ebx, [nFlag]
 			ts_lock
@@ -80,21 +80,22 @@ class ProfileFastCS
 
 	void ThreadSafeClearFlag()
 	{
-		m_Flag=0;
+		m_Flag = 0;
 	}
 
 public:
-	ProfileFastCS():
-    m_Flag(0)
-  {
-  }
+	ProfileFastCS()
+	  : m_Flag(0)
+	{
+	}
 #else
 
 	std::atomic_flag Flag{};
 
 	void ThreadSafeSetFlag()
 	{
-		while (Flag.test_and_set(std::memory_order_acq_rel)) {
+		while (Flag.test_and_set(std::memory_order_acq_rel))
+		{
 			Flag.wait(true, std::memory_order_relaxed);
 		}
 	}
@@ -112,14 +113,14 @@ public:
 
 	class Lock
 	{
-    Lock(const Lock&) CPP_11(= delete);
-	Lock& operator=(const Lock&) CPP_11(= delete);
+		Lock(const Lock&) CPP_11(= delete);
+		Lock& operator=(const Lock&) CPP_11(= delete);
 
 		ProfileFastCS& CriticalSection;
 
 	public:
-		Lock(ProfileFastCS& cs):
-      CriticalSection(cs)
+		Lock(ProfileFastCS& cs)
+		  : CriticalSection(cs)
 		{
 			CriticalSection.ThreadSafeSetFlag();
 		}
@@ -133,15 +134,15 @@ public:
 	friend class Lock;
 };
 
-void *ProfileAllocMemory(unsigned numBytes);
-void *ProfileReAllocMemory(void *oldPtr, unsigned newSize);
-void ProfileFreeMemory(void *ptr);
+void* ProfileAllocMemory(unsigned numBytes);
+void* ProfileReAllocMemory(void* oldPtr, unsigned newSize);
+void ProfileFreeMemory(void* ptr);
 
-__forceinline void ProfileGetTime(__int64 &t)
+__forceinline void ProfileGetTime(__int64& t)
 {
 #if defined(_MSC_VER) && _MSC_VER < 1300
-  _asm
-  {
+	_asm
+	  {
     mov ecx,[t]
     push eax
     push edx
@@ -150,8 +151,9 @@ __forceinline void ProfileGetTime(__int64 &t)
     mov [ecx+4],edx
     pop edx
     pop eax
-  };
+	  }
+	;
 #else
-  t = static_cast<__int64>(_rdtsc());
+	t = static_cast<__int64>(_rdtsc());
 #endif
 }

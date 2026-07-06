@@ -43,7 +43,6 @@ public:
 	static void buildFieldParse(MultiIniFieldParse& p);
 
 private:
-
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -51,20 +50,17 @@ private:
 class FireWeaponUpdate : public UpdateModule
 {
 
-	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( FireWeaponUpdate, "FireWeaponUpdate" )
-	MAKE_STANDARD_MODULE_MACRO_WITH_MODULE_DATA( FireWeaponUpdate, FireWeaponUpdateModuleData )
+	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(FireWeaponUpdate, "FireWeaponUpdate")
+	MAKE_STANDARD_MODULE_MACRO_WITH_MODULE_DATA(FireWeaponUpdate, FireWeaponUpdateModuleData)
 
 public:
-
-	FireWeaponUpdate( Thing *thing, const ModuleData* moduleData );
+	FireWeaponUpdate(Thing* thing, const ModuleData* moduleData);
 	// virtual destructor prototype provided by memory pool declaration
 
 	virtual UpdateSleepTime update() override;
 
 protected:
-
 	Bool isOkayToFire();
 
 	Weapon* m_weapon;
-
 };

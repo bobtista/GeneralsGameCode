@@ -38,11 +38,9 @@ class DamDieModuleData : public DieModuleData
 {
 
 public:
-
 	DamDieModuleData();
 
 	static void buildFieldParse(MultiIniFieldParse& p);
-
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -50,14 +48,12 @@ public:
 class DamDie : public DieModule
 {
 
-	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( DamDie, "DamDie" )
-	MAKE_STANDARD_MODULE_MACRO_WITH_MODULE_DATA( DamDie, DamDieModuleData )
+	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(DamDie, "DamDie")
+	MAKE_STANDARD_MODULE_MACRO_WITH_MODULE_DATA(DamDie, DamDieModuleData)
 
 public:
-
-	DamDie( Thing *thing, const ModuleData* moduleData );
+	DamDie(Thing* thing, const ModuleData* moduleData);
 	// virtual destructor prototype provided by MemoryPoolObject
 
-	virtual void onDie( const DamageInfo *damageInfo ) override;
-
+	virtual void onDie(const DamageInfo* damageInfo) override;
 };

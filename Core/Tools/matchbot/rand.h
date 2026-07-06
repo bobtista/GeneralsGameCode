@@ -27,15 +27,12 @@ public:
 	~RandClass()
 	{}
 
-
 	int Int(void);
 	double Double(void);
 	int Int(int low, int high);
 	double Double(double low, double high);
 
 private:
-
-	unsigned int randomValue( void );
+	unsigned int randomValue(void);
 	unsigned int seed[6];
-
 };

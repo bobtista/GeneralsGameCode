@@ -29,7 +29,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // INCLUDE FILES //////////////////////////////////////////////////////////////////////////////////
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
@@ -45,7 +45,6 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/ScriptEngine.h"
 
-
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 RebuildHoleExposeDieModuleData::RebuildHoleExposeDieModuleData()
@@ -57,20 +56,18 @@ RebuildHoleExposeDieModuleData::RebuildHoleExposeDieModuleData()
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-/*static*/ void RebuildHoleExposeDieModuleData::buildFieldParse( MultiIniFieldParse &p )
+/*static*/ void RebuildHoleExposeDieModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
 	DieModuleData::buildFieldParse(p);
 
-	static const FieldParse dataFieldParse[] =
-	{
-		{ "HoleName", INI::parseAsciiString, nullptr, offsetof( RebuildHoleExposeDieModuleData, m_holeName ) },
-		{ "HoleMaxHealth", INI::parseReal, nullptr, offsetof( RebuildHoleExposeDieModuleData, m_holeMaxHealth ) },
-		{ "TransferAttackers", INI::parseBool, nullptr, offsetof( RebuildHoleExposeDieModuleData, m_transferAttackers ) },
+	static const FieldParse dataFieldParse[] = {
+		{ "HoleName", INI::parseAsciiString, nullptr, offsetof(RebuildHoleExposeDieModuleData, m_holeName) },
+		{ "HoleMaxHealth", INI::parseReal, nullptr, offsetof(RebuildHoleExposeDieModuleData, m_holeMaxHealth) },
+		{ "TransferAttackers", INI::parseBool, nullptr, offsetof(RebuildHoleExposeDieModuleData, m_transferAttackers) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-	p.add( dataFieldParse );
-
+	p.add(dataFieldParse);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,81 +76,77 @@ RebuildHoleExposeDieModuleData::RebuildHoleExposeDieModuleData()
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-RebuildHoleExposeDie::RebuildHoleExposeDie( Thing *thing, const ModuleData* moduleData )
-										: DieModule( thing, moduleData )
+RebuildHoleExposeDie::RebuildHoleExposeDie(Thing* thing, const ModuleData* moduleData)
+  : DieModule(thing, moduleData)
 {
-
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 RebuildHoleExposeDie::~RebuildHoleExposeDie()
 {
-
 }
 
 //-------------------------------------------------------------------------------------------------
 /** The die callback. */
 //-------------------------------------------------------------------------------------------------
-void RebuildHoleExposeDie::onDie( const DamageInfo *damageInfo )
+void RebuildHoleExposeDie::onDie(const DamageInfo* damageInfo)
 {
 	if (!isDieApplicable(damageInfo))
 		return;
-	const RebuildHoleExposeDieModuleData *modData = getRebuildHoleExposeDieModuleData();
-	Object *us = getObject();
+	const RebuildHoleExposeDieModuleData* modData = getRebuildHoleExposeDieModuleData();
+	Object* us = getObject();
 
 	//
 	// if we are being constructed from either the first time or from a hole reconstruction
 	// we do not "spawn" a hole object
 	//
-	if( us->getControllingPlayer() != ThePlayerList->getNeutralPlayer()
-		  && us->getControllingPlayer()->isPlayerActive()
-			&& !us->getStatusBits().test( OBJECT_STATUS_UNDER_CONSTRUCTION ) )
+	if (us->getControllingPlayer() != ThePlayerList->getNeutralPlayer() && us->getControllingPlayer()->isPlayerActive() && !us->getStatusBits().test(OBJECT_STATUS_UNDER_CONSTRUCTION))
 	{
-		Object *hole;
+		Object* hole;
 
 		// create the hole
-		hole = TheThingFactory->newObject( TheThingFactory->findTemplate( modData->m_holeName ),
-																			 getObject()->getTeam() );
+		hole = TheThingFactory->newObject(TheThingFactory->findTemplate(modData->m_holeName),
+		                                  getObject()->getTeam());
 
 		// put the hole at our position and angle
-		hole->setPosition( us->getPosition() );
-		hole->setOrientation( us->getOrientation() );
+		hole->setPosition(us->getPosition());
+		hole->setOrientation(us->getOrientation());
 
 		//
 		// modify the hole extents to be the same as ours because we need to preserve the
 		// same amount of space for the rebuilding process
 		//
-		hole->setGeometryInfo( us->getGeometryInfo() );
+		hole->setGeometryInfo(us->getGeometryInfo());
 
 		//
 		// Transfer the building's name to the hole
 		//
-		TheScriptEngine->transferObjectName( us->getName(), hole );
+		TheScriptEngine->transferObjectName(us->getName(), hole);
 
 		//
 		// add to pathfind map, this really should be wrapped up somewhere in the creation
 		// pipeline of the object automagically!
 		//
-		TheAI->pathfinder()->addObjectToPathfindMap( hole );
+		TheAI->pathfinder()->addObjectToPathfindMap(hole);
 
 		// set the health of the hole to that defined by our data
-		BodyModuleInterface *body = hole->getBodyModule();
-		body->setMaxHealth( modData->m_holeMaxHealth );
+		BodyModuleInterface* body = hole->getBodyModule();
+		body->setMaxHealth(modData->m_holeMaxHealth);
 
 		// set the information in the hole about what to build
-		RebuildHoleBehaviorInterface *rhbi = RebuildHoleBehavior::getRebuildHoleBehaviorInterfaceFromObject( hole );
+		RebuildHoleBehaviorInterface* rhbi = RebuildHoleBehavior::getRebuildHoleBehaviorInterfaceFromObject(hole);
 
 		// sanity
-		DEBUG_ASSERTCRASH( rhbi, ("RebuildHoleExposeDie: No Rebuild Hole Behavior interface on hole") );
+		DEBUG_ASSERTCRASH(rhbi, ("RebuildHoleExposeDie: No Rebuild Hole Behavior interface on hole"));
 
 		// start the rebuild process
-		if( rhbi )
-			rhbi->startRebuildProcess( us->getTemplate(), us->getID() );
+		if (rhbi)
+			rhbi->startRebuildProcess(us->getTemplate(), us->getID());
 
 		if (modData->m_transferAttackers)
 		{
-			for ( Object *obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject() )
+			for (Object* obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject())
 			{
 				AIUpdateInterface* ai = obj->getAI();
 				if (!ai)
@@ -162,38 +155,34 @@ void RebuildHoleExposeDie::onDie( const DamageInfo *damageInfo )
 				ai->transferAttack(us->getID(), hole->getID());
 			}
 		}
-
 	}
-
 }
 
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void RebuildHoleExposeDie::crc( Xfer *xfer )
+void RebuildHoleExposeDie::crc(Xfer* xfer)
 {
 
 	// extend base class
-	DieModule::crc( xfer );
-
+	DieModule::crc(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
-	* Version Info:
-	* 1: Initial version */
+ * Version Info:
+ * 1: Initial version */
 // ------------------------------------------------------------------------------------------------
-void RebuildHoleExposeDie::xfer( Xfer *xfer )
+void RebuildHoleExposeDie::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// extend base class
-	DieModule::xfer( xfer );
-
+	DieModule::xfer(xfer);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -204,5 +193,4 @@ void RebuildHoleExposeDie::loadPostProcess()
 
 	// extend base class
 	DieModule::loadPostProcess();
-
 }

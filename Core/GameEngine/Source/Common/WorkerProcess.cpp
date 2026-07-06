@@ -16,7 +16,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"    // This must go first in EVERY cpp file in the GameEngine
 #include "Common/WorkerProcess.h"
 
 // We need Job-related functions, but these aren't defined in the Windows-headers that VC6 uses.
@@ -53,12 +53,12 @@ struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
 	SIZE_T PeakJobMemoryUsed;
 };
 
-#define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE 0x00002000
+	#define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE 0x00002000
 const int JobObjectExtendedLimitInformation = 9;
 
-typedef HANDLE (WINAPI *PFN_CreateJobObjectW)(LPSECURITY_ATTRIBUTES, LPCWSTR);
-typedef BOOL (WINAPI *PFN_SetInformationJobObject)(HANDLE, JOBOBJECTINFOCLASS, LPVOID, DWORD);
-typedef BOOL (WINAPI *PFN_AssignProcessToJobObject)(HANDLE, HANDLE);
+typedef HANDLE(WINAPI* PFN_CreateJobObjectW)(LPSECURITY_ATTRIBUTES, LPCWSTR);
+typedef BOOL(WINAPI* PFN_SetInformationJobObject)(HANDLE, JOBOBJECTINFOCLASS, LPVOID, DWORD);
+typedef BOOL(WINAPI* PFN_AssignProcessToJobObject)(HANDLE, HANDLE);
 
 static PFN_CreateJobObjectW CreateJobObjectW = (PFN_CreateJobObjectW)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "CreateJobObjectW");
 static PFN_SetInformationJobObject SetInformationJobObject = (PFN_SetInformationJobObject)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetInformationJobObject");
@@ -88,7 +88,7 @@ bool WorkerProcess::startProcess(UnicodeString command)
 	SetHandleInformation(m_readHandle, HANDLE_FLAG_INHERIT, 0);
 
 	STARTUPINFOW si = { sizeof(STARTUPINFOW) };
-	si.dwFlags = STARTF_FORCEOFFFEEDBACK; // Prevent cursor wait animation
+	si.dwFlags = STARTF_FORCEOFFFEEDBACK;    // Prevent cursor wait animation
 	si.dwFlags |= STARTF_USESTDHANDLES;
 	si.hStdError = writeHandle;
 	si.hStdOutput = writeHandle;
@@ -96,8 +96,8 @@ bool WorkerProcess::startProcess(UnicodeString command)
 	PROCESS_INFORMATION pi = { nullptr };
 
 	if (!CreateProcessW(nullptr, (LPWSTR)command.str(),
-			nullptr, nullptr, /*bInheritHandles=*/TRUE, 0,
-			nullptr, nullptr, &si, &pi))
+	                    nullptr, nullptr, /*bInheritHandles=*/TRUE, 0,
+	                    nullptr, nullptr, &si, &pi))
 	{
 		CloseHandle(writeHandle);
 		CloseHandle(m_readHandle);
@@ -161,7 +161,7 @@ bool WorkerProcess::fetchStdOutput()
 
 		DWORD readBytes = 0;
 		char buffer[1024];
-		success = ReadFile(m_readHandle, buffer, ARRAY_SIZE(buffer)-1, &readBytes, nullptr);
+		success = ReadFile(m_readHandle, buffer, ARRAY_SIZE(buffer) - 1, &readBytes, nullptr);
 		if (!success)
 			return true;
 		DEBUG_ASSERTCRASH(readBytes != 0, ("expected readBytes to be non null"));
@@ -228,4 +228,3 @@ void WorkerProcess::kill()
 	m_stdOutput.clear();
 	m_isDone = false;
 }
-

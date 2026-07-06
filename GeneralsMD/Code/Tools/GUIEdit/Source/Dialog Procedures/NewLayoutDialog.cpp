@@ -71,23 +71,22 @@
 // initNewLayoutDialog ========================================================
 /** The new layout dialog is being shown, initialize anything we need to */
 //=============================================================================
-static void initNewLayoutDialog( HWND hWndDialog )
+static void initNewLayoutDialog(HWND hWndDialog)
 {
 
 	// set default keyboard focus
-	SetFocus( GetDlgItem( hWndDialog, IDOK ) );
-
+	SetFocus(GetDlgItem(hWndDialog, IDOK));
 }
 
 // NewLayoutDialogProc ========================================================
 /** Dialog procedure for the new layout dialog when starting an entire
-	* new layout in the editor */
+ * new layout in the editor */
 //=============================================================================
-LRESULT CALLBACK NewLayoutDialogProc( HWND hWndDialog, UINT message,
-																			WPARAM wParam, LPARAM lParam )
+LRESULT CALLBACK NewLayoutDialogProc(HWND hWndDialog, UINT message,
+                                     WPARAM wParam, LPARAM lParam)
 {
 
-	switch( message )
+	switch (message)
 	{
 
 		// ------------------------------------------------------------------------
@@ -95,61 +94,52 @@ LRESULT CALLBACK NewLayoutDialogProc( HWND hWndDialog, UINT message,
 		{
 
 			// initialize the values for the the dialog
-			initNewLayoutDialog( hWndDialog );
+			initNewLayoutDialog(hWndDialog);
 			return FALSE;
-
 		}
 
 		// ------------------------------------------------------------------------
-    case WM_COMMAND:
-    {
+		case WM_COMMAND:
+		{
 
-      switch( LOWORD( wParam ) )
-      {
+			switch (LOWORD(wParam))
+			{
 
 				// --------------------------------------------------------------------
-        case IDOK:
+				case IDOK:
 				{
 
 					// reset the editor
 					TheEditor->newLayout();
 
 					// end this dialog
-					EndDialog( hWndDialog, TRUE );
+					EndDialog(hWndDialog, TRUE);
 
-          break;
-
+					break;
 				}
 
 				// --------------------------------------------------------------------
-        case IDCANCEL:
+				case IDCANCEL:
 				{
 
-					EndDialog( hWndDialog, FALSE );
-          break;
-
+					EndDialog(hWndDialog, FALSE);
+					break;
 				}
+			}
 
-      }
-
-      return 0;
-
-    }
+			return 0;
+		}
 
 		// ------------------------------------------------------------------------
-    case WM_CLOSE:
+		case WM_CLOSE:
 		{
 
-			EndDialog( hWndDialog, FALSE );
-      return 0;
-
+			EndDialog(hWndDialog, FALSE);
+			return 0;
 		}
 
 		// ------------------------------------------------------------------------
 		default:
 			return 0;
-
-  }
-
+	}
 }
-

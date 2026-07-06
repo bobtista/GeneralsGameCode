@@ -76,7 +76,7 @@ static void doIt(void)
 	DWORD maxComponentLength;
 	DWORD fileSystemFlags;
 	BOOL volInfoSuccess = GetVolumeInformation((const char*)drive, nullptr, 0,
-		                    &volumeSerialNumber, &maxComponentLength, &fileSystemFlags, nullptr, 0);
+	                                           &volumeSerialNumber, &maxComponentLength, &fileSystemFlags, nullptr, 0);
 
 	if (volInfoSuccess == FALSE)
 	{
@@ -153,7 +153,7 @@ static void doIt(void)
 
 	DebugPrint("Retrieved PassKey: %s\n", passKey);
 
-	const char *plainText = "Play the \"Command & Conquer: Generals\" Multiplayer Test.";
+	const char* plainText = "Play the \"Command & Conquer: Generals\" Multiplayer Test.";
 	int textLen = strlen(plainText);
 	char cypherText[128];
 
@@ -172,15 +172,15 @@ static void doIt(void)
 
 	DebugPrint("Install dir = '%s'\n", installPath);
 
-	char *lastBackslash = strrchr((char *)installPath, '\\');
+	char* lastBackslash = strrchr((char*)installPath, '\\');
 	if (lastBackslash)
-		*lastBackslash = 0; // strip of \\game.exe from install path
+		*lastBackslash = 0;    // strip of \\game.exe from install path
 
-	strcat((char *)installPath, "\\Generals.dat");
+	strcat((char*)installPath, "\\Generals.dat");
 
 	DebugPrint("DAT file = '%s'\n", installPath);
 
-	FILE *fp = fopen((char *)installPath, "wb");
+	FILE* fp = fopen((char*)installPath, "wb");
 	if (fp)
 	{
 		fwrite(cypherText, textLen, 1, fp);
@@ -190,13 +190,10 @@ static void doIt(void)
 
 int APIENTRY WinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
-                     LPSTR     lpCmdLine,
-                     int       nCmdShow)
+                     LPSTR lpCmdLine,
+                     int nCmdShow)
 {
 	doIt();
 
 	return 0;
 }
-
-
-
