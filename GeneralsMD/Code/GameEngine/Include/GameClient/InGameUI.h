@@ -807,6 +807,8 @@ protected:
 	Coord2D												m_gameTimePosition;
 	Color												m_gameTimeColor;
 	Color												m_gameTimeDropColor;
+	Int													m_gameTimeReservedWidth;
+	Int													m_gameTimeFrameReservedWidth;
 
 	struct PlayerInfoList
 	{
