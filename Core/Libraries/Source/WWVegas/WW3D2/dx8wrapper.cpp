@@ -596,7 +596,7 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	WWASSERT(!IsInitted);
 
 	// zero memory
-	RenderStateCache::Clear();
+	FixedFunctionState::Clear_Cached_State();
 	memset(Vertex_Shader_Constants,0,sizeof(Vector4)*MAX_VERTEX_SHADER_CONSTANTS);
 	memset(Pixel_Shader_Constants,0,sizeof(Vector4)*MAX_PIXEL_SHADER_CONSTANTS);
 	FixedFunctionState::Clear_Raw();
@@ -766,7 +766,7 @@ void DX8Wrapper::Set_Default_Global_Render_States()
 void DX8Wrapper::Invalidate_Cached_Render_States()
 {
 	FixedFunctionState::Changed_Mask()=0;
-	RenderStateCache::Invalidate();
+	FixedFunctionState::Invalidate_Cached_State();
 
 #if !defined(GGC_RENDER_BACKEND_BGFX)
 	int a;
@@ -3891,7 +3891,7 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 		}
 		int light_count = light_env->Get_Light_Count();
 		unsigned int color=Convert_Color(light_env->Get_Equivalent_Ambient(),0.0f);
-		if (RenderStateCache::Get_Render_State(RS::AMBIENT)!=color)
+		if (FixedFunctionState::Cached_Render_State(RS::AMBIENT)!=color)
 		{
 			Commit_Fixed_Function_Render_Value(RS::AMBIENT,color);
 //buggy Radeon 9700 driver doesn't apply new ambient unless the material also changes.
