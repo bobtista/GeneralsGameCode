@@ -65,6 +65,24 @@ extern "C" void GGC_RequestBgfxFramebufferRebuild();
 extern Mouse *TheMouse;
 extern Keyboard *TheKeyboard;
 
+namespace
+{
+
+// Dev-hotkey toggle-on values for the bgfx post effects. Toggling an effect on
+// re-asserts these so the effect is visible even when the INI left it at zero.
+const Real kToggleVignetteStrength   = 0.4f;
+const Real kToggleChromaAmount       = 0.8f;
+const Real kToggleFilmGrainStrength  = 0.1f;
+const Real kToggleSpecularStrength   = 3.0f;
+const Real kToggleRimStrength        = 0.3f;
+const Real kToggleRimPower           = 3.0f;
+const Real kToggleEmissiveBoostScale = 2.0f;
+const Real kPostSaturationOn         = 1.015f;
+const Real kBloomThresholdStep       = 0.05f;
+const Real kBloomThresholdMin        = 0.10f;
+
+} // namespace
+
 SDL3GameEngine::SDL3GameEngine() :
 	m_sdlWindow(NULL),
 	m_textInputActive(false),
@@ -413,7 +431,7 @@ void SDL3GameEngine::handleKeyboardEvent(const SDL_KeyboardEvent &event)
 				// Saturation lives in the baseline post chain; make sure that master is
 				// on so the toggle is never silently swallowed.
 				gd->m_bgfxPostProcessing = TRUE;
-				gd->m_bgfxPostSaturation = (gd->m_bgfxPostSaturation > 0.5f) ? 0.0f : 1.015f;
+				gd->m_bgfxPostSaturation = (gd->m_bgfxPostSaturation > 0.5f) ? 0.0f : kPostSaturationOn;
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Desaturate %s", (gd->m_bgfxPostSaturation < 0.5f) ? L"ON" : L"OFF"); }
 				break;
 			case SDL_SCANCODE_H:
@@ -425,27 +443,27 @@ void SDL3GameEngine::handleKeyboardEvent(const SDL_KeyboardEvent &event)
 				break;
 			case SDL_SCANCODE_MINUS:
 				// Lower the bloom threshold (more blooms) to find the sweet spot live.
-				gd->m_bgfxBloomThreshold = (gd->m_bgfxBloomThreshold > 0.15f) ? (gd->m_bgfxBloomThreshold - 0.05f) : 0.10f;
+				gd->m_bgfxBloomThreshold = (gd->m_bgfxBloomThreshold > kBloomThresholdMin + kBloomThresholdStep) ? (gd->m_bgfxBloomThreshold - kBloomThresholdStep) : kBloomThresholdMin;
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Bloom threshold %d", (Int)(gd->m_bgfxBloomThreshold * 100.0f)); }
 				break;
 			case SDL_SCANCODE_EQUALS:
 				// Raise the bloom threshold (less blooms).
-				gd->m_bgfxBloomThreshold = gd->m_bgfxBloomThreshold + 0.05f;
+				gd->m_bgfxBloomThreshold = gd->m_bgfxBloomThreshold + kBloomThresholdStep;
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Bloom threshold %d", (Int)(gd->m_bgfxBloomThreshold * 100.0f)); }
 				break;
 			case SDL_SCANCODE_V:
 				gd->m_bgfxVignette = !gd->m_bgfxVignette;
-				gd->m_bgfxVignetteStrength = 0.4f;
+				gd->m_bgfxVignetteStrength = kToggleVignetteStrength;
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Vignette %s", gd->m_bgfxVignette ? L"ON" : L"OFF"); }
 				break;
 			case SDL_SCANCODE_C:
 				gd->m_bgfxChromaticAberration = !gd->m_bgfxChromaticAberration;
-				gd->m_bgfxChromaticAberrationAmount = 0.8f;
+				gd->m_bgfxChromaticAberrationAmount = kToggleChromaAmount;
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Chromatic Aberration %s", gd->m_bgfxChromaticAberration ? L"ON" : L"OFF"); }
 				break;
 			case SDL_SCANCODE_F:
 				gd->m_bgfxFilmGrain = !gd->m_bgfxFilmGrain;
-				gd->m_bgfxFilmGrainStrength = 0.1f;
+				gd->m_bgfxFilmGrainStrength = kToggleFilmGrainStrength;
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Film Grain %s", gd->m_bgfxFilmGrain ? L"ON" : L"OFF"); }
 				break;
 			case SDL_SCANCODE_O:
@@ -481,18 +499,18 @@ void SDL3GameEngine::handleKeyboardEvent(const SDL_KeyboardEvent &event)
 				break;
 			case SDL_SCANCODE_P:
 				gd->m_bgfxSpecular = !gd->m_bgfxSpecular;
-				gd->m_bgfxSpecularStrength = 3.0f;
+				gd->m_bgfxSpecularStrength = kToggleSpecularStrength;
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Specular %s", gd->m_bgfxSpecular ? L"ON" : L"OFF"); }
 				break;
 			case SDL_SCANCODE_L:
 				gd->m_bgfxRimLight = !gd->m_bgfxRimLight;
-				gd->m_bgfxRimStrength = 0.3f;
-				gd->m_bgfxRimPower = 3.0f;
+				gd->m_bgfxRimStrength = kToggleRimStrength;
+				gd->m_bgfxRimPower = kToggleRimPower;
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Rim Light %s", gd->m_bgfxRimLight ? L"ON" : L"OFF"); }
 				break;
 			case SDL_SCANCODE_K:
 				gd->m_bgfxEmissiveBoost = !gd->m_bgfxEmissiveBoost;
-				gd->m_bgfxEmissiveBoostScale = 2.0f;
+				gd->m_bgfxEmissiveBoostScale = kToggleEmissiveBoostScale;
 				if (TheInGameUI != NULL) { TheInGameUI->message(L"Emissive Boost %s", gd->m_bgfxEmissiveBoost ? L"ON" : L"OFF"); }
 				break;
 			case SDL_SCANCODE_Y:
