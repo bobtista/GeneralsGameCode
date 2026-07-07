@@ -64,8 +64,8 @@
 #include "WW3D2/vertexbuffer.h"
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/vertmaterial.h"
-#include "WW3D2/RenderStateCache.h"
 #include "WW3D2/FixedFunctionState.h"
+#include "WW3D2/RenderStateDefs.h"
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Flag DX8Wrapper methods that have an IRenderBackend equivalent so the
 // compiler lists every remaining call site as a warning. The WW3D2 library
@@ -540,8 +540,8 @@ public:
 #if !defined(GGC_RENDER_BACKEND_BGFX)
 	static const char* Get_DX8_Render_State_Name(D3DRENDERSTATETYPE state);
 	static const char* Get_DX8_Texture_Stage_State_Name(D3DTEXTURESTAGESTATETYPE state);
-	static unsigned Get_DX8_Render_State(D3DRENDERSTATETYPE state) { return RenderStateCache::Get_Render_State((unsigned)state); }
-	static unsigned Get_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state) { return RenderStateCache::Get_Texture_Stage_State(stage,(unsigned)state); }
+	static unsigned Get_DX8_Render_State(D3DRENDERSTATETYPE state) { return FixedFunctionState::Cached_Render_State((unsigned)state); }
+	static unsigned Get_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state) { return FixedFunctionState::Cached_Texture_Stage_State(stage,(unsigned)state); }
 
 	// Names of the specific values of render states and texture stage states
 	static void Get_DX8_Texture_Stage_State_Value_Name(StringClass& name, D3DTEXTURESTAGESTATETYPE state, unsigned value);
@@ -788,7 +788,7 @@ WWINLINE void DX8Wrapper::Set_Pixel_Shader_Constant(int reg, const void* data, i
 WWINLINE void DX8Wrapper::Commit_Fixed_Function_Transform(unsigned transform, const LegacyTransformMatrix& m)
 {
 	{
-		RenderStateCache::Set_Transform(transform,m);
+		FixedFunctionState::Set_Cached_Transform(transform,m);
 		SNAPSHOT_SAY(("DX8 - SetTransform %d [%f,%f,%f,%f][%f,%f,%f,%f][%f,%f,%f,%f]",
 			transform,
 			m.m[0][0],m.m[0][1],m.m[0][2],m.m[0][3],
@@ -898,7 +898,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Light(int index, D3DLIGHT8* light)
 WWINLINE void DX8Wrapper::Commit_Fixed_Function_Render_Value(unsigned state, unsigned value)
 {
 	// Can't monitor state changes because setShader call to GERD may change the states!
-	if (RenderStateCache::Get_Render_State(state)==value) return;
+	if (FixedFunctionState::Cached_Render_State(state)==value) return;
 
 #if defined(MESH_RENDER_SNAPSHOT_ENABLED) && !defined(GGC_RENDER_BACKEND_BGFX)
 	if (WW3D::Is_Snapshot_Activated()) {
@@ -911,7 +911,7 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Render_Value(unsigned state, uns
 	}
 #endif
 
-	RenderStateCache::Set_Render_State(state,value);
+	FixedFunctionState::Set_Cached_Render_State(state,value);
 #if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(SetRenderState( static_cast<D3DRENDERSTATETYPE>(state), value ));
 #endif
@@ -944,7 +944,7 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Texture_Stage_Value(unsigned sta
   	}
 
 	// Can't monitor state changes because setShader call to GERD may change the states!
-	if (RenderStateCache::Get_Texture_Stage_State(stage,state)==value) return;
+	if (FixedFunctionState::Cached_Texture_Stage_State(stage,state)==value) return;
 #if defined(MESH_RENDER_SNAPSHOT_ENABLED) && !defined(GGC_RENDER_BACKEND_BGFX)
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
@@ -957,7 +957,7 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Texture_Stage_Value(unsigned sta
 	}
 #endif
 
-	RenderStateCache::Set_Texture_Stage_State(stage,state,value);
+	FixedFunctionState::Set_Cached_Texture_Stage_State(stage,state,value);
 #if !defined(GGC_RENDER_BACKEND_BGFX)
 	DX8CALL(SetTextureStageState( stage, static_cast<D3DTEXTURESTAGESTATETYPE>(state), value ));
 #endif
