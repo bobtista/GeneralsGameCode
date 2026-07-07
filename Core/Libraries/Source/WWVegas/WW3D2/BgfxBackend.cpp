@@ -5709,10 +5709,54 @@ void BgfxBackend::Set_Streak_Render_Active(bool active)
     g_views.streakRenderActive = active;
 }
 
+void BgfxBackend::Set_Mesh_Render_Active(bool active)
+{
+    g_views.meshRenderActive = active;
+}
+
+// TheSuperHackers @feature bobtista 07/07/2026 GGC_BGFX_DISABLE_SORTED_MESH_ROUTING
+// restores the texture-name-only routing of model-space sorted draws for A/B
+// comparison and as a fallback if the mesh-origin routing ever regresses.
+static bool SortedMeshRoutingDisabled()
+{
+    static const bool s_disabled =
+        std::getenv("GGC_BGFX_DISABLE_SORTED_MESH_ROUTING") != nullptr;
+    return s_disabled;
+}
+
 static const char * TextureDebugName(TextureBaseClass * texture);
 static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
 static bool IsCommandCenterEmblemTextureName(const char *name);
 static bool IsRotorBlurTextureName(const char *name);
+
+// Logs (once per texture, under GGC_TRACE) mesh-origin sorted draws that no
+// texture-name predicate covers - the cases the name-keyed routing used to
+// silently misplace, and the first place to look when a model-space sorted
+// effect misbehaves on a new faction variant.
+static void LogSortedMeshDrawWithoutNamePredicate(TextureBaseClass * texture, const char * texName)
+{
+    static const bool s_trace = (std::getenv("GGC_TRACE") != nullptr);
+    if (!s_trace)
+    {
+        return;
+    }
+    static TextureBaseClass * s_seen[16];
+    static int s_seenCount = 0;
+    for (int i = 0; i < s_seenCount; ++i)
+    {
+        if (s_seen[i] == texture)
+        {
+            return;
+        }
+    }
+    if (s_seenCount < 16)
+    {
+        s_seen[s_seenCount++] = texture;
+    }
+    std::fprintf(stderr,
+        "[ggc] mesh-origin sorted draw handled by origin flag (no name predicate): tex=%s\n",
+        texName != nullptr ? texName : "(null)");
+}
 
 void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
 {
@@ -5729,16 +5773,30 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     {
         state.sorted_draw_flags |= RB_SORTED_DRAW_STREAK;
     }
+    const bool meshLocalModelDraw = g_views.meshRenderActive && !SortedMeshRoutingDisabled();
+    if (meshLocalModelDraw)
+    {
+        state.sorted_draw_flags |= RB_SORTED_DRAW_MESH;
+    }
 
     // TheSuperHackers @bugfix bobtista 17/05/2026 These sorted meshes are authored in local
     // model space, but FixedFunctionState's world is hard-wired to identity on bgfx; capture
     // the live per-mesh world so the replay places and rotates them correctly.
+    // TheSuperHackers @feature bobtista 07/07/2026 Mesh-origin sorted draws always capture
+    // their world via the RB_SORTED_DRAW_MESH flag; the texture-name list remains for the
+    // non-mesh special cases (bib emblems, effect spheres) and as the name-only fallback
+    // behind GGC_BGFX_DISABLE_SORTED_MESH_ROUTING.
     const char *texName = TextureDebugName(g_draw.sourceTextures[0]);
-    if (texName != nullptr
+    const bool namedLocalModelDraw = texName != nullptr
         && (IsCommandCenterEmblemTextureName(texName)
             || IsRotorBlurTextureName(texName)
             || ContainsCaseInsensitive(texName, "ubsnkatak_01")
-            || ContainsCaseInsensitive(texName, "coplight")))
+            || ContainsCaseInsensitive(texName, "coplight"));
+    if (meshLocalModelDraw && !namedLocalModelDraw)
+    {
+        LogSortedMeshDrawWithoutNamePredicate(g_draw.sourceTextures[0], texName);
+    }
+    if (namedLocalModelDraw || meshLocalModelDraw)
     {
         FixedFunctionState::Transform_Matrix(
             static_cast<unsigned>(RB_TRANSFORM_WORLD), state.world);
@@ -6061,6 +6119,17 @@ static bool ShouldApplySubmittedNormalBias(uint64_t state)
     return IsSortedMaterialDecal(state)
         || IsSortedAlphaDepthDecal(state)
         || IsSneakAttackCoplanarSurface();
+}
+
+// TheSuperHackers @feature bobtista 07/07/2026 A replayed sorted batch flagged as
+// mesh-origin carries its live per-mesh world (captured above) and is authored in
+// model space, so it must render through the engine view with that raw world. This
+// covers every model mesh generically; the name predicates below remain for the
+// non-mesh special cases and their extra per-effect handling.
+static bool IsSortedMeshModelDraw(uint64_t /*state*/)
+{
+    return g_views.inSortFlush
+        && (g_views.sortedBatchDrawFlags & RB_SORTED_DRAW_MESH) != 0;
 }
 
 static bool IsSortedRotorBlur(uint64_t state)
@@ -7328,7 +7397,8 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     // set by the caller via g_renderBackend->Set_Transform).
     const uint64_t earlyState = GetEffectiveDrawState();
     const bool localModelSortedDraw =
-        IsSortedRotorBlur(earlyState)
+        IsSortedMeshModelDraw(earlyState)
+        || IsSortedRotorBlur(earlyState)
         || IsSneakAttackAlphaDepthDecal(earlyState)
         || IsSortedCopLightSprite(earlyState)
         || IsSortedLightBeam(earlyState)
@@ -9743,7 +9813,8 @@ void SubmitEngineDraw(unsigned short start_index,
         submitView = kBgfxEngineView;
     }
     const uint64_t routeState = GetEffectiveDrawState();
-    if (IsSortedRotorBlur(routeState)
+    if (IsSortedMeshModelDraw(routeState)
+        || IsSortedRotorBlur(routeState)
         || IsSneakAttackAlphaDepthDecal(routeState)
         || IsSortedCopLightSprite(routeState)
         || IsSortedLightBeam(routeState)
@@ -9816,7 +9887,8 @@ void SubmitEngineDraw(unsigned short start_index,
     const float * worldMtx = g_views.inSortFlush
         ? g_frame.sortWorld
         : g_frame.world;
-    if (IsSortedRotorBlur(routeState)
+    if (IsSortedMeshModelDraw(routeState)
+        || IsSortedRotorBlur(routeState)
         || IsSneakAttackAlphaDepthDecal(routeState)
         || IsSortedCopLightSprite(routeState)
         || (g_views.inSortFlush
