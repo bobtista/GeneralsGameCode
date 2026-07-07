@@ -747,7 +747,10 @@ void W3DShroud::render(CameraClass *cam)
 			{
 				const unsigned short *pixels = m_shroudData;
 				const unsigned pitchPixels = m_numCellsX;
-				unsigned checksum = 2166136261u;
+				// FNV-1a hash over the visible shroud pixels.
+				const unsigned kFnv1aBasis = 2166136261u;
+				const unsigned kFnv1aPrime = 16777619u;
+				unsigned checksum = kFnv1aBasis;
 				unsigned minPixel = 0xffff;
 				unsigned maxPixel = 0;
 				unsigned blackCount = 0;
@@ -760,9 +763,9 @@ void W3DShroud::render(CameraClass *cam)
 					{
 						const unsigned pixel = pixels[yy * pitchPixels + xx];
 						checksum ^= pixel & 0xff;
-						checksum *= 16777619u;
+						checksum *= kFnv1aPrime;
 						checksum ^= (pixel >> 8) & 0xff;
-						checksum *= 16777619u;
+						checksum *= kFnv1aPrime;
 						if (pixel < minPixel) minPixel = pixel;
 						if (pixel > maxPixel) maxPixel = pixel;
 						if (pixel == 0x0000) ++blackCount;
@@ -771,6 +774,7 @@ void W3DShroud::render(CameraClass *cam)
 						const unsigned g = (pixel >> 5) & 0x3f;
 						const unsigned b = pixel & 0x1f;
 						const unsigned lum = r * 2 + g + b * 2;
+						// R5G6B5 luma proxy in [0,157]: below ~15% reads as dark, above ~89% as bright.
 						if (lum < 24) ++darkCount;
 						if (lum > 140) ++brightCount;
 					}
