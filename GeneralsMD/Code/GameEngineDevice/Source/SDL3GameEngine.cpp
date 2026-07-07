@@ -127,7 +127,7 @@ void SDL3GameEngine::update()
 			autoExitSeconds = std::atoi(env);
 		}
 	}
-	if (autoExitSeconds > 0 && SDL_GetTicks() - autoExitStartTicks >= static_cast<Uint64>(autoExitSeconds) * 1000)
+	if (autoExitSeconds > 0 && SDL_GetTicks() - autoExitStartTicks >= static_cast<Uint64>(autoExitSeconds) * MSEC_PER_SECOND)
 	{
 		std::exit(0);
 	}
