@@ -153,7 +153,7 @@ BgfxFrame      g_frame;
 BgfxStats      g_stats;
 BgfxCaches     g_caches;
 // Asset-ingress resource side-table. id 0 is reserved invalid.
-BgfxPhase5Resources g_phase5 = { {}, 1 };
+BgfxResourceRegistry g_resourceRegistry = { {}, 1 };
 
 // Defined in BgfxBackendTextures.cpp.
 bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt);
@@ -1930,19 +1930,6 @@ bool IsCachedTransformIdentity(TransformKind transform)
     return true;
 }
 
-static float ClampPostValue(float value, float minValue, float maxValue)
-{
-    if (value < minValue)
-    {
-        return minValue;
-    }
-    if (value > maxValue)
-    {
-        return maxValue;
-    }
-    return value;
-}
-
 static void GetPostParams(float * params)
 {
     params[0] = kPostSharpenAmount;
@@ -1951,10 +1938,10 @@ static void GetPostParams(float * params)
     params[3] = kPostFxaaAmount;
 #ifdef RTS_ZEROHOUR
     GGC_GetBgfxPostProcessParams(params);
-    params[0] = ClampPostValue(params[0], 0.0f, 1.0f);
-    params[1] = ClampPostValue(params[1], 0.0f, 2.0f);
-    params[2] = ClampPostValue(params[2], 0.0f, 2.0f);
-    params[3] = ClampPostValue(params[3], 0.0f, 1.0f);
+    params[0] = WWMath::Clamp(params[0], 0.0f, 1.0f);
+    params[1] = WWMath::Clamp(params[1], 0.0f, 2.0f);
+    params[2] = WWMath::Clamp(params[2], 0.0f, 2.0f);
+    params[3] = WWMath::Clamp(params[3], 0.0f, 1.0f);
 #endif
     if (GetBgfxDiagnosticFlags().noPostFx)
     {
@@ -1974,7 +1961,7 @@ static void GetSoftParticleParams(float * params)
 #ifdef RTS_ZEROHOUR
     GGC_GetBgfxSoftParticleParams(params);
     params[0] = params[0] > 0.5f ? 1.0f : 0.0f;
-    params[1] = ClampPostValue(params[1], 0.0f, 500.0f);
+    params[1] = WWMath::Clamp(params[1], 0.0f, 500.0f);
 #endif
 }
 
@@ -2913,13 +2900,13 @@ void BgfxBackend::Shutdown()
         }
         g_caches.deferredDestroys.clear();
         g_caches.deferredDestroysPrev.clear();
-        // TheSuperHackers @bugfix bobtista 28/04/2026 Drain phase5 table.
+        // TheSuperHackers @bugfix bobtista 28/04/2026 Drain the backend resource registry.
         // Registered VB/IB resources are normally released via Destroy_Resource,
         // but if shutdown beats teardown they leak. Texture entries are owned by
         // g_caches.texture (already drained above), so skip BGFX_RR_KIND_TEXTURE.
-        for (auto & kv : g_phase5.table)
+        for (auto & kv : g_resourceRegistry.table)
         {
-            BgfxPhase5Entry & entry = kv.second;
+            BgfxResourceEntry & entry = kv.second;
             switch (entry.kind)
             {
                 case BGFX_RR_KIND_VB:     DestroyBgfxHandle(entry.vb);  break;
@@ -2927,7 +2914,7 @@ void BgfxBackend::Shutdown()
                 default: break;
             }
         }
-        g_phase5.table.clear();
+        g_resourceRegistry.table.clear();
         bgfx::frame();
         bgfx::shutdown();
         g_device.initialized = false;
@@ -3933,18 +3920,18 @@ static void LogBgfxBufferUpdate(const char *kind,
 // Returned handle is guaranteed valid on success; invalid handle on
 // failure. Used by both the full-buffer (WriteLockClass) and sub-range
 // (AppendLockClass) capture paths.
-BgfxPhase5Entry * FindVertexBufferResourceEntry(const VertexBufferClass * vb)
+BgfxResourceEntry * FindVertexBufferResourceEntry(const VertexBufferClass * vb)
 {
     if (vb == nullptr || !vb->Has_Backend_Resource())
     {
         return nullptr;
     }
-    auto it = g_phase5.table.find(vb->Get_Backend_Resource().id);
-    if (it == g_phase5.table.end())
+    auto it = g_resourceRegistry.table.find(vb->Get_Backend_Resource().id);
+    if (it == g_resourceRegistry.table.end())
     {
         return nullptr;
     }
-    BgfxPhase5Entry & entry = it->second;
+    BgfxResourceEntry & entry = it->second;
     if (entry.kind != BGFX_RR_KIND_VB || entry.owner != vb)
     {
         return nullptr;
@@ -3952,18 +3939,18 @@ BgfxPhase5Entry * FindVertexBufferResourceEntry(const VertexBufferClass * vb)
     return &entry;
 }
 
-BgfxPhase5Entry * FindIndexBufferResourceEntry(const IndexBufferClass * ib)
+BgfxResourceEntry * FindIndexBufferResourceEntry(const IndexBufferClass * ib)
 {
     if (ib == nullptr || !ib->Has_Backend_Resource())
     {
         return nullptr;
     }
-    auto it = g_phase5.table.find(ib->Get_Backend_Resource().id);
-    if (it == g_phase5.table.end())
+    auto it = g_resourceRegistry.table.find(ib->Get_Backend_Resource().id);
+    if (it == g_resourceRegistry.table.end())
     {
         return nullptr;
     }
-    BgfxPhase5Entry & entry = it->second;
+    BgfxResourceEntry & entry = it->second;
     if (entry.kind != BGFX_RR_KIND_IB || entry.owner != ib)
     {
         return nullptr;
@@ -3974,7 +3961,7 @@ BgfxPhase5Entry * FindIndexBufferResourceEntry(const IndexBufferClass * ib)
 void MirrorDynamicVertexHandleToResource(const VertexBufferClass * vb,
                                          bgfx::DynamicVertexBufferHandle handle)
 {
-    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    if (BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb))
     {
         entry->dvb = handle;
     }
@@ -3983,7 +3970,7 @@ void MirrorDynamicVertexHandleToResource(const VertexBufferClass * vb,
 void MirrorDynamicIndexHandleToResource(const IndexBufferClass * ib,
                                         bgfx::DynamicIndexBufferHandle handle)
 {
-    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    if (BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib))
     {
         entry->dib = handle;
     }
@@ -3992,7 +3979,7 @@ void MirrorDynamicIndexHandleToResource(const IndexBufferClass * ib,
 void ClearDynamicVertexHandleFromResource(const VertexBufferClass * vb,
                                           bgfx::DynamicVertexBufferHandle stale)
 {
-    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    if (BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb))
     {
         if (!bgfx::isValid(entry->dvb) || entry->dvb.idx == stale.idx)
         {
@@ -4004,7 +3991,7 @@ void ClearDynamicVertexHandleFromResource(const VertexBufferClass * vb,
 void ClearDynamicIndexHandleFromResource(const IndexBufferClass * ib,
                                          bgfx::DynamicIndexBufferHandle stale)
 {
-    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    if (BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib))
     {
         if (!bgfx::isValid(entry->dib) || entry->dib.idx == stale.idx)
         {
@@ -4015,7 +4002,7 @@ void ClearDynamicIndexHandleFromResource(const IndexBufferClass * ib,
 
 bgfx::DynamicVertexBufferHandle FindResourceVertexBufferHandle(const VertexBufferClass * vb)
 {
-    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    if (BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb))
     {
         if (bgfx::isValid(entry->dvb))
         {
@@ -4027,7 +4014,7 @@ bgfx::DynamicVertexBufferHandle FindResourceVertexBufferHandle(const VertexBuffe
 
 bgfx::DynamicIndexBufferHandle FindResourceIndexBufferHandle(const IndexBufferClass * ib)
 {
-    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    if (BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib))
     {
         if (bgfx::isValid(entry->dib))
         {
@@ -4039,7 +4026,7 @@ bgfx::DynamicIndexBufferHandle FindResourceIndexBufferHandle(const IndexBufferCl
 
 bgfx::VertexBufferHandle FindResourceStaticVertexBufferHandle(const VertexBufferClass * vb)
 {
-    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    if (BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb))
     {
         if (bgfx::isValid(entry->vb))
         {
@@ -4051,7 +4038,7 @@ bgfx::VertexBufferHandle FindResourceStaticVertexBufferHandle(const VertexBuffer
 
 bgfx::IndexBufferHandle FindResourceStaticIndexBufferHandle(const IndexBufferClass * ib)
 {
-    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    if (BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib))
     {
         if (bgfx::isValid(entry->ib))
         {
@@ -4061,7 +4048,7 @@ bgfx::IndexBufferHandle FindResourceStaticIndexBufferHandle(const IndexBufferCla
     return BGFX_INVALID_HANDLE;
 }
 
-void DestroyStaticVertexResource(BgfxPhase5Entry & entry)
+void DestroyStaticVertexResource(BgfxResourceEntry & entry)
 {
     if (!bgfx::isValid(entry.vb))
     {
@@ -4078,7 +4065,7 @@ void DestroyStaticVertexResource(BgfxPhase5Entry & entry)
     entry.vb = BGFX_INVALID_HANDLE;
 }
 
-void DestroyStaticIndexResource(BgfxPhase5Entry & entry)
+void DestroyStaticIndexResource(BgfxResourceEntry & entry)
 {
     if (!bgfx::isValid(entry.ib))
     {
@@ -4103,7 +4090,7 @@ bool TryCaptureStaticVertexBuffer(const VertexBufferClass * vb,
     {
         return false;
     }
-    BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb);
+    BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb);
     if (entry == nullptr || bgfx::isValid(entry->dvb))
     {
         return false;
@@ -4139,7 +4126,7 @@ bool TryCaptureStaticIndexBuffer(const IndexBufferClass * ib,
     {
         return false;
     }
-    BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib);
+    BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib);
     if (entry == nullptr || bgfx::isValid(entry->dib))
     {
         return false;
@@ -4373,7 +4360,7 @@ void BgfxBackend::Upload_Vertex_Buffer_Sub_Range(const VertexBufferClass * vb,
         }
         return;
     }
-    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    if (BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb))
     {
         DestroyStaticVertexResource(*entry);
     }
@@ -4411,7 +4398,7 @@ void BgfxBackend::Upload_Index_Buffer_Sub_Range(const IndexBufferClass * ib,
         }
         return;
     }
-    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    if (BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib))
     {
         DestroyStaticIndexResource(*entry);
     }
@@ -9135,19 +9122,19 @@ void BgfxBackend::Set_Pixel_Shader(unsigned long pixel_shader)
 // ===========================================================================
 //
 // The returned RenderResource.id is a monotonically-increasing key into
-// g_phase5.table; the entry holds the bgfx handle(s). Owner-backed resources
+// g_resourceRegistry.table; the entry holds the bgfx handle(s). Owner-backed resources
 // still enter through the transitional *_Resource hooks and the older caches
 // keyed by their owner objects.
 //
 namespace {
 
-unsigned __int64 AllocPhase5Id()
+unsigned __int64 AllocResourceId()
 {
-    const unsigned __int64 id = g_phase5.next_id++;
-    if (g_phase5.next_id == 0) {
+    const unsigned __int64 id = g_resourceRegistry.next_id++;
+    if (g_resourceRegistry.next_id == 0) {
         // Roll-over guard — rarely hit; start back at 1 to avoid colliding
         // with kInvalidRenderResource.
-        g_phase5.next_id = 1;
+        g_resourceRegistry.next_id = 1;
     }
     return id;
 }
@@ -9200,17 +9187,17 @@ const bgfx::Memory * CopySliceToBgfxMemory(const TextureDesc & desc, const MipSl
     return mem;
 }
 
-RenderResource RegisterPhase5Entry(const BgfxPhase5Entry & entry)
+RenderResource RegisterResourceEntry(const BgfxResourceEntry & entry)
 {
     RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
+    rr.id = AllocResourceId();
+    g_resourceRegistry.table[rr.id] = entry;
     return rr;
 }
 
-BgfxPhase5Entry MakeVertexBufferResourceEntry(VertexBufferClass * owner)
+BgfxResourceEntry MakeVertexBufferResourceEntry(VertexBufferClass * owner)
 {
-    BgfxPhase5Entry entry;
+    BgfxResourceEntry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_VB;
     entry.vb = BGFX_INVALID_HANDLE;
@@ -9220,9 +9207,9 @@ BgfxPhase5Entry MakeVertexBufferResourceEntry(VertexBufferClass * owner)
     return entry;
 }
 
-BgfxPhase5Entry MakeIndexBufferResourceEntry(IndexBufferClass * owner)
+BgfxResourceEntry MakeIndexBufferResourceEntry(IndexBufferClass * owner)
 {
-    BgfxPhase5Entry entry;
+    BgfxResourceEntry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_IB;
     entry.ib = BGFX_INVALID_HANDLE;
@@ -9279,7 +9266,7 @@ bool BgfxBackend::Requires_Legacy_Buffer_Resources() const
 
 RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
 {
-    BgfxPhase5Entry entry;
+    BgfxResourceEntry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_TEXTURE;
     entry.d3d_mirror = nullptr;
@@ -9344,30 +9331,30 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
         }
     }
 
-    return RegisterPhase5Entry(entry);
+    return RegisterResourceEntry(entry);
 }
 
 RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data)
 {
-    BgfxPhase5Entry entry = MakeVertexBufferResourceEntry(nullptr);
+    BgfxResourceEntry entry = MakeVertexBufferResourceEntry(nullptr);
     entry.vb = CreateStaticVertexBufferFromInitialData(desc, initial_data);
-    return RegisterPhase5Entry(entry);
+    return RegisterResourceEntry(entry);
 }
 
 RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit)
 {
-    BgfxPhase5Entry entry = MakeIndexBufferResourceEntry(nullptr);
+    BgfxResourceEntry entry = MakeIndexBufferResourceEntry(nullptr);
     entry.ib = CreateStaticIndexBufferFromInitialData(desc, initial_data, indices_are_32bit);
-    return RegisterPhase5Entry(entry);
+    return RegisterResourceEntry(entry);
 }
 
 void BgfxBackend::Destroy_Resource(RenderResource h)
 {
-    auto it = g_phase5.table.find(h.id);
-    if (it == g_phase5.table.end()) {
+    auto it = g_resourceRegistry.table.find(h.id);
+    if (it == g_resourceRegistry.table.end()) {
         return;
     }
-    BgfxPhase5Entry & entry = it->second;
+    BgfxResourceEntry & entry = it->second;
 
     // Destroy bgfx side.
     switch (entry.kind) {
@@ -9441,7 +9428,7 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
             break;
     }
 
-    g_phase5.table.erase(it);
+    g_resourceRegistry.table.erase(it);
 }
 
 // -- Transitional owner-backed resource hooks -------------------------------
@@ -9454,7 +9441,7 @@ RenderResource BgfxBackend::Register_Texture_Resource(TextureBaseClass * tex)
     // Ensure the bgfx-side texture exists (peek+lock+upload from the legacy
     // mirror that the legacy loader already created). The returned handle
     // is owned by g_caches.texture (keyed on TextureBaseClass*), NOT by
-    // this phase5 entry — Release_Cached_Texture in the dtor queues it
+    // this registry entry — Release_Cached_Texture in the dtor queues it
     // for deferred destroy. We leave entry.texture invalid so
     // Destroy_Resource doesn't try to destroy the same handle twice.
     if (tex->Is_Render_Target())
@@ -9466,7 +9453,7 @@ RenderResource BgfxBackend::Register_Texture_Resource(TextureBaseClass * tex)
         EnsureBgfxTexture(tex);
     }
 
-    BgfxPhase5Entry entry;
+    BgfxResourceEntry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind       = BGFX_RR_KIND_TEXTURE;
     entry.texture    = BGFX_INVALID_HANDLE;
@@ -9474,7 +9461,7 @@ RenderResource BgfxBackend::Register_Texture_Resource(TextureBaseClass * tex)
     entry.d3d_mirror = nullptr;
     entry.owner      = tex;
 
-    return RegisterPhase5Entry(entry);
+    return RegisterResourceEntry(entry);
 }
 
 RenderResource BgfxBackend::Register_Vertex_Buffer_Resource(VertexBufferClass * vb)
@@ -9487,7 +9474,7 @@ RenderResource BgfxBackend::Register_Vertex_Buffer_Resource(VertexBufferClass * 
     // lands on whatever the third virtual of VertexBufferClass happens to
     // be and crashes. The VB's legacy resource lifetime is owned by the
     // render wrapper dtor; we have no cleanup to do on the reference side.
-    return RegisterPhase5Entry(MakeVertexBufferResourceEntry(vb));
+    return RegisterResourceEntry(MakeVertexBufferResourceEntry(vb));
 }
 
 RenderResource BgfxBackend::Register_Index_Buffer_Resource(IndexBufferClass * ib)
@@ -9497,5 +9484,5 @@ RenderResource BgfxBackend::Register_Index_Buffer_Resource(IndexBufferClass * ib
     }
     // Same rationale as Register_Vertex_Buffer_Resource — leave d3d_mirror
     // null so Destroy_Resource's reference-side Release does nothing.
-    return RegisterPhase5Entry(MakeIndexBufferResourceEntry(ib));
+    return RegisterResourceEntry(MakeIndexBufferResourceEntry(ib));
 }

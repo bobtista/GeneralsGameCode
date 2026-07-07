@@ -478,10 +478,10 @@ struct BgfxCaches
 //
 // Resources created via IRenderBackend::Create_Texture / Create_Vertex_Buffer
 // etc. are tracked here. RenderResource.id is a monotonically-assigned index
-// into BgfxPhase5Resources::table; table[id] holds the bgfx handle(s) plus
+// into BgfxResourceRegistry::table; table[id] holds the bgfx handle(s) plus
 // an optional legacy mirror pointer for the ref-popup build.
 
-enum BgfxPhase5Kind
+enum BgfxResourceKind
 {
     BGFX_RR_KIND_NONE        = 0,
     BGFX_RR_KIND_TEXTURE     = 1,
@@ -489,9 +489,9 @@ enum BgfxPhase5Kind
     BGFX_RR_KIND_IB          = 3
 };
 
-struct BgfxPhase5Entry
+struct BgfxResourceEntry
 {
-    BgfxPhase5Kind kind;
+    BgfxResourceKind kind;
     bgfx::TextureHandle              texture;
     bgfx::FrameBufferHandle          fb;
     bgfx::VertexBufferHandle         vb;
@@ -504,14 +504,14 @@ struct BgfxPhase5Entry
     void * owner;                    // TextureBaseClass/VertexBufferClass/IndexBufferClass for loaded-resource caches
 };
 
-struct BgfxPhase5Resources
+struct BgfxResourceRegistry
 {
     // id 0 is reserved for kInvalidRenderResource. Allocate starting at 1.
-    std::unordered_map<uint64_t, BgfxPhase5Entry> table;
+    std::unordered_map<uint64_t, BgfxResourceEntry> table;
     uint64_t next_id;
 };
 
-extern BgfxPhase5Resources g_phase5;
+extern BgfxResourceRegistry g_resourceRegistry;
 
 // --- Shared globals ---------------------------------------------------------
 // Defined in BgfxBackend.cpp.
