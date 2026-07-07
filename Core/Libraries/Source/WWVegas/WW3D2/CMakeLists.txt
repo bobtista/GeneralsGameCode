@@ -159,8 +159,6 @@ set(WW3D2_SRC
     proxy.h
     rddesc.h
     RenderBackend.h
-    RenderStateCache.cpp
-    RenderStateCache.h
     #render2d.cpp
     #render2d.h
     render2dsentence.cpp
