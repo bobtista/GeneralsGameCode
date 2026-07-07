@@ -39,7 +39,8 @@
 #include "matrix3d.h"
 #include "matrix4.h"
 #include "render2d.h"
-#include "RenderStateCache.h"
+#include "FixedFunctionState.h"
+#include "RenderStateDefs.h"
 #include "shader.h"
 #include "shdlib.h"
 #include "texture.h"
@@ -3159,7 +3160,7 @@ bool BgfxBackend::Reset_Bgfx_Device(bool reload_assets)
 
 bool BgfxBackend::Init_Render_System(void * hwnd, bool lite)
 {
-    RenderStateCache::Clear();
+    FixedFunctionState::Clear_Cached_State();
     FixedFunctionState::Clear_Raw();
     g_device.window = static_cast<HWND>(hwnd);
     m_curRenderDevice = -1;
@@ -4320,7 +4321,7 @@ void BgfxBackend::Invalidate_Cached_Render_States()
     // after they fiddle DX8 render state. On bgfx those resets are unnecessary
     // (the backend tracks its own state) and HARMFUL: forwarding to
     // DX8Wrapper::Invalidate_Cached_Render_States() here resets the
-    // RenderStateCache / ShaderClass caches mid-frame and collapses sorted
+    // FixedFunctionState / ShaderClass caches mid-frame and collapses sorted
     // eye-space effects - notably the Particle Uplink Cannon orbital beam.
     // Do NOT forward this to DX8Wrapper.
 }
