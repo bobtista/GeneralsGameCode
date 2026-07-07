@@ -78,12 +78,12 @@ CATEGORIES = [
 BGFX_BACKEND_CATEGORIES = [
     (
         "bgfx_legacy_cache_read",
-        re.compile(r"RenderStateCache::Get_(?:Render_State|Texture_Stage_State|Transform)\s*\("),
+        re.compile(r"FixedFunctionState::Cached_(?:Render_State|Texture_Stage_State|Transform)\s*\("),
     ),
     (
         "bgfx_semantic_state_raw_write",
         re.compile(
-            r"RenderStateCache::Set_Render_State\s*\(\s*RS::(?:"
+            r"FixedFunctionState::Set_Cached_Render_State\s*\(\s*RS::(?:"
             r"CULLMODE|LIGHTING|FOGCOLOR|COLORWRITEENABLE|AMBIENT|"
             r"AMBIENTMATERIALSOURCE|DIFFUSEMATERIALSOURCE|EMISSIVEMATERIALSOURCE|"
             r"SRCBLEND|DESTBLEND|BLENDOP|ALPHABLENDENABLE|ALPHATESTENABLE|ALPHAREF|ALPHAFUNC|"
@@ -93,8 +93,8 @@ BGFX_BACKEND_CATEGORIES = [
             r"POINTSCALE_A|POINTSCALE_B|POINTSCALE_C|STENCILENABLE|STENCILFUNC|"
             r"STENCILREF|STENCILMASK|STENCILWRITEMASK|STENCILPASS|STENCILFAIL|STENCILZFAIL"
             r")\b"
-            r"|RenderStateCache::Set_Texture_Stage_State\s*\("
-            r"|RenderStateCache::Set_Transform\s*\("
+            r"|FixedFunctionState::Set_Cached_Texture_Stage_State\s*\("
+            r"|FixedFunctionState::Set_Cached_Transform\s*\("
         ),
     ),
     (

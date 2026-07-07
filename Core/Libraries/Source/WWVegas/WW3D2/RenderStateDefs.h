@@ -10,7 +10,7 @@
 
 #pragma once
 
-// Render state indices for RenderStateCache::Get/Set_Render_State.
+// Render state indices for FixedFunctionState::Cached/Set_Cached_Render_State.
 // Values match legacy render state ordinals so the DX8 backend can use the same cache.
 namespace RS {
 constexpr unsigned ZENABLE = 7;
@@ -57,7 +57,7 @@ constexpr unsigned COLORWRITEENABLE = 168;
 constexpr unsigned BLENDOP = 171;
 } // namespace RS
 
-// Texture stage state indices for RenderStateCache::Get/Set_Texture_Stage_State.
+// Texture stage state indices for FixedFunctionState::Cached/Set_Cached_Texture_Stage_State.
 // Values match legacy texture stage state ordinals so the DX8 backend can use the same cache.
 namespace TSS {
 constexpr unsigned COLOROP = 1;
