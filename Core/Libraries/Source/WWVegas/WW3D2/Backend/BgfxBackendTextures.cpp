@@ -66,25 +66,6 @@ static int ParseEnvLimit(const char *name, int fallback)
     return parsed > 0 ? parsed : fallback;
 }
 
-static unsigned BytesPerPixelForFormat(WW3DFormat format)
-{
-    switch (format)
-    {
-        case WW3D_FORMAT_A8:
-        case WW3D_FORMAT_L8:
-            return 1;
-        case WW3D_FORMAT_R5G6B5:
-        case WW3D_FORMAT_A1R5G5B5:
-        case WW3D_FORMAT_A4R4G4B4:
-            return 2;
-        case WW3D_FORMAT_A8R8G8B8:
-        case WW3D_FORMAT_X8R8G8B8:
-            return 4;
-        default:
-            return 0;
-    }
-}
-
 static bool ShouldLogEffectTexture(TextureClass * tex2d)
 {
     if (std::getenv("GGC_EFFECT_TEXTURE_DIAG") == nullptr || tex2d == nullptr)
@@ -1759,7 +1740,7 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
         return;
     }
 
-    const unsigned bpp = BytesPerPixelForFormat(format);
+    const unsigned bpp = Get_Bytes_Per_Pixel(format);
     if (bpp == 0)
     {
         return;
