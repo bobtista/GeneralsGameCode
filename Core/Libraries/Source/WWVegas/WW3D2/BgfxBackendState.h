@@ -438,6 +438,7 @@ struct BgfxViewFlags
     bool skipNextSubmitEngineDraw  = false;
     bool pointGroupRenderActive    = false;
     bool streakRenderActive        = false;
+    bool meshRenderActive          = false;
     unsigned sortedBatchDrawFlags  = 0;
 };
 

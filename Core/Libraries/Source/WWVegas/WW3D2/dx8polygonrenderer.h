@@ -150,11 +150,16 @@ inline void DX8PolygonRendererClass::Render_Sorted(/*const Matrix3D & tm,*/int b
 	SNAPSHOT_SAY(("Insert_Sorting_Triangles(%d,%d,%d,%d)",index_offset,index_count-2,min_vertex_index,vertex_index_range));
 
 	g_renderBackend->Set_Index_Buffer_Index_Offset(base_vertex_offset);
+	// TheSuperHackers @feature bobtista 07/07/2026 Mark the insert as mesh-origin so the
+	// backend captures the live per-mesh world for the sorted replay instead of relying
+	// on per-texture special cases.
+	g_renderBackend->Set_Mesh_Render_Active(true);
 	SortingRendererClass::Insert_Triangles(
 		bounding_sphere,
 		index_offset,
 		index_count/3,
 		min_vertex_index,
 		vertex_index_range);
+	g_renderBackend->Set_Mesh_Render_Active(false);
 
 }
