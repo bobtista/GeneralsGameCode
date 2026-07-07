@@ -31,6 +31,7 @@ vec3 reconstructViewPos(vec2 uv, float ndcDepth)
 void main()
 {
 	float centerDepth = texture2D(s_sceneDepth, v_texcoord0).x;
+	// Skip the far plane (sky) and uninitialized depth.
 	if (centerDepth >= 0.9999 || centerDepth <= 0.0001)
 	{
 		gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
@@ -38,6 +39,7 @@ void main()
 	}
 
 	vec3 P = reconstructViewPos(v_texcoord0, centerDepth);
+	// Standard fract-sin screen-space hash, scaled to a full rotation.
 	float rnd = fract(sin(dot(v_texcoord0, vec2(12.9898, 78.233))) * 43758.5453) * 6.2831853;
 	float radius = u_ssaoParams.x;
 	float bias = u_ssaoParams.z;
