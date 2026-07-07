@@ -1864,6 +1864,14 @@ const float kPostSharpenAmount           = 0.08f;
 const float kPostSaturation              = 1.015f;
 const float kPostContrast                = 1.01f;
 const float kPostFxaaAmount              = 0.35f;
+const float kBloomDefaultThreshold       = 0.75f;
+const float kBloomForcedIntensity        = 0.8f;
+const float kVignetteForcedStrength      = 0.4f;
+const float kChromaForcedAmount          = 0.5f;
+const float kFilmGrainForcedStrength     = 0.08f;
+const float kSsaoDefaultRadius           = 1.0f;
+const float kSsaoDefaultIntensity        = 1.0f;
+const float kSsaoDefaultBias             = 0.025f;
 
 // Render-to-texture state. Set by Set_Render_Target_With_Z, cleared
 // when the back buffer is restored. SubmitEngineDraw routes to
@@ -2136,7 +2144,7 @@ static void GetColorGradeParams(float * params)
 static void GetBloomParams(float * params)
 {
     params[0] = 0.0f;
-    params[1] = 0.75f;
+    params[1] = kBloomDefaultThreshold;
     params[2] = 0.0f;
     params[3] = 0.0f;
 #ifdef RTS_ZEROHOUR
@@ -2152,7 +2160,7 @@ static void GetBloomParams(float * params)
         params[0] = 1.0f;
         if (params[2] <= 0.0f)
         {
-            params[2] = 0.8f;
+            params[2] = kBloomForcedIntensity;
         }
     }
 }
@@ -2186,15 +2194,15 @@ static void GetPostFx2Params(float * params)
     }
     if (forcedVig == 1 && params[0] <= 0.0f)
     {
-        params[0] = 0.4f;
+        params[0] = kVignetteForcedStrength;
     }
     if (forcedCa == 1 && params[1] <= 0.0f)
     {
-        params[1] = 0.5f;
+        params[1] = kChromaForcedAmount;
     }
     if (forcedGrain == 1 && params[2] <= 0.0f)
     {
-        params[2] = 0.08f;
+        params[2] = kFilmGrainForcedStrength;
     }
 }
 
@@ -2202,9 +2210,9 @@ static void GetPostFx2Params(float * params)
 // z = bias. Env GGC_BGFX_SSAO forces it on for dev iteration.
 static void GetSSAOParams(float * params)
 {
-    params[0] = 1.0f;
-    params[1] = 1.0f;
-    params[2] = 0.025f;
+    params[0] = kSsaoDefaultRadius;
+    params[1] = kSsaoDefaultIntensity;
+    params[2] = kSsaoDefaultBias;
     params[3] = 0.0f;
 #ifdef RTS_ZEROHOUR
     float bridge[4];
@@ -2564,8 +2572,12 @@ static void SetupSunShadowView()
     // TheSuperHackers @bugfix bobtista 18/06/2026 Size the ortho to the visible ground
     // footprint plus a small margin; an oversized ortho collapses on-screen shadow resolution
     // until thin shadows wash out and vanish.
-    float H = maxExtent * 1.2f + 128.0f;
-    H = (H < 256.0f) ? 256.0f : ((H > 2400.0f) ? 2400.0f : H);
+    const float kOrthoMarginScale = 1.2f;
+    const float kOrthoMarginPad   = 128.0f;
+    const float kOrthoMinH        = 256.0f;
+    const float kOrthoMaxH        = 2400.0f;
+    float H = maxExtent * kOrthoMarginScale + kOrthoMarginPad;
+    H = WWMath::Clamp(H, kOrthoMinH, kOrthoMaxH);
     // Quantize H to discrete steps so it holds steady through a smooth zoom. With H constant, the
     // texel-snapped centre lands on a fixed world grid every frame, so the shadow edge stays put
     // instead of crawling/jittering as the continuously-changing H reshuffled the texel grid.
