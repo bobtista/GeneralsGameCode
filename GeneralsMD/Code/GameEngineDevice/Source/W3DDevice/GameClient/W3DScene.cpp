@@ -738,13 +738,17 @@ static Bool SubpixelCullEnabled()
 	return cached != 0;
 }
 
+// Cull objects whose projected radius is under this many pixels; 2 px keeps distant
+// infantry visible while dropping draws that cannot produce a stable pixel.
+static const Real kSubpixelCullMinPxDefault = 2.0f;
+
 static Real SubpixelCullMinPx()
 {
 	static Real cached = -1.0f;
 	if (cached < 0.0f)
 	{
 		const char *env = getenv("GGC_BGFX_CULL_MIN_PX");
-		cached = (env != nullptr) ? (Real)atof(env) : 2.0f;
+		cached = (env != nullptr) ? (Real)atof(env) : kSubpixelCullMinPxDefault;
 		if (cached < 0.0f)
 		{
 			cached = 0.0f;
