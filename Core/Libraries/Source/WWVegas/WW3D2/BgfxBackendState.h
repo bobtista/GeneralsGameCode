@@ -19,6 +19,27 @@
 
 #include "ww3dformat.h"
 
+#include <cstring>
+
+// Case-insensitive strstr shared by the backend translation units.
+inline bool ContainsCaseInsensitive(const char *haystack, const char *needle)
+{
+    if (haystack == nullptr || needle == nullptr || *needle == '\0')
+    {
+        return false;
+    }
+
+    const size_t needleLen = std::strlen(needle);
+    for (const char *p = haystack; *p != '\0'; ++p)
+    {
+        if (strnicmp(p, needle, needleLen) == 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Forward declarations — full headers are included by the .cpp files that need the method bodies.
 class TextureBaseClass;
 class TextureClass;
