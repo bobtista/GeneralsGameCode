@@ -34,6 +34,21 @@ uniform vec4 u_postFx2Params;
 // TheSuperHackers @tweak bobtista 05/06/2026 BT.601 luma weights (matches fs_uber.sc).
 #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
 
+// Highlight-rolloff knee: identity below, smooth compression above.
+#define TONEMAP_KNEE 0.80
+// FXAA-style tuning: edge-detect threshold and direction-reduce terms (1/128, 1/512,
+// per the FXAA 3.11 reference values).
+#define FXAA_EDGE_THRESHOLD 0.06
+#define FXAA_REDUCE_MUL 0.0078125
+#define FXAA_REDUCE_MIN 0.001953125
+// Chromatic-aberration UV offset per unit amount, and color-grade curve terms.
+#define CHROMA_OFFSET_SCALE 0.012
+#define GRADE_CHANNEL_SHIFT 0.10
+#define GRADE_CURVE_GAIN 0.20
+#define GRADE_CURVE_BASE 0.85
+// Wipe split line half-width in texels.
+#define WIPE_LINE_TEXELS 1.5
+
 // TheSuperHackers @tweak bobtista 15/06/2026 Gentle highlight rolloff. Identity in
 // the SDR range (so the base scene is unchanged and never washed out), smoothly
 // compressing only values above the knee toward 1.0 so genuine highlights do not
@@ -41,7 +56,7 @@ uniform vec4 u_postFx2Params;
 // filmic tonemap over-brightens it; this only touches the over-bright extremes.
 vec3 tonemapHighlights(vec3 x)
 {
-	float knee = 0.80;
+	float knee = TONEMAP_KNEE;
 	float headroom = 1.0 - knee;
 	vec3 lo = min(x, vec3(knee, knee, knee));
 	vec3 hi = max(x - vec3(knee, knee, knee), vec3(0.0, 0.0, 0.0));
@@ -59,7 +74,7 @@ void main()
 	// before side stays clean.
 	if (u_postFx2Params.y > 0.001)
 	{
-		vec2 caOffset = (v_texcoord0 - vec2(0.5, 0.5)) * (u_postFx2Params.y * 0.012);
+		vec2 caOffset = (v_texcoord0 - vec2(0.5, 0.5)) * (u_postFx2Params.y * CHROMA_OFFSET_SCALE);
 		color.r = texture2D(s_tex0, v_texcoord0 + caOffset).r;
 		color.b = texture2D(s_tex0, v_texcoord0 - caOffset).b;
 	}
@@ -88,12 +103,12 @@ void main()
 		float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
 		float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
 		float edgeRange = lumaMax - lumaMin;
-		if (edgeRange > 0.06)
+		if (edgeRange > FXAA_EDGE_THRESHOLD)
 		{
 			vec2 dir;
 			dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));
 			dir.y =  ((lumaNW + lumaSW) - (lumaNE + lumaSE));
-			float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * 0.0078125, 0.001953125);
+			float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * FXAA_REDUCE_MUL, FXAA_REDUCE_MIN);
 			float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
 			dir = clamp(dir * rcpDirMin, vec2(-2.0, -2.0), vec2(2.0, 2.0)) * u_postTexelSize.xy;
 			vec3 aa = (texture2D(s_tex0, v_texcoord0 + dir * -0.5).rgb
@@ -123,10 +138,10 @@ void main()
 	if (u_colorGradeParams.x > 0.5)
 	{
 		vec3 graded = color.rgb;
-		graded.r += u_colorGradeParams.z * 0.10;
-		graded.b -= u_colorGradeParams.z * 0.10;
-		graded.g += u_colorGradeParams.w * 0.10;
-		graded = graded * (graded * 0.20 + 0.85);
+		graded.r += u_colorGradeParams.z * GRADE_CHANNEL_SHIFT;
+		graded.b -= u_colorGradeParams.z * GRADE_CHANNEL_SHIFT;
+		graded.g += u_colorGradeParams.w * GRADE_CHANNEL_SHIFT;
+		graded = graded * (graded * GRADE_CURVE_GAIN + GRADE_CURVE_BASE);
 		graded = clamp(graded, 0.0, 1.0);
 		color.rgb = mix(color.rgb, graded, u_colorGradeParams.y);
 	}
@@ -176,7 +191,7 @@ void main()
 		vec3 beforeOut = clamp(rawColor, 0.0, 1.0);
 		float side = step(u_wipeParams.x, v_texcoord0.x);
 		outRgb = mix(beforeOut, processedOut, side);
-		if (abs(v_texcoord0.x - u_wipeParams.x) < u_postTexelSize.x * 1.5)
+		if (abs(v_texcoord0.x - u_wipeParams.x) < u_postTexelSize.x * WIPE_LINE_TEXELS)
 		{
 			outRgb = vec3(1.0, 1.0, 1.0);
 		}
