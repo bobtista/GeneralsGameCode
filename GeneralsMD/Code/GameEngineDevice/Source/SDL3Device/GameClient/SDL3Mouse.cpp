@@ -32,6 +32,14 @@
 
 static void MapDisplayPointToSDLPoint(Int displayX, Int displayY, float *rawX, float *rawY);
 
+// Retail cursor art marks transparent texels with magenta (255,0,255); tolerances
+// absorb texture compression. Channels at or below the noise threshold count as black.
+static const UnsignedByte kKeyColorMinRedBlue = 230;
+static const UnsignedByte kKeyColorMaxGreen   = 40;
+static const UnsignedByte kChannelNoiseFloor  = 8;
+// W3D cursor textures top out at 256x256; larger dimensions indicate a bad ANI entry.
+static const Uint32 kMaxCursorDimension = 256;
+
 SDL3Mouse::SDL3Mouse() :
 	m_nextGetIndex(0),
 	m_nextFreeIndex(0),
@@ -606,8 +614,8 @@ static SDL_Cursor *CreateCursorFromCURData(const Uint8 *cur, size_t curSize, con
 	}
 
 	const Uint8 *entry = cur + 6;
-	const Uint32 width = entry[0] == 0 ? 256 : entry[0];
-	const Uint32 listedHeight = entry[1] == 0 ? 256 : entry[1];
+	const Uint32 width = entry[0] == 0 ? kMaxCursorDimension : entry[0];
+	const Uint32 listedHeight = entry[1] == 0 ? kMaxCursorDimension : entry[1];
 	const Uint16 hotX = ReadLE16(entry + 4);
 	const Uint16 hotY = ReadLE16(entry + 6);
 	const Uint32 imageSize = ReadLE32(entry + 8);
@@ -636,7 +644,7 @@ static SDL_Cursor *CreateCursorFromCURData(const Uint8 *cur, size_t curSize, con
 
 	const Uint32 actualWidth = static_cast<Uint32>(dibWidth);
 	const Uint32 actualHeight = static_cast<Uint32>((dibHeight < 0 ? -dibHeight : dibHeight) / 2);
-	if (actualWidth == 0 || actualHeight == 0 || actualWidth > 256 || actualHeight > 256)
+	if (actualWidth == 0 || actualHeight == 0 || actualWidth > kMaxCursorDimension || actualHeight > kMaxCursorDimension)
 	{
 		return nullptr;
 	}
@@ -905,7 +913,7 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 
 	SurfaceClass::SurfaceDescription desc;
 	texture->Get_Level_Description(desc, 0);
-	if (desc.Width == 0 || desc.Height == 0 || desc.Width > 256 || desc.Height > 256)
+	if (desc.Width == 0 || desc.Height == 0 || desc.Width > kMaxCursorDimension || desc.Height > kMaxCursorDimension)
 	{
 		return nullptr;
 	}
@@ -1031,17 +1039,17 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 			{
 				a = 0;
 			}
-			const Bool isKeyColor = (r > 230 && g < 40 && b > 230);
+			const Bool isKeyColor = (r > kKeyColorMinRedBlue && g < kKeyColorMaxGreen && b > kKeyColorMinRedBlue);
 			Uint8 *destPixel = sourcePixels.data() + y * cursorPitch + x * 4;
 			destPixel[0] = r;
 			destPixel[1] = g;
 			destPixel[2] = b;
 			destPixel[3] = a;
-			if (a > 8)
+			if (a > kChannelNoiseFloor)
 			{
 				++alphaPixels;
 			}
-			if (!isKeyColor && (r > 8 || g > 8 || b > 8))
+			if (!isKeyColor && (r > kChannelNoiseFloor || g > kChannelNoiseFloor || b > kChannelNoiseFloor))
 			{
 				++nonKeyPixels;
 			}
@@ -1059,8 +1067,8 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 			const UnsignedByte g = sourcePixel[1];
 			const UnsignedByte b = sourcePixel[2];
 			const UnsignedByte a = sourcePixel[3];
-			const Bool isKeyColor = (r > 230 && g < 40 && b > 230);
-			const Bool visible = !isKeyColor && (useAlpha ? (a > 8) : (r > 8 || g > 8 || b > 8));
+			const Bool isKeyColor = (r > kKeyColorMinRedBlue && g < kKeyColorMaxGreen && b > kKeyColorMinRedBlue);
+			const Bool visible = !isKeyColor && (useAlpha ? (a > kChannelNoiseFloor) : (r > kChannelNoiseFloor || g > kChannelNoiseFloor || b > kChannelNoiseFloor));
 			destPixel[0] = r;
 			destPixel[1] = g;
 			destPixel[2] = b;
