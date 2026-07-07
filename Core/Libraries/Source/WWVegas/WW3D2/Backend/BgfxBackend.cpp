@@ -5718,6 +5718,7 @@ void BgfxBackend::Set_Streak_Render_Active(bool active)
 static const char * TextureDebugName(TextureBaseClass * texture);
 static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
 static bool IsCommandCenterEmblemTextureName(const char *name);
+static bool IsRotorBlurTextureName(const char *name);
 
 void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
 {
@@ -5741,7 +5742,7 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     const char *texName = TextureDebugName(g_draw.sourceTextures[0]);
     if (texName != nullptr
         && (IsCommandCenterEmblemTextureName(texName)
-            || ContainsCaseInsensitive(texName, "avcomanche_p")
+            || IsRotorBlurTextureName(texName)
             || ContainsCaseInsensitive(texName, "ubsnkatak_01")
             || ContainsCaseInsensitive(texName, "coplight")))
     {
@@ -6309,6 +6310,16 @@ static bool IsCommandCenterEmblemTextureName(const char *name)
         || ContainsCaseInsensitive(name, "zhca_gtoxin");
 }
 
+// TheSuperHackers @bugfix bobtista 07/07/2026 The rotor-blur routing matched only
+// avcomanche_p (base Comanche and Chinook), so the Air Force General Comanche's
+// dedicated avcomancheag_p blur texture missed both the per-mesh world capture and
+// the engine-view routing, leaving its main rotor invisible.
+static bool IsRotorBlurTextureName(const char *name)
+{
+    return ContainsCaseInsensitive(name, "avcomanche_p")
+        || ContainsCaseInsensitive(name, "avcomancheag_p");
+}
+
 static const SortedTexNameFlags & GetSortedTexNameFlags()
 {
     static const TextureBaseClass * s_cachedTex = nullptr;
@@ -6320,7 +6331,7 @@ static const SortedTexNameFlags & GetSortedTexNameFlags()
         const char * n = TextureDebugName(tex);
         s_flags.snk01    = ContainsCaseInsensitive(n, "ubsnkatak_01");
         s_flags.snk0     = ContainsCaseInsensitive(n, "ubsnkatak_0");
-        s_flags.rotor    = ContainsCaseInsensitive(n, "avcomanche_p");
+        s_flags.rotor    = IsRotorBlurTextureName(n);
         s_flags.coplight = ContainsCaseInsensitive(n, "coplight");
         s_flags.commandCenterEmblem = IsCommandCenterEmblemTextureName(n);
         s_flags.lightbeam = ContainsCaseInsensitive(n, "lightbeam");
