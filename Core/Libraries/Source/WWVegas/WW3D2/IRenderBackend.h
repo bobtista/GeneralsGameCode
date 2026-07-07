@@ -234,7 +234,8 @@ enum RenderBackendSortedDrawFlags
 {
     RB_SORTED_DRAW_NONE        = 0,
     RB_SORTED_DRAW_POINT_GROUP = 1 << 0,
-    RB_SORTED_DRAW_STREAK      = 1 << 1
+    RB_SORTED_DRAW_STREAK      = 1 << 1,
+    RB_SORTED_DRAW_MESH        = 1 << 2
 };
 
 enum TransformKind
@@ -775,6 +776,11 @@ public:
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & /*state*/) {}
     virtual void Set_Point_Group_Render_Active(bool /*active*/) {}
     virtual void Set_Streak_Render_Active(bool /*active*/) {}
+    // TheSuperHackers @feature bobtista 07/07/2026 Marks sorted-pool inserts that originate
+    // from a mesh polygon renderer. Mesh geometry is authored in model space and needs its
+    // live per-mesh world captured for the sorted replay; point groups/streaks author their
+    // vertices in world space and must not carry one. Empty default = no-op on DX8Backend.
+    virtual void Set_Mesh_Render_Active(bool /*active*/) {}
     virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & /*state*/) {}
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & /*state*/) {}
     virtual void Release_Legacy_Render_State_For_Sorted_Draw() {}
