@@ -51,6 +51,8 @@ namespace
 	const char * const kWindowTitle = "Command & Conquer Generals Zero Hour";
 	const int kDefaultWindowWidth = 800;
 	const int kDefaultWindowHeight = 600;
+	const int kMinWindowWidth = kDefaultWindowWidth;
+	const int kMinWindowHeight = kDefaultWindowHeight;
 }
 
 int __argc = 0;
@@ -232,7 +234,7 @@ int main(int argc, char **argv)
 	// TheSuperHackers @feature bobtista 08/06/2026 Enforce a minimum content size so a drag
 	// cannot shrink the window below what the fixed-resolution UI can lay out. SDL_SetWindowAspectRatio
 	// is avoided: on macOS its windowWillResize: delegate traps AppKit's live-resize loop.
-	SDL_SetWindowMinimumSize(TheSDL3Window, 800, 600);
+	SDL_SetWindowMinimumSize(TheSDL3Window, kMinWindowWidth, kMinWindowHeight);
 
 	ApplicationHWnd = TheSDL3Window;
 
