@@ -7441,7 +7441,6 @@ static bool SortedMeshRoutingDisabled()
 }
 
 static const char * TextureDebugName(TextureBaseClass * texture);
-static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
 static bool IsCommandCenterEmblemTextureName(const char *name);
 static bool IsRotorBlurTextureName(const char *name);
 
@@ -7784,7 +7783,6 @@ static bool IsSortedMaterialDecal(uint64_t state)
 }
 
 static const char * TextureDebugName(TextureBaseClass * texture);
-static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
 static bool IsCommandCenterEmblemTextureName(const char *name);
 
 // TheSuperHackers @performance bobtista 15/06/2026 The sorted-draw routing predicates
@@ -8133,24 +8131,6 @@ static const char * TextureDebugName(TextureBaseClass * texture)
 {
     TextureClass * tex2d = texture ? texture->As_TextureClass() : nullptr;
     return tex2d ? tex2d->Get_Full_Path().str() : "(null)";
-}
-
-static bool ContainsCaseInsensitive(const char *haystack, const char *needle)
-{
-    if (haystack == nullptr || needle == nullptr || *needle == '\0')
-    {
-        return false;
-    }
-
-    const size_t needleLen = std::strlen(needle);
-    for (const char *p = haystack; *p != '\0'; ++p)
-    {
-        if (strnicmp(p, needle, needleLen) == 0)
-        {
-            return true;
-        }
-    }
-    return false;
 }
 
 static bool IsCommandCenterEmblemTextureName(const char *name)
