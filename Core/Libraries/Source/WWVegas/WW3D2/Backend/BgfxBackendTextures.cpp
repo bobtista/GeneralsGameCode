@@ -74,10 +74,9 @@ static bool ShouldLogEffectTexture(TextureClass * tex2d)
     }
 
     const char *name = tex2d->Get_Full_Path().str();
-    return name != nullptr
-        && (strstr(name, "ex") != nullptr || strstr(name, "EX") != nullptr
-            || strstr(name, "fire") != nullptr || strstr(name, "Fire") != nullptr
-            || strstr(name, "missile") != nullptr || strstr(name, "Missile") != nullptr);
+    return ContainsCaseInsensitive(name, "ex")
+        || ContainsCaseInsensitive(name, "fire")
+        || ContainsCaseInsensitive(name, "missile");
 }
 
 static void LogEffectTextureUpload(TextureClass *tex2d,
@@ -971,31 +970,6 @@ static bool UploadTerrainAtlasMips(TextureClass * tex2d,
 // Fix: decompress BC1 to BGRA8, add a small gutter at quadrant boundaries, and
 // generate per-quadrant-safe mipmaps (same principle as UploadTerrainAtlasMips).
 
-static bool StrContainsCaseInsensitive(const char *haystack, const char *needle)
-{
-    if (haystack == nullptr || needle == nullptr)
-    {
-        return false;
-    }
-    for (const char *h = haystack; *h != '\0'; ++h)
-    {
-        const char *a = h;
-        const char *b = needle;
-        while (*a != '\0' && *b != '\0'
-            && ((*a >= 'A' && *a <= 'Z') ? (*a + 32) : *a)
-                == ((*b >= 'A' && *b <= 'Z') ? (*b + 32) : *b))
-        {
-            ++a;
-            ++b;
-        }
-        if (*b == '\0')
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
 static bool IsPackedMeshAtlasTexture(TextureClass *tex2d, WW3DFormat sourceFmt)
 {
     if (tex2d == nullptr || sourceFmt != WW3D_FORMAT_DXT1)
@@ -1003,7 +977,7 @@ static bool IsPackedMeshAtlasTexture(TextureClass *tex2d, WW3DFormat sourceFmt)
         return false;
     }
     const char *name = tex2d->Get_Full_Path().str();
-    if (StrContainsCaseInsensitive(name, "ubsnkatak_0"))
+    if (ContainsCaseInsensitive(name, "ubsnkatak_0"))
     {
         return true;
     }
