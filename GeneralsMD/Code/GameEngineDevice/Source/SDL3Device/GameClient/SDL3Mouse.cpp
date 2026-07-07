@@ -1142,8 +1142,8 @@ Int SDL3Mouse::getCursorTextureFrame(MouseCursor cursor)
 			if (offset.x != 0.0f || offset.y != 0.0f)
 			{
 				offset.normalize();
-				const Real theta = std::fmod(std::atan2(offset.y, offset.x) + 6.28318530717958647692f, 6.28318530717958647692f);
-				Int direction = static_cast<Int>(theta / (6.28318530717958647692f / static_cast<Real>(directions)) + 0.5f);
+				const Real theta = std::fmod(std::atan2(offset.y, offset.x) + TWO_PI, TWO_PI);
+				Int direction = static_cast<Int>(theta / (TWO_PI / static_cast<Real>(directions)) + 0.5f);
 				if (direction >= directions)
 				{
 					direction = 0;
@@ -1173,7 +1173,7 @@ Int SDL3Mouse::getCursorTextureFrame(MouseCursor cursor)
 	const Real fps = m_cursorInfo[cursor].fps;
 	if (fps > 0.0f)
 	{
-		m_currentAnimFrame += (now - m_lastAnimTime) * (fps / 1000.0f);
+		m_currentAnimFrame += (now - m_lastAnimTime) * (fps / (Real)MSEC_PER_SECOND);
 		while (m_currentAnimFrame >= frames)
 		{
 			m_currentAnimFrame -= frames;
