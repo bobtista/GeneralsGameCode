@@ -227,11 +227,6 @@ Int parseBgfxProbeTransposeInstances(char *args[], int)
 	return parseSetEnvFlag("GGC_PROBE_TRANSPOSE_INSTANCES");
 }
 
-Int parseBgfxInstancing(char *args[], int)
-{
-	return parseSetEnvFlag("GGC_BGFX_INSTANCING");
-}
-
 Int parseBgfxInstancingNoReorder(char *args[], int)
 {
 	return parseSetEnvFlag("GGC_BGFX_INSTANCING_NO_REORDER");
@@ -1397,12 +1392,6 @@ Int parseBgfxSkipStaticVolumeShadows(char *args[], int)
 	return 1;
 }
 
-Int parseBgfxKeepStaticVolumeShadows(char *args[], int)
-{
-	setenv("GGC_BGFX_KEEP_STATIC_VOLUME_SHADOWS", "1", 1);
-	return 1;
-}
-
 Int parseBgfxNoSceneFramebuffer(char *args[], int num)
 {
 	TheWritableGlobalData->m_bgfxNoSceneFramebuffer = TRUE;
@@ -1613,7 +1602,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-fixedLogicFPS", parseFixedLogicFPS },
 	{ "-perfAutoExitSeconds", parsePerfAutoExitSeconds },
 	{ "-bgfxSkipStaticVolumeShadows", parseBgfxSkipStaticVolumeShadows },
-	{ "-bgfxKeepStaticVolumeShadows", parseBgfxKeepStaticVolumeShadows },
 	{ "-bgfxProbeNullSubmit", parseBgfxProbeNullSubmit },
 	{ "-bgfxProbeFreezeState", parseBgfxProbeFreezeState },
 	{ "-bgfxProbeNoSorted", parseBgfxProbeNoSorted },
@@ -1626,7 +1614,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-bgfxProbeNoSceneObjectRender", parseBgfxProbeNoSceneObjectRender },
 	{ "-bgfxProbeIdentityInstances", parseBgfxProbeIdentityInstances },
 	{ "-bgfxProbeTransposeInstances", parseBgfxProbeTransposeInstances },
-	{ "-bgfxInstancing", parseBgfxInstancing },
 	{ "-bgfxInstancingNoReorder", parseBgfxInstancingNoReorder },
 	{ "-bgfxDisableInstancing", parseBgfxDisableInstancing },
 	{ "-bgfxDisableSortedMaterialRecaptureSkip", parseBgfxDisableSortedMaterialRecaptureSkip },
