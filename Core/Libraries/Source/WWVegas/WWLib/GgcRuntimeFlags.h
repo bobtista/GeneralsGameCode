@@ -192,6 +192,7 @@ enum GgcFlagType
 	X(GgcFlag_BgfxSkipShroudOverlay, "GGC_BGFX_SKIP_SHROUD_OVERLAY", NULL, GgcTier_Probe, GgcFlagType_Presence, 0, 0.0f, "discard shroud-overlay draws (needs diagnostic overrides)") \
 	X(GgcFlag_BgfxSkipBlobShadows, "GGC_BGFX_SKIP_BLOB_SHADOWS", NULL, GgcTier_Probe, GgcFlagType_Presence, 0, 0.0f, "skip default blob/decal shadows (needs diagnostic overrides)") \
 	X(GgcFlag_NoEffectOverlay, "GGC_NO_EFFECT_OVERLAY", NULL, GgcTier_Probe, GgcFlagType_Presence, 0, 0.0f, "prevent the effect-overlay view from activating") \
+	X(GgcFlag_BgfxNoCameraSpaceWorldFix, "GGC_BGFX_NO_CAMERA_SPACE_WORLD_FIX", NULL, GgcTier_Probe, GgcFlagType_Presence, 0, 0.0f, "disable the inverse-camera-view compensation for camera-space engine-view draws") \
 	X(GgcFlag_BgfxStencilNoApply, "GGC_BGFX_STENCIL_NO_APPLY", NULL, GgcTier_Probe, GgcFlagType_Presence, 0, 0.0f, "skip the fullscreen stencil-darken apply pass") \
 	X(GgcFlag_BgfxStencilDepth, "GGC_BGFX_STENCIL_DEPTH", NULL, GgcTier_Probe, GgcFlagType_String, 0, 0.0f, "override the shadow-volume depth test: less or always") \
 	X(GgcFlag_BgfxStencilTwoSided, "GGC_BGFX_STENCIL_TWO_SIDED", NULL, GgcTier_Probe, GgcFlagType_Presence, 0, 0.0f, "opt-in two-sided stencil volumes (known broken for elevated casters)") \
