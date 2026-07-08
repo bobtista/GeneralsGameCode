@@ -47,6 +47,7 @@
 #include "Common/GlobalData.h"
 #include "Common/MapObject.h"
 #include "Common/Registry.h"
+#include "GgcRuntimeFlags.h"
 #include "W3DDevice/GameClient/W3DFileSystem.h"
 
 #include <io.h>
@@ -77,7 +78,7 @@ static Bool W3DFileDiagEnabled()
 	static Int enabled = -1;
 	if (enabled == -1)
 	{
-		enabled = getenv("GGC_W3D_FILE_DIAG") != nullptr ? 1 : 0;
+		enabled = GgcFlags::Enabled(GgcFlag_W3dFileDiag) ? 1 : 0;
 	}
 	return enabled != 0;
 }

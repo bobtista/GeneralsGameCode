@@ -114,6 +114,7 @@
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 
 #include "Lib/Profile.h"
+#include "GgcRuntimeFlags.h"
 
 struct QuitGameException {};
 

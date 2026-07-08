@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "Common/FileSystem.h"
+#include "GgcRuntimeFlags.h"
 #include "SDL3GameEngine.h"
 #include "GameClient/Display.h"
 #include "GameClient/Image.h"
@@ -185,7 +186,7 @@ void SDL3Mouse::setCursor(MouseCursor cursor)
 	m_currentRedrawMode = RM_POLYGON;
 	m_currentAnimFrame = 0.0f;
 	m_lastAnimTime = SDL_GetTicks();
-	if (std::getenv("GGC_CURSOR_DIAG") != nullptr && cursor > NONE && cursor < NUM_MOUSE_CURSORS)
+	if (GgcFlags::Enabled(GgcFlag_CursorDiag) && cursor > NONE && cursor < NUM_MOUSE_CURSORS)
 	{
 		static MouseCursor s_lastLoggedCursor = INVALID_MOUSE_CURSOR;
 		if (cursor == s_lastLoggedCursor)
@@ -216,7 +217,7 @@ void SDL3Mouse::setCursor(MouseCursor cursor)
 void SDL3Mouse::setPosition(Int x, Int y)
 {
 	Mouse::setPosition(x, y);
-	if (TheSDL3Window != NULL && std::getenv("GGC_DISABLE_MOUSE_WARP") == NULL)
+	if (TheSDL3Window != NULL && !GgcFlags::Enabled(GgcFlag_DisableMouseWarp))
 	{
 		float rawX = static_cast<float>(x);
 		float rawY = static_cast<float>(y);
@@ -238,7 +239,7 @@ void SDL3Mouse::capture()
 	// Mouse::canCapture() flow allows it, so grab whenever the window exists. This restores
 	// edge-of-screen scrolling, which requires the cursor to be captured. GGC_DISABLE_MOUSE_GRAB=1
 	// is a debug escape hatch to turn the grab off.
-	if (TheSDL3Window != NULL && std::getenv("GGC_DISABLE_MOUSE_GRAB") == NULL)
+	if (TheSDL3Window != NULL && !GgcFlags::Enabled(GgcFlag_DisableMouseGrab))
 	{
 		SDL_SetWindowMouseGrab(TheSDL3Window, true);
 		onCursorCaptured(SDL_GetWindowMouseGrab(TheSDL3Window) ? TRUE : FALSE);
@@ -553,7 +554,7 @@ SDL_Cursor *SDL3Mouse::getSDLColorCursor(MouseCursor cursor, Int frame)
 		m_sdlCursors[cursor][frame] = createSDLANICursor(cursor, frame);
 	}
 
-	if (m_sdlCursors[cursor][frame] == nullptr && std::getenv("GGC_SDL_TEXTURE_CURSOR") != nullptr)
+	if (m_sdlCursors[cursor][frame] == nullptr && GgcFlags::Enabled(GgcFlag_SdlTextureCursor))
 	{
 		TextureClass *texture = getCursorTexture(cursor, frame);
 		if (texture != nullptr)
@@ -794,7 +795,7 @@ static SDL_Cursor *CreateCursorFromCURData(const Uint8 *cur, size_t curSize, con
 	const char *sdlError = cursor == nullptr ? SDL_GetError() : "";
 	SDL_DestroySurface(surface);
 
-	if (std::getenv("GGC_CURSOR_DIAG") != nullptr)
+	if (GgcFlags::Enabled(GgcFlag_CursorDiag))
 	{
 		FILE *file = std::fopen("ggc_cursor_diag.txt", "a");
 		if (file != nullptr)
@@ -1159,7 +1160,7 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 	const char *sdlError = cursor == nullptr ? SDL_GetError() : "";
 	SDL_DestroySurface(cursorSurface);
 
-	if (std::getenv("GGC_CURSOR_DIAG") != nullptr)
+	if (GgcFlags::Enabled(GgcFlag_CursorDiag))
 	{
 		FILE *file = std::fopen("ggc_cursor_diag.txt", "a");
 		if (file != nullptr)
@@ -1242,7 +1243,7 @@ Int SDL3Mouse::getCursorTextureFrame(MouseCursor cursor)
 
 void SDL3Mouse::drawFallbackCursor(MouseCursor cursor)
 {
-	if (std::getenv("GGC_SDL_SOFTWARE_CURSOR") == nullptr)
+	if (!GgcFlags::Enabled(GgcFlag_SdlSoftwareCursor))
 	{
 		return;
 	}
@@ -1282,7 +1283,7 @@ void SDL3Mouse::drawFallbackCursor(MouseCursor cursor)
 
 void SDL3Mouse::logCursorLookup(MouseCursor cursor, const Image *image, TextureClass *texture)
 {
-	if (std::getenv("GGC_CURSOR_DIAG") == nullptr)
+	if (!GgcFlags::Enabled(GgcFlag_CursorDiag))
 	{
 		return;
 	}
@@ -1321,7 +1322,7 @@ void SDL3Mouse::logCursorLookup(MouseCursor cursor, const Image *image, TextureC
 
 void SDL3Mouse::syncSystemCursorVisibility()
 {
-	if (std::getenv("GGC_SDL_OS_CURSOR") != nullptr)
+	if (GgcFlags::Enabled(GgcFlag_SdlOsCursor))
 	{
 		SDL_ShowCursor();
 		return;

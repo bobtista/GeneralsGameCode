@@ -61,6 +61,7 @@
 
 #include <stdlib.h>
 #include "scene.h"
+#include "GgcRuntimeFlags.h"
 #include "WWMath/plane.h"
 #include "camera.h"
 #include "lightenvironment.h"
@@ -526,7 +527,7 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 		rinfo.light_environment=&lenv;
 	}
 
-	static const bool s_probeNoSceneObjectRender = getenv("GGC_PROBE_NO_SCENE_OBJECT_RENDER") != nullptr;
+	static const bool s_probeNoSceneObjectRender = GgcFlags::Enabled(GgcFlag_ProbeNoSceneObjectRender);
 	if (s_probeNoSceneObjectRender) {
 		return;
 	}

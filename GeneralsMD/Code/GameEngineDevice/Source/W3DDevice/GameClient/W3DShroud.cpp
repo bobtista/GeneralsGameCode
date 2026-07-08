@@ -31,6 +31,7 @@
 #include "WW3D2/camera.h"
 #include "WWLib/simplevec.h"
 #include "WWMath/vector2i.h"
+#include "GgcRuntimeFlags.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/surfaceclass.h"
 #include "Common/MapObject.h"
@@ -731,11 +732,11 @@ void W3DShroud::render(CameraClass *cam)
 		m_dirtyMaxY = 0;
 		const WW3DFormat srcFormat = m_pDstTexture->Get_Texture_Format();
 		const UnsignedInt srcPitch = m_numCellsX * sizeof(UnsignedShort);
-		if (std::getenv("GGC_SHROUD_DIAG") != nullptr)
+		if (GgcFlags::Enabled(GgcFlag_ShroudDiag))
 		{
 			static int s_shroudDiagCount = 0;
 			int shroudDiagLimit = 32;
-			if (const char *limitEnv = std::getenv("GGC_SHROUD_DIAG_LIMIT"))
+			if (const char *limitEnv = GgcFlags::StringValue(GgcFlag_ShroudDiagLimit))
 			{
 				const int parsedLimit = std::atoi(limitEnv);
 				if (parsedLimit > 0)
