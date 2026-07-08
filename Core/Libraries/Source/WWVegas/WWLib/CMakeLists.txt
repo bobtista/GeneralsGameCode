@@ -44,6 +44,8 @@ set(WWLIB_SRC
     ffactory.h
     gcd_lcm.cpp
     gcd_lcm.h
+    GgcRuntimeFlags.cpp
+    GgcRuntimeFlags.h
     #global.h
     hash.cpp
     hash.h
