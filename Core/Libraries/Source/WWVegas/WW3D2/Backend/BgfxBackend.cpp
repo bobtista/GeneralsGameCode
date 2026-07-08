@@ -5387,6 +5387,30 @@ static void LogBgfxShroudPass(const char *event,
     }
 }
 
+// TheSuperHackers @bugfix bobtista 09/07/2026 Legacy D3DRS_ZBIAS shifted depth
+// by a few depth-buffer ULPs per unit - just enough to break coplanar ties.
+// The previous emulation of 0.001 NDC per unit was ~2000x stronger and pulled
+// biased draws through solid terrain at RTS camera distances: Fortress
+// Avalanche's stale vanilla shore surf (authored below the ZH map's raised
+// hill) rendered on top of the grass instead of being depth-rejected as on
+// DX8. Two ULPs of a 24-bit depth buffer per unit keeps hundreds of ULPs of
+// tie-break margin at the legacy maximum of 8 while lifting geometry well
+// under a world unit at gameplay depths. Sorted material decals are
+// unaffected: they clamp to their own tuned floor below.
+static const float kZBiasPerUnit = 0.000002f;
+
+static void TraceLegacyZBiasTranslation(unsigned zbiasUnits)
+{
+    static bool s_logged = false;
+    if (!s_logged && zbiasUnits != 0 && std::getenv("GGC_TRACE") != nullptr)
+    {
+        s_logged = true;
+        std::fprintf(stderr, "[ggc] legacy z-bias %d translates to %.3g ndc\n",
+            static_cast<int>(zbiasUnits),
+            static_cast<double>(zbiasUnits) * kZBiasPerUnit);
+    }
+}
+
 // NDC z-pull applied to coplanar sorted decals so they win the LEQUAL test
 // against the opaque sub-mesh they sit on. Keep this much smaller than the
 // generic legacy z-bias conversion: a large clip-space pull makes command-center
@@ -6091,8 +6115,8 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     {
         const unsigned zbiasRaw = RenderStateCache::Get_Render_State(RS::ZBIAS);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
-        const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
+        TraceLegacyZBiasTranslation(zbiasUnits);
         const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(GetEffectiveDrawState());
         const bool normalBiasFromGeometry =
             g_draw.normalBias[0] != 0.0f
@@ -8511,8 +8535,8 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         const unsigned zbiasRaw = RenderStateCache::Get_Render_State(RS::ZBIAS);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
-        const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
+        TraceLegacyZBiasTranslation(zbiasUnits);
         const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(routeState);
         const bool normalBiasFromGeometry =
             !is2D
