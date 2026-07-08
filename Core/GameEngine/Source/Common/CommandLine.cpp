@@ -239,6 +239,11 @@ Int parseBgfxDisableSortedMaterialSnapshot(char *args[], int)
 	return parseSetFlag(GgcFlag_BgfxDisableSortedMaterialSnapshot);
 }
 
+Int parseBgfxSortedTextureArray(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_BgfxSortedTextureArray);
+}
+
 Int parseBgfxFrameTimingAfter(char *args[], int num)
 {
 	if (num > 1)
@@ -1610,6 +1615,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-bgfxDisableInstancing", parseBgfxDisableInstancing },
 	{ "-bgfxDisableSortedMaterialRecaptureSkip", parseBgfxDisableSortedMaterialRecaptureSkip },
 	{ "-bgfxDisableSortedMaterialSnapshot", parseBgfxDisableSortedMaterialSnapshot },
+	{ "-bgfxSortedTextureArray", parseBgfxSortedTextureArray },
 	{ "-bgfxFrameTimingAfter", parseBgfxFrameTimingAfter },
 	{ "-bgfxFrameTimingInterval", parseBgfxFrameTimingInterval },
 	{ "-bgfxFrameTimingPath", parseBgfxFrameTimingPath },
