@@ -175,6 +175,11 @@ void SetOverride(GgcFlagId id, const char *value)
 {
 	if (!TierResolvable(s_table[id].tier))
 	{
+		// Diagnostic/probe flags resolve as unset in builds without
+		// GGC_DIAGNOSTIC_TOOLS; dropping an explicit override silently would
+		// turn a bisection run into a false A/B, so say what happened.
+		std::fprintf(stderr, "[ggc] ignoring override for %s: diagnostic tools not compiled into this build\n",
+			s_table[id].name);
 		return;
 	}
 	const char *copy = NULL;
