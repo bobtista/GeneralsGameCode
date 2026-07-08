@@ -97,9 +97,7 @@ enum GgcFlagType
 	X(GgcFlag_DisableRawAnimStepSnap, "GGC_DISABLE_RAW_ANIM_STEP_SNAP", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "opt out of the per-axis raw-anim translation step-snap fix") \
 	/* --- Platform workarounds --- */ \
 	X(GgcFlag_MacosFlush, "GGC_MACOS_FLUSH", NULL, GgcTier_Workaround, GgcFlagType_Presence, 0, 0.0f, "re-enable serialized Metal submit (AGX shader-compile artifact workaround)") \
-	X(GgcFlag_MacosNoFlush, "GGC_MACOS_NO_FLUSH", NULL, GgcTier_Workaround, GgcFlagType_Presence, 0, 0.0f, "force serialized Metal submit off even when GGC_MACOS_FLUSH is set") \
 	X(GgcFlag_MacosUseNsWindow, "GGC_MACOS_USE_NSWINDOW", NULL, GgcTier_Workaround, GgcFlagType_Presence, 0, 0.0f, "pass the legacy NSWindow handle to bgfx instead of SDL3's CAMetalLayer") \
-	X(GgcFlag_MacosPrewarm, "GGC_MACOS_PREWARM", NULL, GgcTier_Workaround, GgcFlagType_Presence, 0, 0.0f, "re-enable the view pre-warm loop at init") \
 	X(GgcFlag_StrictPoolShutdown, "GGC_STRICT_POOL_SHUTDOWN", NULL, GgcTier_Workaround, GgcFlagType_Presence, 0, 0.0f, "opt back into strict ObjectPoolClass destructor teardown and asserts") \
 	X(GgcFlag_DisableMouseWarp, "GGC_DISABLE_MOUSE_WARP", NULL, GgcTier_Workaround, GgcFlagType_Presence, 0, 0.0f, "skip SDL_WarpMouseInWindow in mouse setPosition") \
 	X(GgcFlag_DisableMouseGrab, "GGC_DISABLE_MOUSE_GRAB", NULL, GgcTier_Workaround, GgcFlagType_Presence, 0, 0.0f, "skip SDL_SetWindowMouseGrab in mouse capture (breaks edge scroll)") \
