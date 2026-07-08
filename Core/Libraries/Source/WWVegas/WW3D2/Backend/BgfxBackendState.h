@@ -596,7 +596,6 @@ struct BgfxStats
     uint32_t worldDraws = 0;
     uint32_t waterDraws = 0;
     uint32_t sortedDraws = 0;
-    uint32_t sortedArrayMergedSubmits = 0;
     uint32_t effectDraws = 0;
     uint32_t rttDraws = 0;
     uint32_t smudgeDraws = 0;
