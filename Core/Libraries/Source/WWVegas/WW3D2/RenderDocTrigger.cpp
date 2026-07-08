@@ -1,6 +1,7 @@
 // TheSuperHackers @feature bobtista 01/06/2026  See RenderDocTrigger.h.
 
 #include "RenderDocTrigger.h"
+#include "GgcRuntimeFlags.h"
 
 #include <cstdlib>
 
@@ -37,14 +38,8 @@ void Resolve_Env()
         return;
     }
     s_envResolved = true;
-    const char * afterEnv = std::getenv("GGC_RENDERDOC_CAPTURE_AFTER");
-    if (afterEnv != nullptr) {
-        s_targetFrame = std::atoi(afterEnv);
-    }
-    const char * intervalEnv = std::getenv("GGC_RENDERDOC_CAPTURE_INTERVAL");
-    if (intervalEnv != nullptr) {
-        s_interval = std::atoi(intervalEnv);
-    }
+    s_targetFrame = GgcFlags::IntValue(GgcFlag_RenderDocCaptureAfter);
+    s_interval = GgcFlags::IntValue(GgcFlag_RenderDocCaptureInterval);
 }
 
 void Resolve_Api()

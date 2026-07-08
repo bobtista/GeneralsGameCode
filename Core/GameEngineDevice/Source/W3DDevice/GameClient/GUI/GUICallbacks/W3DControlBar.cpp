@@ -41,6 +41,7 @@
 #include "GameClient/ControlBarScheme.h"
 #include "GameClient/MapUtil.h"
 #include "GameLogic/GameLogic.h"
+#include "GgcRuntimeFlags.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -737,7 +738,7 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 			TheDisplay->drawFillRect(ul.x, ul.y, lr.x -ul.x, lr.y-ul.y, lineColor);
 		else
 		{
-			if (getenv("GGC_MAP_PREVIEW_DIAG") != nullptr)
+			if (GgcFlags::Enabled(GgcFlag_MapPreviewDiag))
 			{
 				const Image *preview = window->winGetEnabledImage(0);
 				FILE *f = fopen("ggc_map_preview_diag.txt", "a");

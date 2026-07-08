@@ -17,6 +17,7 @@
 */
 
 #include "PreRTS.h"
+#include "GgcRuntimeFlags.h"
 
 #include "Common/GameUtility.h"
 #include "Common/PlayerList.h"
@@ -42,7 +43,7 @@ namespace rts
 
 static Bool shouldLogPlayerContext()
 {
-	return std::getenv("GGC_PLAYER_CONTEXT_DIAG") != nullptr;
+	return GgcFlags::Enabled(GgcFlag_PlayerContextDiag);
 }
 
 static int playerIndexOrMinusOne(Player *player)
