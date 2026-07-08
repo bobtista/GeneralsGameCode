@@ -1635,6 +1635,15 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
 }
 void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
 {
+    // TheSuperHackers @bugfix bobtista 08/07/2026 Static render objects release
+    // texture refs from destructors that run after std::exit has begun; the
+    // g_caches maps this function touches may already be destroyed by then.
+    // Same exit-order hazard as Destroy_Resource, guarded the same way.
+    if (BgfxExitTeardownActive())
+    {
+        return;
+    }
+
     if (texture == nullptr)
     {
         return;
@@ -1723,6 +1732,15 @@ void BgfxBackend::Copy_Render_Target_To_Texture(TextureClass * dst_texture,
 
 void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
 {
+    // TheSuperHackers @bugfix bobtista 08/07/2026 Static render objects release
+    // texture refs from destructors that run after std::exit has begun; the
+    // g_caches maps this function touches may already be destroyed by then.
+    // Same exit-order hazard as Destroy_Resource, guarded the same way.
+    if (BgfxExitTeardownActive())
+    {
+        return;
+    }
+
     if (texture == nullptr)
     {
         return;
