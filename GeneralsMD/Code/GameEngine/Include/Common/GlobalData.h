@@ -185,6 +185,8 @@ public:
 	Bool m_bgfxShadowMaps;
 	Real m_bgfxShadowMapBias;
 	Real m_bgfxShadowMapStrength;
+	Bool m_bgfxShadowFullPcf;
+	Bool m_bgfxStencilShadows;
 	// TheSuperHackers @feature bobtista 23/06/2026 Toggle for the perspective point-light shadow map.
 	Bool m_bgfxDynamicLightShadows;
 	Bool m_bgfxPointFilter;
@@ -194,6 +196,8 @@ public:
 	Bool m_bgfxNoSceneFramebuffer;
 	Bool m_bgfxNoPostFx;
 	Int  m_bgfxMsaa;
+	Bool m_bgfxSrgb;
+	AsciiString m_bgfxRenderer; // empty = platform default; dx11, dx12, vulkan, metal, gl
 	Int  m_bgfxScreenshotAfter; // 0 = disabled; otherwise once frameIndex >= this value, request a native bgfx screenshot every 500 frames into m_bgfxScreenshotPath.<frame>.bmp
 	AsciiString m_bgfxScreenshotPath;
 	Int  m_textureReductionFactor;	//how much to cut texture resolution: 2 is half, 3 is quarter, etc.

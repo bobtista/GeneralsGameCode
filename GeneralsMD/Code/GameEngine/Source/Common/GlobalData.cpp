@@ -379,6 +379,42 @@ extern "C" int GGC_GetBgfxPointFilter()
 	return 1;
 }
 
+extern "C" const char * GGC_GetBgfxRenderer()
+{
+	if (!TheGlobalData)
+	{
+		return "";
+	}
+	return TheGlobalData->m_bgfxRenderer.str();
+}
+
+extern "C" int GGC_GetBgfxSrgb()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxSrgb)
+	{
+		return 0;
+	}
+	return 1;
+}
+
+extern "C" int GGC_GetBgfxShadowFullPcf()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxShadowFullPcf)
+	{
+		return 0;
+	}
+	return 1;
+}
+
+extern "C" int GGC_GetBgfxStencilShadowsEnabled()
+{
+	if (!TheGlobalData)
+	{
+		return 1;
+	}
+	return TheGlobalData->m_bgfxStencilShadows ? 1 : 0;
+}
+
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
 {
 	if (logStats)
@@ -533,6 +569,8 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxShadowMaps",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxShadowMaps ) },
 	{ "BgfxShadowMapBias",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapBias ) },
 	{ "BgfxShadowMapStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapStrength ) },
+	{ "BgfxShadowFullPcf",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxShadowFullPcf ) },
+	{ "BgfxStencilShadows",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxStencilShadows ) },
 	{ "BgfxDynamicLightShadows",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxDynamicLightShadows ) },
 	{ "BgfxPointFilter",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxPointFilter ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
@@ -541,6 +579,8 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxNoSceneFramebuffer",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoSceneFramebuffer ) },
 	{ "BgfxNoPostFx",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoPostFx ) },
 	{ "BgfxMSAA",						INI::parseInt,				nullptr,			offsetof( GlobalData, m_bgfxMsaa ) },
+	{ "BgfxSrgb",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSrgb ) },
+	{ "BgfxRenderer",					INI::parseAsciiString,	nullptr,			offsetof( GlobalData, m_bgfxRenderer ) },
 	{ "TextureReductionFactor",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_textureReductionFactor ) },
 	{ "UseBehindBuildingMarker",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_enableBehindBuildingMarkers ) },
 	{ "WaterPositionX",							INI::parseReal,				nullptr,			offsetof( GlobalData, m_waterPositionX ) },
@@ -1146,6 +1186,10 @@ GlobalData::GlobalData()
 	m_bgfxNoSceneFramebuffer = FALSE;
 	m_bgfxNoPostFx = FALSE;
 	m_bgfxMsaa = 4;
+	m_bgfxSrgb = FALSE;
+	m_bgfxRenderer = "";
+	m_bgfxShadowFullPcf = FALSE;
+	m_bgfxStencilShadows = TRUE;
 	m_bgfxScreenshotAfter = 0;
 	m_bgfxScreenshotPath = "";
 	m_textureReductionFactor = -1;
