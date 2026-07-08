@@ -91,6 +91,7 @@
 #include "IRenderBackend.h"
 #include "renderbufferclasses.h"
 #include "BgfxRenderProfile.h"
+#include "GgcRuntimeFlags.h"
 
 #include <cmath>
 #include <cstdio>
@@ -992,7 +993,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	                  Shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE &&
 	                  WW3D::Is_Sorting_Enabled();
 	// TheSuperHackers @bugfix bobtista 28/05/2026 Cache the env probe once at startup; getenv() is not cheap to call every frame per particle group.
-	static const bool pointGroupDiag = std::getenv("GGC_POINTGROUP_DIAG") != nullptr;
+	static const bool pointGroupDiag = GgcFlags::Enabled(GgcFlag_PointGroupDiag);
 	if (pointGroupDiag)
 	{
 		if (FILE *diag = std::fopen("ggc_pointgroup_diag.txt", "a"))
@@ -1805,7 +1806,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 	// pipeline, merge this emitter's depth layers into one draw instead of one
 	// per layer. GGC_NO_VOLUME_MERGE forces the legacy per-layer path. The DX8
 	// fixed-function path keeps the original per-layer loop byte-identical.
-	static const bool s_volumeMergeDisabled = (std::getenv("GGC_NO_VOLUME_MERGE") != nullptr);
+	static const bool s_volumeMergeDisabled = GgcFlags::Enabled(GgcFlag_NoVolumeMerge);
 	const bool mergeVolume = g_renderBackend->Has_Shader_Pipeline() && !s_volumeMergeDisabled;
 	if (mergeVolume)
 	{

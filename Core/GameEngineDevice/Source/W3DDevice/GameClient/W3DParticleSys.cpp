@@ -38,6 +38,7 @@
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/RenderBackend.h"
+#include "GgcRuntimeFlags.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -212,7 +213,7 @@ void W3DParticleSystemManager::flushPointGroupBatch(RenderInfoClass &rinfo, Text
 
 void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 {
-	const bool particleDiag = std::getenv("GGC_PARTICLE_DIAG") != nullptr;
+	const bool particleDiag = GgcFlags::Enabled(GgcFlag_ParticleDiag);
 
 	if (m_readyToRender == false)
 	{
@@ -260,7 +261,7 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 	// per-emitter submission stay bit-for-bit identical to the original code.
 	// TheSuperHackers @perf bobtista 03/06/2026 GGC_NO_PARTICLE_BATCH=1 forces the
 	// per-emitter path for A/B visual verification and as a runtime safety escape.
-	static const bool s_particleBatchDisabled = std::getenv("GGC_NO_PARTICLE_BATCH") != nullptr;
+	static const bool s_particleBatchDisabled = GgcFlags::Enabled(GgcFlag_NoParticleBatch);
 	const bool batchPointGroups = (!s_particleBatchDisabled && g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline());
 	Int batchBase = 0;
 	TextureClass *batchTexture = nullptr;

@@ -54,6 +54,7 @@
 #include "WW3DDeviceInit.h"
 #include "texturecompatibilityinterop.h"
 #include "DrawCallLog.h"
+#include "GgcRuntimeFlags.h"
 #include "RenderStateDefs.h"
 #include "dx8webbrowser.h"
 #include "dx8fvf.h"
@@ -3878,7 +3879,7 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 
 	if (light_env)
 	{
-		if (std::getenv("GGC_LIGHT_ENV_DIAG") != nullptr)
+		if (GgcFlags::Enabled(GgcFlag_LightEnvDiag))
 		{
 			static unsigned s_leDiag = 0;
 			if (s_leDiag < 5)

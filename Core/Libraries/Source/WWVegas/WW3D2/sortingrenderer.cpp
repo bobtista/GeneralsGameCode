@@ -52,6 +52,7 @@
 #include "texture.h"
 #include "statistics.h"
 #include "WW3D2/BgfxRenderProfile.h"
+#include "GgcRuntimeFlags.h"
 #include "WW3D2/ww3d.h"
 #include <WWDebug/wwprofile.h>
 #include <algorithm>
@@ -113,14 +114,14 @@ enum BgfxSortedPacketDiagBlendClass : unsigned
 
 static bool Sorted_Packet_Collector_Diag_Enabled()
 {
-	static const bool enabled = std::getenv("GGC_BGFX_SORTED_PACKET_COLLECTOR_DIAG") != nullptr;
+	static const bool enabled = GgcFlags::Enabled(GgcFlag_BgfxSortedPacketCollectorDiag);
 	return enabled;
 }
 
 static unsigned Sorted_Packet_Collector_Diag_Max_Flushes()
 {
 	static const unsigned maxFlushes = []() -> unsigned {
-		const char* env = std::getenv("GGC_BGFX_SORTED_PACKET_COLLECTOR_DIAG_LIMIT");
+		const char* env = GgcFlags::StringValue(GgcFlag_BgfxSortedPacketCollectorDiagLimit);
 		if (env == nullptr)
 		{
 			return 512;
@@ -640,7 +641,7 @@ static RenderBackendSortedBatchState Make_Render_Backend_Sorted_State(const Rend
 
 static bool Sorted_Batch_State_Packet_Cache_Disabled()
 {
-	static const bool disabled = std::getenv("GGC_BGFX_DISABLE_SORTED_BATCH_STATE_PACKET_CACHE") != nullptr;
+	static const bool disabled = GgcFlags::Enabled(GgcFlag_BgfxDisableSortedBatchStatePacketCache);
 	return disabled;
 }
 
@@ -656,7 +657,7 @@ static void Apply_Render_State(SortingNodeStruct* state)
 
 static bool Should_Log_Sort_Effect_Diag()
 {
-	static const bool enabled = std::getenv("GGC_SORT_EFFECT_DIAG") != nullptr;
+	static const bool enabled = GgcFlags::Enabled(GgcFlag_SortEffectDiag);
 	return enabled;
 }
 
@@ -671,7 +672,7 @@ static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsign
 		? state->sorting_state.Textures[0]->As_TextureClass()
 		: nullptr;
 	const char* texName = tex0 != nullptr ? tex0->Get_Full_Path().str() : "(null)";
-	static const bool logAll = std::getenv("GGC_SORT_EFFECT_DIAG_ALL") != nullptr;
+	static const bool logAll = GgcFlags::Enabled(GgcFlag_SortEffectDiagAll);
 	if (!logAll
 		&& strnicmp(texName, "ex", 2) != 0
 		&& std::strstr(texName, "fire") == nullptr
@@ -853,7 +854,7 @@ static const char* Sorted_Texture_Full_Path(const RenderStateStruct& state, unsi
 
 static bool Sort_Coalesce_Disabled()
 {
-	static const bool disabled = std::getenv("GGC_NO_SORT_COALESCE") != nullptr;
+	static const bool disabled = GgcFlags::Enabled(GgcFlag_NoSortCoalesce);
 	return disabled;
 }
 
@@ -1536,7 +1537,7 @@ void SortingRendererClass::Flush()
 	Matrix4x4 old_world;
 	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, old_view);
 	g_renderBackend->Get_Transform(RB_TRANSFORM_WORLD, old_world);
-	static const bool s_probeNoSortFlush = getenv("GGC_PROBE_NO_SORT_FLUSH") != nullptr;
+	static const bool s_probeNoSortFlush = GgcFlags::Enabled(GgcFlag_ProbeNoSortFlush);
 	if (s_probeNoSortFlush) {
 		while (!sorted_list.empty()) {
 			SortingNodeStruct* state = sorted_list.front();
