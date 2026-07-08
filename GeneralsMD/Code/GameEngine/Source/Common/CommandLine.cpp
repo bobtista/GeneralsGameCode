@@ -37,15 +37,8 @@
 #include "GameClient/TerrainVisual.h" // for TERRAIN_LOD_MIN definition
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
+#include "GgcRuntimeFlags.h"
 #include "WWLib/trim.h"
-
-#ifdef _WIN32
-#include <stdlib.h>
-static inline int setenv(const char *name, const char *value, int /*overwrite*/)
-{
-	return _putenv_s(name, value);
-}
-#endif
 
 
 
@@ -161,97 +154,97 @@ Int parseBgfxNoEffects(char *args[], int)
 
 //=============================================================================
 //=============================================================================
-static Int parseSetEnvFlag(const char *name)
+static Int parseSetFlag(GgcFlagId id)
 {
-	setenv(name, "1", 1);
+	GgcFlags::SetOverride(id, "1");
 	return 1;
 }
 
 Int parseBgfxProbeNullSubmit(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_NULL_SUBMIT");
+	return parseSetFlag(GgcFlag_ProbeNullSubmit);
 }
 
 Int parseBgfxProbeFreezeState(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_FREEZE_STATE");
+	return parseSetFlag(GgcFlag_ProbeFreezeState);
 }
 
 Int parseBgfxProbeNoSorted(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_NO_SORTED");
+	return parseSetFlag(GgcFlag_ProbeNoSorted);
 }
 
 Int parseBgfxProbeNoTexBind(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_NO_TEXBIND");
+	return parseSetFlag(GgcFlag_ProbeNoTexBind);
 }
 
 Int parseBgfxProbeNoMaterialUniform(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_NO_MATUNIFORM");
+	return parseSetFlag(GgcFlag_ProbeNoMatUniform);
 }
 
 Int parseBgfxProbeNoLightUniform(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_NO_LIGHTUNIFORM");
+	return parseSetFlag(GgcFlag_ProbeNoLightUniform);
 }
 
 Int parseBgfxProbeNoRenderThread(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_BGFX_NO_RENDER_THREAD");
+	return parseSetFlag(GgcFlag_BgfxNoRenderThread);
 }
 
 Int parseBgfxProbeNoParticleRender(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_NO_PARTICLE_RENDER");
+	return parseSetFlag(GgcFlag_ProbeNoParticleRender);
 }
 
 Int parseBgfxProbeNoSortFlush(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_NO_SORT_FLUSH");
+	return parseSetFlag(GgcFlag_ProbeNoSortFlush);
 }
 
 Int parseBgfxProbeNoSceneObjectRender(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_NO_SCENE_OBJECT_RENDER");
+	return parseSetFlag(GgcFlag_ProbeNoSceneObjectRender);
 }
 
 Int parseBgfxProbeIdentityInstances(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_IDENTITY_INSTANCES");
+	return parseSetFlag(GgcFlag_ProbeIdentityInstances);
 }
 
 Int parseBgfxProbeTransposeInstances(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_PROBE_TRANSPOSE_INSTANCES");
+	return parseSetFlag(GgcFlag_ProbeTransposeInstances);
 }
 
 Int parseBgfxInstancingNoReorder(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_BGFX_INSTANCING_NO_REORDER");
+	return parseSetFlag(GgcFlag_BgfxInstancingNoReorder);
 }
 
 Int parseBgfxDisableInstancing(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_BGFX_DISABLE_INSTANCING");
+	return parseSetFlag(GgcFlag_BgfxNoInstancing);
 }
 
 Int parseBgfxDisableSortedMaterialRecaptureSkip(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_BGFX_DISABLE_SORTED_MATERIAL_RECAPTURE_SKIP");
+	return parseSetFlag(GgcFlag_BgfxDisableSortedMaterialRecaptureSkip);
 }
 
 Int parseBgfxDisableSortedMaterialSnapshot(char *args[], int)
 {
-	return parseSetEnvFlag("GGC_BGFX_DISABLE_SORTED_MATERIAL_SNAPSHOT");
+	return parseSetFlag(GgcFlag_BgfxDisableSortedMaterialSnapshot);
 }
 
 Int parseBgfxFrameTimingAfter(char *args[], int num)
 {
 	if (num > 1)
 	{
-		setenv("GGC_BGFX_FRAME_TIMING_AFTER", args[1], 1);
+		GgcFlags::SetOverride(GgcFlag_BgfxFrameTimingAfter, args[1]);
 		return 2;
 	}
 	return 1;
@@ -261,7 +254,7 @@ Int parseBgfxFrameTimingInterval(char *args[], int num)
 {
 	if (num > 1)
 	{
-		setenv("GGC_BGFX_FRAME_TIMING_INTERVAL", args[1], 1);
+		GgcFlags::SetOverride(GgcFlag_BgfxFrameTimingInterval, args[1]);
 		return 2;
 	}
 	return 1;
@@ -271,7 +264,7 @@ Int parseBgfxFrameTimingPath(char *args[], int num)
 {
 	if (num > 1)
 	{
-		setenv("GGC_BGFX_FRAME_TIMING_PATH", args[1], 1);
+		GgcFlags::SetOverride(GgcFlag_BgfxFrameTimingPath, args[1]);
 		return 2;
 	}
 	return 1;
@@ -279,10 +272,10 @@ Int parseBgfxFrameTimingPath(char *args[], int num)
 
 Int parseBgfxSortedPacketCollectorDiag(char *args[], int num)
 {
-	setenv("GGC_BGFX_SORTED_PACKET_COLLECTOR_DIAG", "1", 1);
+	GgcFlags::SetOverride(GgcFlag_BgfxSortedPacketCollectorDiag, "1");
 	if (num > 1 && args[1][0] != '-')
 	{
-		setenv("GGC_BGFX_SORTED_PACKET_COLLECTOR_DIAG_LIMIT", args[1], 1);
+		GgcFlags::SetOverride(GgcFlag_BgfxSortedPacketCollectorDiagLimit, args[1]);
 		return 2;
 	}
 	return 1;
@@ -1310,7 +1303,7 @@ Int parseMsaa(char *args[], int num)
 			TheWritableGlobalData->m_bgfxMsaa = level;
 			char buf[8];
 			snprintf(buf, sizeof(buf), "%d", level);
-			setenv("GGC_BGFX_MSAA", buf, 1);
+			GgcFlags::SetOverride(GgcFlag_BgfxMsaa, buf);
 		}
 		return 2;
 	}
@@ -1319,7 +1312,7 @@ Int parseMsaa(char *args[], int num)
 
 Int parseSrgb(char *args[], int num)
 {
-	setenv("GGC_BGFX_SRGB", "1", 1);
+	GgcFlags::SetOverride(GgcFlag_BgfxSrgb, "1");
 	return 1;
 }
 
@@ -1353,7 +1346,7 @@ Int parsePerfAutoExitSeconds(char *args[], int num)
 		{
 			char buf[16];
 			snprintf(buf, sizeof(buf), "%d", seconds);
-			setenv("GGC_AUTO_EXIT_SECONDS", buf, 1);
+			GgcFlags::SetOverride(GgcFlag_AutoExitSeconds, buf);
 		}
 		return 2;
 	}
@@ -1363,7 +1356,7 @@ Int parsePerfAutoExitSeconds(char *args[], int num)
 
 Int parseBgfxSkipStaticVolumeShadows(char *args[], int)
 {
-	setenv("GGC_BGFX_SKIP_STATIC_VOLUME_SHADOWS", "1", 1);
+	GgcFlags::SetOverride(GgcFlag_BgfxSkipStaticVolumeShadows, "1");
 	return 1;
 }
 
