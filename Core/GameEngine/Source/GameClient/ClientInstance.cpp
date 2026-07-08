@@ -18,12 +18,63 @@
 #include "PreRTS.h"
 #include "GameClient/ClientInstance.h"
 
+#ifndef _WIN32
+#include <cerrno>
+#include <cstdlib>
+#include <fcntl.h>
+#include <sys/file.h>
+#include <unistd.h>
+#endif
+
 #define GENERALS_GUID "685EAFF2-3216-4265-B047-251C5F4B82F3"
 
 namespace rts
 {
 HANDLE ClientInstance::s_mutexHandle = nullptr;
 UnsignedInt ClientInstance::s_instanceIndex = 0;
+
+#ifndef _WIN32
+// TheSuperHackers @fix bobtista 08/07/2026 The Win32 CreateMutex shim is a no-op
+// on POSIX platforms, which left instance detection permanently uninitialized:
+// isInitialized() stayed false and multiple clients all claimed instance 0. Use
+// an advisory flock on a per-user temp file instead; the kernel releases it when
+// the process exits, matching the auto-release of an abandoned Win32 mutex.
+enum InstanceLockResult
+{
+	INSTANCE_LOCK_ACQUIRED,
+	INSTANCE_LOCK_BUSY,
+	INSTANCE_LOCK_ERROR
+};
+
+static int s_instanceLockFd = -1;
+
+static InstanceLockResult acquireInstanceLock(const char* name)
+{
+	const char* tmpDir = std::getenv("TMPDIR");
+	std::string path = (tmpDir != nullptr && tmpDir[0] != '\0') ? tmpDir : "/tmp";
+	if (path[path.size() - 1] != '/')
+	{
+		path.push_back('/');
+	}
+	path.append(name);
+	path.append(".lock");
+
+	const int fd = ::open(path.c_str(), O_CREAT | O_RDWR, 0644);
+	if (fd < 0)
+	{
+		return INSTANCE_LOCK_ERROR;
+	}
+	if (::flock(fd, LOCK_EX | LOCK_NB) != 0)
+	{
+		const InstanceLockResult result =
+			(errno == EWOULDBLOCK) ? INSTANCE_LOCK_BUSY : INSTANCE_LOCK_ERROR;
+		::close(fd);
+		return result;
+	}
+	s_instanceLockFd = fd;
+	return INSTANCE_LOCK_ACQUIRED;
+}
+#endif
 
 #if defined(RTS_MULTI_INSTANCE)
 Bool ClientInstance::s_isMultiInstance = true;
@@ -52,6 +103,7 @@ bool ClientInstance::initialize()
 				guidStr.push_back('-');
 				guidStr.append(idStr);
 			}
+#ifdef _WIN32
 			s_mutexHandle = CreateMutex(nullptr, FALSE, guidStr.c_str());
 			if (GetLastError() == ERROR_ALREADY_EXISTS)
 			{
@@ -64,9 +116,23 @@ bool ClientInstance::initialize()
 				++s_instanceIndex;
 				continue;
 			}
+#else
+			const InstanceLockResult result = acquireInstanceLock(guidStr.c_str());
+			if (result == INSTANCE_LOCK_BUSY)
+			{
+				// Try again with a new instance.
+				++s_instanceIndex;
+				continue;
+			}
+			if (result == INSTANCE_LOCK_ERROR)
+			{
+				break;
+			}
+#endif
 		}
 		else
 		{
+#ifdef _WIN32
 			s_mutexHandle = CreateMutex(nullptr, FALSE, getFirstInstanceName());
 			if (GetLastError() == ERROR_ALREADY_EXISTS)
 			{
@@ -77,6 +143,17 @@ bool ClientInstance::initialize()
 				}
 				return false;
 			}
+#else
+			const InstanceLockResult result = acquireInstanceLock(getFirstInstanceName());
+			if (result == INSTANCE_LOCK_BUSY)
+			{
+				return false;
+			}
+			if (result == INSTANCE_LOCK_ERROR)
+			{
+				break;
+			}
+#endif
 		}
 		break;
 	}
@@ -86,7 +163,11 @@ bool ClientInstance::initialize()
 
 bool ClientInstance::isInitialized()
 {
+#ifdef _WIN32
 	return s_mutexHandle != nullptr;
+#else
+	return s_instanceLockFd >= 0;
+#endif
 }
 
 bool ClientInstance::isMultiInstance()
