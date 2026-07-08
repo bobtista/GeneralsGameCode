@@ -33,6 +33,7 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "WWLib/always.h"
+#include "GgcRuntimeFlags.h"
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
@@ -81,7 +82,7 @@ void DoShadows(RenderInfoClass & rinfo, Bool stencilPass)
 	// the darken pass lands after terrain/projected decals but before opaque
 	// meshes. The legacy D3D path keeps its original post-mesh stencil pass.
 	const Bool bgfxPreMeshStencilVolumes =
-		std::getenv("GGC_BGFX_LEGACY_POSTMESH_STENCIL_SHADOWS") == nullptr;
+		!GgcFlags::Enabled(GgcFlag_BgfxLegacyPostMeshStencilShadows);
 #else
 	const Bool bgfxPreMeshStencilVolumes = FALSE;
 #endif

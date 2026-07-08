@@ -28,6 +28,7 @@
 #include "Common/Debug.h"
 #include "Common/GameAudio.h"
 #include "Common/GlobalData.h"
+#include "GgcRuntimeFlags.h"
 #include "GameClient/Display.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GameWindow.h"
@@ -122,10 +123,7 @@ void SDL3GameEngine::update()
 	{
 		autoExitInitialized = true;
 		autoExitStartTicks = SDL_GetTicks();
-		if (const char *env = std::getenv("GGC_AUTO_EXIT_SECONDS"))
-		{
-			autoExitSeconds = std::atoi(env);
-		}
+		autoExitSeconds = GgcFlags::IntValue(GgcFlag_AutoExitSeconds);
 	}
 	if (autoExitSeconds > 0 && SDL_GetTicks() - autoExitStartTicks >= static_cast<Uint64>(autoExitSeconds) * MSEC_PER_SECOND)
 	{
@@ -808,12 +806,9 @@ AudioManager *SDL3GameEngine::createAudioManager(Bool dummy)
 	// TheSuperHackers @bugfix bobtista 30/04/2026 GGC_NO_AUDIO=1 forces the dummy audio
 	// manager even when not headless (useful on any SDL3+OpenAL platform); only truthy
 	// values are honored so a leftover GGC_NO_AUDIO=0 does not silently disable audio.
+	if (GgcFlags::Enabled(GgcFlag_NoAudio))
 	{
-		const char *envVal = std::getenv("GGC_NO_AUDIO");
-		if (envVal != NULL && (strcmp(envVal, "1") == 0 || strcasecmp(envVal, "true") == 0))
-		{
-			dummy = TRUE;
-		}
+		dummy = TRUE;
 	}
 	return NEW OpenALAudioManager(dummy);
 #endif
