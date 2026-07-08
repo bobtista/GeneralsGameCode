@@ -202,6 +202,21 @@ extern "C" int  GGC_GetBgfxDynamicLightShadowsEnabled();
 BgfxDevice     g_device;
 BgfxUniforms   g_uniforms;
 
+// TheSuperHackers @bugfix bobtista 08/07/2026 Static render objects in other
+// translation units (e.g. the DX8MeshRendererClass instance) destroy their
+// vertex/index buffers from destructors that __cxa_finalize may run after this
+// file's g_resourceRegistry/g_caches maps are already destroyed, which
+// segfaulted on any std::exit (GGC_AUTO_EXIT_SECONDS). The handler is
+// registered in Initialize, which the standard orders BEFORE the destruction
+// of every static initialized at load time, so the flag always trips first.
+// Leaking the GPU handles at process exit is intentional; the OS reclaims them.
+static bool s_exitTeardownActive = false;
+
+static void MarkExitTeardownActive()
+{
+    s_exitTeardownActive = true;
+}
+
 // TheSuperHackers @performance bobtista 15/06/2026 Slot layout for the packed
 // per-draw material array uniform (u_material). MUST stay in lockstep with the
 // #define block in fs_uber.sc / vs_uber.sc / vs_uber_instanced.sc.
@@ -3819,6 +3834,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     }
 
     g_device.initialized = true;
+
+    static const bool s_exitHandlerRegistered = (std::atexit(MarkExitTeardownActive) == 0);
+    (void)s_exitHandlerRegistered;
 
 #if defined(__APPLE__)
     if (std::getenv("GGC_TRACE") != nullptr)
@@ -13306,6 +13324,10 @@ RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const v
 
 void BgfxBackend::Destroy_Resource(RenderResource h)
 {
+    if (s_exitTeardownActive)
+    {
+        return;
+    }
     auto it = g_resourceRegistry.table.find(h.id);
     if (it == g_resourceRegistry.table.end()) {
         return;
