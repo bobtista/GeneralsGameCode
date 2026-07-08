@@ -807,6 +807,48 @@ static bool Render_State_Matches_Except_Stage0_Texture(const RenderStateStruct& 
 	return true;
 }
 
+// Variant for world-baked nodes: their positions were pre-transformed into
+// world space at fill time, so a differing world matrix no longer forces a
+// run split. View and lights must still match.
+static bool Render_State_Matches_Except_Stage0_Texture_And_World(const RenderStateStruct& left, const RenderStateStruct& right)
+{
+	if (left.shader.Get_Bits() != right.shader.Get_Bits())
+	{
+		return false;
+	}
+	if (left.sorted_draw_flags != right.sorted_draw_flags)
+	{
+		return false;
+	}
+	if (left.material != right.material)
+	{
+		return false;
+	}
+	for (int texture_index=1; texture_index<g_renderBackend->Get_Max_Texture_Stages(); ++texture_index)
+	{
+		if (left.Textures[texture_index] != right.Textures[texture_index])
+		{
+			return false;
+		}
+	}
+	if (std::memcmp(&left.view,&right.view,sizeof(left.view)) != 0)
+	{
+		return false;
+	}
+	for (int light_index=0; light_index<4; ++light_index)
+	{
+		if (left.LightEnable[light_index] != right.LightEnable[light_index])
+		{
+			return false;
+		}
+		if (left.LightEnable[light_index] && std::memcmp(&left.Lights[light_index],&right.Lights[light_index],sizeof(left.Lights[light_index])) != 0)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 // Per-flush page/layer of each overlapping node; -1 when the node cannot
 // join a texture-array merged run. Rebuilt in Flush_Sorting_Pool.
 static std::vector<int> s_sortedNodeArrayPage;
@@ -1429,12 +1471,24 @@ void SortingRendererClass::Flush_Sorting_Pool()
 						// Second UV channel = page-region UVs, normal z = layer.
 						// Both are dead data for the eligible unlit single-stage
 						// profile, and only the array program reads them.
+						// Positions are baked into world space (row-vector
+						// convention, matching the z path above) so runs from
+						// different emitters can share one identity-world draw;
+						// the backend applies the view only for these runs.
+						const Matrix4x4& bakeWorld = reinterpret_cast<const Matrix4x4&>(state->sorting_state.world);
 						const float layerCoord = static_cast<float>(arrayLayer) + 0.5f;
 						for (unsigned stamped_vertex = 0; stamped_vertex < state->vertex_count; ++stamped_vertex)
 						{
-							dest_verts[stamped_vertex].u2 = dest_verts[stamped_vertex].u1 * arrayScaleU;
-							dest_verts[stamped_vertex].v2 = dest_verts[stamped_vertex].v1 * arrayScaleV;
-							dest_verts[stamped_vertex].nz = layerCoord;
+							VertexFormatXYZNDUV2 & baked = dest_verts[stamped_vertex];
+							const float bx = baked.x;
+							const float by = baked.y;
+							const float bz = baked.z;
+							baked.x = bx * bakeWorld[0][0] + by * bakeWorld[1][0] + bz * bakeWorld[2][0] + bakeWorld[3][0];
+							baked.y = bx * bakeWorld[0][1] + by * bakeWorld[1][1] + bz * bakeWorld[2][1] + bakeWorld[3][1];
+							baked.z = bx * bakeWorld[0][2] + by * bakeWorld[1][2] + bz * bakeWorld[2][2] + bakeWorld[3][2];
+							baked.u2 = baked.u1 * arrayScaleU;
+							baked.v2 = baked.v1 * arrayScaleV;
+							baked.nz = layerCoord;
 						}
 					}
 					s_sortedNodeArrayPage[node_id] = arrayPage;
@@ -1580,20 +1634,19 @@ void SortingRendererClass::Flush_Sorting_Pool()
 				unsigned start_index=0;
 				SortingNodeStruct* state=overlapping_nodes[tis[chunkOffset].idx];
 				int run_array_page = s_sortedNodeArrayPage[tis[chunkOffset].idx];
-				bool run_array_merged = false;
 				for (unsigned i=chunkOffset + 1;i<chunkEnd;++i) {
 					SortingNodeStruct* next_state=overlapping_nodes[tis[i].idx];
 					if (!Render_State_Matches(state->sorting_state,next_state->sorting_state))
 					{
-						// Adjacent runs that differ only by their stage-0 texture keep
-						// accumulating into one texture-array draw: the z order is
-						// untouched, the per-vertex layer picks each triangle's texture.
+						// Baked runs (page >= 0) accumulate across boundaries that
+						// differ only by stage-0 texture and/or world: the z order
+						// is untouched, the per-vertex layer picks each triangle's
+						// texture, and positions were baked to world space at fill.
 						const int next_array_page = s_sortedNodeArrayPage[tis[i].idx];
 						if (run_array_page >= 0
 							&& next_array_page == run_array_page
-							&& Render_State_Matches_Except_Stage0_Texture(state->sorting_state, next_state->sorting_state))
+							&& Render_State_Matches_Except_Stage0_Texture_And_World(state->sorting_state, next_state->sorting_state))
 						{
-							run_array_merged = true;
 							state=next_state;
 							++s_sortedArrayDbgMerges;
 						}
@@ -1609,14 +1662,16 @@ void SortingRendererClass::Flush_Sorting_Pool()
 									++s_sortedArrayBreakMaskCounts[mask];
 								}
 							}
+							// Eligible runs always draw through the array path, merged
+							// or not: their vertices are world-baked, so the normal
+							// captured-world transform would double-transform them.
 							Draw_Sorted_Run(start_index,count_to_render,state,dyn_vb_access,dyn_ib_access,
-								run_array_merged ? run_array_page : -1);
+								run_array_page);
 
 							count_to_render=0;
 							start_index=i - chunkOffset;
 							state=next_state;
 							run_array_page = next_array_page;
-							run_array_merged = false;
 						}
 					}
 					count_to_render++;	//keep track of number of polygons of same kind
@@ -1625,7 +1680,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 				// Render any remaining polygons...
 				if (count_to_render) {
 					Draw_Sorted_Run(start_index,count_to_render,state,dyn_vb_access,dyn_ib_access,
-						run_array_merged ? run_array_page : -1);
+						run_array_page);
 				}
 
 				chunkOffset += chunkCount;
