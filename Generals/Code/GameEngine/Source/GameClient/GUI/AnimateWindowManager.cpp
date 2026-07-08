@@ -134,7 +134,7 @@ AnimateWindowManager::AnimateWindowManager()
 	m_winList.clear();
 	m_needsUpdate = FALSE;
 	m_reverse = FALSE;
-	m_updateAccumulator = 0.0f;
+	m_frameAccumulator = 0.0f;
 	m_winMustFinishList.clear();
 }
 AnimateWindowManager::~AnimateWindowManager()
@@ -161,7 +161,7 @@ void AnimateWindowManager::init()
 	clearWinList(m_winMustFinishList);
 	m_needsUpdate = FALSE;
 	m_reverse = FALSE;
-	m_updateAccumulator = 0.0f;
+	m_frameAccumulator = 0.0f;
 }
 
 void AnimateWindowManager::reset()
@@ -171,24 +171,15 @@ void AnimateWindowManager::reset()
 	clearWinList(m_winMustFinishList);
 	m_needsUpdate = FALSE;
 	m_reverse = FALSE;
-	m_updateAccumulator = 0.0f;
+	m_frameAccumulator = 0.0f;
 }
 
 // TheSuperHackers @tweak bobtista 27/06/2026 Decouple GUI window-move animations from the render frame rate
 void AnimateWindowManager::update()
 {
-	Real deltaSeconds = TheFramePacer->getUpdateTime();
-
-	// Clamp the delta so a long stall (load, alt-tab) cannot snap an animation to its end.
-	const Real maxCatchUpSeconds = 0.2f;
-	if (deltaSeconds > maxCatchUpSeconds)
-	{
-		deltaSeconds = maxCatchUpSeconds;
-	}
-
-	m_updateAccumulator += deltaSeconds * (Real)BaseFps;
-	Int steps = (Int)m_updateAccumulator;
-	m_updateAccumulator -= (Real)steps;
+	m_frameAccumulator += TheFramePacer->getBaseOverUpdateFpsRatio();
+	Int steps = (Int)m_frameAccumulator;
+	m_frameAccumulator -= (Real)steps;
 
 	while (steps-- > 0)
 	{

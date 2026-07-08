@@ -205,15 +205,15 @@ void Shell::update()
 
 		}
 
-		// Update the animate window manager
-		m_animateWindowManager->update();
-
 		m_schemeManager->update();
 
 		// mark last time we ran the updates
 		lastUpdate = now;
 
 	}
+
+	// TheSuperHackers @tweak bobtista 08/07/2026 Update the animate window manager every frame, it paces itself now
+	m_animateWindowManager->update();
 
 }
 
