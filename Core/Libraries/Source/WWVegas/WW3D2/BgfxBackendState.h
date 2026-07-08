@@ -155,6 +155,7 @@ struct BgfxDevice
     bgfx::ProgramHandle shadowCasterProgram = BGFX_INVALID_HANDLE; // alpha-aware shadow caster
     bgfx::ProgramHandle shadowCasterInstancedProgram = BGFX_INVALID_HANDLE; // per-instance world matrix
     bgfx::ProgramHandle smudgeProgram = BGFX_INVALID_HANDLE;
+    bgfx::ProgramHandle sortedArrayProgram = BGFX_INVALID_HANDLE; // vs_uber + fs_uber_array; stage 0 from a texture2DArray layer for merged sorted runs.
 
     // Scene color/depth RT. World, water, sorted translucency, and effects
     // render here, then a fullscreen composite pass copies the scene to the
@@ -221,6 +222,7 @@ struct BgfxUniforms
     bgfx::UniformHandle sTex3      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sCloudMap  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sSceneDepth = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle sTexArray  = BGFX_INVALID_HANDLE; // texture2DArray for merged sorted runs (fs_uber_array stage 4)
 
     // Material / TSS
     // TheSuperHackers @performance bobtista 15/06/2026 Packed per-draw material block.
@@ -334,6 +336,9 @@ struct BgfxDraw
     TextureBaseClass * sourceTextures[4] = { nullptr, nullptr, nullptr, nullptr };
     const VertexMaterialClass * sourceMaterial = nullptr;
     bool explicitMaterialState = false;
+    // >= 0 while the next sorted submit renders a texture-array merged run;
+    // selects sortedArrayProgram and binds the page at the s_texArray stage.
+    int sortedArrayPage = -1;
 
     // Buffers (static + transient variants)
     bgfx::DynamicVertexBufferHandle vb       = BGFX_INVALID_HANDLE;
@@ -590,6 +595,7 @@ struct BgfxStats
     uint32_t worldDraws = 0;
     uint32_t waterDraws = 0;
     uint32_t sortedDraws = 0;
+    uint32_t sortedArrayMergedSubmits = 0;
     uint32_t effectDraws = 0;
     uint32_t rttDraws = 0;
     uint32_t smudgeDraws = 0;
@@ -725,3 +731,11 @@ bool BgfxExitTeardownActive();
 
 // Defined in BgfxBackendTextures.cpp.
 bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly = false);
+
+// Persistent texture pages for the sorted texture-array merge path.
+// GetSlot lazily copies an eligible texture's CPU mip snapshots into a
+// texture2DArray layer once and returns its page id, or -1 when the texture
+// cannot live in a page (unsupported format/dims, page budget exhausted).
+int  BgfxSortedTextureArrayGetSlot(TextureBaseClass * texture, int * outLayer, float * outScaleU, float * outScaleV);
+bgfx::TextureHandle BgfxSortedTextureArrayPageHandle(int page);
+void BgfxSortedTextureArrayShutdown();

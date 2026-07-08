@@ -106,6 +106,8 @@ function(ggc_compile_bgfx_shader source_sc)
                             "Ensure BGFX_BUILD_TOOLS_SHADER=ON and bgfx.cmake is included.")
     endif()
 
+    cmake_parse_arguments(_ggc_sc "" "NAME;DEFINES" "" ${ARGN})
+
     ggc_bgfx_shaders_init()
 
     get_filename_component(_sc_abs "${source_sc}" ABSOLUTE)
@@ -118,6 +120,16 @@ function(ggc_compile_bgfx_shader source_sc)
         set(_shader_type "fragment")
     else()
         message(FATAL_ERROR "ggc_compile_bgfx_shader: '${_sc_name}' must start with vs_ or fs_.")
+    endif()
+
+    # NAME compiles the same source under a different output/symbol name
+    # (variant builds), DEFINES passes preprocessor definitions to shaderc.
+    if(_ggc_sc_NAME)
+        set(_sc_name "${_ggc_sc_NAME}")
+    endif()
+    set(_define_args "")
+    if(_ggc_sc_DEFINES)
+        set(_define_args --define "${_ggc_sc_DEFINES}")
     endif()
 
     if(GGC_BGFX_RENDERER STREQUAL "metal")
@@ -156,9 +168,9 @@ function(ggc_compile_bgfx_shader source_sc)
             --profile "${_shader_profile}"
             --type "${_shader_type}"
             --varyingdef "${_varying_def}"
+            ${_define_args}
             -O 3
-        MAIN_DEPENDENCY "${_sc_abs}"
-        DEPENDS "${_varying_def}" shaderc
+        DEPENDS "${_sc_abs}" "${_varying_def}" shaderc
         COMMENT "Compiling bgfx shader ${_sc_name}"
         VERBATIM
     )
