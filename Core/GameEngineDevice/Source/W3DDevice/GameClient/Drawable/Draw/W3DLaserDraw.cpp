@@ -52,6 +52,7 @@
 #include "WW3D2/segline.h"
 #include "WWMath/vector3.h"
 #include "WW3D2/assetmgr.h"
+#include "GgcRuntimeFlags.h"
 
 
 
@@ -59,9 +60,9 @@
 
 static Bool shouldLogLaserDrawForDrawable(const Drawable *draw)
 {
-	if ((std::getenv("GGC_LASER_DIAG") == nullptr && std::getenv("GGC_LASER_DIAG_ALL") == nullptr) || draw == nullptr || draw->getTemplate() == nullptr)
+	if ((!GgcFlags::Enabled(GgcFlag_LaserDiag) && !GgcFlags::Enabled(GgcFlag_LaserDiagAll)) || draw == nullptr || draw->getTemplate() == nullptr)
 		return FALSE;
-	if (std::getenv("GGC_LASER_DIAG_ALL") != nullptr)
+	if (GgcFlags::Enabled(GgcFlag_LaserDiagAll))
 		return TRUE;
 
 	const char *name = draw->getTemplate()->getName().str();

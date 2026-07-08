@@ -78,6 +78,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "assetmgr.h"
+#include "GgcRuntimeFlags.h"
 #include <assert.h>
 
 #include "WWLib/bittype.h"
@@ -129,7 +130,7 @@ static bool WW3DLoadDiagEnabled()
 	static int enabled = -1;
 	if (enabled == -1)
 	{
-		enabled = getenv("GGC_WW3D_LOAD_DIAG") != nullptr ? 1 : 0;
+		enabled = GgcFlags::Enabled(GgcFlag_Ww3dLoadDiag) ? 1 : 0;
 	}
 	return enabled != 0;
 }
