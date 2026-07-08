@@ -60,6 +60,7 @@
 #include "GameLogic/Module/ParticleUplinkCannonUpdate.h"
 #include "GameLogic/Module/PhysicsUpdate.h"
 #include "GameLogic/Module/ActiveBody.h"
+#include "GgcRuntimeFlags.h"
 
 // TheSuperHackers @fix Mirelle 04/02/2026: Raised from 500.0f so that
 // enormous camera heights cannot see above the laser origin.
@@ -673,7 +674,7 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 			// intensity follows the logic-owned laser radius rather than the client drawable's current
 			// width, so the light/shadow envelope decays smoothly with the beam instead of snapping on
 			// client update ordering.
-			static const Bool disableParticleCannonTrackingLight = (getenv( "GGC_DISABLE_PARTICLE_CANNON_TRACKING_LIGHT" ) != NULL);
+			static const Bool disableParticleCannonTrackingLight = GgcFlags::Enabled(GgcFlag_DisableParticleCannonTrackingLight);
 			if( !disableParticleCannonTrackingLight && TheDisplay != NULL && TheGlobalData != NULL && TheGlobalData->m_bgfxDynamicLightShadows )
 			{
 				Real intensity = (templateLaserRadius > 0.0f) ? (logicalLaserRadius / templateLaserRadius) : 1.0f;

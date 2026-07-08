@@ -33,6 +33,7 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "WWLib/always.h"
+#include "GgcRuntimeFlags.h"
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
@@ -127,12 +128,12 @@ int SHADOW_DECAL_INDEX_SIZE=65535;
 
 static bool DecalDiagEnabled()
 {
-	return std::getenv("GGC_DECAL_DIAG") != nullptr;
+	return GgcFlags::Enabled(GgcFlag_DecalDiag);
 }
 
 static bool ShadowPathDiagEnabled()
 {
-	return std::getenv("GGC_SHADOW_PATH_DIAG") != nullptr;
+	return GgcFlags::Enabled(GgcFlag_ShadowPathDiag);
 }
 
 static const char *ShadowTypeDebugName(ShadowType type)
@@ -196,8 +197,8 @@ static void LogProjectedShadowPath(const char *event,
 
 static bool ShouldSkipDefaultBlobShadows()
 {
-	return std::getenv("GGC_BGFX_ENABLE_DIAGNOSTIC_OVERRIDES") != nullptr
-		&& std::getenv("GGC_BGFX_SKIP_BLOB_SHADOWS") != nullptr;
+	return GgcFlags::Enabled(GgcFlag_BgfxEnableDiagnosticOverrides)
+		&& GgcFlags::Enabled(GgcFlag_BgfxSkipBlobShadows);
 }
 
 class W3DShadowTexture;	//forward reference

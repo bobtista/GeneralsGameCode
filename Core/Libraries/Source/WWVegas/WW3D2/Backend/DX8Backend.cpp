@@ -33,6 +33,7 @@
 #include "FixedFunctionState.h"
 #include "WWDebug/wwdebug.h"
 #include "texture.h"
+#include "GgcRuntimeFlags.h"
 #include "vector3.h"
 #include "matrix4.h"
 #include "matrix3d.h"
@@ -801,18 +802,14 @@ void Resolve_Dx8_Screenshot_Env()
         return;
     }
     s.envResolved = true;
-    if (const char * a = std::getenv("GGC_DX8_SCREENSHOT_AFTER")) {
+    if (const char * a = GgcFlags::StringValue(GgcFlag_Dx8ScreenshotAfter)) {
         s.targetFrame = std::atoi(a);
     }
-    if (const char * i = std::getenv("GGC_DX8_SCREENSHOT_INTERVAL")) {
-        s.interval = std::atoi(i);
-    }
-    if (const char * p = std::getenv("GGC_DX8_SCREENSHOT_PATH")) {
+    s.interval = GgcFlags::IntValue(GgcFlag_Dx8ScreenshotInterval);
+    if (const char * p = GgcFlags::StringValue(GgcFlag_Dx8ScreenshotPath)) {
         std::strncpy(s.basePath, p, sizeof(s.basePath) - 1);
     }
-    if (const char * l = std::getenv("GGC_DX8_SCREENSHOT_LOGICFRAME")) {
-        s.targetLogicFrame = std::atoi(l);
-    }
+    s.targetLogicFrame = GgcFlags::IntValue(GgcFlag_Dx8ScreenshotLogicFrame);
 }
 
 bool Should_Take_Dx8_Screenshot()

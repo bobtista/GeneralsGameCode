@@ -17,6 +17,7 @@
 */
 
 #include "OpenALAudioCache.h"
+#include "GgcRuntimeFlags.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -148,7 +149,7 @@ ALuint OpenALAudioFileCache::getBufferForFile(const OpenFileInfo &fileInfo)
 
 	// TheSuperHackers @diag bobtista 04/06/2026 GGC_AUDIO_DIAG logs every cache miss
 	// (the expensive FFmpeg decode) so we can see which sound re-decodes per frame.
-	const bool ggcAudioDiag = (getenv("GGC_AUDIO_DIAG") != nullptr);
+	const bool ggcAudioDiag = GgcFlags::Enabled(GgcFlag_AudioDiag);
 
 	auto it = m_openFiles.find(strToFind);
 
