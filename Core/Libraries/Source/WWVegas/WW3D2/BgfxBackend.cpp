@@ -8576,15 +8576,16 @@ static void LogBgfxShroudPass(const char *event,
 // unaffected: they clamp to their own tuned floor below.
 static const float kZBiasPerUnit = 0.000002f;
 
-static void TraceLegacyZBiasTranslation(unsigned zbiasUnits)
+static void TraceLegacyZBiasTranslation()
 {
+    static const bool s_trace = GgcFlags::Enabled(GgcFlag_Trace);
     static bool s_logged = false;
-    if (!s_logged && zbiasUnits != 0 && std::getenv("GGC_TRACE") != nullptr)
+    if (s_trace && !s_logged && g_draw.zBiasUnits != 0)
     {
         s_logged = true;
         std::fprintf(stderr, "[ggc] legacy z-bias %d translates to %.3g ndc\n",
-            static_cast<int>(zbiasUnits),
-            static_cast<double>(zbiasUnits) * kZBiasPerUnit);
+            static_cast<int>(g_draw.zBiasUnits),
+            static_cast<double>(g_draw.zBiasUnits) * kZBiasPerUnit);
     }
 }
 
@@ -9471,7 +9472,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     }
     {
         g_draw.zBias[0] = static_cast<float>(g_draw.zBiasUnits) * kZBiasPerUnit;
-        TraceLegacyZBiasTranslation(g_draw.zBiasUnits);
+        TraceLegacyZBiasTranslation();
         const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(GetEffectiveDrawState());
         const bool normalBiasFromGeometry =
             g_draw.normalBias[0] != 0.0f
@@ -12260,7 +12261,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // at the previous (or default) value and defeats the whole fix.
     {
         g_draw.zBias[0] = static_cast<float>(g_draw.zBiasUnits) * kZBiasPerUnit;
-        TraceLegacyZBiasTranslation(g_draw.zBiasUnits);
+        TraceLegacyZBiasTranslation();
         const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(routeState);
         const bool normalBiasFromGeometry =
             !is2D
