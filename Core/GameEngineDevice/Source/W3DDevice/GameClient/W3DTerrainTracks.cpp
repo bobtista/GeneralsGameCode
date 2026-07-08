@@ -50,6 +50,7 @@
 #include "Common/Debug.h"
 #include "WW3D2/texture.h"
 #include "WWMath/colmath.h"
+#include "GgcRuntimeFlags.h"
 #include "WW3D2/coltest.h"
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
@@ -920,7 +921,7 @@ Try improving the fit to vertical surfaces like cliffs.
 		// index buffer must stay within 65535 indices; fall back to per-module
 		// draws when a very large scene would overflow that range.
 		// GGC_NO_TRACK_BATCH=1 forces the per-module path for A/B verification.
-		static const bool s_trackBatchDisabled = std::getenv("GGC_NO_TRACK_BATCH") != nullptr;
+		static const bool s_trackBatchDisabled = GgcFlags::Enabled(GgcFlag_NoTrackBatch);
 		if (!s_trackBatchDisabled && g_renderBackend->Has_Shader_Pipeline() && totalVerts > 0 && totalTris*3 <= 65535)
 		{
 			RenderIndexBufferClass *groupIndexBuffer=NEW_REF(RenderIndexBufferClass,((UnsignedShort)(totalTris*3)));

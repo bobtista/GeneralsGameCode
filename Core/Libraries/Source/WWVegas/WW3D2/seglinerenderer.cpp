@@ -53,6 +53,7 @@
 #include "dx8fvf.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "GgcRuntimeFlags.h"
 #include "w3d_file.h"
 
 #include <cstdio>
@@ -224,7 +225,7 @@ void SegLineRendererClass::Render
 	Vector4 * rgbas
 )
 {
-	const bool diagSegline = std::getenv("GGC_SEGLINE_DIAG") != nullptr;
+	const bool diagSegline = GgcFlags::Enabled(GgcFlag_SeglineDiag);
 	Matrix4x4 view;
 	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW,view);
 

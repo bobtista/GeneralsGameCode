@@ -108,6 +108,7 @@
 
 #include "Common/version.h"
 #include <rts/profile.h>
+#include "GgcRuntimeFlags.h"
 
 
 //-------------------------------------------------------------------------------------------------
@@ -984,8 +985,7 @@ void GameEngine::update()
 		static int s_freezeAfter = -2;
 		if (s_freezeAfter == -2)
 		{
-			const char * e = getenv("GGC_FREEZE_LOGIC_AFTER");
-			s_freezeAfter = (e != nullptr) ? atoi(e) : -1;
+			s_freezeAfter = GgcFlags::IntValue(GgcFlag_FreezeLogicAfter);
 		}
 		if (s_freezeAfter > 0
 			&& TheGameLogic != nullptr
