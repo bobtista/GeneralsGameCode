@@ -9406,6 +9406,15 @@ bool BgfxBackend::Get_Sorted_Texture_Array_Slot(const RenderStateStruct & state,
     {
         return false;
     }
+    // TheSuperHackers @bugfix bobtista 08/07/2026 Mesh-origin sorted quads
+    // (rotor blur, coplights) capture a live per-mesh world through a separate
+    // legacy-transform path; baking them detached the sprites from their
+    // objects (Chinook rotors teleporting across the screen). Keep them on the
+    // classic per-run replay until the mesh transform path is baked correctly.
+    if ((state.sorted_draw_flags & RB_SORTED_DRAW_MESH) != 0)
+    {
+        return false;
+    }
     if (state.Textures[0] == nullptr || state.Textures[0]->As_TextureClass() == nullptr)
     {
         return false;
