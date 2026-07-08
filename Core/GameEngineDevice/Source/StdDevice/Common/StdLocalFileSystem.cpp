@@ -296,7 +296,12 @@ void StdLocalFileSystem::getFileListInDirectory(const AsciiString& currentDirect
 	done = iter == std::filesystem::directory_iterator();
 
 	if (ec) {
-		DEBUG_LOG(("StdLocalFileSystem::getFileListInDirectory - Error opening directory %s", fixedDirectory.c_str()));
+		// TheSuperHackers @tweak bobtista 08/07/2026 The engine probes many optional
+		// override directories that rarely exist (Data/INI subfolders), so an absent
+		// directory is routine; only log real I/O errors.
+		if (ec != std::errc::no_such_file_or_directory && ec != std::errc::not_a_directory) {
+			DEBUG_LOG(("StdLocalFileSystem::getFileListInDirectory - Error opening directory %s (%s)", fixedDirectory.c_str(), ec.message().c_str()));
+		}
 		return;
 	}
 
