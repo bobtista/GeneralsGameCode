@@ -94,24 +94,10 @@ bool EqualsIgnoreCase(const char *a, const char *b)
 	return *a == *b;
 }
 
-const GgcFlagState &Resolve(GgcFlagId id)
+void StoreResolvedValue(GgcFlagId id, const char *value)
 {
 	GgcFlagState &state = s_state[id];
-	if (s_resolved[id].load(std::memory_order_acquire) != 0)
-	{
-		return state;
-	}
-
 	const GgcFlagInfo &info = s_table[id];
-	const char *value = NULL;
-	if (TierResolvable(info.tier))
-	{
-		value = std::getenv(info.name);
-		if (value == NULL && info.alias != NULL)
-		{
-			value = std::getenv(info.alias);
-		}
-	}
 
 	state.strValue = value;
 	state.intValue = (value != NULL) ? std::atoi(value) : info.defaultInt;
@@ -135,6 +121,28 @@ const GgcFlagState &Resolve(GgcFlagId id)
 	// environment, so racing writers are benign - same guarantee the
 	// per-site function-local statics gave before the registry.
 	s_resolved[id].store(1, std::memory_order_release);
+}
+
+const GgcFlagState &Resolve(GgcFlagId id)
+{
+	GgcFlagState &state = s_state[id];
+	if (s_resolved[id].load(std::memory_order_acquire) != 0)
+	{
+		return state;
+	}
+
+	const GgcFlagInfo &info = s_table[id];
+	const char *value = NULL;
+	if (TierResolvable(info.tier))
+	{
+		value = std::getenv(info.name);
+		if (value == NULL && info.alias != NULL)
+		{
+			value = std::getenv(info.alias);
+		}
+	}
+
+	StoreResolvedValue(id, value);
 	return state;
 }
 
@@ -161,6 +169,25 @@ float FloatValue(GgcFlagId id)
 const char *StringValue(GgcFlagId id)
 {
 	return Resolve(id).strValue;
+}
+
+void SetOverride(GgcFlagId id, const char *value)
+{
+	if (!TierResolvable(s_table[id].tier))
+	{
+		return;
+	}
+	const char *copy = NULL;
+	if (value != NULL)
+	{
+		// Deliberately never freed: flag values live for the whole process,
+		// matching the lifetime getenv pointers had before the registry.
+		const size_t size = std::strlen(value) + 1;
+		char *owned = (char *)std::malloc(size);
+		std::memcpy(owned, value, size);
+		copy = owned;
+	}
+	StoreResolvedValue(id, copy);
 }
 
 void DumpTableIfRequested()

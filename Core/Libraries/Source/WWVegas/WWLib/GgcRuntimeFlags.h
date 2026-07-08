@@ -226,6 +226,10 @@ float FloatValue(GgcFlagId id);
 // The returned pointer stays valid for the lifetime of the process.
 const char *StringValue(GgcFlagId id);
 
+// Forces the flag to the given value (copied), overriding the environment
+// and any earlier resolution. Used by command-line argument parsing.
+void SetOverride(GgcFlagId id, const char *value);
+
 // Prints the whole flag table with resolved values to stderr when
 // GGC_LIST_FLAGS is set in the environment.
 void DumpTableIfRequested();
