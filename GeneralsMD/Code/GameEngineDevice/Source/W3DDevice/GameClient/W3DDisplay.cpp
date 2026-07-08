@@ -109,6 +109,7 @@ static void drawFramerateBar();
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/rddesc.h"
 #include "WWLib/TARGA.h"
+#include "GgcRuntimeFlags.h"
 
 #include "GameLogic/ScriptEngine.h"		// For TheScriptEngine - jkmcd
 #include "GameLogic/GameLogic.h"
@@ -3055,7 +3056,7 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 		tex = (TextureClass *)(image->getRawTextureData());
 	else
 		tex = WW3DAssetManager::Get_Instance()->Get_Texture(image->getFilename().str(), MIP_LEVELS_1);
-	if (getenv("GGC_MAP_PREVIEW_DIAG") != nullptr && image->getFilename().endsWith(".tga"))
+	if (GgcFlags::Enabled(GgcFlag_MapPreviewDiag) && image->getFilename().endsWith(".tga"))
 	{
 		AsciiString imageName = image->getName();
 		AsciiString filename = image->getFilename();

@@ -50,6 +50,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "W3DDevice/GameClient/W3DAssetManager.h"
+#include "GgcRuntimeFlags.h"
 #include "WW3D2/proto.h"
 #include "WW3D2/rendobj.h"
 #include <WWMath/vector3.h>
@@ -81,7 +82,7 @@ static Bool W3DAssetDiagEnabled()
 	static Int enabled = -1;
 	if (enabled == -1)
 	{
-		enabled = getenv("GGC_W3D_ASSET_DIAG") != nullptr ? 1 : 0;
+		enabled = GgcFlags::Enabled(GgcFlag_W3dAssetDiag) ? 1 : 0;
 	}
 	return enabled != 0;
 }
