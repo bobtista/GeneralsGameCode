@@ -327,6 +327,18 @@ Bool GetUnsignedIntFromRegistry(AsciiString path, AsciiString key, UnsignedInt& 
 
 #else // _UNIX
 
+// TheSuperHackers @fix bobtista 09/07/2026 The game's installers and companion
+// tools write the 32-bit registry view (WOW6432Node), which is also where a
+// 32-bit process reads and writes by default. A 64-bit process defaults to the
+// 64-bit view and misses every key - the Zero Hour build then cannot find the
+// base Generals InstallPath and silently skips loading the original Generals
+// archives. Pin all registry access on 64-bit builds to the 32-bit view.
+#if defined(_WIN64)
+static const REGSAM kRegistry32BitView = KEY_WOW64_32KEY;
+#else
+static const REGSAM kRegistry32BitView = 0;
+#endif
+
 Bool  getStringFromRegistry(HKEY root, AsciiString path, AsciiString key, AsciiString& val)
 {
 	HKEY handle;
@@ -335,7 +347,7 @@ Bool  getStringFromRegistry(HKEY root, AsciiString path, AsciiString key, AsciiS
 	unsigned long type;
 	int returnValue;
 
-	if ((returnValue = RegOpenKeyEx( root, path.str(), 0, KEY_READ, &handle )) == ERROR_SUCCESS)
+	if ((returnValue = RegOpenKeyEx( root, path.str(), 0, KEY_READ | kRegistry32BitView, &handle )) == ERROR_SUCCESS)
 	{
 		returnValue = RegQueryValueEx(handle, key.str(), nullptr, &type, (unsigned char *) &buffer, &size);
 		RegCloseKey( handle );
@@ -358,7 +370,7 @@ Bool getUnsignedIntFromRegistry(HKEY root, AsciiString path, AsciiString key, Un
 	unsigned long type;
 	int returnValue;
 
-	if ((returnValue = RegOpenKeyEx( root, path.str(), 0, KEY_READ, &handle )) == ERROR_SUCCESS)
+	if ((returnValue = RegOpenKeyEx( root, path.str(), 0, KEY_READ | kRegistry32BitView, &handle )) == ERROR_SUCCESS)
 	{
 		returnValue = RegQueryValueEx(handle, key.str(), nullptr, &type, (unsigned char *) &buffer, &size);
 		RegCloseKey( handle );
@@ -381,7 +393,7 @@ Bool setStringInRegistry( HKEY root, AsciiString path, AsciiString key, AsciiStr
 	int size;
 	char lpClass[] = "REG_NONE";
 
-	if ((returnValue = RegCreateKeyEx( root, path.str(), 0, lpClass, REG_OPTION_NON_VOLATILE, KEY_WRITE, nullptr, &handle, nullptr )) == ERROR_SUCCESS)
+	if ((returnValue = RegCreateKeyEx( root, path.str(), 0, lpClass, REG_OPTION_NON_VOLATILE, KEY_WRITE | kRegistry32BitView, nullptr, &handle, nullptr )) == ERROR_SUCCESS)
 	{
 		type = REG_SZ;
 		size = val.getLength()+1;
@@ -400,7 +412,7 @@ Bool setUnsignedIntInRegistry( HKEY root, AsciiString path, AsciiString key, Uns
 	int size;
 	char lpClass[] = "REG_NONE";
 
-	if ((returnValue = RegCreateKeyEx( root, path.str(), 0, lpClass, REG_OPTION_NON_VOLATILE, KEY_WRITE, nullptr, &handle, nullptr )) == ERROR_SUCCESS)
+	if ((returnValue = RegCreateKeyEx( root, path.str(), 0, lpClass, REG_OPTION_NON_VOLATILE, KEY_WRITE | kRegistry32BitView, nullptr, &handle, nullptr )) == ERROR_SUCCESS)
 	{
 		type = REG_DWORD;
 		size = 4;
