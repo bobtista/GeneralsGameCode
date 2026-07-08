@@ -4041,6 +4041,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     IdentityMatrix(g_frame.view);
     IdentityMatrix(g_frame.proj);
     IdentityMatrix(g_frame.sortWorld);
+    IdentityMatrix(g_frame.sortViewOnly);
     CacheIdentityTransform(RB_TRANSFORM_WORLD);
     CacheIdentityTransform(RB_TRANSFORM_VIEW);
     CacheIdentityTransform(RB_TRANSFORM_PROJECTION);
@@ -7272,6 +7273,9 @@ static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
         for (int c = 0; c < 4; ++c)
         {
             g_frame.sortWorldRaw[r * 4 + c] = sortWorld[r][c];
+            // View with identity world, for runs whose vertices were baked to
+            // world space at sorted-pool fill time.
+            g_frame.sortViewOnly[r * 4 + c] = sortView[r][c];
         }
     }
 }
@@ -9534,6 +9538,18 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         // world so animated local geometry lands on the object instead of
         // folding through the sort view's pre-multiplied matrix.
         worldMtx = g_frame.sortWorldRaw;
+    }
+    if (g_draw.sortedArrayPage >= 0)
+    {
+        // World-baked run: positions were transformed to world space when the
+        // sorted pool was filled, so apply the view only (identity for the
+        // engine-view local-model route, which carries the real camera view).
+        static const float s_identity[16] = {
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f };
+        worldMtx = localModelSortedDraw ? s_identity : g_frame.sortViewOnly;
     }
     bgfx::setTransform(worldMtx);
 

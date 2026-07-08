@@ -571,6 +571,7 @@ struct BgfxFrame
 
     float sortWorld[16]      = {};
     float sortWorldRaw[16]   = {};
+    float sortViewOnly[16]   = {}; // sortView alone (identity world) for world-baked merged sorted runs
     float sortProj[16]       = {};
     bool  sortProjCaptured   = false;
 
