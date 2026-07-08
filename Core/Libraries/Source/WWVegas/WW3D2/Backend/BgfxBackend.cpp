@@ -114,6 +114,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "vs_trees_metal.bin.h"
 #include "fs_uber_metal.bin.h"
 #include "fs_uber_array_metal.bin.h"
+#include "vs_uber_array_metal.bin.h"
 #include "vs_shadow_volume_metal.bin.h"
 #include "fs_shadow_volume_metal.bin.h"
 #include "vs_shadow_apply_metal.bin.h"
@@ -144,6 +145,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "vs_trees_dx11.bin.h"
 #include "fs_uber_dx11.bin.h"
 #include "fs_uber_array_dx11.bin.h"
+#include "vs_uber_array_dx11.bin.h"
 
 // TheSuperHackers @refactor bobtista 15/04/2026 Stencil shadow
 // volume program. Vertex shader is a trivial XYZ->clip transform; fragment
@@ -4201,7 +4203,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
 
     g_device.sortedArrayProgram = CreateShaderProgram(
-        GGC_BGFX_SHADER(vs_uber), sizeof(GGC_BGFX_SHADER(vs_uber)), "vs_uber",
+        GGC_BGFX_SHADER(vs_uber_array), sizeof(GGC_BGFX_SHADER(vs_uber_array)), "vs_uber_array",
         GGC_BGFX_SHADER(fs_uber_array), sizeof(GGC_BGFX_SHADER(fs_uber_array)), "fs_uber_array");
 
     g_device.treeProgram = CreateShaderProgram(
