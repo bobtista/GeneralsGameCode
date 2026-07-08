@@ -717,5 +717,11 @@ extern BgfxStats      g_stats;
 extern BgfxCaches     g_caches;
 
 // --- Helpers shared across BgfxBackend*.cpp ---------------------------------
+// Defined in BgfxBackend.cpp. True once process exit has begun (std::atexit
+// handler registered at Initialize); resource/cache entry points reachable
+// from static destructors must no-op past this point because this TU's
+// static maps may already be destroyed.
+bool BgfxExitTeardownActive();
+
 // Defined in BgfxBackendTextures.cpp.
 bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly = false);

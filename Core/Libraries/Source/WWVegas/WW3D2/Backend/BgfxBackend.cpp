@@ -217,6 +217,11 @@ static void MarkExitTeardownActive()
     s_exitTeardownActive = true;
 }
 
+bool BgfxExitTeardownActive()
+{
+    return s_exitTeardownActive;
+}
+
 // TheSuperHackers @performance bobtista 15/06/2026 Slot layout for the packed
 // per-draw material array uniform (u_material). MUST stay in lockstep with the
 // #define block in fs_uber.sc / vs_uber.sc / vs_uber_instanced.sc.
