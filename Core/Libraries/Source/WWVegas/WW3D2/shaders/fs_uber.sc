@@ -13,8 +13,10 @@ SAMPLER2D(s_tex3, 3);
 #if GGC_UBER_STAGE0_ARRAY
 SAMPLER2DARRAY(s_texArray, 4);
 #define GGC_SAMPLE_STAGE0(uv) texture2DArray(s_texArray, vec3(v_texcoord1.xy, floor(v_normal.z)))
+#define GGC_SAMPLE_STAGE0_ANISO(uv) texture2DArray(s_texArray, vec3(v_texcoord1.xy, floor(v_normal.z)))
 #else
 #define GGC_SAMPLE_STAGE0(uv) texture2D(s_tex0, uv)
+#define GGC_SAMPLE_STAGE0_ANISO(uv) sampleAniso(s_tex0, uv)
 #endif
 // Terrain cloud-shadow scroll texture (BASE_NOISE1/NOISE12 paths on DX8).
 SAMPLER2D(s_cloudMap, 5);
@@ -491,7 +493,7 @@ void main()
 		return;
 	}
 
-	vec4 tex0 = sampleAniso(s_tex0, stage0UV);
+	vec4 tex0 = GGC_SAMPLE_STAGE0_ANISO(stage0UV);
 	vec4 tex1 = texture2D(s_tex1, stage1UV);
 	vec4 tex2 = texture2D(s_tex2, v_stage2UV);
 	vec2 stage3UV = v_texcoord0;
