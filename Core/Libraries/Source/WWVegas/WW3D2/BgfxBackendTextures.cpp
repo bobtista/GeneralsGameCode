@@ -40,6 +40,7 @@
 #include "BgfxBackend.h"
 #include "BgfxBackendState.h"
 #include "DXTUtils.h"
+#include "GgcRuntimeFlags.h"
 
 namespace
 {
@@ -55,9 +56,8 @@ enum BgfxTextureUploadVariant
     kBgfxTextureUploadBaseMipOnly = 5,
 };
 
-static int ParseEnvLimit(const char *name, int fallback)
+static int ParseLimitValue(const char *value, int fallback)
 {
-    const char *value = std::getenv(name);
     if (value == nullptr || *value == '\0')
     {
         return fallback;
@@ -68,7 +68,7 @@ static int ParseEnvLimit(const char *name, int fallback)
 
 static bool ShouldLogEffectTexture(TextureClass * tex2d)
 {
-    if (std::getenv("GGC_EFFECT_TEXTURE_DIAG") == nullptr || tex2d == nullptr)
+    if (!GgcFlags::Enabled(GgcFlag_EffectTextureDiag) || tex2d == nullptr)
     {
         return false;
     }
@@ -133,14 +133,14 @@ static void DumpShroudTextureForDiagnostics(const uint8_t *data,
                                             unsigned bpp,
                                             WW3DFormat format)
 {
-    const char *dir = std::getenv("GGC_BGFX_SHROUD_DUMP_DIR");
+    const char *dir = GgcFlags::StringValue(GgcFlag_BgfxShroudDumpDir);
     if (dir == nullptr || *dir == '\0' || data == nullptr || width == 0 || height == 0)
     {
         return;
     }
 
     static int s_dumpCount = 0;
-    const int limit = ParseEnvLimit("GGC_BGFX_SHROUD_DUMP_LIMIT", 8);
+    const int limit = ParseLimitValue(GgcFlags::StringValue(GgcFlag_BgfxShroudDumpLimit), 8);
     if (s_dumpCount >= limit)
     {
         return;
