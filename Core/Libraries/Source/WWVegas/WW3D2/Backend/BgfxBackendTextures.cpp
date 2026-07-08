@@ -524,11 +524,10 @@ static void ExpandDXT5ToBGRA8(const uint8_t *src,
     unsigned srcPitch,
     unsigned width,
     unsigned height,
-    const bgfx::Memory *mem)
+    uint8_t *dst)
 {
     const unsigned blockRows = (height + 3) / 4;
     const unsigned blockCols = (width + 3) / 4;
-    uint8_t *dst = mem->data;
 
     for (unsigned by = 0; by < blockRows; ++by)
     {
@@ -875,7 +874,7 @@ static bool CopyTextureLevel(TextureClass * tex2d,
     }
     else if (expandDXT5ToBGRA8)
     {
-        ExpandDXT5ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, mem);
+        ExpandDXT5ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, mem->data);
     }
     else if (srcPitch == expectedPitch)
     {
@@ -2158,21 +2157,21 @@ bool SortedArraySnapshotEligible(const std::vector<TextureBaseClass::TextureMipS
     return true;
 }
 
-const bgfx::Memory * DecodeSortedArrayMip(const TextureBaseClass::TextureMipSnapshot & mip)
+void DecodeSortedArrayMip(std::vector<uint8_t> & out, const TextureBaseClass::TextureMipSnapshot & mip)
 {
     const uint32_t rowBytes = mip.Width * 4;
-    const bgfx::Memory * mem = bgfx::alloc(rowBytes * mip.Height);
+    out.resize(static_cast<size_t>(rowBytes) * mip.Height);
     if (mip.Format == WW3D_FORMAT_DXT5)
     {
-        // Decode once at registration; DXT5 decode is deterministic, so the
+        // Decode once at registration; the decode is deterministic, so the
         // page layer samples the same pixels the original texture would.
-        ExpandDXT5ToBGRA8(&mip.Data[0], mip.Pitch, mip.Width, mip.Height, mem);
+        ExpandDXT5ToBGRA8(&mip.Data[0], mip.Pitch, mip.Width, mip.Height, out.data());
     }
     else
     {
         for (unsigned row = 0; row < mip.Height; ++row)
         {
-            std::memcpy(mem->data + row * rowBytes,
+            std::memcpy(out.data() + static_cast<size_t>(row) * rowBytes,
                         mip.Data.data() + static_cast<size_t>(row) * mip.Pitch,
                         rowBytes);
         }
@@ -2180,22 +2179,22 @@ const bgfx::Memory * DecodeSortedArrayMip(const TextureBaseClass::TextureMipSnap
         {
             // X8R8G8B8 snapshots carry undefined alpha bytes; the merged draws
             // modulate texture alpha with vertex alpha, so force opaque.
-            for (uint32_t px = 3; px < rowBytes * mip.Height; px += 4)
+            for (size_t px = 3; px < out.size(); px += 4)
             {
-                mem->data[px] = 0xFF;
+                out[px] = 0xFF;
             }
         }
     }
-    return mem;
 }
 
 // Box-downsample one BGRA8 level to the next (used to extend a texture's mip
-// chain down to 1x1 so the page's deeper mips are not transparent black).
-const bgfx::Memory * DownsampleSortedArrayMip(const uint8_t * src, unsigned srcW, unsigned srcH)
+// chain down to the page's 1x1 so no page level is left undefined).
+void DownsampleSortedArrayMip(std::vector<uint8_t> & out, const std::vector<uint8_t> & src,
+                              unsigned srcW, unsigned srcH)
 {
     const unsigned dstW = srcW > 1 ? srcW / 2 : 1;
     const unsigned dstH = srcH > 1 ? srcH / 2 : 1;
-    const bgfx::Memory * mem = bgfx::alloc(dstW * dstH * 4);
+    out.resize(static_cast<size_t>(dstW) * dstH * 4);
     for (unsigned y = 0; y < dstH; ++y)
     {
         for (unsigned x = 0; x < dstW; ++x)
@@ -2207,49 +2206,61 @@ const bgfx::Memory * DownsampleSortedArrayMip(const uint8_t * src, unsigned srcW
             for (unsigned c = 0; c < 4; ++c)
             {
                 const unsigned sum =
-                    src[(sy0 * srcW + sx0) * 4 + c] + src[(sy0 * srcW + sx1) * 4 + c]
-                    + src[(sy1 * srcW + sx0) * 4 + c] + src[(sy1 * srcW + sx1) * 4 + c];
-                mem->data[(y * dstW + x) * 4 + c] = static_cast<uint8_t>(sum / 4);
+                    src[(static_cast<size_t>(sy0) * srcW + sx0) * 4 + c] + src[(static_cast<size_t>(sy0) * srcW + sx1) * 4 + c]
+                    + src[(static_cast<size_t>(sy1) * srcW + sx0) * 4 + c] + src[(static_cast<size_t>(sy1) * srcW + sx1) * 4 + c];
+                out[(static_cast<size_t>(y) * dstW + x) * 4 + c] = static_cast<uint8_t>(sum / 4);
             }
         }
     }
-    return mem;
 }
 
 void UploadSortedArrayLayer(const SortedTexturePage & page,
                             uint16_t layer,
                             const std::vector<TextureBaseClass::TextureMipSnapshot> & mips)
 {
-    unsigned levelW = mips[0].Width;
-    unsigned levelH = mips[0].Height;
-    const bgfx::Memory * level = nullptr;
+    // Every page level is uploaded at FULL page dimensions with the texture's
+    // region at the top left and transparent black elsewhere, so no texel of
+    // the layer is ever left undefined (region-edge filtering and deep-mip
+    // minification would otherwise read uninitialized GPU memory). Levels
+    // below the texture's own chain keep box-downsampling to the page's 1x1.
+    std::vector<uint8_t> region;
+    std::vector<uint8_t> next;
+    unsigned levelW = 0;
+    unsigned levelH = 0;
     for (unsigned m = 0; m < kSortedArrayPageMips; ++m)
     {
         if (m < mips.size())
         {
-            level = DecodeSortedArrayMip(mips[m]);
+            DecodeSortedArrayMip(region, mips[m]);
             levelW = mips[m].Width;
             levelH = mips[m].Height;
         }
-        else if (level != nullptr && (levelW > 1 || levelH > 1))
+        else if (levelW > 1 || levelH > 1)
         {
-            level = DownsampleSortedArrayMip(level->data, levelW, levelH);
+            DownsampleSortedArrayMip(next, region, levelW, levelH);
+            region.swap(next);
             levelW = levelW > 1 ? levelW / 2 : 1;
             levelH = levelH > 1 ? levelH / 2 : 1;
         }
-        else
+        // else: 1x1 content is replicated into the remaining deeper page mips.
+
+        const unsigned pageW = kSortedArrayPageDim >> m > 1 ? kSortedArrayPageDim >> m : 1;
+        const unsigned pageH = pageW;
+        const bgfx::Memory * mem = bgfx::alloc(pageW * pageH * 4);
+        std::memset(mem->data, 0, mem->size);
+        for (unsigned row = 0; row < levelH && row < pageH; ++row)
         {
-            break;
+            const unsigned copyW = levelW < pageW ? levelW : pageW;
+            std::memcpy(mem->data + static_cast<size_t>(row) * pageW * 4,
+                        region.data() + static_cast<size_t>(row) * levelW * 4,
+                        static_cast<size_t>(copyW) * 4);
         }
-        // bgfx::updateTexture2D consumes the memory; make a copy for the next
-        // downsample input before handing this level off.
-        const bgfx::Memory * upload = bgfx::copy(level->data, level->size);
         bgfx::updateTexture2D(page.handle, layer, static_cast<uint8_t>(m),
                               0, 0,
-                              static_cast<uint16_t>(levelW),
-                              static_cast<uint16_t>(levelH),
-                              upload,
-                              static_cast<uint16_t>(levelW * 4));
+                              static_cast<uint16_t>(pageW),
+                              static_cast<uint16_t>(pageH),
+                              mem,
+                              static_cast<uint16_t>(pageW * 4));
     }
 }
 
