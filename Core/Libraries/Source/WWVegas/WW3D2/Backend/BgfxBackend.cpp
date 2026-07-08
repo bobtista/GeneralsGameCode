@@ -113,6 +113,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "vs_uber_instanced_metal.bin.h"
 #include "vs_trees_metal.bin.h"
 #include "fs_uber_metal.bin.h"
+#include "fs_uber_array_metal.bin.h"
 #include "vs_shadow_volume_metal.bin.h"
 #include "fs_shadow_volume_metal.bin.h"
 #include "vs_shadow_apply_metal.bin.h"
@@ -142,6 +143,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "vs_uber_instanced_dx11.bin.h"
 #include "vs_trees_dx11.bin.h"
 #include "fs_uber_dx11.bin.h"
+#include "fs_uber_array_dx11.bin.h"
 
 // TheSuperHackers @refactor bobtista 15/04/2026 Stencil shadow
 // volume program. Vertex shader is a trivial XYZ->clip transform; fragment
@@ -1995,6 +1997,7 @@ const bgfx::ViewId kBgfxPointShadowView  = 23;
 // TheSuperHackers @feature bobtista 23/06/2026 Debug blit for GGC_POINT_SHADOW_VIZ: blits the
 // point shadow map R32F texture to a screen-corner quad after the scene composite.
 const bgfx::ViewId kBgfxPointShadowVizView = 24;
+const uint8_t kBgfxSortedArraySamplerStage = 4;
 const uint8_t kBgfxSceneDepthSamplerStage = 6;
 const uint8_t kBgfxShadowMapSamplerStage = 7;
 // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map sampler (next free stage
@@ -4118,6 +4121,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.sTex2        = bgfx::createUniform("s_tex2",        bgfx::UniformType::Sampler);
     g_uniforms.sTex3        = bgfx::createUniform("s_tex3",        bgfx::UniformType::Sampler);
     g_uniforms.sSceneDepth  = bgfx::createUniform("s_sceneDepth",  bgfx::UniformType::Sampler);
+    g_uniforms.sTexArray    = bgfx::createUniform("s_texArray",    bgfx::UniformType::Sampler);
     // TheSuperHackers @performance bobtista 15/06/2026 Single packed material array
     // uploaded once per draw (see UploadMaterialUniforms_Body / MaterialUniformSlot).
     g_uniforms.uMaterial    = bgfx::createUniform("u_material",    bgfx::UniformType::Vec4, MU_COUNT);
@@ -4194,6 +4198,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_device.uberInstancedProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_uber_instanced), sizeof(GGC_BGFX_SHADER(vs_uber_instanced)), "vs_uber_instanced",
         GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
+
+    g_device.sortedArrayProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_uber), sizeof(GGC_BGFX_SHADER(vs_uber)), "vs_uber",
+        GGC_BGFX_SHADER(fs_uber_array), sizeof(GGC_BGFX_SHADER(fs_uber_array)), "fs_uber_array");
 
     g_device.treeProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_trees), sizeof(GGC_BGFX_SHADER(vs_trees)), "vs_trees",
@@ -4329,6 +4337,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_device.smudgeProgram);
         DestroyBgfxHandle(g_device.fullscreenClearVB);
         DestroyBgfxHandle(g_device.uberProgram);
+        DestroyBgfxHandle(g_device.sortedArrayProgram);
         DestroyBgfxHandle(g_device.uberInstancedProgram);
         DestroyBgfxHandle(g_device.treeProgram);
         DestroyBgfxHandle(g_uniforms.uSwayTable);
@@ -4339,6 +4348,8 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.sTex2);
         DestroyBgfxHandle(g_uniforms.sTex3);
         DestroyBgfxHandle(g_uniforms.sSceneDepth);
+        DestroyBgfxHandle(g_uniforms.sTexArray);
+        BgfxSortedTextureArrayShutdown();
         DestroyBgfxHandle(g_uniforms.uMatDiffuse);
         DestroyBgfxHandle(g_uniforms.uMatAmbient);
         DestroyBgfxHandle(g_uniforms.uAtestParams);
@@ -9370,6 +9381,77 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
 // transients Capture_Dynamic_* stashed for Draw_Sorting_IB_VB's inner buffers, submits to
 // the sorted view with remapped args, and skips the outer Draw_Triangles submit.
 
+// TheSuperHackers @performance bobtista 08/07/2026 Sorted texture-array merge.
+// A sorted node is page-eligible when its draw samples exactly one stage-0
+// texture through UV channel 0; such nodes can share one merged draw with
+// neighbors that differ only by that texture, selecting the layer per vertex.
+bool BgfxBackend::Get_Sorted_Texture_Array_Slot(const RenderStateStruct & state, int * outPage, int * outLayer, float * outScaleU, float * outScaleV)
+{
+    *outPage = -1;
+    *outLayer = -1;
+    *outScaleU = 1.0f;
+    *outScaleV = 1.0f;
+    static const bool s_enabled = GgcFlags::Enabled(GgcFlag_BgfxSortedTextureArray);
+    if (!s_enabled || !g_device.initialized || !bgfx::isValid(g_device.sortedArrayProgram))
+    {
+        return false;
+    }
+    if (state.shader.Get_Texturing() != ShaderClass::TEXTURING_ENABLE)
+    {
+        return false;
+    }
+    if (state.Textures[0] == nullptr || state.Textures[0]->As_TextureClass() == nullptr)
+    {
+        return false;
+    }
+    for (int stage = 1; stage < Get_Max_Texture_Stages(); ++stage)
+    {
+        if (state.Textures[stage] != nullptr)
+        {
+            return false;
+        }
+    }
+    // The merged path carries the layer in the vertex normal's z and the
+    // page-scaled UVs in the second UV channel, so it is restricted to draws
+    // whose normals are guaranteed unused and whose UVs are plain channel 0.
+    // Depth-write-off particle blends with per-vertex color are exactly the
+    // profile ShouldForceUnlitForBakedColorDraw renders unlit.
+    const ShaderClass & shader = state.shader;
+    if (shader.Get_Depth_Mask() != ShaderClass::DEPTH_WRITE_DISABLE
+        || shader.Get_Alpha_Test() != ShaderClass::ALPHATEST_DISABLE)
+    {
+        return false;
+    }
+    const ShaderClass::SrcBlendFuncType srcBlend = shader.Get_Src_Blend_Func();
+    const ShaderClass::DstBlendFuncType dstBlend = shader.Get_Dst_Blend_Func();
+    const bool particleBlend =
+        (srcBlend == ShaderClass::SRCBLEND_ONE && dstBlend == ShaderClass::DSTBLEND_ONE)
+        || (srcBlend == ShaderClass::SRCBLEND_SRC_ALPHA && dstBlend == ShaderClass::DSTBLEND_ONE)
+        || (srcBlend == ShaderClass::SRCBLEND_SRC_ALPHA && dstBlend == ShaderClass::DSTBLEND_ONE_MINUS_SRC_ALPHA);
+    if (!particleBlend)
+    {
+        return false;
+    }
+    if (state.material == nullptr
+        || state.material->Get_UV_Source(0) != 0
+        || state.material->Get_Mapper(0) != nullptr)
+    {
+        return false;
+    }
+    const int page = BgfxSortedTextureArrayGetSlot(state.Textures[0], outLayer, outScaleU, outScaleV);
+    if (page < 0)
+    {
+        return false;
+    }
+    *outPage = page;
+    return true;
+}
+
+void BgfxBackend::Set_Sorted_Texture_Array_Page(int page)
+{
+    g_draw.sortedArrayPage = page;
+}
+
 void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                                      const DynamicIBAccessClass & dyn_ib,
                                      unsigned short polygon_count,
@@ -9561,7 +9643,20 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     bgfx::setStencil(BGFX_STENCIL_NONE);
     BindSoftParticleDepth(submitView == kBgfxEngineSortView
                           && IsSoftParticleCandidate(state));
-    bgfx::submit(submitView, g_draw.program);
+    bgfx::ProgramHandle program = g_draw.program;
+    if (g_draw.sortedArrayPage >= 0)
+    {
+        const bgfx::TextureHandle pageTex = BgfxSortedTextureArrayPageHandle(g_draw.sortedArrayPage);
+        if (bgfx::isValid(pageTex) && bgfx::isValid(g_device.sortedArrayProgram))
+        {
+            bgfx::setTexture(kBgfxSortedArraySamplerStage, g_uniforms.sTexArray,
+                             pageTex,
+                             g_draw.samplerFlags[0] | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+            program = g_device.sortedArrayProgram;
+            g_stats.sortedArrayMergedSubmits++;
+        }
+    }
+    bgfx::submit(submitView, program);
     LogBgfxEffectSubmit("submit-sorted", submitView,
                         polygon_count, vertex_count, state, "submit");
     LogBgfxRevealDraw("submit-sorted", submitView,
