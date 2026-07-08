@@ -184,7 +184,7 @@ private:
 	AnimateWindowList m_winMustFinishList;			///< A list of AnimationWindows that we do care about
 	Bool m_needsUpdate;													///< If we're done animating all our monitored windows, then this will be false
 	Bool m_reverse;															///< Are we in a reverse state?
-	Real m_updateAccumulator;										///< Carries fractional base-rate steps between updates
+	Real m_frameAccumulator;										///< Carries fractional base-rate frames between updates
 	ProcessAnimateWindowSlideFromRight *m_slideFromRight;			///< Holds the process in which the windows slide from the right
 	ProcessAnimateWindowSlideFromRightFast *m_slideFromRightFast;
 	ProcessAnimateWindowSlideFromTop *m_slideFromTop;					///< Holds the process in which the windows slide from the Top
