@@ -60,6 +60,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 
 bool SortingRendererClass::_EnableTriangleDraw=true;
@@ -758,6 +759,63 @@ static bool Render_State_Matches(const RenderStateStruct& left, const RenderStat
 	return true;
 }
 
+// TheSuperHackers @performance bobtista 08/07/2026 True when two sorted states
+// are identical in every dimension Render_State_Matches checks EXCEPT the
+// stage-0 texture. Such adjacent runs can merge into one texture-array draw
+// without any reordering: the z-sorted triangle order is preserved and only
+// the per-vertex layer index distinguishes the textures.
+static bool Render_State_Matches_Except_Stage0_Texture(const RenderStateStruct& left, const RenderStateStruct& right)
+{
+	if (left.shader.Get_Bits() != right.shader.Get_Bits())
+	{
+		return false;
+	}
+	if (left.sorted_draw_flags != right.sorted_draw_flags)
+	{
+		return false;
+	}
+	if (left.material != right.material)
+	{
+		return false;
+	}
+	for (int texture_index=1; texture_index<g_renderBackend->Get_Max_Texture_Stages(); ++texture_index)
+	{
+		if (left.Textures[texture_index] != right.Textures[texture_index])
+		{
+			return false;
+		}
+	}
+	if (std::memcmp(&left.world,&right.world,sizeof(left.world)) != 0)
+	{
+		return false;
+	}
+	if (std::memcmp(&left.view,&right.view,sizeof(left.view)) != 0)
+	{
+		return false;
+	}
+	for (int light_index=0; light_index<4; ++light_index)
+	{
+		if (left.LightEnable[light_index] != right.LightEnable[light_index])
+		{
+			return false;
+		}
+		if (left.LightEnable[light_index] && std::memcmp(&left.Lights[light_index],&right.Lights[light_index],sizeof(left.Lights[light_index])) != 0)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+// Per-flush page/layer of each overlapping node; -1 when the node cannot
+// join a texture-array merged run. Rebuilt in Flush_Sorting_Pool.
+static std::vector<int> s_sortedNodeArrayPage;
+unsigned s_sortedArrayBreakMaskCounts[256] = {};
+static unsigned s_sortedArrayDbgNodes = 0;
+static unsigned s_sortedArrayDbgEligible = 0;
+static unsigned s_sortedArrayDbgMerges = 0;
+static unsigned s_sortedArrayDbgFlushes = 0;
+
 enum BgfxSortedPacketBreakReason : unsigned
 {
 	BGFX_SORTED_PACKET_BREAK_SHADER = 0,
@@ -1289,8 +1347,13 @@ static void Draw_Sorted_Run(unsigned start_index,
                             unsigned count_to_render,
                             SortingNodeStruct* state,
                             const DynamicVBAccessClass& dyn_vb_access,
-                            const DynamicIBAccessClass& dyn_ib_access)
+                            const DynamicIBAccessClass& dyn_ib_access,
+                            int array_page = -1)
 {
+	if (array_page >= 0)
+	{
+		g_renderBackend->Set_Sorted_Texture_Array_Page(array_page);
+	}
 	Apply_Render_State(state);
 	if (!g_renderBackend->Has_Shader_Pipeline())
 	{
@@ -1304,6 +1367,10 @@ static void Draw_Sorted_Run(unsigned start_index,
 		count_to_render,
 		0,
 		overlapping_vertex_count);
+	if (array_page >= 0)
+	{
+		g_renderBackend->Set_Sorted_Texture_Array_Page(-1);
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -1336,6 +1403,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 			unsigned polygon_array_offset=0;
 			unsigned vertex_array_offset=0;
+			s_sortedNodeArrayPage.assign(overlapping_node_count, -1);
 			for (unsigned node_id=0;node_id<overlapping_node_count;++node_id) {
 				SortingNodeStruct* state=overlapping_nodes[node_id];
 				VertexFormatXYZNDUV2* src_verts=nullptr;
@@ -1351,6 +1419,31 @@ void SortingRendererClass::Flush_Sorting_Pool()
 				// it is because D3D is in illegal state, and the only known cure is rebooting.
 				// This illegal state is usually caused by Quake3-engine powered games such as MOHAA.
 				memcpy(dest_verts, src_verts, sizeof(VertexFormatXYZNDUV2)*state->vertex_count);
+				{
+					int arrayPage = -1;
+					int arrayLayer = -1;
+					float arrayScaleU = 1.0f;
+					float arrayScaleV = 1.0f;
+					if (g_renderBackend->Get_Sorted_Texture_Array_Slot(state->sorting_state, &arrayPage, &arrayLayer, &arrayScaleU, &arrayScaleV))
+					{
+						// Second UV channel = page-region UVs, normal z = layer.
+						// Both are dead data for the eligible unlit single-stage
+						// profile, and only the array program reads them.
+						const float layerCoord = static_cast<float>(arrayLayer) + 0.5f;
+						for (unsigned stamped_vertex = 0; stamped_vertex < state->vertex_count; ++stamped_vertex)
+						{
+							dest_verts[stamped_vertex].u2 = dest_verts[stamped_vertex].u1 * arrayScaleU;
+							dest_verts[stamped_vertex].v2 = dest_verts[stamped_vertex].v1 * arrayScaleV;
+							dest_verts[stamped_vertex].nz = layerCoord;
+						}
+					}
+					s_sortedNodeArrayPage[node_id] = arrayPage;
+					++s_sortedArrayDbgNodes;
+					if (arrayPage >= 0)
+					{
+						++s_sortedArrayDbgEligible;
+					}
+				}
 				dest_verts += state->vertex_count;
 
 				const Matrix4x4 mtx = Get_Sorted_World_View_Matrix(state->sorting_state);
@@ -1486,22 +1579,53 @@ void SortingRendererClass::Flush_Sorting_Pool()
 				unsigned count_to_render=1;
 				unsigned start_index=0;
 				SortingNodeStruct* state=overlapping_nodes[tis[chunkOffset].idx];
+				int run_array_page = s_sortedNodeArrayPage[tis[chunkOffset].idx];
+				bool run_array_merged = false;
 				for (unsigned i=chunkOffset + 1;i<chunkEnd;++i) {
 					SortingNodeStruct* next_state=overlapping_nodes[tis[i].idx];
 					if (!Render_State_Matches(state->sorting_state,next_state->sorting_state))
 					{
-						Draw_Sorted_Run(start_index,count_to_render,state,dyn_vb_access,dyn_ib_access);
+						// Adjacent runs that differ only by their stage-0 texture keep
+						// accumulating into one texture-array draw: the z order is
+						// untouched, the per-vertex layer picks each triangle's texture.
+						const int next_array_page = s_sortedNodeArrayPage[tis[i].idx];
+						if (run_array_page >= 0
+							&& next_array_page == run_array_page
+							&& Render_State_Matches_Except_Stage0_Texture(state->sorting_state, next_state->sorting_state))
+						{
+							run_array_merged = true;
+							state=next_state;
+							++s_sortedArrayDbgMerges;
+						}
+						else
+						{
+							if (run_array_page >= 0 && next_array_page == run_array_page)
+							{
+								static const bool s_traceBreaks = GgcFlags::Enabled(GgcFlag_Trace);
+								if (s_traceBreaks)
+								{
+									extern unsigned s_sortedArrayBreakMaskCounts[256];
+									const unsigned mask = Sorted_State_Break_Mask(state->sorting_state, next_state->sorting_state) & 0xFF;
+									++s_sortedArrayBreakMaskCounts[mask];
+								}
+							}
+							Draw_Sorted_Run(start_index,count_to_render,state,dyn_vb_access,dyn_ib_access,
+								run_array_merged ? run_array_page : -1);
 
-						count_to_render=0;
-						start_index=i - chunkOffset;
-						state=next_state;
+							count_to_render=0;
+							start_index=i - chunkOffset;
+							state=next_state;
+							run_array_page = next_array_page;
+							run_array_merged = false;
+						}
 					}
 					count_to_render++;	//keep track of number of polygons of same kind
 				}
 
 				// Render any remaining polygons...
 				if (count_to_render) {
-					Draw_Sorted_Run(start_index,count_to_render,state,dyn_vb_access,dyn_ib_access);
+					Draw_Sorted_Run(start_index,count_to_render,state,dyn_vb_access,dyn_ib_access,
+						run_array_merged ? run_array_page : -1);
 				}
 
 				chunkOffset += chunkCount;
@@ -1510,6 +1634,25 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			// sort flush complete, resume routing bgfx submits
 			// through the main engine view id.
 			g_renderBackend->End_Sorted_Batch_Pass();
+			if (Should_Log_Sort_Effect_Diag() || GgcFlags::Enabled(GgcFlag_Trace))
+			{
+				if ((++s_sortedArrayDbgFlushes % 200) == 0)
+				{
+					std::fprintf(stderr,
+						"[ggc] sorted-array dbg: flushes=%u nodes=%u eligible=%u merges=%u breaks:",
+						s_sortedArrayDbgFlushes, s_sortedArrayDbgNodes,
+						s_sortedArrayDbgEligible, s_sortedArrayDbgMerges);
+					for (unsigned mask = 0; mask < 256; ++mask)
+					{
+						if (s_sortedArrayBreakMaskCounts[mask] != 0)
+						{
+							std::fprintf(stderr, " 0x%x=%u", mask, s_sortedArrayBreakMaskCounts[mask]);
+						}
+					}
+					std::fprintf(stderr, "\n");
+					std::fflush(stderr);
+				}
+			}
 		}
 	}
 
