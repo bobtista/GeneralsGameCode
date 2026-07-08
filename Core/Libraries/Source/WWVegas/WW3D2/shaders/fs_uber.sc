@@ -6,6 +6,16 @@ SAMPLER2D(s_tex0, 0);
 SAMPLER2D(s_tex1, 1);
 SAMPLER2D(s_tex2, 2);
 SAMPLER2D(s_tex3, 3);
+// fs_uber_array variant: stage 0 reads a texture2DArray layer selected per
+// vertex (layer index carried in v_texcoord1.x by the sorted merge path).
+// Compiled from this same source with GGC_UBER_STAGE0_ARRAY=1 so every other
+// shading path stays byte-identical to the plain uber program.
+#if GGC_UBER_STAGE0_ARRAY
+SAMPLER2DARRAY(s_texArray, 4);
+#define GGC_SAMPLE_STAGE0(uv) texture2DArray(s_texArray, vec3(v_texcoord1.xy, floor(v_normal.z)))
+#else
+#define GGC_SAMPLE_STAGE0(uv) texture2D(s_tex0, uv)
+#endif
 // Terrain cloud-shadow scroll texture (BASE_NOISE1/NOISE12 paths on DX8).
 SAMPLER2D(s_cloudMap, 5);
 SAMPLER2D(s_sceneDepth, 6);
@@ -447,7 +457,7 @@ void main()
 	//   mul r0, r0, v0        ; multiply by diffuse (baked lighting)
 	if (u_texcoordSelect.y > 0.5)
 	{
-		vec4 baseTex  = texture2D(s_tex0, (u_texProjected.x > 0.5) ? stage0UV : baseStage0UV);
+		vec4 baseTex  = GGC_SAMPLE_STAGE0( (u_texProjected.x > 0.5) ? stage0UV : baseStage0UV);
 		vec4 blendTex = texture2D(s_tex1, (u_texProjected.y > 0.5) ? stage1UV : v_texcoord1);
 		float blendAlpha = diffuse.a;
 		vec3 blended = mix(baseTex.rgb, blendTex.rgb, blendAlpha);
@@ -498,7 +508,7 @@ void main()
 	if (u_texcoordSelect2.z > 6.5)
 	{
 		vec2 uv = v_texcoord0;
-		vec4 ringTex = texture2D(s_tex0, uv);
+		vec4 ringTex = GGC_SAMPLE_STAGE0( uv);
 		float intensity = max(max(ringTex.r, ringTex.g), ringTex.b);
 		vec2 p = (uv - vec2_splat(0.5)) * vec2(1.05, 1.32);
 		float radius = length(p);
@@ -527,7 +537,7 @@ void main()
 
 	if (u_texcoordSelect2.z > 5.5)
 	{
-		vec4 lightningTex = texture2D(s_tex0, stage0UV);
+		vec4 lightningTex = GGC_SAMPLE_STAGE0( stage0UV);
 		float drawAlpha = clamp(diffuse.a * u_matDiffuse.a, 0.0, 1.0);
 		float texMask = max(max(lightningTex.r, lightningTex.g), lightningTex.b);
 		float body = smoothstep(0.035, 0.22, texMask);
@@ -682,7 +692,7 @@ void main()
 	vec4 projectedDecalTex = tex0;
 	if (u_projectedDecalMode.x > 0.5)
 	{
-		projectedDecalTex = texture2D(s_tex0, projectedDecalUV);
+		projectedDecalTex = GGC_SAMPLE_STAGE0( projectedDecalUV);
 		// TheSuperHackers @bugfix bobtista 31/05/2026 Default infantry blob shadows
 		// (mode 1) project onto a coarse heightmap receiver quad much larger than the
 		// [0,1] decal image, so most blob fragments have out-of-range UVs. Discarding

@@ -17,10 +17,12 @@
 // methods that touch the cache: Invalidate_Cached_Texture,
 // Release_Cached_Texture, Capture_Shroud_Texture.
 
+#include <algorithm>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <bgfx/bgfx.h>
@@ -2042,4 +2044,294 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
         kBgfxTextureUploadNormal
     };
     DumpShroudTextureForDiagnostics(mem->data, dst_width, dst_height, bpp, format);
+}
+
+// ----------------------------------------------------------------------------
+// TheSuperHackers @performance bobtista 08/07/2026 Persistent texture pages for
+// the sorted texture-array merge path. Adjacent sorted runs that differ only by
+// their stage-0 texture can render as one draw when every texture lives in the
+// same texture2DArray page; the layer index rides in the vertex stream. Pages
+// are keyed by (width, height, mip count) and filled once per texture from the
+// CPU mip snapshots, so there is no per-frame array churn.
+
+namespace
+{
+
+constexpr uint16_t kSortedArrayPageCapacity = 64;
+// All layers live in one canonical square so differently-sized effect textures
+// share a page (texture2DArray layers must match dimensions). Each texture
+// occupies the top-left (w, h) region of its layer; the sorted merge path
+// pre-scales the vertex UVs by (w, h) / kSortedArrayPageDim.
+constexpr unsigned kSortedArrayPageDim = 256;
+constexpr unsigned kSortedArrayPageMips = 9; // 256..1 full chain
+
+struct SortedTexturePage
+{
+    bgfx::TextureHandle handle = BGFX_INVALID_HANDLE;
+    uint16_t used = 0;
+};
+
+std::vector<SortedTexturePage> s_sortedPages;
+struct SortedTextureSlot
+{
+    int page = -1;
+    int layer = -1;
+    float scaleU = 1.0f;
+    float scaleV = 1.0f;
+};
+// Cached slots, including negative results (page == -1) so ineligible
+// textures are only inspected once.
+std::unordered_map<TextureBaseClass *, SortedTextureSlot> s_sortedSlots;
+
+bool SortedArrayMipDataValid(const TextureBaseClass::TextureMipSnapshot & mip)
+{
+    if (mip.Format == WW3D_FORMAT_DXT5)
+    {
+        const size_t blockRows = (mip.Height + 3) / 4;
+        const size_t blockCols = (mip.Width + 3) / 4;
+        return mip.Pitch >= blockCols * 16
+            && mip.Data.size() >= blockRows * mip.Pitch;
+    }
+    return mip.Pitch >= mip.Width * 4
+        && mip.Data.size() >= static_cast<size_t>(mip.Pitch) * mip.Height;
+}
+
+bool SortedArraySnapshotEligible(const std::vector<TextureBaseClass::TextureMipSnapshot> & mips)
+{
+    static const bool s_trace = GgcFlags::Enabled(GgcFlag_Trace);
+    if (mips.empty())
+    {
+        if (s_trace)
+        {
+            static bool s_logged = false;
+            if (!s_logged) { std::fprintf(stderr, "[ggc] sorted-array reject: empty snapshot\n"); s_logged = true; }
+        }
+        return false;
+    }
+    const TextureBaseClass::TextureMipSnapshot & base = mips[0];
+    if (base.Format != WW3D_FORMAT_A8R8G8B8 && base.Format != WW3D_FORMAT_X8R8G8B8
+        && base.Format != WW3D_FORMAT_DXT5)
+    {
+        if (s_trace)
+        {
+            static bool s_logged = false;
+            if (!s_logged) { std::fprintf(stderr, "[ggc] sorted-array reject: format=%d\n", (int)base.Format); s_logged = true; }
+        }
+        return false;
+    }
+    if (base.Width == 0 || base.Height == 0
+        || base.Width > kSortedArrayPageDim || base.Height > kSortedArrayPageDim
+        || (base.Width & (base.Width - 1)) != 0
+        || (base.Height & (base.Height - 1)) != 0)
+    {
+        return false;
+    }
+    for (size_t m = 0; m < mips.size(); ++m)
+    {
+        const TextureBaseClass::TextureMipSnapshot & mip = mips[m];
+        if (mip.Format != base.Format)
+        {
+            return false;
+        }
+        const unsigned expectedW = std::max(1u, base.Width >> m);
+        const unsigned expectedH = std::max(1u, base.Height >> m);
+        if (mip.Width != expectedW || mip.Height != expectedH)
+        {
+            return false;
+        }
+        if (!SortedArrayMipDataValid(mip))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+const bgfx::Memory * DecodeSortedArrayMip(const TextureBaseClass::TextureMipSnapshot & mip)
+{
+    const uint32_t rowBytes = mip.Width * 4;
+    const bgfx::Memory * mem = bgfx::alloc(rowBytes * mip.Height);
+    if (mip.Format == WW3D_FORMAT_DXT5)
+    {
+        // Decode once at registration; DXT5 decode is deterministic, so the
+        // page layer samples the same pixels the original texture would.
+        ExpandDXT5ToBGRA8(&mip.Data[0], mip.Pitch, mip.Width, mip.Height, mem);
+    }
+    else
+    {
+        for (unsigned row = 0; row < mip.Height; ++row)
+        {
+            std::memcpy(mem->data + row * rowBytes,
+                        mip.Data.data() + static_cast<size_t>(row) * mip.Pitch,
+                        rowBytes);
+        }
+        if (mip.Format == WW3D_FORMAT_X8R8G8B8)
+        {
+            // X8R8G8B8 snapshots carry undefined alpha bytes; the merged draws
+            // modulate texture alpha with vertex alpha, so force opaque.
+            for (uint32_t px = 3; px < rowBytes * mip.Height; px += 4)
+            {
+                mem->data[px] = 0xFF;
+            }
+        }
+    }
+    return mem;
+}
+
+// Box-downsample one BGRA8 level to the next (used to extend a texture's mip
+// chain down to 1x1 so the page's deeper mips are not transparent black).
+const bgfx::Memory * DownsampleSortedArrayMip(const uint8_t * src, unsigned srcW, unsigned srcH)
+{
+    const unsigned dstW = srcW > 1 ? srcW / 2 : 1;
+    const unsigned dstH = srcH > 1 ? srcH / 2 : 1;
+    const bgfx::Memory * mem = bgfx::alloc(dstW * dstH * 4);
+    for (unsigned y = 0; y < dstH; ++y)
+    {
+        for (unsigned x = 0; x < dstW; ++x)
+        {
+            const unsigned sx0 = x * 2;
+            const unsigned sy0 = y * 2;
+            const unsigned sx1 = (sx0 + 1 < srcW) ? sx0 + 1 : sx0;
+            const unsigned sy1 = (sy0 + 1 < srcH) ? sy0 + 1 : sy0;
+            for (unsigned c = 0; c < 4; ++c)
+            {
+                const unsigned sum =
+                    src[(sy0 * srcW + sx0) * 4 + c] + src[(sy0 * srcW + sx1) * 4 + c]
+                    + src[(sy1 * srcW + sx0) * 4 + c] + src[(sy1 * srcW + sx1) * 4 + c];
+                mem->data[(y * dstW + x) * 4 + c] = static_cast<uint8_t>(sum / 4);
+            }
+        }
+    }
+    return mem;
+}
+
+void UploadSortedArrayLayer(const SortedTexturePage & page,
+                            uint16_t layer,
+                            const std::vector<TextureBaseClass::TextureMipSnapshot> & mips)
+{
+    unsigned levelW = mips[0].Width;
+    unsigned levelH = mips[0].Height;
+    const bgfx::Memory * level = nullptr;
+    for (unsigned m = 0; m < kSortedArrayPageMips; ++m)
+    {
+        if (m < mips.size())
+        {
+            level = DecodeSortedArrayMip(mips[m]);
+            levelW = mips[m].Width;
+            levelH = mips[m].Height;
+        }
+        else if (level != nullptr && (levelW > 1 || levelH > 1))
+        {
+            level = DownsampleSortedArrayMip(level->data, levelW, levelH);
+            levelW = levelW > 1 ? levelW / 2 : 1;
+            levelH = levelH > 1 ? levelH / 2 : 1;
+        }
+        else
+        {
+            break;
+        }
+        // bgfx::updateTexture2D consumes the memory; make a copy for the next
+        // downsample input before handing this level off.
+        const bgfx::Memory * upload = bgfx::copy(level->data, level->size);
+        bgfx::updateTexture2D(page.handle, layer, static_cast<uint8_t>(m),
+                              0, 0,
+                              static_cast<uint16_t>(levelW),
+                              static_cast<uint16_t>(levelH),
+                              upload,
+                              static_cast<uint16_t>(levelW * 4));
+    }
+}
+
+} // namespace
+
+int BgfxSortedTextureArrayGetSlot(TextureBaseClass * texture, int * outLayer, float * outScaleU, float * outScaleV)
+{
+    *outLayer = -1;
+    *outScaleU = 1.0f;
+    *outScaleV = 1.0f;
+    if (texture == nullptr || !g_device.initialized)
+    {
+        return -1;
+    }
+    auto cached = s_sortedSlots.find(texture);
+    if (cached != s_sortedSlots.end())
+    {
+        *outLayer = cached->second.layer;
+        *outScaleU = cached->second.scaleU;
+        *outScaleV = cached->second.scaleV;
+        return cached->second.page;
+    }
+
+    int page = -1;
+    int layer = -1;
+    const std::vector<TextureBaseClass::TextureMipSnapshot> & mips = texture->Get_CPU_Texture_Mips();
+    if (SortedArraySnapshotEligible(mips))
+    {
+        for (size_t p = 0; p < s_sortedPages.size(); ++p)
+        {
+            if (s_sortedPages[p].used < kSortedArrayPageCapacity)
+            {
+                page = static_cast<int>(p);
+                break;
+            }
+        }
+        if (page < 0)
+        {
+            SortedTexturePage fresh;
+            fresh.handle = bgfx::createTexture2D(
+                static_cast<uint16_t>(kSortedArrayPageDim),
+                static_cast<uint16_t>(kSortedArrayPageDim),
+                true,
+                kSortedArrayPageCapacity,
+                bgfx::TextureFormat::BGRA8,
+                BGFX_TEXTURE_NONE);
+            if (bgfx::isValid(fresh.handle))
+            {
+                s_sortedPages.push_back(fresh);
+                page = static_cast<int>(s_sortedPages.size()) - 1;
+            }
+        }
+        if (page >= 0)
+        {
+            SortedTexturePage & target = s_sortedPages[page];
+            layer = target.used++;
+            UploadSortedArrayLayer(target, static_cast<uint16_t>(layer), mips);
+        }
+    }
+
+    SortedTextureSlot slot;
+    slot.page = page;
+    slot.layer = layer;
+    if (page >= 0)
+    {
+        slot.scaleU = static_cast<float>(mips[0].Width) / static_cast<float>(kSortedArrayPageDim);
+        slot.scaleV = static_cast<float>(mips[0].Height) / static_cast<float>(kSortedArrayPageDim);
+    }
+    s_sortedSlots[texture] = slot;
+    *outLayer = slot.layer;
+    *outScaleU = slot.scaleU;
+    *outScaleV = slot.scaleV;
+    return page;
+}
+
+bgfx::TextureHandle BgfxSortedTextureArrayPageHandle(int page)
+{
+    if (page < 0 || page >= static_cast<int>(s_sortedPages.size()))
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+    return s_sortedPages[page].handle;
+}
+
+void BgfxSortedTextureArrayShutdown()
+{
+    for (size_t p = 0; p < s_sortedPages.size(); ++p)
+    {
+        if (bgfx::isValid(s_sortedPages[p].handle))
+        {
+            bgfx::destroy(s_sortedPages[p].handle);
+        }
+    }
+    s_sortedPages.clear();
+    s_sortedSlots.clear();
 }
