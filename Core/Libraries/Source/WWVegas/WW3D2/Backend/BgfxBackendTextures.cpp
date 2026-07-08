@@ -1645,6 +1645,11 @@ void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
     {
         return;
     }
+    // TheSuperHackers @bugfix bobtista 08/07/2026 Drop the sorted texture-array
+    // slot with the other per-texture caches so a later allocation reusing this
+    // TextureBaseClass* address cannot inherit a stale page layer, and so
+    // content re-uploads re-register with fresh pixels.
+    BgfxSortedTextureArrayReleaseTexture(texture);
 
     if (texture == nullptr)
     {
@@ -1742,6 +1747,11 @@ void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
     {
         return;
     }
+    // TheSuperHackers @bugfix bobtista 08/07/2026 Drop the sorted texture-array
+    // slot with the other per-texture caches so a later allocation reusing this
+    // TextureBaseClass* address cannot inherit a stale page layer, and so
+    // content re-uploads re-register with fresh pixels.
+    BgfxSortedTextureArrayReleaseTexture(texture);
 
     if (texture == nullptr)
     {
@@ -2069,6 +2079,7 @@ struct SortedTexturePage
 {
     bgfx::TextureHandle handle = BGFX_INVALID_HANDLE;
     uint16_t used = 0;
+    std::vector<uint16_t> freeLayers; // layers returned by destroyed/invalidated textures
 };
 
 std::vector<SortedTexturePage> s_sortedPages;
@@ -2269,7 +2280,8 @@ int BgfxSortedTextureArrayGetSlot(TextureBaseClass * texture, int * outLayer, fl
     {
         for (size_t p = 0; p < s_sortedPages.size(); ++p)
         {
-            if (s_sortedPages[p].used < kSortedArrayPageCapacity)
+            if (s_sortedPages[p].used < kSortedArrayPageCapacity
+                || !s_sortedPages[p].freeLayers.empty())
             {
                 page = static_cast<int>(p);
                 break;
@@ -2294,7 +2306,15 @@ int BgfxSortedTextureArrayGetSlot(TextureBaseClass * texture, int * outLayer, fl
         if (page >= 0)
         {
             SortedTexturePage & target = s_sortedPages[page];
-            layer = target.used++;
+            if (!target.freeLayers.empty())
+            {
+                layer = target.freeLayers.back();
+                target.freeLayers.pop_back();
+            }
+            else
+            {
+                layer = target.used++;
+            }
             UploadSortedArrayLayer(target, static_cast<uint16_t>(layer), mips);
         }
     }
@@ -2321,6 +2341,21 @@ bgfx::TextureHandle BgfxSortedTextureArrayPageHandle(int page)
         return BGFX_INVALID_HANDLE;
     }
     return s_sortedPages[page].handle;
+}
+
+void BgfxSortedTextureArrayReleaseTexture(TextureBaseClass * texture)
+{
+    auto slot = s_sortedSlots.find(texture);
+    if (slot == s_sortedSlots.end())
+    {
+        return;
+    }
+    if (slot->second.page >= 0 && slot->second.page < static_cast<int>(s_sortedPages.size())
+        && slot->second.layer >= 0)
+    {
+        s_sortedPages[slot->second.page].freeLayers.push_back(static_cast<uint16_t>(slot->second.layer));
+    }
+    s_sortedSlots.erase(slot);
 }
 
 void BgfxSortedTextureArrayShutdown()
