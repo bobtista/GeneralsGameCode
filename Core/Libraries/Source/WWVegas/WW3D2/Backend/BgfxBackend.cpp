@@ -3807,10 +3807,8 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // when many encoders are in flight. With the render-thread split it instead serializes
     // the GPU against the CPU and dominated the frame on heavy scenes (save 69: ~48% faster
     // without it). After a multi-scene artifact soak + play-test it is now OFF by default.
-    // Re-enable with GGC_MACOS_FLUSH=1 if AGX shader-compile artifacts ever reappear;
-    // GGC_MACOS_NO_FLUSH still forces it off.
-    if (GgcFlags::Enabled(GgcFlag_MacosFlush)
-        && !GgcFlags::Enabled(GgcFlag_MacosNoFlush))
+    // Re-enable with GGC_MACOS_FLUSH=1 if AGX shader-compile artifacts ever reappear.
+    if (GgcFlags::Enabled(GgcFlag_MacosFlush))
     {
         initArgs.resolution.reset |= BGFX_RESET_FLUSH_AFTER_RENDER;
     }
@@ -4273,49 +4271,6 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // TheSuperHackers @refactor bobtista 16/04/2026 Single-window build: there is
     // no secondary reference window to create or move here.
 
-    // TheSuperHackers @bugfix bobtista 30/04/2026 The pre-warm loop was
-    // intended to serialize AGX helper-shader compilation during init,
-    // but in practice it touches 14 views in a single frame and the
-    // resulting fan-out of parallel EndOfTile / BlitFastClear compiles
-    // is exactly the race we were trying to avoid. Disabled by default;
-    // GGC_MACOS_PREWARM=1 turns it back on for experimentation.
-#if defined(__APPLE__)
-    if (GgcFlags::Enabled(GgcFlag_MacosPrewarm))
-    {
-        const bool trace = GgcFlags::Enabled(GgcFlag_Trace);
-        if (trace)
-        {
-            std::fprintf(stderr, "[ggc] pre-warm loop start\n");
-            std::fflush(stderr);
-        }
-        const bgfx::ViewId allViews[] = {
-            kBgfxDebugView, kBgfxEngineView, kBgfxEngineSortView,
-            kBgfxRTTView, kBgfxWaterView, kBgfxEffectOverlayView,
-            kBgfxShadowVolumeView, kBgfxShadowApplyView,
-            kBgfxShroudOverlayView, kBgfxSceneDepthView,
-            kBgfxSmudgeCopyView, kBgfxSmudgeView,
-            kBgfxSceneCompositeView, kBgfxUIView,
-        };
-        for (int pass = 0; pass < 8; ++pass)
-        {
-            for (size_t i = 0; i < sizeof(allViews) / sizeof(allViews[0]); ++i)
-            {
-                bgfx::touch(allViews[i]);
-            }
-            bgfx::frame();
-            if (trace)
-            {
-                std::fprintf(stderr, "[ggc] pre-warm pass %d done\n", pass);
-                std::fflush(stderr);
-            }
-        }
-        if (trace)
-        {
-            std::fprintf(stderr, "[ggc] pre-warm loop done\n");
-            std::fflush(stderr);
-        }
-    }
-#endif
 }
 
 template<typename H>
@@ -4617,10 +4572,8 @@ static uint32_t ComputeBgfxResetFlags()
 #if defined(__APPLE__)
     // TheSuperHackers @bugfix bobtista 06/06/2026 Match the init-time gate (opt-in via
     // GGC_MACOS_FLUSH) so a runtime reset (window resize / vsync toggle) does not silently flip
-    // FLUSH_AFTER_RENDER back on and revert the ~48% perf win. This path was opt-out (always on
-    // unless GGC_MACOS_NO_FLUSH), which diverged from Initialize().
-    if (GgcFlags::Enabled(GgcFlag_MacosFlush)
-        && !GgcFlags::Enabled(GgcFlag_MacosNoFlush))
+    // FLUSH_AFTER_RENDER back on and revert the ~48% perf win.
+    if (GgcFlags::Enabled(GgcFlag_MacosFlush))
     {
         resetFlags |= BGFX_RESET_FLUSH_AFTER_RENDER;
     }
