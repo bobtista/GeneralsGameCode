@@ -738,5 +738,6 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly =
 // texture2DArray layer once and returns its page id, or -1 when the texture
 // cannot live in a page (unsupported format/dims, page budget exhausted).
 int  BgfxSortedTextureArrayGetSlot(TextureBaseClass * texture, int * outLayer, float * outScaleU, float * outScaleV);
+void BgfxSortedTextureArrayReleaseTexture(TextureBaseClass * texture);
 bgfx::TextureHandle BgfxSortedTextureArrayPageHandle(int page);
 void BgfxSortedTextureArrayShutdown();
