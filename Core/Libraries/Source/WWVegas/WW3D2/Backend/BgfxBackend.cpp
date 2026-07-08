@@ -9444,6 +9444,20 @@ bool BgfxBackend::Get_Sorted_Texture_Array_Slot(const RenderStateStruct & state,
     {
         return false;
     }
+    // ShouldForceUnlitForBakedColorDraw keeps two classes of matching-blend
+    // draws LIT, and lit draws read the vertex normal this path repurposes
+    // for the layer index: self-illum emissive materials, and lit materials
+    // without per-vertex color. Exclude both up front.
+    Vector3 emissive(0.0f, 0.0f, 0.0f);
+    state.material->Get_Emissive(&emissive);
+    if (emissive.X > 0.0f || emissive.Y > 0.0f || emissive.Z > 0.0f)
+    {
+        return false;
+    }
+    if (state.material->Get_Diffuse_Color_Source() != VertexMaterialClass::COLOR1)
+    {
+        return false;
+    }
     const int page = BgfxSortedTextureArrayGetSlot(state.Textures[0], outLayer, outScaleU, outScaleV);
     if (page < 0)
     {
