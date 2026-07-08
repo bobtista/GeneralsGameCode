@@ -759,54 +759,6 @@ static bool Render_State_Matches(const RenderStateStruct& left, const RenderStat
 	return true;
 }
 
-// TheSuperHackers @performance bobtista 08/07/2026 True when two sorted states
-// are identical in every dimension Render_State_Matches checks EXCEPT the
-// stage-0 texture. Such adjacent runs can merge into one texture-array draw
-// without any reordering: the z-sorted triangle order is preserved and only
-// the per-vertex layer index distinguishes the textures.
-static bool Render_State_Matches_Except_Stage0_Texture(const RenderStateStruct& left, const RenderStateStruct& right)
-{
-	if (left.shader.Get_Bits() != right.shader.Get_Bits())
-	{
-		return false;
-	}
-	if (left.sorted_draw_flags != right.sorted_draw_flags)
-	{
-		return false;
-	}
-	if (left.material != right.material)
-	{
-		return false;
-	}
-	for (int texture_index=1; texture_index<g_renderBackend->Get_Max_Texture_Stages(); ++texture_index)
-	{
-		if (left.Textures[texture_index] != right.Textures[texture_index])
-		{
-			return false;
-		}
-	}
-	if (std::memcmp(&left.world,&right.world,sizeof(left.world)) != 0)
-	{
-		return false;
-	}
-	if (std::memcmp(&left.view,&right.view,sizeof(left.view)) != 0)
-	{
-		return false;
-	}
-	for (int light_index=0; light_index<4; ++light_index)
-	{
-		if (left.LightEnable[light_index] != right.LightEnable[light_index])
-		{
-			return false;
-		}
-		if (left.LightEnable[light_index] && std::memcmp(&left.Lights[light_index],&right.Lights[light_index],sizeof(left.Lights[light_index])) != 0)
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
 // Variant for world-baked nodes: their positions were pre-transformed into
 // world space at fill time, so a differing world matrix no longer forces a
 // run split. View and lights must still match.
@@ -852,7 +804,20 @@ static bool Render_State_Matches_Except_Stage0_Texture_And_World(const RenderSta
 // Per-flush page/layer of each overlapping node; -1 when the node cannot
 // join a texture-array merged run. Rebuilt in Flush_Sorting_Pool.
 static std::vector<int> s_sortedNodeArrayPage;
-unsigned s_sortedArrayBreakMaskCounts[256] = {};
+
+static bool Sorted_Texture_Array_Merge_Enabled()
+{
+	static const bool enabled = GgcFlags::Enabled(GgcFlag_BgfxSortedTextureArray)
+		&& g_renderBackend->Has_Shader_Pipeline();
+	return enabled;
+}
+
+static bool Sorted_Array_Dbg_Enabled()
+{
+	static const bool enabled = Should_Log_Sort_Effect_Diag() || GgcFlags::Enabled(GgcFlag_Trace);
+	return enabled;
+}
+static unsigned s_sortedArrayBreakMaskCounts[256] = {};
 static unsigned s_sortedArrayDbgNodes = 0;
 static unsigned s_sortedArrayDbgEligible = 0;
 static unsigned s_sortedArrayDbgMerges = 0;
@@ -1445,7 +1410,11 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 			unsigned polygon_array_offset=0;
 			unsigned vertex_array_offset=0;
-			s_sortedNodeArrayPage.assign(overlapping_node_count, -1);
+			const bool sorted_array_merge = Sorted_Texture_Array_Merge_Enabled();
+			if (sorted_array_merge)
+			{
+				s_sortedNodeArrayPage.assign(overlapping_node_count, -1);
+			}
 			for (unsigned node_id=0;node_id<overlapping_node_count;++node_id) {
 				SortingNodeStruct* state=overlapping_nodes[node_id];
 				VertexFormatXYZNDUV2* src_verts=nullptr;
@@ -1461,6 +1430,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 				// it is because D3D is in illegal state, and the only known cure is rebooting.
 				// This illegal state is usually caused by Quake3-engine powered games such as MOHAA.
 				memcpy(dest_verts, src_verts, sizeof(VertexFormatXYZNDUV2)*state->vertex_count);
+				if (sorted_array_merge)
 				{
 					int arrayPage = -1;
 					int arrayLayer = -1;
@@ -1508,10 +1478,13 @@ void SortingRendererClass::Flush_Sorting_Pool()
 						}
 					}
 					s_sortedNodeArrayPage[node_id] = arrayPage;
-					++s_sortedArrayDbgNodes;
-					if (arrayPage >= 0)
+					if (Sorted_Array_Dbg_Enabled())
 					{
-						++s_sortedArrayDbgEligible;
+						++s_sortedArrayDbgNodes;
+						if (arrayPage >= 0)
+						{
+							++s_sortedArrayDbgEligible;
+						}
 					}
 				}
 				dest_verts += state->vertex_count;
@@ -1649,7 +1622,8 @@ void SortingRendererClass::Flush_Sorting_Pool()
 				unsigned count_to_render=1;
 				unsigned start_index=0;
 				SortingNodeStruct* state=overlapping_nodes[tis[chunkOffset].idx];
-				int run_array_page = s_sortedNodeArrayPage[tis[chunkOffset].idx];
+				const bool sorted_array_merge = Sorted_Texture_Array_Merge_Enabled();
+				int run_array_page = sorted_array_merge ? s_sortedNodeArrayPage[tis[chunkOffset].idx] : -1;
 				for (unsigned i=chunkOffset + 1;i<chunkEnd;++i) {
 					SortingNodeStruct* next_state=overlapping_nodes[tis[i].idx];
 					if (!Render_State_Matches(state->sorting_state,next_state->sorting_state))
@@ -1658,13 +1632,16 @@ void SortingRendererClass::Flush_Sorting_Pool()
 						// differ only by stage-0 texture and/or world: the z order
 						// is untouched, the per-vertex layer picks each triangle's
 						// texture, and positions were baked to world space at fill.
-						const int next_array_page = s_sortedNodeArrayPage[tis[i].idx];
+						const int next_array_page = sorted_array_merge ? s_sortedNodeArrayPage[tis[i].idx] : -1;
 						if (run_array_page >= 0
 							&& next_array_page == run_array_page
 							&& Render_State_Matches_Except_Stage0_Texture_And_World(state->sorting_state, next_state->sorting_state))
 						{
 							state=next_state;
-							++s_sortedArrayDbgMerges;
+							if (Sorted_Array_Dbg_Enabled())
+							{
+								++s_sortedArrayDbgMerges;
+							}
 						}
 						else
 						{
@@ -1673,7 +1650,6 @@ void SortingRendererClass::Flush_Sorting_Pool()
 								static const bool s_traceBreaks = GgcFlags::Enabled(GgcFlag_Trace);
 								if (s_traceBreaks)
 								{
-									extern unsigned s_sortedArrayBreakMaskCounts[256];
 									const unsigned mask = Sorted_State_Break_Mask(state->sorting_state, next_state->sorting_state) & 0xFF;
 									++s_sortedArrayBreakMaskCounts[mask];
 								}
@@ -1705,7 +1681,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			// sort flush complete, resume routing bgfx submits
 			// through the main engine view id.
 			g_renderBackend->End_Sorted_Batch_Pass();
-			if (Should_Log_Sort_Effect_Diag() || GgcFlags::Enabled(GgcFlag_Trace))
+			if (Sorted_Array_Dbg_Enabled())
 			{
 				if ((++s_sortedArrayDbgFlushes % 200) == 0)
 				{
