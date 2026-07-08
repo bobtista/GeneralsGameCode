@@ -33,6 +33,7 @@
 #include "dx8vertexbuffer.h"
 #include "dx8wrapper.h"
 #include "FixedFunctionState.h"
+#include "GgcRuntimeFlags.h"
 #include "indexbuffer.h"
 #include "light.h"
 #include "lightenvironment.h"
@@ -355,7 +356,7 @@ static bool CoalesceDynamicRangeUploadsEnabled()
     static int s_enabled = -1;
     if (s_enabled < 0)
     {
-        const char * env = std::getenv("GGC_BGFX_COALESCE_DYNAMIC_RANGE_UPLOADS");
+        const char * env = GgcFlags::StringValue(GgcFlag_BgfxCoalesceDynamicRangeUploads);
         s_enabled = (env == nullptr || env[0] == '\0' || std::atoi(env) != 0) ? 1 : 0;
     }
     return s_enabled != 0;
@@ -400,7 +401,7 @@ enum class BgfxShadowMode
 
 static BgfxShadowMode GetBgfxShadowMode()
 {
-    if (const char * mode = std::getenv("GGC_BGFX_SHADOW_MODE"))
+    if (const char * mode = GgcFlags::StringValue(GgcFlag_BgfxShadowMode))
     {
         if (std::strcmp(mode, "stencil") == 0)
         {
@@ -438,7 +439,7 @@ static bool BgfxUseRenderThread()
         // invariant already holds (create/destroy/update/frame and the deferred-destroy queues run
         // on the Begin/End_Scene thread; the texture loader worker is CPU-only). Opt out via
         // GGC_BGFX_NO_RENDER_THREAD.
-        cached = (std::getenv("GGC_BGFX_NO_RENDER_THREAD") == nullptr) ? 1 : 0;
+        cached = (!GgcFlags::Enabled(GgcFlag_BgfxNoRenderThread)) ? 1 : 0;
     }
     return cached != 0;
 }
@@ -447,7 +448,7 @@ static bool g_triangleDrawEnabled = true;
 
 static bool IsBgfxStatsLoggingEnabled()
 {
-    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr) {
+    if (GgcFlags::Enabled(GgcFlag_BgfxPerfLog)) {
         return true;
     }
     return GetBgfxDiagnosticFlags().logStats;
@@ -713,7 +714,7 @@ static void ResetBgfxStatsLogWindow()
 static std::string GetBgfxPerfLogPath()
 {
     std::filesystem::path dir;
-    if (const char *env = std::getenv("GGC_BGFX_PERF_DIR"))
+    if (const char *env = GgcFlags::StringValue(GgcFlag_BgfxPerfDir))
     {
         dir = env;
     }
@@ -837,7 +838,7 @@ static void FlushBgfxStatsLogWindow()
         fclose(file);
     }
 
-    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_BgfxPerfLog))
     {
         const double frames = static_cast<double>(g_bgfxStatsLog.frames);
         const double fps = frames / g_bgfxStatsLog.windowSeconds;
@@ -969,7 +970,7 @@ static void LogFrameStats()
     // measurable Debug FPS on heavy-combat saves. Cache the env probe.
     static int s_perfLogInterval = -1;
     if (s_perfLogInterval < 0) {
-        const char * env = std::getenv("GGC_BGFX_PERF_LOG");
+        const char * env = GgcFlags::StringValue(GgcFlag_BgfxPerfLog);
         if (env != nullptr) {
             int v = std::atoi(env);
             s_perfLogInterval = (v > 0) ? v : 300;
@@ -1047,7 +1048,7 @@ public:
         // operator opts in via GGC_TRACE. The level word is literal in bgfx's format
         // string, so we can classify before formatting and skip the vsnprintf entirely
         // for suppressed lines.
-        static const bool s_verbose = (std::getenv("GGC_TRACE") != nullptr);
+        static const bool s_verbose = (GgcFlags::Enabled(GgcFlag_Trace));
         bool isImportant = (format != nullptr)
             && (std::strstr(format, "WARN") != nullptr || std::strstr(format, "ERROR") != nullptr);
         // TheSuperHackers @tweak bobtista 18/06/2026 bgfx emits a "RefCount is N (expected 0)"
@@ -1290,7 +1291,7 @@ bgfx::RendererType::Enum GetConfiguredRendererType()
     // TheSuperHackers @perf bobtista 03/06/2026 GGC_BGFX_RENDERER selects the bgfx renderer at
     // run time on any platform: dx11/d3d11, dx12/d3d12, vulkan, metal, gl. bgfx's DX11 and
     // DX12 backends share SM5 DXBC shaders, so no shader recompile is needed.
-    const char *override_ = std::getenv("GGC_BGFX_RENDERER");
+    const char *override_ = GgcFlags::StringValue(GgcFlag_BgfxRenderer);
     if (override_ != nullptr)
     {
         if (std::strcmp(override_, "dx12") == 0 || std::strcmp(override_, "d3d12") == 0)
@@ -1339,7 +1340,7 @@ void *GetNativeWindowHandle(void *window)
     // driver in AGCDeserializedReply during pipeline-state compile.
     // GGC_MACOS_USE_NSWINDOW=1 forces the legacy NSWindow path so we
     // can A/B-test which form the local Apple Silicon variant prefers.
-    if (::TheSDL3MetalLayer != NULL && std::getenv("GGC_MACOS_USE_NSWINDOW") == nullptr)
+    if (::TheSDL3MetalLayer != NULL && !GgcFlags::Enabled(GgcFlag_MacosUseNsWindow))
     {
         return ::TheSDL3MetalLayer;
     }
@@ -2004,12 +2005,12 @@ const float kSsaoDefaultBias             = 0.025f;
 
 static bool BgfxProbeFlag(const char *name)
 {
-    static const bool s_nullSubmit = std::getenv("GGC_PROBE_NULL_SUBMIT") != nullptr;
-    static const bool s_freezeState = std::getenv("GGC_PROBE_FREEZE_STATE") != nullptr;
-    static const bool s_noSorted = std::getenv("GGC_PROBE_NO_SORTED") != nullptr;
-    static const bool s_noTexBind = std::getenv("GGC_PROBE_NO_TEXBIND") != nullptr;
-    static const bool s_noMaterialUniform = std::getenv("GGC_PROBE_NO_MATUNIFORM") != nullptr;
-    static const bool s_noLightUniform = std::getenv("GGC_PROBE_NO_LIGHTUNIFORM") != nullptr;
+    static const bool s_nullSubmit = GgcFlags::Enabled(GgcFlag_ProbeNullSubmit);
+    static const bool s_freezeState = GgcFlags::Enabled(GgcFlag_ProbeFreezeState);
+    static const bool s_noSorted = GgcFlags::Enabled(GgcFlag_ProbeNoSorted);
+    static const bool s_noTexBind = GgcFlags::Enabled(GgcFlag_ProbeNoTexBind);
+    static const bool s_noMaterialUniform = GgcFlags::Enabled(GgcFlag_ProbeNoMatUniform);
+    static const bool s_noLightUniform = GgcFlags::Enabled(GgcFlag_ProbeNoLightUniform);
 
     if (std::strcmp(name, "GGC_PROBE_NULL_SUBMIT") == 0)
     {
@@ -2296,7 +2297,7 @@ static void GetColorGradeParams(float * params)
     static int forced = -1;
     if (forced < 0)
     {
-        forced = (std::getenv("GGC_BGFX_COLORGRADE") != nullptr) ? 1 : 0;
+        forced = (GgcFlags::Enabled(GgcFlag_BgfxColorGrade)) ? 1 : 0;
     }
     if (forced == 1)
     {
@@ -2318,7 +2319,7 @@ static void GetBloomParams(float * params)
     static int forced = -1;
     if (forced < 0)
     {
-        forced = (std::getenv("GGC_BGFX_BLOOM") != nullptr) ? 1 : 0;
+        forced = (GgcFlags::Enabled(GgcFlag_BgfxBloom)) ? 1 : 0;
     }
     if (forced == 1)
     {
@@ -2347,15 +2348,15 @@ static void GetPostFx2Params(float * params)
     static int forcedGrain = -1;
     if (forcedVig < 0)
     {
-        forcedVig = (std::getenv("GGC_BGFX_VIGNETTE") != nullptr) ? 1 : 0;
+        forcedVig = (GgcFlags::Enabled(GgcFlag_BgfxVignette)) ? 1 : 0;
     }
     if (forcedCa < 0)
     {
-        forcedCa = (std::getenv("GGC_BGFX_CHROMA") != nullptr) ? 1 : 0;
+        forcedCa = (GgcFlags::Enabled(GgcFlag_BgfxChroma)) ? 1 : 0;
     }
     if (forcedGrain < 0)
     {
-        forcedGrain = (std::getenv("GGC_BGFX_GRAIN") != nullptr) ? 1 : 0;
+        forcedGrain = (GgcFlags::Enabled(GgcFlag_BgfxGrain)) ? 1 : 0;
     }
     if (forcedVig == 1 && params[0] <= 0.0f)
     {
@@ -2407,7 +2408,7 @@ static bool IsBgfxSSAOEnabled();
 static int GetSceneMsaaSamples()
 {
     int samples = 0;
-    const char * env = std::getenv("GGC_BGFX_MSAA");
+    const char * env = GgcFlags::StringValue(GgcFlag_BgfxMsaa);
     if (env != nullptr)
     {
         samples = std::atoi(env);
@@ -2430,7 +2431,7 @@ static int GetSceneMsaaSamples()
 static float GetSceneRenderScale()
 {
     float scale = 1.0f;
-    const char * env = std::getenv("GGC_BGFX_RENDER_SCALE");
+    const char * env = GgcFlags::StringValue(GgcFlag_BgfxRenderScale);
     if (env != nullptr)
     {
         scale = static_cast<float>(std::atof(env));
@@ -2462,7 +2463,7 @@ static bool IsReadableSceneDepthEnabled()
 // ACES tonemap). Read at framebuffer creation, so it applies on startup/resize.
 static bool IsBgfxHdrEnabled()
 {
-    if (std::getenv("GGC_BGFX_HDR") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_BgfxHdr))
     {
         return true;
     }
@@ -2479,7 +2480,7 @@ static bool IsBgfxHdrEnabled()
 // so this also forces that target on (see IsReadableSceneDepthEnabled).
 static bool IsBgfxSSAOEnabled()
 {
-    if (std::getenv("GGC_BGFX_SSAO") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_BgfxSsao))
     {
         return true;
     }
@@ -2498,7 +2499,7 @@ static bool IsBgfxSSAOEnabled()
 // light-POV depth pass and shadows the sun's diffuse term in the uber shader.
 static bool IsBgfxShadowMapEnabled()
 {
-    if (const char * sm = std::getenv("GGC_BGFX_SHADOWMAP"))
+    if (const char * sm = GgcFlags::StringValue(GgcFlag_BgfxShadowMap))
     {
         return sm[0] != '0'; // GGC_BGFX_SHADOWMAP=0 forces OFF (diagnostic A/B)
     }
@@ -2516,7 +2517,7 @@ static bool IsBgfxShadowMapEnabled()
 // opts in via GGC_TRACE (the same switch that unmutes bgfx's own informational trace).
 static bool BgfxDiagVerbose()
 {
-    static const bool s_verbose = (std::getenv("GGC_TRACE") != nullptr);
+    static const bool s_verbose = (GgcFlags::Enabled(GgcFlag_Trace));
     return s_verbose;
 }
 
@@ -2942,7 +2943,7 @@ static void SetupPointShadowView()
 // Reads the env var once and caches it as a static bool.
 static void SubmitPointShadowViz()
 {
-    static const bool s_viz = (std::getenv("GGC_POINT_SHADOW_VIZ") != nullptr);
+    static const bool s_viz = (GgcFlags::Enabled(GgcFlag_PointShadowViz));
     if (!s_viz)
     {
         bgfx::touch(kBgfxPointShadowVizView);
@@ -3706,7 +3707,7 @@ int  BgfxBackend::Get_Present_Offset_Y() const { return g_device.letterboxActive
 void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 {
 #if defined(__APPLE__)
-    if (std::getenv("GGC_TRACE") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_Trace))
     {
         std::fprintf(stderr, "[ggc] BgfxBackend::Initialize hwnd=%p\n", hwnd);
         std::fflush(stderr);
@@ -3772,7 +3773,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     initArgs.resolution.reset = BGFX_RESET_NONE;
     {
         int msaaLevel = 0;
-        const char * msaaEnv = std::getenv("GGC_BGFX_MSAA");
+        const char * msaaEnv = GgcFlags::StringValue(GgcFlag_BgfxMsaa);
         if (msaaEnv != nullptr)
         {
             msaaLevel = std::atoi(msaaEnv);
@@ -3784,7 +3785,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         else if (msaaLevel >= 2) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X2; }
         g_device.msaaResetFlags = initArgs.resolution.reset & (BGFX_RESET_MSAA_X2 | BGFX_RESET_MSAA_X4 | BGFX_RESET_MSAA_X8 | BGFX_RESET_MSAA_X16);
     }
-    g_device.srgbEnabled = std::getenv("GGC_BGFX_SRGB") != nullptr;
+    g_device.srgbEnabled = GgcFlags::Enabled(GgcFlag_BgfxSrgb);
     if (g_device.srgbEnabled)
     {
         initArgs.resolution.reset |= BGFX_RESET_SRGB_BACKBUFFER;
@@ -3795,7 +3796,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // shader guard that killed the Particle Uplink Cannon beam. With clipping
     // restored the beam renders and the tint is gone (matches Metal). Opt back in
     // via GGC_BGFX_DEPTH_CLAMP=1 if a shadow-volume near/far-clip regression appears.
-    if (std::getenv("GGC_BGFX_DEPTH_CLAMP") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_BgfxDepthClamp))
     {
         initArgs.resolution.reset |= BGFX_RESET_DEPTH_CLAMP;
     }
@@ -3808,8 +3809,8 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // without it). After a multi-scene artifact soak + play-test it is now OFF by default.
     // Re-enable with GGC_MACOS_FLUSH=1 if AGX shader-compile artifacts ever reappear;
     // GGC_MACOS_NO_FLUSH still forces it off.
-    if (std::getenv("GGC_MACOS_FLUSH") != nullptr
-        && std::getenv("GGC_MACOS_NO_FLUSH") == nullptr)
+    if (GgcFlags::Enabled(GgcFlag_MacosFlush)
+        && !GgcFlags::Enabled(GgcFlag_MacosNoFlush))
     {
         initArgs.resolution.reset |= BGFX_RESET_FLUSH_AFTER_RENDER;
     }
@@ -3821,10 +3822,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // reach shellmap or command-line save loads.
     // TheSuperHackers @build bobtista 30/04/2026 Allow GGC_BGFX_DEBUG=1 to
     // turn on bgfx's verbose diagnostics for macOS bring-up.
-    initArgs.debug = std::getenv("GGC_BGFX_DEBUG") != nullptr;
+    initArgs.debug = GgcFlags::Enabled(GgcFlag_BgfxDebug);
 
 #if defined(__APPLE__)
-    if (std::getenv("GGC_TRACE") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_Trace))
     {
         std::fprintf(stderr, "[ggc] calling bgfx::init nwh=%p\n", pd.nwh);
         std::fflush(stderr);
@@ -3844,7 +3845,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     (void)s_exitHandlerRegistered;
 
 #if defined(__APPLE__)
-    if (std::getenv("GGC_TRACE") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_Trace))
     {
         std::fprintf(stderr, "[ggc] bgfx::init OK\n");
         std::fflush(stderr);
@@ -4279,9 +4280,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // is exactly the race we were trying to avoid. Disabled by default;
     // GGC_MACOS_PREWARM=1 turns it back on for experimentation.
 #if defined(__APPLE__)
-    if (std::getenv("GGC_MACOS_PREWARM") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_MacosPrewarm))
     {
-        const bool trace = std::getenv("GGC_TRACE") != nullptr;
+        const bool trace = GgcFlags::Enabled(GgcFlag_Trace);
         if (trace)
         {
             std::fprintf(stderr, "[ggc] pre-warm loop start\n");
@@ -4329,7 +4330,7 @@ static void DestroyBgfxHandle(H & h)
 
 void BgfxBackend::Shutdown()
 {
-    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_BgfxPerfLog))
     {
         PerfSessionPrintSummary();
     }
@@ -4609,7 +4610,7 @@ static uint32_t ComputeBgfxResetFlags()
     uint32_t resetFlags = BGFX_RESET_NONE | g_device.msaaResetFlags
         | (g_device.srgbEnabled ? BGFX_RESET_SRGB_BACKBUFFER : 0)
         | (g_device.vsyncEnabled ? BGFX_RESET_VSYNC : 0);
-    if (std::getenv("GGC_BGFX_DEPTH_CLAMP") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_BgfxDepthClamp))
     {
         resetFlags |= BGFX_RESET_DEPTH_CLAMP;
     }
@@ -4618,8 +4619,8 @@ static uint32_t ComputeBgfxResetFlags()
     // GGC_MACOS_FLUSH) so a runtime reset (window resize / vsync toggle) does not silently flip
     // FLUSH_AFTER_RENDER back on and revert the ~48% perf win. This path was opt-out (always on
     // unless GGC_MACOS_NO_FLUSH), which diverged from Initialize().
-    if (std::getenv("GGC_MACOS_FLUSH") != nullptr
-        && std::getenv("GGC_MACOS_NO_FLUSH") == nullptr)
+    if (GgcFlags::Enabled(GgcFlag_MacosFlush)
+        && !GgcFlags::Enabled(GgcFlag_MacosNoFlush))
     {
         resetFlags |= BGFX_RESET_FLUSH_AFTER_RENDER;
     }
@@ -5226,14 +5227,14 @@ static void ResolveTimingEnv()
     LARGE_INTEGER f;
     QueryPerformanceFrequency(&f);
     g_timing.freq = f.QuadPart;
-    if (const char * e = std::getenv("GGC_BGFX_FRAME_TIMING_AFTER")) {
+    if (const char * e = GgcFlags::StringValue(GgcFlag_BgfxFrameTimingAfter)) {
         g_timing.target_frame = std::atoi(e);
     }
-    if (const char * e = std::getenv("GGC_BGFX_FRAME_TIMING_INTERVAL")) {
+    if (const char * e = GgcFlags::StringValue(GgcFlag_BgfxFrameTimingInterval)) {
         int v = std::atoi(e);
         if (v > 0) { g_timing.interval = v; }
     }
-    if (const char * e = std::getenv("GGC_BGFX_FRAME_TIMING_PATH")) {
+    if (const char * e = GgcFlags::StringValue(GgcFlag_BgfxFrameTimingPath)) {
         std::strncpy(g_timing.base_path, e, sizeof(g_timing.base_path) - 1);
     }
 }
@@ -5676,13 +5677,13 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         int captureFrame = GGC_GetBgfxScreenshotFrame();
         if (captureFrame <= 0)
         {
-            if (const char * frameEnv = std::getenv("GGC_BGFX_SCREENSHOT_AFTER"))
+            if (const char * frameEnv = GgcFlags::StringValue(GgcFlag_BgfxScreenshotAfter))
             {
                 captureFrame = std::atoi(frameEnv);
             }
         }
         uint32_t interval = 500;
-        if (const char * intervalEnv = std::getenv("GGC_BGFX_SCREENSHOT_INTERVAL"))
+        if (const char * intervalEnv = GgcFlags::StringValue(GgcFlag_BgfxScreenshotInterval))
         {
             const int parsedInterval = std::atoi(intervalEnv);
             if (parsedInterval > 0)
@@ -5699,7 +5700,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
             const char * basePath = GGC_GetBgfxScreenshotPath();
             if ((basePath == nullptr || basePath[0] == '\0'))
             {
-                basePath = std::getenv("GGC_BGFX_SCREENSHOT_PATH");
+                basePath = GgcFlags::StringValue(GgcFlag_BgfxScreenshotPath);
             }
             if (basePath != nullptr && basePath[0] != '\0')
             {
@@ -5718,7 +5719,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         // this for A/B comparisons. Output: <path>.L<logicframe>.bmp
         static bool s_logicShotDone = false;
         int targetLogicFrame = 0;
-        if (const char * logicEnv = std::getenv("GGC_BGFX_SCREENSHOT_LOGICFRAME"))
+        if (const char * logicEnv = GgcFlags::StringValue(GgcFlag_BgfxScreenshotLogicFrame))
         {
             targetLogicFrame = std::atoi(logicEnv);
         }
@@ -5731,7 +5732,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                 const char * basePath = GGC_GetBgfxScreenshotPath();
                 if ((basePath == nullptr || basePath[0] == '\0'))
                 {
-                    basePath = std::getenv("GGC_BGFX_SCREENSHOT_PATH");
+                    basePath = GgcFlags::StringValue(GgcFlag_BgfxScreenshotPath);
                 }
                 if (basePath != nullptr && basePath[0] != '\0')
                 {
@@ -6056,7 +6057,7 @@ static void LogBgfxTransientDiag(const char *event,
                                  bool activeOwnerMatch,
                                  const char *decision)
 {
-    if (std::getenv("GGC_BGFX_TRANSIENT_DIAG") == nullptr)
+    if (!GgcFlags::Enabled(GgcFlag_BgfxTransientDiag))
     {
         return;
     }
@@ -6398,7 +6399,7 @@ static void LogBgfxBufferUpdate(const char *kind,
                                 uint16_t handle_idx,
                                 const bgfx::Memory *mem)
 {
-    if (std::getenv("GGC_BGFX_BUFFER_UPDATE_DIAG") == nullptr)
+    if (!GgcFlags::Enabled(GgcFlag_BgfxBufferUpdateDiag))
     {
         return;
     }
@@ -7203,14 +7204,14 @@ static void InvalidateSortedTransformCache()
 static bool DisableSortedMaterialRecaptureSkip()
 {
     static const bool s_disabled =
-        std::getenv("GGC_BGFX_DISABLE_SORTED_MATERIAL_RECAPTURE_SKIP") != nullptr;
+        GgcFlags::Enabled(GgcFlag_BgfxDisableSortedMaterialRecaptureSkip);
     return s_disabled;
 }
 
 static bool DisableSortedMaterialSnapshot()
 {
     static const bool s_disabled =
-        std::getenv("GGC_BGFX_DISABLE_SORTED_MATERIAL_SNAPSHOT") != nullptr;
+        GgcFlags::Enabled(GgcFlag_BgfxDisableSortedMaterialSnapshot);
     return s_disabled;
 }
 
@@ -7378,7 +7379,7 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
     if (state.world != nullptr && state.view != nullptr)
     {
         static const bool s_disableSortedTransformRestoreSkip =
-            std::getenv("GGC_BGFX_DISABLE_SORTED_TRANSFORM_RESTORE_SKIP") != nullptr;
+            GgcFlags::Enabled(GgcFlag_BgfxDisableSortedTransformRestoreSkip);
         const bool sameTransform =
             !s_disableSortedTransformRestoreSkip
             && s_sortedTransformCacheValid
@@ -7459,7 +7460,7 @@ void BgfxBackend::Set_Mesh_Render_Active(bool active)
 static bool SortedMeshRoutingDisabled()
 {
     static const bool s_disabled =
-        std::getenv("GGC_BGFX_DISABLE_SORTED_MESH_ROUTING") != nullptr;
+        GgcFlags::Enabled(GgcFlag_BgfxDisableSortedMeshRouting);
     return s_disabled;
 }
 
@@ -7473,7 +7474,7 @@ static bool IsRotorBlurTextureName(const char *name);
 // effect misbehaves on a new faction variant.
 static void LogSortedMeshDrawWithoutNamePredicate(TextureBaseClass * texture, const char * texName)
 {
-    static const bool s_trace = (std::getenv("GGC_TRACE") != nullptr);
+    static const bool s_trace = (GgcFlags::Enabled(GgcFlag_Trace));
     if (!s_trace)
     {
         return;
@@ -7638,13 +7639,13 @@ static uint64_t GetEffectiveDrawState()
 static bool LegacyStencilShadowsEnabled()
 {
     return BgfxStencilShadowsEnabled()
-        || std::getenv("GGC_ENABLE_LEGACY_STENCIL_SHADOWS") != nullptr;
+        || GgcFlags::Enabled(GgcFlag_EnableLegacyStencilShadows);
 }
 
 static bool ShouldLogBgfxStencilShadows()
 {
-    return std::getenv("GGC_STENCIL_SHADOW_DIAG") != nullptr
-        || std::getenv("GGC_SHADOW_PATH_DIAG") != nullptr;
+    return GgcFlags::Enabled(GgcFlag_StencilShadowDiag)
+        || GgcFlags::Enabled(GgcFlag_ShadowPathDiag);
 }
 
 static bool BgfxPreMeshStencilShadows()
@@ -7654,7 +7655,7 @@ static bool BgfxPreMeshStencilShadows()
     // by the bgfx path: terrain/projected decals first, stencil darken next,
     // opaque meshes later. That keeps volume shadows on terrain without
     // multiplying the lighting on units/buildings/effects.
-    return std::getenv("GGC_BGFX_LEGACY_POSTMESH_STENCIL_SHADOWS") == nullptr;
+    return !GgcFlags::Enabled(GgcFlag_BgfxLegacyPostMeshStencilShadows);
 }
 
 static bgfx::ViewId BgfxShadowVolumeSubmitView()
@@ -7664,7 +7665,7 @@ static bgfx::ViewId BgfxShadowVolumeSubmitView()
 
 static uint64_t BgfxShadowVolumeDepthState()
 {
-    const char *depth = std::getenv("GGC_BGFX_STENCIL_DEPTH");
+    const char *depth = GgcFlags::StringValue(GgcFlag_BgfxStencilDepth);
     if (depth != nullptr && std::strcmp(depth, "less") == 0)
     {
         return BGFX_STATE_DEPTH_TEST_LESS;
@@ -7684,7 +7685,7 @@ static bool BgfxTwoSidedStencilVolumes()
     // aircraft, helicopters and tall/stilted buildings draw a dark band or
     // fan instead of a ground shadow. The legacy two-pass submit is correct;
     // opt in with GGC_BGFX_STENCIL_TWO_SIDED only for A/B testing.
-    static const bool cached = std::getenv("GGC_BGFX_STENCIL_TWO_SIDED") != nullptr;
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxStencilTwoSided);
     return cached;
 }
 
@@ -7693,7 +7694,7 @@ static unsigned BgfxShadowCullModeBits()
     // Use the same face selection as the W3D/DX8 shadow-volume pass. The
     // earlier bgfx-only inversion made the default z-pass counts cancel out
     // on useful receivers, leaving vehicles and aircraft without shadows.
-    if (std::getenv("GGC_BGFX_STENCIL_INVERT_CULL") == nullptr)
+    if (!GgcFlags::Enabled(GgcFlag_BgfxStencilInvertCull))
     {
         return g_draw.cullModeBits;
     }
@@ -7716,7 +7717,7 @@ static void BindShadowVolumeBiasUniform()
     }
 
     float bias[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    if (std::getenv("GGC_BGFX_STENCIL_CLAMP_CLIP") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_BgfxStencilClampClip))
     {
         bias[1] = 1.0f;
     }
@@ -7725,7 +7726,7 @@ static void BindShadowVolumeBiasUniform()
 
 static bool BgfxSwapTwoSidedStencilVolumeOps()
 {
-    const char *algo = std::getenv("GGC_BGFX_STENCIL_ALGO");
+    const char *algo = GgcFlags::StringValue(GgcFlag_BgfxStencilAlgo);
     return algo != nullptr && std::strcmp(algo, "zpass-swap") == 0;
 }
 
@@ -7865,7 +7866,7 @@ static bool CoplanarBiasGateEnabled()
     // restores the unconditional O(n^2) coplanar-pair scan on every dynamic vertex
     // write (the pre-gate behavior) for A/B measurement and as a fallback if a
     // sorted-decal depth-bias regression is ever observed.
-    static const bool s_enabled = (std::getenv("GGC_NO_COPLANAR_BIAS_GATE") == nullptr);
+    static const bool s_enabled = (!GgcFlags::Enabled(GgcFlag_NoCoplanarBiasGate));
     return s_enabled;
 }
 
@@ -8004,7 +8005,7 @@ static bool ShouldForceUnlitForBakedColorDraw(uint64_t state)
     }
     if (DrawHasSelfIllumEmissive())
     {
-        static const bool s_trace = (std::getenv("GGC_TRACE") != nullptr);
+        static const bool s_trace = (GgcFlags::Enabled(GgcFlag_Trace));
         static bool s_loggedSelfIllumExempt = false;
         if (s_trace && !s_loggedSelfIllumExempt && IsAnyAdditiveBlend(state))
         {
@@ -8114,31 +8115,31 @@ static bool IsMissingOrUnavailableTexture(TextureBaseClass * texture, bgfx::Text
 
 static bool ShouldLogBgfxShroudPass()
 {
-    static const bool cached = std::getenv("GGC_BGFX_SHROUD_PASS_DIAG") != nullptr;
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxShroudPassDiag);
     return cached;
 }
 
 static bool ShouldLogBgfxSortedDecals()
 {
-    static const bool cached = std::getenv("GGC_BGFX_SORTED_DECAL_DIAG") != nullptr;
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxSortedDecalDiag);
     return cached;
 }
 
 static bool ShouldLogBgfxRevealDiag()
 {
-    static const bool cached = std::getenv("GGC_BGFX_REVEAL_DIAG") != nullptr;
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxRevealDiag);
     return cached;
 }
 
 static bool ShouldLogBgfxRevealDiagVerbose()
 {
-    static const bool cached = std::getenv("GGC_BGFX_REVEAL_DIAG_VERBOSE") != nullptr;
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxRevealDiagVerbose);
     return cached;
 }
 
 static bool ShouldLogBgfxEffectSubmitDiag()
 {
-    static const bool cached = std::getenv("GGC_BGFX_EFFECT_SUBMIT_DIAG") != nullptr;
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxEffectSubmitDiag);
     return cached;
 }
 
@@ -8146,7 +8147,7 @@ static uint32_t GetCurrentStageSamplerFlags(unsigned stage);
 
 static bool ShouldAllowBgfxDiagnosticDrawOverrides()
 {
-    static const bool cached = std::getenv("GGC_BGFX_ENABLE_DIAGNOSTIC_OVERRIDES") != nullptr;
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxEnableDiagnosticOverrides);
     return cached;
 }
 
@@ -8720,7 +8721,7 @@ static bool ForcePointFilterEnabled()
     if (s_frame != g_stats.frameIndex)
     {
         s_frame = g_stats.frameIndex;
-        s_value = std::getenv("GGC_BGFX_POINT_FILTER") != nullptr;
+        s_value = GgcFlags::Enabled(GgcFlag_BgfxPointFilter);
 #ifdef RTS_ZEROHOUR
         if (!s_value && GGC_GetBgfxPointFilter() != 0)
         {
@@ -8822,14 +8823,14 @@ static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
 static bool DisableUnlitLightInputSkip()
 {
     static const bool s_disabled =
-        std::getenv("GGC_BGFX_DISABLE_UNLIT_LIGHT_INPUT_SKIP") != nullptr;
+        GgcFlags::Enabled(GgcFlag_BgfxDisableUnlitLightInputSkip);
     return s_disabled;
 }
 
 static bool DisableInactiveShadowUniformSkip()
 {
     static const bool s_disabled =
-        std::getenv("GGC_BGFX_DISABLE_INACTIVE_SHADOW_UNIFORM_SKIP") != nullptr;
+        GgcFlags::Enabled(GgcFlag_BgfxDisableInactiveShadowUniformSkip);
     return s_disabled;
 }
 
@@ -8941,7 +8942,7 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded)
     {
         // TheSuperHackers @performance bobtista 28/06/2026 Default reduced 9-fetch PCF;
         // GGC_BGFX_SHADOW_FULL_PCF=1 restores the original 36-fetch path for a quality/perf A/B.
-        static const float s_fullPcf = (std::getenv("GGC_BGFX_SHADOW_FULL_PCF") != nullptr) ? 1.0f : 0.0f;
+        static const float s_fullPcf = (GgcFlags::Enabled(GgcFlag_BgfxShadowFullPcf)) ? 1.0f : 0.0f;
         const float shadowQuality[4] = { s_fullPcf, 0.0f, 0.0f, 0.0f };
         bgfx::setUniform(g_uniforms.uShadowQuality, shadowQuality);
         CountUniformCommand(g_stats.shadowUniformCommands);
@@ -9565,7 +9566,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                       polygon_count, vertex_count, state, "pre-skip");
 
     if (ShouldAllowBgfxDiagnosticDrawOverrides()
-        && std::getenv("GGC_BGFX_SKIP_REVEAL_GRID") != nullptr
+        && GgcFlags::Enabled(GgcFlag_BgfxSkipRevealGrid)
         && IsRevealGridTexture(g_draw.sourceTextures[0]))
     {
         g_stats.skippedDraws++;
@@ -9899,7 +9900,7 @@ void BgfxBackend::Add_Instance(const float * world_matrix_4x4)
     if (!g_draw.instanceBatchActive || g_draw.instanceCount >= g_draw.instanceMax) {
         return;
     }
-    static const bool s_probeIdentityInstances = std::getenv("GGC_PROBE_IDENTITY_INSTANCES") != nullptr;
+    static const bool s_probeIdentityInstances = GgcFlags::Enabled(GgcFlag_ProbeIdentityInstances);
     if (s_probeIdentityInstances)
     {
         IdentityMatrix(reinterpret_cast<float *>(g_draw.instanceBatch.data + g_draw.instanceCount * 64));
@@ -9914,7 +9915,7 @@ void BgfxBackend::Add_Instance(const float * world_matrix_4x4)
     float converted[16];
     W3DMatrix3DToBgfx(*reinterpret_cast<const Matrix3D *>(world_matrix_4x4), converted);
     float * dst = reinterpret_cast<float *>(g_draw.instanceBatch.data + g_draw.instanceCount * 64);
-    static const bool s_probeTransposeInstances = std::getenv("GGC_PROBE_TRANSPOSE_INSTANCES") != nullptr;
+    static const bool s_probeTransposeInstances = GgcFlags::Enabled(GgcFlag_ProbeTransposeInstances);
     if (s_probeTransposeInstances)
     {
         for (unsigned r = 0; r < 4; ++r)
@@ -10894,7 +10895,7 @@ void BgfxBackend::End_Water_Overlay()
 
 void BgfxBackend::Begin_Effect_Overlay()
 {
-    if (std::getenv("GGC_NO_EFFECT_OVERLAY") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_NoEffectOverlay))
     {
         return;
     }
@@ -10988,7 +10989,7 @@ void BgfxBackend::Set_Grayscale_Mode(bool enable)
 void BgfxBackend::Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scroll_y,
                                           float stretch, TextureClass * cloud_tex)
 {
-    if (std::getenv("GGC_NO_CLOUD_SHADOWS") != nullptr)
+    if (GgcFlags::Enabled(GgcFlag_NoCloudShadows))
     {
         enable = false;
         cloud_tex = nullptr;
@@ -11316,7 +11317,7 @@ void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
 bool BgfxBackend::Needs_Closed_Shadow_Volumes() const
 {
     return LegacyStencilShadowsEnabled()
-        && std::getenv("GGC_BGFX_CLOSED_SHADOW_VOLUMES") != nullptr;
+        && GgcFlags::Enabled(GgcFlag_BgfxClosedShadowVolumes);
 }
 
 void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
@@ -11328,7 +11329,7 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                               int /*height*/)
 {
     if (!LegacyStencilShadowsEnabled()
-        || std::getenv("GGC_BGFX_STENCIL_NO_APPLY") != nullptr
+        || GgcFlags::Enabled(GgcFlag_BgfxStencilNoApply)
         || !g_device.initialized
         || !bgfx::isValid(g_device.shadowApplyProgram))
     {
@@ -12020,7 +12021,7 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
     if (ShouldAllowBgfxDiagnosticDrawOverrides()
-        && std::getenv("GGC_BGFX_SKIP_EFFECT_OVERLAY_DRAWS") != nullptr
+        && GgcFlags::Enabled(GgcFlag_BgfxSkipEffectOverlayDraws)
         && submitView == kBgfxEffectOverlayView)
     {
         g_stats.skippedDraws++;
@@ -12028,7 +12029,7 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
     if (ShouldAllowBgfxDiagnosticDrawOverrides()
-        && std::getenv("GGC_BGFX_SKIP_SORTED_DRAWS") != nullptr
+        && GgcFlags::Enabled(GgcFlag_BgfxSkipSortedDraws)
         && submitView == kBgfxEngineSortView)
     {
         g_stats.skippedDraws++;
@@ -12311,7 +12312,7 @@ void SubmitEngineDraw(unsigned short start_index,
         // Terrain and ground decals already receive via their own shader paths; this adds the
         // object path. Self-shadowing is avoided by the normal-offset bias in sampleSunShadow,
         // which uses the object's real vertex normal.
-        static const bool s_noPropShadows = (std::getenv("GGC_NO_PROP_SHADOWS") != nullptr);
+        static const bool s_noPropShadows = (GgcFlags::Enabled(GgcFlag_NoPropShadows));
         const bool sunShadowReceiver =
             !s_noPropShadows
             && g_frame.shadowActive
@@ -12473,7 +12474,7 @@ void SubmitEngineDraw(unsigned short start_index,
             g_draw.texcoordSelect[2] = 0.0f;
         }
         else if (ShouldAllowBgfxDiagnosticDrawOverrides()
-            && std::getenv("GGC_BGFX_SKIP_SHROUD_OVERLAY") != nullptr)
+            && GgcFlags::Enabled(GgcFlag_BgfxSkipShroudOverlay))
         {
             bgfx::discard(BGFX_DISCARD_ALL);
             return;
@@ -12537,7 +12538,7 @@ void SubmitEngineDraw(unsigned short start_index,
     LogBgfxRevealDraw("submit-engine", submitView,
                       polygon_count, vertex_count, state, "pre-skip");
     if (ShouldAllowBgfxDiagnosticDrawOverrides()
-        && std::getenv("GGC_BGFX_SKIP_REVEAL_GRID") != nullptr
+        && GgcFlags::Enabled(GgcFlag_BgfxSkipRevealGrid)
         && IsRevealGridTexture(g_draw.sourceTextures[0]))
     {
         g_stats.skippedDraws++;
@@ -12715,7 +12716,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // alpha-blended "rotor blur" disc in the sorted pass, so it is excluded from the normal caster
     // set (opaque, engine view). Cast it into the sun shadow map anyway, as an alpha-tested
     // silhouette of the blur texture, so the rotor throws a disc shadow on the ground like retail.
-    static const bool s_noRotorShadow = (std::getenv("GGC_NO_ROTOR_SHADOW") != nullptr);
+    static const bool s_noRotorShadow = (GgcFlags::Enabled(GgcFlag_NoRotorShadow));
     const bool rotorShadowCaster = !s_noRotorShadow
         && IsSortedRotorBlur(state)
         && g_frame.shadowActive
@@ -12733,15 +12734,15 @@ void SubmitEngineDraw(unsigned short start_index,
     // Diagnostic: GGC_LOG_SHADOW_CASTER_AUDIT=1 dumps each world draw that could feed the
     // sun shadow map, including excluded candidates. Use GGC_LOG_SHADOW_CASTER_START/END
     // to bracket the particle-cannon firing window without filling stderr for the whole run.
-    static const bool s_logShadowCasterAudit = (std::getenv("GGC_LOG_SHADOW_CASTER_AUDIT") != nullptr);
+    static const bool s_logShadowCasterAudit = (GgcFlags::Enabled(GgcFlag_LogShadowCasterAudit));
     if (s_logShadowCasterAudit)
     {
         static const int s_logShadowCasterStart =
-            (std::getenv("GGC_LOG_SHADOW_CASTER_START") != nullptr)
-                ? std::atoi(std::getenv("GGC_LOG_SHADOW_CASTER_START")) : 0;
+            (GgcFlags::Enabled(GgcFlag_LogShadowCasterStart))
+                ? std::atoi(GgcFlags::StringValue(GgcFlag_LogShadowCasterStart)) : 0;
         static const int s_logShadowCasterEnd =
-            (std::getenv("GGC_LOG_SHADOW_CASTER_END") != nullptr)
-                ? std::atoi(std::getenv("GGC_LOG_SHADOW_CASTER_END")) : 0x7fffffff;
+            (GgcFlags::Enabled(GgcFlag_LogShadowCasterEnd))
+                ? std::atoi(GgcFlags::StringValue(GgcFlag_LogShadowCasterEnd)) : 0x7fffffff;
         const int frame = static_cast<int>(g_stats.frameIndex);
         const bool inAuditWindow = frame >= s_logShadowCasterStart && frame <= s_logShadowCasterEnd;
         const bool auditCandidate =
