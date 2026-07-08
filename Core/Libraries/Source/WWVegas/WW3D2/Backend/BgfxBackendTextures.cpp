@@ -589,6 +589,140 @@ static void ExpandDXT5ToBGRA8(const uint8_t *src,
     }
 }
 
+// TheSuperHackers @feature bobtista 08/07/2026 DXT1/DXT3 expanders for the
+// sorted texture-array pages. Color-block layout matches DXT5's color half;
+// DXT3 carries 16 explicit 4-bit alphas, DXT1 is opaque or 1-bit punch-through.
+static void ExpandDXT3ToBGRA8(const uint8_t *src,
+    unsigned srcPitch,
+    unsigned width,
+    unsigned height,
+    uint8_t *dst)
+{
+    const unsigned blockRows = (height + 3) / 4;
+    const unsigned blockCols = (width + 3) / 4;
+    for (unsigned by = 0; by < blockRows; ++by)
+    {
+        const uint8_t *srcBlockRow = src + by * srcPitch;
+        for (unsigned bx = 0; bx < blockCols; ++bx)
+        {
+            const uint8_t *block = srcBlockRow + bx * 16;
+
+            const uint16_t c0 = static_cast<uint16_t>(block[8] | (block[9] << 8));
+            const uint16_t c1 = static_cast<uint16_t>(block[10] | (block[11] << 8));
+            uint8_t color[4][3];
+            DecodeRgb565(c0, color[0]);
+            DecodeRgb565(c1, color[1]);
+            for (unsigned c = 0; c < 3; ++c)
+            {
+                color[2][c] = static_cast<uint8_t>((2 * color[0][c] + color[1][c] + 1) / 3);
+                color[3][c] = static_cast<uint8_t>((color[0][c] + 2 * color[1][c] + 1) / 3);
+            }
+
+            const uint32_t colorBits = static_cast<uint32_t>(block[12])
+                | (static_cast<uint32_t>(block[13]) << 8)
+                | (static_cast<uint32_t>(block[14]) << 16)
+                | (static_cast<uint32_t>(block[15]) << 24);
+
+            for (unsigned py = 0; py < 4; ++py)
+            {
+                const unsigned y = by * 4 + py;
+                if (y >= height)
+                {
+                    continue;
+                }
+                for (unsigned px = 0; px < 4; ++px)
+                {
+                    const unsigned x = bx * 4 + px;
+                    if (x >= width)
+                    {
+                        continue;
+                    }
+                    const unsigned pixel = py * 4 + px;
+                    const uint8_t alphaByte = block[pixel / 2];
+                    const uint8_t nibble = (pixel & 1) ? (alphaByte >> 4) : (alphaByte & 0x0F);
+                    const unsigned colorIndex = static_cast<unsigned>((colorBits >> (2 * pixel)) & 0x3);
+                    uint8_t *out = dst + (y * width + x) * 4;
+                    out[0] = color[colorIndex][2];
+                    out[1] = color[colorIndex][1];
+                    out[2] = color[colorIndex][0];
+                    out[3] = static_cast<uint8_t>(nibble * 17);
+                }
+            }
+        }
+    }
+}
+
+static void ExpandDXT1ToBGRA8(const uint8_t *src,
+    unsigned srcPitch,
+    unsigned width,
+    unsigned height,
+    uint8_t *dst)
+{
+    const unsigned blockRows = (height + 3) / 4;
+    const unsigned blockCols = (width + 3) / 4;
+    for (unsigned by = 0; by < blockRows; ++by)
+    {
+        const uint8_t *srcBlockRow = src + by * srcPitch;
+        for (unsigned bx = 0; bx < blockCols; ++bx)
+        {
+            const uint8_t *block = srcBlockRow + bx * 8;
+
+            const uint16_t c0 = static_cast<uint16_t>(block[0] | (block[1] << 8));
+            const uint16_t c1 = static_cast<uint16_t>(block[2] | (block[3] << 8));
+            uint8_t color[4][3];
+            uint8_t alpha[4] = { 255, 255, 255, 255 };
+            DecodeRgb565(c0, color[0]);
+            DecodeRgb565(c1, color[1]);
+            if (c0 > c1)
+            {
+                for (unsigned c = 0; c < 3; ++c)
+                {
+                    color[2][c] = static_cast<uint8_t>((2 * color[0][c] + color[1][c] + 1) / 3);
+                    color[3][c] = static_cast<uint8_t>((color[0][c] + 2 * color[1][c] + 1) / 3);
+                }
+            }
+            else
+            {
+                for (unsigned c = 0; c < 3; ++c)
+                {
+                    color[2][c] = static_cast<uint8_t>((color[0][c] + color[1][c] + 1) / 2);
+                    color[3][c] = 0;
+                }
+                alpha[3] = 0;
+            }
+
+            const uint32_t colorBits = static_cast<uint32_t>(block[4])
+                | (static_cast<uint32_t>(block[5]) << 8)
+                | (static_cast<uint32_t>(block[6]) << 16)
+                | (static_cast<uint32_t>(block[7]) << 24);
+
+            for (unsigned py = 0; py < 4; ++py)
+            {
+                const unsigned y = by * 4 + py;
+                if (y >= height)
+                {
+                    continue;
+                }
+                for (unsigned px = 0; px < 4; ++px)
+                {
+                    const unsigned x = bx * 4 + px;
+                    if (x >= width)
+                    {
+                        continue;
+                    }
+                    const unsigned pixel = py * 4 + px;
+                    const unsigned colorIndex = static_cast<unsigned>((colorBits >> (2 * pixel)) & 0x3);
+                    uint8_t *out = dst + (y * width + x) * 4;
+                    out[0] = color[colorIndex][2];
+                    out[1] = color[colorIndex][1];
+                    out[2] = color[colorIndex][0];
+                    out[3] = alpha[colorIndex];
+                }
+            }
+        }
+    }
+}
+
 static bool IsTerrainAtlasTexture(TextureClass * tex2d,
     WW3DFormat sourceFmt,
     bgfx::TextureFormat::Enum bgfxFmt)
@@ -2095,11 +2229,13 @@ std::unordered_map<TextureBaseClass *, SortedTextureSlot> s_sortedSlots;
 
 bool SortedArrayMipDataValid(const TextureBaseClass::TextureMipSnapshot & mip)
 {
-    if (mip.Format == WW3D_FORMAT_DXT5)
+    if (mip.Format == WW3D_FORMAT_DXT1 || mip.Format == WW3D_FORMAT_DXT3
+        || mip.Format == WW3D_FORMAT_DXT5)
     {
+        const size_t blockBytes = (mip.Format == WW3D_FORMAT_DXT1) ? 8 : 16;
         const size_t blockRows = (mip.Height + 3) / 4;
         const size_t blockCols = (mip.Width + 3) / 4;
-        return mip.Pitch >= blockCols * 16
+        return mip.Pitch >= blockCols * blockBytes
             && mip.Data.size() >= blockRows * mip.Pitch;
     }
     return mip.Pitch >= mip.Width * 4
@@ -2120,6 +2256,7 @@ bool SortedArraySnapshotEligible(const std::vector<TextureBaseClass::TextureMipS
     }
     const TextureBaseClass::TextureMipSnapshot & base = mips[0];
     if (base.Format != WW3D_FORMAT_A8R8G8B8 && base.Format != WW3D_FORMAT_X8R8G8B8
+        && base.Format != WW3D_FORMAT_DXT1 && base.Format != WW3D_FORMAT_DXT3
         && base.Format != WW3D_FORMAT_DXT5)
     {
         if (s_trace)
@@ -2166,6 +2303,14 @@ void DecodeSortedArrayMip(std::vector<uint8_t> & out, const TextureBaseClass::Te
         // Decode once at registration; the decode is deterministic, so the
         // page layer samples the same pixels the original texture would.
         ExpandDXT5ToBGRA8(&mip.Data[0], mip.Pitch, mip.Width, mip.Height, out.data());
+    }
+    else if (mip.Format == WW3D_FORMAT_DXT3)
+    {
+        ExpandDXT3ToBGRA8(&mip.Data[0], mip.Pitch, mip.Width, mip.Height, out.data());
+    }
+    else if (mip.Format == WW3D_FORMAT_DXT1)
+    {
+        ExpandDXT1ToBGRA8(&mip.Data[0], mip.Pitch, mip.Width, mip.Height, out.data());
     }
     else
     {
