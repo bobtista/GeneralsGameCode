@@ -73,6 +73,8 @@
 
 #include "WW3D2/shdlib.h"
 
+#include "GgcRuntimeFlags.h"
+
 ///////////////////////////////////////////////////////////////////////////////
 // DEFINITIONS ////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -112,7 +114,7 @@ static Bool SceneDiagEnabled()
 	static Int enabled = -1;
 	if (enabled == -1)
 	{
-		enabled = getenv("GGC_SCENE_DIAG") != nullptr ? 1 : 0;
+		enabled = GgcFlags::Enabled(GgcFlag_SceneDiag) ? 1 : 0;
 	}
 	return enabled != 0;
 }
@@ -732,7 +734,7 @@ static Bool SubpixelCullEnabled()
 	static int cached = -1;
 	if (cached < 0)
 	{
-		cached = (getenv("GGC_BGFX_CULL_SUBPIXEL") != nullptr) ? 1 : 0;
+		cached = GgcFlags::Enabled(GgcFlag_BgfxCullSubpixel) ? 1 : 0;
 	}
 	return cached != 0;
 }
@@ -746,7 +748,7 @@ static Real SubpixelCullMinPx()
 	static Real cached = -1.0f;
 	if (cached < 0.0f)
 	{
-		const char *env = getenv("GGC_BGFX_CULL_MIN_PX");
+		const char *env = GgcFlags::StringValue(GgcFlag_BgfxCullMinPx);
 		cached = (env != nullptr) ? (Real)atof(env) : kSubpixelCullMinPxDefault;
 		if (cached < 0.0f)
 		{

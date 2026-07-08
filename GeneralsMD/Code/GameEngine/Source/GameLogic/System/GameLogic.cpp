@@ -116,6 +116,7 @@
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 
 #include <rts/profile.h>
+#include "GgcRuntimeFlags.h"
 
 #ifndef _WIN32
 #include <cstdio>
@@ -341,7 +342,7 @@ static Bool ggcParseWorldCoord(const char *value, Coord3D *out)
 
 static void ggcMaybeTriggerSpecialPowerDiagnostic()
 {
-	if (std::getenv("GGC_DUMP_LOCAL_OBJECTS"))
+	if (GgcFlags::Enabled(GgcFlag_DumpLocalObjects))
 	{
 		static Bool dumpedObjects = FALSE;
 		if (!dumpedObjects && ThePlayerList)
@@ -355,7 +356,7 @@ static void ggcMaybeTriggerSpecialPowerDiagnostic()
 		}
 	}
 
-	const char *guiCommandName = std::getenv("GGC_TRIGGER_GUI_COMMAND");
+	const char *guiCommandName = GgcFlags::StringValue(GgcFlag_TriggerGuiCommand);
 	if (guiCommandName && *guiCommandName)
 	{
 		static Bool initializedGuiCommand = FALSE;
@@ -367,8 +368,7 @@ static void ggcMaybeTriggerSpecialPowerDiagnostic()
 
 		if (!initializedGuiCommand)
 		{
-			const char *delayEnv = std::getenv("GGC_TRIGGER_DELAY_FRAMES");
-			Int delayFrames = delayEnv ? std::atoi(delayEnv) : 90;
+			Int delayFrames = GgcFlags::IntValue(GgcFlag_TriggerDelayFrames);
 			if (delayFrames < 0)
 				delayFrames = 0;
 			triggerGuiCommandFrame = TheGameLogic->getFrame() + delayFrames;
@@ -405,7 +405,7 @@ static void ggcMaybeTriggerSpecialPowerDiagnostic()
 		}
 
 		Coord3D target = TheTacticalView->getPosition();
-		ggcParseWorldCoord(std::getenv("GGC_TRIGGER_WORLD"), &target);
+		ggcParseWorldCoord(GgcFlags::StringValue(GgcFlag_TriggerWorld), &target);
 
 		TheInGameUI->setGUICommand(command);
 		GameMessage::Type msgType = TheGameClient->evaluateContextCommand(nullptr, &target, CommandTranslator::DO_COMMAND);
@@ -421,7 +421,7 @@ static void ggcMaybeTriggerSpecialPowerDiagnostic()
 		return;
 	}
 
-	const char *powerName = std::getenv("GGC_TRIGGER_SPECIAL_POWER");
+	const char *powerName = GgcFlags::StringValue(GgcFlag_TriggerSpecialPower);
 	if (!powerName || !*powerName)
 		return;
 
@@ -434,8 +434,7 @@ static void ggcMaybeTriggerSpecialPowerDiagnostic()
 
 	if (!initialized)
 	{
-		const char *delayEnv = std::getenv("GGC_TRIGGER_DELAY_FRAMES");
-		Int delayFrames = delayEnv ? std::atoi(delayEnv) : 90;
+		Int delayFrames = GgcFlags::IntValue(GgcFlag_TriggerDelayFrames);
 		if (delayFrames < 0)
 			delayFrames = 0;
 		triggerFrame = TheGameLogic->getFrame() + delayFrames;
@@ -462,7 +461,7 @@ static void ggcMaybeTriggerSpecialPowerDiagnostic()
 	}
 
 	Coord3D target = TheTacticalView->getPosition();
-	ggcParseWorldCoord(std::getenv("GGC_TRIGGER_WORLD"), &target);
+	ggcParseWorldCoord(GgcFlags::StringValue(GgcFlag_TriggerWorld), &target);
 
 	GgcSpecialPowerTriggerContext context;
 	context.power = power;

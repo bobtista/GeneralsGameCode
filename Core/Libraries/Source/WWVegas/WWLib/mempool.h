@@ -47,6 +47,7 @@
 #include "bittype.h"
 #include "WWDebug/wwdebug.h"
 #include "mutex.h"
+#include "GgcRuntimeFlags.h"
 #include <new>
 #include <stdlib.h>
 #include <stddef.h>
@@ -206,7 +207,7 @@ ObjectPoolClass<T,BLOCK_SIZE>::~ObjectPoolClass()
 	// walking stale pool metadata and producing misleading crash reports during
 	// exit. Let the OS reclaim these small pools on process termination; set
 	// GGC_STRICT_POOL_SHUTDOWN=1 when specifically auditing shutdown leaks.
-	if (getenv("GGC_STRICT_POOL_SHUTDOWN") == nullptr)
+	if (!GgcFlags::Enabled(GgcFlag_StrictPoolShutdown))
 	{
 		return;
 	}

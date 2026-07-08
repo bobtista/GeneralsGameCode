@@ -1,6 +1,7 @@
 // TheSuperHackers @feature bobtista 01/06/2026  See DrawCallLog.h.
 
 #include "DrawCallLog.h"
+#include "GgcRuntimeFlags.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -23,15 +24,9 @@ void Resolve_Env()
         return;
     }
     s_envResolved = true;
-    const char * afterEnv = std::getenv("GGC_DRAWLOG_AFTER");
-    if (afterEnv != nullptr) {
-        s_targetFrame = std::atoi(afterEnv);
-    }
-    const char * intervalEnv = std::getenv("GGC_DRAWLOG_INTERVAL");
-    if (intervalEnv != nullptr) {
-        s_interval = std::atoi(intervalEnv);
-    }
-    const char * pathEnv = std::getenv("GGC_DRAWLOG_PATH");
+    s_targetFrame = GgcFlags::IntValue(GgcFlag_DrawLogAfter);
+    s_interval = GgcFlags::IntValue(GgcFlag_DrawLogInterval);
+    const char * pathEnv = GgcFlags::StringValue(GgcFlag_DrawLogPath);
     if (pathEnv != nullptr) {
         std::strncpy(s_basePath, pathEnv, sizeof(s_basePath) - 1);
     }
