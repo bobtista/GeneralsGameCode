@@ -52,15 +52,15 @@ enum GgcFlagType
 // then documents the common reading.
 #define GGC_RUNTIME_FLAG_LIST(X) \
 	/* --- Settings --- */ \
-	X(GgcFlag_BgfxRenderer, "GGC_BGFX_RENDERER", NULL, GgcTier_Setting, GgcFlagType_String, 0, 0.0f, "bgfx renderer override: dx11, dx12, vulkan, metal, gl") \
+	X(GgcFlag_BgfxRenderer, "GGC_BGFX_RENDERER", NULL, GgcTier_Setting, GgcFlagType_String, 0, 0.0f, "bgfx renderer override: dx11, dx12, vulkan, metal, gl (INI: BgfxRenderer)") \
 	X(GgcFlag_BgfxMsaa, "GGC_BGFX_MSAA", NULL, GgcTier_Setting, GgcFlagType_Int, 0, 0.0f, "MSAA sample count for the scene framebuffer and backbuffer (0 = off)") \
 	X(GgcFlag_BgfxRenderScale, "GGC_BGFX_RENDER_SCALE", NULL, GgcTier_Setting, GgcFlagType_Float, 0, 1.0f, "internal supersampling scale for the 3D scene, clamped to [1.0, 2.0]") \
 	X(GgcFlag_BgfxHdr, "GGC_BGFX_HDR", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "RGBA16F scene color target with ACES tonemap") \
 	X(GgcFlag_BgfxSsao, "GGC_BGFX_SSAO", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "screen-space ambient occlusion") \
-	X(GgcFlag_BgfxSrgb, "GGC_BGFX_SRGB", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "sRGB backbuffer") \
+	X(GgcFlag_BgfxSrgb, "GGC_BGFX_SRGB", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "sRGB backbuffer (INI: BgfxSrgb)") \
 	X(GgcFlag_BgfxShadowMap, "GGC_BGFX_SHADOWMAP", NULL, GgcTier_Setting, GgcFlagType_String, 0, 0.0f, "sun shadow map: unset = INI, 0 = force off, anything else = force on") \
-	X(GgcFlag_BgfxShadowMode, "GGC_BGFX_SHADOW_MODE", NULL, GgcTier_Setting, GgcFlagType_String, 0, 0.0f, "shadow mode: stencil (default), or none/off to disable stencil volumes") \
-	X(GgcFlag_BgfxShadowFullPcf, "GGC_BGFX_SHADOW_FULL_PCF", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "full 36-fetch PCF for sun shadows instead of the reduced 9-fetch kernel") \
+	X(GgcFlag_BgfxShadowMode, "GGC_BGFX_SHADOW_MODE", NULL, GgcTier_Setting, GgcFlagType_String, 0, 0.0f, "shadow mode: stencil (default), or none/off to disable stencil volumes (INI: BgfxStencilShadows)") \
+	X(GgcFlag_BgfxShadowFullPcf, "GGC_BGFX_SHADOW_FULL_PCF", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "full 36-fetch PCF for sun shadows instead of the reduced 9-fetch kernel (INI: BgfxShadowFullPcf)") \
 	X(GgcFlag_BgfxPointFilter, "GGC_BGFX_POINT_FILTER", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "force point (nearest) texture filtering on all samplers") \
 	X(GgcFlag_BgfxColorGrade, "GGC_BGFX_COLORGRADE", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "force-enable the color-grade post pass") \
 	X(GgcFlag_BgfxBloom, "GGC_BGFX_BLOOM", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "force-enable the bloom post pass") \
