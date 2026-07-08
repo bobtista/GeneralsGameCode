@@ -41,6 +41,13 @@ struct RenderStateStruct
 	IndexBufferClass* index_buffer;
 	unsigned short index_base_offset;
 	unsigned int sorted_draw_flags;
+	// TheSuperHackers @performance bobtista 08/07/2026 Sorted texture-array slot,
+	// resolved by the backend at capture time from the live translated draw state
+	// (page < 0 = ineligible, replay on the classic per-texture run splits).
+	int sorted_array_page;
+	int sorted_array_layer;
+	float sorted_array_scale_u;
+	float sorted_array_scale_v;
 
 	RenderStateStruct();
 	~RenderStateStruct();
