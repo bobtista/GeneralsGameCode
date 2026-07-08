@@ -77,6 +77,7 @@ enum GgcFlagType
 	X(GgcFlag_BgfxDisableSortedMaterialSnapshot, "GGC_BGFX_DISABLE_SORTED_MATERIAL_SNAPSHOT", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "disable the sorted-material snapshot fast path in sorted replay") \
 	X(GgcFlag_BgfxDisableSortedTransformRestoreSkip, "GGC_BGFX_DISABLE_SORTED_TRANSFORM_RESTORE_SKIP", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "disable the same-transform skip in sorted batch replay") \
 	X(GgcFlag_BgfxDisableSortedMeshRouting, "GGC_BGFX_DISABLE_SORTED_MESH_ROUTING", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "restore texture-name-only routing of model-space sorted draws") \
+	X(GgcFlag_BgfxSortedTextureArray, "GGC_BGFX_SORTED_TEXTURE_ARRAY", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "enable the experimental sorted texture-array merge of adjacent single-texture runs") \
 	X(GgcFlag_BgfxDisableSortedBatchStatePacketCache, "GGC_BGFX_DISABLE_SORTED_BATCH_STATE_PACKET_CACHE", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "rebuild sorted-batch backend state per apply instead of using the cached packet") \
 	X(GgcFlag_BgfxDisableUnlitLightInputSkip, "GGC_BGFX_DISABLE_UNLIT_LIGHT_INPUT_SKIP", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "disable skipping light-uniform uploads for unlit draws") \
 	X(GgcFlag_BgfxDisableInactiveShadowUniformSkip, "GGC_BGFX_DISABLE_INACTIVE_SHADOW_UNIFORM_SKIP", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "disable skipping shadow-uniform uploads while the shadow map is inactive") \
