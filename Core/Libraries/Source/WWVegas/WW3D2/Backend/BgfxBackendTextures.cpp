@@ -652,77 +652,6 @@ static void ExpandDXT3ToBGRA8(const uint8_t *src,
     }
 }
 
-static void ExpandDXT1ToBGRA8(const uint8_t *src,
-    unsigned srcPitch,
-    unsigned width,
-    unsigned height,
-    uint8_t *dst)
-{
-    const unsigned blockRows = (height + 3) / 4;
-    const unsigned blockCols = (width + 3) / 4;
-    for (unsigned by = 0; by < blockRows; ++by)
-    {
-        const uint8_t *srcBlockRow = src + by * srcPitch;
-        for (unsigned bx = 0; bx < blockCols; ++bx)
-        {
-            const uint8_t *block = srcBlockRow + bx * 8;
-
-            const uint16_t c0 = static_cast<uint16_t>(block[0] | (block[1] << 8));
-            const uint16_t c1 = static_cast<uint16_t>(block[2] | (block[3] << 8));
-            uint8_t color[4][3];
-            uint8_t alpha[4] = { 255, 255, 255, 255 };
-            DecodeRgb565(c0, color[0]);
-            DecodeRgb565(c1, color[1]);
-            if (c0 > c1)
-            {
-                for (unsigned c = 0; c < 3; ++c)
-                {
-                    color[2][c] = static_cast<uint8_t>((2 * color[0][c] + color[1][c] + 1) / 3);
-                    color[3][c] = static_cast<uint8_t>((color[0][c] + 2 * color[1][c] + 1) / 3);
-                }
-            }
-            else
-            {
-                for (unsigned c = 0; c < 3; ++c)
-                {
-                    color[2][c] = static_cast<uint8_t>((color[0][c] + color[1][c] + 1) / 2);
-                    color[3][c] = 0;
-                }
-                alpha[3] = 0;
-            }
-
-            const uint32_t colorBits = static_cast<uint32_t>(block[4])
-                | (static_cast<uint32_t>(block[5]) << 8)
-                | (static_cast<uint32_t>(block[6]) << 16)
-                | (static_cast<uint32_t>(block[7]) << 24);
-
-            for (unsigned py = 0; py < 4; ++py)
-            {
-                const unsigned y = by * 4 + py;
-                if (y >= height)
-                {
-                    continue;
-                }
-                for (unsigned px = 0; px < 4; ++px)
-                {
-                    const unsigned x = bx * 4 + px;
-                    if (x >= width)
-                    {
-                        continue;
-                    }
-                    const unsigned pixel = py * 4 + px;
-                    const unsigned colorIndex = static_cast<unsigned>((colorBits >> (2 * pixel)) & 0x3);
-                    uint8_t *out = dst + (y * width + x) * 4;
-                    out[0] = color[colorIndex][2];
-                    out[1] = color[colorIndex][1];
-                    out[2] = color[colorIndex][0];
-                    out[3] = alpha[colorIndex];
-                }
-            }
-        }
-    }
-}
-
 static bool IsTerrainAtlasTexture(TextureClass * tex2d,
     WW3DFormat sourceFmt,
     bgfx::TextureFormat::Enum bgfxFmt)
@@ -2250,7 +2179,11 @@ bool SortedArraySnapshotEligible(const std::vector<TextureBaseClass::TextureMipS
         if (s_trace)
         {
             static bool s_logged = false;
-            if (!s_logged) { std::fprintf(stderr, "[ggc] sorted-array reject: empty snapshot\n"); s_logged = true; }
+            if (!s_logged)
+            {
+                std::fprintf(stderr, "[ggc] sorted-array reject: empty snapshot\n");
+                s_logged = true;
+            }
         }
         return false;
     }
@@ -2262,7 +2195,11 @@ bool SortedArraySnapshotEligible(const std::vector<TextureBaseClass::TextureMipS
         if (s_trace)
         {
             static bool s_logged = false;
-            if (!s_logged) { std::fprintf(stderr, "[ggc] sorted-array reject: format=%d\n", (int)base.Format); s_logged = true; }
+            if (!s_logged)
+            {
+                std::fprintf(stderr, "[ggc] sorted-array reject: format=%d\n", (int)base.Format);
+                s_logged = true;
+            }
         }
         return false;
     }

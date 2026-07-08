@@ -9685,7 +9685,6 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                              pageTex,
                              g_draw.samplerFlags[0] | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
             program = g_device.sortedArrayProgram;
-            g_stats.sortedArrayMergedSubmits++;
         }
     }
     bgfx::submit(submitView, program);
