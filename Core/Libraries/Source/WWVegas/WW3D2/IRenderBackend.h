@@ -797,12 +797,12 @@ public:
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & /*state*/) {}
     virtual void Release_Legacy_Render_State_For_Sorted_Draw() {}
     // TheSuperHackers @performance bobtista 08/07/2026 Sorted texture-array merge support.
-    // Get_Sorted_Texture_Array_Slot reports whether a sorted node's draw can render its
-    // stage-0 texture from a persistent texture2DArray page (registering it lazily);
+    // The backend resolves a node's texture2DArray slot during
+    // Capture_Legacy_Render_State_For_Sorted_Draw (when the live translated draw state is
+    // authoritative) and carries it on the RenderStateStruct sorted_array_* fields.
     // Set_Sorted_Texture_Array_Page(-1 to clear) marks the next sorted submit as a merged
-    // run that spans several stage-0 textures via a per-vertex layer index. Empty
-    // defaults keep DX8Backend on the classic per-texture run splits.
-    virtual bool Get_Sorted_Texture_Array_Slot(const RenderStateStruct & /*state*/, int * /*outPage*/, int * /*outLayer*/, float * /*outScaleU*/, float * /*outScaleV*/) { return false; }
+    // run that spans several stage-0 textures via a per-vertex layer index. The empty
+    // default keeps DX8Backend on the classic per-texture run splits.
     virtual void Set_Sorted_Texture_Array_Page(int /*page*/) {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Lets Draw_Sorting_IB_VB hand its inner
