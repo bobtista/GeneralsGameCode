@@ -182,6 +182,10 @@ extern "C" void GGC_GetBgfxMaterialFxParams(float * params);
 extern "C" int  GGC_GetBgfxShadowMapEnabled();
 extern "C" void GGC_GetBgfxShadowMapParams(float * params);
 extern "C" int  GGC_GetBgfxPointFilter();
+extern "C" const char * GGC_GetBgfxRenderer();
+extern "C" int  GGC_GetBgfxSrgb();
+extern "C" int  GGC_GetBgfxShadowFullPcf();
+extern "C" int  GGC_GetBgfxStencilShadowsEnabled();
 extern "C" int   GGC_GetBgfxMsaaSamples();
 extern "C" float GGC_GetBgfxRenderScale();
 extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
@@ -411,6 +415,10 @@ static BgfxShadowMode GetBgfxShadowMode()
         {
             return BgfxShadowMode::None;
         }
+    }
+    if (GGC_GetBgfxStencilShadowsEnabled() == 0)
+    {
+        return BgfxShadowMode::None;
     }
     return BgfxShadowMode::Stencil;
 }
@@ -1292,6 +1300,10 @@ bgfx::RendererType::Enum GetConfiguredRendererType()
     // run time on any platform: dx11/d3d11, dx12/d3d12, vulkan, metal, gl. bgfx's DX11 and
     // DX12 backends share SM5 DXBC shaders, so no shader recompile is needed.
     const char *override_ = GgcFlags::StringValue(GgcFlag_BgfxRenderer);
+    if (override_ == nullptr || *override_ == '\0')
+    {
+        override_ = GGC_GetBgfxRenderer();
+    }
     if (override_ != nullptr)
     {
         if (std::strcmp(override_, "dx12") == 0 || std::strcmp(override_, "d3d12") == 0)
@@ -3785,7 +3797,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         else if (msaaLevel >= 2) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X2; }
         g_device.msaaResetFlags = initArgs.resolution.reset & (BGFX_RESET_MSAA_X2 | BGFX_RESET_MSAA_X4 | BGFX_RESET_MSAA_X8 | BGFX_RESET_MSAA_X16);
     }
-    g_device.srgbEnabled = GgcFlags::Enabled(GgcFlag_BgfxSrgb);
+    g_device.srgbEnabled = GgcFlags::Enabled(GgcFlag_BgfxSrgb) || GGC_GetBgfxSrgb() != 0;
     if (g_device.srgbEnabled)
     {
         initArgs.resolution.reset |= BGFX_RESET_SRGB_BACKBUFFER;
@@ -8895,7 +8907,7 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded)
     {
         // TheSuperHackers @performance bobtista 28/06/2026 Default reduced 9-fetch PCF;
         // GGC_BGFX_SHADOW_FULL_PCF=1 restores the original 36-fetch path for a quality/perf A/B.
-        static const float s_fullPcf = (GgcFlags::Enabled(GgcFlag_BgfxShadowFullPcf)) ? 1.0f : 0.0f;
+        static const float s_fullPcf = (GgcFlags::Enabled(GgcFlag_BgfxShadowFullPcf) || GGC_GetBgfxShadowFullPcf() != 0) ? 1.0f : 0.0f;
         const float shadowQuality[4] = { s_fullPcf, 0.0f, 0.0f, 0.0f };
         bgfx::setUniform(g_uniforms.uShadowQuality, shadowQuality);
         CountUniformCommand(g_stats.shadowUniformCommands);
