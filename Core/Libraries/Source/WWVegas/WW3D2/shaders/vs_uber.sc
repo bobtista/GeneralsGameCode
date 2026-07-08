@@ -37,10 +37,14 @@ uniform vec4 u_material[24];
 void main()
 {
 	vec3 position = a_position;
+#if !GGC_UBER_STAGE0_ARRAY
+	// Array variant skips the normal-directed bias: for merged sorted runs
+	// a_normal.z carries the texture-array layer index, not a direction.
 	if (u_zBias.y != 0.0)
 	{
 		position += a_normal * u_zBias.y;
 	}
+#endif
 	gl_Position = mul(u_modelViewProj, vec4(position, 1.0));
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Apply post-projection Z
 	// bias the same way D3DRS_ZBIAS pulls geometry toward the camera in DX8.
@@ -62,7 +66,13 @@ void main()
 	v_stage1UV  = (u_texcoordSelect2.x > 0.5) ? a_texcoord1 : a_texcoord0;
 	v_stage2UV  = a_texcoord0;
 	v_sceneDepth = vec4(1.0, 1.0, 0.0, 0.0);
+#if GGC_UBER_STAGE0_ARRAY
+	// Merged sorted runs submit with a view-only model transform; the layer
+	// index in a_normal.z must reach the fragment shader untransformed.
+	v_normal    = a_normal;
+#else
 	v_normal    = mul(u_model[0], vec4(a_normal, 0.0)).xyz;
+#endif
 	vec4 worldPos = mul(u_model[0], vec4(a_position, 1.0));
 	v_worldPos = worldPos.xyz;
 
