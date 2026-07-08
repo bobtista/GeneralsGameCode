@@ -12064,6 +12064,30 @@ void SubmitEngineDraw(unsigned short start_index,
         worldMtx = identityWorld;
     }
 
+    // TheSuperHackers @bugfix bobtista 08/07/2026 Camera-space draws (identity view with the
+    // camera perspective projection, e.g. ground-aligned particles that no longer sort) land in
+    // the engine view, but that view's transform is retroactively the camera view because
+    // End_Scene re-applies it for the whole frame. Fold the inverse camera view into the model
+    // matrix so the pre-transformed vertices are not view-transformed twice.
+    float cameraSpaceWorld[16];
+    static const bool cameraSpaceWorldFixDisabled = GgcFlags::Enabled(GgcFlag_BgfxNoCameraSpaceWorldFix);
+    if (!cameraSpaceWorldFixDisabled
+        && !is2D
+        && submitView == kBgfxEngineView
+        && !g_views.inSortFlush
+        && !IsSortedLocalModelEffectDraw(routeState)
+        && g_frame.cameraCaptured
+        && IsIdentityViewMatrix(g_frame.view)
+        && !IsNonPerspectiveProjection(g_frame.proj))
+    {
+        float invCameraView[16];
+        bx::mtxInverse(invCameraView, g_frame.cameraView);
+        bx::mtxMul(cameraSpaceWorld, worldMtx, invCameraView);
+        worldMtx = cameraSpaceWorld;
+        LogBgfxEffectSubmit("submit-engine", submitView,
+                            polygon_count, vertex_count, g_draw.state, "camera-space-world");
+    }
+
     bgfx::setTransform(worldMtx);
 
     // TheSuperHackers @refactor bobtista 11/04/2026 d3d8's BaseVertexIndex maps to bgfx's
