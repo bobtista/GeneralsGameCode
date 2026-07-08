@@ -7479,6 +7479,8 @@ static void LogSortedMeshDrawWithoutNamePredicate(TextureBaseClass * texture, co
         texName != nullptr ? texName : "(null)");
 }
 
+static void ComputeSortedTextureArraySlot(RenderStateStruct & state);
+
 void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
 {
     // Transitional boundary for sorted replay. SortingRenderer snapshots a
@@ -7486,6 +7488,10 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     // bgfx still mirrors draw state into FixedFunctionState for that snapshot
     // today; future phases should make that state shape backend-neutral too.
     FixedFunctionState::Capture_Render_State(state);
+    state.sorted_array_page = -1;
+    state.sorted_array_layer = -1;
+    state.sorted_array_scale_u = 1.0f;
+    state.sorted_array_scale_v = 1.0f;
     if (g_views.pointGroupRenderActive)
     {
         state.sorted_draw_flags |= RB_SORTED_DRAW_POINT_GROUP;
@@ -7522,6 +7528,10 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     {
         FixedFunctionState::Transform_Matrix(
             static_cast<unsigned>(RB_TRANSFORM_WORLD), state.world);
+    }
+    else
+    {
+        ComputeSortedTextureArraySlot(state);
     }
 }
 
@@ -9391,51 +9401,49 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
 // A sorted node is page-eligible when its draw samples exactly one stage-0
 // texture through UV channel 0; such nodes can share one merged draw with
 // neighbors that differ only by that texture, selecting the layer per vertex.
-bool BgfxBackend::Get_Sorted_Texture_Array_Slot(const RenderStateStruct & state, int * outPage, int * outLayer, float * outScaleU, float * outScaleV)
+// Eligibility is decided here at capture time, when g_draw holds the exact
+// translated state the replayed submit will apply: interrogating the material
+// object at pool-fill time gave divergent answers (prelit particle materials
+// carry a nonzero object-level emissive that their unlit draws never read).
+static void ComputeSortedTextureArraySlot(RenderStateStruct & state)
 {
-    *outPage = -1;
-    *outLayer = -1;
-    *outScaleU = 1.0f;
-    *outScaleV = 1.0f;
     static const bool s_enabled = GgcFlags::Enabled(GgcFlag_BgfxSortedTextureArray);
     if (!s_enabled || !g_device.initialized || !bgfx::isValid(g_device.sortedArrayProgram))
     {
-        return false;
+        return;
+    }
+    // Point groups and streaks author their vertices in world space with an
+    // identity or camera-only world, so the fill loop's world bake is exact
+    // for them. Other sorted classes (local-model mesh sprites, seglines,
+    // decals, reveal grids) stay on the classic per-run replay until each
+    // earns its way in with a verified bake contract.
+    if ((state.sorted_draw_flags & (RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK)) == 0)
+    {
+        return;
     }
     if (state.shader.Get_Texturing() != ShaderClass::TEXTURING_ENABLE)
     {
-        return false;
-    }
-    // TheSuperHackers @bugfix bobtista 08/07/2026 Mesh-origin sorted quads
-    // (rotor blur, coplights) capture a live per-mesh world through a separate
-    // legacy-transform path; baking them detached the sprites from their
-    // objects (Chinook rotors teleporting across the screen). Keep them on the
-    // classic per-run replay until the mesh transform path is baked correctly.
-    if ((state.sorted_draw_flags & RB_SORTED_DRAW_MESH) != 0)
-    {
-        return false;
+        return;
     }
     if (state.Textures[0] == nullptr || state.Textures[0]->As_TextureClass() == nullptr)
     {
-        return false;
+        return;
     }
-    for (int stage = 1; stage < Get_Max_Texture_Stages(); ++stage)
+    for (int stage = 1; stage < MAX_TEXTURE_STAGES; ++stage)
     {
         if (state.Textures[stage] != nullptr)
         {
-            return false;
+            return;
         }
     }
     // The merged path carries the layer in the vertex normal's z and the
     // page-scaled UVs in the second UV channel, so it is restricted to draws
     // whose normals are guaranteed unused and whose UVs are plain channel 0.
-    // Depth-write-off particle blends with per-vertex color are exactly the
-    // profile ShouldForceUnlitForBakedColorDraw renders unlit.
     const ShaderClass & shader = state.shader;
     if (shader.Get_Depth_Mask() != ShaderClass::DEPTH_WRITE_DISABLE
         || shader.Get_Alpha_Test() != ShaderClass::ALPHATEST_DISABLE)
     {
-        return false;
+        return;
     }
     const ShaderClass::SrcBlendFuncType srcBlend = shader.Get_Src_Blend_Func();
     const ShaderClass::DstBlendFuncType dstBlend = shader.Get_Dst_Blend_Func();
@@ -9445,33 +9453,36 @@ bool BgfxBackend::Get_Sorted_Texture_Array_Slot(const RenderStateStruct & state,
         || (srcBlend == ShaderClass::SRCBLEND_SRC_ALPHA && dstBlend == ShaderClass::DSTBLEND_ONE_MINUS_SRC_ALPHA);
     if (!particleBlend)
     {
-        return false;
+        return;
     }
     if (state.material == nullptr
         || state.material->Get_UV_Source(0) != 0
         || state.material->Get_Mapper(0) != nullptr)
     {
-        return false;
+        return;
     }
-    // ShouldForceUnlitForBakedColorDraw keeps self-illum emissive draws LIT
-    // (the heat-vision class), and lit draws read the vertex normal this path
-    // repurposes for the layer index - exclude them up front. Its other
-    // exemption (lit material without per-vertex color) cannot apply here:
-    // the sorted pool's XYZNDUV2 stream always carries a diffuse element, so
-    // vertexColorFlags is always set for these draws.
-    Vector3 emissive(0.0f, 0.0f, 0.0f);
-    state.material->Get_Emissive(&emissive);
-    if (emissive.X > 0.001f || emissive.Y > 0.001f || emissive.Z > 0.001f)
+    // The vertex normal is only safe to repurpose when the shader never reads
+    // it: either the draw is unlit outright (prelit particle materials), or
+    // the baked-color force-unlit will fire at submit. Both sides of this
+    // predicate read the same translated g_draw state the submit reads, so
+    // they cannot drift apart.
+    const bool unlit = g_draw.lightingEnabled[0] <= 0.5f;
+    if (!unlit && !ShouldForceUnlitForBakedColorDraw(GetEffectiveDrawState()))
     {
-        return false;
+        return;
     }
-    const int page = BgfxSortedTextureArrayGetSlot(state.Textures[0], outLayer, outScaleU, outScaleV);
+    int layer = -1;
+    float scaleU = 1.0f;
+    float scaleV = 1.0f;
+    const int page = BgfxSortedTextureArrayGetSlot(state.Textures[0], &layer, &scaleU, &scaleV);
     if (page < 0)
     {
-        return false;
+        return;
     }
-    *outPage = page;
-    return true;
+    state.sorted_array_page = page;
+    state.sorted_array_layer = layer;
+    state.sorted_array_scale_u = scaleU;
+    state.sorted_array_scale_v = scaleV;
 }
 
 void BgfxBackend::Set_Sorted_Texture_Array_Page(int page)

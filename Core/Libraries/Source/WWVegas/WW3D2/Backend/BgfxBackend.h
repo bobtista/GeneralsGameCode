@@ -205,7 +205,6 @@ public:
     virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state) override;
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state) override;
     virtual void Release_Legacy_Render_State_For_Sorted_Draw() override;
-    virtual bool Get_Sorted_Texture_Array_Slot(const RenderStateStruct & state, int * outPage, int * outLayer, float * outScaleU, float * outScaleV) override;
     virtual void Set_Sorted_Texture_Array_Page(int page) override;
     virtual void Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                                     const DynamicIBAccessClass & dyn_ib,
