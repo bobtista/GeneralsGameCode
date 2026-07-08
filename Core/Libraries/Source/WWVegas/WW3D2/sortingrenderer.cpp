@@ -1468,6 +1468,22 @@ void SortingRendererClass::Flush_Sorting_Pool()
 					float arrayScaleV = 1.0f;
 					if (g_renderBackend->Get_Sorted_Texture_Array_Slot(state->sorting_state, &arrayPage, &arrayLayer, &arrayScaleU, &arrayScaleV))
 					{
+						// Page layers occupy a sub-region of a shared texture, so
+						// wrap addressing is unrepresentable there: tiled UVs must
+						// stay on the classic per-texture path.
+						for (unsigned checked_vertex = 0; checked_vertex < state->vertex_count; ++checked_vertex)
+						{
+							const float cu = dest_verts[checked_vertex].u1;
+							const float cv = dest_verts[checked_vertex].v1;
+							if (cu < -0.0001f || cu > 1.0001f || cv < -0.0001f || cv > 1.0001f)
+							{
+								arrayPage = -1;
+								break;
+							}
+						}
+					}
+					if (arrayPage >= 0)
+					{
 						// Second UV channel = page-region UVs, normal z = layer.
 						// Both are dead data for the eligible unlit single-stage
 						// profile, and only the array program reads them.
