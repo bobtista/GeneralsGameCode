@@ -1190,7 +1190,11 @@ RenderStateStruct::RenderStateStruct()
 	:
 	material(0),
 	index_buffer(0),
-	sorted_draw_flags(0)
+	sorted_draw_flags(0),
+	sorted_array_page(-1),
+	sorted_array_layer(-1),
+	sorted_array_scale_u(1.0f),
+	sorted_array_scale_v(1.0f)
 {
 	unsigned i;
 	for (i=0;i<MAX_VERTEX_STREAMS;++i) vertex_buffers[i]=0;
@@ -1245,6 +1249,10 @@ RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruct& src)
 	iba_offset=src.iba_offset;
 	index_base_offset=src.index_base_offset;
 	sorted_draw_flags=src.sorted_draw_flags;
+	sorted_array_page=src.sorted_array_page;
+	sorted_array_layer=src.sorted_array_layer;
+	sorted_array_scale_u=src.sorted_array_scale_u;
+	sorted_array_scale_v=src.sorted_array_scale_v;
 
 	return *this;
 }
