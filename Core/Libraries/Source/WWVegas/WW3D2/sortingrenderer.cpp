@@ -1432,11 +1432,14 @@ void SortingRendererClass::Flush_Sorting_Pool()
 				memcpy(dest_verts, src_verts, sizeof(VertexFormatXYZNDUV2)*state->vertex_count);
 				if (sorted_array_merge)
 				{
-					int arrayPage = -1;
-					int arrayLayer = -1;
-					float arrayScaleU = 1.0f;
-					float arrayScaleV = 1.0f;
-					if (g_renderBackend->Get_Sorted_Texture_Array_Slot(state->sorting_state, &arrayPage, &arrayLayer, &arrayScaleU, &arrayScaleV))
+					// Eligibility and the page slot were resolved by the backend at
+					// capture time, when the live translated draw state was
+					// authoritative; the fill only adds the data-dependent UV check.
+					int arrayPage = state->sorting_state.sorted_array_page;
+					const int arrayLayer = state->sorting_state.sorted_array_layer;
+					const float arrayScaleU = state->sorting_state.sorted_array_scale_u;
+					const float arrayScaleV = state->sorting_state.sorted_array_scale_v;
+					if (arrayPage >= 0)
 					{
 						// Page layers occupy a sub-region of a shared texture, so
 						// wrap addressing is unrepresentable there: tiled UVs must
