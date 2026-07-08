@@ -35,6 +35,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "part_buf.h"
+#include "GgcRuntimeFlags.h"
 #include "part_emt.h"
 #include "ww3d.h"
 #include "rinfo.h"
@@ -817,7 +818,7 @@ int ParticleBufferClass::Get_Particle_Count() const
 void ParticleBufferClass::Render(RenderInfoClass & rinfo)
 {
 	WWPROFILE("ParticleBuffer::Render");
-	static const bool s_probeNoParticleRender = getenv("GGC_PROBE_NO_PARTICLE_RENDER") != nullptr;
+	static const bool s_probeNoParticleRender = GgcFlags::Enabled(GgcFlag_ProbeNoParticleRender);
 	if (s_probeNoParticleRender) {
 		return;
 	}

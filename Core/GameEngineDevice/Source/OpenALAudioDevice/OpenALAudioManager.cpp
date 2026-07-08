@@ -42,6 +42,7 @@
 #include "OpenALAudioDevice/OpenALAudioManager.h"
 #include "OpenALAudioDevice/OpenALAudioStream.h"
 #include "OpenALAudioCache.h"
+#include "GgcRuntimeFlags.h"
 
 #include "Common/AudioAffect.h"
 #include "Common/AudioHandleSpecialValues.h"
@@ -538,7 +539,7 @@ void OpenALAudioManager::init()
 	{
 		cacheBytes = minCacheBytes;
 	}
-	if (const char *cacheEnv = getenv("GGC_AUDIO_CACHE_MB"))
+	if (const char *cacheEnv = GgcFlags::StringValue(GgcFlag_AudioCacheMb))
 	{
 		const int cacheMb = atoi(cacheEnv);
 		if (cacheMb > 0)

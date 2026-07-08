@@ -45,6 +45,7 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "WWLib/always.h"
+#include "GgcRuntimeFlags.h"
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
@@ -98,7 +99,7 @@ const Real cosAngleToCare = cos ((0.2 * PI) / 180.0);	//1.5 degree difference
 
 static bool ShadowPathDiagEnabled()
 {
-	return std::getenv("GGC_SHADOW_PATH_DIAG") != nullptr;
+	return GgcFlags::Enabled(GgcFlag_ShadowPathDiag);
 }
 
 static const char *DrawableTemplateName(const Drawable *draw)
@@ -143,7 +144,7 @@ static bool ShouldSkipBgfxStaticVolumeShadow(const Drawable *draw)
 		return false;
 
 #if !defined(GGC_BGFX_RENDERER_METAL)
-	if (std::getenv("GGC_BGFX_SKIP_STATIC_VOLUME_SHADOWS") == nullptr)
+	if (!GgcFlags::Enabled(GgcFlag_BgfxSkipStaticVolumeShadows))
 		return false;
 #endif
 
@@ -182,7 +183,7 @@ static bool BgfxUseShadowVolumeZFail()
 	if (g_renderBackend == nullptr || !g_renderBackend->Needs_Closed_Shadow_Volumes())
 		return false;
 
-	const char *algo = std::getenv("GGC_BGFX_STENCIL_ALGO");
+	const char *algo = GgcFlags::StringValue(GgcFlag_BgfxStencilAlgo);
 	return algo == nullptr
 		|| std::strcmp(algo, "zfail") == 0
 		|| std::strcmp(algo, "zfail-swap") == 0;
@@ -190,7 +191,7 @@ static bool BgfxUseShadowVolumeZFail()
 
 static bool BgfxSwapShadowVolumeZFailOps()
 {
-	const char *algo = std::getenv("GGC_BGFX_STENCIL_ALGO");
+	const char *algo = GgcFlags::StringValue(GgcFlag_BgfxStencilAlgo);
 	return algo != nullptr
 		&& (std::strcmp(algo, "zfail-swap") == 0
 			|| std::strcmp(algo, "zpass-swap") == 0);
@@ -198,12 +199,12 @@ static bool BgfxSwapShadowVolumeZFailOps()
 
 static bool BgfxFlipShadowVolumeCapWinding()
 {
-	return std::getenv("GGC_BGFX_FLIP_CAP_WINDING") != nullptr;
+	return GgcFlags::Enabled(GgcFlag_BgfxFlipCapWinding);
 }
 
 static bool BgfxUseSaturatedShadowVolumeIncrement()
 {
-	return std::getenv("GGC_BGFX_STENCIL_INCR_SAT") != nullptr;
+	return GgcFlags::Enabled(GgcFlag_BgfxStencilIncrSat);
 }
 
 struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D

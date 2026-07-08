@@ -49,6 +49,7 @@
 #include "indexbuffer.h"
 #include "dx8fvf.h"
 #include "dx8rendererdebugger.h"
+#include "GgcRuntimeFlags.h"
 #include "WW3D2/RenderBufferTypes.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/IRenderBackend.h"
@@ -1700,10 +1701,8 @@ void DX8TextureCategoryClass::Render()
 	// collapses the repeated-prop draws that dominate that count. Gated by Supports_Instancing(), so
 	// it is a no-op on backends without instancing caps. Opt out with GGC_BGFX_NO_INSTANCING
 	// or GGC_BGFX_DISABLE_INSTANCING.
-	static const bool s_instancingEnabled =
-		std::getenv("GGC_BGFX_NO_INSTANCING") == nullptr
-		&& std::getenv("GGC_BGFX_DISABLE_INSTANCING") == nullptr;
-	static const bool s_instancingReorder = std::getenv("GGC_BGFX_INSTANCING_NO_REORDER") == nullptr;
+	static const bool s_instancingEnabled = !GgcFlags::Enabled(GgcFlag_BgfxNoInstancing);
+	static const bool s_instancingReorder = !GgcFlags::Enabled(GgcFlag_BgfxInstancingNoReorder);
 	if (s_instancingEnabled
 		&& s_instancingReorder
 		&& g_renderBackend->Supports_Instancing()
