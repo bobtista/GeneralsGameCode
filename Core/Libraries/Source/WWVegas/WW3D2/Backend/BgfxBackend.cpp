@@ -9512,6 +9512,10 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     // The inner dynamic buffers' WriteLockClass dtors already ran, so
     // Capture_Dynamic_Vertex_Data / Capture_Dynamic_Index_Data should
     // have stashed their transients keyed by &dyn_vb / &dyn_ib.
+    // TheSuperHackers @bugfix bobtista 08/07/2026 A texture-array run's pool
+    // vertices were baked into world space at fill time, so the classic
+    // fallback submit (which applies the captured world*view again) would
+    // double-transform them; drop the run for this frame instead.
     if (!g_draw.pendingVB.valid || g_draw.pendingVB.owner != &dyn_vb)
     {
         static bool s_loggedSkipVB = false;
@@ -9522,6 +9526,10 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                          "claimable (valid=%d ownerMatch=%d)",
                          int(g_draw.pendingVB.valid),
                          int(g_draw.pendingVB.owner == &dyn_vb)));
+        }
+        if (g_draw.sortedArrayPage >= 0)
+        {
+            g_views.skipNextSubmitEngineDraw = true;
         }
         g_stats.skippedDraws++;
         return;
@@ -9536,6 +9544,10 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                          "claimable (valid=%d ownerMatch=%d)",
                          int(g_draw.pendingIB.valid),
                          int(g_draw.pendingIB.owner == &dyn_ib)));
+        }
+        if (g_draw.sortedArrayPage >= 0)
+        {
+            g_views.skipNextSubmitEngineDraw = true;
         }
         g_stats.skippedDraws++;
         return;
@@ -9669,6 +9681,9 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     {
         g_stats.skippedDraws++;
         bgfx::discard(BGFX_DISCARD_ALL);
+        // A skipped sorted draw must also suppress the fallback
+        // SubmitEngineDraw, matching the skip-missing path below.
+        g_views.skipNextSubmitEngineDraw = true;
         return;
     }
 
