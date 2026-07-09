@@ -2474,17 +2474,50 @@ void Team::killTeam()
 // ------------------------------------------------------------------------
 Bool Team::damageTeamMembers(Real amount)
 {
+	// TheSuperHackers @bugfix bobtista 09/07/2026 Damage the members from a snapshot of the member list,
+	// like killTeam does. Killing a garrisoned civilian building empties it, which moves the building
+	// back to its original team while we are walking this team's member list, so the DLINK iterator
+	// walks into the other team's list and kills unrelated objects. See the comment in deleteTeam.
+	std::list<Object *> objectsToProcess;
 	for (DLINK_ITERATOR<Object> iter = iterate_TeamMemberList(); !iter.done(); iter.advance())
 	{
 		if (iter.cur()->isEffectivelyDead())
+		{
 			continue;
+		}
 
 		if (iter.cur()->isDestroyed())
+		{
 			continue;
+		}
+
+		objectsToProcess.push_back(iter.cur());
+	}
+
+	std::list<Object *>::iterator objIt;
+	for (objIt = objectsToProcess.begin(); objIt != objectsToProcess.end(); ++objIt)
+	{
+		Object *obj = *objIt;
+
+		if (obj->isEffectivelyDead())
+		{
+			continue;
+		}
+
+		if (obj->isDestroyed())
+		{
+			continue;
+		}
+
+		// the object's team could change while damaging other members.
+		if (obj->getTeam() != this)
+		{
+			continue;
+		}
 
 		// do max amount of damage to object
 		if (amount < 0.0) {
-			iter.cur()->kill();
+			obj->kill();
 		} else {
 			DamageInfo damageInfo;
 
@@ -2492,7 +2525,7 @@ Bool Team::damageTeamMembers(Real amount)
 			damageInfo.in.m_deathType = DEATH_NORMAL;
 			damageInfo.in.m_sourceID = INVALID_ID;
 			damageInfo.in.m_amount = amount;
-			iter.cur()->attemptDamage( &damageInfo );
+			obj->attemptDamage( &damageInfo );
 		}
 
 	}
