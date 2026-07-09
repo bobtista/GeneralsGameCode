@@ -461,7 +461,11 @@ void ActiveBody::attemptDamage( DamageInfo *damageInfo )
 				const ContainedItemsList* items = contain->getContainedItemsList();
 				if (items)
 				{
-					for( ContainedItemsList::const_iterator it = items->begin(); (it != items->end()) && (numKilled < killsToMake); it++ )
+					// TheSuperHackers @bugfix bobtista 09/07/2026 Use a temporary copy of the contain list to
+					// iterate over, because killing an occupant can remove elements from the list while
+					// iterating over it, which may be unsafe.
+					const ContainedItemsList itemsCopy(*items);
+					for( ContainedItemsList::const_iterator it = itemsCopy.begin(); (it != itemsCopy.end()) && (numKilled < killsToMake); it++ )
 					{
 						Object* thingToKill = *it;
 						if (!thingToKill->isEffectivelyDead() )
