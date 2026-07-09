@@ -828,6 +828,18 @@ void MetaMap::generateMetaMap()
 		}
 	}
 	{
+		// TheSuperHackers @feature bobtista 09/07/2026 Default F12 to take a screenshot, only when the
+		// user has not already bound the key. Useful for Generals and Zero Hour.
+		MetaMapRec *map = getMetaMapRec(GameMessage::MSG_META_TAKE_SCREENSHOT);
+		if (map->m_key == MK_NONE)
+		{
+			map->m_key = MK_F12;
+			map->m_transition = DOWN;
+			map->m_modState = NONE;
+			map->m_usableIn = COMMANDUSABLE_EVERYWHERE;
+		}
+	}
+	{
 		// Is useful for Generals and Zero Hour.
 		MetaMapRec *map = getMetaMapRec(GameMessage::MSG_META_INCREASE_LOGIC_TIME_SCALE);
 		if (map->m_key == MK_NONE)
