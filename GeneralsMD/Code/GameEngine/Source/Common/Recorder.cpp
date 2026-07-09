@@ -1239,7 +1239,9 @@ UnicodeString RecorderClass::readUnicodeString() {
 	}
 	str[index] = c;
 
-	while (index < 1024 && str[index] != 0) {
+	// TheSuperHackers @bugfix bobtista 09/07/2026 Stop one short of the end of the buffer. Entering the
+	// loop body with index 1023 wrote str[1024], one element past the array.
+	while (index + 1 < 1024 && str[index] != 0) {
 		++index;
 		Int c = m_file->readWideChar();
 		if (c == EOF) {
@@ -1267,7 +1269,9 @@ AsciiString RecorderClass::readAsciiString() {
 	}
 	str[index] = c;
 
-	while (index < 1024 && str[index] != 0) {
+	// TheSuperHackers @bugfix bobtista 09/07/2026 Stop one short of the end of the buffer. Entering the
+	// loop body with index 1023 wrote str[1024], one element past the array.
+	while (index + 1 < 1024 && str[index] != 0) {
 		++index;
 		Int c = m_file->readChar();
 		if (c == EOF) {
