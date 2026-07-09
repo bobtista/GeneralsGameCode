@@ -413,8 +413,15 @@ protected:
 
 	VecSequentialScriptPtr m_sequentialScripts;
 
+	// TheSuperHackers @bugfix bobtista 09/07/2026 Sequential scripts removed while
+	// evaluateAndProgressAllSequentialScripts is still using them are kept here and
+	// deleted after the evaluation. Not xfered.
+	VecSequentialScriptPtr m_deferredDeleteSequentialScripts;
+
 	void evaluateAndProgressAllSequentialScripts();
 	VecSequentialScriptPtrIt cleanupSequentialScript(VecSequentialScriptPtrIt it, Bool cleanDanglers);
+	size_t cleanupSequentialScriptAtIndex(size_t index, Bool cleanDanglers);
+	void deleteDeferredSequentialScripts();
 
 	Bool hasUnitCompletedSequentialScript( Object *object, const AsciiString& sequentialScriptName );
 	Bool hasTeamCompletedSequentialScript( Team *team, const AsciiString& sequentialScriptName );
