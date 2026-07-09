@@ -569,7 +569,8 @@ void LocomotorStore::reset()
 		Overridable *locoTemp = it->second->deleteOverrides();
 		if (!locoTemp)
 		{
-			m_locomotorTemplates.erase(it);
+			// TheSuperHackers @bugfix bobtista 09/07/2026 Erase without invalidating the loop iterator.
+			m_locomotorTemplates.erase(it++);
 		}
 		else
 		{
