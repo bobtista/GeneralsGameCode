@@ -280,6 +280,9 @@ public:
 	virtual Int winSetModal( GameWindow *window );  ///< put at top of modal stack
 	virtual Int winUnsetModal( GameWindow *window );  /**< take window off modal stack, if window is
 																										not at top of stack and error will occur */
+	// TheSuperHackers @bugfix bobtista 09/07/2026 Removes every modal stack entry of a window, used
+	// when a window is destroyed. Destroyed windows below the top of the stack were never removed.
+	virtual void winRemoveFromModalStack( GameWindow *window );
 
 	//---------------------------------------------------------------------------
 	/////////////////////////////////////////////////////////////////////////////
