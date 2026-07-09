@@ -1647,7 +1647,15 @@ GlobalData *GlobalData::newOverride()
 
 	// copy the data from the latest override (TheWritableGlobalData) to the newly created instance
 	DEBUG_ASSERTCRASH( TheWritableGlobalData, ("GlobalData::newOverride() - no existing data") );
+	// TheSuperHackers @bugfix bobtista 09/07/2026 The default copy also copied m_weaponBonusSet,
+	// making the override share the set owned by the copied instance and leaking its own. The
+	// destructor then freed the shared set when the override was deleted on reset, leaving the
+	// original with a dangling pointer and a double free at shutdown. Keep the override's own set
+	// and copy the contents instead.
+	WeaponBonusSet *ownWeaponBonusSet = overrideData->m_weaponBonusSet;
 	*overrideData = *TheWritableGlobalData;
+	overrideData->m_weaponBonusSet = ownWeaponBonusSet;
+	*overrideData->m_weaponBonusSet = *TheWritableGlobalData->m_weaponBonusSet;
 
 	//
 	// link the override to the previously created one, the link order is important here
