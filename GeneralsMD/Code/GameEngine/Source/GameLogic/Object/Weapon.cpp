@@ -1590,6 +1590,7 @@ WeaponStore::WeaponStore()
 WeaponStore::~WeaponStore()
 {
 	deleteAllDelayedDamage();
+	deleteAllDeferredWeapons();
 
 	for (size_t i = 0; i < m_weaponTemplateVector.size(); i++)
 	{
@@ -1714,12 +1715,38 @@ void WeaponStore::update()
 			++ddi;
 		}
 	}
+
+	deleteAllDeferredWeapons();
 }
 
 //-------------------------------------------------------------------------------------------------
 void WeaponStore::deleteAllDelayedDamage()
 {
 	m_weaponDDI.clear();
+}
+
+//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 08/07/2026 See deleteWeaponDeferred.
+void WeaponStore::deleteAllDeferredWeapons()
+{
+	for (size_t i = 0; i < m_deferredDeleteWeapons.size(); ++i)
+	{
+		deleteInstance(m_deferredDeleteWeapons[i]);
+	}
+	m_deferredDeleteWeapons.clear();
+}
+
+//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 08/07/2026 WeaponSet::updateWeaponSet can run while one of its
+// weapons is still firing further down the call stack (e.g. a veterancy promotion earned by the
+// shot's own kill rebuilds the weapon set). Deleting the weapon immediately leaves dangling
+// pointers up the fire call stack, so keep it alive until the end of the frame.
+void WeaponStore::deleteWeaponDeferred(Weapon* weapon)
+{
+	if (weapon != nullptr)
+	{
+		m_deferredDeleteWeapons.push_back(weapon);
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1750,6 +1777,7 @@ void WeaponStore::reset()
 	}
 
 	deleteAllDelayedDamage();
+	deleteAllDeferredWeapons();
 	resetWeaponTemplates();
 }
 
@@ -2694,6 +2722,11 @@ Bool Weapon::privateFireWeapon(
 			m_numShotsForCurBarrel = m_template->getShotsPerBarrel();
 		}
 
+		// TheSuperHackers @bugfix bobtista 08/07/2026 Remember whether this weapon belongs to the source's
+		// weapon set before firing. Temp weapons (projectile detonations, collide weapons) never do, and must
+		// not have their shot bookkeeping redirected into the source's weapon set below.
+		const Bool isWeaponSetWeapon = (sourceObj->getWeaponInWeaponSlot(m_wslot) == this);
+
 		if( !m_scatterTargetsUnused.empty() )
 		{
 			// If I have a set scatter pattern, I need to offset the target by a random pick from that pattern
@@ -2727,59 +2760,86 @@ Bool Weapon::privateFireWeapon(
 			m_template->fireWeaponTemplate(sourceObj, m_wslot, m_curBarrel, victimObj, victimPos, bonus, isProjectileDetonation, ignoreRanges, this, projectileID, inflictDamage );
 		}
 
-		m_lastFireFrame = now;
-		--m_ammoInClip;
-		--m_maxShotCount;
-		--m_numShotsForCurBarrel;
-		if (m_numShotsForCurBarrel <= 0)
+		// TheSuperHackers @bugfix bobtista 08/07/2026 Firing the shot can rebuild the source's weapon set
+		// (e.g. a veterancy promotion earned by this shot's kill), which replaces this weapon and defers its
+		// deletion. Finish the shot bookkeeping on the weapon now in this slot, matching the retail memory
+		// pool's immediate reuse of the deleted weapon's block, and bail out if the slot is now empty.
+		Weapon* bookkeepingWeapon = this;
+		if (isWeaponSetWeapon)
 		{
-			++m_curBarrel;
-			m_numShotsForCurBarrel = m_template->getShotsPerBarrel();
+			bookkeepingWeapon = sourceObj->getWeaponInWeaponSlot(m_wslot);
+			if (bookkeepingWeapon == nullptr)
+			{
+				return false;
+			}
+			if (bookkeepingWeapon != this)
+			{
+				DEBUG_LOG(("Weapon::privateFireWeapon() - weapon set of %s was rebuilt mid-fire, finishing the shot on the replacement weapon", sourceObj->getTemplate()->getName().str()));
+			}
 		}
+		reloaded = bookkeepingWeapon->finalizeFiredShot(sourceObj, now, bonus);
+	}
 
-		if (m_ammoInClip <= 0)
+	return reloaded;
+}
+
+//-------------------------------------------------------------------------------------------------
+Bool Weapon::finalizeFiredShot(const Object *sourceObj, UnsignedInt now, const WeaponBonus& bonus)
+{
+	Bool reloaded = false;
+
+	m_lastFireFrame = now;
+	--m_ammoInClip;
+	--m_maxShotCount;
+	--m_numShotsForCurBarrel;
+	if (m_numShotsForCurBarrel <= 0)
+	{
+		++m_curBarrel;
+		m_numShotsForCurBarrel = m_template->getShotsPerBarrel();
+	}
+
+	if (m_ammoInClip <= 0)
+	{
+		if (m_template->getAutoReloadsClip())
 		{
-			if (m_template->getAutoReloadsClip())
-			{
-				reloadAmmo(sourceObj);
-				reloaded = true;
-			}
-			else
-			{
-				m_status = OUT_OF_AMMO;
-				m_whenWeCanFireAgain = 0x7fffffff;
-				//CRCDEBUG_LOG(("Just set m_whenWeCanFireAgain to %d in Weapon::privateFireWeapon 1", m_whenWeCanFireAgain));
-			}
+			reloadAmmo(sourceObj);
+			reloaded = true;
 		}
 		else
 		{
-			m_status = BETWEEN_FIRING_SHOTS;
-			//CRCDEBUG_LOG(("Weapon::privateFireWeapon() just set m_status to BETWEEN_FIRING_SHOTS"));
-			Int delay = m_template->getDelayBetweenShots(bonus);
-			m_whenLastReloadStarted = now;
-			m_whenWeCanFireAgain = now + delay;
-			//CRCDEBUG_LOG(("Just set m_whenWeCanFireAgain to %d (delay is %d) in Weapon::privateFireWeapon", m_whenWeCanFireAgain, delay));
+			m_status = OUT_OF_AMMO;
+			m_whenWeCanFireAgain = 0x7fffffff;
+			//CRCDEBUG_LOG(("Just set m_whenWeCanFireAgain to %d in Weapon::privateFireWeapon 1", m_whenWeCanFireAgain));
+		}
+	}
+	else
+	{
+		m_status = BETWEEN_FIRING_SHOTS;
+		//CRCDEBUG_LOG(("Weapon::privateFireWeapon() just set m_status to BETWEEN_FIRING_SHOTS"));
+		Int delay = m_template->getDelayBetweenShots(bonus);
+		m_whenLastReloadStarted = now;
+		m_whenWeCanFireAgain = now + delay;
+		//CRCDEBUG_LOG(("Just set m_whenWeCanFireAgain to %d (delay is %d) in Weapon::privateFireWeapon", m_whenWeCanFireAgain, delay));
 
-			// if we are sharing reload times
-			// go through other weapons in weapon set
-			// set their m_whenWeCanFireAgain to this guy's delay
-			// set their m_status to this guy's status
+		// if we are sharing reload times
+		// go through other weapons in weapon set
+		// set their m_whenWeCanFireAgain to this guy's delay
+		// set their m_status to this guy's status
 
-			if ( sourceObj->isReloadTimeShared() )
+		if ( sourceObj->isReloadTimeShared() )
+		{
+			for (Int wt = 0; wt<WEAPONSLOT_COUNT; wt++)
 			{
-				for (Int wt = 0; wt<WEAPONSLOT_COUNT; wt++)
+				Weapon *weapon = sourceObj->getWeaponInWeaponSlot((WeaponSlotType)wt);
+				if (weapon)
 				{
-					Weapon *weapon = sourceObj->getWeaponInWeaponSlot((WeaponSlotType)wt);
-					if (weapon)
-					{
-						weapon->setPossibleNextShotFrame(m_whenWeCanFireAgain);
-						//CRCDEBUG_LOG(("Just set m_whenWeCanFireAgain to %d in Weapon::privateFireWeapon 3", m_whenWeCanFireAgain));
-						weapon->setStatus(BETWEEN_FIRING_SHOTS);
-					}
+					weapon->setPossibleNextShotFrame(m_whenWeCanFireAgain);
+					//CRCDEBUG_LOG(("Just set m_whenWeCanFireAgain to %d in Weapon::privateFireWeapon 3", m_whenWeCanFireAgain));
+					weapon->setStatus(BETWEEN_FIRING_SHOTS);
 				}
 			}
-
 		}
+
 	}
 
 	return reloaded;

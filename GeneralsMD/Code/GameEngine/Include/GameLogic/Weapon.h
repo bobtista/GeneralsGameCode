@@ -781,6 +781,9 @@ protected:
 		ObjectID* projectileID,
 		Bool inflictDamage
 	);
+	// finish the ammo/barrel/reload bookkeeping for a shot that was just fired. returns true if we auto-reloaded.
+	Bool finalizeFiredShot(const Object *sourceObj, UnsignedInt now, const WeaponBonus& bonus);
+
 	Real estimateWeaponDamage(const Object *sourceObj, const Object *victimObj, const Coord3D* victimPos);
 	void reloadWithBonus(const Object *source, const WeaponBonus& bonus, Bool loadInstantly);
 
@@ -852,6 +855,11 @@ public:
 	void createAndFireTempWeapon(const WeaponTemplate* w, const Object *source, const Coord3D* pos);
 	void createAndFireTempWeapon(const WeaponTemplate* w, const Object *source, Object *target);
 
+	// TheSuperHackers @bugfix bobtista 08/07/2026 Deletes a weapon at the end of the frame instead of
+	// immediately. Used by WeaponSet::updateWeaponSet, which can run while one of its weapons is still
+	// firing further down the call stack.
+	void deleteWeaponDeferred(Weapon* weapon);
+
 	void handleProjectileDetonation( const WeaponTemplate* w, const Object *source, const Coord3D* pos, WeaponBonusConditionFlags extraBonusFlags, Bool inflictDamage = TRUE );
 
 	static void parseWeaponTemplateDefinition(INI* ini);
@@ -864,6 +872,7 @@ protected:
 	WeaponTemplate *newOverride( WeaponTemplate *weaponTemplate );
 
 	void deleteAllDelayedDamage();
+	void deleteAllDeferredWeapons();
 	void resetWeaponTemplates();
 	void setDelayedDamage(const WeaponTemplate *weapon, const Coord3D* pos, UnsignedInt whichFrame, ObjectID sourceID, ObjectID victimID, const WeaponBonus& bonus);
 
@@ -893,6 +902,8 @@ private:
 	WeaponTemplateMap m_weaponTemplateHashMap;
 
 	std::list<WeaponDelayedDamageInfo> m_weaponDDI;
+
+	std::vector<Weapon*> m_deferredDeleteWeapons;		///< weapons replaced mid-fire, deleted at the end of the frame
 };
 
 // EXTERNALS //////////////////////////////////////////////////////////////////////////////////////
