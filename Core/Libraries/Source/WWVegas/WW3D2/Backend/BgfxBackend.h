@@ -96,6 +96,7 @@ public:
     virtual void Invalidate_Cached_Render_States() override;
     virtual bool Has_Stencil() const override { return true; }
     virtual WW3DFormat Get_Back_Buffer_Format() const override;
+    virtual bool Supports_Native_Screen_Shot() const override { return true; }
     virtual bool Request_Native_Screen_Shot(const char * path) override;
     virtual void Set_Texture_Bitdepth(int bitdepth) override;
     virtual int Get_Texture_Bitdepth() const override;

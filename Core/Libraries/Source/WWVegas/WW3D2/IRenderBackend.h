@@ -636,6 +636,10 @@ public:
     // bgfx can blit from its scene RT. Default returns false so callers
     // know to fall back.
     virtual bool Copy_Back_Buffer_To_Texture(unsigned int /*num*/, TextureClass * /*dst_texture*/) { return false; }
+    // TheSuperHackers @feature bobtista 09/07/2026 A backend with a native screenshot path encodes and
+    // writes the file itself (the path extension selects the format); callers should prefer it over the
+    // CPU back-buffer readback. Returns false on backends without one (DX8 reference build).
+    virtual bool Supports_Native_Screen_Shot() const { return false; }
     virtual bool Request_Native_Screen_Shot(const char * /*path*/) { return false; }
     virtual void Set_Texture_Bitdepth(int bitdepth) {}
     virtual int Get_Texture_Bitdepth() const { return 16; }
