@@ -332,7 +332,10 @@ void WeaponSet::updateWeaponSet(const Object* obj)
 		m_hasDamageWeapon = false;
 		for (Int i = WEAPONSLOT_COUNT - 1; i >= PRIMARY_WEAPON ; --i)
 		{
-			deleteInstance(m_weapons[i]);
+			// TheSuperHackers @bugfix bobtista 08/07/2026 This can run while one of these weapons is still
+			// firing further down the call stack (e.g. a veterancy promotion earned by the shot's own kill),
+			// so defer the deletion until the end of the frame to not leave dangling pointers behind.
+			TheWeaponStore->deleteWeaponDeferred(m_weapons[i]);
 			m_weapons[i] = nullptr;
 
 			if (set->getNth((WeaponSlotType)i))
