@@ -1546,9 +1546,16 @@ void Object::fireCurrentWeapon(Object *target)
 	if (weapon && (weapon->getStatus() == READY_TO_FIRE))
 	{
 		Bool reloaded = weapon->fireWeapon(this, target);
+		// TheSuperHackers @bugfix bobtista 08/07/2026 The shot can rebuild the weapon set (e.g. a veterancy
+		// promotion earned by the kill), replacing the fired weapon. Track the shot with the replacement.
+		Weapon* firedWeapon = getWeaponInWeaponSlot(weapon->getWeaponSlot());
+		if (firedWeapon == nullptr)
+		{
+			firedWeapon = weapon;
+		}
 		DEBUG_ASSERTCRASH(m_firingTracker, ("hey, we are firing but have no firing tracker. this is wrong."));
 		if (m_firingTracker)
-			m_firingTracker->shotFired(weapon, target->getID());
+			m_firingTracker->shotFired(firedWeapon, target->getID());
 		if (reloaded)
 			releaseWeaponLock(LOCKED_TEMPORARILY);	// release any temporary locks.
 
@@ -1568,9 +1575,16 @@ void Object::fireCurrentWeapon(const Coord3D* pos)
 	if (weapon && (weapon->getStatus() == READY_TO_FIRE))
 	{
 		Bool reloaded = weapon->fireWeapon(this, pos);
+		// TheSuperHackers @bugfix bobtista 08/07/2026 The shot can rebuild the weapon set (e.g. a veterancy
+		// promotion earned by the kill), replacing the fired weapon. Track the shot with the replacement.
+		Weapon* firedWeapon = getWeaponInWeaponSlot(weapon->getWeaponSlot());
+		if (firedWeapon == nullptr)
+		{
+			firedWeapon = weapon;
+		}
 		DEBUG_ASSERTCRASH(m_firingTracker, ("hey, we are firing but have no firing tracker. this is wrong."));
 		if (m_firingTracker)
-			m_firingTracker->shotFired(weapon, INVALID_ID);
+			m_firingTracker->shotFired(firedWeapon, INVALID_ID);
 		if (reloaded)
 			releaseWeaponLock(LOCKED_TEMPORARILY);	// release any temporary locks.
 
