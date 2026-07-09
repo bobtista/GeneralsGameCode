@@ -5378,6 +5378,8 @@ void ScriptEngine::reset()
 	}
 	m_sequentialScripts.clear();
 
+	deleteDeferredSequentialScripts();
+
 	// clear out all the lists of object types that were in the old map.
 	for (AllObjectTypesIt it = m_allObjectTypeLists.begin(); it != m_allObjectTypeLists.end(); it = m_allObjectTypeLists.begin() ) {
 		if (*it) {
@@ -7877,13 +7879,17 @@ void ScriptEngine::setSequentialTimer(Team *team, Int frameCount)
 
 void ScriptEngine::evaluateAndProgressAllSequentialScripts()
 {
-	VecSequentialScriptPtrIt it;
+	// TheSuperHackers @bugfix bobtista 09/07/2026 This loop previously held an iterator into
+	// m_sequentialScripts across executeActions. Script actions can stop sequential scripts, which
+	// erases from the vector, and start sequential scripts, which appends and can reallocate it,
+	// both invalidating the held iterator. Drive the loop with the already tracked index instead,
+	// which follows the same positions the retail iterator did.
 	size_t currIndex = 0;
 	size_t prevIndex = ~0u;
 	Bool itAdvanced = false;
 
 	Int spinCount = 0;
-	for (it = m_sequentialScripts.begin(); it != m_sequentialScripts.end(); /* empty */) {
+	while (currIndex < m_sequentialScripts.size()) {
 		if (currIndex == prevIndex) {
 			++spinCount;
 		} else {
@@ -7891,12 +7897,11 @@ void ScriptEngine::evaluateAndProgressAllSequentialScripts()
 		}
 
 		if (spinCount > MAX_SPIN_COUNT) {
-			SequentialScript *seqScript = (*it);
+			SequentialScript *seqScript = m_sequentialScripts[currIndex];
 			if (seqScript) {
 				DEBUG_LOG(("Sequential script %s appears to be in an infinite loop.",
 					seqScript->m_scriptToExecuteSequentially->getName().str()));
 			}
-			++it;
 			++currIndex;
 			continue;
 		}
@@ -7904,16 +7909,16 @@ void ScriptEngine::evaluateAndProgressAllSequentialScripts()
 		prevIndex = currIndex;
 		itAdvanced = false;
 
-		SequentialScript *seqScript = (*it);
+		SequentialScript *seqScript = m_sequentialScripts[currIndex];
 		if (seqScript == nullptr) {
-			it = cleanupSequentialScript(it, false);
+			currIndex = cleanupSequentialScriptAtIndex(currIndex, false);
 			continue;
 		}
 
 		Team *team = seqScript->m_teamToExecOn;
 		Object *obj = TheGameLogic->findObjectByID(seqScript->m_objectID);
 		if (!(obj || team)) {
-			it = cleanupSequentialScript(it, false);
+			currIndex = cleanupSequentialScriptAtIndex(currIndex, false);
 			itAdvanced = true;
 			continue;
 		}
@@ -8008,7 +8013,6 @@ void ScriptEngine::evaluateAndProgressAllSequentialScripts()
 
 					// Check to see if executing our action told us to wait. If so, skip to the next Sequential script
 					if (seqScript->m_dontAdvanceInstruction) {
-						++it;
 						++currIndex;
 						itAdvanced = true;
 						continue;
@@ -8034,12 +8038,12 @@ void ScriptEngine::evaluateAndProgressAllSequentialScripts()
 
 					if (itAdvanced) {	// check to make sure they aren't dead.
 						if (obj && obj->isEffectivelyDead()) {
-							it = cleanupSequentialScript(it, true);
+							currIndex = cleanupSequentialScriptAtIndex(currIndex, true);
 							continue;
 						}
 
 						if (aigroup && aigroup->isGroupAiDead()) {
-							it = cleanupSequentialScript(it, true);
+							currIndex = cleanupSequentialScriptAtIndex(currIndex, true);
 							continue;
 						}
 					}
@@ -8053,7 +8057,7 @@ void ScriptEngine::evaluateAndProgressAllSequentialScripts()
 						appendSequentialScript(seqScript);
 					}
 
-					it = cleanupSequentialScript(it, false);
+					currIndex = cleanupSequentialScriptAtIndex(currIndex, false);
 					itAdvanced = true;
 				}
 			} else if (seqScript->m_framesToWait > 0) {
@@ -8062,11 +8066,12 @@ void ScriptEngine::evaluateAndProgressAllSequentialScripts()
 		}
 
 		if (!itAdvanced) {
-			++it;
 			++currIndex;
 		}
 	}
 	m_currentPlayer = nullptr;
+
+	deleteDeferredSequentialScripts();
 }
 
 ScriptEngine::VecSequentialScriptPtrIt ScriptEngine::cleanupSequentialScript(VecSequentialScriptPtrIt it, Bool cleanDanglers)
@@ -8077,19 +8082,23 @@ ScriptEngine::VecSequentialScriptPtrIt ScriptEngine::cleanupSequentialScript(Vec
 		return it;
 	}
 
+	// TheSuperHackers @bugfix bobtista 09/07/2026 Don't delete the scripts right away. This can be
+	// called for the script that evaluateAndProgressAllSequentialScripts is currently executing an
+	// action of, when that action stops or replaces sequential scripts. Deleting it here left the
+	// evaluation reading freed memory, so keep removed scripts alive until the evaluation is done.
 	SequentialScript *scriptToDelete = seqScript;
 	if (cleanDanglers) {
 		while (seqScript) {
 			scriptToDelete = seqScript;
 			seqScript = seqScript->m_nextScriptInSequence;
-			deleteInstance(scriptToDelete);
+			m_deferredDeleteSequentialScripts.push_back(scriptToDelete);
 			scriptToDelete = nullptr;
 		}
 		(*it) = nullptr;
 	} else {
 		// we want to make sure to not delete any dangling scripts.
 		(*it) = scriptToDelete->m_nextScriptInSequence;
-		deleteInstance(scriptToDelete);
+		m_deferredDeleteSequentialScripts.push_back(scriptToDelete);
 		scriptToDelete = nullptr;
 	}
 
@@ -8099,6 +8108,25 @@ ScriptEngine::VecSequentialScriptPtrIt ScriptEngine::cleanupSequentialScript(Vec
 	}
 
 	return it;
+}
+
+// TheSuperHackers @bugfix bobtista 09/07/2026 Index based variant for the evaluation loop, which
+// cannot hold an iterator across script actions that add or remove sequential scripts.
+size_t ScriptEngine::cleanupSequentialScriptAtIndex(size_t index, Bool cleanDanglers)
+{
+	if (index >= m_sequentialScripts.size()) {
+		return index;
+	}
+
+	return cleanupSequentialScript(m_sequentialScripts.begin() + index, cleanDanglers) - m_sequentialScripts.begin();
+}
+
+void ScriptEngine::deleteDeferredSequentialScripts()
+{
+	for (size_t i = 0; i < m_deferredDeleteSequentialScripts.size(); ++i) {
+		deleteInstance(m_deferredDeleteSequentialScripts[i]);
+	}
+	m_deferredDeleteSequentialScripts.clear();
 }
 
 Bool ScriptEngine::hasUnitCompletedSequentialScript( Object *object, const AsciiString& sequentialScriptName )
