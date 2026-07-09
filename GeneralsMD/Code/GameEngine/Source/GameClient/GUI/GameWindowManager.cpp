@@ -103,8 +103,7 @@ void GameWindowManager::processDestroyList()
 		if( m_keyboardFocus == doDestroy )
 			winSetFocus( nullptr );
 
-		if( (m_modalHead != nullptr) && (doDestroy == m_modalHead->window) )
-			winUnsetModal( m_modalHead->window );
+		winRemoveFromModalStack( doDestroy );
 
 		if( m_currMouseRgn == doDestroy )
 			m_currMouseRgn = nullptr;
@@ -1422,8 +1421,7 @@ Int GameWindowManager::winDestroy( GameWindow *window )
 	if( m_keyboardFocus == window )
 		winSetFocus( nullptr );
 
-	if( (m_modalHead != nullptr) && (window == m_modalHead->window) )
-		winUnsetModal( m_modalHead->window );
+	winRemoveFromModalStack( window );
 
 	if( m_currMouseRgn == window )
 		m_currMouseRgn = nullptr;
@@ -1553,6 +1551,44 @@ Int GameWindowManager::winUnsetModal( GameWindow *window )
 
 	return WIN_ERR_OK;
 
+}
+
+//-------------------------------------------------------------------------------------------------
+/** removes every modal stack entry that refers to the given window. */
+//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 09/07/2026 Destroying a window that was not at the top of the
+// modal stack left its entry in the stack. When the entries above it were popped, the dangling
+// entry became the head and winProcessMouseEvent dereferenced the freed window on every mouse
+// event. Unlink all of a window's entries when it is destroyed, not just a topmost one.
+void GameWindowManager::winRemoveFromModalStack( GameWindow *window )
+{
+	ModalWindow *prev = nullptr;
+	ModalWindow *modal = m_modalHead;
+
+	while( modal )
+	{
+		if( modal->window == window )
+		{
+			ModalWindow *next = modal->next;
+
+			if( prev )
+			{
+				prev->next = next;
+			}
+			else
+			{
+				m_modalHead = next;
+			}
+
+			deleteInstance(modal);
+			modal = next;
+		}
+		else
+		{
+			prev = modal;
+			modal = modal->next;
+		}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
