@@ -77,6 +77,9 @@
 #include <bgfx/bgfx.h>
 #include <bgfx/platform.h>
 #include <bx/math.h>
+#include <bx/file.h>
+#include <bx/error.h>
+#include <bimg/bimg.h>
 #ifdef __APPLE__
 #include <dlfcn.h>
 #endif
@@ -229,6 +232,26 @@ static void MarkExitTeardownActive()
 bool BgfxExitTeardownActive()
 {
     return s_exitTeardownActive;
+}
+
+// TheSuperHackers @feature bobtista 09/07/2026 The automated capture triggers name files
+// <base>.NNNNNN.<ext>. Honor a .png base path so the capture emits PNG directly (encoded in the
+// screenShot callback) instead of a BMP that has to be converted afterwards; anything else stays BMP.
+// Returns the extension and sets baseLen to the base length excluding a recognized .png suffix.
+static const char * BgfxScreenshotBaseExtension(const char * basePath, size_t * baseLen)
+{
+    const size_t n = strlen(basePath);
+    *baseLen = n;
+    if (n >= 4
+        && basePath[n - 4] == '.'
+        && tolower(static_cast<unsigned char>(basePath[n - 3])) == 'p'
+        && tolower(static_cast<unsigned char>(basePath[n - 2])) == 'n'
+        && tolower(static_cast<unsigned char>(basePath[n - 1])) == 'g')
+    {
+        *baseLen = n - 4;
+        return "png";
+    }
+    return "bmp";
 }
 
 // TheSuperHackers @performance bobtista 15/06/2026 Slot layout for the packed
@@ -1148,15 +1171,39 @@ public:
                     bgfx::TextureFormat::Enum /*format*/, const void * data, uint32_t /*size*/,
                     bool yflip) override
     {
-        // bgfx delivers BGRA8 pixels; emit a minimal 32-bpp BMP. BMP is widely
-        // readable by the Win32 GDI / .NET imaging stack with no extra
-        // dependencies, so any tooling that picks up the captures can decode
-        // them directly. The filePath's extension is not inspected — caller
-        // controls naming.
+        // bgfx delivers BGRA8 pixels asynchronously. The requested path's extension chooses the
+        // format: .png is encoded with bimg (already linked for the bgfx backend) for the in-game
+        // F12 screenshots; every other extension keeps the legacy uncompressed 32-bpp BMP used by
+        // the offline capture tooling.
         if (filePath == nullptr || data == nullptr || width == 0 || height == 0)
         {
             return;
         }
+
+        const size_t pathLen = strlen(filePath);
+        const bool wantPng = pathLen >= 4
+            && filePath[pathLen - 4] == '.'
+            && tolower(static_cast<unsigned char>(filePath[pathLen - 3])) == 'p'
+            && tolower(static_cast<unsigned char>(filePath[pathLen - 2])) == 'n'
+            && tolower(static_cast<unsigned char>(filePath[pathLen - 1])) == 'g';
+        if (wantPng)
+        {
+            bx::FileWriter writer;
+            bx::Error err;
+            if (bx::open(&writer, filePath, false, &err))
+            {
+                bimg::imageWritePng(&writer, width, height, pitch, data,
+                                    bimg::TextureFormat::BGRA8, yflip, &err);
+                bx::close(&writer);
+                WWDEBUG_SAY(("[BgfxBackend] screenShot wrote %ux%u PNG to %s", width, height, filePath));
+            }
+            else
+            {
+                WWDEBUG_SAY(("[BgfxBackend] screenShot: open %s failed", filePath));
+            }
+            return;
+        }
+
         FILE * f = fopen(filePath, "wb");
         if (f == nullptr)
         {
@@ -5689,9 +5736,11 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
             }
             if (basePath != nullptr && basePath[0] != '\0')
             {
+                size_t baseLen = 0;
+                const char * ext = BgfxScreenshotBaseExtension(basePath, &baseLen);
                 char numbered[512];
-                std::snprintf(numbered, sizeof(numbered), "%s.%06u.bmp",
-                              basePath, g_stats.frameIndex);
+                std::snprintf(numbered, sizeof(numbered), "%.*s.%06u.%s",
+                              static_cast<int>(baseLen), basePath, g_stats.frameIndex, ext);
                 bgfx::requestScreenShot(BGFX_INVALID_HANDLE, numbered);
             }
         }
@@ -5721,9 +5770,11 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                 }
                 if (basePath != nullptr && basePath[0] != '\0')
                 {
+                    size_t baseLen = 0;
+                    const char * ext = BgfxScreenshotBaseExtension(basePath, &baseLen);
                     char numbered[512];
-                    std::snprintf(numbered, sizeof(numbered), "%s.L%06d.bmp",
-                                  basePath, curLogicFrame);
+                    std::snprintf(numbered, sizeof(numbered), "%.*s.L%06d.%s",
+                                  static_cast<int>(baseLen), basePath, curLogicFrame, ext);
                     bgfx::requestScreenShot(BGFX_INVALID_HANDLE, numbered);
                 }
             }
