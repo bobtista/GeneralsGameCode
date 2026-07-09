@@ -3468,12 +3468,17 @@ void W3DDisplay::takeScreenShot()
 
 	static int frame_number = 1;
 
+	// TheSuperHackers @feature bobtista 09/07/2026 The bgfx backend has a native screenshot path that
+	// encodes PNG (see BgfxBackend screenShot). Prefer it and name the file .png; only fall back to the
+	// legacy CPU BMP capture when no native path exists (the DX8 reference build).
+	const Bool nativeScreenShot = g_renderBackend != nullptr && g_renderBackend->Supports_Native_Screen_Shot();
+
 	Bool done = false;
 	while (!done) {
 #ifdef CAPTURE_TO_TARGA
 		sprintf( leafname, "%s%.3d.tga", "sshot", frame_number++);
 #else
-		sprintf( leafname, "%s%.3d.bmp", "sshot", frame_number++);
+		sprintf( leafname, "%s%.3d.%s", "sshot", frame_number++, nativeScreenShot ? "png" : "bmp");
 #endif
 		strlcpy(pathname, TheGlobalData->getPath_UserData().str(), ARRAY_SIZE(pathname));
 		strlcat(pathname, leafname, ARRAY_SIZE(pathname));
@@ -3482,7 +3487,7 @@ void W3DDisplay::takeScreenShot()
 	}
 
 	RenderBackendImage capture;
-	if (g_renderBackend == nullptr || !g_renderBackend->Capture_Back_Buffer_Image(0, capture))
+	if (nativeScreenShot || g_renderBackend == nullptr || !g_renderBackend->Capture_Back_Buffer_Image(0, capture))
 	{
 		if (g_renderBackend == nullptr || !g_renderBackend->Request_Native_Screen_Shot(pathname))
 		{
