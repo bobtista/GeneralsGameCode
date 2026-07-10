@@ -12219,6 +12219,16 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         worldMtx = g_frame.sortWorldRaw;
     }
+    // TheSuperHackers @bugfix bobtista 10/07/2026 World-baked texture-array
+    // run: the sorted fill transformed these positions into world space, so
+    // apply the captured view only. The equivalent handling in
+    // Submit_Sorted_Draw is unreachable on bgfx builds (its only caller lives
+    // in dx8wrapper.cpp, which the bgfx build excludes); the live sorted-pool
+    // path is this function.
+    if (g_views.inSortFlush && g_draw.sortedArrayPage >= 0)
+    {
+        worldMtx = g_frame.sortViewOnly;
+    }
     if (is2D)
     {
         // TheSuperHackers @bugfix bobtista 30/04/2026 2D UI vertices are
@@ -12848,6 +12858,21 @@ void SubmitEngineDraw(unsigned short start_index,
         if (bgfx::isValid(g_uniforms.uShroudScale))
         {
             bgfx::setUniform(g_uniforms.uShroudScale, g_draw.shroudScale);
+        }
+    }
+    // TheSuperHackers @bugfix bobtista 10/07/2026 Bind the sorted texture-array
+    // page on the live sorted-pool submit path. Without this, merged runs were
+    // submitted with the uber program and the representative node's stage-0
+    // texture, collapsing every absorbed node's texture onto one.
+    if (g_views.inSortFlush && g_draw.sortedArrayPage >= 0)
+    {
+        const bgfx::TextureHandle pageTex = BgfxSortedTextureArrayPageHandle(g_draw.sortedArrayPage);
+        if (bgfx::isValid(pageTex) && bgfx::isValid(g_device.sortedArrayProgram))
+        {
+            bgfx::setTexture(kBgfxSortedArraySamplerStage, g_uniforms.sTexArray,
+                             pageTex,
+                             g_draw.samplerFlags[0] | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+            program = g_device.sortedArrayProgram;
         }
     }
     bgfx::submit(submitView, program);
