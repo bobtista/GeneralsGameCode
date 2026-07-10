@@ -637,6 +637,9 @@ static RenderBackendSortedBatchState Make_Render_Backend_Sorted_State(const Rend
 	}
 	rb_state.material_snapshot = Make_Render_Backend_Sorted_Material_Snapshot(render_state);
 	rb_state.draw_flags = render_state.sorted_draw_flags;
+	rb_state.resolved_state = (static_cast<std::uint64_t>(render_state.resolved_state_hi) << 32)
+		| render_state.resolved_state_lo;
+	rb_state.resolved_state_valid = render_state.resolved_state_valid;
 	return rb_state;
 }
 

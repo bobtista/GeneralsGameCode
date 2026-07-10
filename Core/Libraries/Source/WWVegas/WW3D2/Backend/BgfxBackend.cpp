@@ -7480,6 +7480,7 @@ static void LogSortedMeshDrawWithoutNamePredicate(TextureBaseClass * texture, co
 }
 
 static void ComputeSortedTextureArraySlot(RenderStateStruct & state);
+static uint64_t ComputeFinalDrawState(bool triangle_strip);
 
 void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
 {
@@ -7532,6 +7533,35 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     else
     {
         ComputeSortedTextureArraySlot(state);
+    }
+    // TheSuperHackers @performance bobtista 10/07/2026 Resolve the final
+    // pipeline-state word now, while g_draw holds the exact translated state
+    // this node's replayed submit will apply. The packet submit consumes it
+    // instead of re-deriving per draw when the resolved-pipeline flag is on.
+    // The replay context differs from the capture context in three ways that
+    // feed the state word: the sorted-draw flag predicates read
+    // g_views.sortedBatchDrawFlags, which Apply_Sorted_Batch_State populates
+    // from this node's flags; the replay derives the cull mode from the
+    // captured shader (two-sided sorted geometry keeps CULL_MODE_DISABLE)
+    // rather than from the inserting renderer's live cull; and the flush-only
+    // predicates (rotor-blur cull exemption and friends) require
+    // g_views.inSortFlush. Mirror all three around the resolve.
+    {
+        const unsigned int savedBatchDrawFlags = g_views.sortedBatchDrawFlags;
+        const CullMode savedCullMode = Get_Cull_Mode();
+        const bool savedInSortFlush = g_views.inSortFlush;
+        g_views.sortedBatchDrawFlags = state.sorted_draw_flags;
+        g_views.inSortFlush = true;
+        Set_Cull_Mode(state.shader.Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE
+            ? RB_CULL_CW
+            : RB_CULL_NONE);
+        const uint64_t resolved = ComputeFinalDrawState(false);
+        Set_Cull_Mode(savedCullMode);
+        g_views.inSortFlush = savedInSortFlush;
+        g_views.sortedBatchDrawFlags = savedBatchDrawFlags;
+        state.resolved_state_lo = static_cast<unsigned int>(resolved & 0xffffffffu);
+        state.resolved_state_hi = static_cast<unsigned int>(resolved >> 32);
+        state.resolved_state_valid = true;
     }
 }
 
@@ -12701,7 +12731,55 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
     }
 
-    uint64_t state = ComputeFinalDrawState(triangle_strip);
+    // TheSuperHackers @performance bobtista 10/07/2026 Sorted packet submits
+    // carry a pipeline-state word resolved at capture time. With the
+    // resolved-pipeline flag on (and no trace comparison requested) the live
+    // per-draw derivation is skipped entirely; under trace both are computed
+    // and divergences are reported once per differing bit pattern.
+    uint64_t state;
+    {
+        static const bool s_useResolved = GgcFlags::Enabled(GgcFlag_BgfxSortedResolvedPipeline);
+        static const bool s_traceResolved = GgcFlags::Enabled(GgcFlag_Trace);
+        const bool haveResolved = g_draw.sortedResolvedStateValid;
+        if (haveResolved && s_useResolved && !s_traceResolved)
+        {
+            state = g_draw.sortedResolvedState;
+        }
+        else
+        {
+            state = ComputeFinalDrawState(triangle_strip);
+            if (haveResolved && s_traceResolved && state != g_draw.sortedResolvedState)
+            {
+                static uint64_t s_reportedDiffMasks[8] = {};
+                static int s_reportedDiffCount = 0;
+                const uint64_t diff = state ^ g_draw.sortedResolvedState;
+                bool seen = false;
+                for (int i = 0; i < s_reportedDiffCount; ++i)
+                {
+                    if (s_reportedDiffMasks[i] == diff)
+                    {
+                        seen = true;
+                        break;
+                    }
+                }
+                if (!seen && s_reportedDiffCount < 8)
+                {
+                    s_reportedDiffMasks[s_reportedDiffCount++] = diff;
+                    std::fprintf(stderr,
+                        "[ggc] resolved-pipeline mismatch: live=0x%llx resolved=0x%llx diff=0x%llx tex=%s\n",
+                        static_cast<unsigned long long>(state),
+                        static_cast<unsigned long long>(g_draw.sortedResolvedState),
+                        static_cast<unsigned long long>(diff),
+                        TextureDebugName(g_draw.sourceTextures[0]));
+                    std::fflush(stderr);
+                }
+            }
+            if (haveResolved && s_useResolved)
+            {
+                state = g_draw.sortedResolvedState;
+            }
+        }
+    }
     if (g_views.waterOverrideActive)
     {
         g_views.waterOverrideActive = false;
@@ -13139,6 +13217,8 @@ bool BgfxBackend::Submit_Sorted_Packet(const RenderBackendSortedBatchState & pac
         Set_Sorted_Texture_Array_Page(array_page);
     }
     Apply_Sorted_Batch_State(packet);
+    g_draw.sortedResolvedState = packet.resolved_state;
+    g_draw.sortedResolvedStateValid = packet.resolved_state_valid;
     {
         PERF_TIME(PERF_SECT_DRAW_TRIANGLES);
         if (DrawCallLog_Is_Active())
@@ -13161,6 +13241,7 @@ bool BgfxBackend::Submit_Sorted_Packet(const RenderBackendSortedBatchState & pac
                              static_cast<unsigned short>(vertex_count));
         }
     }
+    g_draw.sortedResolvedStateValid = false;
     if (array_page >= 0)
     {
         Set_Sorted_Texture_Array_Page(-1);
