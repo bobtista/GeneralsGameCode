@@ -1387,6 +1387,30 @@ static void Draw_Sorted_Run(unsigned start_index,
                             const DynamicIBAccessClass& dyn_ib_access,
                             int array_page = -1)
 {
+	// TheSuperHackers @refactor bobtista 10/07/2026 Shader-pipeline backends
+	// take the whole run as one packet submit; the legacy per-call sequence
+	// below remains for DX8 and for the packet-submit kill switch.
+	if (g_renderBackend->Has_Shader_Pipeline())
+	{
+		bool submitted = false;
+		if (Sorted_Batch_State_Packet_Cache_Disabled())
+		{
+			submitted = g_renderBackend->Submit_Sorted_Packet(
+				Make_Render_Backend_Sorted_State(state->sorting_state),
+				start_index*3, count_to_render, overlapping_vertex_count, array_page);
+		}
+		else
+		{
+			submitted = g_renderBackend->Submit_Sorted_Packet(
+				state->render_backend_state,
+				start_index*3, count_to_render, overlapping_vertex_count, array_page);
+		}
+		if (submitted)
+		{
+			Log_Sort_Effect_Diag("draw-run", start_index, count_to_render, state);
+			return;
+		}
+	}
 	if (array_page >= 0)
 	{
 		g_renderBackend->Set_Sorted_Texture_Array_Page(array_page);
