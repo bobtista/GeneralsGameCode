@@ -8927,7 +8927,7 @@ struct FrameConstUniformGuard
     uint32_t frameIndex = 0xffffffffu;
     uint16_t viewId = 0xffffu;
     uint16_t sizeBytes = 0;
-    uint8_t value[kNumShadowCascades * 64];
+    uint8_t value[512]; // fits the packed material block (MU_COUNT vec4s) and the cascade matrices
 };
 
 static bool ShouldUploadFrameConstUniform(FrameConstUniformGuard & guard,
@@ -8935,7 +8935,7 @@ static bool ShouldUploadFrameConstUniform(FrameConstUniformGuard & guard,
                                           const void * data,
                                           unsigned sizeBytes)
 {
-    if (UniformFrequencySplitDisabled())
+    if (UniformFrequencySplitDisabled() || sizeBytes > sizeof(guard.value))
     {
         return true;
     }
@@ -8968,28 +8968,53 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded, bgfx::ViewI
     {
         if (bgfx::isValid(g_uniforms.uLightDirs))
         {
-            bgfx::setUniform(g_uniforms.uLightDirs, g_draw.lightDirs, 4);
-            CountUniformCommand(g_stats.lightUniformCommands);
+            static FrameConstUniformGuard s_lightDirsGuard;
+            if (ShouldUploadFrameConstUniform(s_lightDirsGuard, submitView,
+                                              g_draw.lightDirs, sizeof(g_draw.lightDirs)))
+            {
+                bgfx::setUniform(g_uniforms.uLightDirs, g_draw.lightDirs, 4);
+                CountUniformCommand(g_stats.lightUniformCommands);
+            }
         }
         if (bgfx::isValid(g_uniforms.uLightColors))
         {
-            bgfx::setUniform(g_uniforms.uLightColors, g_draw.lightColors, 4);
-            CountUniformCommand(g_stats.lightUniformCommands);
+            static FrameConstUniformGuard s_lightColorsGuard;
+            if (ShouldUploadFrameConstUniform(s_lightColorsGuard, submitView,
+                                              g_draw.lightColors, sizeof(g_draw.lightColors)))
+            {
+                bgfx::setUniform(g_uniforms.uLightColors, g_draw.lightColors, 4);
+                CountUniformCommand(g_stats.lightUniformCommands);
+            }
         }
         if (bgfx::isValid(g_uniforms.uLightAmbients))
         {
-            bgfx::setUniform(g_uniforms.uLightAmbients, g_draw.lightAmbients, 4);
-            CountUniformCommand(g_stats.lightUniformCommands);
+            static FrameConstUniformGuard s_lightAmbientsGuard;
+            if (ShouldUploadFrameConstUniform(s_lightAmbientsGuard, submitView,
+                                              g_draw.lightAmbients, sizeof(g_draw.lightAmbients)))
+            {
+                bgfx::setUniform(g_uniforms.uLightAmbients, g_draw.lightAmbients, 4);
+                CountUniformCommand(g_stats.lightUniformCommands);
+            }
         }
         if (bgfx::isValid(g_uniforms.uLightPositions))
         {
-            bgfx::setUniform(g_uniforms.uLightPositions, g_draw.lightPositions, 4);
-            CountUniformCommand(g_stats.lightUniformCommands);
+            static FrameConstUniformGuard s_lightPositionsGuard;
+            if (ShouldUploadFrameConstUniform(s_lightPositionsGuard, submitView,
+                                              g_draw.lightPositions, sizeof(g_draw.lightPositions)))
+            {
+                bgfx::setUniform(g_uniforms.uLightPositions, g_draw.lightPositions, 4);
+                CountUniformCommand(g_stats.lightUniformCommands);
+            }
         }
         if (bgfx::isValid(g_uniforms.uLightParams))
         {
-            bgfx::setUniform(g_uniforms.uLightParams, g_draw.lightParams, 4);
-            CountUniformCommand(g_stats.lightUniformCommands);
+            static FrameConstUniformGuard s_lightParamsGuard;
+            if (ShouldUploadFrameConstUniform(s_lightParamsGuard, submitView,
+                                              g_draw.lightParams, sizeof(g_draw.lightParams)))
+            {
+                bgfx::setUniform(g_uniforms.uLightParams, g_draw.lightParams, 4);
+                CountUniformCommand(g_stats.lightUniformCommands);
+            }
         }
     }
     const bool uploadEyePos =
@@ -9377,8 +9402,8 @@ static void UpdateTextureTransforms()
     }
 }
 
-static void UploadMaterialUniforms_Body();
-static void UploadMaterialUniforms()
+static void UploadMaterialUniforms_Body(bgfx::ViewId submitView);
+static void UploadMaterialUniforms(bgfx::ViewId submitView)
 {
     PERF_TIME(PERF_SECT_UPLOAD_UNIFORMS);
     if (BgfxProbeFlag("GGC_PROBE_FREEZE_STATE")
@@ -9386,9 +9411,9 @@ static void UploadMaterialUniforms()
     {
         return;
     }
-    UploadMaterialUniforms_Body();
+    UploadMaterialUniforms_Body(submitView);
 }
-static void UploadMaterialUniforms_Body()
+static void UploadMaterialUniforms_Body(bgfx::ViewId submitView)
 {
     g_stats.materialUniformUploads++;
     if (bgfx::isValid(g_uniforms.uMaterial))
@@ -9433,19 +9458,36 @@ static void UploadMaterialUniforms_Body()
         std::memcpy(m[MU_TexProjected],       g_draw.texProjected,       sizeof(float) * 4);
         std::memcpy(m[MU_LegacyPixelShaderMode], g_draw.legacyPixelShaderMode, sizeof(float) * 4);
         std::memcpy(m[MU_ZBias],              g_draw.zBias,              sizeof(float) * 4);
-        bgfx::setUniform(g_uniforms.uMaterial, m, MU_COUNT);
-        CountUniformCommand(g_stats.materialUniformCommands);
+        // TheSuperHackers @performance bobtista 11/07/2026 Consecutive draws in
+        // one view frequently share the whole packed block (rigid category
+        // meshes, grouped sorted runs) — elide the re-upload when unchanged.
+        static FrameConstUniformGuard s_materialBlockGuard;
+        if (ShouldUploadFrameConstUniform(s_materialBlockGuard, submitView, m, sizeof(m)))
+        {
+            bgfx::setUniform(g_uniforms.uMaterial, m, MU_COUNT);
+            CountUniformCommand(g_stats.materialUniformCommands);
+        }
     }
     // u_matSpecular is not part of the packed material array, so upload it individually.
     if (bgfx::isValid(g_uniforms.uMatSpecular))
     {
-        bgfx::setUniform(g_uniforms.uMatSpecular, g_draw.matSpecular);
-        CountUniformCommand(g_stats.materialUniformCommands);
+        static FrameConstUniformGuard s_matSpecularGuard;
+        if (ShouldUploadFrameConstUniform(s_matSpecularGuard, submitView,
+                                          g_draw.matSpecular, sizeof(g_draw.matSpecular)))
+        {
+            bgfx::setUniform(g_uniforms.uMatSpecular, g_draw.matSpecular);
+            CountUniformCommand(g_stats.materialUniformCommands);
+        }
     }
     if (bgfx::isValid(g_uniforms.uSunShadowReceive))
     {
-        bgfx::setUniform(g_uniforms.uSunShadowReceive, g_draw.sunShadowReceive);
-        CountUniformCommand(g_stats.materialUniformCommands);
+        static FrameConstUniformGuard s_sunShadowReceiveGuard;
+        if (ShouldUploadFrameConstUniform(s_sunShadowReceiveGuard, submitView,
+                                          g_draw.sunShadowReceive, sizeof(g_draw.sunShadowReceive)))
+        {
+            bgfx::setUniform(g_uniforms.uSunShadowReceive, g_draw.sunShadowReceive);
+            CountUniformCommand(g_stats.materialUniformCommands);
+        }
     }
     if (bgfx::isValid(g_uniforms.sCloudMap))
     {
@@ -9796,7 +9838,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
             : 0.0f;
     }
     UpdateAlphaMaskAndSortedEffectModes(state);
-    UploadMaterialUniforms();
+    UploadMaterialUniforms(submitView);
     if (bgfx::isValid(g_uniforms.uTexcoordSelect))
     {
         bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
@@ -12672,7 +12714,7 @@ void SubmitEngineDraw(unsigned short start_index,
             : 0.0f;
         UpdateAlphaMaskAndSortedEffectModes(blendState);
     }
-    UploadMaterialUniforms();
+    UploadMaterialUniforms(submitView);
     if (g_draw.lightDirs[0][3] < 0.5f)
     {
         const auto &rs = FixedFunctionState::Render_State();
@@ -12717,14 +12759,13 @@ void SubmitEngineDraw(unsigned short start_index,
         // TheSuperHackers @bugfix bobtista 15/04/2026 Force lighting off for additive/alpha
         // particle and sorted-decal draws that bake intensity or final color into vertex diffuse
         // or recolored tex0; the lit branch would otherwise ignore that baking.
-        if (forceUnlitLighting)
+        const float forced[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        const float * lightingEnabledValue = forceUnlitLighting ? forced : g_draw.lightingEnabled;
+        static FrameConstUniformGuard s_lightingEnabledGuard;
+        if (ShouldUploadFrameConstUniform(s_lightingEnabledGuard, submitView,
+                                          lightingEnabledValue, sizeof(forced)))
         {
-            float forced[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-            bgfx::setUniform(g_uniforms.uLightingEnabled, forced);
-        }
-        else
-        {
-            bgfx::setUniform(g_uniforms.uLightingEnabled, g_draw.lightingEnabled);
+            bgfx::setUniform(g_uniforms.uLightingEnabled, lightingEnabledValue);
         }
     }
 
@@ -12824,7 +12865,12 @@ void SubmitEngineDraw(unsigned short start_index,
 
     if (bgfx::isValid(g_uniforms.uTexcoordSelect))
     {
-        bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
+        static FrameConstUniformGuard s_texcoordSelectGuard;
+        if (ShouldUploadFrameConstUniform(s_texcoordSelectGuard, submitView,
+                                          g_draw.texcoordSelect, sizeof(g_draw.texcoordSelect)))
+        {
+            bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
+        }
     }
 
     // TheSuperHackers @performance bobtista 10/07/2026 Sorted packet submits
