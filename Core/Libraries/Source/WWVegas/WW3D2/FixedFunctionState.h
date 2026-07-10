@@ -48,6 +48,13 @@ struct RenderStateStruct
 	int sorted_array_layer;
 	float sorted_array_scale_u;
 	float sorted_array_scale_v;
+	// TheSuperHackers @performance bobtista 10/07/2026 Backend-opaque pipeline-state
+	// word resolved by the backend at capture time (split into two 32-bit halves so
+	// this legacy-shared struct needs no 64-bit type). Invalid when the backend did
+	// not resolve one; the replay then derives the state live as before.
+	unsigned int resolved_state_lo;
+	unsigned int resolved_state_hi;
+	bool resolved_state_valid;
 
 	RenderStateStruct();
 	~RenderStateStruct();
