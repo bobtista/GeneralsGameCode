@@ -9412,12 +9412,18 @@ static void ComputeSortedTextureArraySlot(RenderStateStruct & state)
     {
         return;
     }
-    // Point groups and streaks author their vertices in world space with an
-    // identity or camera-only world, so the fill loop's world bake is exact
-    // for them. Other sorted classes (local-model mesh sprites, seglines,
-    // decals, reveal grids) stay on the classic per-run replay until each
-    // earns its way in with a verified bake contract.
-    if ((state.sorted_draw_flags & (RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK)) == 0)
+    // Point groups author their vertices in world space with an identity or
+    // camera-only world, so the fill loop's world bake is exact for them.
+    // TheSuperHackers @bugfix bobtista 10/07/2026 Streaks are excluded:
+    // StreakRendererClass::RenderStreak transforms its points into eye space
+    // on the CPU (modelview = view * transform) and inserts with identity
+    // world AND view, so the bake's world multiply is a no-op and the merged
+    // submit's view-only transform would re-apply the camera view to
+    // eye-space vertices, throwing the geometry off screen. Other sorted
+    // classes (local-model mesh sprites, seglines, decals, reveal grids)
+    // also stay on the classic per-run replay until each earns its way in
+    // with a verified bake contract.
+    if ((state.sorted_draw_flags & RB_SORTED_DRAW_POINT_GROUP) == 0)
     {
         return;
     }
