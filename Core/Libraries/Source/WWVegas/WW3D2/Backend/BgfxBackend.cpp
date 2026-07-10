@@ -9737,6 +9737,38 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     g_views.skipNextSubmitEngineDraw = true;
 }
 
+// TheSuperHackers @refactor bobtista 10/07/2026 Single-call sorted-pool run
+// submit. This is the packet-shaped entry the sorted flush uses on the shader
+// pipeline; it performs the same apply + draw sequence Draw_Sorted_Run issued
+// as separate backend calls, so behavior is identical by construction. The
+// kill switch reverts the flush to the legacy call sequence.
+bool BgfxBackend::Submit_Sorted_Packet(const RenderBackendSortedBatchState & packet,
+                                       unsigned int start_index,
+                                       unsigned int polygon_count,
+                                       unsigned int vertex_count,
+                                       int array_page)
+{
+    static const bool s_disabled = GgcFlags::Enabled(GgcFlag_BgfxDisableSortedPacketSubmit);
+    if (s_disabled || !g_device.initialized)
+    {
+        return false;
+    }
+    if (array_page >= 0)
+    {
+        Set_Sorted_Texture_Array_Page(array_page);
+    }
+    Apply_Sorted_Batch_State(packet);
+    Draw_Triangles(static_cast<unsigned short>(start_index),
+                   static_cast<unsigned short>(polygon_count),
+                   0,
+                   static_cast<unsigned short>(vertex_count));
+    if (array_page >= 0)
+    {
+        Set_Sorted_Texture_Array_Page(-1);
+    }
+    return true;
+}
+
 // TheSuperHackers @refactor bobtista 11/04/2026 Dynamic
 // capture. DynamicVBAccessClass / DynamicIBAccessClass are CPU-side
 // views onto a ring buffer that changes every frame (particles, sprites,
