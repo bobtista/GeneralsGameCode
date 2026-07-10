@@ -240,6 +240,12 @@ struct RenderBackendSortedBatchState
     RenderBackendLightState lights;
     RenderBackendSortedMaterialSnapshot material_snapshot;
     unsigned int draw_flags;
+    // TheSuperHackers @performance bobtista 10/07/2026 Backend-opaque pipeline-state
+    // word resolved at capture time (see RenderStateStruct::resolved_state_*).
+    // Consumed by the packet submit when valid and the resolved-pipeline flag is
+    // on; compared against the live derivation under trace.
+    std::uint64_t resolved_state;
+    bool resolved_state_valid;
 };
 
 enum RenderBackendSortedDrawFlags
