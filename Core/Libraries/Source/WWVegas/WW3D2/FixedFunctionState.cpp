@@ -1194,7 +1194,10 @@ RenderStateStruct::RenderStateStruct()
 	sorted_array_page(-1),
 	sorted_array_layer(-1),
 	sorted_array_scale_u(1.0f),
-	sorted_array_scale_v(1.0f)
+	sorted_array_scale_v(1.0f),
+	resolved_state_lo(0),
+	resolved_state_hi(0),
+	resolved_state_valid(false)
 {
 	unsigned i;
 	for (i=0;i<MAX_VERTEX_STREAMS;++i) vertex_buffers[i]=0;
@@ -1253,6 +1256,9 @@ RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruct& src)
 	sorted_array_layer=src.sorted_array_layer;
 	sorted_array_scale_u=src.sorted_array_scale_u;
 	sorted_array_scale_v=src.sorted_array_scale_v;
+	resolved_state_lo=src.resolved_state_lo;
+	resolved_state_hi=src.resolved_state_hi;
+	resolved_state_valid=src.resolved_state_valid;
 
 	return *this;
 }

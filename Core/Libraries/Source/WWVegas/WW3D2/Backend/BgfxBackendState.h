@@ -472,6 +472,14 @@ struct BgfxDraw
     bool shroudTextureParamsValid = false;
     bool delayedObjectShroudPass = false;
 
+    // TheSuperHackers @performance bobtista 10/07/2026 Capture-time resolved
+    // pipeline-state word for the current sorted packet submit. Stashed by
+    // Submit_Sorted_Packet from the packet and cleared right after the draw;
+    // SubmitEngineDraw consumes it when the resolved-pipeline flag is on and
+    // compares it against the live derivation under trace.
+    uint64_t sortedResolvedState = 0;
+    bool sortedResolvedStateValid = false;
+
     // Instancing batch state
     bgfx::InstanceDataBuffer instanceBatch;
     unsigned instanceCount = 0;
