@@ -759,6 +759,36 @@ static bool Render_State_Matches(const RenderStateStruct& left, const RenderStat
 	return true;
 }
 
+// TheSuperHackers @bugfix bobtista 10/07/2026 Particle materials are pooled
+// and reconfigured between draws, so a matching material pointer does not
+// guarantee matching material state. Compare the insertion-time snapshots so
+// absorption cannot merge nodes whose shared material object carried
+// different values when each node was captured.
+static bool Sorted_Material_Snapshots_Match(const RenderBackendSortedMaterialSnapshot& left, const RenderBackendSortedMaterialSnapshot& right)
+{
+	if (left.valid != right.valid)
+	{
+		return false;
+	}
+	if (!left.valid)
+	{
+		return true;
+	}
+	for (int i = 0; i < 4; ++i)
+	{
+		if (left.diffuse[i] != right.diffuse[i]
+			|| left.ambient[i] != right.ambient[i]
+			|| left.specular[i] != right.specular[i]
+			|| left.emissive[i] != right.emissive[i]
+			|| left.vertex_color_flags[i] != right.vertex_color_flags[i]
+			|| left.lighting_enabled[i] != right.lighting_enabled[i])
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 // Variant for world-baked nodes: their positions were pre-transformed into
 // world space at fill time, so a differing world matrix no longer forces a
 // run split. View and lights must still match.
@@ -1638,7 +1668,8 @@ void SortingRendererClass::Flush_Sorting_Pool()
 						const int next_array_page = sorted_array_merge ? s_sortedNodeArrayPage[tis[i].idx] : -1;
 						if (run_array_page >= 0
 							&& next_array_page == run_array_page
-							&& Render_State_Matches_Except_Stage0_Texture_And_World(state->sorting_state, next_state->sorting_state))
+							&& Render_State_Matches_Except_Stage0_Texture_And_World(state->sorting_state, next_state->sorting_state)
+							&& Sorted_Material_Snapshots_Match(state->render_backend_state.material_snapshot, next_state->render_backend_state.material_snapshot))
 						{
 							state=next_state;
 							if (Sorted_Array_Dbg_Enabled())
