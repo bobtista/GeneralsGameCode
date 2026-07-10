@@ -8907,7 +8907,53 @@ static void CountUniformCommand(uint32_t & bucket)
     bucket++;
 }
 
-static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded)
+// TheSuperHackers @performance bobtista 11/07/2026 Frame-constant uniform
+// elision. bgfx uniform values persist across draws in PLAYBACK order, and
+// playback is sorted by view id, not submission order — so skipping a
+// redundant upload is only sound when the previously uploaded identical value
+// is what playback will have live at this draw. Guarding per (frame, view)
+// with a forced first upload per view makes that hold: within one view,
+// playback order equals submission order, and the first draw of each view
+// never inherits from another view. All upload sites of a guarded handle must
+// route through its guard.
+static bool UniformFrequencySplitDisabled()
+{
+    static const bool s_disabled = GgcFlags::Enabled(GgcFlag_BgfxDisableUniformFrequencySplit);
+    return s_disabled;
+}
+
+struct FrameConstUniformGuard
+{
+    uint32_t frameIndex = 0xffffffffu;
+    uint16_t viewId = 0xffffu;
+    uint16_t sizeBytes = 0;
+    uint8_t value[kNumShadowCascades * 64];
+};
+
+static bool ShouldUploadFrameConstUniform(FrameConstUniformGuard & guard,
+                                          bgfx::ViewId view,
+                                          const void * data,
+                                          unsigned sizeBytes)
+{
+    if (UniformFrequencySplitDisabled())
+    {
+        return true;
+    }
+    if (guard.frameIndex == g_stats.frameIndex
+        && guard.viewId == static_cast<uint16_t>(view)
+        && guard.sizeBytes == sizeBytes
+        && std::memcmp(guard.value, data, sizeBytes) == 0)
+    {
+        return false;
+    }
+    guard.frameIndex = g_stats.frameIndex;
+    guard.viewId = static_cast<uint16_t>(view);
+    guard.sizeBytes = static_cast<uint16_t>(sizeBytes);
+    std::memcpy(guard.value, data, sizeBytes);
+    return true;
+}
+
+static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded, bgfx::ViewId submitView)
 {
     PERF_TIME(PERF_SECT_UPLOAD_LIGHTS);
     g_stats.lightUniformUploads++;
@@ -8958,8 +9004,12 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded)
         eye[1] = -(v[4] * v[12] + v[5] * v[13] + v[6] * v[14]);
         eye[2] = -(v[8] * v[12] + v[9] * v[13] + v[10] * v[14]);
         eye[3] = 0.0f;
-        bgfx::setUniform(g_uniforms.uEyePos, eye);
-        CountUniformCommand(g_stats.lightUniformCommands);
+        static FrameConstUniformGuard s_eyePosGuard;
+        if (ShouldUploadFrameConstUniform(s_eyePosGuard, submitView, eye, sizeof(eye)))
+        {
+            bgfx::setUniform(g_uniforms.uEyePos, eye);
+            CountUniformCommand(g_stats.lightUniformCommands);
+        }
     }
     const bool shadowMapActive = g_frame.shadowActive && bgfx::isValid(g_device.shadowMapTex)
         && g_device.shadowMapSize > 0;
@@ -8967,8 +9017,14 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded)
         shadowMapActive || DisableInactiveShadowUniformSkip();
     if (uploadInactiveShadowInputs && bgfx::isValid(g_uniforms.uShadowMatrices))
     {
-        bgfx::setUniform(g_uniforms.uShadowMatrices, g_frame.shadowMatrices, kNumShadowCascades);
-        CountUniformCommand(g_stats.shadowUniformCommands);
+        static FrameConstUniformGuard s_shadowMatricesGuard;
+        if (ShouldUploadFrameConstUniform(s_shadowMatricesGuard, submitView,
+                                          g_frame.shadowMatrices,
+                                          kNumShadowCascades * 16 * sizeof(float)))
+        {
+            bgfx::setUniform(g_uniforms.uShadowMatrices, g_frame.shadowMatrices, kNumShadowCascades);
+            CountUniformCommand(g_stats.shadowUniformCommands);
+        }
     }
     if (bgfx::isValid(g_uniforms.uShadowParams))
     {
@@ -8993,8 +9049,13 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded)
                 g_device.width, g_device.height, g_device.swapWidth, g_device.swapHeight);
             s_lastRecvState = recvState;
         }
-        bgfx::setUniform(g_uniforms.uShadowParams, shadowParams);
-        CountUniformCommand(g_stats.shadowUniformCommands);
+        static FrameConstUniformGuard s_shadowParamsGuard;
+        if (ShouldUploadFrameConstUniform(s_shadowParamsGuard, submitView,
+                                          shadowParams, sizeof(shadowParams)))
+        {
+            bgfx::setUniform(g_uniforms.uShadowParams, shadowParams);
+            CountUniformCommand(g_stats.shadowUniformCommands);
+        }
     }
     if (uploadInactiveShadowInputs && bgfx::isValid(g_uniforms.uShadowQuality))
     {
@@ -9002,8 +9063,13 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded)
         // GGC_BGFX_SHADOW_FULL_PCF=1 restores the original 36-fetch path for a quality/perf A/B.
         static const float s_fullPcf = (GgcFlags::Enabled(GgcFlag_BgfxShadowFullPcf) || GGC_GetBgfxShadowFullPcf() != 0) ? 1.0f : 0.0f;
         const float shadowQuality[4] = { s_fullPcf, 0.0f, 0.0f, 0.0f };
-        bgfx::setUniform(g_uniforms.uShadowQuality, shadowQuality);
-        CountUniformCommand(g_stats.shadowUniformCommands);
+        static FrameConstUniformGuard s_shadowQualityGuard;
+        if (ShouldUploadFrameConstUniform(s_shadowQualityGuard, submitView,
+                                          shadowQuality, sizeof(shadowQuality)))
+        {
+            bgfx::setUniform(g_uniforms.uShadowQuality, shadowQuality);
+            CountUniformCommand(g_stats.shadowUniformCommands);
+        }
     }
     if (uploadInactiveShadowInputs && bgfx::isValid(g_uniforms.sShadowMap))
     {
@@ -9023,16 +9089,40 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded)
     const bool pointShadowMapActive = g_draw.pointShadowParams[0] >= 0.5f;
     if (bgfx::isValid(g_uniforms.uPointShadowMatrix))
     {
-        bgfx::setUniform(g_uniforms.uPointShadowParams, g_draw.pointShadowParams);
-        CountUniformCommand(g_stats.pointShadowUniformCommands);
+        static FrameConstUniformGuard s_pointShadowParamsGuard;
+        if (ShouldUploadFrameConstUniform(s_pointShadowParamsGuard, submitView,
+                                          g_draw.pointShadowParams,
+                                          sizeof(g_draw.pointShadowParams)))
+        {
+            bgfx::setUniform(g_uniforms.uPointShadowParams, g_draw.pointShadowParams);
+            CountUniformCommand(g_stats.pointShadowUniformCommands);
+        }
         if (pointShadowLightActive)
         {
-            bgfx::setUniform(g_uniforms.uPointShadowMatrix, g_draw.pointShadowMatrix);
-            CountUniformCommand(g_stats.pointShadowUniformCommands);
-            bgfx::setUniform(g_uniforms.uPointShadowLightPos, g_draw.pointShadowLightPos);
-            CountUniformCommand(g_stats.pointShadowUniformCommands);
-            bgfx::setUniform(g_uniforms.uPointShadowLightColor, g_draw.pointShadowLightColor);
-            CountUniformCommand(g_stats.pointShadowUniformCommands);
+            static FrameConstUniformGuard s_pointShadowMatrixGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadowMatrixGuard, submitView,
+                                              g_draw.pointShadowMatrix,
+                                              sizeof(g_draw.pointShadowMatrix)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadowMatrix, g_draw.pointShadowMatrix);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+            static FrameConstUniformGuard s_pointShadowLightPosGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadowLightPosGuard, submitView,
+                                              g_draw.pointShadowLightPos,
+                                              sizeof(g_draw.pointShadowLightPos)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadowLightPos, g_draw.pointShadowLightPos);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+            static FrameConstUniformGuard s_pointShadowLightColorGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadowLightColorGuard, submitView,
+                                              g_draw.pointShadowLightColor,
+                                              sizeof(g_draw.pointShadowLightColor)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadowLightColor, g_draw.pointShadowLightColor);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
         }
     }
     if ((pointShadowMapActive || DisableInactiveShadowUniformSkip())
@@ -9715,7 +9805,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     const bool fixedFunctionLightInputsNeeded =
         g_draw.lightingEnabled[0] > 0.5f
         && !forceUnlitLighting;
-    UploadLightUniforms(fixedFunctionLightInputsNeeded);
+    UploadLightUniforms(fixedFunctionLightInputsNeeded, submitView);
     // Match SubmitEngineDraw for sorted dynamic particles/effects. Additive
     // sprites, soft alpha particles, and material decals bake intensity in
     // vertex diffuse or the source texture; the shader's lit branch would
@@ -12611,10 +12701,16 @@ void SubmitEngineDraw(unsigned short start_index,
     const bool fixedFunctionLightInputsNeeded =
         g_draw.lightingEnabled[0] > 0.5f
         && !forceUnlitLighting;
-    UploadLightUniforms(fixedFunctionLightInputsNeeded);
+    UploadLightUniforms(fixedFunctionLightInputsNeeded, submitView);
     if (bgfx::isValid(g_uniforms.uSceneAmbient))
     {
-        bgfx::setUniform(g_uniforms.uSceneAmbient, g_draw.sceneAmbient);
+        static FrameConstUniformGuard s_sceneAmbientGuard;
+        if (ShouldUploadFrameConstUniform(s_sceneAmbientGuard, submitView,
+                                          g_draw.sceneAmbient,
+                                          sizeof(g_draw.sceneAmbient)))
+        {
+            bgfx::setUniform(g_uniforms.uSceneAmbient, g_draw.sceneAmbient);
+        }
     }
     if (bgfx::isValid(g_uniforms.uLightingEnabled))
     {
