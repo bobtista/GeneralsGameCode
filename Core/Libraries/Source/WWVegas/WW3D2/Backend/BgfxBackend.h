@@ -215,6 +215,12 @@ public:
                                       unsigned int polygon_count,
                                       unsigned int vertex_count,
                                       int array_page) override;
+    virtual bool Submit_Rigid_Packet(int ib_base_offset,
+                                     unsigned int start_index,
+                                     unsigned int primitive_count,
+                                     unsigned int min_vertex_index,
+                                     unsigned int vertex_count,
+                                     bool triangle_strip) override;
 
     // -- State: shaders, materials, textures ---------------------------------
     //
