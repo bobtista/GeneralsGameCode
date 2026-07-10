@@ -8545,6 +8545,41 @@ static uint64_t ApplyProjectedAdditiveDecalDrawState(uint64_t state)
     return state & ~BGFX_STATE_WRITE_A;
 }
 
+// TheSuperHackers @refactor bobtista 10/07/2026 The one derivation of the
+// final bgfx pipeline-state word from the live translated draw state. Shared
+// by the per-draw engine submit and by the sorted capture (which resolves the
+// word once at insertion), so the two can never drift apart.
+static uint64_t ComputeFinalDrawState(bool triangle_strip)
+{
+    uint64_t state = GetEffectiveDrawState();
+    state |= BGFX_STATE_MSAA;
+
+    state = ApplyCullModeOverride(state);
+    if (IsSortedRotorBlur(state))
+    {
+        // The rotor blur is built from camera-facing sorted cards. Once the
+        // cards are replayed through the normal engine view, culling can drop
+        // one side of the blur depending on the camera angle.
+        state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
+    }
+    state = ApplyBlendEquation(state);
+
+    state = ApplyColorWriteOverride(state);
+    if (triangle_strip)
+    {
+        state &= ~BGFX_STATE_PT_MASK;
+        state |= BGFX_STATE_PT_TRISTRIP;
+    }
+    state = ApplyProjectedAdditiveDecalDrawState(state);
+    state = ApplySortedMaterialDecalDepthState(state);
+    state = ApplyEmpLightningSphereDrawState(state);
+    if (g_draw.delayedObjectShroudPass)
+    {
+        state = ApplyDelayedObjectShroudDepthState(state);
+    }
+    return state;
+}
+
 static void LogBgfxShroudPass(const char *event,
                               bgfx::ViewId view,
                               unsigned short polygonCount,
@@ -12666,35 +12701,10 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
     }
 
-    uint64_t state = GetEffectiveDrawState();
-    state |= BGFX_STATE_MSAA;
-
-    state = ApplyCullModeOverride(state);
-    if (IsSortedRotorBlur(state))
-    {
-        // The rotor blur is built from camera-facing sorted cards. Once the
-        // cards are replayed through the normal engine view, culling can drop
-        // one side of the blur depending on the camera angle.
-        state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
-    }
-    state = ApplyBlendEquation(state);
-
-    state = ApplyColorWriteOverride(state);
-    if (triangle_strip)
-    {
-        state &= ~BGFX_STATE_PT_MASK;
-        state |= BGFX_STATE_PT_TRISTRIP;
-    }
+    uint64_t state = ComputeFinalDrawState(triangle_strip);
     if (g_views.waterOverrideActive)
     {
         g_views.waterOverrideActive = false;
-    }
-    state = ApplyProjectedAdditiveDecalDrawState(state);
-    state = ApplySortedMaterialDecalDepthState(state);
-    state = ApplyEmpLightningSphereDrawState(state);
-    if (g_draw.delayedObjectShroudPass)
-    {
-        state = ApplyDelayedObjectShroudDepthState(state);
     }
     LogBgfxSortedMaterialDecal("submit-engine", submitView,
                                polygon_count, vertex_count, state);
