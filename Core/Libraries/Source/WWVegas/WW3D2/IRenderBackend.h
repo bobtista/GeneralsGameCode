@@ -824,6 +824,19 @@ public:
                                       unsigned int /*vertex_count*/,
                                       int /*array_page*/) { return false; }
 
+    // TheSuperHackers @refactor bobtista 11/07/2026 Single-call rigid mesh draw:
+    // the polygon renderer hands the complete indexed draw (index-buffer base
+    // offset plus ranges) to the backend in one entry instead of the legacy
+    // Set_Index_Buffer_Index_Offset + Draw_Triangles/Draw_Strip pair. Returns
+    // false when not implemented (DX8Backend); the caller then runs the legacy
+    // sequence.
+    virtual bool Submit_Rigid_Packet(int /*ib_base_offset*/,
+                                     unsigned int /*start_index*/,
+                                     unsigned int /*primitive_count*/,
+                                     unsigned int /*min_vertex_index*/,
+                                     unsigned int /*vertex_count*/,
+                                     bool /*triangle_strip*/) { return false; }
+
     // TheSuperHackers @refactor bobtista 11/04/2026 Lets Draw_Sorting_IB_VB hand its inner
     // dynamic VB/IB to the backend so bgfx can claim their transient buffers and submit a
     // remapped draw, skipping the outer stale Draw_Triangles. No-op on DX8Backend.
