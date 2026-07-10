@@ -805,6 +805,19 @@ public:
     // default keeps DX8Backend on the classic per-texture run splits.
     virtual void Set_Sorted_Texture_Array_Page(int /*page*/) {}
 
+    // TheSuperHackers @refactor bobtista 10/07/2026 Single-call sorted-pool run submit.
+    // Applies the captured batch packet and issues the indexed draw in one backend
+    // entry, replacing the per-run Apply_Sorted_Batch_State + Draw_Triangles
+    // round-trip on backends with a shader pipeline. start_index is in index units
+    // (triangle start * 3), matching Draw_Triangles. Returns false when the backend
+    // does not implement the packet path; the caller must then run the legacy
+    // apply/draw sequence. Default = not implemented (DX8Backend).
+    virtual bool Submit_Sorted_Packet(const RenderBackendSortedBatchState & /*packet*/,
+                                      unsigned int /*start_index*/,
+                                      unsigned int /*polygon_count*/,
+                                      unsigned int /*vertex_count*/,
+                                      int /*array_page*/) { return false; }
+
     // TheSuperHackers @refactor bobtista 11/04/2026 Lets Draw_Sorting_IB_VB hand its inner
     // dynamic VB/IB to the backend so bgfx can claim their transient buffers and submit a
     // remapped draw, skipping the outer stale Draw_Triangles. No-op on DX8Backend.
