@@ -112,6 +112,20 @@ inline void DX8PolygonRendererClass::Set_Vertex_Index_Range(unsigned min_vertex_
 
 inline void DX8PolygonRendererClass::Render(/*const Matrix3D & tm,*/int base_vertex_offset)
 {
+	// TheSuperHackers @refactor bobtista 11/07/2026 Shader-pipeline backends
+	// take the whole rigid draw as one packet call; the legacy pair below
+	// remains for DX8 and for the rigid packet kill switch.
+	if (g_renderBackend->Has_Shader_Pipeline()
+		&& g_renderBackend->Submit_Rigid_Packet(
+			base_vertex_offset,
+			index_offset,
+			strip ? index_count-2 : index_count/3,
+			min_vertex_index,
+			vertex_index_range,
+			strip))
+	{
+		return;
+	}
 	SNAPSHOT_SAY(("Set_Index_Buffer_Index_Offset(%d)",base_vertex_offset));
 
 	g_renderBackend->Set_Index_Buffer_Index_Offset(base_vertex_offset);
