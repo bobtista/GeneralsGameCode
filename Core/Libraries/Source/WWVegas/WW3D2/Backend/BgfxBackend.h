@@ -210,6 +210,11 @@ public:
                                     const DynamicIBAccessClass & dyn_ib,
                                     unsigned short polygon_count,
                                     unsigned short vertex_count) override;
+    virtual bool Submit_Sorted_Packet(const RenderBackendSortedBatchState & packet,
+                                      unsigned int start_index,
+                                      unsigned int polygon_count,
+                                      unsigned int vertex_count,
+                                      int array_page) override;
 
     // -- State: shaders, materials, textures ---------------------------------
     //
