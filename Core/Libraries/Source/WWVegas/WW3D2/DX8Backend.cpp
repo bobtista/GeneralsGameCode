@@ -405,13 +405,18 @@ bool DX8Backend::Copy_Back_Buffer_To_Texture(unsigned int num, TextureClass * ds
     // TextureClass::Get_Surface_Level returns a fresh wrapper around the
     // CPU mip data — copying onto that wouldn't update the GPU texture.
     // Pull the actual D3D8 surface level via the compatibility interop.
+    // TheSuperHackers @bugfix bobtista 10/07/2026 Get_Native_Compatibility_Surface_Level goes through
+    // GetSurfaceLevel, which AddRefs the returned surface, so dst_native must be released on every path.
+    // bb_native comes from Peek_Legacy_Surface (no AddRef) and must not be.
     IDirect3DSurface8 * dst_native = Get_Native_Compatibility_Surface_Level(*dst_texture, 0);
     IDirect3DSurface8 * bb_native = Peek_Legacy_Surface(*back_buffer);
     if (dst_native == nullptr || bb_native == nullptr) {
+        if (dst_native != nullptr) { dst_native->Release(); }
         REF_PTR_RELEASE(back_buffer);
         return false;
     }
     DX8Wrapper::_Copy_DX8_Rects(bb_native, nullptr, 0, dst_native, nullptr);
+    dst_native->Release();
     REF_PTR_RELEASE(back_buffer);
     return true;
 }
