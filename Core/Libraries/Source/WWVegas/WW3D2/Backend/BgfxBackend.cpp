@@ -2878,6 +2878,12 @@ void BgfxBackend::Shutdown()
         g_caches.deferredDestroyStaticVBPrev.clear();
         g_caches.deferredDestroyStaticIB.clear();
         g_caches.deferredDestroyStaticIBPrev.clear();
+        // TheSuperHackers @bugfix bobtista 10/07/2026 Also drain the deferred framebuffer-destroy
+        // queues at shutdown so a framebuffer queued in the final frame is not leaked.
+        for (auto & h : g_caches.deferredDestroyFB)     { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyFBPrev) { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        g_caches.deferredDestroyFB.clear();
+        g_caches.deferredDestroyFBPrev.clear();
         // TheSuperHackers @bugfix bobtista 02/06/2026 Destroy remaining registry entries at
         // shutdown. The isValid guards make Register_* entries (whose handles live in the caches
         // drained above) a safe no-op; Create_Texture entries own their texture/fb and need it.
