@@ -219,7 +219,9 @@ void W3DRenderObjectSnapshot::xfer( Xfer *xfer )
 	DEBUG_ASSERTCRASH( m_robj, ("W3DRenderObjectSnapshot::xfer - invalid m_robj") );
 
 	// transform on the main render object
-	Matrix3D transform;
+	// TheSuperHackers @bugfix bobtista 10/07/2026 Initialize to identity so the defensive
+	// null-m_robj path does not xfer an uninitialized Matrix3D (stack garbage) into the save stream.
+	Matrix3D transform(true);
 	if( m_robj )
 	{
 		transform = m_robj->Get_Transform();
