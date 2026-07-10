@@ -13391,6 +13391,40 @@ bool BgfxBackend::Submit_Sorted_Packet(const RenderBackendSortedBatchState & pac
     return true;
 }
 
+// TheSuperHackers @refactor bobtista 11/07/2026 Single-call rigid mesh draw.
+// Same operations the polygon renderer used to issue as two backend calls
+// (index-base offset, then the indexed draw); one entry keeps the whole draw
+// visible to the backend. The kill switch reverts to the legacy pair.
+bool BgfxBackend::Submit_Rigid_Packet(int ib_base_offset,
+                                      unsigned int start_index,
+                                      unsigned int primitive_count,
+                                      unsigned int min_vertex_index,
+                                      unsigned int vertex_count,
+                                      bool triangle_strip)
+{
+    static const bool s_disabled = GgcFlags::Enabled(GgcFlag_BgfxDisableRigidPacketSubmit);
+    if (s_disabled || !g_device.initialized)
+    {
+        return false;
+    }
+    Set_Index_Buffer_Index_Offset(static_cast<unsigned int>(ib_base_offset));
+    if (triangle_strip)
+    {
+        Draw_Strip(static_cast<unsigned short>(start_index),
+                   static_cast<unsigned short>(primitive_count),
+                   static_cast<unsigned short>(min_vertex_index),
+                   static_cast<unsigned short>(vertex_count));
+    }
+    else
+    {
+        Draw_Triangles(static_cast<unsigned short>(start_index),
+                       static_cast<unsigned short>(primitive_count),
+                       static_cast<unsigned short>(min_vertex_index),
+                       static_cast<unsigned short>(vertex_count));
+    }
+    return true;
+}
+
 void BgfxBackend::Draw_Triangles(unsigned short start_index,
                                  unsigned short polygon_count,
                                  unsigned short min_vertex_index,
