@@ -9737,38 +9737,6 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     g_views.skipNextSubmitEngineDraw = true;
 }
 
-// TheSuperHackers @refactor bobtista 10/07/2026 Single-call sorted-pool run
-// submit. This is the packet-shaped entry the sorted flush uses on the shader
-// pipeline; it performs the same apply + draw sequence Draw_Sorted_Run issued
-// as separate backend calls, so behavior is identical by construction. The
-// kill switch reverts the flush to the legacy call sequence.
-bool BgfxBackend::Submit_Sorted_Packet(const RenderBackendSortedBatchState & packet,
-                                       unsigned int start_index,
-                                       unsigned int polygon_count,
-                                       unsigned int vertex_count,
-                                       int array_page)
-{
-    static const bool s_disabled = GgcFlags::Enabled(GgcFlag_BgfxDisableSortedPacketSubmit);
-    if (s_disabled || !g_device.initialized)
-    {
-        return false;
-    }
-    if (array_page >= 0)
-    {
-        Set_Sorted_Texture_Array_Page(array_page);
-    }
-    Apply_Sorted_Batch_State(packet);
-    Draw_Triangles(static_cast<unsigned short>(start_index),
-                   static_cast<unsigned short>(polygon_count),
-                   0,
-                   static_cast<unsigned short>(vertex_count));
-    if (array_page >= 0)
-    {
-        Set_Sorted_Texture_Array_Page(-1);
-    }
-    return true;
-}
-
 // TheSuperHackers @refactor bobtista 11/04/2026 Dynamic
 // capture. DynamicVBAccessClass / DynamicIBAccessClass are CPU-side
 // views onto a ring buffer that changes every frame (particles, sprites,
@@ -13136,6 +13104,58 @@ void SubmitEngineDraw(unsigned short start_index,
         }
     }
 }
+}
+
+// TheSuperHackers @refactor bobtista 10/07/2026 Single-call sorted-pool run
+// submit. This is the packet-shaped entry the sorted flush uses on the shader
+// pipeline; it applies the captured batch packet and hands the draw to the
+// shared engine-submit core directly, without the Draw_Triangles wrapper and
+// its skip-next handshake (only the retired dx8wrapper sorted path ever armed
+// that flag for pool runs). The kill switch reverts the flush to the legacy
+// call sequence.
+bool BgfxBackend::Submit_Sorted_Packet(const RenderBackendSortedBatchState & packet,
+                                       unsigned int start_index,
+                                       unsigned int polygon_count,
+                                       unsigned int vertex_count,
+                                       int array_page)
+{
+    static const bool s_disabled = GgcFlags::Enabled(GgcFlag_BgfxDisableSortedPacketSubmit);
+    if (s_disabled || !g_device.initialized)
+    {
+        return false;
+    }
+    if (array_page >= 0)
+    {
+        Set_Sorted_Texture_Array_Page(array_page);
+    }
+    Apply_Sorted_Batch_State(packet);
+    {
+        PERF_TIME(PERF_SECT_DRAW_TRIANGLES);
+        if (DrawCallLog_Is_Active())
+        {
+            const TextureBaseClass * tex0 = FixedFunctionState::Render_State().Textures[0];
+            const char * tex_name = (tex0 != nullptr) ? tex0->Get_Texture_Name().str() : "";
+            DrawCallLog_Record(
+                4, polygon_count, vertex_count,
+                FixedFunctionState::Render_State().vertex_buffer_types[0],
+                FixedFunctionState::Render_State().index_buffer_type,
+                FixedFunctionState::Render_State().shader.Get_Bits(),
+                FixedFunctionState::Render_State().sorted_draw_flags,
+                tex_name);
+        }
+        if (g_triangleDrawEnabled)
+        {
+            SubmitEngineDraw(static_cast<unsigned short>(start_index),
+                             static_cast<unsigned short>(polygon_count),
+                             0,
+                             static_cast<unsigned short>(vertex_count));
+        }
+    }
+    if (array_page >= 0)
+    {
+        Set_Sorted_Texture_Array_Page(-1);
+    }
+    return true;
 }
 
 void BgfxBackend::Draw_Triangles(unsigned short start_index,
