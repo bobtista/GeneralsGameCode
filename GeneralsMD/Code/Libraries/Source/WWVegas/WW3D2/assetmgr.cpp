@@ -625,8 +625,11 @@ bool WW3DAssetManager::Load_3D_Assets( const char * filename )
 			result = WW3DAssetManager::Load_3D_Assets( *file );
 		} else {
 			WWDEBUG_SAY(("Missing asset '%s'.", filename));
+			WW3DLoadDiagLog("file-unavailable name=%s\n", filename);
 		}
 		_TheFileFactory->Return_File( file );
+	} else {
+		WW3DLoadDiagLog("file-get-fail name=%s\n", filename);
 	}
 
 	return result;
@@ -845,6 +848,7 @@ RenderObjClass * WW3DAssetManager::Create_Render_Obj(const char * name)
 			if (++warning_count <= 20) {
 				WWDEBUG_SAY(("WARNING: Failed to create Render Object: %s",name));
 			}
+			WW3DLoadDiagLog("render-obj-fail name=%s\n", name);
 			AssetStatusClass::Peek_Instance()->Report_Missing_RObj(name);
 		}
 		return nullptr;		// Failed to find a prototype
