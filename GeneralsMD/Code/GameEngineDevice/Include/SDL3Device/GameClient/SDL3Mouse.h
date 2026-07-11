@@ -33,17 +33,18 @@ public:
 	virtual void setCursor(MouseCursor cursor) override;
 	virtual void setPosition(Int x, Int y) override;
 	virtual void setVisibility(Bool visible) override;
+	// TheSuperHackers @bugfix bobtista 11/07/2026 Reconcile the engine's mouse
+	// position with the real OS cursor, directly in the current mouse state (no
+	// buffered event, no warp, no caching — reads the live cursor each call, so
+	// it is correct whenever it runs). SDL sends no motion event when the window
+	// appears under a stationary cursor, so without this the engine believed
+	// (0,0) and edge-scrolled the camera into the map's top-left corner on
+	// loads that drop straight into gameplay with an untouched mouse.
+	virtual void syncPositionToSystemCursor() override;
 
 	void addSDL3MotionEvent(const SDL_MouseMotionEvent &event);
 	void addSDL3ButtonEvent(const SDL_MouseButtonEvent &event);
 	void addSDL3WheelEvent(const SDL_MouseWheelEvent &event);
-	// TheSuperHackers @bugfix bobtista 11/07/2026 One-shot sync of the engine's
-	// mouse position from the OS cursor. Until the first real motion event the
-	// engine believed the cursor sat at (0,0), so a save load that drops
-	// straight into gameplay with an untouched mouse edge-scrolled the camera
-	// into the map's top-left boundary clamp. Called at init and again from
-	// window mouse-enter/focus-gained until a window exists to seed against.
-	void seedPositionFromSystemCursor();
 
 protected:
 	virtual void capture() override;
@@ -73,7 +74,6 @@ private:
 	Int m_lastAppliedSDLFrame;
 	Real m_currentAnimFrame;
 	UnsignedInt m_lastAnimTime;
-	Bool m_seededFromSystemCursor;
 };
 
 #endif
