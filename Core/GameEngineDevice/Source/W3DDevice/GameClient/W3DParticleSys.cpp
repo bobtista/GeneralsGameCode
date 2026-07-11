@@ -35,6 +35,7 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DSmudge.h"
 #include "W3DDevice/GameClient/W3DSnow.h"
+#include "WW3D2/BgfxRenderProfile.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/RenderBackend.h"
@@ -222,7 +223,10 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 		// Particles with the same properties will now be batched onto a single texture surface before being drawn.
 		// If a different particle type appears before the batch is filled, the previous batch will be drawn first.
 		RefCountPtr<TextureClass> texture;
-		texture.Assign_No_Add_Ref(W3DDisplay::m_assetManager->Get_Texture(sys->getParticleTypeName().str()));
+		{
+			GGC_RPROFILE(PARTICLE_TEX_FETCH);
+			texture.Assign_No_Add_Ref(W3DDisplay::m_assetManager->Get_Texture(sys->getParticleTypeName().str()));
+		}
 
 		const Bool canBatch = sys->isUsingParticles();
 		const Bool batchDone = finishedBatch(*sys, texture);

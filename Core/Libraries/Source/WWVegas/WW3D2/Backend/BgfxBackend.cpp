@@ -751,7 +751,7 @@ static void InitializeBgfxStatsLog()
     FILE * file = fopen(logPath.c_str(), "wt");
     if (file != nullptr)
     {
-        fprintf(file, "elapsed_seconds,window_seconds,window_frames,bgfx_num_draw_avg,bgfx_num_blit_avg,bgfx_cpu_frame_ms_avg,bgfx_gpu_ms_avg,bgfx_wait_render_ms_avg,bgfx_wait_submit_ms_avg,backend_draws_avg,backend_skipped_avg,base_submits_avg,scene_depth_submits_avg,shadow_volume_submits_avg,shadow_apply_submits_avg,smudge_submits_avg,scene_composite_submits_avg,debug_submits_avg,world_draws_avg,ui_draws_avg,water_draws_avg,sorted_draws_avg,effect_draws_avg,rtt_draws_avg,smudge_draws_avg,texture_binds_avg,texture_creates_avg,texture_uploads_avg,texture_copies_avg,material_uniforms_avg,light_uniforms_avg,uniform_cmds_avg,material_uniform_cmds_avg,light_uniform_cmds_avg,shadow_uniform_cmds_avg,pointshadow_uniform_cmds_avg,texture_transform_updates_avg,render_state_copies_avg,transient_vb_alloc_avg,transient_ib_alloc_avg,transient_vb_draw_avg,transient_ib_draw_avg,dynamic_vb_alloc_avg,dynamic_ib_alloc_avg,bgfx_transient_vb_used_avg,bgfx_transient_ib_used_avg,bgfx_texture_memory,bgfx_rt_memory,bgfx_num_textures,bgfx_num_framebuffers,phase_frame_draw_us_avg,phase_draw_views_us_avg,phase_render_total_us_avg,phase_traversal_us_avg,phase_mesh_flush_us_avg,phase_sort_flush_us_avg,phase_particles_us_avg,phase_terrain_us_avg,phase_pointgroup_update_arrays_us_avg,phase_pointgroup_vb_fill_us_avg,phase_sort_pool_build_us_avg,phase_sort_pool_sort_us_avg,phase_sort_pool_draw_us_avg,sorted_replay_calls_avg,sorted_replay_total_us_avg,sorted_replay_shader_us_avg,sorted_replay_material_us_avg,sorted_replay_texture_us_avg,sorted_replay_transform_us_avg,sorted_replay_light_us_avg\n");
+        fprintf(file, "elapsed_seconds,window_seconds,window_frames,bgfx_num_draw_avg,bgfx_num_blit_avg,bgfx_cpu_frame_ms_avg,bgfx_gpu_ms_avg,bgfx_wait_render_ms_avg,bgfx_wait_submit_ms_avg,backend_draws_avg,backend_skipped_avg,base_submits_avg,scene_depth_submits_avg,shadow_volume_submits_avg,shadow_apply_submits_avg,smudge_submits_avg,scene_composite_submits_avg,debug_submits_avg,world_draws_avg,ui_draws_avg,water_draws_avg,sorted_draws_avg,effect_draws_avg,rtt_draws_avg,smudge_draws_avg,texture_binds_avg,texture_creates_avg,texture_uploads_avg,texture_copies_avg,material_uniforms_avg,light_uniforms_avg,uniform_cmds_avg,material_uniform_cmds_avg,light_uniform_cmds_avg,shadow_uniform_cmds_avg,pointshadow_uniform_cmds_avg,texture_transform_updates_avg,render_state_copies_avg,transient_vb_alloc_avg,transient_ib_alloc_avg,transient_vb_draw_avg,transient_ib_draw_avg,dynamic_vb_alloc_avg,dynamic_ib_alloc_avg,bgfx_transient_vb_used_avg,bgfx_transient_ib_used_avg,bgfx_texture_memory,bgfx_rt_memory,bgfx_num_textures,bgfx_num_framebuffers,phase_frame_draw_us_avg,phase_draw_views_us_avg,phase_render_total_us_avg,phase_traversal_us_avg,phase_mesh_flush_us_avg,phase_sort_flush_us_avg,phase_particles_us_avg,phase_terrain_us_avg,phase_pointgroup_update_arrays_us_avg,phase_pointgroup_vb_fill_us_avg,phase_sort_pool_build_us_avg,phase_sort_pool_sort_us_avg,phase_sort_pool_draw_us_avg,sorted_replay_calls_avg,sorted_replay_total_us_avg,sorted_replay_shader_us_avg,sorted_replay_material_us_avg,sorted_replay_texture_us_avg,sorted_replay_transform_us_avg,sorted_replay_light_us_avg,phase_sorted_insert_us_avg,phase_sorted_capture_us_avg,phase_pg_compress_us_avg,phase_pg_view_xform_us_avg,phase_pg_ground_fixup_us_avg,phase_particle_tex_fetch_us_avg\n");
         fclose(file);
     }
     else
@@ -776,7 +776,7 @@ static void FlushBgfxStatsLogWindow()
         const double phaseUsPerFrame = g_bgfxStatsLog.frequency.QuadPart > 0
             ? 1000000.0 / static_cast<double>(g_bgfxStatsLog.frequency.QuadPart) / frames
             : 0.0;
-        fprintf(file, "%.3f,%.3f,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%lld,%lld,%u,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+        fprintf(file, "%.3f,%.3f,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%lld,%lld,%u,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
             g_bgfxStatsLog.elapsedSeconds,
             g_bgfxStatsLog.windowSeconds,
             g_bgfxStatsLog.frames,
@@ -846,7 +846,13 @@ static void FlushBgfxStatsLogWindow()
             static_cast<double>(g_bgfxStatsLog.sortedReplayMaterialTicks) * phaseUsPerFrame,
             static_cast<double>(g_bgfxStatsLog.sortedReplayTextureTicks) * phaseUsPerFrame,
             static_cast<double>(g_bgfxStatsLog.sortedReplayTransformTicks) * phaseUsPerFrame,
-            static_cast<double>(g_bgfxStatsLog.sortedReplayLightTicks) * phaseUsPerFrame);
+            static_cast<double>(g_bgfxStatsLog.sortedReplayLightTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORTED_INSERT]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORTED_CAPTURE]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::POINTGROUP_COMPRESS]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::POINTGROUP_VIEW_XFORM]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::POINTGROUP_GROUND_FIXUP]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::PARTICLE_TEX_FETCH]) * phaseUsPerFrame);
         fclose(file);
     }
 
@@ -7484,6 +7490,7 @@ static uint64_t ComputeFinalDrawState(bool triangle_strip);
 
 void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
 {
+    GGC_RPROFILE(SORTED_CAPTURE);
     // Transitional boundary for sorted replay. SortingRenderer snapshots a
     // full fixed-function state so it can replay translucent geometry later.
     // bgfx still mirrors draw state into FixedFunctionState for that snapshot
