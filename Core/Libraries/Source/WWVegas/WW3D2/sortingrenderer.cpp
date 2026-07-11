@@ -379,6 +379,7 @@ void SortingRendererClass::Insert_Triangles(
 	unsigned short min_vertex_index,
 	unsigned short vertex_count)
 {
+	GGC_RPROFILE(SORTED_INSERT);
 	if (!WW3D::Is_Sorting_Enabled()) {
 		g_renderBackend->Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
 		return;

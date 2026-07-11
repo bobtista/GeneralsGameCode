@@ -35,6 +35,7 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DSmudge.h"
 #include "W3DDevice/GameClient/W3DSnow.h"
+#include "WW3D2/BgfxRenderProfile.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/RenderBackend.h"
@@ -324,7 +325,10 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 		// the shared scratch buffers. Streak emitters never batch; flush before handing them off below.
 		if (batchPointGroups)
 		{
-			texture = W3DDisplay::m_assetManager->Get_Texture( sys->getParticleTypeName().str() );
+			{
+				GGC_RPROFILE(PARTICLE_TEX_FETCH);
+				texture = W3DDisplay::m_assetManager->Get_Texture( sys->getParticleTypeName().str() );
+			}
 			const Bool isStreak = (m_streakLine != nullptr && sys->isUsingStreak());
 			// TheSuperHackers @bugfix bobtista 03/06/2026 Volume particles must NOT batch:
 			// RenderVolumeParticle derives its per-layer shift from current_size[0] (the
@@ -454,6 +458,7 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 
 			if (!batchPointGroups)
 			{
+				GGC_RPROFILE(PARTICLE_TEX_FETCH);
 				texture = W3DDisplay::m_assetManager->Get_Texture( sys->getParticleTypeName().str() );
 			}
 			if (particleDiag)

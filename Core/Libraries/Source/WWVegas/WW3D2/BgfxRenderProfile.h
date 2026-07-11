@@ -56,6 +56,9 @@ namespace GGCRenderProfile
 		SORT_POOL_BUILD,    // SortingRenderer pool VB/index metadata build
 		SORT_POOL_SORT,     // transparent triangle sort/coalesce
 		SORT_POOL_DRAW,     // sorted dynamic IB build + draw-run replay
+		SORTED_INSERT,      // SortingRenderer::Insert_Triangles (per-node pool insertion)
+		PARTICLE_TEX_FETCH, // per-system Get_Texture name lookup in doParticles
+		SORTED_CAPTURE,     // Capture_Legacy_Render_State_For_Sorted_Draw (per-node state capture, subset of SORTED_INSERT)
 		PHASE_COUNT
 	};
 
