@@ -314,6 +314,18 @@ void View::xfer( Xfer *xfer )
 	xfer->xferReal( &viewPos.x );
 	xfer->xferReal( &viewPos.y );
 	xfer->xferReal( &viewPos.z );
+	// TheSuperHackers @bugfix bobtista 11/07/2026 Cancel any in-flight scripted
+	// camera movement before applying the restored camera. During a save load
+	// the freshly loaded map's init script can queue an animated
+	// center-on-start-position move; this restore rewrote the camera fields but
+	// the surviving animation kept ticking afterwards and smoothly panned the
+	// view away from the restored battle position to the map's start corner
+	// (intermittent on Windows, timing-dependent on how many client frames
+	// elapse during the load).
+	if( xfer->getXferMode() == XFER_LOAD )
+	{
+		stopDoingScriptedCamera();
+	}
 	lookAt( &viewPos );
 
 }
