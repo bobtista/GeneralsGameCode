@@ -696,6 +696,14 @@ void SDL3GameEngine::handleWindowEvent(const SDL_WindowEvent &event)
 		if (TheMouse != NULL)
 		{
 			TheMouse->onCursorMovedInside();
+			// TheSuperHackers @bugfix bobtista 11/07/2026 The window frequently
+			// appears under an already-stationary cursor (save loads launched from
+			// a harness or shortcut), in which case SDL never sends a motion event
+			// and the engine's mouse position stays at its (0,0) default —
+			// edge-scrolling the camera into the map's top-left corner on loads
+			// that drop straight into gameplay. Seed the position from the OS
+			// cursor (one-shot; no-op once any position has been seeded).
+			static_cast<SDL3Mouse *>(TheMouse)->seedPositionFromSystemCursor();
 		}
 	}
 	else if (event.type == SDL_EVENT_WINDOW_MOUSE_LEAVE)
