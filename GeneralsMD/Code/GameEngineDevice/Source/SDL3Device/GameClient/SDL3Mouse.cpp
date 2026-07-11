@@ -43,13 +43,16 @@ static const UnsignedByte kChannelNoiseFloor  = 8;
 // W3D cursor textures top out at 256x256; larger dimensions indicate a bad ANI entry.
 static const Uint32 kMaxCursorDimension = 256;
 
+static void MapSDLPointToDisplayPoint(float rawX, float rawY, Uint32 windowID, Int *displayX, Int *displayY);
+
 SDL3Mouse::SDL3Mouse() :
 	m_nextGetIndex(0),
 	m_nextFreeIndex(0),
 	m_lastAppliedSDLCursor(INVALID_MOUSE_CURSOR),
 	m_lastAppliedSDLFrame(-1),
 	m_currentAnimFrame(0.0f),
-	m_lastAnimTime(0)
+	m_lastAnimTime(0),
+	m_seededFromSystemCursor(FALSE)
 {
 	for (Int i = 0; i < NUM_MOUSE_CURSORS; ++i)
 	{
@@ -93,6 +96,43 @@ void SDL3Mouse::init()
 	m_currentRedrawMode = RM_POLYGON;
 	setCursor(ARROW);
 	syncSystemCursorVisibility();
+	seedPositionFromSystemCursor();
+}
+
+void SDL3Mouse::seedPositionFromSystemCursor()
+{
+	if (m_seededFromSystemCursor || TheSDL3Window == nullptr)
+	{
+		return;
+	}
+
+	float globalX = 0.0f;
+	float globalY = 0.0f;
+	SDL_GetGlobalMouseState(&globalX, &globalY);
+	int windowX = 0;
+	int windowY = 0;
+	if (!SDL_GetWindowPosition(TheSDL3Window, &windowX, &windowY))
+	{
+		return;
+	}
+
+	MouseIO io;
+	io.leftState = MBS_None;
+	io.rightState = MBS_None;
+	io.middleState = MBS_None;
+	io.leftEvent = MOUSE_EVENT_NONE;
+	io.rightEvent = MOUSE_EVENT_NONE;
+	io.middleEvent = MOUSE_EVENT_NONE;
+	MapSDLPointToDisplayPoint(globalX - static_cast<float>(windowX),
+		globalY - static_cast<float>(windowY),
+		SDL_GetWindowID(TheSDL3Window),
+		&io.pos.x, &io.pos.y);
+	io.deltaPos.x = 0;
+	io.deltaPos.y = 0;
+	io.wheelPos = 0;
+	io.time = SDL_GetTicks();
+	pushEvent(io);
+	m_seededFromSystemCursor = TRUE;
 }
 
 void SDL3Mouse::reset()
@@ -412,6 +452,9 @@ static void MapDisplayPointToSDLPoint(Int displayX, Int displayY, float *rawX, f
 
 void SDL3Mouse::addSDL3MotionEvent(const SDL_MouseMotionEvent &event)
 {
+	// Any real motion supersedes the system-cursor seed; a later one-shot
+	// seed would inject a stale position over newer data.
+	m_seededFromSystemCursor = TRUE;
 	MouseIO io;
 	io.leftState = MBS_None;
 	io.rightState = MBS_None;
