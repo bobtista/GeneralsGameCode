@@ -43,7 +43,10 @@
 #include "Utility/endian_compat.h"
 
 #include <algorithm>
+#include <chrono>
+#include <cstdio>
 #include <cstring>
+#include <thread>
 #include <vector>
 
 static const char *BIGFileIdentifier = "BIGF";
@@ -154,7 +157,23 @@ void StdBIGFileSystem::postProcessLoad() {
 }
 
 ArchiveFile * StdBIGFileSystem::openArchiveFile(const Char *filename) {
-	File *fp = TheLocalFileSystem->openFile(filename, File::READ | File::BINARY);
+	// TheSuperHackers @bugfix bobtista 11/07/2026 Retry transient archive-open
+	// failures. Archives mount exactly once at startup and a failed mount was
+	// silently skipped in release builds (the crash above is debug-only),
+	// leaving every asset in that archive unavailable for the whole run —
+	// observed on Windows as save-restored objects loading with no visible
+	// models when the game launches during heavy disk activity (antivirus
+	// scan or a previous process still tearing down holds the file briefly).
+	File *fp = nullptr;
+	for (Int attempt = 0; attempt < 10; ++attempt) {
+		fp = TheLocalFileSystem->openFile(filename, File::READ | File::BINARY);
+		if (fp != nullptr) {
+			break;
+		}
+		std::fprintf(stderr, "[ggc] archive open failed (attempt %d/10): %s\n", attempt + 1, filename);
+		std::fflush(stderr);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
 	AsciiString archiveFileName;
 	archiveFileName = filename;
 	archiveFileName.toLower();
@@ -170,9 +189,19 @@ ArchiveFile * StdBIGFileSystem::openArchiveFile(const Char *filename) {
 
 	AsciiString asciibuf;
 	char buffer[_MAX_PATH];
-	fp->read(buffer, 4); // read the "BIG" at the beginning of the file.
+	// TheSuperHackers @bugfix bobtista 11/07/2026 Check the identifier read;
+	// a short read previously compared uninitialized bytes.
+	if (fp->read(buffer, 4) != 4) {
+		std::fprintf(stderr, "[ggc] archive header read failed: %s\n", filename);
+		std::fflush(stderr);
+		fp->close();
+		fp = nullptr;
+		return nullptr;
+	}
 	buffer[4] = 0;
 	if (strcmp(buffer, BIGFileIdentifier) != 0) {
+		std::fprintf(stderr, "[ggc] archive identifier mismatch: %s\n", filename);
+		std::fflush(stderr);
 		DEBUG_CRASH(("Error reading BIG file identifier in file %s", filename));
 		fp->close();
 		fp = nullptr;
@@ -319,6 +348,14 @@ Bool StdBIGFileSystem::loadBigFilesFromDirectory(AsciiString dir, AsciiString fi
 			m_archiveFileMap[(*it)] = archiveFile;
 			DEBUG_LOG(("StdBIGFileSystem::loadBigFilesFromDirectory - %s inserted into the archive file map.", (*it).str()));
 			actuallyAdded = TRUE;
+		}
+		else {
+			// TheSuperHackers @bugfix bobtista 11/07/2026 A failed mount used to be
+			// skipped silently in release builds; every asset in the archive then
+			// stayed unavailable for the whole run. Say so where a release build
+			// can see it.
+			std::fprintf(stderr, "[ggc] ARCHIVE MOUNT FAILED, contents unavailable this run: %s\n", (*it).str());
+			std::fflush(stderr);
 		}
 
 		it++;
