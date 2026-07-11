@@ -947,17 +947,31 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
 // ------------------------------------------------------------------------------------------------
 AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 {
+	// TheSuperHackers @bugfix bobtista 11/07/2026 Normalize the portable input
+	// to the portable '\\' separator form before parsing. Saves written before
+	// the 09/06/2026 portable-path normalization carry '/' or mixed separators;
+	// on Windows the '\\'-only separator scan then mis-splits a mixed name
+	// ("maps\\dir/leaf.map" keeps its "maps\\" prefix and double-prefixes the
+	// real path to "maps\\maps\\..."), and an all-'/' name fails the portable
+	// prefix match outright on both platforms.
+	AsciiString portableIn = in;
+	{
+		std::string normalized(portableIn.str());
+		std::replace(normalized.begin(), normalized.end(), '/', '\\');
+		portableIn.set(normalized.c_str());
+	}
+
 	AsciiString prefix;
 	// The directory where the real map path should be contained in.
 	AsciiString containingBasePath;
-	if (in.startsWithNoCase(PORTABLE_SAVE))
+	if (portableIn.startsWithNoCase(PORTABLE_SAVE))
 	{
 		// the save dir ends with "\\"
 		prefix = getSaveDirectory();
 		containingBasePath = prefix;
-		prefix.concat(getMapLeafName(in));
+		prefix.concat(getMapLeafName(portableIn));
 	}
-	else if (in.startsWithNoCase(PORTABLE_MAPS))
+	else if (portableIn.startsWithNoCase(PORTABLE_MAPS))
 	{
 		// the map dir DOES NOT end with "\\", must add it
 		prefix = TheMapCache->getMapDir();
@@ -967,9 +981,9 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 		prefix.concat("/");
 #endif
 		containingBasePath = prefix;
-		prefix.concat(getMapLeafAndDirName(in));
+		prefix.concat(getMapLeafAndDirName(portableIn));
 	}
-	else if (in.startsWithNoCase(PORTABLE_USER_MAPS))
+	else if (portableIn.startsWithNoCase(PORTABLE_USER_MAPS))
 	{
 		// the map dir DOES NOT end with "\\", must add it
 		prefix = TheMapCache->getUserMapDir();
@@ -979,7 +993,7 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 		prefix.concat("/");
 #endif
 		containingBasePath = prefix;
-		prefix.concat(getMapLeafAndDirName(in));
+		prefix.concat(getMapLeafAndDirName(portableIn));
 	}
 	else
 	{
