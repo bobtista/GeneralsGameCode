@@ -283,6 +283,15 @@ public:
 
 	virtual void draw() override;													///< draw the mouse
 	virtual void setPosition( Int x, Int y );						///< set the mouse position
+	// TheSuperHackers @bugfix bobtista 11/07/2026 Reconcile the engine's mouse
+	// position with the operating system's actual cursor. The default keeps the
+	// legacy game-client init behavior (force to the origin; Win32 immediately
+	// re-syncs through WM_MOUSEMOVE). Backends whose platform never delivers a
+	// motion event for a stationary cursor (SDL3) override this to read the
+	// real cursor instead: believing (0,0) with an untouched mouse edge-scrolls
+	// the camera into the map's top-left corner on loads that drop straight
+	// into gameplay.
+	virtual void syncPositionToSystemCursor() { setPosition( 0, 0 ); }
 	virtual void setCursor( MouseCursor cursor ) = 0;		///< set mouse cursor
 
 	void initCapture(); ///< called once to unlock the mouse capture functionality
