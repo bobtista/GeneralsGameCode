@@ -36,6 +36,7 @@
 #include "Common/GameStateMap.h"
 #include "Common/LatchRestore.h"
 #include "Common/MapObject.h"
+#include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "Common/RandomValue.h"
 #include "Common/Radar.h"
@@ -49,10 +50,13 @@
 #include "GameClient/GameText.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/MessageBox.h"
+#include "GameClient/Drawable.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/ParticleSys.h"
 #include "GameClient/TerrainVisual.h"
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/Object.h"
+#include "GgcRuntimeFlags.h"
 #include "GameLogic/GhostObject.h"
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/ScriptEngine.h"
@@ -769,6 +773,46 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 		return SC_INVALID_DATA;	// you can't use a naked "throw" outside of a catch statement!
 
+	}
+
+	// TheSuperHackers @feature bobtista 11/07/2026 End-of-load visibility census
+	// for the intermittent drawable-less load (units simulate but never render;
+	// only ghost-visible objects draw). Pairs with the per-frame GGC_SCENE_DIAG
+	// counters: this line shows whether the local player's shroud state is
+	// already wrong when the load completes, or breaks afterwards.
+	if( GgcFlags::Enabled(GgcFlag_SceneDiag) )
+	{
+		Int objectCount = 0;
+		Int shroudClear = 0;
+		Int shroudFogged = 0;
+		Int shroudInvisible = 0;
+		const Int localPlayerIndex = ThePlayerList->getLocalPlayer()
+			? ThePlayerList->getLocalPlayer()->getPlayerIndex()
+			: -1;
+		for( Object *obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject() )
+		{
+			++objectCount;
+			if( localPlayerIndex >= 0 )
+			{
+				const ObjectShroudStatus ss = obj->getShroudedStatus( localPlayerIndex );
+				if( ss <= OBJECTSHROUD_PARTIAL_CLEAR )
+					++shroudClear;
+				else if( ss == OBJECTSHROUD_FOGGED )
+					++shroudFogged;
+				else
+					++shroudInvisible;
+			}
+		}
+		Int drawableCount = 0;
+		for( Drawable *draw = TheGameClient->firstDrawable(); draw; draw = draw->getNextDrawable() )
+		{
+			++drawableCount;
+		}
+		std::fprintf( stderr,
+			"[ggc] load census: objects=%d drawables=%d localPlayer=%d shroudClear=%d fogged=%d invisible=%d\n",
+			objectCount, drawableCount, localPlayerIndex,
+			shroudClear, shroudFogged, shroudInvisible );
+		std::fflush( stderr );
 	}
 
 	//
