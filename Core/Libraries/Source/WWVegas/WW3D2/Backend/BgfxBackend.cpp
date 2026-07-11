@@ -9604,7 +9604,9 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
 // carry a nonzero object-level emissive that their unlit draws never read).
 static void ComputeSortedTextureArraySlot(RenderStateStruct & state)
 {
-    static const bool s_enabled = GgcFlags::Enabled(GgcFlag_BgfxSortedTextureArray);
+    // Default ON since the 2026-07-11 Windows benchmark verdict; see
+    // Sorted_Texture_Array_Merge_Enabled in sortingrenderer.cpp.
+    static const bool s_enabled = !GgcFlags::Enabled(GgcFlag_BgfxNoSortedTextureArray);
     if (!s_enabled || !g_device.initialized || !bgfx::isValid(g_device.sortedArrayProgram))
     {
         return;
