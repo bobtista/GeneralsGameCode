@@ -840,7 +840,12 @@ static std::vector<int> s_sortedNodeArrayPage;
 
 static bool Sorted_Texture_Array_Merge_Enabled()
 {
-	static const bool enabled = GgcFlags::Enabled(GgcFlag_BgfxSortedTextureArray)
+	// TheSuperHackers @performance bobtista 11/07/2026 Default ON after the
+	// Windows benchmark verdict (2026-07-11): visual gates clean, sorted draws
+	// -24%, sort-pool CPU -21%, texture binds -10%, FPS +2% with lower
+	// variance, nothing regressed. Opt out with GGC_BGFX_NO_SORTED_TEXTURE_ARRAY
+	// or -bgfxNoSortedTextureArray.
+	static const bool enabled = !GgcFlags::Enabled(GgcFlag_BgfxNoSortedTextureArray)
 		&& g_renderBackend->Has_Shader_Pipeline();
 	return enabled;
 }
