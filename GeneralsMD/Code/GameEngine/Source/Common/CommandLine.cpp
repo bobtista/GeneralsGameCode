@@ -242,7 +242,13 @@ Int parseBgfxDisableSortedMaterialSnapshot(char *args[], int)
 
 Int parseBgfxSortedTextureArray(char *args[], int)
 {
+	// No-op since the merge became the default; accepted so existing harnesses stay valid.
 	return parseSetFlag(GgcFlag_BgfxSortedTextureArray);
+}
+
+Int parseBgfxNoSortedTextureArray(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_BgfxNoSortedTextureArray);
 }
 
 Int parseBgfxFrameTimingAfter(char *args[], int num)
@@ -1584,6 +1590,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-bgfxDisableSortedMaterialRecaptureSkip", parseBgfxDisableSortedMaterialRecaptureSkip },
 	{ "-bgfxDisableSortedMaterialSnapshot", parseBgfxDisableSortedMaterialSnapshot },
 	{ "-bgfxSortedTextureArray", parseBgfxSortedTextureArray },
+	{ "-bgfxNoSortedTextureArray", parseBgfxNoSortedTextureArray },
 	{ "-bgfxFrameTimingAfter", parseBgfxFrameTimingAfter },
 	{ "-bgfxFrameTimingInterval", parseBgfxFrameTimingInterval },
 	{ "-bgfxFrameTimingPath", parseBgfxFrameTimingPath },
