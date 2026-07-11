@@ -37,6 +37,13 @@ public:
 	void addSDL3MotionEvent(const SDL_MouseMotionEvent &event);
 	void addSDL3ButtonEvent(const SDL_MouseButtonEvent &event);
 	void addSDL3WheelEvent(const SDL_MouseWheelEvent &event);
+	// TheSuperHackers @bugfix bobtista 11/07/2026 One-shot sync of the engine's
+	// mouse position from the OS cursor. Until the first real motion event the
+	// engine believed the cursor sat at (0,0), so a save load that drops
+	// straight into gameplay with an untouched mouse edge-scrolled the camera
+	// into the map's top-left boundary clamp. Called at init and again from
+	// window mouse-enter/focus-gained until a window exists to seed against.
+	void seedPositionFromSystemCursor();
 
 protected:
 	virtual void capture() override;
@@ -66,6 +73,7 @@ private:
 	Int m_lastAppliedSDLFrame;
 	Real m_currentAnimFrame;
 	UnsignedInt m_lastAnimTime;
+	Bool m_seededFromSystemCursor;
 };
 
 #endif
