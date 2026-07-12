@@ -3450,6 +3450,13 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 #endif
 				{
 					TheWritableGlobalData->m_TiVOFastMode = 1 - TheGlobalData->m_TiVOFastMode;
+					// TheSuperHackers @bugfix bobtista 12/07/2026 Unpause the game when fast forward is
+					// engaged, otherwise a replay paused by a CRC mismatch cannot be resumed now that
+					// fast forward no longer overrides the paused game.
+					if (TheGlobalData->m_TiVOFastMode && TheGameLogic->isGamePaused())
+					{
+						TheGameLogic->setGamePaused(FALSE);
+					}
 					TheInGameUI->messageNoFormat( TheGlobalData->m_TiVOFastMode
 						? TheGameText->FETCH_OR_SUBSTITUTE("GUI:FF_ON", L"Fast Forward is on")
 						: TheGameText->FETCH_OR_SUBSTITUTE("GUI:FF_OFF", L"Fast Forward is off")
