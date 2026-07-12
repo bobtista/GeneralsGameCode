@@ -282,7 +282,10 @@ Int FramePacer::getActualLogicTimeScaleFps(LogicTimeQueryFlags flags) const
 		return TheNetwork->getFrameRate();
 	}
 
-	if (isLogicTimeScaleEnabled())
+	// TheSuperHackers @bugfix bobtista 12/07/2026 Ignore the user logic time scale during replay
+	// playback so the simulation follows the replay's recorded game speed, like the original game.
+	if (isLogicTimeScaleEnabled()
+		&& (TheGameLogic == nullptr || !TheGameLogic->isInReplayGame()))
 	{
 		return getLogicTimeScaleFps();
 	}
