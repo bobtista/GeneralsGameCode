@@ -200,13 +200,18 @@ ObjectPoolClass<T,BLOCK_SIZE>::ObjectPoolClass() :
 template<class T,int BLOCK_SIZE>
 ObjectPoolClass<T,BLOCK_SIZE>::~ObjectPoolClass()
 {
-#if defined(__APPLE__) && defined(GGC_RENDER_BACKEND_BGFX)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @bugfix bobtista 04/05/2026 The legacy engine leaves
-	// some global multi-list users alive until process teardown. On macOS the
-	// static AutoPoolClass allocators can then destruct after their list owners,
+	// some global multi-list users alive until process teardown. The static
+	// AutoPoolClass allocators can then destruct after their list owners,
 	// walking stale pool metadata and producing misleading crash reports during
 	// exit. Let the OS reclaim these small pools on process termination; set
 	// GGC_STRICT_POOL_SHUTDOWN=1 when specifically auditing shutdown leaks.
+	// TheSuperHackers @bugfix bobtista 11/07/2026 Was Apple-only; the win64
+	// SDL3 build crashed 0xC0000005 in this destructor on every process exit
+	// (WER dump: main thread inside _execute_onexit_table reading the poisoned
+	// block chain after the mempool.h:216 assert), so the guard now covers all
+	// bgfx builds. The dx8/retail lane keeps the legacy strict teardown.
 	if (!GgcFlags::Enabled(GgcFlag_StrictPoolShutdown))
 	{
 		return;
