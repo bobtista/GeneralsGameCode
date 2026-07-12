@@ -112,6 +112,20 @@ int ExceptionRecursions = -1;
 */
 DynamicVectorClass<ThreadInfoType*> ThreadList;
 
+// TheSuperHackers @bugfix bobtista 12/07/2026 Static-destruction sentinel for
+// ThreadList. Constructed after the list, so it destructs first and flips the
+// flag before the list's own destructor runs; late-exiting threads that
+// unregister during atexit are then skipped instead of walking freed memory.
+static bool ThreadListAlive = true;
+namespace
+{
+struct ThreadListLifetimeSentinel
+{
+	~ThreadListLifetimeSentinel() { ThreadListAlive = false; }
+};
+static ThreadListLifetimeSentinel TheThreadListLifetimeSentinel;
+}
+
 /*
 ** Definitions to allow run-time linking to the Imagehlp.dll functions.
 **
@@ -1016,6 +1030,13 @@ HANDLE Get_Thread_Handle(int thread_index)
  *=============================================================================================*/
 void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
 {
+	// TheSuperHackers @bugfix bobtista 12/07/2026 A thread that outlives engine
+	// shutdown (the texture loader when process exit bypasses it) unregisters
+	// here during atexit, after the static ThreadList was destructed — walking
+	// it then reads freed memory (0xC0000005 on win64 harness exits).
+	if (!ThreadListAlive) {
+		return;
+	}
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (strcmp(thread_name, ThreadList[i]->ThreadName) == 0) {
 			assert(ThreadList[i]->ThreadID == thread_id);
