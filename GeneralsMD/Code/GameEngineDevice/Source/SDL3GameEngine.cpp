@@ -127,7 +127,13 @@ void SDL3GameEngine::update()
 	}
 	if (autoExitSeconds > 0 && SDL_GetTicks() - autoExitStartTicks >= static_cast<Uint64>(autoExitSeconds) * MSEC_PER_SECOND)
 	{
-		std::exit(0);
+		// TheSuperHackers @bugfix bobtista 12/07/2026 Was std::exit(0), which
+		// bypassed engine shutdown: the texture-loader thread then died at
+		// atexit and unregistered into the already-destructed exception-handler
+		// thread list (0xC0000005 on every win64 harness exit). Quit through
+		// the engine like the window close path, so auto-exit runs exercise
+		// the same teardown players get.
+		setQuitting(true);
 	}
 
 	// TheSuperHackers @bugfix bobtista 08/06/2026 Apply a settled window resize between
