@@ -120,6 +120,7 @@ enum GgcFlagType
 	X(GgcFlag_RenderDocCaptureInterval, "GGC_RENDERDOC_CAPTURE_INTERVAL", NULL, GgcTier_Harness, GgcFlagType_Int, 0, 0.0f, "frames between repeated RenderDoc captures") \
 	X(GgcFlag_AutoExitSeconds, "GGC_AUTO_EXIT_SECONDS", NULL, GgcTier_Harness, GgcFlagType_Int, 0, 0.0f, "exit the game after N wall-clock seconds of engine update") \
 	X(GgcFlag_FreezeLogicAfter, "GGC_FREEZE_LOGIC_AFTER", NULL, GgcTier_Harness, GgcFlagType_Int, -1, 0.0f, "freeze sim time once the logic frame reaches N; rendering continues") \
+	X(GgcFlag_LogSleepyFingerprint, "GGC_LOG_SLEEPY_FINGERPRINT", NULL, GgcTier_Harness, GgcFlagType_Truthy, 0, 0.0f, "log a per-frame sleepy-update scheduler fingerprint for replay desync bisection") \
 	X(GgcFlag_NoAudio, "GGC_NO_AUDIO", NULL, GgcTier_Harness, GgcFlagType_Truthy, 0, 0.0f, "force the dummy audio manager (headless/automation runs)") \
 	X(GgcFlag_TriggerGuiCommand, "GGC_TRIGGER_GUI_COMMAND", NULL, GgcTier_Harness, GgcFlagType_String, 0, 0.0f, "auto-fire a named ControlBar GUI command after the trigger delay") \
 	X(GgcFlag_TriggerSpecialPower, "GGC_TRIGGER_SPECIAL_POWER", NULL, GgcTier_Harness, GgcFlagType_String, 0, 0.0f, "auto-fire a named special power after the trigger delay") \
