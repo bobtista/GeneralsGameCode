@@ -976,15 +976,13 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 				}
 			}
 
-			ALuint source;
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Initialize so a failed alGenSources cannot
+			// leave a garbage handle that gets polled and deleted.
+			ALuint source = 0;
 			if (!handleToKill || foundSoundToReplace)
 			{
 				alGenSources(1, &source);
 
-			}
-			else
-			{
-				source = 0;
 			}
 			// Push it onto the list of playing things
 			audio->m_audioEventRTS = event;
@@ -1038,14 +1036,12 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 				}
 			}
 
-			ALuint source;
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Initialize so a failed alGenSources cannot
+			// leave a garbage handle that gets polled and deleted.
+			ALuint source = 0;
 			if (!handleToKill || foundSoundToReplace)
 			{
 				alGenSources(1, &source);
-			}
-			else
-			{
-				source = 0;
 			}
 
 			// Push it onto the list of playing things
