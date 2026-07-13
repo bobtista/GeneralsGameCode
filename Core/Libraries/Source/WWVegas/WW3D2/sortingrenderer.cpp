@@ -523,6 +523,14 @@ void SortingRendererClass::Insert_To_Sorting_Pool(SortingNodeStruct* state)
 		return;
 	}
 
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Flush the pool early when this node would
+	// push it past the 65535 vertices addressable by the 16-bit sorted triangle indices.
+	// Beyond that the combined vertex buffer allocation truncated and the pool flush
+	// overflowed it. Sorting is only lost across the flush boundary in such extreme scenes.
+	if (overlapping_vertex_count+state->vertex_count>65535) {
+		Flush_Sorting_Pool();
+	}
+
 	overlapping_nodes[overlapping_node_count]=state;
 	overlapping_vertex_count+=state->vertex_count;
 	overlapping_polygon_count+=state->polygon_count;
