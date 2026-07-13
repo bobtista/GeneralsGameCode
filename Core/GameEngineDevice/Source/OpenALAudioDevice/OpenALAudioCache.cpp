@@ -218,6 +218,11 @@ ALuint OpenALAudioFileCache::getBufferForFile(const OpenFileInfo &fileInfo)
 		}
 	}
 
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Count the first opener like the Miles cache does.
+	// Without it the count sat one below the real user count and wrapped below zero on release,
+	// letting the eviction pass delete buffers still attached to playing sources while pinning
+	// idle files forever.
+	openedAudioFile.m_openCount = 1;
 	m_openFiles[strToFind] = openedAudioFile;
 	return openedAudioFile.m_buffer;
 }
