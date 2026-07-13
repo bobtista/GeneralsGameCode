@@ -79,7 +79,9 @@ Bool FFmpegFile::open(File *file)
 		return false;
 	}
 
-	m_avioCtx = avio_alloc_context(buffer, avio_ctx_buffer_size, 0, file, &readPacket, nullptr, nullptr);
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Provide a seek callback; without one the demuxer
+	// cannot reposition, so av_seek_frame (frameGoto) always failed on this custom IO context.
+	m_avioCtx = avio_alloc_context(buffer, avio_ctx_buffer_size, 0, file, &readPacket, nullptr, &seekPacket);
 	if (m_avioCtx == nullptr) {
 		DEBUG_LOG(("Failed to alloc AVIOContext"));
 		close();
@@ -171,6 +173,43 @@ int FFmpegFile::readPacket(void *opaque, uint8_t *buf, int buf_size)
 }
 
 /**
+ * Seek within the file for the FFmpeg demuxer
+ */
+int64_t FFmpegFile::seekPacket(void *opaque, int64_t offset, int whence)
+{
+	File *file = static_cast<File *>(opaque);
+
+	if ((whence & AVSEEK_SIZE) != 0)
+	{
+		return file->size();
+	}
+
+	File::seekMode mode;
+	switch (whence & ~AVSEEK_FORCE)
+	{
+		case SEEK_SET:
+			mode = File::START;
+			break;
+		case SEEK_CUR:
+			mode = File::CURRENT;
+			break;
+		case SEEK_END:
+			mode = File::END;
+			break;
+		default:
+			return -1;
+	}
+
+	const Int pos = file->seek(static_cast<Int>(offset), mode);
+	if (pos < 0)
+	{
+		return -1;
+	}
+
+	return pos;
+}
+
+/**
  * close all the open FFmpeg handles for an open file.
  */
 void FFmpegFile::close()
@@ -256,15 +295,39 @@ Bool FFmpegFile::decodePacket()
 
 void FFmpegFile::seekFrame(int frame_idx)
 {
-	// Note: not tested, since not used ingame
-	for (const auto &stream : m_streams) {
-		Int64 timestamp = av_q2d(m_fmtCtx->streams[stream.stream_idx]->time_base) * frame_idx
-			* av_q2d(m_fmtCtx->streams[stream.stream_idx]->avg_frame_rate);
-		int result = av_seek_frame(m_fmtCtx, stream.stream_idx, timestamp, AVSEEK_FLAG_ANY);
-		if (result < 0) {
-			char error_buffer[1024];
-			av_strerror(result, error_buffer, sizeof(error_buffer));
-			DEBUG_LOG(("Failed 'av_seek_frame': %s", error_buffer));
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Seek on the video stream with a correct timestamp;
+	// the previous math multiplied by the frame rate and time base instead of dividing, which
+	// truncated every seek target to the start of the file. Flush all decoders afterwards so
+	// packets from the new position decode cleanly.
+	const FFmpegStream *video = findMatch(AVMEDIA_TYPE_VIDEO);
+	if (m_fmtCtx == nullptr || video == nullptr)
+	{
+		return;
+	}
+
+	const AVStream *avStream = m_fmtCtx->streams[video->stream_idx];
+	const double fps = av_q2d(avStream->avg_frame_rate);
+	const double timeBase = av_q2d(avStream->time_base);
+	if (fps <= 0.0 || timeBase <= 0.0)
+	{
+		return;
+	}
+
+	const Int64 timestamp = static_cast<Int64>(frame_idx / (fps * timeBase));
+	const int result = av_seek_frame(m_fmtCtx, video->stream_idx, timestamp, AVSEEK_FLAG_ANY);
+	if (result < 0)
+	{
+		char error_buffer[1024];
+		av_strerror(result, error_buffer, sizeof(error_buffer));
+		DEBUG_LOG(("Failed 'av_seek_frame': %s", error_buffer));
+		return;
+	}
+
+	for (const auto &stream : m_streams)
+	{
+		if (stream.codec_ctx != nullptr)
+		{
+			avcodec_flush_buffers(stream.codec_ctx);
 		}
 	}
 }
