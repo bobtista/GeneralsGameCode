@@ -1017,9 +1017,19 @@ void DynamicVBAccessClass::Allocate_Sorting_Dynamic_Buffer()
 	WWASSERT(!_DynamicSortingVertexArrayInUse);
 	_DynamicSortingVertexArrayInUse=true;
 
-	unsigned new_vertex_count=_DynamicSortingVertexArrayOffset+VertexCount;
-	WWASSERT(new_vertex_count<65536);
-	if (new_vertex_count>_DynamicSortingVertexArraySize) {
+	unsigned new_vertex_count=(unsigned)_DynamicSortingVertexArrayOffset+VertexCount;
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Start a fresh buffer when the request would
+	// cross the 65535 vertex capacity of SortingVertexBufferClass. The size was silently
+	// truncated to 16 bits, so the subsequent vertex writes overflowed the allocation.
+	// Draws queued earlier hold their own reference to the old buffer, so their data stays valid.
+	if (new_vertex_count>65535) {
+		REF_PTR_RELEASE(_DynamicSortingVertexArray);
+		_DynamicSortingVertexArraySize=VertexCount;
+		if (_DynamicSortingVertexArraySize<kDefaultDynamicVertexBufferSize) {
+			_DynamicSortingVertexArraySize=kDefaultDynamicVertexBufferSize;
+		}
+	}
+	else if (new_vertex_count>_DynamicSortingVertexArraySize) {
 		REF_PTR_RELEASE(_DynamicSortingVertexArray);
 		_DynamicSortingVertexArraySize=new_vertex_count;
 		if (_DynamicSortingVertexArraySize<kDefaultDynamicVertexBufferSize) _DynamicSortingVertexArraySize=kDefaultDynamicVertexBufferSize;
