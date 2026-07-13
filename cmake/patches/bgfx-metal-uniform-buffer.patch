@@ -1,0 +1,24 @@
+diff --git a/src/renderer_mtl.cpp b/src/renderer_mtl.cpp
+index c4da6d70f..285c8471f 100644
+--- a/src/renderer_mtl.cpp
++++ b/src/renderer_mtl.cpp
+@@ -1905,8 +1905,18 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
+ 				? m_uniformBufferFragmentOffset
+ 				: m_uniformBufferVertexOffset
+ 				;
++			// TheSuperHackers @bugfix bobtista Guard the fixed uniform arena. bgfx advances
++			// the per-draw offset by the program's full constant-buffer size every submit, so
++			// a heavy frame can push offset past UNIFORM_BUFFER_SIZE. Writing there is an
++			// out-of-bounds store into unmapped/adjacent memory (render-thread crash or hang).
++			// Drop the write instead; the affected draw renders with stale uniforms for one frame.
++			const uint32_t writeSize = _numRegs*16;
++			if (offset + _loc + writeSize > UNIFORM_BUFFER_SIZE)
++			{
++				return;
++			}
+ 			uint8_t* dst = (uint8_t*)m_uniformBuffer->contents();
+-			bx::memCopy(&dst[offset + _loc], _val, _numRegs*16);
++			bx::memCopy(&dst[offset + _loc], _val, writeSize);
+ 		}
+ 
+ 		void setShaderUniform4f(uint8_t _flags, uint32_t _loc, const void* _val, uint32_t _numRegs)
