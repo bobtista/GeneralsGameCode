@@ -536,7 +536,15 @@ Int	FFmpegVideoStream::frameCount()
 
 void FFmpegVideoStream::frameGoto( Int index )
 {
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Reset the stream state and rebase the pacing
+	// clock after a seek, then prime the frame at the new position like BinkGoto did. Without the
+	// rebase isFrameReady() compares against frameTime * index and stalls for the skipped span.
 	m_ffmpegFile->seekFrame(index);
+	m_good = true;
+	m_gotFrame = false;
+	frameNext();
+	uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	m_startTime = now - (uint64_t)(m_ffmpegFile->getFrameTime() * frameIndex());
 }
 
 //============================================================================
