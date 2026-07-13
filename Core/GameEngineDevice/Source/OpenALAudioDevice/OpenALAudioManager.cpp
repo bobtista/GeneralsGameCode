@@ -570,6 +570,8 @@ void OpenALAudioManager::reset()
 	// This must come after stopAllAudioImmediately() and removeAllAudioRequests(), to ensure that
 	// sounds pointing to the temporary AudioEventInfo handles are deleted before their info is deleted
 	removeLevelSpecificAudioEventInfos();
+	m_currentMusicTrackName.clear();
+	m_currentMusicCompletionCount = 0;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -927,6 +929,12 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 		if (stream) {
 			if ((info->m_soundType == AT_Streaming) && event->getUninterruptible()) {
 				setDisallowSpeech(TRUE);
+			}
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Track the current music track so the
+			// requeue loop can count completed passes for hasMusicTrackCompleted.
+			if (info->m_soundType == AT_Music && m_currentMusicTrackName != event->getEventName()) {
+				m_currentMusicTrackName = event->getEventName();
+				m_currentMusicCompletionCount = 0;
 			}
 			// AIL_set_stream_volume_pan(stream, curVolume, 0.5f);
 			playStream(event, stream);
@@ -1567,22 +1575,9 @@ Bool OpenALAudioManager::isMusicPlaying(void) const
 //-------------------------------------------------------------------------------------------------
 Bool OpenALAudioManager::hasMusicTrackCompleted(const AsciiString& trackName, Int numberOfTimes) const
 {
-	std::list<PlayingAudio*>::const_iterator it;
-	PlayingAudio* playing;
-	for (it = m_playingStreams.begin(); it != m_playingStreams.end(); ++it) {
-		playing = *it;
-		// GeneralsX @bugfix BenderAI 11/03/2026 - guard against null audioEventRTS/info
-		const AudioEventInfo* info = (playing && playing->m_audioEventRTS) ? playing->m_audioEventRTS->getAudioEventInfo() : nullptr;
-		if (info && info->m_soundType == AT_Music) {
-			if (playing->m_audioEventRTS->getEventName() == trackName) {
-				//if (INFINITE_LOOP_COUNT - AIL_stream_loop_count(playing->m_stream) >= numberOfTimes) {
-				// return TRUE;
-				//}
-			}
-		}
-	}
-
-	return FALSE;
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Answer from the requeue completion counter; the
+	// Miles loop-count query was stubbed to FALSE, stalling scripted music-completion conditions.
+	return m_currentMusicTrackName == trackName && m_currentMusicCompletionCount >= numberOfTimes;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2684,6 +2679,25 @@ void OpenALAudioManager::processPlayingList(void)
 			if (streamInfo && streamInfo->m_soundType == AT_Streaming && getDisallowSpeech())
 			{
 				setDisallowSpeech(FALSE);
+			}
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Miles loops music tracks forever with
+			// INFINITE_LOOP_COUNT. Requeue a naturally drained track through the request list,
+			// like startNextLoop does for delayed sample loops, so music does not fall silent
+			// after one pass. Explicit stops set m_requestStop or the stream stop flag and skip this.
+			if (streamInfo && streamInfo->m_soundType == AT_Music &&
+					!playing->m_requestStop && !playing->m_stream->isStopRequested() &&
+					playing->m_audioEventRTS)
+			{
+				if (m_currentMusicTrackName == playing->m_audioEventRTS->getEventName()) {
+					++m_currentMusicCompletionCount;
+				}
+
+				playing->m_cleanupAudioEventRTS = false;
+
+				AudioRequest* req = allocateAudioRequest(true);
+				req->m_pendingEvent = playing->m_audioEventRTS;
+				req->m_requiresCheckForSample = true;
+				appendAudioRequest(req);
 			}
 			//m_stoppedAudio.push_back(playing);
 			releasePlayingAudio(playing);
