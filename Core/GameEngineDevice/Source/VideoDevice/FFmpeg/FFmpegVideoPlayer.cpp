@@ -456,7 +456,9 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 
 	switch (buffer->format()) {
 		case VideoBuffer::TYPE_R8G8B8:
-			dst_pix_fmt = AV_PIX_FMT_RGB24;
+			// TheSuperHackers @bugfix bobtista 13/07/2026 D3D R8G8B8 memory byte order is B,G,R
+			// on little endian, which is FFmpeg BGR24; RGB24 rendered with red and blue swapped.
+			dst_pix_fmt = AV_PIX_FMT_BGR24;
 			break;
 		case VideoBuffer::TYPE_X8R8G8B8:
 			dst_pix_fmt = AV_PIX_FMT_BGR0;
