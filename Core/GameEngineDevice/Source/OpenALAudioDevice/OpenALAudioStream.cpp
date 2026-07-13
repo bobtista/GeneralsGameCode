@@ -100,6 +100,12 @@ bool OpenALAudioStream::bufferData(uint8_t *data, size_t data_size, ALenum forma
 
 void OpenALAudioStream::update()
 {
+    // TheSuperHackers @bugfix bobtista 13/07/2026 An intentionally stopped stream must stay stopped
+    // so processPlayingList releases it; restarting it here undid stopAudio and stopAudioEvent.
+    if (m_stopRequested) {
+        return;
+    }
+
     ALint sourceState;
     alGetSourcei(m_source, AL_SOURCE_STATE, &sourceState);
 
@@ -114,9 +120,11 @@ void OpenALAudioStream::update()
     // mid-stream decode gap). Only when EOF is reached AND every buffer has already played do we
     // leave the source stopped, so a finished stream is released instead of replaying its last
     // buffer forever (the machine-gun loop).
+    // TheSuperHackers @bugfix bobtista 13/07/2026 AL_PAUSED is an intentional state set by
+    // pauseAudio; restarting a paused source here resumed speech while the game was paused.
     ALint processedQueued = 0;
     alGetSourcei(m_source, AL_BUFFERS_PROCESSED, &processedQueued);
-    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL || sourceState == AL_PAUSED) && num_queued > 0 && (processedQueued < num_queued || !m_reachedEof)) {
+    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL) && num_queued > 0 && (processedQueued < num_queued || !m_reachedEof)) {
         play();
         alGetSourcei(m_source, AL_SOURCE_STATE, &sourceState);
     }
@@ -165,7 +173,7 @@ void OpenALAudioStream::update()
     // fully-played stream is left stopped so it can be released.
     alGetSourcei(m_source, AL_SOURCE_STATE, &sourceState);
     alGetSourcei(m_source, AL_BUFFERS_PROCESSED, &processedQueued);
-    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL || sourceState == AL_PAUSED) && num_queued > 0 && (processedQueued < num_queued || !m_reachedEof)) {
+    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL) && num_queued > 0 && (processedQueued < num_queued || !m_reachedEof)) {
         play();
     }
 }
@@ -190,6 +198,7 @@ void OpenALAudioStream::reset()
     }
     m_current_buffer_idx = 0;
     m_reachedEof = false;
+    m_stopRequested = false;
 }
 
 bool OpenALAudioStream::isPlaying()
