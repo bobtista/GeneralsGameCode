@@ -34,6 +34,14 @@ FetchContent_Declare(
     GIT_TAG        c480227693fccc749c36994d175bace20ba2fce2
     # Nested submodules (bgfx, bx, bimg) are cloned recursively by FetchContent.
     GIT_SUBMODULES_RECURSE TRUE
+    # TheSuperHackers @bugfix bobtista Bounds-check the write into the fixed Metal
+    # per-frame uniform buffer. bgfx advances the offset by the program's full CB size
+    # every submit, so a heavy scene (China Nuke general challenge, ~5000+ draws/frame)
+    # overran the 8MB arena and wrote past its end, crashing or hanging the render thread.
+    # Idempotent so reconfigure on an already-patched tree is a no-op.
+    # TheSuperHackers @build bobtista 13/07/2026 --ignore-whitespace so the patch applies
+    # when core.autocrlf gives the patch file CRLF endings on Windows checkouts.
+    PATCH_COMMAND sh -c "git -C bgfx apply --reverse --check --ignore-whitespace '${CMAKE_CURRENT_LIST_DIR}/patches/bgfx-metal-uniform-buffer.patch' 2>/dev/null || git -C bgfx apply --ignore-whitespace '${CMAKE_CURRENT_LIST_DIR}/patches/bgfx-metal-uniform-buffer.patch'"
 )
 
 FetchContent_MakeAvailable(bgfx_cmake)
