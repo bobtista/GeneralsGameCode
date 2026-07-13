@@ -345,6 +345,12 @@ Int FFmpegFile::getNumFrames() const
 	if (m_fmtCtx == nullptr || stream == nullptr || m_fmtCtx->streams[stream->stream_idx] == nullptr)
 		return 0;
 
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Prefer the exact frame count from the container
+	// (the Bink demuxer stores it); the duration*fps product is only an estimate, which broke
+	// callers doing exact end-of-movie math against frameIndex().
+	if (m_fmtCtx->streams[stream->stream_idx]->nb_frames > 0)
+		return static_cast<Int>(m_fmtCtx->streams[stream->stream_idx]->nb_frames);
+
 	return (m_fmtCtx->duration / (double)AV_TIME_BASE) * av_q2d(m_fmtCtx->streams[stream->stream_idx]->avg_frame_rate);
 }
 

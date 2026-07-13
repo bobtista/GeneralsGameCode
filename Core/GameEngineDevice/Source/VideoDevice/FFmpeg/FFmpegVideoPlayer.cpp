@@ -503,7 +503,22 @@ void FFmpegVideoStream::frameNext()
 
 Int FFmpegVideoStream::frameIndex()
 {
-	return m_ffmpegFile->getCurrentFrame();
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Match the Bink contract: zero-based index while
+	// playing (FFmpeg's frame_num is one-based) and 0 once the stream is exhausted, like Bink
+	// wrapping FrameNum past the last frame. Callers depend on both: Display stops fullscreen
+	// movies at frameCount()-1 and WindowVideoManager detects completion via frameIndex()==0
+	// after frameNext.
+	if (!m_good)
+	{
+		return 0;
+	}
+
+	Int index = m_ffmpegFile->getCurrentFrame() - 1;
+	if (index < 0)
+	{
+		return 0;
+	}
+	return index;
 }
 
 //============================================================================
