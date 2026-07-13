@@ -90,6 +90,14 @@ static inline bool sourceIsStopped(ALuint source)
 	return (state == AL_STOPPED);
 }
 
+static inline bool sourceIsPaused(ALuint source)
+{
+	ALenum state;
+	alGetSourcei(source, AL_SOURCE_STATE, &state);
+
+	return (state == AL_PAUSED);
+}
+
 //-------------------------------------------------------------------------------------------------
 OpenALAudioManager::OpenALAudioManager(Bool dummy) :
 	m_providerCount(1),
@@ -725,7 +733,9 @@ void OpenALAudioManager::resumeAudio(AudioAffect which)
 	if (BitIsSet(which, AudioAffect_Sound)) {
 		for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ++it) {
 			playing = *it;
-			if (playing) {
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Only resume paused sources; alSourcePlay
+			// on a playing source rewinds it to the beginning, restarting every live sound on unpause.
+			if (playing && sourceIsPaused(playing->m_source)) {
 				alSourcePlay(playing->m_source);
 			}
 		}
@@ -734,7 +744,9 @@ void OpenALAudioManager::resumeAudio(AudioAffect which)
 	if (BitIsSet(which, AudioAffect_Sound3D)) {
 		for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ++it) {
 			playing = *it;
-			if (playing) {
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Only resume paused sources; alSourcePlay
+			// on a playing source rewinds it to the beginning, restarting every live sound on unpause.
+			if (playing && sourceIsPaused(playing->m_source)) {
 				alSourcePlay(playing->m_source);
 			}
 		}
@@ -755,7 +767,11 @@ void OpenALAudioManager::resumeAudio(AudioAffect which)
 						continue;
 					}
 				}
-				alSourcePlay(playing->m_stream->getSource());
+				// TheSuperHackers @bugfix bobtista 13/07/2026 Only resume paused sources; alSourcePlay
+				// on a playing source rewinds it to the start of its queued buffers.
+				if (sourceIsPaused(playing->m_stream->getSource())) {
+					alSourcePlay(playing->m_stream->getSource());
+				}
 			}
 		}
 	}
@@ -1107,7 +1123,13 @@ void OpenALAudioManager::stopAudioEvent(AudioHandle handle)
 		if (audio->m_audioEventRTS->getPlayingHandle() == handle) {
 			// found it
 			audio->m_requestStop = true;
-			notifyOfAudioCompletion((UnsignedInt)(audio->m_source), PAT_Stream);
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Stop the matched stream directly instead of
+			// notifying with m_source, which is always 0 for streams and made findPlayingAudioFrom
+			// hit the first stream in the list (usually the music) rather than this one. The stopped
+			// stream is released by processPlayingList on the next update.
+			if (audio->m_stream) {
+				audio->m_stream->stop();
+			}
 			break;
 		}
 	}
@@ -2735,6 +2757,13 @@ void OpenALAudioManager::processFadingList(void)
 		if (!playing) {
 			it = m_fadingAudio.erase(it);
 			continue;
+		}
+
+		// TheSuperHackers @bugfix bobtista 13/07/2026 Keep decoding while fading. Miles streams were
+		// serviced by the Miles background thread, but an OpenAL stream drains its queued buffers in
+		// under a second and cut to silence long before the fade completed.
+		if (playing->m_type == PAT_Stream && playing->m_stream) {
+			playing->m_stream->update();
 		}
 
 		if (playing->m_framesFaded >= getAudioSettings()->m_fadeAudioFrames) {
