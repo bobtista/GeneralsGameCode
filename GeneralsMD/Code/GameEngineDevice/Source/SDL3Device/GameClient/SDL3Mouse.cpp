@@ -476,6 +476,14 @@ void SDL3Mouse::addSDL3ButtonEvent(const SDL_MouseButtonEvent &event)
 	io.time = SDL_GetTicks();
 
 	MouseButtonState state = (event.down != 0) ? MBS_Down : MBS_Up;
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Report every second press as a double click, like
+	// the WM_*BUTTONDBLCLK messages the Win32 window class received. SDL counts consecutive clicks
+	// with the OS double-click time and radius; without this no MBS_DoubleClick was ever produced,
+	// so select-all-of-type and the right double click guard command were dead.
+	if (event.down != 0 && event.clicks > 1 && (event.clicks % 2) == 0)
+	{
+		state = MBS_DoubleClick;
+	}
 	if (event.button == SDL_BUTTON_LEFT)
 	{
 		io.leftState = state;
