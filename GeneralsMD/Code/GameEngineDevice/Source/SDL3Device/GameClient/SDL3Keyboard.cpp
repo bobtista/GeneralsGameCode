@@ -18,8 +18,7 @@
 
 SDL3Keyboard::SDL3Keyboard() :
 	m_nextGetIndex(0),
-	m_nextFreeIndex(0),
-	m_capsState(false)
+	m_nextFreeIndex(0)
 {
 	reset();
 }
@@ -54,7 +53,10 @@ void SDL3Keyboard::update()
 
 Bool SDL3Keyboard::getCapsState()
 {
-	return m_capsState;
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Ask SDL for the live toggle state like the
+	// DirectInput keyboard asked GetKeyState. The manually tracked flag started false, so a
+	// Caps Lock already on at launch or toggled while unfocused reported the wrong state.
+	return (SDL_GetModState() & SDL_KMOD_CAPS) != 0;
 }
 
 void SDL3Keyboard::addSDL3KeyEvent(const SDL_KeyboardEvent &event)
@@ -76,10 +78,6 @@ void SDL3Keyboard::addSDL3KeyEvent(const SDL_KeyboardEvent &event)
 	}
 
 	UnsignedShort state = (event.down != 0) ? KEY_STATE_DOWN : KEY_STATE_UP;
-	if (event.scancode == SDL_SCANCODE_CAPSLOCK && event.down != 0)
-	{
-		m_capsState = !m_capsState;
-	}
 
 	pushKey(key, state);
 }
