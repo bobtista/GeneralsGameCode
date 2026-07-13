@@ -34,6 +34,7 @@
 #include "GameClient/Shell.h"
 #include "GameClient/View.h"
 #include "GameLogic/GameLogic.h"
+#include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/NetworkInterface.h"
 #if defined(SAGE_USE_OPENAL)
 #include "OpenALAudioDevice/OpenALAudioManager.h"
@@ -86,6 +87,29 @@ void SDL3GameEngine::update()
 {
 	pollSDL3Events();
 	GameEngine::update();
+
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Idle while minimized like the Win32 engine did
+	// when iconic, instead of simulating and rendering at full speed in the background. Multiplayer
+	// keeps running its logic, and TheLAN stays serviced so lobby peers still see us.
+	if (m_sdlWindow != NULL)
+	{
+		while ((SDL_GetWindowFlags(m_sdlWindow) & SDL_WINDOW_MINIMIZED) != 0)
+		{
+			SDL_Delay(5);
+			serviceWindowsOS();
+
+			if (TheLAN != NULL)
+			{
+				TheLAN->setIsActive(isActive());
+				TheLAN->update();
+			}
+
+			if (getQuitting() || TheGameLogic->isInInternetGame() || TheGameLogic->isInLanGame())
+			{
+				break;
+			}
+		}
+	}
 
 	// TheSuperHackers @bugfix bobtista 08/06/2026 Apply a settled window resize between
 	// frames; the full relayout destroys live GameWindow trees and crashes mid event-poll.
