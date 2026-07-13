@@ -752,9 +752,19 @@ void DynamicIBAccessClass::Allocate_Sorting_Dynamic_Buffer()
 	WWASSERT(!_DynamicSortingIndexArrayInUse);
 	_DynamicSortingIndexArrayInUse=true;
 
-	unsigned new_index_count=_DynamicSortingIndexArrayOffset+IndexCount;
-	WWASSERT(new_index_count<65536);
-	if (new_index_count>_DynamicSortingIndexArraySize) {
+	unsigned new_index_count=(unsigned)_DynamicSortingIndexArrayOffset+IndexCount;
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Start a fresh buffer when the request would
+	// cross the 65535 index capacity of SortingIndexBufferClass. The size was silently
+	// truncated to 16 bits, so the subsequent index writes overflowed the allocation.
+	// Draws queued earlier hold their own reference to the old buffer, so their data stays valid.
+	if (new_index_count>65535) {
+		REF_PTR_RELEASE(_DynamicSortingIndexArray);
+		_DynamicSortingIndexArraySize=IndexCount;
+		if (_DynamicSortingIndexArraySize<kDefaultDynamicIndexBufferSize) {
+			_DynamicSortingIndexArraySize=kDefaultDynamicIndexBufferSize;
+		}
+	}
+	else if (new_index_count>_DynamicSortingIndexArraySize) {
 		REF_PTR_RELEASE(_DynamicSortingIndexArray);
 		_DynamicSortingIndexArraySize=new_index_count;
 		if (_DynamicSortingIndexArraySize<kDefaultDynamicIndexBufferSize) _DynamicSortingIndexArraySize=kDefaultDynamicIndexBufferSize;
