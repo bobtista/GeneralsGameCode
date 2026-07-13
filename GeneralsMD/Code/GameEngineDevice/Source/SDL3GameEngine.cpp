@@ -28,6 +28,7 @@
 #include "Common/Debug.h"
 #include "Common/GameAudio.h"
 #include "Common/GlobalData.h"
+#include "Common/MessageStream.h"
 #include "GgcRuntimeFlags.h"
 #include "GameClient/Display.h"
 #include "GameClient/Gadget.h"
@@ -162,6 +163,25 @@ void SDL3GameEngine::setIsActive(Bool isActive)
 	m_isActive = isActive;
 }
 
+// TheSuperHackers @bugfix bobtista 13/07/2026 Route window close through the message stream like
+// the Win32 WM_CLOSE handler: in a match this opens the quit menu (and a repeat triggers the
+// self destruct and a sequenced quit) instead of instantly killing the process without a clean
+// multiplayer disconnect.
+static void requestApplicationQuit(GameEngine *engine)
+{
+	if (engine != NULL && !engine->getQuitting())
+	{
+		if (TheMessageStream != NULL && TheMessageStream->isReadyForMessages())
+		{
+			TheMessageStream->appendMessage(GameMessage::MSG_META_DEMO_INSTANT_QUIT);
+		}
+		else
+		{
+			engine->setQuitting(TRUE);
+		}
+	}
+}
+
 void SDL3GameEngine::pollSDL3Events()
 {
 	updateTextInputState();
@@ -172,7 +192,7 @@ void SDL3GameEngine::pollSDL3Events()
 		switch (event.type)
 		{
 			case SDL_EVENT_QUIT:
-				setQuitting(true);
+				requestApplicationQuit(this);
 				break;
 
 			case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
@@ -659,7 +679,7 @@ void SDL3GameEngine::handleWindowEvent(const SDL_WindowEvent &event)
 {
 	if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
 	{
-		setQuitting(true);
+		requestApplicationQuit(this);
 	}
 	else if (event.type == SDL_EVENT_WINDOW_FOCUS_GAINED)
 	{
