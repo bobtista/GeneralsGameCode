@@ -3150,6 +3150,10 @@ ALuint OpenALAudioManager::playSample(AudioEventRTS* event, PlayingAudio* audio)
 	if (bufferHandle) {
 		alSourcei(audio->m_source, AL_SOURCE_RELATIVE, AL_TRUE);
 		alSourcei(audio->m_source, AL_BUFFER, (ALuint)(uintptr_t)bufferHandle);
+		// TheSuperHackers @bugfix bobtista 13/07/2026 Apply the per-event pitch shift like the 3D
+		// path and the Miles initFilters call, so UI sounds and voices get their random variation.
+		Real pitch = event->getPitchShift() != 0.0f ? event->getPitchShift() : 1.0f;
+		alSourcef(audio->m_source, AL_PITCH, pitch);
 		alSourcef(audio->m_source, AL_GAIN, getEffectiveVolume(event));
 		alSourcePlay(audio->m_source);
 	}
