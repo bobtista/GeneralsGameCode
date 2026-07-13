@@ -434,10 +434,17 @@ Int FFmpegFile::getPixelFormat() const
 	return stream->codec_ctx->pix_fmt;
 }
 
-UnsignedInt FFmpegFile::getFrameTime() const
+// TheSuperHackers @bugfix bobtista 13/07/2026 Return the frame time unrounded; truncating to whole
+// milliseconds ran video ~1% fast against its audio, drifting seconds apart over a full movie.
+double FFmpegFile::getFrameTime() const
 {
 	const FFmpegStream *stream = findMatch(AVMEDIA_TYPE_VIDEO);
 	if (stream == nullptr)
-		return 0u;
-	return 1000u / av_q2d(m_fmtCtx->streams[stream->stream_idx]->avg_frame_rate);
+		return 0.0;
+
+	const double fps = av_q2d(m_fmtCtx->streams[stream->stream_idx]->avg_frame_rate);
+	if (fps <= 0.0)
+		return 0.0;
+
+	return 1000.0 / fps;
 }
