@@ -3012,7 +3012,9 @@ void OpenALAudioManager::closeAnySamplesUsingFile(const void* fileToClose)
 void OpenALAudioManager::setDeviceListenerPosition(void)
 {
 	// TheSuperHackers @bugfix bobtista 28/05/2026 AL_ORIENTATION takes a forward vector then an up vector; previous code passed the listener position in the forward slot.
-	ALfloat listenerOri[] = { 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Use the camera look vector for the forward slot so
+	// stereo panning rotates with the camera, matching the Miles AIL_set_3D_orientation call.
+	ALfloat listenerOri[] = { (ALfloat)m_listenerOrientation.x, (ALfloat)m_listenerOrientation.y, (ALfloat)m_listenerOrientation.z, 0.0f, 0.0f, 1.0f };
 	alListener3f(AL_POSITION, m_listenerPosition.x, m_listenerPosition.y, m_listenerPosition.z);
 	alListenerfv(AL_ORIENTATION, listenerOri);
 #ifdef INTENSIVE_AUDIO_DEBUG
