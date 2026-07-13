@@ -330,6 +330,18 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
 
 FFmpegVideoStream::~FFmpegVideoStream()
 {
+#ifdef RTS_USE_OPENAL
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Cut this movie's audio immediately like BinkClose
+	// did; otherwise up to a second of already queued audio keeps playing after the stream closes.
+	if (TheAudio != NULL)
+	{
+		OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
+		if (audioStream != NULL)
+		{
+			audioStream->reset();
+		}
+	}
+#endif
 	av_freep(&m_audioBuffer);
 	av_frame_free(&m_frame);
 	sws_freeContext(m_swsContext);
