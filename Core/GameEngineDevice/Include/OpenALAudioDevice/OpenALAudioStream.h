@@ -47,9 +47,13 @@ public:
     void markEndOfStream() { m_reachedEof = true; }
     bool reachedEndOfStream() const { return m_reachedEof; }
 
-    void play() { alSourcePlay(m_source); }
+    void play() { m_stopRequested = false; alSourcePlay(m_source); }
     void pause() { alSourcePause(m_source); }
-    void stop() { alSourceStop(m_source); }
+    // TheSuperHackers @bugfix bobtista 13/07/2026 Remember an intentional stop so update() does not
+    // treat the stopped source as an underrun and restart it; the drained stream is then released
+    // by processPlayingList, matching the Miles behavior of parking an explicitly stopped stream.
+    void stop() { m_stopRequested = true; alSourceStop(m_source); }
+    bool isStopRequested() const { return m_stopRequested; }
 
     void setVolume(float vol) { alSourcef(m_source, AL_GAIN, vol); }
 
@@ -59,4 +63,5 @@ protected:
     ALuint m_buffers[AL_STREAM_BUFFER_COUNT] = {};
     unsigned int m_current_buffer_idx = 0;
     bool m_reachedEof = false;
+    bool m_stopRequested = false;
 };
