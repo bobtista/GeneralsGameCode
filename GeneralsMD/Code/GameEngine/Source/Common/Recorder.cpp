@@ -428,6 +428,15 @@ void RecorderClass::updatePlayback() {
 		// This is reached if there are no more commands to be executed.
 		return;
 	}
+
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Do not inject recorded commands before the replay's
+	// game has begun. The logic frame counter is also 0 in the shell and while the game loads, so frame 0
+	// commands would otherwise dispatch in an earlier command batch than in the original game. That
+	// creates the dispatcher's transient AI groups in a different order, which desyncs the playback.
+	if (!m_doingAnalysis && (!TheGameLogic->isInGame() || TheGameLogic->isInShellGame())) {
+		return;
+	}
+
 	UnsignedInt curFrame = TheGameLogic->getFrame();
 	if (m_doingAnalysis)
 		curFrame = m_nextFrame;
