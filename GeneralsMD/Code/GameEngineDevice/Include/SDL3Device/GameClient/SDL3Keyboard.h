@@ -41,7 +41,6 @@ private:
 	KeyboardIO m_buffer[MAX_BUFFERED_KEYS];
 	UnsignedInt m_nextGetIndex;
 	UnsignedInt m_nextFreeIndex;
-	Bool m_capsState;
 };
 
 #endif
