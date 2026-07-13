@@ -390,9 +390,12 @@ void FFmpegVideoStream::onFrame(AVFrame *frame, int stream_idx, int stream_type,
 void FFmpegVideoStream::update()
 {
 #ifdef RTS_USE_OPENAL
-	// Start audio playback
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Service the audio stream instead of restarting it.
+	// alSourcePlay on an already playing source rewinds it to the head of its queued buffers every
+	// client frame, machine-gunning movie audio; update() unqueues played buffers and only restarts
+	// a genuinely underrun source.
 	OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
-	audioStream->play();
+	audioStream->update();
 #endif
 	//BinkWait( m_handle );
 }
