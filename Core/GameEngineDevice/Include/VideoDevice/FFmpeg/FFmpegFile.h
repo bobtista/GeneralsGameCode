@@ -85,6 +85,7 @@ private:
 	};
 
 	static Int readPacket(void *opaque, UnsignedByte *buf, Int buf_size);
+	static Int64 seekPacket(void *opaque, Int64 offset, Int whence);
 	const FFmpegStream *findMatch(int type) const;
 
 	FFmpegFrameCallback 		m_frameCallback = nullptr; ///< Callback for frame processing
