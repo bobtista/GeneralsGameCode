@@ -238,6 +238,12 @@ protected:
 	UnsignedInt m_num3DSamples;
 	UnsignedInt m_numStreams;
 
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Completed passes of the current music track,
+	// counted when a drained track is requeued, standing in for the Miles stream loop count that
+	// hasMusicTrackCompleted read.
+	AsciiString m_currentMusicTrackName;
+	Int m_currentMusicCompletionCount = 0;
+
 #if defined(_DEBUG) || defined(_INTERNAL)
 	typedef std::set<AsciiString> SetAsciiString;
 	typedef SetAsciiString::iterator SetAsciiStringIt;
