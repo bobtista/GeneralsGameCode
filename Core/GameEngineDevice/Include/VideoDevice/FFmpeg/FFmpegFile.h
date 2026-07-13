@@ -72,7 +72,7 @@ public:
 	Int getNumFrames() const;
 	Int getCurrentFrame() const;
 	Int getPixelFormat() const;
-	UnsignedInt getFrameTime() const;
+	double getFrameTime() const;
 
 private:
 	struct FFmpegStream
