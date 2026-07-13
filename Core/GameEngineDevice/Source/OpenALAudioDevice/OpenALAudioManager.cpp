@@ -596,6 +596,13 @@ void OpenALAudioManager::stopAudio(AudioAffect which)
 		for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ++it) {
 			playing = *it;
 			if (playing) {
+				// TheSuperHackers @bugfix bobtista 13/07/2026 Mark the event done so the completion
+				// notification in processPlayingList cannot advance it to another portion or loop,
+				// matching the immediate kill of the Miles path.
+				playing->m_requestStop = true;
+				if (playing->m_audioEventRTS) {
+					playing->m_audioEventRTS->setNextPlayPortion(PP_Done);
+				}
 				alSourceStop(playing->m_source);
 			}
 		}
@@ -605,6 +612,13 @@ void OpenALAudioManager::stopAudio(AudioAffect which)
 		for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ++it) {
 			playing = *it;
 			if (playing) {
+				// TheSuperHackers @bugfix bobtista 13/07/2026 Mark the event done so the completion
+				// notification in processPlayingList cannot advance it to another portion or loop,
+				// matching the immediate kill of the Miles path.
+				playing->m_requestStop = true;
+				if (playing->m_audioEventRTS) {
+					playing->m_audioEventRTS->setNextPlayPortion(PP_Done);
+				}
 				alSourceStop(playing->m_source);
 			}
 		}
@@ -1743,6 +1757,10 @@ void OpenALAudioManager::notifyOfAudioCompletion(UnsignedInt audioCompleted, Uns
 	playing->m_audioEventRTS->advanceNextPlayPortion();
 	if (playing->m_audioEventRTS->getNextPlayPortion() != PP_Done) {
 		if (playing->m_type == PAT_Sample) {
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Detach the finished buffer from the stopped
+			// source before closing it, so a cache eviction triggered by loading the next portion can
+			// actually delete it (alDeleteBuffers fails on a buffer still attached to a source).
+			alSourcei(playing->m_source, AL_BUFFER, 0);
 			closeBuffer(playing->m_bufferHandle);	// close it so as not to leak it.
 			playing->m_bufferHandle = playSample(playing->m_audioEventRTS, playing);
 
@@ -1753,6 +1771,10 @@ void OpenALAudioManager::notifyOfAudioCompletion(UnsignedInt audioCompleted, Uns
 			}
 		}
 		else if (playing->m_type == PAT_3DSample) {
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Detach the finished buffer from the stopped
+			// source before closing it, so a cache eviction triggered by loading the next portion can
+			// actually delete it (alDeleteBuffers fails on a buffer still attached to a source).
+			alSourcei(playing->m_source, AL_BUFFER, 0);
 			closeBuffer(playing->m_bufferHandle);	// close it so as not to leak it.
 			playing->m_bufferHandle = playSample3D(playing->m_audioEventRTS, playing);
 
@@ -2511,9 +2533,19 @@ void OpenALAudioManager::processPlayingList(void)
 
 		if (sourceIsStopped(playing->m_source))
 		{
-			//m_stoppedAudio.push_back(playing);
-			releasePlayingAudio(playing);
-			it = m_playingSounds.erase(it);
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Notify completion before releasing, standing in
+			// for the Miles end-of-sample callback, so multi-portion events (attack/sound/decay) and
+			// looping samples play their next portion. Release only if the source was not restarted.
+			notifyOfAudioCompletion((UnsignedInt)(playing->m_source), PAT_Sample);
+			if (sourceIsStopped(playing->m_source))
+			{
+				releasePlayingAudio(playing);
+				it = m_playingSounds.erase(it);
+			}
+			else
+			{
+				++it;
+			}
 		}
 		else
 		{
@@ -2536,9 +2568,19 @@ void OpenALAudioManager::processPlayingList(void)
 
 		if (sourceIsStopped(playing->m_source))
 		{
-			//m_stoppedAudio.push_back(playing);
-			releasePlayingAudio(playing);
-			it = m_playing3DSounds.erase(it);
+			// TheSuperHackers @bugfix bobtista 13/07/2026 Notify completion before releasing, standing in
+			// for the Miles end-of-sample callback, so multi-portion events (attack/sound/decay) and
+			// looping samples play their next portion. Release only if the source was not restarted.
+			notifyOfAudioCompletion((UnsignedInt)(playing->m_source), PAT_3DSample);
+			if (sourceIsStopped(playing->m_source))
+			{
+				releasePlayingAudio(playing);
+				it = m_playing3DSounds.erase(it);
+			}
+			else
+			{
+				++it;
+			}
 		}
 		else
 		{
@@ -2977,6 +3019,10 @@ Real OpenALAudioManager::getEffectiveVolume(AudioEventRTS* event) const
 //-------------------------------------------------------------------------------------------------
 Bool OpenALAudioManager::startNextLoop(PlayingAudio* looping)
 {
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Detach the finished buffer from the stopped source
+	// before closing it, so a cache eviction triggered by loading the next loop can actually delete
+	// it (alDeleteBuffers fails on a buffer still attached to a source).
+	alSourcei(looping->m_source, AL_BUFFER, 0);
 	closeBuffer(looping->m_bufferHandle);
 	looping->m_bufferHandle = 0;
 
