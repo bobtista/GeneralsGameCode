@@ -4172,6 +4172,39 @@ void GameLogic::update()
 	}
 #endif
 
+	// TheSuperHackers @feature bobtista 13/07/2026 Optional per-frame fingerprint of the sleepy update
+	// scheduler. The pop order of equal-priority modules depends on the heap operation history, which the
+	// game CRC does not cover, so a record-versus-playback divergence can stay invisible until it reorders
+	// two updates and desyncs the replay much later. Comparing these lines between the recording session's
+	// log and a replay simulation of it pinpoints the exact frame the scheduler first skews. The layout
+	// hash follows the heap array order; the content values are order-independent, so a divergent layout
+	// with equal content isolates a pure ordering difference.
+	static Int s_logSleepyFingerprint = -1;
+	if (s_logSleepyFingerprint == -1)
+	{
+		s_logSleepyFingerprint = GgcFlags::Enabled(GgcFlag_LogSleepyFingerprint) ? 1 : 0;
+	}
+	if (s_logSleepyFingerprint == 1 && isInGame() && !isInShellGame())
+	{
+		UnsignedInt layoutHash = 2166136261u;
+		UnsignedInt contentSum = 0;
+		UnsignedInt contentXor = 0;
+		for (size_t hfi = 0; hfi < m_sleepyUpdates.size(); ++hfi)
+		{
+			UpdateModule *hm = m_sleepyUpdates[hfi];
+			const Object *hobj = hm->friend_getObject();
+			UnsignedInt hid = hobj ? (UnsignedInt)hobj->getID() : 0xFFFFFFFFu;
+			UnsignedInt hpri = hm->friend_getPriority();
+			layoutHash = (layoutHash ^ hid) * 16777619u;
+			layoutHash = (layoutHash ^ hpri) * 16777619u;
+			UnsignedInt hcombined = (hid * 2654435761u) ^ hpri;
+			contentSum += hcombined;
+			contentXor ^= hcombined;
+		}
+		DEBUG_LOG(("GGC-HEAPFP frame=%d n=%d layout=%08X csum=%08X cxor=%08X",
+			m_frame, (Int)m_sleepyUpdates.size(), layoutHash, contentSum, contentXor));
+	}
+
 	// force CRC calculation, so we can keep a cache of the last N CRCs.  We do this right where the recorder
 	// would be getting the CRC anyway, so replays can get the CRCs from the exact instant in time as the original.
 	Bool isMPGameOrReplay = (TheRecorder && TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
