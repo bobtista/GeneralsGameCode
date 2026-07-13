@@ -2623,7 +2623,18 @@ void OpenALAudioManager::processPlayingList(void)
 					// GeneralsX @bugfix BenderAI 11/03/2026 - guard against null getAudioEventInfo()
 				const AudioEventInfo* pai = (playing->m_audioEventRTS ? playing->m_audioEventRTS->getAudioEventInfo() : nullptr);
 				Bool playAnyways = pai && (BitIsSet(pai->m_type, ST_GLOBAL) || pai->m_priority == AP_CRITICAL);
-					if (volForConsideration < m_audioSettings->m_minVolume && !playAnyways)
+					// TheSuperHackers @bugfix bobtista 13/07/2026 Also release sounds beyond their max
+					// range. Miles zeroed their volume in getEffectiveVolume so the min-volume check
+					// culled them, but the clamped inverse-distance model never reaches zero gain,
+					// leaving far-away sounds faintly audible and holding a channel forever.
+					Bool beyondMaxRange = FALSE;
+					if (pai)
+					{
+						Coord3D distanceVector = m_listenerPosition;
+						distanceVector.sub(*pos);
+						beyondMaxRange = distanceVector.length() >= pai->m_maxDistance;
+					}
+					if ((volForConsideration < m_audioSettings->m_minVolume || beyondMaxRange) && !playAnyways)
 					{
 						// don't want to get an additional callback for this sample
 						//AIL_register_3D_EOS_callback(playing->m_3DSample, NULL);
