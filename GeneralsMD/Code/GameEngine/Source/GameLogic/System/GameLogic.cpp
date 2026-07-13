@@ -2861,7 +2861,10 @@ static void findAndSelectCommandCenter(Object *obj, void* alreadyFound)
 	if (!((*(Bool*)alreadyFound)) && obj->isKindOf(KINDOF_COMMANDCENTER) )
 	{
 		((*(Bool*)alreadyFound)) = TRUE;
-		TheGameLogic->selectObject(obj, TRUE, obj->getControllingPlayer()->getPlayerMask(), obj->isLocallyControlled());
+		// TheSuperHackers @bugfix bobtista 13/07/2026 Do not select the drawable in replay playback,
+		// because replays use the observer control bar.
+		const Bool affectClient = obj->isLocallyControlled() && TheGameLogic->getGameMode() != GAME_REPLAY;
+		TheGameLogic->selectObject(obj, TRUE, obj->getControllingPlayer()->getPlayerMask(), affectClient);
 
 	}
 }
