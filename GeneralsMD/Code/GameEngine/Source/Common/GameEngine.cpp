@@ -478,6 +478,15 @@ void GameEngine::init()
 		ini.loadFileDirectory( "Data\\INI\\GameDataDebug", INI_LOAD_OVERWRITE, nullptr );
 	#endif
 
+		// TheSuperHackers @feature bobtista 14/07/2026 Load optional bgfx render settings from a
+		// separate file so they never require a modified GameData.ini. Excluded from the INI CRC
+		// because the settings are client render only.
+		if (TheFileSystem->doesFileExist("Data\\INI\\Bgfx.ini"))
+		{
+			ini.load("Data\\INI\\Bgfx.ini", INI_LOAD_OVERWRITE, nullptr);
+			DEBUG_LOG(("GameEngine::init() - loaded Data\\INI\\Bgfx.ini"));
+		}
+
 		// special-case: parse command-line parameters after loading global data
 		CommandLine::parseCommandLineForEngineInit();
 
