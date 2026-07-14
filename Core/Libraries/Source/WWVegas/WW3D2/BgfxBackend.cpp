@@ -117,6 +117,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "vs_trees_metal.bin.h"
 #include "fs_uber_metal.bin.h"
 #include "fs_uber_array_metal.bin.h"
+#include "fs_uber_frameconst_metal.bin.h"
 #include "vs_uber_array_metal.bin.h"
 #include "vs_shadow_volume_metal.bin.h"
 #include "fs_shadow_volume_metal.bin.h"
@@ -148,6 +149,7 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "vs_trees_dx11.bin.h"
 #include "fs_uber_dx11.bin.h"
 #include "fs_uber_array_dx11.bin.h"
+#include "fs_uber_frameconst_dx11.bin.h"
 #include "vs_uber_array_dx11.bin.h"
 
 // TheSuperHackers @refactor bobtista 15/04/2026 Stencil shadow
@@ -2045,6 +2047,13 @@ const bgfx::ViewId kBgfxSsaoBlurVView    = 19;
 // share one atlas (2x2 tiles), each fit to a progressively larger concentric box
 // around the camera focus. Views kBgfxShadowMapView + c render cascade c's tile.
 const int kNumShadowCascades             = 3;
+// TheSuperHackers @performance bobtista Width of the frame-constant data texture (RGBA32F,
+// 1 row). Holds the global per-frame constants the fs_uber_frameconst variant reads instead
+// of per-draw uniforms. Layout (must match fs_uber.sc GGC_UBER_FRAME_TEXTURE):
+//   0: sceneAmbient  1: shadowParams  2: shadowQuality  3-6: sun shadow matrix
+//   7: pointShadowParams  8: pointShadowLightPos  9: pointShadowLightColor  10-13: point shadow matrix
+const uint16_t kFrameConstTexels         = 16;
+const int kBgfxFrameConstSamplerStage    = 9;
 const bgfx::ViewId kBgfxShadowMapView    = 20;
 // TheSuperHackers @feature bobtista 23/06/2026 Perspective shadow map for one bright dynamic
 // point light (e.g. the nuke fireball). Renders before the engine view that samples it.
@@ -4187,7 +4196,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uMatSpecular = bgfx::createUniform("u_matSpecular", bgfx::UniformType::Vec4);
     g_uniforms.uMatFx       = bgfx::createUniform("u_matFx",       bgfx::UniformType::Vec4);
     g_uniforms.uEyePos      = bgfx::createUniform("u_eyePos",      bgfx::UniformType::Vec4);
-    g_uniforms.uShadowMatrices = bgfx::createUniform("u_shadowMatrices", bgfx::UniformType::Mat4, kNumShadowCascades);
+    // TheSuperHackers @performance bobtista The single camera-fit sun shadow uses only
+    // matrix [0]; the old [3]-cascade tail ([1]/[2]) was dead weight in every draw's uniform
+    // buffer. Upload just the one matrix the shader reads.
+    g_uniforms.uShadowMatrices = bgfx::createUniform("u_shadowMatrices", bgfx::UniformType::Mat4, 1);
     g_uniforms.uShadowParams = bgfx::createUniform("u_shadowParams", bgfx::UniformType::Vec4);
     g_uniforms.uShadowQuality = bgfx::createUniform("u_shadowQuality", bgfx::UniformType::Vec4);
     g_uniforms.uSunShadowReceive = bgfx::createUniform("u_sunShadowReceive", bgfx::UniformType::Vec4);
@@ -4258,6 +4270,19 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_device.sortedArrayProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_uber_array), sizeof(GGC_BGFX_SHADER(vs_uber_array)), "vs_uber_array",
         GGC_BGFX_SHADER(fs_uber_array), sizeof(GGC_BGFX_SHADER(fs_uber_array)), "fs_uber_array");
+
+    // TheSuperHackers @performance bobtista Frame-constant uber variant: same vs_uber, but the
+    // fragment shader reads the global per-frame constants (sun/point shadow + scene ambient)
+    // from frameConstTexture rather than per-draw uniforms, shrinking the fs_uber constant
+    // buffer by ~352B/draw so heavy scenes stay under bgfx's fixed 8MB Metal uniform arena.
+    g_device.uberFrameConstProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_uber), sizeof(GGC_BGFX_SHADER(vs_uber)), "vs_uber",
+        GGC_BGFX_SHADER(fs_uber_frameconst), sizeof(GGC_BGFX_SHADER(fs_uber_frameconst)), "fs_uber_frameconst");
+    g_uniforms.sFrameConst = bgfx::createUniform("s_frameConst", bgfx::UniformType::Sampler);
+    g_device.frameConstTexture = bgfx::createTexture2D(
+        kFrameConstTexels, 1, false, 1,
+        bgfx::TextureFormat::RGBA32F,
+        BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
 
     g_device.treeProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_trees), sizeof(GGC_BGFX_SHADER(vs_trees)), "vs_trees",
@@ -4393,6 +4418,8 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_device.smudgeProgram);
         DestroyBgfxHandle(g_device.fullscreenClearVB);
         DestroyBgfxHandle(g_device.uberProgram);
+        DestroyBgfxHandle(g_device.uberFrameConstProgram);
+        DestroyBgfxHandle(g_device.frameConstTexture);
         DestroyBgfxHandle(g_device.sortedArrayProgram);
         DestroyBgfxHandle(g_device.uberInstancedProgram);
         DestroyBgfxHandle(g_device.treeProgram);
@@ -4405,6 +4432,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.sTex3);
         DestroyBgfxHandle(g_uniforms.sSceneDepth);
         DestroyBgfxHandle(g_uniforms.sTexArray);
+        DestroyBgfxHandle(g_uniforms.sFrameConst);
         BgfxSortedTextureArrayShutdown();
         DestroyBgfxHandle(g_uniforms.uMatDiffuse);
         DestroyBgfxHandle(g_uniforms.uMatAmbient);
@@ -9103,9 +9131,9 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded, bgfx::ViewI
         static FrameConstUniformGuard s_shadowMatricesGuard;
         if (ShouldUploadFrameConstUniform(s_shadowMatricesGuard, submitView,
                                           g_frame.shadowMatrices,
-                                          kNumShadowCascades * 16 * sizeof(float)))
+                                          16 * sizeof(float)))
         {
-            bgfx::setUniform(g_uniforms.uShadowMatrices, g_frame.shadowMatrices, kNumShadowCascades);
+            bgfx::setUniform(g_uniforms.uShadowMatrices, g_frame.shadowMatrices, 1);
             CountUniformCommand(g_stats.shadowUniformCommands);
         }
     }
@@ -9239,6 +9267,68 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded, bgfx::ViewI
             s_loggedMatFx = true;
         }
     }
+}
+
+// TheSuperHackers @performance bobtista Kill switch for the frame-constant texture path.
+// Default on; set GGC_BGFX_NO_UNIFORM_FRAME_TEXTURE to fall back to the byte-identical plain
+// uber program (uniform reads) for A/B verification or bisection.
+static bool UniformFrameTextureEnabled()
+{
+    static const bool s_disabled = (getenv("GGC_BGFX_NO_UNIFORM_FRAME_TEXTURE") != nullptr);
+    return !s_disabled;
+}
+
+// TheSuperHackers @performance bobtista Pack the global per-frame constants (sun/point shadow,
+// scene ambient) into frameConstTexture. These are identical for every fs_uber draw in a frame,
+// so uploading them once per frame and having the fs_uber_frameconst variant sample them removes
+// ~352B/draw from the per-draw constant buffer. Texel layout MUST match fs_uber.sc.
+static void PackAndUploadFrameConstTexture()
+{
+    if (!bgfx::isValid(g_device.frameConstTexture))
+    {
+        return;
+    }
+    float texels[kFrameConstTexels * 4];
+    std::memset(texels, 0, sizeof(texels));
+
+    // texel 0: scene ambient
+    texels[0] = g_draw.sceneAmbient[0];
+    texels[1] = g_draw.sceneAmbient[1];
+    texels[2] = g_draw.sceneAmbient[2];
+    texels[3] = 1.0f;
+
+    // texel 1: shadow params (must match UploadLightUniforms)
+    const bool shadowMapActive = g_frame.shadowActive && bgfx::isValid(g_device.shadowMapTex)
+        && g_device.shadowMapSize > 0;
+    if (shadowMapActive)
+    {
+        float p[4] = { 0.0015f, 1.0f, 0.0f, 0.0f };
+        GGC_GetBgfxShadowMapParams(p);
+        texels[4] = 1.0f / static_cast<float>(g_device.shadowMapSize); // texel size
+        texels[5] = p[0]; // depth bias
+        texels[6] = p[1]; // shadow strength
+        texels[7] = 1.0f; // enabled
+    }
+
+    // texel 2: shadow quality
+    static const float s_fullPcf =
+        (GgcFlags::Enabled(GgcFlag_BgfxShadowFullPcf) || GGC_GetBgfxShadowFullPcf() != 0) ? 1.0f : 0.0f;
+    texels[8] = s_fullPcf;
+
+    // texels 3-6: sun shadow matrix (bgfx column-major float[16]: texel = one column;
+    // the shader rebuilds with mtxFromCols, the same convention as the instanced i_data path)
+    std::memcpy(&texels[12], g_frame.shadowMatrices, 16 * sizeof(float));
+
+    // texel 7: point shadow params, 8: light pos, 9: light color
+    std::memcpy(&texels[28], g_draw.pointShadowParams, sizeof(g_draw.pointShadowParams));
+    std::memcpy(&texels[32], g_draw.pointShadowLightPos, sizeof(g_draw.pointShadowLightPos));
+    std::memcpy(&texels[36], g_draw.pointShadowLightColor, sizeof(g_draw.pointShadowLightColor));
+
+    // texels 10-13: point shadow matrix
+    std::memcpy(&texels[40], g_draw.pointShadowMatrix, sizeof(g_draw.pointShadowMatrix));
+
+    bgfx::updateTexture2D(g_device.frameConstTexture, 0, 0, 0, 0,
+                          kFrameConstTexels, 1, bgfx::copy(texels, sizeof(texels)));
 }
 
 static void BindTextureStages()
@@ -13163,6 +13253,28 @@ void SubmitEngineDraw(unsigned short start_index,
                              pageTex,
                              g_draw.samplerFlags[0] | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
             program = g_device.sortedArrayProgram;
+        }
+    }
+    if (program.idx == g_device.uberProgram.idx)
+    {
+        // TheSuperHackers @performance bobtista Route plain uber draws to the frame-constant
+        // variant: it reads the global sun/point-shadow + scene-ambient constants from a data
+        // texture (updated once per frame) instead of per-draw uniforms, shrinking the per-draw
+        // constant buffer so heavy scenes stay under bgfx's fixed 8MB Metal uniform arena.
+        if (UniformFrameTextureEnabled()
+            && bgfx::isValid(g_device.uberFrameConstProgram)
+            && bgfx::isValid(g_device.frameConstTexture))
+        {
+            static uint32_t s_frameConstUpdatedFrame = 0xffffffffu;
+            if (s_frameConstUpdatedFrame != g_stats.frameIndex)
+            {
+                s_frameConstUpdatedFrame = g_stats.frameIndex;
+                PackAndUploadFrameConstTexture();
+            }
+            bgfx::setTexture(kBgfxFrameConstSamplerStage, g_uniforms.sFrameConst,
+                             g_device.frameConstTexture,
+                             BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+            program = g_device.uberFrameConstProgram;
         }
     }
     bgfx::submit(submitView, program);
