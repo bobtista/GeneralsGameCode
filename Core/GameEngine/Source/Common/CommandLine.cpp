@@ -1549,8 +1549,8 @@ static CommandLineParam paramsForStartup[] =
 static CommandLineParam paramsForEngineInit[] =
 {
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
-	{ "-bgfxEffects", parseBgfxEffects }, // must be in this (post-INI) table so it overrides GameData.ini
-	{ "-bgfxNoEffects", parseBgfxNoEffects }, // must be post-INI so parity/perf runs can override GameData.ini
+	{ "-bgfxEffects", parseBgfxEffects }, // must be in this (post-INI) table so it overrides Bgfx.ini/GameData.ini
+	{ "-bgfxNoEffects", parseBgfxNoEffects }, // must be post-INI so parity/perf runs can override Bgfx.ini/GameData.ini
 	{ "-noshellmap", parseNoShellMap },
 	{ "-noShellAnim", parseNoWindowAnimation }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-xres", parseXRes },
