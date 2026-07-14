@@ -202,6 +202,15 @@ Shadow *W3DShadowManager::addShadow( RenderObjClass *robj, Shadow::ShadowTypeInf
 {
 	ShadowType type = SHADOW_VOLUME;
 
+	// TheSuperHackers @feature bobtista 15/07/2026 The bgfx sun shadow map replaces the legacy
+	// stencil volumes and blob/projected decals; creating them anyway doubles every unit shadow
+	// (and pays the CPU silhouette cost). GGC_ENABLE_LEGACY_STENCIL_SHADOWS restores them for A/B.
+	static const Bool forceLegacyShadows = GgcFlags::Enabled(GgcFlag_EnableLegacyStencilShadows);
+	if (!forceLegacyShadows && TheGlobalData != NULL && TheGlobalData->m_bgfxShadowMaps)
+	{
+		return nullptr;
+	}
+
 	if (shadowInfo)
 		type = shadowInfo->m_type;
 

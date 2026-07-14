@@ -89,8 +89,16 @@ public:
 																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime,
 																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f ) override;
 	virtual void updateTrackingLight( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real attenuationWidth,
-																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f ) override;
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f, Bool snapBlend = FALSE,
+																 UnsignedInt emitterId = 0 ) override;
 	virtual void clearTrackingLight( void ) override;
+	// TheSuperHackers @feature bobtista 15/07/2026 The persistent tracking lights keep the
+	// point-shadow slots: transient pulses may be momentarily brighter, and letting them steal
+	// a slot made a beam's cast shadows blink for the pulse's lifetime.
+	// TheSuperHackers @bugfix bobtista 16/07/2026 One light PER EMITTER: two cannons firing at
+	// once fought over a single light, snapping all drama lighting between the beams per frame.
+	class W3DDynamicLight *getTrackingLight( const class W3DDynamicLight *exclude = nullptr ) const;
+	Bool isTrackingLight( const class W3DDynamicLight *light ) const;
 	virtual void setTimeOfDay ( TimeOfDay tod ) override;
 
 	/// draw a line on the display in screen coordinates
@@ -173,7 +181,13 @@ protected:
 
 	Byte m_initialized;												///< TRUE when system is initialized
 	LightClass *m_myLight[LightEnvironmentClass::MAX_LIGHTS];										///< light hack for now
-	class W3DDynamicLight *m_trackingLight;		///< persistent light a moving emitter repositions (e.g. particle-cannon beam)
+	enum { MAX_TRACKING_LIGHTS = 4 };
+	struct TrackingLightSlot
+	{
+		UnsignedInt emitterId;
+		class W3DDynamicLight *light;
+	};
+	TrackingLightSlot m_trackingLights[MAX_TRACKING_LIGHTS];	///< persistent per-emitter lights (e.g. particle-cannon beams)
 	Render2DClass *m_2DRender;								///< interface for common 2D functions
 	IRegion2D m_clipRegion;									///< the clipping region for images
 	Bool m_isClippedEnabled;	///<used by 2D drawing operations to define clip re
