@@ -1386,6 +1386,15 @@ void HeightMapRenderObjClass::On_Frame_Update()
 	{
 		W3DDynamicLight *pLight = (W3DDynamicLight*)pDynamicLightsIterator.Peek_Obj();
 		pLight->m_processMe = false;
+#ifdef RTS_ZEROHOUR
+		// TheSuperHackers @bugfix bobtista 15/07/2026 Lights that illuminate through the dedicated
+		// shadowed point-light path skip the legacy CPU terrain vertex lighting too: its per-channel
+		// clamp bleaches already-bright daylight vertex colors to white, flashing the terrain toward
+		// its raw (warm) albedo instead of adding the light's own colour.
+		if (pLight->getExcludeFromLightEnv()) {
+			continue;
+		}
+#endif
 		if (pLight->m_enabled || pLight->m_priorEnable) {
 			Real range = pLight->Get_Attenuation_Range();
 			if (pLight->m_priorEnable) {
