@@ -91,7 +91,9 @@ public:
 	W3DDynamicLight *getADynamicLight();
 	// TheSuperHackers @feature bobtista 23/06/2026 Returns the brightest enabled CastsShadows
 	// dynamic light (by current diffuse magnitude), or NULL. Drives the single point-shadow map.
-	W3DDynamicLight *getStrongestShadowCastingDynamicLight(void);
+	// TheSuperHackers @feature bobtista 14/07/2026 Optional exclude skips one light so the
+	// second-strongest caster can be found for the second point-shadow slot.
+	W3DDynamicLight *getStrongestShadowCastingDynamicLight(const W3DDynamicLight *exclude = NULL);
 	void setGlobalLight(LightClass *pLight,Int lightIndex=0);
 	LightEnvironmentClass &getDefaultLightEnv() {return m_defaultLightEnv;}
 

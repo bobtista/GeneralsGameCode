@@ -142,8 +142,11 @@ public:
 	// fresh light per frame (which flickers as the strongest-light pick jumps between overlapping
 	// pulses). Refresh it each active frame and clear it when the emitter stops. Default no-ops so
 	// non-W3D displays need not implement.
+	// TheSuperHackers @feature bobtista 14/07/2026 snapBlend requests fast blend factors so the
+	// emitter can drive rapid intensity flicker through the light instead of the smooth easing.
 	virtual void updateTrackingLight( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real attenuationWidth,
-																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f ) { }
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f, Bool snapBlend = FALSE,
+																 UnsignedInt emitterId = 0 ) { }
 	virtual void clearTrackingLight( void ) { }
 
 	/// draw a line on the display in pixel coordinates with the specified color

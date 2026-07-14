@@ -695,7 +695,78 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 				beamColor.blue *= intensity;
 				Coord3D beamLightPos = m_currentTargetPosition;
 				beamLightPos.z += 95.0f;
-				TheDisplay->updateTrackingLight( &beamLightPos, &beamColor, 190.0f, 560.0f, TRUE, 0.0015f, 0.48f * intensity );
+				Real beamShadowStrength = 0.48f * intensity;
+				Bool snapBlend = FALSE;
+				// TheSuperHackers @feature bobtista 14/07/2026 Experimental dramatic beam lighting
+				// (GGC_PCANNON_ENHANCED): the primary beam light (and its main shadow) stays put with a
+				// gentle intensity flicker; the drama comes from short-lived "lightning" pulse lights
+				// spawned beside the beam at hashed, irregular moments. Each pulse decays over a few
+				// frames and casts its own real shadow through the renderer's second point-shadow
+				// slot, so extra shadows blink in from changing directions while the main shadow
+				// never moves. Purely visual: lights feed the render backend only, no logic state is
+				// touched, and the randomness is a hash of the logic frame (no game RNG consumed).
+				static const Bool dramaticBeamLight = GgcFlags::Enabled(GgcFlag_PCannonEnhanced)
+					|| (TheGlobalData != NULL && TheGlobalData->m_pcannonEnhanced);
+				if( dramaticBeamLight )
+				{
+					static const Bool noFlicker = GgcFlags::Enabled(GgcFlag_PCannonNoFlicker);
+					static const Bool noFlash = GgcFlags::Enabled(GgcFlag_PCannonNoFlash);
+					// The drama beam glow runs brighter than the plain tracking light: with the
+					// point-light contributions gated out of shadows and off cutouts/decals, the
+					// remaining lit-ground glow needs the extra energy to read at all.
+					beamColor.red *= 2.4f;
+					beamColor.green *= 2.4f;
+					beamColor.blue *= 2.4f;
+					// The primary light stays fixed on the beam column: one steady main shadow.
+					// The "messy" secondary shadows come only from the flash pulses sparking just
+					// outside the beam (an orbiting primary read as a nonsensical rotating shadow).
+					if( !noFlicker )
+					{
+						UnsignedInt h = now;
+						h = (h ^ 61u) ^ (h >> 16); h *= 9u; h = h ^ (h >> 4); h *= 0x27d4eb2du; h = h ^ (h >> 15);
+						const Real flickerRand = (Real)(h & 0xFFFFu) / 65535.0f;
+						const Real flicker = 0.62f + 0.38f * flickerRand;
+						beamColor.red *= flicker;
+						beamColor.green *= flicker;
+						beamColor.blue *= flicker;
+						// The beam's shadow darkness stays constant: only the light's brightness
+						// flickers. Any throb on shadow strength reads as shadow patches flashing.
+						snapBlend = TRUE;
+					}
+
+					// One lightning pulse may fire per 10-frame window, at a hashed frame within it,
+					// from a hashed direction beside the beam. increase 0 / decay 8 frames: it pops on
+					// and fades, so its cast shadow blinks in briefly and dissolves.
+					const UnsignedInt flashWindow = 10;
+					const UnsignedInt window = now / flashWindow;
+					UnsignedInt wh = window * 7919u + 97u;
+					wh = (wh ^ 61u) ^ (wh >> 16); wh *= 9u; wh = wh ^ (wh >> 4); wh *= 0x27d4eb2du; wh = wh ^ (wh >> 15);
+					const Bool windowHasFlash = ((wh & 0xFFu) > 40u); // ~84% of windows
+					const UnsignedInt flashStart = window * flashWindow + ((wh >> 8) % 8u);
+					if( !noFlash && windowHasFlash && now == flashStart )
+					{
+						const Real flashAngle = ((Real)((wh >> 12) & 0x3FFu) / 1023.0f) * 6.2832f;
+						const Real flashRadius = 100.0f + ((Real)((wh >> 22) & 0xFFu) / 255.0f) * 50.0f;
+						Coord3D flashPos = m_currentTargetPosition;
+						flashPos.x += flashRadius * WWMath::Cosf( flashAngle );
+						flashPos.y += flashRadius * WWMath::Sinf( flashAngle );
+						// Keep the flash well overhead: a low light grazes its own shadow map across
+						// the whole footprint (a visible dark square of acne on the ground) and blows
+						// out nearby foliage sitting inside the near-full attenuation zone.
+						flashPos.z += 80.0f;
+						RGBColor flashColor;
+						// Cool and local: deep blue, so flashes read as lightning beside the beam
+						// instead of scene-wide warm brightness pulses. Bright enough to register on
+						// sunlit ground now that shadows/cutouts/decals are gated out entirely.
+						flashColor.red = 0.70f * intensity;
+						flashColor.green = 1.40f * intensity;
+						flashColor.blue = 4.20f * intensity;
+						TheDisplay->createLightPulse( &flashPos, &flashColor, 110.0f, 260.0f, 0, 7, TRUE, 0.003f, 0.45f * intensity );
+						DEBUG_LOG(("PCANNON flash pulse frame=%d pos=(%.0f,%.0f,%.0f)", now, flashPos.x, flashPos.y, flashPos.z));
+					}
+				}
+				TheDisplay->updateTrackingLight( &beamLightPos, &beamColor, dramaticBeamLight ? 90.0f : 190.0f, dramaticBeamLight ? 290.0f : 560.0f, TRUE, 0.0015f, beamShadowStrength, snapBlend,
+					(UnsignedInt)getObject()->getID() );
 			}
 			damageRadius = logicalLaserRadius * data->m_damageRadiusScalar;
 			scorchRadius = logicalLaserRadius * data->m_scorchMarkScalar;

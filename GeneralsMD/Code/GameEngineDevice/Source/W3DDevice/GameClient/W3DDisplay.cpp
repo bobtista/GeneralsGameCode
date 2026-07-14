@@ -434,7 +434,11 @@ W3DDisplay::W3DDisplay()
 	Int i;
 
 	m_initialized = false;
-	m_trackingLight = nullptr;
+	for (i = 0; i < MAX_TRACKING_LIGHTS; ++i)
+	{
+		m_trackingLights[i].emitterId = 0;
+		m_trackingLights[i].light = nullptr;
+	}
 	m_assetManager = nullptr;
 	m_3DScene = nullptr;
 	m_2DScene = nullptr;
@@ -2425,6 +2429,12 @@ void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
 	theDynamicLight->setCastsShadows(castsShadows);
 	theDynamicLight->setShadowBias(shadowBias);
 	theDynamicLight->setShadowStrength(shadowStrength);
+	// TheSuperHackers @bugfix bobtista 15/07/2026 A shadow-casting pulse lights receivers through
+	// the dedicated shadowed point-light path in the uber shader; it must not ALSO enter the
+	// per-object LightEnvironment, which double-lights receivers unshadowed and clips bright
+	// foliage texels into white speckles under MODULATE2X materials. Set unconditionally: pooled
+	// lights are reused and would otherwise carry a stale flag.
+	theDynamicLight->setExcludeFromLightEnv(castsShadows);
 	// (gth) CNC3 enable far attenuation.  C&C3 defaults to disabled.  Must enable to match Generals. MW 8-06-03
 	theDynamicLight->Set_Flag(LightClass::FAR_ATTENUATION,true);
 }
@@ -2434,18 +2444,76 @@ void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
 // The light's colour and shadow strength ease toward the requested beam intensity, with a longer
 // decay window kept armed so the light tails off if the emitter stops refreshing it. This avoids both
 // per-frame flicker from overlapping pulses and building receiver snaps at beam start/end.
+W3DDynamicLight *W3DDisplay::getTrackingLight( const W3DDynamicLight *exclude ) const
+{
+	for (Int tl = 0; tl < MAX_TRACKING_LIGHTS; ++tl)
+	{
+		W3DDynamicLight *light = m_trackingLights[tl].light;
+		if (light != nullptr && light != exclude && light->isEnabled() && light->getCastsShadows())
+		{
+			return light;
+		}
+	}
+	return nullptr;
+}
+
+Bool W3DDisplay::isTrackingLight( const W3DDynamicLight *light ) const
+{
+	for (Int tl = 0; tl < MAX_TRACKING_LIGHTS; ++tl)
+	{
+		if (m_trackingLights[tl].light == light)
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
 void W3DDisplay::updateTrackingLight( const Coord3D *pos, const RGBColor *color,
 																		 Real innerRadius, Real attenuationWidth,
-																		 Bool castsShadows, Real shadowBias, Real shadowStrength )
+																		 Bool castsShadows, Real shadowBias, Real shadowStrength, Bool snapBlend,
+																		 UnsignedInt emitterId )
 {
 	if (m_3DScene == nullptr)
 		return;
-	const Bool hadActiveTrackingLight = (m_trackingLight != nullptr && m_trackingLight->isEnabled());
-	if (m_trackingLight == nullptr || !m_trackingLight->isEnabled())
+	// TheSuperHackers @bugfix bobtista 16/07/2026 One light PER EMITTER: two cannons firing at
+	// once fought over a single light, snapping every drama element between the beams per frame.
+	// Find this emitter's live slot, else claim a dead one.
+	Int slot = -1;
+	for (Int tl = 0; tl < MAX_TRACKING_LIGHTS; ++tl)
 	{
-		m_trackingLight = m_3DScene->getADynamicLight();
+		if (m_trackingLights[tl].light != nullptr
+			&& m_trackingLights[tl].emitterId == emitterId
+			&& m_trackingLights[tl].light->isEnabled())
+		{
+			slot = tl;
+			break;
+		}
 	}
-	W3DDynamicLight *light = m_trackingLight;
+	if (slot == -1)
+	{
+		for (Int tl = 0; tl < MAX_TRACKING_LIGHTS; ++tl)
+		{
+			if (m_trackingLights[tl].light == nullptr || !m_trackingLights[tl].light->isEnabled())
+			{
+				slot = tl;
+				break;
+			}
+		}
+	}
+	if (slot == -1)
+	{
+		return; // every slot is busy with another live emitter
+	}
+	const Bool hadActiveTrackingLight = (m_trackingLights[slot].light != nullptr
+		&& m_trackingLights[slot].light->isEnabled()
+		&& m_trackingLights[slot].emitterId == emitterId);
+	if (m_trackingLights[slot].light == nullptr || !m_trackingLights[slot].light->isEnabled())
+	{
+		m_trackingLights[slot].light = m_3DScene->getADynamicLight();
+	}
+	m_trackingLights[slot].emitterId = emitterId;
+	W3DDynamicLight *light = m_trackingLights[slot].light;
 	Vector3 desiredColor( color->red, color->green, color->blue );
 	Real desiredShadowStrength = shadowStrength;
 	Vector3 currentColor( 0.0f, 0.0f, 0.0f );
@@ -2455,10 +2523,12 @@ void W3DDisplay::updateTrackingLight( const Coord3D *pos, const RGBColor *color,
 		light->Get_Diffuse( &currentColor );
 		currentShadowStrength = light->getShadowStrength();
 	}
-	const Real upBlend = 0.02f;
-	const Real downSmooth = 0.96f;
-	const Real shadowUpBlend = 0.08f;
-	const Real shadowDownSmooth = 0.98f;
+	// TheSuperHackers @feature bobtista 14/07/2026 snapBlend keeps a touch of smoothing but lets
+	// per-frame flicker from the emitter come through mostly intact (dramatic beam lighting).
+	const Real upBlend = snapBlend ? 0.65f : 0.02f;
+	const Real downSmooth = snapBlend ? 0.70f : 0.96f;
+	const Real shadowUpBlend = snapBlend ? 0.65f : 0.08f;
+	const Real shadowDownSmooth = snapBlend ? 0.75f : 0.98f;
 	if (desiredColor.X >= currentColor.X) { desiredColor.X = currentColor.X + (desiredColor.X - currentColor.X) * upBlend; }
 	else if (desiredColor.X < currentColor.X * downSmooth) { desiredColor.X = currentColor.X * downSmooth; }
 	if (desiredColor.Y >= currentColor.Y) { desiredColor.Y = currentColor.Y + (desiredColor.Y - currentColor.Y) * upBlend; }
@@ -2477,6 +2547,9 @@ void W3DDisplay::updateTrackingLight( const Coord3D *pos, const RGBColor *color,
 	light->Set_Ambient( desiredColor );
 	light->Set_Diffuse( desiredColor );
 	light->Set_Position( Vector3( pos->x, pos->y, pos->z ) );
+	// Same rule as createLightPulse: a shadow-casting tracking light illuminates through the
+	// dedicated shadowed point-light path only (see @bugfix 15/07/2026 there).
+	light->setExcludeFromLightEnv(castsShadows);
 	light->Set_Far_Attenuation_Range( innerRadius, innerRadius + attenuationWidth );
 	// Keep a decay window armed every refresh. If the emitter stops calling updateTrackingLight, the
 	// current eased colour/shadow strength tails off instead of disappearing on the next render frame.
@@ -2491,12 +2564,16 @@ void W3DDisplay::updateTrackingLight( const Coord3D *pos, const RGBColor *color,
 
 void W3DDisplay::clearTrackingLight( void )
 {
-	if (m_trackingLight != nullptr)
+	for (Int tl = 0; tl < MAX_TRACKING_LIGHTS; ++tl)
 	{
-		m_trackingLight->setFrameFade(0, 45);
-		m_trackingLight->setDecayRange();
-		m_trackingLight->setDecayColor();
-		m_trackingLight = nullptr;
+		if (m_trackingLights[tl].light != nullptr)
+		{
+			m_trackingLights[tl].light->setFrameFade(0, 45);
+			m_trackingLights[tl].light->setDecayRange();
+			m_trackingLights[tl].light->setDecayColor();
+			m_trackingLights[tl].light = nullptr;
+			m_trackingLights[tl].emitterId = 0;
+		}
 	}
 }
 

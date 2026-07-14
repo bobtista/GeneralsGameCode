@@ -59,6 +59,12 @@ protected:
 	Real		m_shadowStrength;
 	Real		m_targetShadowStrength;
 
+	// TheSuperHackers @feature bobtista 15/07/2026 Opt-out of per-object LightEnvironment
+	// gathering. A light that already illuminates the scene through the dedicated shadowed
+	// point-light path would double-light receivers via the light environment - unshadowed,
+	// and clipping bright foliage texels to white speckles under MODULATE2X materials.
+	Bool		m_excludeFromLightEnv;
+
 	Bool		m_decayRange;
 	Bool		m_decayColor;
 	UnsignedInt m_curDecayFrameCount;
@@ -87,6 +93,8 @@ public:
 
 	void setCastsShadows(Bool b) { m_castsShadows = b; }
 	Bool getCastsShadows() const { return m_castsShadows; }
+	void setExcludeFromLightEnv(Bool b) { m_excludeFromLightEnv = b; }
+	Bool getExcludeFromLightEnv() const { return m_excludeFromLightEnv; }
 	void setShadowBias(Real b) { m_shadowBias = b; }
 	Real getShadowBias() const { return m_shadowBias; }
 	void setShadowStrength(Real s) { m_shadowStrength = s; m_targetShadowStrength = s; }
