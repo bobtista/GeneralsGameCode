@@ -347,6 +347,14 @@ extern "C" int GGC_GetBgfxDynamicLightShadowsEnabled()
 	return 1;
 }
 
+// TheSuperHackers @feature bobtista 16/07/2026 INI toggle for the experimental dramatic Particle
+// Cannon lighting. Data/INI/Bgfx.ini "PCannonEnhanced = Yes" enables it without the env flag; the
+// GGC_PCANNON_ENHANCED env flag still overrides (checked alongside this in the read sites).
+extern "C" int GGC_GetPCannonEnhancedEnabled()
+{
+	return (TheGlobalData && TheGlobalData->m_pcannonEnhanced) ? 1 : 0;
+}
+
 // params: x = depth bias, y = shadow strength (0 = none, 1 = full).
 extern "C" void GGC_GetBgfxShadowMapParams(float * params)
 {
@@ -411,6 +419,13 @@ extern "C" int GGC_GetBgfxStencilShadowsEnabled()
 	if (!TheGlobalData)
 	{
 		return 1;
+	}
+	// TheSuperHackers @feature bobtista 15/07/2026 The sun shadow map replaces the legacy
+	// stencil volumes; running both doubles every unit shadow. GGC_ENABLE_LEGACY_STENCIL_SHADOWS
+	// still forces the legacy path back on in the backend for A/B comparison.
+	if (TheGlobalData->m_bgfxShadowMaps)
+	{
+		return 0;
 	}
 	return TheGlobalData->m_bgfxStencilShadows ? 1 : 0;
 }
@@ -572,6 +587,7 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxShadowFullPcf",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxShadowFullPcf ) },
 	{ "BgfxStencilShadows",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxStencilShadows ) },
 	{ "BgfxDynamicLightShadows",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxDynamicLightShadows ) },
+	{ "PCannonEnhanced",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_pcannonEnhanced ) },
 	{ "BgfxPointFilter",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxPointFilter ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
@@ -1179,6 +1195,7 @@ GlobalData::GlobalData()
 	m_bgfxShadowMapBias = 0.0006f;
 	m_bgfxShadowMapStrength = 0.35f;
 	m_bgfxDynamicLightShadows = FALSE;
+	m_pcannonEnhanced = FALSE;
 	m_bgfxPointFilter = FALSE;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
