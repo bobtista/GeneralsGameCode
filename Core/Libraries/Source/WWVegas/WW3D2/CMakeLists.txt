@@ -309,6 +309,11 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc NAME fs_uber_array DEFINES "GGC_UBER_STAGE0_ARRAY=1")
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber.sc NAME vs_uber_array DEFINES "GGC_UBER_STAGE0_ARRAY=1")
+    # TheSuperHackers @performance bobtista fs_uber variant that reads the global per-frame
+    # constants (sun/point shadow, scene ambient) from a data texture instead of per-draw
+    # uniforms, shrinking the per-draw constant buffer so heavy scenes stay under bgfx's
+    # fixed 8MB Metal uniform arena. Pairs with the unmodified vs_uber.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc NAME fs_uber_frameconst DEFINES "GGC_UBER_FRAME_TEXTURE=1")
     # TheSuperHackers @refactor bobtista 14/04/2026 Ported Trees.nvv
     # (grass/blade sway vertex shader). Reuses fs_uber for the fragment side.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_trees.sc)
