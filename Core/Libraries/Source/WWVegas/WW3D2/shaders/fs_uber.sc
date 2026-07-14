@@ -34,6 +34,9 @@ SAMPLER2D(s_shadowMap, 7);
 // The nuke caster is a dedicated light (not a LightEnvironment slot):
 // u_pointShadowLightPos = world xyz + outer range, u_pointShadowLightColor = diffuse rgb.
 SAMPLER2D(s_pointShadowMap, 8);
+// TheSuperHackers @feature bobtista 14/07/2026 Second point-shadow slot: transient lightning
+// flash lights near the particle-cannon beam cast their own shadow alongside the primary.
+SAMPLER2D(s_pointShadowMap2, 10);
 // TheSuperHackers @performance bobtista Global per-frame constants (sun-shadow and point-
 // shadow transforms/params, scene ambient) are identical for every draw in a frame. The
 // GGC_UBER_FRAME_TEXTURE variant reads them from a small data texture instead of per-draw
@@ -43,29 +46,38 @@ SAMPLER2D(s_pointShadowMap, 8);
 // it when GGC_BGFX_NO_UNIFORM_FRAME_TEXTURE is set.
 #if GGC_UBER_FRAME_TEXTURE
 SAMPLER2D(s_frameConst, 9);
-vec4 ggcFrameConst(int i) { return texture2DLod(s_frameConst, vec2((float(i) + 0.5) / 16.0, 0.5), 0.0); }
+vec4 ggcFrameConst(int i) { return texture2DLod(s_frameConst, vec2((float(i) + 0.5) / 24.0, 0.5), 0.0); }
 #define u_shadowParams          ggcFrameConst(1)
 #define u_shadowQuality         ggcFrameConst(2)
 #define u_pointShadowParams     ggcFrameConst(7)
 #define u_pointShadowLightPos   ggcFrameConst(8)
 #define u_pointShadowLightColor ggcFrameConst(9)
+#define u_pointShadow2Params     ggcFrameConst(14)
+#define u_pointShadow2LightPos   ggcFrameConst(15)
+#define u_pointShadow2LightColor ggcFrameConst(16)
 // The packer memcpys the bgfx column-major float[16] (texel = one column), so the matrices
 // must be rebuilt with mtxFromCols - the same convention the instanced vertex path uses for
 // i_data0-3. A raw mat4() constructor is not portable across shader languages and yields a
 // transposed transform on Metal.
 #define GGC_SUN_SHADOW_MATRIX   mtxFromCols(ggcFrameConst(3), ggcFrameConst(4), ggcFrameConst(5), ggcFrameConst(6))
 #define GGC_POINT_SHADOW_MATRIX mtxFromCols(ggcFrameConst(10), ggcFrameConst(11), ggcFrameConst(12), ggcFrameConst(13))
+#define GGC_POINT_SHADOW2_MATRIX mtxFromCols(ggcFrameConst(17), ggcFrameConst(18), ggcFrameConst(19), ggcFrameConst(20))
 #define GGC_SCENE_AMBIENT       u_sceneAmbient
 #else
 uniform mat4 u_pointShadowMatrix;
 uniform vec4 u_pointShadowParams;
 uniform vec4 u_pointShadowLightPos;
 uniform vec4 u_pointShadowLightColor;
+uniform mat4 u_pointShadow2Matrix;
+uniform vec4 u_pointShadow2Params;
+uniform vec4 u_pointShadow2LightPos;
+uniform vec4 u_pointShadow2LightColor;
 uniform mat4 u_shadowMatrices[1]; // single camera-fit sun shadow map (was [3] cascades; [1]/[2] unused)
 uniform vec4 u_shadowParams; // x atlas texel size, y depth bias, z strength, w enabled
 uniform vec4 u_shadowQuality; // x: >0.5 = full 36-fetch PCF, else reduced 9-fetch (default)
 #define GGC_SUN_SHADOW_MATRIX   u_shadowMatrices[0]
 #define GGC_POINT_SHADOW_MATRIX u_pointShadowMatrix
+#define GGC_POINT_SHADOW2_MATRIX u_pointShadow2Matrix
 #define GGC_SCENE_AMBIENT       u_sceneAmbient
 #endif
 uniform vec4 u_sunShadowReceive; // x>0.5 = this object draw receives the sun cast shadow
@@ -79,6 +91,10 @@ uniform vec4 u_lightParams[4]; // x inner range, y outer/range, z > 0.5 point, w
 // (unlike the sun/point-shadow transforms, which are genuinely global per frame). Extracting it
 // would light shrouded objects with the bright global ambient instead of leaving them fog-dimmed.
 uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
+// TheSuperHackers @feature bobtista 15/07/2026 GGC_PCANNON_ENHANCED world-space radial scene dip:
+// xy = dim centre (the drama light), z = 1/falloffWidth, w = far dim factor (1 = inactive).
+// The area around the beam keeps full brightness; the scene eases darker with distance.
+uniform vec4 u_dramaDim;
 uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
 uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
 uniform vec4 u_shroudParams; // xy = offset, zw = scale
@@ -425,13 +441,61 @@ float samplePointShadow(vec3 worldPos, vec3 nrm)
 	return lit * (1.0 / 9.0);
 }
 
+// TheSuperHackers @feature bobtista 15/07/2026 Cheap 1D value noise for the drama electric
+// pattern. Inputs stay small (the clock wraps at 30s) for sin-hash float precision.
+float ggcHash11(float n)
+{
+	return fract(sin(n) * 43758.5453123);
+}
+float ggcValueNoise1(float x)
+{
+	float i = floor(x);
+	float f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(ggcHash11(i), ggcHash11(i + 1.0), f);
+}
+
+// TheSuperHackers @feature bobtista 15/07/2026 GGC_PCANNON_ENHANCED radial scene dip (see
+// u_dramaDim). Full brightness inside ~350 world units of the drama light, easing to the
+// dim factor over the falloff width - a world-space vignette around the action.
+float ggcDramaDimFactor(vec3 worldPos)
+{
+
+	// w = -1: this view is excluded from drama lighting entirely (2D/UI draws).
+	if (u_dramaDim.w >= 0.999 || u_dramaDim.w < -0.5)
+	{
+		return 1.0;
+	}
+	// Distance to the nearest beam: with two cannons firing, each gets its own glow pool, so
+	// one beam ending never jumps the other's pool. u_pointShadow2LightPos is the second beam
+	// when u_pointShadow2Params.w > 0 (a persistent beam, not a transient flash pulse).
+	float d = length(worldPos.xy - u_dramaDim.xy);
+	if (u_pointShadow2Params.w > 0.0)
+	{
+		d = min(d, length(worldPos.xy - u_pointShadow2LightPos.xy));
+	}
+	// Effect strength eases in/out with u_dramaDim.w (1.0 = inactive -> 0 strength).
+	float effect = 1.0 - u_dramaDim.w;
+	// Bright pool right around the beam: the immediate area glows more, so the beam reads as
+	// powerful against the dimmer surroundings. Concentrated within ~180 world units.
+	// abs: a negative falloff scale flags a dim-only view (sorted translucents).
+	float glowT = 1.0 - clamp(d * (1.0 / 210.0), 0.0, 1.0);
+	glowT = glowT * glowT;
+	float glow = effect * glowT * 2.4;
+	// Gentle dim that increases with distance so the rest of the screen is a bit darker.
+	float dimT = clamp((d - 150.0) * abs(u_dramaDim.z), 0.0, 1.0);
+	dimT = dimT * dimT * (3.0 - 2.0 * dimT);
+	float dimBase = 1.0 - effect * dimT;
+	return dimBase + glow;
+}
+
 // TheSuperHackers @feature bobtista 23/06/2026 Dedicated nuke point light contribution. Dynamic
 // lights never reach the per-object LightEnvironment, so the caster light is applied directly here -
 // to objects and to terrain (which returns from its own branch) - and shadowed by the perspective
 // point-shadow map. It both brightens lit surfaces the blast reaches and darkens occluded ones, so
 // the cast shadow reads as real darkness rather than just an absence of bonus light.
 // u_pointShadowParams.w controls how strongly occluded areas are darkened.
-void applyNukePointLight(inout vec3 color, vec3 worldPos, vec3 nrm, vec3 albedo, vec3 viewDir, float specPower)
+void applyNukePointLight(inout vec3 color, vec3 worldPos, vec3 nrm, vec3 albedo, vec3 viewDir, float specPower, float cutoutDamp)
 {
 	if (u_pointShadowParams.x < 0.0)
 	{
@@ -447,21 +511,109 @@ void applyNukePointLight(inout vec3 color, vec3 worldPos, vec3 nrm, vec3 albedo,
 	// Only sample the shadow map when this light actually casts one (state >= 1); a glow-only light
 	// (state 0, e.g. the particle cannon beam) lights and glints without shadowing.
 	float shadow = (u_pointShadowParams.x >= 0.5) ? samplePointShadow(worldPos, nrm) : 1.0;
-	// Brighten the lit surfaces the light reaches.
-	color += u_pointShadowLightColor.rgb * albedo * ndotl * atten * shadow;
-	// Specular glint: a bright coloured highlight on shiny surfaces (e.g. vehicle hulls) where the
-	// light reflects toward the eye. specPower 0 (terrain) produces no glint.
-	if (specPower > 0.0 && ndotl > 0.0)
-	{
-		vec3 halfV = normalize(lightDir + viewDir);
-		color += u_pointShadowLightColor.rgb * pow(max(0.0, dot(nrm, halfV)), specPower) * atten * shadow;
-	}
-	// Darken occluded surfaces within reach so the cast shadow reads as real darkness. Use a broader
-	// falloff than the glow itself; otherwise nearby objects light up while their cast shadows vanish
-	// unless they are almost directly under the beam/blast.
+	// Brighten the lit surfaces the light reaches. Alpha-tested cutouts (foliage) are damped
+	// by the caller, and the contribution is soft-knee limited: sparse bright texels in leaf
+	// textures otherwise take the full addition and clip into isolated pale speckles.
+	vec3 pointAdd = u_pointShadowLightColor.rgb * albedo * ndotl * atten * shadow * cutoutDamp;
+	pointAdd /= (1.0 + 1.5 * max(pointAdd.r, max(pointAdd.g, pointAdd.b)));
+	// Headroom scaling: the addition fades to zero as the pixel approaches white, so bright
+	// sun-lit texels (foliage highlights) cannot clip into isolated speckles.
+	pointAdd *= clamp(1.45 - max(color.r, max(color.g, color.b)), 0.0, 1.0);
+	color += pointAdd;
+	// No specular glint: it is albedo-independent, so on foliage (whose blended leaf passes
+	// carry chaotic normals and no alpha-test flag) it printed as white pixel speckles.
+	// Darken occluded surfaces within reach so the cast shadow reads as real darkness. Safe
+	// against slot-swap blinking because the persistent tracking light always owns this slot
+	// (transient pulses ride slot 2, which stays adds-only). Terrain and decals never cast
+	// into this map, so the darkening cannot print the frustum footprint.
 	float shadowAtten = clamp(radial * 1.18, 0.0, 1.0);
 	shadowAtten = shadowAtten * (2.0 - shadowAtten);
 	color *= (1.0 - u_pointShadowParams.w * shadowAtten * (1.0 - shadow));
+}
+
+// TheSuperHackers @feature bobtista 14/07/2026 Second point-shadow slot: shadow lookup and light
+// contribution for a transient second caster (particle-cannon lightning flash). Mirrors the
+// primary slot with the u_pointShadow2* inputs so the flash throws its own brief shadow while
+// the primary beam shadow stays put.
+float samplePointShadow2(vec3 worldPos, vec3 nrm)
+{
+	vec3 n = normalize(nrm);
+	vec3 toLight = u_pointShadow2LightPos.xyz - worldPos;
+	float dist = length(toLight);
+	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
+	float ndotl = clamp(dot(n, lightDir), 0.0, 1.0);
+	float slope = 1.0 + 2.0 * (1.0 - ndotl);
+	float texel = u_pointShadow2Params.z;
+	float bias = u_pointShadow2Params.y;
+	vec3 biasedPos = worldPos + lightDir * (SUN_SHADOW_NORMAL_OFFSET * slope);
+	vec4 sc = mul(GGC_POINT_SHADOW2_MATRIX, vec4(biasedPos, 1.0));
+	if (sc.w <= 0.0)
+	{
+		return 1.0;
+	}
+	vec3 ndc = sc.xyz / sc.w;
+	vec2 cuv = ndc.xy * 0.5 + 0.5;
+#if !BGFX_SHADER_LANGUAGE_GLSL
+	cuv.y = 1.0 - cuv.y;
+#endif
+	if (cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0)
+	{
+		return 1.0;
+	}
+	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
+	float invTexel = 1.0 / texel;
+	float lit = 0.0;
+	for (int dy = -1; dy <= 1; ++dy)
+	{
+		for (int dx = -1; dx <= 1; ++dx)
+		{
+			vec2 sampUV = cuv + vec2(float(dx), float(dy)) * (texel * 1.35);
+			vec2 texelCoord = sampUV * invTexel - 0.5;
+			vec2 fracPart = fract(texelCoord);
+			vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
+			float s00 = (curDepth <= texture2D(s_pointShadowMap2, baseUV).x) ? 1.0 : 0.0;
+			float s10 = (curDepth <= texture2D(s_pointShadowMap2, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
+			float s01 = (curDepth <= texture2D(s_pointShadowMap2, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
+			float s11 = (curDepth <= texture2D(s_pointShadowMap2, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
+			lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
+		}
+	}
+	// Fade the shadow out over the outer band of the map so the frustum boundary can never
+	// print as a hard square on the ground (transient flash lights sit close to the terrain,
+	// where the footprint edge lands well inside the lit radius).
+	float edge = min(min(cuv.x, 1.0 - cuv.x), min(cuv.y, 1.0 - cuv.y));
+	float edgeFade = clamp(edge * 6.0, 0.0, 1.0);
+	return mix(1.0, lit * (1.0 / 9.0), edgeFade);
+}
+
+void applyFlashPointLight(inout vec3 color, vec3 worldPos, vec3 nrm, vec3 albedo, vec3 viewDir, float specPower, float cutoutDamp)
+{
+	if (u_pointShadow2Params.x < 0.5)
+	{
+		return;
+	}
+	vec3 toLight = u_pointShadow2LightPos.xyz - worldPos;
+	float dist = length(toLight);
+	float range = max(u_pointShadow2LightPos.w, 1.0);
+	float radial = clamp(1.0 - dist / range, 0.0, 1.0);
+	float atten = radial * radial;
+	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
+	float ndotl = max(0.0, dot(nrm, lightDir));
+	float shadow = samplePointShadow2(worldPos, nrm);
+	// Cutout foliage is damped by the caller and the addition is soft-knee limited
+	// (white-speckle clipping, see applyNukePointLight).
+	vec3 flashAdd = u_pointShadow2LightColor.rgb * albedo * ndotl * atten * shadow * cutoutDamp;
+	flashAdd /= (1.0 + 0.9 * max(flashAdd.r, max(flashAdd.g, flashAdd.b)));
+	// Headroom scaling (see applyNukePointLight): no clipping speckles on bright texels.
+	flashAdd *= clamp(1.45 - max(color.r, max(color.g, color.b)), 0.0, 1.0);
+	color += flashAdd;
+	// No specular glint (foliage speckle, see applyNukePointLight).
+	// Occlusion darkening matching the primary slot, scaled by u_pointShadow2Params.w: the
+	// backend sends the light's strength for persistent beams (both cannons cast equal shadows
+	// from ignition) and 0 for transient flash pulses, which must only ever ADD light.
+	float shadowAtten = clamp(radial * 1.18, 0.0, 1.0);
+	shadowAtten = shadowAtten * (2.0 - shadowAtten);
+	color *= (1.0 - u_pointShadow2Params.w * shadowAtten * (1.0 - shadow));
 }
 
 // TheSuperHackers @feature bobtista 18/06/2026 Lightweight anisotropic base-texture sampling.
@@ -541,12 +693,27 @@ void main()
 		// TheSuperHackers @bugfix bobtista 16/06/2026 Terrain returns from this branch
 		// before the generic shadow apply below, so the sun shadow has to be applied here
 		// too - otherwise cast shadows land on roads/decals/objects but skip the ground.
-		result.rgb *= sunShadowFactor(v_worldPos, vec3(0.0, 0.0, 1.0));
+		float terrainSunFactor = sunShadowFactor(v_worldPos, vec3(0.0, 0.0, 1.0));
+		result.rgb *= terrainSunFactor;
+
+		// TheSuperHackers @feature bobtista 14/07/2026 GGC_PCANNON_ENHANCED radial scene dip for
+		// terrain, applied before the beam light is added so the beam's own glow stays dominant
+		// on the darkened battlefield.
+		result.rgb *= ggcDramaDimFactor(v_worldPos);
 
 		// TheSuperHackers @feature bobtista 23/06/2026 Terrain also receives the dedicated nuke point
 		// light and its cast shadow (terrain returns here, never reaching the object lighting path),
 		// so the blast lights the ground and structures throw shadows across it.
-		applyNukePointLight(result.rgb, v_worldPos, vec3(0.0, 0.0, 1.0), blended, vec3(0.0, 0.0, 1.0), 0.0);
+		// TheSuperHackers @bugfix bobtista 15/07/2026 The point-light adds are gated by the
+		// NORMALIZED sun-lit fraction: 0 inside a cast shadow, 1 in the open. A raw shadow-factor
+		// damp still let ~30% of the flash through, visibly refilling dark shadow interiors on
+		// every flash ("shadows light up") - shadowed pixels now receive nothing.
+		float terrainSunLit = (u_shadowParams.z > 0.01)
+			? clamp((terrainSunFactor - (1.0 - u_shadowParams.z)) / u_shadowParams.z, 0.0, 1.0)
+			: 1.0;
+		applyNukePointLight(result.rgb, v_worldPos, vec3(0.0, 0.0, 1.0), blended, vec3(0.0, 0.0, 1.0), 0.0, terrainSunLit);
+		applyFlashPointLight(result.rgb, v_worldPos, vec3(0.0, 0.0, 1.0), blended, vec3(0.0, 0.0, 1.0), 0.0, terrainSunLit);
+
 
 		gl_FragColor = result;
 		return;
@@ -1133,17 +1300,77 @@ void main()
 	// or unlit combiner states, so applying this only inside the lit-material branch made the
 	// particle-cannon/nuke light visible on terrain and some organic meshes while skipping those
 	// larger opaque receivers.
-	if (u_pointShadowParams.x >= 0.0
+	// Projected decals (blob shadows, scorches) must not receive the drama point lights or the
+	// radial dim: adding light to a shadow decal's own texels visibly brightens the shadow
+	// graphic whenever a flash fires. u_dramaDim.w = -1 excludes the whole view (2D/UI draws,
+	// whose screen-space v_worldPos would otherwise be treated as world coordinates).
+	if (u_dramaDim.w > -0.5
 		&& u_softParticleParams.x < 0.5
-		&& u_texcoordSelect2.w < 0.5)
+		&& u_texcoordSelect2.w < 0.5
+		&& u_projectedDecalMode.x < 0.5)
 	{
-		float pointNrmLen = length(v_normal);
-		vec3 pointNrm = (pointNrmLen > 1e-5) ? (v_normal / pointNrmLen) : vec3(0.0, 0.0, 1.0);
-		vec3 pointViewDir = normalize(u_eyePos.xyz - v_worldPos);
-		float authoredShininess = max(u_matSpecular.w, 0.0);
-		float pointSpecPower = (authoredShininess >= 2.0) ? min(max(authoredShininess, 10.0), 96.0) : 0.0;
-		applyNukePointLight(current.rgb, v_worldPos, pointNrm, current.rgb, pointViewDir, pointSpecPower);
-		current.rgb = min(current.rgb, vec3_splat(1.0));
+		// Radial scene dip applies (and fades out) independently of the point lights, so the
+		// scene eases back to normal when the drama light dies instead of snapping bright.
+		current.rgb *= ggcDramaDimFactor(v_worldPos);
+		if ((u_pointShadowParams.x >= 0.0 || u_pointShadow2Params.x >= 0.5)
+			&& u_dramaDim.z >= 0.0)
+		{
+			float pointNrmLen = length(v_normal);
+			vec3 pointNrm = (pointNrmLen > 1e-5) ? (v_normal / pointNrmLen) : vec3(0.0, 0.0, 1.0);
+			vec3 pointViewDir = normalize(u_eyePos.xyz - v_worldPos);
+			float authoredShininess = max(u_matSpecular.w, 0.0);
+			float pointSpecPower = (authoredShininess >= 2.0) ? min(max(authoredShininess, 10.0), 96.0) : 0.0;
+			// Alpha-tested cutouts (foliage) get a damped contribution and no glint.
+			float pointCutoutDamp = (u_atestParams.y > 0.5) ? 0.3 : 1.0;
+			// Cutouts cast flash shadows but do not RECEIVE the flash: their self-shadowing at
+			// map-texel granularity speckles canopies/fences with bright blotches otherwise.
+			float flashDamp = (u_atestParams.y > 0.5) ? 0.0 : 1.0;
+			// Sun-shadowed object pixels receive nothing from the drama lights (see the terrain
+			// branch): shadows must stay dark through a flash.
+			if (u_sunShadowReceive.x > 0.5 && u_shadowParams.z > 0.01)
+			{
+				float objSunFactor = sunShadowFactor(v_worldPos, v_normal);
+				float sunGate = clamp((objSunFactor - (1.0 - u_shadowParams.z)) / u_shadowParams.z, 0.0, 1.0);
+				pointCutoutDamp *= sunGate;
+				flashDamp *= sunGate;
+			}
+			// Electric texture on solid receivers (unit hulls, building walls): an animated
+			// jagged pattern rides the drama lights when the backend publishes a clock in
+			// u_pointShadowLightColor.w (2.0 + seconds; 1.0 = plain light, pattern off).
+			float dramaClock = u_pointShadowLightColor.w;
+			if (dramaClock > 1.5 && u_atestParams.y < 0.5)
+			{
+				// Blue lightning veins on solid surfaces near the beam: two crossing ridged
+				// noise fields intersect into thin filaments, sharpened and gated by a bursty
+				// time-noise so arcs snap on and off like an electrical storm - additive and
+				// blue, never a brightness wave over the whole surface.
+				float tt = dramaClock - 2.0;
+				float n1 = ggcValueNoise1(v_worldPos.z * 0.25 + (v_worldPos.x + v_worldPos.y) * 0.08 + tt * 7.0);
+				float n2 = ggcValueNoise1(v_worldPos.z * 0.42 - tt * 11.0 + (v_worldPos.x - v_worldPos.y) * 0.11 + 37.0);
+				float v1 = 1.0 - abs(n1 * 2.0 - 1.0);
+				float v2 = 1.0 - abs(n2 * 2.0 - 1.0);
+				float vein = v1 * v2;
+				vein = vein * vein * vein;
+				float burst = ggcValueNoise1(tt * 5.0 + floor((v_worldPos.x + v_worldPos.y) * 0.02) * 3.7);
+				float arc = vein * step(0.42, burst);
+				// Proximity to the NEAREST beam so both cannons get arcs, not just slot 1's beam
+				// (u_pointShadow2LightPos is the second beam when u_pointShadow2Params.w > 0).
+				float beamProx = clamp(1.0 - length(u_pointShadowLightPos.xyz - v_worldPos) / max(u_pointShadowLightPos.w, 1.0), 0.0, 1.0);
+				if (u_pointShadow2Params.w > 0.0)
+				{
+					float prox2 = clamp(1.0 - length(u_pointShadow2LightPos.xyz - v_worldPos) / max(u_pointShadow2LightPos.w, 1.0), 0.0, 1.0);
+					beamProx = max(beamProx, prox2);
+				}
+				// Headroom-limited: bright thin geometry (chainlink fences, radar dishes, white
+				// panels) otherwise clips to solid white under the arcs.
+				vec3 arcAdd = vec3(0.45, 0.8, 1.9) * arc * beamProx;
+				arcAdd *= clamp(0.82 - max(current.r, max(current.g, current.b)), 0.0, 1.0);
+				current.rgb += arcAdd;
+			}
+			applyNukePointLight(current.rgb, v_worldPos, pointNrm, current.rgb, pointViewDir, pointSpecPower, pointCutoutDamp);
+			applyFlashPointLight(current.rgb, v_worldPos, pointNrm, current.rgb, pointViewDir, pointSpecPower, flashDamp);
+			current.rgb = min(current.rgb, vec3_splat(1.0));
+		}
 	}
 
 	// Additive black texels are mathematical no-ops in the D3D8 fixed-function

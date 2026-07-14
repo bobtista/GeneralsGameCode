@@ -1038,6 +1038,11 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 			  if (!pDyna->isEnabled()) {
 				  continue;
 			  }
+			  // TheSuperHackers @feature bobtista 15/07/2026 Lights that illuminate through the
+			  // dedicated shadowed point-light path skip the light environment (see W3DDynamicLight).
+			  if (pDyna->getExcludeFromLightEnv()) {
+				  continue;
+			  }
 			  SphereClass lSph = pDyna->Get_Bounding_Sphere();
 			  if (pDyna->Get_Type() == LightClass::POINT && !Spheres_Intersect(sph, lSph)) {
 				  continue;
@@ -2167,7 +2172,7 @@ W3DDynamicLight * RTS3DScene::getADynamicLight()
 // TheSuperHackers @feature bobtista 23/06/2026 Returns the brightest enabled CastsShadows
 // dynamic light (by current diffuse magnitude), or NULL. Drives the single point-shadow map.
 //=============================================================================
-W3DDynamicLight * RTS3DScene::getStrongestShadowCastingDynamicLight(void)
+W3DDynamicLight * RTS3DScene::getStrongestShadowCastingDynamicLight(const W3DDynamicLight *exclude)
 {
 	W3DDynamicLight *best = NULL;
 	Real bestMag = 0.0f;
@@ -2175,7 +2180,7 @@ W3DDynamicLight * RTS3DScene::getStrongestShadowCastingDynamicLight(void)
 	for (dynaLightIt.First(); !dynaLightIt.Is_Done(); dynaLightIt.Next())
 	{
 		W3DDynamicLight *light = (W3DDynamicLight *)dynaLightIt.Peek_Obj();
-		if (light == NULL || !light->isEnabled() || !light->getCastsShadows())
+		if (light == NULL || light == exclude || !light->isEnabled() || !light->getCastsShadows())
 		{
 			continue;
 		}
@@ -2197,6 +2202,24 @@ W3DDynamicLight * RTS3DScene::getStrongestShadowCastingDynamicLight(void)
 // scene so it can render a perspective shadow map from that light's POV. Fills outPosRange with the
 // light's world position (xyz) and far-attenuation range (w), and outDiffuseBias with its current
 // diffuse magnitude (x) and shadow bias (y). Returns 1 when an active caster light exists, 0 otherwise.
+// TheSuperHackers @bugfix bobtista 15/07/2026 The persistent tracking light (particle-cannon
+// beam) always owns the primary slot when it is an active caster. Picking purely by brightness
+// let a transient flash pulse steal the slot for its 8-frame life, flickering the beam's cast
+// shadows every flash.
+static W3DDynamicLight * ggcGetPrimaryPointShadowLight(RTS3DScene *scene)
+{
+	W3DDisplay *display = static_cast<W3DDisplay *>(TheDisplay);
+	if (display != NULL)
+	{
+		W3DDynamicLight *tracking = display->getTrackingLight();
+		if (tracking != NULL && tracking->isEnabled() && tracking->getCastsShadows())
+		{
+			return tracking;
+		}
+	}
+	return scene->getStrongestShadowCastingDynamicLight();
+}
+
 extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias, float * outShadowStrength)
 {
 	RTS3DScene *scene = W3DDisplay::m_3DScene;
@@ -2204,7 +2227,7 @@ extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffu
 	{
 		return 0;
 	}
-	W3DDynamicLight *light = scene->getStrongestShadowCastingDynamicLight();
+	W3DDynamicLight *light = ggcGetPrimaryPointShadowLight(scene);
 	if (light == NULL)
 	{
 		return 0;
@@ -2238,6 +2261,71 @@ extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffu
 	if (outShadowStrength != NULL)
 	{
 		*outShadowStrength = light->getShadowStrength();
+	}
+	return 1;
+}
+
+// TheSuperHackers @feature bobtista 14/07/2026 Second-strongest shadow-casting dynamic light for
+// the second point-shadow slot: transient lightning-flash pulses cast their own brief shadow
+// while the beam's primary shadow stays put. Same output layout as GGC_GetBgfxPointShadowLight.
+extern "C" int GGC_GetBgfxPointShadowLight2(float * outPosRange, float * outDiffuseBias, float * outShadowStrength)
+{
+	RTS3DScene *scene = W3DDisplay::m_3DScene;
+	if (scene == NULL)
+	{
+		return 0;
+	}
+	W3DDynamicLight *first = ggcGetPrimaryPointShadowLight(scene);
+	if (first == NULL)
+	{
+		return 0;
+	}
+	// TheSuperHackers @bugfix bobtista 16/07/2026 Reserve the two shadow slots for the persistent
+	// beam tracking lights so both cannons cast stable shadows simultaneously (no snap/promotion).
+	// A transient flash pulse only takes slot 2 when there is no second beam - otherwise a pulse
+	// brighter than the second beam would displace it for a frame, snapping that shadow's
+	// direction and reading as glitching.
+	W3DDisplay *display = static_cast<W3DDisplay *>(TheDisplay);
+	W3DDynamicLight *light = (display != NULL) ? display->getTrackingLight(first) : NULL;
+	if (light == NULL)
+	{
+		light = scene->getStrongestShadowCastingDynamicLight(first);
+	}
+	if (light == NULL)
+	{
+		return 0;
+	}
+
+	const Vector3 pos = light->Get_Position();
+	double farStart = 0.0;
+	double farEnd = 0.0;
+	light->Get_Far_Attenuation_Range(farStart, farEnd);
+	Vector3 diffuse;
+	light->Get_Diffuse(&diffuse);
+
+	if (outPosRange != NULL)
+	{
+		outPosRange[0] = pos.X;
+		outPosRange[1] = pos.Y;
+		outPosRange[2] = pos.Z;
+		outPosRange[3] = static_cast<float>(farEnd);
+	}
+	if (outDiffuseBias != NULL)
+	{
+		outDiffuseBias[0] = diffuse.X;
+		outDiffuseBias[1] = diffuse.Y;
+		outDiffuseBias[2] = diffuse.Z;
+		outDiffuseBias[3] = light->getShadowBias();
+	}
+	if (outShadowStrength != NULL)
+	{
+		// TheSuperHackers @bugfix bobtista 16/07/2026 Only persistent beam lights darken their
+		// occluded surfaces (matching the primary slot, so a second cannon's shadows exist from
+		// ignition instead of popping in on promotion). Transient flash pulses stay adds-only:
+		// their shadows read as the absence of the brightening, never active darkness.
+		W3DDisplay *display = static_cast<W3DDisplay *>(TheDisplay);
+		const Bool isBeam = (display != NULL && display->isTrackingLight(light));
+		*outShadowStrength = isBeam ? light->getShadowStrength() : 0.0f;
 	}
 	return 1;
 }

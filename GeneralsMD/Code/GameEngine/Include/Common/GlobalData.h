@@ -189,6 +189,9 @@ public:
 	Bool m_bgfxStencilShadows;
 	// TheSuperHackers @feature bobtista 23/06/2026 Toggle for the perspective point-light shadow map.
 	Bool m_bgfxDynamicLightShadows;
+	// TheSuperHackers @feature bobtista 16/07/2026 INI toggle for the experimental dramatic
+	// Particle Cannon lighting (mirrors the GGC_PCANNON_ENHANCED env flag, which still overrides).
+	Bool m_pcannonEnhanced;
 	Bool m_bgfxPointFilter;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;

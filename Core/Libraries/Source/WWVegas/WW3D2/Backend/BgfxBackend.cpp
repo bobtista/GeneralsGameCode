@@ -208,8 +208,14 @@ extern "C" int  GGC_GetCurrentLogicFrame();
 // scene. Fills outPosRange={x,y,z,range} and outDiffuseBias={r,g,b,bias}; returns non-zero
 // when a caster light is active. Drives SetupPointShadowView's perspective shadow map.
 extern "C" int  GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias, float * outShadowStrength);
+// TheSuperHackers @feature bobtista 14/07/2026 Second-strongest shadow-casting dynamic light,
+// for the second point-shadow slot (transient lightning-flash lights next to the beam).
+extern "C" int  GGC_GetBgfxPointShadowLight2(float * outPosRange, float * outDiffuseBias, float * outShadowStrength);
 // TheSuperHackers @feature bobtista 23/06/2026 Global toggle for the dynamic-light shadow-map pass.
 extern "C" int  GGC_GetBgfxDynamicLightShadowsEnabled();
+// TheSuperHackers @feature bobtista 16/07/2026 INI toggle for the dramatic Particle Cannon lighting
+// (Data/INI/Bgfx.ini PCannonEnhanced=Yes); the GGC_PCANNON_ENHANCED env flag still overrides.
+extern "C" int  GGC_GetPCannonEnhancedEnabled();
 #endif
 
 // Render-state globals. Defined here (external linkage), declared `extern`
@@ -2086,7 +2092,8 @@ const int kNumShadowCascades             = 3;
 // of per-draw uniforms. Layout (must match fs_uber.sc GGC_UBER_FRAME_TEXTURE):
 //   0: sceneAmbient  1: shadowParams  2: shadowQuality  3-6: sun shadow matrix
 //   7: pointShadowParams  8: pointShadowLightPos  9: pointShadowLightColor  10-13: point shadow matrix
-const uint16_t kFrameConstTexels         = 16;
+//   14: pointShadow2Params  15: pointShadow2LightPos  16: pointShadow2LightColor  17-20: point shadow 2 matrix
+const uint16_t kFrameConstTexels         = 24;
 const int kBgfxFrameConstSamplerStage    = 9;
 const bgfx::ViewId kBgfxShadowMapView    = 20;
 // TheSuperHackers @feature bobtista 23/06/2026 Perspective shadow map for one bright dynamic
@@ -2095,12 +2102,16 @@ const bgfx::ViewId kBgfxPointShadowView  = 23;
 // TheSuperHackers @feature bobtista 23/06/2026 Debug blit for GGC_POINT_SHADOW_VIZ: blits the
 // point shadow map R32F texture to a screen-corner quad after the scene composite.
 const bgfx::ViewId kBgfxPointShadowVizView = 24;
+// TheSuperHackers @feature bobtista 14/07/2026 Second perspective point-shadow map so a transient
+// second caster light (particle-cannon lightning flash) shadows alongside the primary.
+const bgfx::ViewId kBgfxPointShadow2View = 25;
 const uint8_t kBgfxSortedArraySamplerStage = 4;
 const uint8_t kBgfxSceneDepthSamplerStage = 6;
 const uint8_t kBgfxShadowMapSamplerStage = 7;
 // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map sampler (next free stage
 // after the sun shadow map).
 const uint8_t kBgfxPointShadowMapSamplerStage = 8;
+const uint8_t kBgfxPointShadow2MapSamplerStage = 10;
 const float kSoftParticleDepthFadeScale  = 80.0f;
 const int kSwayTableEntries              = 11;
 const float kPostSharpenAmount           = 0.08f;
@@ -3048,6 +3059,156 @@ static void SetupPointShadowView()
     }
 }
 
+// TheSuperHackers @feature bobtista 14/07/2026 Arm the second point-shadow view for the
+// second-strongest shadow-casting dynamic light (transient lightning-flash pulses near the
+// particle-cannon beam, or a nuke coinciding with a beam). Mirrors SetupPointShadowView with
+// the slot-2 state; a no-op publishing params.x = -1 when no second caster light exists.
+static void SetupPointShadowView2()
+{
+    g_draw.pointShadow2Params[0] = -1.0f;
+
+    int featureEnabled = 0;
+#ifdef RTS_ZEROHOUR
+    featureEnabled = GGC_GetBgfxDynamicLightShadowsEnabled();
+#endif
+    if (featureEnabled == 0 || !bgfx::isValid(g_device.pointShadow2FB))
+    {
+        bgfx::setViewFrameBuffer(kBgfxPointShadow2View, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxPointShadow2View, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+        return;
+    }
+
+    float posRange[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float diffuseBias[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float lightStrength = 0.0f;
+    int hasLight = 0;
+#ifdef RTS_ZEROHOUR
+    hasLight = GGC_GetBgfxPointShadowLight2(posRange, diffuseBias, &lightStrength);
+#endif
+    // The map renders whenever a second caster light exists; lightStrength only controls the
+    // occlusion-darkening term (0 = adds-only flash pulse, >0 = full beam shadows).
+    if (hasLight == 0)
+    {
+        bgfx::setViewFrameBuffer(kBgfxPointShadow2View, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxPointShadow2View, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+        return;
+    }
+
+    const float lightPos[3] = { posRange[0], posRange[1], posRange[2] };
+    const float focus[3] = { lightPos[0], lightPos[1], lightPos[2] - 1.0f };
+    float toFocus[3] = { focus[0] - lightPos[0], focus[1] - lightPos[1], focus[2] - lightPos[2] };
+    float dist = sqrtf(toFocus[0] * toFocus[0] + toFocus[1] * toFocus[1] + toFocus[2] * toFocus[2]);
+    if (dist < 1e-3f)
+    {
+        toFocus[0] = 0.0f; toFocus[1] = 0.0f; toFocus[2] = -1.0f;
+        dist = 1.0f;
+    }
+    const float range = (posRange[3] > 1.0f) ? posRange[3] : dist;
+    const float zfar = (range > dist) ? range : dist;
+    const float znear = fmaxf(1.0f, zfar * 0.01f);
+    const bgfx::Caps * caps = bgfx::getCaps();
+    const bx::Vec3 eyeV(lightPos[0], lightPos[1], lightPos[2]);
+    const bx::Vec3 atV(focus[0], focus[1], focus[2]);
+    const float dirZ = toFocus[2] / dist;
+    const bx::Vec3 up = (fabsf(dirZ) > 0.95f) ? bx::Vec3(0.0f, 1.0f, 0.0f) : bx::Vec3(0.0f, 0.0f, 1.0f);
+    float lightView[16];
+    bx::mtxLookAt(lightView, eyeV, atV, up);
+    float lightProj[16];
+    bx::mtxProj(lightProj, 130.0f, 1.0f, znear, zfar, caps->homogeneousDepth);
+    bx::mtxMul(g_draw.pointShadow2Matrix, lightView, lightProj);
+    bgfx::setViewFrameBuffer(kBgfxPointShadow2View, g_device.pointShadow2FB);
+    bgfx::setViewRect(kBgfxPointShadow2View, 0, 0,
+                      static_cast<uint16_t>(g_device.pointShadowMapSize),
+                      static_cast<uint16_t>(g_device.pointShadowMapSize));
+    bgfx::setViewClear(kBgfxPointShadow2View, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
+    bgfx::setViewTransform(kBgfxPointShadow2View, lightView, lightProj);
+    // Force the clear even when zero casters land in the frustum (matches slot 1's behaviour
+    // now that view 25 is in the per-frame view order).
+    bgfx::touch(kBgfxPointShadow2View);
+
+    g_draw.pointShadow2Params[0] = 1.0f;
+    static int s_slot2Log = 0;
+    if (BgfxDiagVerbose() && (++s_slot2Log % 30) == 0)
+    {
+        std::fprintf(stderr, "[ggc] slot2 armed pos=(%.0f,%.0f,%.0f) range=%.0f strength=%.2f color=(%.2f,%.2f,%.2f)\n",
+            lightPos[0], lightPos[1], lightPos[2], range, lightStrength,
+            diffuseBias[0], diffuseBias[1], diffuseBias[2]);
+    }
+    g_draw.pointShadow2Params[1] = diffuseBias[3];
+    g_draw.pointShadow2Params[2] = (g_device.pointShadowMapSize > 0)
+        ? (1.0f / static_cast<float>(g_device.pointShadowMapSize)) : 0.0f;
+    g_draw.pointShadow2Params[3] = lightStrength;
+    g_draw.pointShadow2LightPos[0] = lightPos[0];
+    g_draw.pointShadow2LightPos[1] = lightPos[1];
+    g_draw.pointShadow2LightPos[2] = lightPos[2];
+    g_draw.pointShadow2LightPos[3] = range;
+    g_draw.pointShadow2LightColor[0] = diffuseBias[0];
+    g_draw.pointShadow2LightColor[1] = diffuseBias[1];
+    g_draw.pointShadow2LightColor[2] = diffuseBias[2];
+    g_draw.pointShadow2LightColor[3] = 1.0f;
+}
+
+// TheSuperHackers @feature bobtista 14/07/2026 GGC_PCANNON_ENHANCED per-frame lighting drama.
+// Runs right after SetupPointShadowView. While a shadow-casting dynamic light is active it
+// eases a dim level toward 0.68 and publishes it as a world-space radial falloff centred on
+// the light (u_dramaDim): the action around the beam keeps full brightness and the scene
+// darkens with distance, instead of a flat global dim that muddied the whole battlefield.
+// Eases back to 1.0 when the light goes away. Render-side only.
+static void UpdateDramaLighting()
+{
+    bool dramaEnabled = GgcFlags::Enabled(GgcFlag_PCannonEnhanced);
+#ifdef RTS_ZEROHOUR
+    dramaEnabled = dramaEnabled || (GGC_GetPCannonEnhancedEnabled() != 0);
+#endif
+    static const bool s_drama = dramaEnabled
+        && !GgcFlags::Enabled(GgcFlag_PCannonNoDim);
+    if (!s_drama)
+    {
+        return;
+    }
+    const bool active = g_draw.pointShadowLightValid && (g_draw.pointShadowParams[0] >= 0.5f);
+    const float target = active ? 0.85f : 1.0f;
+    if (active)
+    {
+        // Electric-pattern clock for object receivers (see fs_uber): 2.0 + seconds, wrapping
+        // at 30s for shader sin-hash precision. 1.0 (the plain default) keeps the pattern off.
+        g_draw.pointShadowLightColor[3] = 2.0f + static_cast<float>(g_stats.frameIndex % 1800u) * (1.0f / 60.0f);
+    }
+    else
+    {
+        // Reset when the light dies: SetupPointShadowView's inactive paths never touch this
+        // field, and a stale clock kept frozen arcs rendering (clipping bright surfaces to
+        // white) long after the beam ended.
+        g_draw.pointShadowLightColor[3] = 1.0f;
+    }
+    static int s_dimLogCounter = 0;
+    if (BgfxDiagVerbose() && (++s_dimLogCounter % 120) == 0)
+    {
+        std::fprintf(stderr, "[ggc] dramaDim active=%d ease=%.3f params0=%.1f valid=%d\n",
+            active ? 1 : 0, g_draw.dramaAmbientDim, g_draw.pointShadowParams[0],
+            g_draw.pointShadowLightValid ? 1 : 0);
+    }
+    g_draw.dramaAmbientDim += (target - g_draw.dramaAmbientDim) * 0.02f;
+    if (g_draw.dramaAmbientDim > 0.999f)
+    {
+        g_draw.dramaAmbientDim = 1.0f;
+    }
+    if (active)
+    {
+        // Snap the primary dim centre to slot 1. When one beam ends and the other promotes from
+        // slot 2 to slot 1, the second beam already had its own glow pool (fs_uber reads the
+        // slot-2 light as a second centre), so snapping is seamless - the surviving beam's pool
+        // is continuous and only the ended beam's pool disappears. Easing here instead created a
+        // gap while the centre slid across.
+        g_draw.dramaDim[0] = g_draw.pointShadowLightPos[0];
+        g_draw.dramaDim[1] = g_draw.pointShadowLightPos[1];
+    }
+    // Falloff width: the dim pool eases from its floor (at the beam) back to normal over this
+    // many world units, so the darkening stays local to the beam area, not the whole map.
+    g_draw.dramaDim[2] = 1.0f / 170.0f;
+    g_draw.dramaDim[3] = g_draw.dramaAmbientDim;
+}
+
 // TheSuperHackers @feature bobtista 23/06/2026 Debug blit: when GGC_POINT_SHADOW_VIZ is set,
 // draw the point shadow map R32F texture into a quarter-width corner quad at the top-left of
 // the screen (clear of the bottom command bar) so developers can confirm the shadow map has
@@ -3212,6 +3373,12 @@ static void DestroySceneFramebuffer()
     g_device.pointShadowFB  = BGFX_INVALID_HANDLE;
     g_device.pointShadowTex = BGFX_INVALID_HANDLE;
     g_device.pointShadowMapSize = 0;
+    if (bgfx::isValid(g_device.pointShadow2FB))
+    {
+        bgfx::destroy(g_device.pointShadow2FB);
+    }
+    g_device.pointShadow2FB  = BGFX_INVALID_HANDLE;
+    g_device.pointShadow2Tex = BGFX_INVALID_HANDLE;
     g_device.bloomWidth = 0;
     g_device.bloomHeight = 0;
     g_device.sceneFB = BGFX_INVALID_HANDLE;
@@ -3497,6 +3664,39 @@ static bool CreateSceneFramebuffer()
             }
             WWDEBUG_SAY(("[BgfxBackend] Point shadow map creation FAILED."));
             std::fprintf(stderr, "[ggc] point shadow map target allocation FAILED.\n");
+        }
+
+        // TheSuperHackers @feature bobtista 14/07/2026 Second point-shadow slot: a transient
+        // flash light (particle-cannon lightning) or a second simultaneous caster shadows here
+        // without stealing the primary light's map.
+        bgfx::TextureHandle pointShadow2Color = bgfx::createTexture2D(
+            pointShadowSize, pointShadowSize, false, 1, bgfx::TextureFormat::R32F, pointShadowColorFlags);
+        bgfx::TextureHandle pointShadow2Depth = bgfx::createTexture2D(
+            pointShadowSize, pointShadowSize, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::FrameBufferHandle pointShadow2FB = BGFX_INVALID_HANDLE;
+        if (bgfx::isValid(pointShadow2Color) && bgfx::isValid(pointShadow2Depth))
+        {
+            bgfx::TextureHandle pointShadow2Attachments[2] = { pointShadow2Color, pointShadow2Depth };
+            pointShadow2FB = bgfx::createFrameBuffer(2, pointShadow2Attachments, true);
+        }
+        if (bgfx::isValid(pointShadow2FB))
+        {
+            g_device.pointShadow2FB  = pointShadow2FB;
+            g_device.pointShadow2Tex = pointShadow2Color;
+            bgfx::setName(g_device.pointShadow2Tex, "pointShadow2MapR32F");
+            bgfx::setName(pointShadow2Depth, "pointShadow2MapD24S8");
+        }
+        else
+        {
+            if (bgfx::isValid(pointShadow2Color))
+            {
+                bgfx::destroy(pointShadow2Color);
+            }
+            if (bgfx::isValid(pointShadow2Depth))
+            {
+                bgfx::destroy(pointShadow2Depth);
+            }
+            std::fprintf(stderr, "[ggc] point shadow 2 map target allocation FAILED.\n");
         }
     }
 
@@ -4243,6 +4443,12 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uPointShadowLightPos = bgfx::createUniform("u_pointShadowLightPos", bgfx::UniformType::Vec4);
     g_uniforms.uPointShadowLightColor = bgfx::createUniform("u_pointShadowLightColor", bgfx::UniformType::Vec4);
     g_uniforms.sPointShadowMap    = bgfx::createUniform("s_pointShadowMap",    bgfx::UniformType::Sampler);
+    g_uniforms.uPointShadow2Matrix = bgfx::createUniform("u_pointShadow2Matrix", bgfx::UniformType::Mat4);
+    g_uniforms.uPointShadow2Params = bgfx::createUniform("u_pointShadow2Params", bgfx::UniformType::Vec4);
+    g_uniforms.uPointShadow2LightPos = bgfx::createUniform("u_pointShadow2LightPos", bgfx::UniformType::Vec4);
+    g_uniforms.uPointShadow2LightColor = bgfx::createUniform("u_pointShadow2LightColor", bgfx::UniformType::Vec4);
+    g_uniforms.sPointShadowMap2   = bgfx::createUniform("s_pointShadowMap2",   bgfx::UniformType::Sampler);
+    g_uniforms.uDramaDim          = bgfx::createUniform("u_dramaDim",          bgfx::UniformType::Vec4);
     g_uniforms.uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
     g_uniforms.uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
     g_uniforms.uTssOps1     = bgfx::createUniform("u_tssOps1",     bgfx::UniformType::Vec4);
@@ -4356,6 +4562,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         static_cast<bgfx::ViewId>(kBgfxShadowMapView + 1),  // 21   render BEFORE the engine
         static_cast<bgfx::ViewId>(kBgfxShadowMapView + 2),  // 22   view that samples them
         kBgfxPointShadowView,                               // 23 — point-light shadow must also
+        kBgfxPointShadow2View,                              // 25 — second point-light shadow slot
         kBgfxEngineView,
         kBgfxSceneDepthView,
         kBgfxShadowVolumeView,
@@ -4534,6 +4741,12 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uPointShadowLightPos);
         DestroyBgfxHandle(g_uniforms.uPointShadowLightColor);
         DestroyBgfxHandle(g_uniforms.sPointShadowMap);
+        DestroyBgfxHandle(g_uniforms.uPointShadow2Matrix);
+        DestroyBgfxHandle(g_uniforms.uPointShadow2Params);
+        DestroyBgfxHandle(g_uniforms.uPointShadow2LightPos);
+        DestroyBgfxHandle(g_uniforms.uPointShadow2LightColor);
+        DestroyBgfxHandle(g_uniforms.sPointShadowMap2);
+        DestroyBgfxHandle(g_uniforms.uDramaDim);
         DestroyBgfxHandle(g_uniforms.uGrayscaleEnable);
         DestroyBgfxHandle(g_device.defaultWhiteTexture);
         DestroyBgfxHandle(g_device.defaultTransparentTexture);
@@ -5729,6 +5942,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         static_cast<bgfx::ViewId>(kBgfxShadowMapView + 1), // 21 — sun shadow cascade 1
         static_cast<bgfx::ViewId>(kBgfxShadowMapView + 2), // 22 — sun shadow cascade 2
         kBgfxPointShadowView,      // 23 — point-light shadow map (before engine, which samples it)
+        kBgfxPointShadow2View,     // 25 — second point-light shadow map (two simultaneous casters)
         kBgfxEngineView,           // 1
         kBgfxSceneDepthView,       // 11 — readable opaque scene depth
         kBgfxShadowVolumeView,     // 6 — stencil shadow volume fill
@@ -9288,6 +9502,101 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded, bgfx::ViewI
                              BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
         }
     }
+    // TheSuperHackers @feature bobtista 14/07/2026 Second point-shadow slot uniforms + sampler
+    // (transient lightning-flash lights). Mirrors the slot-1 upload above.
+    const bool pointShadow2Active = g_draw.pointShadow2Params[0] >= 0.5f;
+    if (bgfx::isValid(g_uniforms.uPointShadow2Matrix))
+    {
+        static FrameConstUniformGuard s_pointShadow2ParamsGuard;
+        if (ShouldUploadFrameConstUniform(s_pointShadow2ParamsGuard, submitView,
+                                          g_draw.pointShadow2Params,
+                                          sizeof(g_draw.pointShadow2Params)))
+        {
+            bgfx::setUniform(g_uniforms.uPointShadow2Params, g_draw.pointShadow2Params);
+            CountUniformCommand(g_stats.pointShadowUniformCommands);
+        }
+        if (pointShadow2Active)
+        {
+            static FrameConstUniformGuard s_pointShadow2MatrixGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadow2MatrixGuard, submitView,
+                                              g_draw.pointShadow2Matrix,
+                                              sizeof(g_draw.pointShadow2Matrix)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadow2Matrix, g_draw.pointShadow2Matrix);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+            static FrameConstUniformGuard s_pointShadow2LightPosGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadow2LightPosGuard, submitView,
+                                              g_draw.pointShadow2LightPos,
+                                              sizeof(g_draw.pointShadow2LightPos)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadow2LightPos, g_draw.pointShadow2LightPos);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+            static FrameConstUniformGuard s_pointShadow2LightColorGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadow2LightColorGuard, submitView,
+                                              g_draw.pointShadow2LightColor,
+                                              sizeof(g_draw.pointShadow2LightColor)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadow2LightColor, g_draw.pointShadow2LightColor);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+        }
+    }
+    if ((pointShadow2Active || DisableInactiveShadowUniformSkip())
+        && bgfx::isValid(g_uniforms.sPointShadowMap2))
+    {
+        const bgfx::TextureHandle pointShadow2Tex =
+            pointShadow2Active && bgfx::isValid(g_device.pointShadow2Tex)
+                ? g_device.pointShadow2Tex
+                : g_device.defaultWhiteTexture;
+        if (bgfx::isValid(pointShadow2Tex))
+        {
+            bgfx::setTexture(kBgfxPointShadow2MapSamplerStage, g_uniforms.sPointShadowMap2, pointShadow2Tex,
+                             BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        }
+    }
+    if (bgfx::isValid(g_uniforms.uDramaDim))
+    {
+        // TheSuperHackers @bugfix bobtista 15/07/2026 Drama lighting is world-space only.
+        // 2D/UI draws (control bar) run through the same uber shader with screen coordinates
+        // in v_worldPos; without this gate the radial dim read them as "far from the beam"
+        // and visibly darkened the HUD while the cannon fired. w = -1 tells the shader to
+        // skip the dedicated point lights and the dim entirely for this view.
+        const bool worldView = (submitView == kBgfxEngineView
+                                || submitView == kBgfxEngineSortView
+                                || submitView == kBgfxWaterView
+                                || submitView == kBgfxEffectOverlayView);
+        float dramaDim[4] = { 0.0f, 0.0f, 0.0f, -1.0f };
+        if (worldView)
+        {
+            std::memcpy(dramaDim, g_draw.dramaDim, sizeof(dramaDim));
+            // Blended translucents (foliage passes, effects) receive the scene dim but NOT the
+            // drama point lights: leaf passes carry no alpha-test flag - whether they arrive
+            // through the sorted flush or drawn directly blended into the engine view (tree
+            // buffer) - so the flash speckled canopies/fences with bright blotches through
+            // every cutout gate. A negative falloff scale flags "dim only" to the shader.
+            const bool drawIsBlended =
+                (GetEffectiveDrawState() & BGFX_STATE_BLEND_MASK) != 0;
+            if (submitView == kBgfxEngineSortView || drawIsBlended)
+            {
+                dramaDim[2] = -dramaDim[2];
+            }
+        }
+        static FrameConstUniformGuard s_dramaDimGuard;
+        if (ShouldUploadFrameConstUniform(s_dramaDimGuard, submitView,
+                                          dramaDim, sizeof(dramaDim)))
+        {
+            static int s_upLog = 0;
+            if (BgfxDiagVerbose() && (++s_upLog % 500) == 0)
+            {
+                std::fprintf(stderr, "[ggc] dramaDim upload view=%u {%.1f,%.1f,%.5f,%.3f}\n",
+                    (unsigned)submitView, dramaDim[0], dramaDim[1], dramaDim[2], dramaDim[3]);
+            }
+            bgfx::setUniform(g_uniforms.uDramaDim, dramaDim);
+            CountUniformCommand(g_stats.pointShadowUniformCommands);
+        }
+    }
     if (bgfx::isValid(g_uniforms.uMatFx))
     {
         float matFx[4];
@@ -9365,6 +9674,12 @@ static void PackAndUploadFrameConstTexture()
 
     // texels 10-13: point shadow matrix
     std::memcpy(&texels[40], g_draw.pointShadowMatrix, sizeof(g_draw.pointShadowMatrix));
+
+    // texel 14: point shadow 2 params, 15: light pos, 16: light color, 17-20: matrix
+    std::memcpy(&texels[56], g_draw.pointShadow2Params, sizeof(g_draw.pointShadow2Params));
+    std::memcpy(&texels[60], g_draw.pointShadow2LightPos, sizeof(g_draw.pointShadow2LightPos));
+    std::memcpy(&texels[64], g_draw.pointShadow2LightColor, sizeof(g_draw.pointShadow2LightColor));
+    std::memcpy(&texels[68], g_draw.pointShadow2Matrix, sizeof(g_draw.pointShadow2Matrix));
 
     bgfx::updateTexture2D(g_device.frameConstTexture, 0, 0, 0, 0,
                           kFrameConstTexels, 1, bgfx::copy(texels, sizeof(texels)));
@@ -12640,6 +12955,8 @@ void SubmitEngineDraw(unsigned short start_index,
             // TheSuperHackers @feature bobtista 23/06/2026 Arm the perspective point-shadow view for
             // the strongest caster dynamic light alongside the sun map (before any caster submit).
             SetupPointShadowView();
+            SetupPointShadowView2();
+            UpdateDramaLighting();
         }
         bgfx::setViewTransform(kBgfxEngineView, g_frame.view, g_frame.proj);
         // Shadow-volume view shares the engine camera; push the same
@@ -13416,7 +13733,29 @@ void SubmitEngineDraw(unsigned short start_index,
     const bool pointShadowArmed = g_draw.pointShadowParams[0] >= 0.5f
         && bgfx::isValid(g_device.pointShadowFB)
         && bgfx::isValid(g_draw.drawIsInstanced ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram);
-    const bool casterToPointShadow = pointShadowArmed
+    // TheSuperHackers @bugfix bobtista 15/07/2026 Terrain must not cast into either point-shadow
+    // map: these lights sit close to the ground, so its self-comparison fails at grazing angles
+    // across the whole frustum and prints the map footprint as a large dark patch. Alpha-tested
+    // cutouts (foliage, infantry) DO cast into the primary map - the beam's moving unit/tree
+    // shadows are the heart of the effect, and the primary light hovers over the beam impact,
+    // far enough that canopy self-shadow speckle stays invisible. They stay excluded from the
+    // transient flash map (slot 2): flash pulses spawn right beside trees, where per-texel leaf
+    // self-shadowing speckled canopies with isolated lit pixels.
+    const bool drawIsTerrain = (g_draw.texcoordSelect[1] > 0.5f);
+    const bool casterToPointShadow = pointShadowArmed && !drawIsTerrain
+        && (isSceneDepthCaster || isShadowCaster || rotorShadowCaster);
+    const bool pointShadow2Armed = g_draw.pointShadow2Params[0] >= 0.5f
+        && bgfx::isValid(g_device.pointShadow2FB)
+        && bgfx::isValid(g_draw.drawIsInstanced ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram);
+    // Cutouts stay OUT of the flash map: re-submitting them as casters there corrupts their
+    // main-view draw with flickering bright edge texels (blotches), and their per-texel
+    // self-shadow made receiving speckle historically. Solid objects carry the flash shadows.
+    // TheSuperHackers @bugfix bobtista 16/07/2026 Slot 2 casts real shadows again now that its
+    // view (25) is in the per-frame view order. Without that, view 25 was deferred to a 1x1
+    // viewport so its map stayed black (read as fully occluded = a dark circle) and stray
+    // caster pixels leaked to the backbuffer as white silhouettes. Cutouts stay excluded (their
+    // per-texel self-shadowing speckles canopies); terrain never casts (grazing-angle acne).
+    const bool casterToPointShadow2 = pointShadow2Armed && !drawIsTerrain && !isAlphaTested
         && (isSceneDepthCaster || isShadowCaster || rotorShadowCaster);
     // Diagnostic: GGC_LOG_SHADOW_CASTER_AUDIT=1 dumps each world draw that could feed the
     // sun shadow map, including excluded candidates. Use GGC_LOG_SHADOW_CASTER_START/END
@@ -13466,7 +13805,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 static_cast<unsigned long long>(state));
         }
     }
-    if ((casterToDepth || casterToShadow || casterToPointShadow) && hasVB)
+    if ((casterToDepth || casterToShadow || casterToPointShadow || casterToPointShadow2) && hasVB)
     {
         // TheSuperHackers @feature bobtista 27/04/2026 Duplicate opaque
         // non-alpha-tested world geometry into a sampleable R32F scene-depth target.
@@ -13528,7 +13867,7 @@ void SubmitEngineDraw(unsigned short start_index,
         // the draw's alpha test; bind both so cutout geometry casts its real silhouette.
         // Opaque draws pass an inactive test (y = 0) and skip the discard. Preserved
         // across the cascade submits via BGFX_DISCARD_NONE.
-        if (casterToShadow || casterToPointShadow)
+        if (casterToShadow || casterToPointShadow || casterToPointShadow2)
         {
             bgfx::TextureHandle baseTex = g_draw.tex[0];
             if (!bgfx::isValid(baseTex))
@@ -13560,7 +13899,7 @@ void SubmitEngineDraw(unsigned short start_index,
         }
         if (casterToDepth)
         {
-            const uint8_t discard = (casterToShadow || casterToPointShadow) ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL;
+            const uint8_t discard = (casterToShadow || casterToPointShadow || casterToPointShadow2) ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL;
             // Instanced batches cast every instance in one submit via the instanced caster program;
             // the instance buffer is consumed per submit, so re-bind it before each recast submit.
             if (g_draw.drawIsInstanced)
@@ -13586,6 +13925,17 @@ void SubmitEngineDraw(unsigned short start_index,
             // casters even when they are not otherwise being submitted to the sun map, and the particle
             // cannon beam still needs their silhouettes.
             bgfx::submit(kBgfxPointShadowView, pointProg, 0,
+                         (casterToShadow || casterToPointShadow2) ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL);
+        }
+        if (casterToPointShadow2)
+        {
+            if (g_draw.drawIsInstanced)
+            {
+                bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+            }
+            const bgfx::ProgramHandle point2Prog = g_draw.drawIsInstanced
+                ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram;
+            bgfx::submit(kBgfxPointShadow2View, point2Prog, 0,
                          casterToShadow ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL);
         }
         if (casterToShadow)
