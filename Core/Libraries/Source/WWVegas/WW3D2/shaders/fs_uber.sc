@@ -34,19 +34,50 @@ SAMPLER2D(s_shadowMap, 7);
 // The nuke caster is a dedicated light (not a LightEnvironment slot):
 // u_pointShadowLightPos = world xyz + outer range, u_pointShadowLightColor = diffuse rgb.
 SAMPLER2D(s_pointShadowMap, 8);
+// TheSuperHackers @performance bobtista Global per-frame constants (sun-shadow and point-
+// shadow transforms/params, scene ambient) are identical for every draw in a frame. The
+// GGC_UBER_FRAME_TEXTURE variant reads them from a small data texture instead of per-draw
+// uniforms, shrinking the fs_uber constant buffer by ~352 bytes/draw so heavy scenes stay
+// under bgfx's fixed 8MB Metal uniform arena. Texel layout MUST match PackFrameConstTexture()
+// in BgfxBackend.cpp. The plain (non-texture) program stays byte-identical; the backend picks
+// it when GGC_BGFX_NO_UNIFORM_FRAME_TEXTURE is set.
+#if GGC_UBER_FRAME_TEXTURE
+SAMPLER2D(s_frameConst, 9);
+vec4 ggcFrameConst(int i) { return texture2DLod(s_frameConst, vec2((float(i) + 0.5) / 16.0, 0.5), 0.0); }
+#define u_shadowParams          ggcFrameConst(1)
+#define u_shadowQuality         ggcFrameConst(2)
+#define u_pointShadowParams     ggcFrameConst(7)
+#define u_pointShadowLightPos   ggcFrameConst(8)
+#define u_pointShadowLightColor ggcFrameConst(9)
+// The packer memcpys the bgfx column-major float[16] (texel = one column), so the matrices
+// must be rebuilt with mtxFromCols - the same convention the instanced vertex path uses for
+// i_data0-3. A raw mat4() constructor is not portable across shader languages and yields a
+// transposed transform on Metal.
+#define GGC_SUN_SHADOW_MATRIX   mtxFromCols(ggcFrameConst(3), ggcFrameConst(4), ggcFrameConst(5), ggcFrameConst(6))
+#define GGC_POINT_SHADOW_MATRIX mtxFromCols(ggcFrameConst(10), ggcFrameConst(11), ggcFrameConst(12), ggcFrameConst(13))
+#define GGC_SCENE_AMBIENT       u_sceneAmbient
+#else
 uniform mat4 u_pointShadowMatrix;
 uniform vec4 u_pointShadowParams;
 uniform vec4 u_pointShadowLightPos;
 uniform vec4 u_pointShadowLightColor;
-uniform mat4 u_shadowMatrices[3]; // per-cascade world -> sun shadow clip
+uniform mat4 u_shadowMatrices[1]; // single camera-fit sun shadow map (was [3] cascades; [1]/[2] unused)
 uniform vec4 u_shadowParams; // x atlas texel size, y depth bias, z strength, w enabled
 uniform vec4 u_shadowQuality; // x: >0.5 = full 36-fetch PCF, else reduced 9-fetch (default)
+#define GGC_SUN_SHADOW_MATRIX   u_shadowMatrices[0]
+#define GGC_POINT_SHADOW_MATRIX u_pointShadowMatrix
+#define GGC_SCENE_AMBIENT       u_sceneAmbient
+#endif
 uniform vec4 u_sunShadowReceive; // x>0.5 = this object draw receives the sun cast shadow
 uniform vec4 u_lightDirs[4];    // per-light direction (xyz=toward light, w=enabled)
 uniform vec4 u_lightColors[4]; // per-light diffuse color (rgb)
 uniform vec4 u_lightAmbients[4]; // per-light ambient color (rgb)
 uniform vec4 u_lightPositions[4]; // per-light world position (xyz)
 uniform vec4 u_lightParams[4]; // x inner range, y outer/range, z > 0.5 point, w enabled
+// TheSuperHackers @bugfix bobtista Scene ambient is NOT frame-constant: fog-of-war shrouded
+// objects carry a dimmed per-object ambient, so it stays a per-draw uniform in both variants
+// (unlike the sun/point-shadow transforms, which are genuinely global per frame). Extracting it
+// would light shrouded objects with the bright global ambient instead of leaving them fog-dimmed.
 uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
 uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
 uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
@@ -241,7 +272,7 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 	float texel = u_shadowParams.x; // shadow-map texel in UV (1 / map size)
 	float bias = u_shadowParams.y;
 	vec3 biasedPos = worldPos + lightDir * (SUN_SHADOW_NORMAL_OFFSET * slope);
-	vec4 sc = mul(u_shadowMatrices[0], vec4(biasedPos, 1.0));
+	vec4 sc = mul(GGC_SUN_SHADOW_MATRIX, vec4(biasedPos, 1.0));
 	if (sc.w <= 0.0)
 	{
 		return 1.0;
@@ -331,7 +362,7 @@ float samplePointShadow(vec3 worldPos, vec3 nrm)
 	float texel = u_pointShadowParams.z;
 	float bias = u_pointShadowParams.y;
 	vec3 biasedPos = worldPos + lightDir * (SUN_SHADOW_NORMAL_OFFSET * slope);
-	vec4 sc = mul(u_pointShadowMatrix, vec4(biasedPos, 1.0));
+	vec4 sc = mul(GGC_POINT_SHADOW_MATRIX, vec4(biasedPos, 1.0));
 	if (sc.w <= 0.0)
 	{
 		return 1.0;
@@ -931,7 +962,7 @@ void main()
 		// D3D fixed-function folds emissive into the material color before
 		// texture-stage modulation. Adding it after sampling bleaches tinted
 		// self-lit textures like the shellmap police roof lights to white.
-		vec3 litColor = u_sceneAmbient.rgb * matAmbient + matEmissive;
+		vec3 litColor = GGC_SCENE_AMBIENT.rgb * matAmbient + matEmissive;
 		for (int li = 0; li < 4; ++li)
 		{
 			if (u_lightParams[li].w > 0.5 || u_lightDirs[li].w > 0.5)

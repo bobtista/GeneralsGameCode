@@ -156,6 +156,12 @@ struct BgfxDevice
     bgfx::ProgramHandle shadowCasterInstancedProgram = BGFX_INVALID_HANDLE; // per-instance world matrix
     bgfx::ProgramHandle smudgeProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle sortedArrayProgram = BGFX_INVALID_HANDLE; // vs_uber + fs_uber_array; stage 0 from a texture2DArray layer for merged sorted runs.
+    // TheSuperHackers @performance bobtista vs_uber + fs_uber_frameconst; reads the global
+    // per-frame constants (sun/point shadow, scene ambient) from frameConstTexture instead of
+    // per-draw uniforms to shrink the constant buffer. Selected in place of uberProgram unless
+    // GGC_BGFX_NO_UNIFORM_FRAME_TEXTURE is set.
+    bgfx::ProgramHandle uberFrameConstProgram = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle frameConstTexture = BGFX_INVALID_HANDLE; // 16x1 RGBA32F data texture, updated per frame.
 
     // Scene color/depth RT. World, water, sorted translucency, and effects
     // render here, then a fullscreen composite pass copies the scene to the
@@ -223,6 +229,7 @@ struct BgfxUniforms
     bgfx::UniformHandle sCloudMap  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sSceneDepth = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sTexArray  = BGFX_INVALID_HANDLE; // texture2DArray for merged sorted runs (fs_uber_array stage 4)
+    bgfx::UniformHandle sFrameConst = BGFX_INVALID_HANDLE; // frame-constant data texture sampler (fs_uber_frameconst stage 9)
 
     // Material / TSS
     // TheSuperHackers @performance bobtista 15/06/2026 Packed per-draw material block.
