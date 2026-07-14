@@ -40,6 +40,7 @@ LightClass(LightClass::POINT)
 	m_shadowBias = 0.0f;
 	m_shadowStrength = 1.0f;
 	m_targetShadowStrength = 1.0f;
+	m_excludeFromLightEnv = FALSE;
 	m_lastFadeLogicFrame = 0xFFFFFFFF;
 
 }

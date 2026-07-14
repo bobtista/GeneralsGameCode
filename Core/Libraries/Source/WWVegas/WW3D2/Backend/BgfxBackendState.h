@@ -192,6 +192,11 @@ struct BgfxDevice
     bgfx::FrameBufferHandle pointShadowFB  = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     pointShadowTex = BGFX_INVALID_HANDLE;
     uint16_t                pointShadowMapSize = 0;
+    // TheSuperHackers @feature bobtista 14/07/2026 Second point-shadow slot so a transient light
+    // (particle-cannon lightning flash, or a nuke coinciding with a beam) can cast its own shadow
+    // without stealing the primary light's map.
+    bgfx::FrameBufferHandle pointShadow2FB  = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     pointShadow2Tex = BGFX_INVALID_HANDLE;
     uint16_t                sceneWidth = 0;
     uint16_t                sceneHeight = 0;
     // Supersampled scene render size = content size * render scale (1.0-2.0).
@@ -271,6 +276,12 @@ struct BgfxUniforms
     bgfx::UniformHandle uPointShadowLightPos   = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uPointShadowLightColor = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sPointShadowMap        = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPointShadow2Matrix     = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPointShadow2Params     = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPointShadow2LightPos   = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPointShadow2LightColor = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle sPointShadowMap2        = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uDramaDim               = BGFX_INVALID_HANDLE;
 
     // Misc per-draw flags / params
     bgfx::UniformHandle uTexcoordSelect      = BGFX_INVALID_HANDLE;
@@ -460,6 +471,18 @@ struct BgfxDraw
     float pointShadowLightPos[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
     float pointShadowLightColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     bool  pointShadowLightValid    = false;
+    // Second point-shadow slot (transient flash lights); same layout as slot 1.
+    float pointShadow2Matrix[16] = { 0.0f };
+    float pointShadow2Params[4]  = { -1.0f, 0.0f, 0.0f, 0.0f };
+    float pointShadow2LightPos[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float pointShadow2LightColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    // TheSuperHackers @feature bobtista 14/07/2026 GGC_PCANNON_ENHANCED scene dip: eased dim
+    // level while a dramatic shadow-casting dynamic light is active. Published to the shader
+    // through dramaDim as a world-space radial falloff centred on the light, so the action
+    // stays vivid and the battlefield darkens with distance (vignette-like, but in world
+    // space). dramaDim = {center.x, center.y, 1/falloffWidth, dimFactor(1 = off)}.
+    float dramaAmbientDim     = 1.0f;
+    float dramaDim[4]         = { 0.0f, 0.0f, 0.0f, 1.0f };
     float sceneAmbient[4]     = { 0.45f, 0.45f, 0.45f, 1.0f };
     float lightingEnabled[4]  = { 1.0f, 0.0f, 0.0f, 0.0f };
     bool  fvfHasNormal        = false;

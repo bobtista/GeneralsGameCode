@@ -68,6 +68,10 @@ enum GgcFlagType
 	X(GgcFlag_BgfxChroma, "GGC_BGFX_CHROMA", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "force-enable the chromatic-aberration post effect") \
 	X(GgcFlag_BgfxGrain, "GGC_BGFX_GRAIN", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "force-enable the film-grain post effect") \
 	X(GgcFlag_AudioCacheMb, "GGC_AUDIO_CACHE_MB", NULL, GgcTier_Setting, GgcFlagType_Int, 0, 0.0f, "decoded-PCM audio cache size in MB, overrides the INI-derived floor") \
+	X(GgcFlag_PCannonEnhanced, "GGC_PCANNON_ENHANCED", NULL, GgcTier_Setting, GgcFlagType_Presence, 0, 0.0f, "experimental enhanced Particle Cannon effects: beam glow pool, electric arc lighting, lightning flashes, local scene dim (INI: PCannonEnhanced)") \
+	X(GgcFlag_PCannonNoDim, "GGC_PCANNON_NO_DIM", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "PCannon enhanced bisection: disable the scene dim") \
+	X(GgcFlag_PCannonNoFlicker, "GGC_PCANNON_NO_FLICKER", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "PCannon enhanced bisection: disable the beam light flicker") \
+	X(GgcFlag_PCannonNoFlash, "GGC_PCANNON_NO_FLASH", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "PCannon enhanced bisection: disable the lightning flash pulses") \
 	/* --- Kill-switches --- */ \
 	X(GgcFlag_BgfxNoInstancing, "GGC_BGFX_NO_INSTANCING", "GGC_BGFX_DISABLE_INSTANCING", GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "disable GPU-instanced batching of identical rigid meshes") \
 	X(GgcFlag_BgfxInstancingNoReorder, "GGC_BGFX_INSTANCING_NO_REORDER", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "skip the render-task reorder that maximizes instanced run lengths") \
