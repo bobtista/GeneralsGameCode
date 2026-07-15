@@ -1,0 +1,229 @@
+name: BGFX Builds
+
+run-name: bgfx builds from ${{ inputs.ref }}
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or SHA to build"
+        required: false
+        default: "bobtista/topic/trunk"
+        type: string
+      publish:
+        description: "Update the latest-bgfx rolling release"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: bgfx-builds
+  cancel-in-progress: false
+
+env:
+  FFMPEG_WIN64_ASSET: ffmpeg-n8.1-latest-win64-gpl-shared-8.1
+
+jobs:
+  win64:
+    name: ${{ matrix.preset }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - preset: win64
+            config: Release
+            zip: GeneralsZH-win64
+          - preset: win64-debug
+            config: Debug
+            zip: GeneralsZH-win64-debug
+    runs-on: windows-2022
+    timeout-minutes: 120
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Resolve Built Commit
+        id: sha
+        shell: pwsh
+        run: |
+          "sha=$(git rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+
+      - name: Cache FFmpeg
+        id: cache-ffmpeg
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: .deps-cache/ffmpeg-x64
+          key: ffmpeg-win64-${{ env.FFMPEG_WIN64_ASSET }}
+
+      - name: Download FFmpeg
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $asset = "$env:FFMPEG_WIN64_ASSET.zip"
+          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/$asset" -OutFile ffmpeg.zip
+          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg-tmp
+          $inner = Get-ChildItem -Directory ffmpeg-tmp | Select-Object -First 1
+          New-Item -ItemType Directory -Force -Path .deps-cache | Out-Null
+          Move-Item -Path $inner.FullName -Destination .deps-cache/ffmpeg-x64
+          Remove-Item ffmpeg.zip
+
+      - name: Set Up VC2022 Environment
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+
+      - name: Cache CMake Dependencies
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: build\${{ matrix.preset }}\_deps
+          key: cmake-deps-${{ matrix.preset }}-${{ hashFiles('CMakePresets.json','cmake/**/*.cmake','**/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-deps-${{ matrix.preset }}-
+
+      - name: Configure with CMake
+        shell: pwsh
+        run: |
+          cmake --preset ${{ matrix.preset }}
+
+      - name: Build GeneralsMD
+        shell: pwsh
+        run: |
+          cmake --build build/${{ matrix.preset }} --config ${{ matrix.config }} --target z_generals
+
+      - name: Stage and Zip
+        shell: pwsh
+        run: |
+          $build = "build/${{ matrix.preset }}"
+          $cfg = "${{ matrix.config }}"
+          $stage = New-Item -ItemType Directory -Force -Path "stage"
+
+          Copy-Item "$build/GeneralsMD/$cfg/*.exe" $stage
+          if (Test-Path "$build/GeneralsMD/$cfg/*.pdb") {
+            Copy-Item "$build/GeneralsMD/$cfg/*.pdb" $stage
+          }
+
+          $dlls = Get-ChildItem -Path "$build/_deps" -Recurse -Include "SDL3*.dll","OpenAL32*.dll" |
+            Where-Object { $_.FullName -like "*\$cfg\*" }
+          if (-not $dlls) {
+            throw "No SDL3/OpenAL runtime DLLs found under $build/_deps for config $cfg"
+          }
+          $dlls | Copy-Item -Destination $stage
+          Copy-Item ".deps-cache/ffmpeg-x64/bin/*.dll" $stage
+
+          @(
+            "Command & Conquer Generals Zero Hour (GeneralsMD) bgfx build",
+            "preset: ${{ matrix.preset }} ($cfg)",
+            "ref: ${{ inputs.ref }}",
+            "commit: $(git rev-parse HEAD)",
+            "built: $((Get-Date).ToUniversalTime().ToString('o'))"
+          ) | Set-Content "$stage/BUILD_INFO.txt"
+
+          Compress-Archive -Path "$stage/*" -DestinationPath "${{ matrix.zip }}.zip"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ${{ matrix.zip }}
+          path: ${{ matrix.zip }}.zip
+          retention-days: 30
+          if-no-files-found: error
+
+  macos:
+    name: macos-generalsmd-sdl3-bgfx
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      GGC_MACOS_RUNTIME_DIR: ${{ runner.temp }}/GeneralsZH-macos
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install Dependencies
+        run: |
+          brew install ninja dylibbundler ffmpeg
+          command -v pkg-config || brew install pkgconf
+
+      - name: Cache CMake Dependencies
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: build/macos-generalsmd-sdl3-bgfx/_deps
+          key: cmake-deps-macos-generalsmd-sdl3-bgfx-${{ hashFiles('CMakePresets.json','cmake/**/*.cmake','**/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-deps-macos-generalsmd-sdl3-bgfx-
+
+      - name: Build and Stage GeneralsMD
+        run: |
+          bash scripts/build/macos/build-macos-generalsmd.sh
+
+      - name: Zip
+        run: |
+          {
+            echo "Command & Conquer Generals Zero Hour (GeneralsMD) bgfx build"
+            echo "preset: macos-generalsmd-sdl3-bgfx (Release, arm64)"
+            echo "ref: ${{ inputs.ref }}"
+            echo "commit: $(git rev-parse HEAD)"
+            echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > "${GGC_MACOS_RUNTIME_DIR}/BUILD_INFO.txt"
+          cd "${GGC_MACOS_RUNTIME_DIR}"
+          zip -ry "${GITHUB_WORKSPACE}/GeneralsZH-macos-arm64.zip" .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: GeneralsZH-macos-arm64
+          path: GeneralsZH-macos-arm64.zip
+          retention-days: 30
+          if-no-files-found: error
+
+  publish:
+    name: Update latest-bgfx release
+    needs: [win64, macos]
+    if: inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish Rolling Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.win64.outputs.sha }}
+          REF: ${{ inputs.ref }}
+        run: |
+          cat > notes.md <<EOF
+          Latest bgfx builds of Zero Hour (GeneralsMD), automatically updated.
+
+          Built from \`${REF}\` @ ${SHA} on $(date -u +%Y-%m-%d\ %H:%M\ UTC).
+
+          | Asset | Contents |
+          | --- | --- |
+          | GeneralsZH-win64.zip | Windows x64 Release: generalszh.exe + SDL3/OpenAL/FFmpeg DLLs |
+          | GeneralsZH-win64-debug.zip | Windows x64 Debug: exe + PDB + DLLs |
+          | GeneralsZH-macos-arm64.zip | macOS Apple Silicon: generalszh + bundled dylibs + run.sh |
+
+          You need the retail Generals + Zero Hour game data. Unzip next to your \`.big\` files (Windows) or place the .big files in the unzipped folder and start with \`run.sh\` (macOS).
+
+          - Windows: requires the VC++ 2022 x64 redistributable.
+          - macOS: the binary is ad-hoc signed; after unzipping run \`xattr -dr com.apple.quarantine .\` inside the folder so Gatekeeper lets it launch.
+          EOF
+
+          gh release delete latest-bgfx --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          gh release create latest-bgfx dist/*.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SHA" \
+            --prerelease \
+            --title "Latest bgfx builds" \
+            --notes-file notes.md
