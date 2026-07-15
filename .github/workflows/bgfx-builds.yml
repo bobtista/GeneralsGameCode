@@ -160,6 +160,10 @@ jobs:
           restore-keys: |
             cmake-deps-macos-generalsmd-sdl3-bgfx-
 
+      - name: Configure with CMake
+        run: |
+          cmake --preset macos-generalsmd-sdl3-bgfx -DRTS_CRASHDUMP_ENABLE=OFF
+
       - name: Build and Stage GeneralsMD
         run: |
           bash scripts/build/macos/build-macos-generalsmd.sh
