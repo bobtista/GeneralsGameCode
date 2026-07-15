@@ -152,7 +152,8 @@ jobs:
     timeout-minutes: 120
     env:
       GGC_MACOS_RUNTIME_DIR: ${{ github.workspace }}/stage-macos/GeneralsZH-macos
-      SCCACHE_GHA_ENABLED: "true"
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 2G
     steps:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -161,7 +162,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install ninja dylibbundler ffmpeg
+          brew install ninja dylibbundler ffmpeg ccache
           command -v pkg-config || brew install pkgconf
 
       - name: Cache CMake Dependencies
@@ -172,17 +173,22 @@ jobs:
           restore-keys: |
             cmake-deps-macos-generalsmd-sdl3-bgfx-
 
-      - name: Set Up sccache
-        uses: mozilla/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+      - name: Cache Compilations
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: .ccache
+          key: ccache-macos-${{ github.run_id }}
+          restore-keys: |
+            ccache-macos-
 
       - name: Configure with CMake
         run: |
-          cmake --preset macos-generalsmd-sdl3-bgfx -DRTS_CRASHDUMP_ENABLE=OFF -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          cmake --preset macos-generalsmd-sdl3-bgfx -DRTS_CRASHDUMP_ENABLE=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build and Stage GeneralsMD
         run: |
           bash scripts/build/macos/build-macos-generalsmd.sh
-          sccache --show-stats
+          ccache -s
 
       - name: Zip
         run: |
