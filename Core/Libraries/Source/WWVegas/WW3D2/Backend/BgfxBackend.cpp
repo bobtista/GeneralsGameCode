@@ -13340,68 +13340,12 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::discard(BGFX_DISCARD_ALL);
         return;
     }
-    {
-        uint64_t blendState = earlyState;
-        g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState)
-            ? 1.0f
-            : 0.0f;
-        UpdateAlphaMaskAndSortedEffectModes(blendState);
-    }
-    UploadMaterialUniforms(submitView);
-    if (g_draw.lightDirs[0][3] < 0.5f)
-    {
-        const auto &rs = FixedFunctionState::Render_State();
-        for (int i = 0; i < 4; ++i)
-        {
-            if (rs.LightEnable[i])
-            {
-                const auto &dl = rs.Lights[i];
-                g_draw.lightDirs[i][0] = -dl.Direction.x;
-                g_draw.lightDirs[i][1] = -dl.Direction.y;
-                g_draw.lightDirs[i][2] = -dl.Direction.z;
-                g_draw.lightDirs[i][3] = 1.0f;
-                g_draw.lightColors[i][0] = dl.Diffuse.r;
-                g_draw.lightColors[i][1] = dl.Diffuse.g;
-                g_draw.lightColors[i][2] = dl.Diffuse.b;
-                g_draw.lightColors[i][3] = 1.0f;
-                g_draw.lightAmbients[i][0] = dl.Ambient.r;
-                g_draw.lightAmbients[i][1] = dl.Ambient.g;
-                g_draw.lightAmbients[i][2] = dl.Ambient.b;
-                g_draw.lightAmbients[i][3] = 1.0f;
-                g_draw.lightParams[i][3] = 1.0f;
-            }
-        }
-    }
-    const bool forceUnlitLighting = ShouldForceUnlitForBakedColorDraw(earlyState);
-    const bool fixedFunctionLightInputsNeeded =
-        g_draw.lightingEnabled[0] > 0.5f
-        && !forceUnlitLighting;
-    UploadLightUniforms(fixedFunctionLightInputsNeeded, submitView);
-    if (bgfx::isValid(g_uniforms.uSceneAmbient))
-    {
-        static FrameConstUniformGuard s_sceneAmbientGuard;
-        if (ShouldUploadFrameConstUniform(s_sceneAmbientGuard, submitView,
-                                          g_draw.sceneAmbient,
-                                          sizeof(g_draw.sceneAmbient)))
-        {
-            bgfx::setUniform(g_uniforms.uSceneAmbient, g_draw.sceneAmbient);
-        }
-    }
-    if (bgfx::isValid(g_uniforms.uLightingEnabled))
-    {
-        // TheSuperHackers @bugfix bobtista 15/04/2026 Force lighting off for additive/alpha
-        // particle and sorted-decal draws that bake intensity or final color into vertex diffuse
-        // or recolored tex0; the lit branch would otherwise ignore that baking.
-        const float forced[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-        const float * lightingEnabledValue = forceUnlitLighting ? forced : g_draw.lightingEnabled;
-        static FrameConstUniformGuard s_lightingEnabledGuard;
-        if (ShouldUploadFrameConstUniform(s_lightingEnabledGuard, submitView,
-                                          lightingEnabledValue, sizeof(forced)))
-        {
-            bgfx::setUniform(g_uniforms.uLightingEnabled, lightingEnabledValue);
-        }
-    }
-
+    // TheSuperHackers @bugfix bobtista 17/07/2026 Shroud detection must run BEFORE the
+    // guarded uniform uploads below: it can reassign submitView to the shroud overlay
+    // view, and FrameConstUniformGuard keys on the view. Keying the uploads to the
+    // pre-reassignment engine view let elision skip uploads the shroud view never saw
+    // (shroud overlay inheriting lit state) and let later engine draws reuse guard
+    // entries whose values actually played in the shroud view.
     // Detect shroud pass: legacy setup uses TCI_CAMERASPACEPOSITION + depth func
     // EQUAL to render a multiplicative shroud overlay. Both conditions must
     // be true to avoid false positives from other effects that set TCI bits.
@@ -13493,6 +13437,68 @@ void SubmitEngineDraw(unsigned short start_index,
             || shroudDetected)
         {
             LogBgfxShroudPass("shroud-candidate", submitView, polygon_count, depthFunc, tci, shroudDetected, shroudParams);
+        }
+    }
+
+    {
+        uint64_t blendState = earlyState;
+        g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState)
+            ? 1.0f
+            : 0.0f;
+        UpdateAlphaMaskAndSortedEffectModes(blendState);
+    }
+    UploadMaterialUniforms(submitView);
+    if (g_draw.lightDirs[0][3] < 0.5f)
+    {
+        const auto &rs = FixedFunctionState::Render_State();
+        for (int i = 0; i < 4; ++i)
+        {
+            if (rs.LightEnable[i])
+            {
+                const auto &dl = rs.Lights[i];
+                g_draw.lightDirs[i][0] = -dl.Direction.x;
+                g_draw.lightDirs[i][1] = -dl.Direction.y;
+                g_draw.lightDirs[i][2] = -dl.Direction.z;
+                g_draw.lightDirs[i][3] = 1.0f;
+                g_draw.lightColors[i][0] = dl.Diffuse.r;
+                g_draw.lightColors[i][1] = dl.Diffuse.g;
+                g_draw.lightColors[i][2] = dl.Diffuse.b;
+                g_draw.lightColors[i][3] = 1.0f;
+                g_draw.lightAmbients[i][0] = dl.Ambient.r;
+                g_draw.lightAmbients[i][1] = dl.Ambient.g;
+                g_draw.lightAmbients[i][2] = dl.Ambient.b;
+                g_draw.lightAmbients[i][3] = 1.0f;
+                g_draw.lightParams[i][3] = 1.0f;
+            }
+        }
+    }
+    const bool forceUnlitLighting = ShouldForceUnlitForBakedColorDraw(earlyState);
+    const bool fixedFunctionLightInputsNeeded =
+        g_draw.lightingEnabled[0] > 0.5f
+        && !forceUnlitLighting;
+    UploadLightUniforms(fixedFunctionLightInputsNeeded, submitView);
+    if (bgfx::isValid(g_uniforms.uSceneAmbient))
+    {
+        static FrameConstUniformGuard s_sceneAmbientGuard;
+        if (ShouldUploadFrameConstUniform(s_sceneAmbientGuard, submitView,
+                                          g_draw.sceneAmbient,
+                                          sizeof(g_draw.sceneAmbient)))
+        {
+            bgfx::setUniform(g_uniforms.uSceneAmbient, g_draw.sceneAmbient);
+        }
+    }
+    if (bgfx::isValid(g_uniforms.uLightingEnabled))
+    {
+        // TheSuperHackers @bugfix bobtista 15/04/2026 Force lighting off for additive/alpha
+        // particle and sorted-decal draws that bake intensity or final color into vertex diffuse
+        // or recolored tex0; the lit branch would otherwise ignore that baking.
+        const float forced[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        const float * lightingEnabledValue = forceUnlitLighting ? forced : g_draw.lightingEnabled;
+        static FrameConstUniformGuard s_lightingEnabledGuard;
+        if (ShouldUploadFrameConstUniform(s_lightingEnabledGuard, submitView,
+                                          lightingEnabledValue, sizeof(forced)))
+        {
+            bgfx::setUniform(g_uniforms.uLightingEnabled, lightingEnabledValue);
         }
     }
 
