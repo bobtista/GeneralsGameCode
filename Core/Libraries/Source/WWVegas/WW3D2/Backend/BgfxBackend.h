@@ -106,7 +106,13 @@ public:
     virtual bool Supports_Bump_Envmap_Luminance() const override { return false; }
     virtual bool Supports_Texture_Filter(RenderBackendTextureFilterCapability /*capability*/) const override { return true; }
     virtual bool Supports_Texture_Op(RenderBackendTextureOpCapability capability) const override;
-    virtual bool Supports_Fog() const override { return true; }
+    // TheSuperHackers @info bobtista 16/07/2026 This backend does not implement distance fog:
+    // Set_Fog discards its parameters and the uber shader has no fog term. Advertising support
+    // made ShaderClass::Apply's per-material fog block believe fog could work (it then bailed
+    // on Get_Fog_Enable anyway). Report the truth; behavior is unchanged since stock ZH never
+    // enables scene fog. If fog is ever implemented, Set_Fog must also split the scene fog
+    // color from the per-draw munged color and call ShaderClass::Invalidate on change.
+    virtual bool Supports_Fog() const override { return false; }
     virtual bool Is_Legacy_Voodoo3() const override { return false; }
     virtual bool Supports_NPatches() const override { return false; }
     virtual bool Supports_Hardware_Transform_And_Lighting() const override { return true; }
