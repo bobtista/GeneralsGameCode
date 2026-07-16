@@ -334,6 +334,9 @@ static const float kTssSubtract      =  7.0f;
 static const float kTssBlendTexAlpha =  8.0f;
 static const float kTssBlendCurAlpha =  9.0f;
 static const float kTssAddSmooth     = 10.0f;
+static const float kTssAddSigned2x   = 11.0f;
+static const float kTssModAlphaAddColor = 12.0f;
+static const float kTssSubtractRev   = 13.0f;
 
 // TSS argument source IDs (packed into arg1/arg2 uniform channels).
 static const float kTssArgTexture =  0.0f;
@@ -364,6 +367,8 @@ static float TextureOpToTssOp(unsigned value)
         case RB_TEXOP_BLENDTEXTUREALPHA:  return kTssBlendTexAlpha;
         case RB_TEXOP_BLENDCURRENTALPHA:  return kTssBlendCurAlpha;
         case RB_TEXOP_ADDSMOOTH:          return kTssAddSmooth;
+        case RB_TEXOP_ADDSIGNED2X:        return kTssAddSigned2x;
+        case RB_TEXOP_MODULATEALPHA_ADDCOLOR: return kTssModAlphaAddColor;
         default:                          return kTssSelectArg1;
     }
 }
@@ -1675,11 +1680,15 @@ void BuildTssOpsForShader(const ShaderClass & shader,
                 break;
             case ShaderClass::DETAILCOLOR_SUB:
                 secColorOp  = kTssSubtract;
-                secCArg1Src = kTssArgCurrent; // result = current - tex
+                secCArg1Src = kTssArgTexture; // result = tex - current (retail arg1=TEXTURE)
                 break;
+            // TheSuperHackers @bugfix bobtista 16/07/2026 SUBR needs current - tex, but the
+            // uber shader's detail combiner hardcodes arg1=tex, arg2=current (the arg-select
+            // channels u_tssOps1.zw are not read). Encode the reversal in a dedicated op
+            // instead; the previous kTssSubtract mapping rendered SUBR inverted.
             case ShaderClass::DETAILCOLOR_SUBR:
-                secColorOp  = kTssSubtract;
-                secCArg1Src = kTssArgTexture; // result = tex - current
+                secColorOp  = kTssSubtractRev;
+                secCArg1Src = kTssArgCurrent; // result = current - tex
                 break;
             case ShaderClass::DETAILCOLOR_BLEND:
                 secColorOp  = kTssBlendTexAlpha;
@@ -1688,6 +1697,26 @@ void BuildTssOpsForShader(const ShaderClass & shader,
             case ShaderClass::DETAILCOLOR_DETAILBLEND:
                 secColorOp  = kTssBlendCurAlpha;
                 secCArg1Src = kTssArgTexture;
+                break;
+            // TheSuperHackers @bugfix bobtista 16/07/2026 These four detail funcs previously
+            // fell into the default branch and silently disabled the detail stage; retail
+            // maps them at shader.cpp:799-858. SCALE2X and ADDSIGNED reuse existing shader
+            // ops; ADDSIGNED2X and MODALPHAADDCOLOR have dedicated ops in fs_uber.
+            case ShaderClass::DETAILCOLOR_ADDSIGNED:
+                secColorOp  = kTssAddSigned;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_ADDSIGNED2X:
+                secColorOp  = kTssAddSigned2x;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_SCALE2X:
+                secColorOp  = kTssModulate2x;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_MODALPHAADDCOLOR:
+                secColorOp  = kTssModAlphaAddColor;
+                secCArg1Src = kTssArgCurrent; // retail arg1=CURRENT: current.rgb + current.a * tex.rgb
                 break;
         }
 
@@ -6061,11 +6090,11 @@ bool BgfxBackend::Supports_Texture_Op(RenderBackendTextureOpCapability capabilit
         case RB_TEXTURE_OP_BLENDTEXTUREALPHA:
         case RB_TEXTURE_OP_BLENDCURRENTALPHA:
         case RB_TEXTURE_OP_ADDSIGNED:
+        case RB_TEXTURE_OP_ADDSIGNED2X:
+        case RB_TEXTURE_OP_MODULATEALPHA_ADDCOLOR:
             return true;
         case RB_TEXTURE_OP_BUMPENVMAP:
         case RB_TEXTURE_OP_BUMPENVMAPLUMINANCE:
-        case RB_TEXTURE_OP_ADDSIGNED2X:
-        case RB_TEXTURE_OP_MODULATEALPHA_ADDCOLOR:
         default:
             return false;
     }

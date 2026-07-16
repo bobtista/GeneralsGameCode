@@ -124,6 +124,9 @@ uniform vec4 u_material[24];
 #define TSS_BLENDTEXALPHA   8.0
 #define TSS_BLENDCURALPHA   9.0
 #define TSS_ADDSMOOTH      10.0
+#define TSS_ADDSIGNED2X      11.0
+#define TSS_MODALPHAADDCOLOR 12.0
+#define TSS_SUBTRACTREV      13.0
 
 // Arg source IDs
 #define SRC_TEXTURE  0.0
@@ -193,7 +196,8 @@ vec3 applyColorOp(float op, vec3 arg1, vec3 arg2)
 		}
 		return arg1 + arg2;
 	}
-	// ADDSIGNED(6), SUBTRACT(7), BLENDTEX(8)/BLENDCUR(9) handled by caller, ADDSMOOTH(10)
+	// ADDSIGNED(6), SUBTRACT(7), BLENDTEX(8)/BLENDCUR(9)/MODALPHAADDCOLOR(12) handled by
+	// caller, ADDSMOOTH(10), ADDSIGNED2X(11), SUBTRACTREV(13)
 	if (op < 6.5)
 	{
 		return arg1 + arg2 - vec3_splat(0.5);
@@ -202,9 +206,21 @@ vec3 applyColorOp(float op, vec3 arg1, vec3 arg2)
 	{
 		return arg1 - arg2;
 	}
-	if (op > 9.5)
+	if (op < 9.5)
+	{
+		return arg1;
+	}
+	if (op < 10.5)
 	{
 		return arg1 + arg2 - arg1 * arg2;
+	}
+	if (op < 11.5)
+	{
+		return clamp((arg1 + arg2 - vec3_splat(0.5)) * 2.0, vec3_splat(0.0), vec3_splat(1.0));
+	}
+	if (op > 12.5)
+	{
+		return arg2 - arg1;
 	}
 	return arg1;
 }
@@ -235,9 +251,21 @@ float applyAlphaOp(float op, float arg1, float arg2)
 	{
 		return arg1 - arg2;
 	}
-	if (op > 9.5)
+	if (op < 9.5)
+	{
+		return arg1;
+	}
+	if (op < 10.5)
 	{
 		return arg1 + arg2 - arg1 * arg2;
+	}
+	if (op < 11.5)
+	{
+		return clamp((arg1 + arg2 - 0.5) * 2.0, 0.0, 1.0);
+	}
+	if (op > 12.5)
+	{
+		return arg2 - arg1;
 	}
 	return arg1;
 }
@@ -893,6 +921,12 @@ void main()
 			{
 				current.rgb = mix(secArg2, secArg1, current.a);
 			}
+			else if (secColorOp > 11.5 && secColorOp < 12.5)
+			{
+				// D3DTOP_MODULATEALPHA_ADDCOLOR with retail arg order (current, tex):
+				// current.rgb + current.a * tex.rgb
+				current.rgb = clamp(secArg2 + current.a * secArg1, vec3_splat(0.0), vec3_splat(1.0));
+			}
 			else
 			{
 				current.rgb = applyColorOp(secColorOp, secArg1, secArg2);
@@ -1038,6 +1072,12 @@ void main()
 			else if (secColorOp > 8.5 && secColorOp < 9.5)
 			{
 				current.rgb = mix(current.rgb, tex1.rgb, current.a);
+			}
+			else if (secColorOp > 11.5 && secColorOp < 12.5)
+			{
+				// D3DTOP_MODULATEALPHA_ADDCOLOR with retail arg order (current, tex):
+				// current.rgb + current.a * tex.rgb
+				current.rgb = clamp(current.rgb + current.a * tex1.rgb, vec3_splat(0.0), vec3_splat(1.0));
 			}
 			else
 			{
