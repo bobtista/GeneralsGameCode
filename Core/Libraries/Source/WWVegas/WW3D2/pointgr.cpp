@@ -939,37 +939,12 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 			PointCount, PointLoc->Get_Count(), vnum, pnum);
 	}
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned point groups skip the
-	// Billboard pre-transform, but the BGFX sort-flush view is projection-only, so apply the
-	// camera view transform to each vertex inline here. BGFX-only; DX8 keeps its pipeline.
-	if (!Billboard && current_loc != nullptr)
-	{
-		GGC_RPROFILE(POINTGROUP_GROUND_FIXUP);
-		Vector3 *vertex_loc = &VertexLoc[0];
-		for (int p = 0; p < PointCount; p++)
-		{
-			unsigned char orient = current_orient
-				? current_orient[p]
-				: DefaultPointOrientation;
-			float psize = current_size
-				? current_size[p]
-				: DefaultPointSize;
-			const int verts = (PointMode == TRIS) ? 3 : 4;
-			const Vector3 *table = (PointMode == TRIS)
-				? _TriVertexLocationOrientationTable[orient]
-				: _QuadVertexLocationOrientationTable[orient];
-			for (int j = 0; j < verts; j++)
-			{
-				Vector3 worldVert = current_loc[p] + table[j] * psize;
-				Vector4 viewVert = view * worldVert;
-				vertex_loc[p*verts + j].X = viewVert.X;
-				vertex_loc[p*verts + j].Y = viewVert.Y;
-				vertex_loc[p*verts + j].Z = viewVert.Z;
-			}
-		}
-	}
-#endif // GGC_RENDER_BACKEND_BGFX
+// TheSuperHackers @bugfix bobtista 17/07/2026 The 28/05 ground-alignment fixup that
+	// re-built these vertices from the billboard orientation tables is removed: it overwrote
+	// Update_Arrays' retail ground geometry with half-size, opposite-spin, mirrored quads.
+	// Update_Arrays already outputs camera-space vertices for ground-aligned groups, and the
+	// backend's camera-space world fix reprojects them correctly on the engine view
+	// (kill switch GGC_BGFX_NO_CAMERA_SPACE_WORLD_FIX).
 
 	// the locations are now in view space
 	// so set world and view matrices to identity and render
