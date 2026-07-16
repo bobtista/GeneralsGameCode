@@ -4257,6 +4257,15 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     bgfx::setViewRect(kBgfxEffectOverlayView, 0, 0,
                       static_cast<uint16_t>(g_device.width),
                       static_cast<uint16_t>(g_device.height));
+    // TheSuperHackers @bugfix bobtista 17/07/2026 Sequential like the other engine-content
+    // views: the frame-const uniform guards elide re-uploads assuming playback order equals
+    // submission order within a view, and translucent effect draws must play back in engine
+    // order anyway. Default mode reorders by sort key, which both broke the guard invariant
+    // and could reorder blended dazzle draws.
+    bgfx::setViewMode(kBgfxEffectOverlayView, bgfx::ViewMode::Sequential);
+    // Same invariant for the render-to-texture view: its framebuffer/rect are bound
+    // dynamically per capture, but the playback-order guarantee is established here.
+    bgfx::setViewMode(kBgfxRTTView, bgfx::ViewMode::Sequential);
     {
         float identityMtx[16];
         IdentityMatrix(identityMtx);
