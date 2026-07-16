@@ -325,6 +325,7 @@ struct BgfxDraw
     uint64_t            blendFuncBits = 0;
     bool                alphaBlendEnabled = false;
     bool                alphaBlendExplicitlySet = false;
+    bool                alphaTestExplicitlySet = false;
     bool                depthTestEnabled = true;
     bool                depthWriteEnabled = true;
     uint64_t            depthFuncBits = BGFX_STATE_DEPTH_TEST_LEQUAL;
