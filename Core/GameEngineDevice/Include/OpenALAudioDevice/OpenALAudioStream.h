@@ -47,7 +47,9 @@ public:
     void markEndOfStream() { m_reachedEof = true; }
     bool reachedEndOfStream() const { return m_reachedEof; }
 
-    void play() { m_stopRequested = false; alSourcePlay(m_source); }
+    // TheSuperHackers @bugfix bobtista 16/07/2026 Starting playback schedules every queued buffer,
+    // so none of them count as queued-but-unplayed anymore.
+    void play() { m_stopRequested = false; m_buffersQueuedWhileNotPlaying = 0; alSourcePlay(m_source); }
     void pause() { alSourcePause(m_source); }
     // TheSuperHackers @bugfix bobtista 13/07/2026 Remember an intentional stop so update() does not
     // treat the stopped source as an underrun and restart it; the drained stream is then released
@@ -64,4 +66,9 @@ protected:
     unsigned int m_current_buffer_idx = 0;
     bool m_reachedEof = false;
     bool m_stopRequested = false;
+    // TheSuperHackers @bugfix bobtista 16/07/2026 A stopped source reports every queued buffer as
+    // processed, including buffers queued after it stopped that never played. Count the buffers
+    // queued while the source was not playing so an underrun recovery can drop exactly the played
+    // ones instead of replaying them.
+    ALint m_buffersQueuedWhileNotPlaying = 0;
 };
