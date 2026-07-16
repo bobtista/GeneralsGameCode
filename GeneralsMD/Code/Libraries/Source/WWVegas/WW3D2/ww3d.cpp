@@ -1798,7 +1798,22 @@ void	WW3D::Set_Texture_Reduction( int value, int minDim )
 	if (_TextureReduction != value || _TextureMinDim != minDim) {
 		_TextureReduction=value;
 		_TextureMinDim=minDim;
-		_Invalidate_Textures();
+		// TheSuperHackers @bugfix bobtista 16/07/2026 On shader-pipeline backends
+		// TextureBaseClass::Invalidate is a deliberate no-op (no device loss to recover
+		// from), which made runtime texture-detail changes inert until restart. Queue a
+		// reload at the new reduction instead; the loader re-derives the mip chain and
+		// the backend rebuilds from the refreshed CPU snapshot.
+		if (g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline()) {
+			if (WW3DAssetManager::Get_Instance()) {
+				TextureLoader::Flush_Pending_Load_Tasks();
+				HashTemplateIterator<StringClass,TextureClass*> ite(WW3DAssetManager::Get_Instance()->Texture_Hash());
+				for (ite.First();!ite.Is_Done();ite.Next()) {
+					ite.Peek_Value()->Reload_For_Reduction();
+				}
+			}
+		} else {
+			_Invalidate_Textures();
+		}
 	}
 }
 
