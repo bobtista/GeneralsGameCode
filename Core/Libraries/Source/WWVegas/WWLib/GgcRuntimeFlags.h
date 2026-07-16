@@ -86,6 +86,7 @@ enum GgcFlagType
 	X(GgcFlag_BgfxDisableRigidPacketSubmit, "GGC_BGFX_DISABLE_RIGID_PACKET_SUBMIT", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "revert rigid mesh draws to the legacy index-offset + draw call pair instead of the single packet submit") \
 	X(GgcFlag_BgfxDisableUnlitLightInputSkip, "GGC_BGFX_DISABLE_UNLIT_LIGHT_INPUT_SKIP", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "disable skipping light-uniform uploads for unlit draws") \
 	X(GgcFlag_BgfxDisableInactiveShadowUniformSkip, "GGC_BGFX_DISABLE_INACTIVE_SHADOW_UNIFORM_SKIP", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "disable skipping shadow-uniform uploads while the shadow map is inactive") \
+	X(GgcFlag_BgfxNoMapperApply, "GGC_BGFX_NO_MAPPER_APPLY", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "skip applying vertex-material UV mappers at material bind, freezing animated texture transforms") \
 	X(GgcFlag_NoSortCoalesce, "GGC_NO_SORT_COALESCE", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "revert additive-run coalescing in the sorting flush to the per-run path") \
 	X(GgcFlag_NoTrackBatch, "GGC_NO_TRACK_BATCH", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "force per-module terrain-track draws instead of per-texture batching") \
 	X(GgcFlag_NoParticleBatch, "GGC_NO_PARTICLE_BATCH", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "force per-emitter particle submission instead of batched draws") \
