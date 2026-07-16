@@ -2026,6 +2026,15 @@ void WaterRenderObjClass::renderWaterMesh()
 	{
 		return;
 	}
+
+	// TheSuperHackers @bugfix bobtista 17/07/2026 Mark the deforming grid mesh as a water
+	// draw like the trapezoid and river paths do. Retail applied WATER_MESH_OPACITY to this
+	// very material; on the shader pipeline the override doubles as the routing marker that
+	// sends the draw to the water view, so without it the grid rendered in the earlier
+	// engine view and the flat trapezoid layer and wakes composited over it. Set after the
+	// index-buffer check so the one-shot override is always consumed by the draw below.
+	g_renderBackend->Override_Alpha_Blend_Enable(true);
+	g_renderBackend->Override_Material_Opacity(WATER_MESH_OPACITY);
 	g_renderBackend->Set_Index_Buffer(m_waterMeshIndexBuffer,0);
 	g_renderBackend->Set_Vertex_Buffer(vb_access);
 
