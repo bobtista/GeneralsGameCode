@@ -1627,6 +1627,13 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
     // separate snapshot/cache/upload plumbing if a real caller appears.
     if (tex2d == nullptr || tex->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR)
     {
+        // TheSuperHackers @info bobtista 16/07/2026 Release-visible breadcrumb: in release
+        // builds an unsupported texture type renders as the silent white fallback with no
+        // assert, which is undiagnosable from a screenshot. Fires once per texture because
+        // the invalid handle is cached below.
+        fprintf(stderr, "[BgfxBackend] Unsupported texture type %d for %s; binding white fallback\n",
+                static_cast<int>(tex->Get_Asset_Type()),
+                tex->Get_Texture_Name().str());
         textureCache[tex] = BGFX_INVALID_HANDLE;
         return BGFX_INVALID_HANDLE;
     }
