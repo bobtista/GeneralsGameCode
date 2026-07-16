@@ -1408,17 +1408,22 @@ Int MaskTextureShader::set(Int pass)
 	Real worldTexelHeight=(1.0f-fadeLevel)*25.0f;
 
 	///@todo: Fix this to work with non 128x128 textures.
+	// TheSuperHackers @bugfix bobtista 17/07/2026 Reverse the factor order for this port's
+	// column-vector Matrix4x4, exactly like the shroud texture transform
+	// (W3DShaderManager_SetShroudTextureTransform): the view-inverse must be the rightmost
+	// (first-applied) factor. Retail's row-vector order left the crossfade mask misprojected,
+	// so the circle-wipe did not track the screen-center terrain point or scale with fade.
 	if (worldTexelWidth != 0 && worldTexelHeight != 0)
 	{
 		Real widthScale = 1.0f/(worldTexelWidth*128.0f);
 		Real heightScale = 1.0f/(worldTexelHeight*128.0f);
 		Matrix4x4 scale = W3DShaderManager_MakeTextureScale(widthScale, heightScale, 1);
-		curView = ((inv * offset) * scale)*offsetTextureCenter;
+		curView = offsetTextureCenter*(scale*(offset*inv));
 	}
 	else
 	{
 		Matrix4x4 scale = W3DShaderManager_MakeTextureScale(0, 0, 1);	//scaling by 0 will set uv coordinates to 0,0
-		curView = ((inv * offset) * scale);
+		curView = scale*(offset*inv);
 	}
 
 	W3DShaderManager_SetTextureTransform(0, curView);
