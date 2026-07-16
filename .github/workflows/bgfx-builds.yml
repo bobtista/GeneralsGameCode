@@ -44,8 +44,6 @@ jobs:
             zip: GeneralsZH-win64-debug
     runs-on: windows-2022
     timeout-minutes: 120
-    env:
-      SCCACHE_GHA_ENABLED: "true"
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
     steps:
@@ -85,7 +83,16 @@ jobs:
           arch: x64
 
       - name: Set Up sccache
-        uses: mozilla/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+        # Single-archive local sccache dir cached as ONE entry per run (not the GHA
+        # per-object backend, which fragmented into thousands of tiny cache entries and
+        # hit API rate limits -> silent false misses). append-timestamp + restore-key
+        # prefix warm-restore each run; max-size bounds it well under the repo cache cap.
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        with:
+          variant: sccache
+          key: bgfx-${{ matrix.preset }}
+          max-size: 2G
+          verbose: 1
 
       - name: Cache CMake Dependencies
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
@@ -155,8 +162,6 @@ jobs:
     timeout-minutes: 120
     env:
       GGC_MACOS_RUNTIME_DIR: ${{ github.workspace }}/stage-macos/GeneralsZH-macos
-      CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_MAXSIZE: 2G
     steps:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -176,13 +181,15 @@ jobs:
           restore-keys: |
             cmake-deps-macos-generalsmd-sdl3-bgfx-
 
-      - name: Cache Compilations
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+      - name: Set Up ccache
+        # Single-archive ccache dir, append-timestamp + restore-key prefix so each run
+        # saves a fresh entry and warm-restores the latest; max-size caps total size.
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
         with:
-          path: .ccache
-          key: ccache-macos-${{ github.run_id }}
-          restore-keys: |
-            ccache-macos-
+          variant: ccache
+          key: bgfx-macos
+          max-size: 2G
+          verbose: 1
 
       - name: Configure with CMake
         run: |
