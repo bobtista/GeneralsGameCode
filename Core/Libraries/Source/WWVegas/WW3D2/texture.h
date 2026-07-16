@@ -155,6 +155,12 @@ public:
 	// This utility function processes the texture reduction (used during rendering)
 	void Invalidate();
 
+	// TheSuperHackers @feature bobtista 16/07/2026 Re-load a file texture at the current
+	// texture reduction on backends where Invalidate() is a deliberate no-op. Clears the
+	// initialized state and queues a background reload; the old CPU snapshot (and the GPU
+	// texture built from it) stays live until the reload commits, so there is no white flash.
+	void Reload_For_Reduction();
+
 		struct TextureMipSnapshot
 		{
 			unsigned Width;

@@ -600,6 +600,31 @@ void TextureBaseClass::Invalidate()
 	LastAccessed=WW3D::Get_Sync_Time();*/
 }
 
+// TheSuperHackers @feature bobtista 16/07/2026 Shader-pipeline counterpart to Invalidate()
+// for texture-reduction changes. Invalidate() is a deliberate no-op there (see above), so
+// runtime texture-detail changes did nothing. Queue a fresh file load, which re-derives the
+// reduction from WW3D::Get_Texture_Reduction, commits a new CPU snapshot, and bumps the
+// snapshot revision so the backend rebuilds its texture; the old data keeps drawing until
+// the reload lands.
+void TextureBaseClass::Reload_For_Reduction()
+{
+	if (!Initialized
+		|| IsProcedural
+		|| Is_Render_Target()
+		|| Is_Missing_Texture()
+		|| Get_Asset_Type() != TEX_REGULAR)
+	{
+		return;
+	}
+	if (TextureLoadTask != nullptr || ThumbnailLoadTask != nullptr)
+	{
+		return;
+	}
+
+	Initialized = false;
+	TextureLoader::Request_Background_Loading(this);
+}
+
 void TextureBaseClass::Clear_CPU_Texture_Snapshot()
 {
 	PreserveCPUTextureSnapshotOnNextLegacySet = false;
