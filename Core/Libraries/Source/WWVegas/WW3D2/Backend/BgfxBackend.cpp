@@ -1803,6 +1803,10 @@ uint64_t BuildBgfxStateForShader(const ShaderClass & shader)
         // W3D used D3D's clockwise = front by default. bgfx CW culls the
         // clockwise face (i.e. the back face when CW is the front), so
         // BGFX_STATE_CULL_CW matches the W3D convention.
+        // TheSuperHackers @info bobtista 16/07/2026 ShaderClass::Invert_Backface_Culling
+        // (retail shader.cpp honors it here) is deliberately ignored: its only live setter
+        // is the legacy water mirror pass, which is compiled out on this backend
+        // (W3DWater.cpp updateRenderTargetTextures), so CW is always correct.
         state |= BGFX_STATE_CULL_CW;
     }
 
@@ -10774,6 +10778,10 @@ void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
 
     g_draw.lightParams[index][0] = 0.0f;
     g_draw.lightParams[index][1] = light.Get_Attenuation_Range();
+    // TheSuperHackers @info bobtista 16/07/2026 SPOT is approximated as a point light with no
+    // cone falloff. This is latent: no spot LightClass is ever constructed in this game, and
+    // this setter's only game caller sits in dead code (SimpleSceneClass::Customized_Render);
+    // real lighting arrives through Set_Light_Environment, which folds spots CPU-side.
     g_draw.lightParams[index][2] =
         (light.Get_Type() == LightClass::POINT || light.Get_Type() == LightClass::SPOT) ? 1.0f : 0.0f;
     g_draw.lightParams[index][3] = 1.0f;
