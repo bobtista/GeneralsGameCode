@@ -1719,7 +1719,29 @@ void DX8TextureCategoryClass::Render()
 			for (PolyRenderTaskClass * c = render_task_head; c != nullptr; c = c->Get_Next_Visible()) {
 				tasks.push_back(c);
 			}
-			std::stable_sort(tasks.begin(), tasks.end(), [](PolyRenderTaskClass * a, PolyRenderTaskClass * b) {
+			// TheSuperHackers @bugfix bobtista 17/07/2026 Only reorder tasks that are actually
+			// instancing candidates (opaque rigid meshes, whose draw order is depth-tested and
+			// visually irrelevant). Order-sensitive tasks - sorted dispatches, alpha-override
+			// translucents, overridden/aligned/skin meshes - keep their relative order and move
+			// after the opaque group so translucents still draw over the opaques they overlap.
+			// The previous whole-list sort could shuffle translucent draw order per frame.
+			auto reorderEligible = [](PolyRenderTaskClass * t) {
+				MeshClass * m = t->Peek_Mesh();
+				return m->Get_Base_Vertex_Offset() != VERTEX_BUFFER_OVERFLOW
+					&& m->Get_Alpha_Override() == 1.0f
+					&& m->Get_ObjectScale() == 1.0f
+					&& !(m->Get_User_Data() && *(int *)m->Get_User_Data() == RenderObjClass::USER_DATA_MATERIAL_OVERRIDE)
+					&& !m->Peek_Model()->Get_Flag(MeshModelClass::ALIGNED)
+					&& !m->Peek_Model()->Get_Flag(MeshModelClass::ORIENTED)
+					&& !m->Peek_Model()->Get_Flag(MeshModelClass::SKIN)
+					&& !m->Peek_Model()->Get_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS)
+					&& !((!!m->Peek_Model()->Get_Flag(MeshGeometryClass::SORT)) && WW3D::Is_Sorting_Enabled());
+			};
+			std::stable_sort(tasks.begin(), tasks.end(), [&reorderEligible](PolyRenderTaskClass * a, PolyRenderTaskClass * b) {
+				const bool ea = reorderEligible(a);
+				const bool eb = reorderEligible(b);
+				if (ea != eb) { return ea; } // eligible opaques first, order-sensitive tail keeps relative order
+				if (!ea) { return false; }
 				auto * ra = a->Peek_Polygon_Renderer();
 				auto * rb = b->Peek_Polygon_Renderer();
 				if (ra != rb) { return ra < rb; }
@@ -1950,7 +1972,6 @@ void DX8TextureCategoryClass::Render()
 					&& g_renderBackend->Supports_Instancing()
 					&& currentInstancingEligible)
 				{
-					static unsigned s_instDiag = 0;
 					PolyRenderTaskClass * nextScan = prt->Get_Next_Visible();
 						if (nextScan != nullptr
 						&& nextScan->Peek_Polygon_Renderer() == renderer
