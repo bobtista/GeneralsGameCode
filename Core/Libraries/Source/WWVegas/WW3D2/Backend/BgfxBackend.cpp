@@ -293,6 +293,7 @@ enum MaterialUniformSlot
     MU_TexProjected,
     MU_LegacyPixelShaderMode,
     MU_ZBias,
+    MU_LightMapParams,
     MU_COUNT
 };
 BgfxDraw       g_draw;
@@ -4504,6 +4505,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uLegacyPixelShaderMode = bgfx::createUniform("u_legacyPixelShaderMode", bgfx::UniformType::Vec4);
     g_uniforms.uZBias = bgfx::createUniform("u_zBias", bgfx::UniformType::Vec4);
     g_uniforms.sCloudMap     = bgfx::createUniform("s_cloudMap",     bgfx::UniformType::Sampler);
+    g_uniforms.sLightMap     = bgfx::createUniform("s_lightMap",     bgfx::UniformType::Sampler);
 
     // Default 1x1 white texture. Used as fallback for missing textures.
     // Multiplying by white is the identity operation.
@@ -4731,6 +4733,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uLegacyPixelShaderMode);
         DestroyBgfxHandle(g_uniforms.uZBias);
         DestroyBgfxHandle(g_uniforms.sCloudMap);
+        DestroyBgfxHandle(g_uniforms.sLightMap);
         DestroyBgfxHandle(g_device.shadowVolumeProgram);
         DestroyBgfxHandle(g_device.shadowApplyProgram);
         DestroySceneFramebuffer();
@@ -10002,6 +10005,7 @@ static void UploadMaterialUniforms_Body(bgfx::ViewId submitView)
         std::memcpy(m[MU_TexProjected],       g_draw.texProjected,       sizeof(float) * 4);
         std::memcpy(m[MU_LegacyPixelShaderMode], g_draw.legacyPixelShaderMode, sizeof(float) * 4);
         std::memcpy(m[MU_ZBias],              g_draw.zBias,              sizeof(float) * 4);
+        std::memcpy(m[MU_LightMapParams],     g_draw.lightMapParams,     sizeof(float) * 4);
         // TheSuperHackers @performance bobtista 11/07/2026 Consecutive draws in
         // one view frequently share the whole packed block (rigid category
         // meshes, grouped sorted runs) — elide the re-upload when unchanged.
@@ -10047,6 +10051,18 @@ static void UploadMaterialUniforms_Body(bgfx::ViewId submitView)
         if (bgfx::isValid(h))
         {
             bgfx::setTexture(5, g_uniforms.sCloudMap, h, BGFX_SAMPLER_NONE);
+            g_stats.textureBinds++;
+        }
+    }
+    if (bgfx::isValid(g_uniforms.sLightMap))
+    {
+        // White fallback = multiply identity when the lightmap is disabled or unset.
+        bgfx::TextureHandle lm = bgfx::isValid(g_draw.lightMapTex)
+            ? g_draw.lightMapTex
+            : g_device.defaultWhiteTexture;
+        if (bgfx::isValid(lm))
+        {
+            bgfx::setTexture(11, g_uniforms.sLightMap, lm, BGFX_SAMPLER_NONE);
             g_stats.textureBinds++;
         }
     }
@@ -11949,6 +11965,33 @@ void BgfxBackend::Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scr
     else
     {
         g_draw.cloudTex = BGFX_INVALID_HANDLE;
+    }
+}
+
+// TheSuperHackers @feature bobtista 17/07/2026 Static noise/lightmap layer (the DX8
+// ST_TERRAIN_BASE_NOISE2 pass): world-XY projected multiplicative texture, applied by
+// fs_uber to terrain and other ground draws alongside the cloud shadow. Kill switch
+// GGC_NO_LIGHTMAP restores the previous no-lightmap rendering.
+void BgfxBackend::Set_Light_Map_Params(bool enable, float stretch, TextureClass * noise_tex)
+{
+    if (GgcFlags::Enabled(GgcFlag_NoLightMap))
+    {
+        enable = false;
+        noise_tex = nullptr;
+    }
+
+    g_draw.lightMapParams[0] = stretch;
+    g_draw.lightMapParams[1] = 0.0f;
+    g_draw.lightMapParams[2] = 0.0f;
+    g_draw.lightMapParams[3] = enable ? 1.0f : 0.0f;
+
+    if (enable && noise_tex != nullptr)
+    {
+        g_draw.lightMapTex = EnsureBgfxTexture(noise_tex);
+    }
+    else
+    {
+        g_draw.lightMapTex = BGFX_INVALID_HANDLE;
     }
 }
 
