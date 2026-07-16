@@ -90,6 +90,15 @@ bool OpenALAudioStream::bufferData(uint8_t *data, size_t data_size, ALenum forma
         return false;
     }
 
+    // TheSuperHackers @bugfix bobtista 16/07/2026 A buffer queued onto a source that is not
+    // playing is reported as processed by a stopped source even though it never played; count it
+    // so update() can tell such buffers apart from genuinely played ones.
+    ALint sourceState;
+    alGetSourcei(m_source, AL_SOURCE_STATE, &sourceState);
+    if (sourceState != AL_PLAYING && sourceState != AL_PAUSED) {
+        m_buffersQueuedWhileNotPlaying++;
+    }
+
     m_current_buffer_idx++;
 
     if (m_current_buffer_idx >= AL_STREAM_BUFFER_COUNT)
@@ -109,24 +118,9 @@ void OpenALAudioStream::update()
     ALint sourceState;
     alGetSourcei(m_source, AL_SOURCE_STATE, &sourceState);
 
-    ALint num_queued;
-    alGetSourcei(m_source, AL_BUFFERS_QUEUED, &num_queued);
-
-    // GeneralsX @bugfix BenderAI 22/04/2026 Restart before unqueue to avoid dropping freshly queued
-    // briefing buffers when OpenAL reports AL_STOPPED with processed buffers.
-    // TheSuperHackers @bugfix bobtista 05/06/2026 Restart a stopped stream when it still has
-    // UNPLAYED buffers to play (processed < queued — covers the initial start of a fully-buffered
-    // short EVA clip and underrun recovery) OR when it has not yet reached EOF (bridge a transient
-    // mid-stream decode gap). Only when EOF is reached AND every buffer has already played do we
-    // leave the source stopped, so a finished stream is released instead of replaying its last
-    // buffer forever (the machine-gun loop).
-    // TheSuperHackers @bugfix bobtista 13/07/2026 AL_PAUSED is an intentional state set by
-    // pauseAudio; restarting a paused source here resumed speech while the game was paused.
-    ALint processedQueued = 0;
-    alGetSourcei(m_source, AL_BUFFERS_PROCESSED, &processedQueued);
-    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL) && num_queued > 0 && (processedQueued < num_queued || !m_reachedEof)) {
-        play();
-        alGetSourcei(m_source, AL_SOURCE_STATE, &sourceState);
+    if (sourceState == AL_PLAYING) {
+        // Everything still in the queue of a playing source is scheduled to play.
+        m_buffersQueuedWhileNotPlaying = 0;
     }
 
     ALint processedBeforeUnqueue = 0;
@@ -136,13 +130,28 @@ void OpenALAudioStream::update()
 #endif
 
     // GeneralsX @bugfix BenderAI 22/04/2026 Only unqueue processed data in active playback states.
-    ALint processedToUnqueue = ((sourceState == AL_PLAYING || sourceState == AL_PAUSED) ? processedBeforeUnqueue : 0);
+    // TheSuperHackers @bugfix bobtista 16/07/2026 Also unqueue the played buffers of a source that
+    // stopped from starvation. A stopped source reports its whole queue as processed, including
+    // buffers queued after the stop that never played, so restarting it without dropping the played
+    // buffers replayed the audible part from the beginning (the challenge intro speech cutting out
+    // and starting over). Drop exactly the buffers that are not known to be queued-but-unplayed,
+    // so the restart below resumes with unheard data instead of rewinding.
+    ALint processedToUnqueue = 0;
+    if (sourceState == AL_PLAYING || sourceState == AL_PAUSED) {
+        processedToUnqueue = processedBeforeUnqueue;
+    } else if (sourceState == AL_STOPPED) {
+        ALint num_queued = 0;
+        alGetSourcei(m_source, AL_BUFFERS_QUEUED, &num_queued);
+        ALint unplayed = m_buffersQueuedWhileNotPlaying < num_queued ? m_buffersQueuedWhileNotPlaying : num_queued;
+        processedToUnqueue = num_queued - unplayed;
+    }
     while (processedToUnqueue > 0) {
         ALuint buffer;
         alSourceUnqueueBuffers(m_source, 1, &buffer);
         processedToUnqueue--;
     }
 
+    ALint num_queued;
     alGetSourcei(m_source, AL_BUFFERS_QUEUED, &num_queued);
 #ifdef INTENSIVE_AUDIO_DEBUG
     DEBUG_LOG(("Having %i buffers queued\n", num_queued));
@@ -168,12 +177,12 @@ void OpenALAudioStream::update()
     // GeneralsX @bugfix fbraz3 27/04/2026 Restart after refill when a generic speech stream
     // began the frame with an empty queue; otherwise processPlayingList() can release it as
     // stopped before the newly buffered narrator audio ever starts playing.
-    // TheSuperHackers @bugfix bobtista 05/06/2026 Same condition as the pre-unqueue restart above:
-    // play whenever there are unplayed buffers or EOF has not been reached; only a finished,
-    // fully-played stream is left stopped so it can be released.
+    // TheSuperHackers @bugfix bobtista 16/07/2026 The played buffers of a stopped source were
+    // dropped above, so anything still queued is unheard and safe to (re)start; a finished stream
+    // drains to an empty queue and stays stopped for release (the machine-gun loop stays fixed).
     alGetSourcei(m_source, AL_SOURCE_STATE, &sourceState);
-    alGetSourcei(m_source, AL_BUFFERS_PROCESSED, &processedQueued);
-    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL) && num_queued > 0 && (processedQueued < num_queued || !m_reachedEof)) {
+    alGetSourcei(m_source, AL_BUFFERS_QUEUED, &num_queued);
+    if ((sourceState == AL_STOPPED || sourceState == AL_INITIAL) && num_queued > 0) {
         play();
     }
 }
@@ -199,6 +208,7 @@ void OpenALAudioStream::reset()
     m_current_buffer_idx = 0;
     m_reachedEof = false;
     m_stopRequested = false;
+    m_buffersQueuedWhileNotPlaying = 0;
 }
 
 bool OpenALAudioStream::isPlaying()
