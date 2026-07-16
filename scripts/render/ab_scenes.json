@@ -1,0 +1,41 @@
+{
+  "comment": "A/B parity scene manifest. anchor_delta = logic frames past the save's start (base frames are probed once and cached in ab_scenes.json.baseframes, which is machine-local). duration = wall-clock seconds per capture run; interval_after/interval = render-frame trigger and spacing for the animation-mask shots.",
+  "scenes": [
+    {
+      "name": "china-base-reactor",
+      "save": "00000155.sav",
+      "anchor_delta": 900,
+      "duration": 210,
+      "interval_after": 400,
+      "interval": 40,
+      "notes": "Tank General challenge: China command center + nuclear reactor (scroll mappers), dozers, construction"
+    },
+    {
+      "name": "usa-base-chinooks",
+      "save": "00000158.sav",
+      "anchor_delta": 600,
+      "duration": 120,
+      "interval_after": 400,
+      "interval": 40,
+      "notes": "Bombardment beach USA base: Chinooks, supply dock, cold fusion plants, radar dish, palms, combat"
+    },
+    {
+      "name": "usa-pcannon",
+      "save": "00000156.sav",
+      "anchor_delta": 600,
+      "duration": 120,
+      "interval_after": 400,
+      "interval": 40,
+      "notes": "USA base with Particle Cannons, war factory, supply center, active combat"
+    },
+    {
+      "name": "defcon6-china-battle",
+      "save": "00000000.sav",
+      "anchor_delta": 600,
+      "duration": 120,
+      "interval_after": 400,
+      "interval": 40,
+      "notes": "Defcon6 China skirmish: airfield, propaganda center, reactors, speaker tower, nuke timer, heavy battle"
+    }
+  ]
+}
