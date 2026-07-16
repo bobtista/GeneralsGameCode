@@ -10523,6 +10523,7 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
         g_draw.shaderAlphaBlendEnabled = newBlend;
     }
     g_draw.alphaBlendExplicitlySet = false;
+    g_draw.alphaTestExplicitlySet = false;
     g_draw.depthTestEnabled = true;
     g_draw.depthWriteEnabled = shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE;
     g_draw.depthFuncBits = TranslateDepthCompare(shader.Get_Depth_Compare());
@@ -10834,22 +10835,30 @@ void BgfxBackend::Set_Alpha_Blend_Enable(bool enable)
 }
 
 // TheSuperHackers @bugfix bobtista 28/05/2026 Each single-knob alpha-test setter now writes only its own bucket through Set_Cached_Render_State; the prior code routed through Set_Alpha_Test_State and clobbered the other two buckets with zeros whenever their semantic cache flags were still false.
+// TheSuperHackers @bugfix bobtista 16/07/2026 Mark alpha-test state as explicitly set (like
+// Set_Blend_Factors does for blend) so SubmitEngineDraw does not reset it back to the shader's
+// snapshot. The mesh renderer's Alpha_Override fade scales the alpha-test reference after
+// Set_Shader (dx8renderer.cpp:1919); without the flag the scaled reference was silently
+// clobbered back to the default 0x60 and fading alpha-tested meshes popped instead of thinning.
 void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
 {
     FixedFunctionState::Set_Cached_Render_State(RS::ALPHATESTENABLE, enable ? 1U : 0U);
     g_draw.atestEnabled = enable;
+    g_draw.alphaTestExplicitlySet = true;
 }
 
 void BgfxBackend::Set_Alpha_Test_Reference(unsigned ref)
 {
     FixedFunctionState::Set_Cached_Render_State(RS::ALPHAREF, ref);
     g_draw.atestRef = ref / 255.0f;
+    g_draw.alphaTestExplicitlySet = true;
 }
 
 void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
 {
     FixedFunctionState::Set_Cached_Render_State(RS::ALPHAFUNC, static_cast<unsigned>(func));
     g_draw.atestFunc = static_cast<float>(func);
+    g_draw.alphaTestExplicitlySet = true;
 }
 
 void BgfxBackend::Set_Normalize_Normals(bool enable)
@@ -12420,6 +12429,9 @@ void SubmitEngineDraw(unsigned short start_index,
         {
             g_draw.blendFuncBits = g_draw.shaderBlendFuncBits;
         }
+    }
+    if (!g_draw.alphaTestExplicitlySet)
+    {
         g_draw.atestRef = g_draw.shaderAtestRef;
         g_draw.atestFunc = g_draw.shaderAtestFunc;
         g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
