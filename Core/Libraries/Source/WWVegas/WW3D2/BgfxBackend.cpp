@@ -10213,9 +10213,12 @@ static void ComputeSortedTextureArraySlot(RenderStateStruct & state)
     {
         return;
     }
+    // TheSuperHackers @bugfix bobtista 17/07/2026 Peek, don't Get: Get_Mapper Add_Refs the
+    // mapper and the reference was never released, leaking one ref per captured point-group
+    // node per frame.
     if (state.material == nullptr
         || state.material->Get_UV_Source(0) != 0
-        || state.material->Get_Mapper(0) != nullptr)
+        || state.material->Peek_Mapper(0) != nullptr)
     {
         return;
     }
@@ -10760,11 +10763,13 @@ bool BgfxBackend::Begin_Instanced_Batch(unsigned max_instances)
     // when the pool is low; without this, instanceMax stayed at the (larger) request and Add_Instance
     // would memcpy past the end of the allocated buffer.
     const unsigned avail = bgfx::getAvailInstanceDataBuffer(max_instances, 64);
-    if (avail == 0) {
-        return false;
-    }
+    // TheSuperHackers @bugfix bobtista 17/07/2026 Refuse a partial grant instead of clamping.
+    // The mesh renderer consumes and deletes all batched render tasks once this returns true,
+    // and Add_Instance silently ignores instances past the clamp, so a partial grant made the
+    // tail of the batch vanish for the frame. Returning false keeps every mesh on the
+    // per-draw fallback path, which renders correctly under instance-pool pressure.
     if (avail < max_instances) {
-        max_instances = avail;
+        return false;
     }
 
     bgfx::allocInstanceDataBuffer(&g_draw.instanceBatch, max_instances, 64);
@@ -12860,6 +12865,11 @@ void SubmitEngineDraw(unsigned short start_index,
                             g_draw.state,
                             "skip-no-program");
         g_stats.skippedDraws++;
+        // TheSuperHackers @bugfix bobtista 17/07/2026 Discard pending encoder state like every
+        // other skip path in this function. An instanced batch has already bound its instance
+        // buffer by the time this runs; without the discard that state leaks into the next
+        // submit, which then draws instanceCount overlapping copies.
+        bgfx::discard(BGFX_DISCARD_ALL);
         return;
     }
     FlushPendingBoundDynamicRangeUploads();
@@ -12878,6 +12888,7 @@ void SubmitEngineDraw(unsigned short start_index,
                             g_draw.state,
                             !have_vb && !have_ib ? "skip-no-vb-ib" : (!have_vb ? "skip-no-vb" : "skip-no-ib"));
         g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
         return;
     }
     if (g_draw.useTransientVB)
@@ -14129,6 +14140,10 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
     }
     if (!g_triangleDrawEnabled)
     {
+        if (g_device.initialized)
+        {
+            bgfx::discard(BGFX_DISCARD_ALL);
+        }
         return;
     }
     SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
@@ -14149,6 +14164,10 @@ void BgfxBackend::Draw_Triangles(unsigned int buffer_type,
     }
     if (!g_triangleDrawEnabled)
     {
+        if (g_device.initialized)
+        {
+            bgfx::discard(BGFX_DISCARD_ALL);
+        }
         return;
     }
     SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
