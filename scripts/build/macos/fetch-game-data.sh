@@ -43,6 +43,15 @@ for sub in Data Window Art; do
     fi
 done
 
+# Stage the annotated Bgfx.ini template only when the file is absent, so local
+# render setting overrides survive re-runs.
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "${runtime_dir}/Data/INI/Bgfx.ini" ]]; then
+    echo "Staging Data/INI/Bgfx.ini template"
+    mkdir -p "${runtime_dir}/Data/INI"
+    cp "${script_dir}/Bgfx.ini" "${runtime_dir}/Data/INI/Bgfx.ini"
+fi
+
 echo ""
 echo "Source-controlled game data staged."
 echo ""
