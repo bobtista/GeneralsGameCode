@@ -7755,9 +7755,27 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
             g_draw.lightAmbients[i][1] = light.ambient[1];
             g_draw.lightAmbients[i][2] = light.ambient[2];
             g_draw.lightAmbients[i][3] = 1.0f;
-            g_draw.lightParams[i][0] = 0.0f;
-            g_draw.lightParams[i][1] = 0.0f;
-            g_draw.lightParams[i][2] = 0.0f;
+            // TheSuperHackers @bugfix bobtista 17/07/2026 Reconstruct point lights from the
+            // captured legacy encoding (range = orad, attenuation1 = 0.1/irad) instead of
+            // flattening every light to directional; a zero direction would otherwise hit the
+            // NaN guard and light the node from straight above.
+            if (light.type == 1 /* legacy D3DLIGHT_POINT */)
+            {
+                g_draw.lightPositions[i][0] = light.position[0];
+                g_draw.lightPositions[i][1] = light.position[1];
+                g_draw.lightPositions[i][2] = light.position[2];
+                g_draw.lightPositions[i][3] = 1.0f;
+                g_draw.lightParams[i][0] = (light.attenuation[1] > 1e-8f)
+                    ? 0.1f / light.attenuation[1] : light.range;
+                g_draw.lightParams[i][1] = light.range;
+                g_draw.lightParams[i][2] = 1.0f;
+            }
+            else
+            {
+                g_draw.lightParams[i][0] = 0.0f;
+                g_draw.lightParams[i][1] = 0.0f;
+                g_draw.lightParams[i][2] = 0.0f;
+            }
             g_draw.lightParams[i][3] = 1.0f;
         }
         else
@@ -12592,9 +12610,21 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
         g_draw.sceneAmbient[1] = ambient.Y;
         g_draw.sceneAmbient[2] = ambient.Z;
 
+        // TheSuperHackers @bugfix bobtista 17/07/2026 Mirror the lights into
+        // FixedFunctionState like the retail Set_Light chain did. The sorting
+        // renderer snapshots FixedFunctionState per node and replays it at flush;
+        // with the mirror missing every sorted node captured "no lights" and lit
+        // translucent SORT meshes replayed with scene ambient only, darker than
+        // the DX8 build. Encoding matches retail Set_Light_Environment (D3D
+        // direction = -toward-light; point attenuation 0.1/irad and 8/orad^2,
+        // range = orad) so the replay's inverse mapping recovers the same values.
+        RenderStateStruct & rsLights = FixedFunctionState::Render_State();
         const int count = light_env->Get_Light_Count();
         for (int i = 0; i < 4; ++i)
         {
+            LegacyFixedFunctionLight & mirrored = rsLights.Lights[i];
+            std::memset(&mirrored, 0, sizeof(mirrored));
+            rsLights.LightEnable[i] = (i < count);
             if (i < count)
             {
                 const Vector3 & dir = light_env->Get_Light_Direction(i);
@@ -12602,6 +12632,9 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
                 g_draw.lightDirs[i][1] = dir.Y;
                 g_draw.lightDirs[i][2] = dir.Z;
                 g_draw.lightDirs[i][3] = 1.0f; // enabled
+                mirrored.Direction.x = -dir.X;
+                mirrored.Direction.y = -dir.Y;
+                mirrored.Direction.z = -dir.Z;
                 if (light_env->isPointLight(i))
                 {
                     const Vector3 & dif = light_env->getPointDiffuse(i);
@@ -12620,6 +12653,23 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
                     g_draw.lightParams[i][1] = light_env->getPointOrad(i);
                     g_draw.lightParams[i][2] = 1.0f;
                     g_draw.lightParams[i][3] = 1.0f;
+                    const float irad = light_env->getPointIrad(i);
+                    const float orad = light_env->getPointOrad(i);
+                    mirrored.Type = 1; // legacy D3DLIGHT_POINT
+                    mirrored.Position.x = pos.X;
+                    mirrored.Position.y = pos.Y;
+                    mirrored.Position.z = pos.Z;
+                    mirrored.Diffuse.r = dif.X;
+                    mirrored.Diffuse.g = dif.Y;
+                    mirrored.Diffuse.b = dif.Z;
+                    mirrored.Ambient.r = amb.X;
+                    mirrored.Ambient.g = amb.Y;
+                    mirrored.Ambient.b = amb.Z;
+                    mirrored.Range = orad;
+                    mirrored.Attenuation0 = 1.0f;
+                    mirrored.Attenuation1 = (WWMath::Fabs(irad - orad) < 1e-5f || irad <= 0.0f)
+                        ? 0.0f : 0.1f / irad;
+                    mirrored.Attenuation2 = (orad > 0.0f) ? 8.0f / (orad * orad) : 0.0f;
                 }
                 else
                 {
@@ -12637,6 +12687,10 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
                     g_draw.lightParams[i][1] = 0.0f;
                     g_draw.lightParams[i][2] = 0.0f;
                     g_draw.lightParams[i][3] = 1.0f;
+                    mirrored.Type = 3; // legacy D3DLIGHT_DIRECTIONAL
+                    mirrored.Diffuse.r = dif.X;
+                    mirrored.Diffuse.g = dif.Y;
+                    mirrored.Diffuse.b = dif.Z;
                 }
                 g_draw.lightColors[i][3] = 1.0f;
             }
@@ -13448,12 +13502,17 @@ void SubmitEngineDraw(unsigned short start_index,
         UpdateAlphaMaskAndSortedEffectModes(blendState);
     }
     UploadMaterialUniforms(submitView);
-    if (g_draw.lightDirs[0][3] < 0.5f)
+    // TheSuperHackers @bugfix bobtista 17/07/2026 Skip the fixed-function light fallback
+    // during the sorted flush: the replay has authoritatively restored the captured light
+    // state, and a node captured under a zero-light environment must stay unlit instead of
+    // inheriting the current frame's mirrored lights. Point lights (Type 1) are also skipped
+    // here since this directional fallback would leave stale point parameters in lightParams.
+    if (g_draw.lightDirs[0][3] < 0.5f && !g_views.inSortFlush)
     {
         const auto &rs = FixedFunctionState::Render_State();
         for (int i = 0; i < 4; ++i)
         {
-            if (rs.LightEnable[i])
+            if (rs.LightEnable[i] && rs.Lights[i].Type != 1)
             {
                 const auto &dl = rs.Lights[i];
                 g_draw.lightDirs[i][0] = -dl.Direction.x;
@@ -13468,6 +13527,9 @@ void SubmitEngineDraw(unsigned short start_index,
                 g_draw.lightAmbients[i][1] = dl.Ambient.g;
                 g_draw.lightAmbients[i][2] = dl.Ambient.b;
                 g_draw.lightAmbients[i][3] = 1.0f;
+                g_draw.lightParams[i][0] = 0.0f;
+                g_draw.lightParams[i][1] = 0.0f;
+                g_draw.lightParams[i][2] = 0.0f;
                 g_draw.lightParams[i][3] = 1.0f;
             }
         }
