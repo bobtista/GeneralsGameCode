@@ -1700,7 +1700,21 @@ void SortingRendererClass::Flush_Sorting_Pool()
 				int run_array_page = sorted_array_merge ? s_sortedNodeArrayPage[tis[chunkOffset].idx] : -1;
 				for (unsigned i=chunkOffset + 1;i<chunkEnd;++i) {
 					SortingNodeStruct* next_state=overlapping_nodes[tis[i].idx];
-					if (!Render_State_Matches(state->sorting_state,next_state->sorting_state))
+					// TheSuperHackers @bugfix bobtista 17/07/2026 A state match alone is not
+					// sufficient to merge. The material compares by pointer, so a pooled
+					// material reconfigured between two inserts still "matches" - require the
+					// captured material snapshots to agree, or the later node renders with the
+					// earlier node's insert-time colors. Likewise a node can be demoted from
+					// the texture-array path at fill time (out-of-range UVs) even when its
+					// state equals the run head's; merging across differing pages would draw
+					// unbaked vertices through the array program (or double-transform baked
+					// ones), so also split when the per-node page differs.
+					const int next_node_page = sorted_array_merge ? s_sortedNodeArrayPage[tis[i].idx] : -1;
+					const bool plain_merge_ok =
+						Render_State_Matches(state->sorting_state,next_state->sorting_state)
+						&& next_node_page == run_array_page
+						&& Sorted_Material_Snapshots_Match(state->render_backend_state.material_snapshot, next_state->render_backend_state.material_snapshot);
+					if (!plain_merge_ok)
 					{
 						// Baked runs (page >= 0) accumulate across boundaries that
 						// differ only by stage-0 texture and/or world: the z order
