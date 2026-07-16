@@ -2283,11 +2283,11 @@ Int RoadShader2Stage::set(Int pass)
 			g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
 			g_renderBackend->Set_Texture_Alpha_Argument(1, 1, RB_TEXARG_TEXTURE);
 			g_renderBackend->Set_Texture_Alpha_Argument(1, 2, RB_TEXARG_CURRENT);
-#if defined(GGC_RENDER_BACKEND_BGFX)
-			g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
-#else
+			// TheSuperHackers @refactor bobtista 16/07/2026 Restore the retail MODULATE alpha op.
+			// A bgfx-only DISABLE crept in with the DX8 usage strip; the branch is currently dead
+			// on bgfx (roads are forced to ST_ROAD_BASE and the extra-blend caller early-outs in
+			// the projected-decal shader path), so keep the retail text unconditionally.
 			g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);
-#endif
 
 				if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_ROAD_BASE_NOISE12)
 				{	//full shader, apply noise 1 in pass 0.
