@@ -1,11 +1,14 @@
 name: BGFX Builds
 
-run-name: bgfx builds from ${{ inputs.ref }}
+run-name: bgfx builds from ${{ inputs.ref || github.ref_name }}
 
 permissions:
   contents: write
 
 on:
+  push:
+    branches:
+      - bobtista/topic/trunk
   workflow_dispatch:
     inputs:
       ref:
@@ -21,7 +24,7 @@ on:
 
 concurrency:
   group: bgfx-builds
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   FFMPEG_WIN64_ASSET: ffmpeg-n8.1-latest-win64-gpl-shared-8.1
@@ -49,7 +52,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.ref || github.ref_name }}
 
       - name: Resolve Built Commit
         id: sha
@@ -126,7 +129,7 @@ jobs:
           @(
             "Command & Conquer Generals Zero Hour (GeneralsMD) bgfx build",
             "preset: ${{ matrix.preset }} ($cfg)",
-            "ref: ${{ inputs.ref }}",
+            "ref: ${{ inputs.ref || github.ref_name }}",
             "commit: $(git rev-parse HEAD)",
             "built: $((Get-Date).ToUniversalTime().ToString('o'))"
           ) | Set-Content "$stage/BUILD_INFO.txt"
@@ -158,7 +161,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.ref || github.ref_name }}
 
       - name: Install Dependencies
         run: |
@@ -195,7 +198,7 @@ jobs:
           {
             echo "Command & Conquer Generals Zero Hour (GeneralsMD) bgfx build"
             echo "preset: macos-generalsmd-sdl3-bgfx (Release, arm64)"
-            echo "ref: ${{ inputs.ref }}"
+            echo "ref: ${{ inputs.ref || github.ref_name }}"
             echo "commit: $(git rev-parse HEAD)"
             echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > "${GGC_MACOS_RUNTIME_DIR}/BUILD_INFO.txt"
@@ -213,7 +216,7 @@ jobs:
   publish:
     name: Update latest-bgfx release
     needs: [win64, macos]
-    if: inputs.publish
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -227,7 +230,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ needs.win64.outputs.sha }}
-          REF: ${{ inputs.ref }}
+          REF: ${{ inputs.ref || github.ref_name }}
         run: |
           cat > notes.md <<EOF
           Latest bgfx builds of Zero Hour (GeneralsMD), automatically updated.
