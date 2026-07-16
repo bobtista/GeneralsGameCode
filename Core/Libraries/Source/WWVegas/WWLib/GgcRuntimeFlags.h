@@ -98,6 +98,7 @@ enum GgcFlagType
 	X(GgcFlag_NoVolumeMerge, "GGC_NO_VOLUME_MERGE", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "force legacy per-depth-layer volume-particle draws instead of one merged draw") \
 	X(GgcFlag_NoCoplanarBiasGate, "GGC_NO_COPLANAR_BIAS_GATE", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "restore the unconditional coplanar-pair scan on every dynamic vertex write") \
 	X(GgcFlag_NoCloudShadows, "GGC_NO_CLOUD_SHADOWS", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "force the cloud-shadow scrolling texture off") \
+	X(GgcFlag_NoLightMap, "GGC_NO_LIGHTMAP", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "force the static terrain noise/lightmap layer off") \
 	X(GgcFlag_NoPropShadows, "GGC_NO_PROP_SHADOWS", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "stop marking opaque world objects as sun-shadow receivers") \
 	X(GgcFlag_NoRotorShadow, "GGC_NO_ROTOR_SHADOW", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "disable the rotor-blur alpha-tested disc shadow caster") \
 	X(GgcFlag_BgfxDepthClamp, "GGC_BGFX_DEPTH_CLAMP", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "re-enable depth clamp (fallback for shadow-volume near/far-clip regressions)") \

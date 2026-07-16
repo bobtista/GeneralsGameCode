@@ -986,6 +986,7 @@ public:
     // fs_uber multiplies into the final terrain color.
     virtual void Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scroll_y,
                                          float stretch, TextureClass * cloud_tex) {}
+    virtual void Set_Light_Map_Params(bool /*enable*/, float /*stretch*/, TextureClass * /*noise_tex*/) {}
 
     // -------------------------------------------------------------------------
     // Transforms
