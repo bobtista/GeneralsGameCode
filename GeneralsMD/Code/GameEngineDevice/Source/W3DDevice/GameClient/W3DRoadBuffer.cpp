@@ -3327,10 +3327,13 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 	devicePasses=W3DShaderManager::getShaderPasses(st);
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @bugfix bobtista 24/04/2026 — roads use
-	// the same cloud/noise multipass family as terrain; bgfx's fixed
-	// function fallback does not emulate TCI_CAMERASPACEPOSITION, so
-	// pass 2+ reads from garbage UVs and paints terrain/road tiles black.
+	// TheSuperHackers @info bobtista 16/07/2026 Keep roads on the single base pass. The
+	// original reason (no TCI_CAMERASPACEPOSITION emulation) is obsolete - the backend
+	// emulates it now - but the gate stays because cloud shadows and the sun shadow already
+	// reach roads single-pass through the uber shader's cloud path; running the NOISE
+	// multipass as well would apply the cloud texture twice, and the NOISE12 second pass
+	// needs the unemulated ALPHAREPLICATE argument modifier. The lightmap (noise2) stage is
+	// equally unavailable for terrain on this backend.
 	st = W3DShaderManager::ST_ROAD_BASE;
 	devicePasses = 1;
 #endif
