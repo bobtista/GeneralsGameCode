@@ -2534,6 +2534,20 @@ void W3DShaderManager::pushCloudShadowToBackend(Bool enabled, TextureClass * clo
 		cloudTex);
 }
 
+// TheSuperHackers @feature bobtista 17/07/2026 Push the static noise/lightmap layer
+// (DX8 ST_TERRAIN_BASE_NOISE2) through the backend the same way as the cloud shadow;
+// the uber shader multiplies it into terrain and other ground draws in the same single
+// pass. DX8Backend ignores this and keeps its own multi-pass TSS cascade.
+void W3DShaderManager::pushLightMapToBackend(Bool enabled, TextureClass * noiseTex)
+{
+	if (g_renderBackend == nullptr)
+	{
+		return;
+	}
+	const float stretch = (float)(1.0 / (63.0 * MAP_XY_FACTOR / 2.0));
+	g_renderBackend->Set_Light_Map_Params(enabled ? true : false, stretch, noiseTex);
+}
+
 // W3DShaderManager::getShaderPasses =======================================================
 /** Return number of renderig passes required in perform the desired shader on current
 	hardware.  App will need to re-render the polygons this many times to complete the
