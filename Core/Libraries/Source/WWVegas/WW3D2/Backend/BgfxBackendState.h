@@ -232,6 +232,7 @@ struct BgfxUniforms
     bgfx::UniformHandle sTex2      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sTex3      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sCloudMap  = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle sLightMap  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sSceneDepth = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sTexArray  = BGFX_INVALID_HANDLE; // texture2DArray for merged sorted runs (fs_uber_array stage 4)
     bgfx::UniformHandle sFrameConst = BGFX_INVALID_HANDLE; // frame-constant data texture sampler (fs_uber_frameconst stage 9)
@@ -430,7 +431,9 @@ struct BgfxDraw
     // floor emblems / faction icons.
     float texProjected[4]     = { 0.0f, 0.0f, 0.0f, 0.0f };
     float cloudParams[4]      = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float lightMapParams[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
     bgfx::TextureHandle cloudTex = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle lightMapTex = BGFX_INVALID_HANDLE;
     float lightDirs[4][4] = {
         { 0.35f, 0.55f, 0.75f, 1.0f },
         { 0.0f,  0.0f,  0.0f,  0.0f },
