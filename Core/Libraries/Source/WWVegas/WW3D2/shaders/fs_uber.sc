@@ -37,6 +37,8 @@ SAMPLER2D(s_pointShadowMap, 8);
 // TheSuperHackers @feature bobtista 14/07/2026 Second point-shadow slot: transient lightning
 // flash lights near the particle-cannon beam cast their own shadow alongside the primary.
 SAMPLER2D(s_pointShadowMap2, 10);
+// Static terrain noise/lightmap layer (DX8 ST_TERRAIN_BASE_NOISE2); white when disabled.
+SAMPLER2D(s_lightMap, 11);
 // TheSuperHackers @performance bobtista Global per-frame constants (sun-shadow and point-
 // shadow transforms/params, scene ambient) are identical for every draw in a frame. The
 // GGC_UBER_FRAME_TEXTURE variant reads them from a small data texture instead of per-draw
@@ -102,7 +104,7 @@ uniform vec4 u_softParticleParams; // .x enable, .y fade scale, zw inverse scene
 
 // TheSuperHackers @performance bobtista 15/06/2026 Packed per-draw material uniforms.
 // Index order MUST match MaterialUniformSlot in BgfxBackend.cpp.
-uniform vec4 u_material[24];
+uniform vec4 u_material[25];
 #define u_matDiffuse            u_material[0]
 #define u_matAmbient            u_material[1]
 #define u_matEmissive           u_material[2]
@@ -127,6 +129,7 @@ uniform vec4 u_material[24];
 #define u_texProjected          u_material[21]
 #define u_legacyPixelShaderMode u_material[22]
 #define u_zBias                 u_material[23]
+#define u_lightMapParams        u_material[24]
 
 // TSS operation IDs (must match BgfxBackend.cpp encoding)
 #define TSS_DISABLE         0.0
@@ -688,6 +691,10 @@ void main()
 		if (u_cloudParams.w > 0.5)
 		{
 			result.rgb *= sampleCloudShadow(v_cloudUV);
+		}
+		if (u_lightMapParams.w > 0.5)
+		{
+			result.rgb *= texture2D(s_lightMap, v_worldPos.xy * u_lightMapParams.x).rgb;
 		}
 
 		// TheSuperHackers @bugfix bobtista 16/06/2026 Terrain returns from this branch
@@ -1412,6 +1419,14 @@ void main()
 	// the terrain pass with w == 0, so they are unaffected. Matches the DX8
 	// ST_ROAD_BASE_NOISE multipass that modulated the scrolling cloud texture
 	// into the road colour, which the single-pass bgfx road path had dropped.
+	// TheSuperHackers @bugfix bobtista 17/07/2026 The noise lightmap is gated independently
+	// of the cloud state, matching the terrain branch and DX8's road shader where NOISE1
+	// (cloud) and NOISE2 (lightmap) are separate stages. Nesting it under the cloud gate
+	// left roads without the noise layer on lightmapped maps with clouds disabled.
+	if (u_lightMapParams.w > 0.5)
+	{
+		current.rgb *= texture2D(s_lightMap, v_worldPos.xy * u_lightMapParams.x).rgb;
+	}
 	if (u_cloudParams.w > 0.5)
 	{
 		current.rgb *= sampleCloudShadow(v_cloudUV);
