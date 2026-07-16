@@ -1905,6 +1905,8 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	// terrain colour; DX8 ignores it (still uses its own multi-pass TSS).
 	// Gated off when doCloud==false so terrain renders without modulation.
 	W3DShaderManager::pushCloudShadowToBackend(doCloud, doCloud ? m_stageTwoTexture : nullptr);
+	const Bool doLightMap = TheGlobalData->m_useLightMap;
+	W3DShaderManager::pushLightMapToBackend(doLightMap, doLightMap ? m_stageThreeTexture : nullptr);
 
 #if 0 // There is some weirdness sometimes with the dx8 static buffers.
 			// This usually fixes terrain flashing.  jba.
@@ -1970,6 +1972,9 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 					rinfo.Peek_Additional_Pass(0)->Install_Materials();
 					renderTerrainPass(&rinfo.Camera);
 					rinfo.Peek_Additional_Pass(0)->UnInstall_Materials();
+					// TheSuperHackers @bugfix bobtista 17/07/2026 Clear the lightmap push on this
+					// early return so it does not leak onto draws after the terrain pass.
+					W3DShaderManager::pushLightMapToBackend(FALSE, nullptr);
 					return;
 				}
 			}
@@ -1987,6 +1992,9 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 				doMultiPassWireFrame=TRUE;
 				renderTerrainPass(&rinfo.Camera);
 				WW3D::Get_Render_Backend()->Set_Texture_Factor(0xff008000);
+				// TheSuperHackers @bugfix bobtista 17/07/2026 Clear the lightmap push on this
+				// early return so it does not leak onto draws after the terrain pass.
+				W3DShaderManager::pushLightMapToBackend(FALSE, nullptr);
 				return;
 			}
 	}
@@ -2164,6 +2172,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	// Scope the cloud state to this function — clear before returning so
 	// subsequent 3D draws (units, trees, effects) don't get modulated.
 	W3DShaderManager::pushCloudShadowToBackend(false, nullptr);
+	W3DShaderManager::pushLightMapToBackend(false, nullptr);
 }
 
 

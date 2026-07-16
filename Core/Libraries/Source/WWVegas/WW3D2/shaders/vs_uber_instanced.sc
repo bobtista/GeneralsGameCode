@@ -8,7 +8,7 @@ uniform vec4 u_shroudParams;
 
 // TheSuperHackers @performance bobtista 15/06/2026 Packed per-draw material uniforms.
 // Index order MUST match MaterialUniformSlot in BgfxBackend.cpp.
-uniform vec4 u_material[24];
+uniform vec4 u_material[25];
 #define u_matDiffuse            u_material[0]
 #define u_matAmbient            u_material[1]
 #define u_matEmissive           u_material[2]
