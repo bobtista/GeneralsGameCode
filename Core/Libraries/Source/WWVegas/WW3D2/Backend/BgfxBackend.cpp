@@ -10622,6 +10622,19 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
             // deferred texture bind is flushed. Apply it before later bind
             // logic interprets the current stage sampler state.
             t2d_name->Get_Filter().Apply(stage);
+
+            // TheSuperHackers @bugfix bobtista 16/07/2026 Retail kicks texture loading from
+            // TextureClass::Apply at draw commit, which never runs on this backend; a file
+            // texture constructed before thumbnails were disabled (or off the render thread)
+            // stayed uninitialized and bound the white fallback forever. Kick the loader at
+            // bind time instead; this runs on the main render thread so the foreground-load
+            // path behaves exactly as the retail Apply did. Must happen before
+            // EnsureBgfxTexture so the refreshed snapshot revision is picked up in this bind.
+            if (!t2d_name->Is_Initialized()
+                && t2d_name->Get_Asset_Type() == TextureBaseClass::TEX_REGULAR)
+            {
+                t2d_name->Init();
+            }
         }
 
         bgfx::TextureHandle h = EnsureBgfxTexture(texture);
