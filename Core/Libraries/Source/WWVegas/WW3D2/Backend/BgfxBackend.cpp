@@ -37,6 +37,7 @@
 #include "indexbuffer.h"
 #include "light.h"
 #include "lightenvironment.h"
+#include "mapper.h"
 #include "matrix3d.h"
 #include "matrix4.h"
 #include "render2d.h"
@@ -7367,6 +7368,8 @@ static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
     }
 }
 
+static void ApplyMaterialMappersForBgfx(BgfxBackend * backend, const VertexMaterialClass * material);
+
 void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state)
 {
     static const bool s_trackSortedReplayPhases = IsBgfxStatsLoggingEnabled();
@@ -7412,6 +7415,9 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
     if (sortedMaterialSnapshotEnabled)
     {
         ApplySortedMaterialSnapshotForBgfx(state.material_snapshot, state.material);
+        // The snapshot bypasses Set_Material, so run the mappers explicitly or
+        // sorted meshes with animated UV mappers replay stale texture transforms.
+        ApplyMaterialMappersForBgfx(this, state.material);
         g_views.sortedBatchMaterialCaptured = true;
     }
     else
@@ -9656,6 +9662,42 @@ static void UploadMaterialUniforms_Body(bgfx::ViewId submitView)
     }
 }
 
+// TheSuperHackers @bugfix bobtista 16/07/2026 Run the material's UV mappers at
+// material bind. The DX8 path applies them in Commit_Deferred_Render_State_Changes
+// via VertexMaterialClass::Apply, but that block is compiled out of the bgfx build
+// and nothing replaced it, so animated mappers (Grid flipbooks, Linear Offset
+// scrolls, Rotate) never rebuilt their texture matrices or texcoord routing and
+// rendered frozen at their initial frame. Mirrors the mapper loop of
+// VertexMaterialClass::Apply for the two stages a W3D vertex material carries;
+// stages 2+ hold terrain cloud/noise state owned by other passes and stay untouched.
+static void ApplyMaterialMappersForBgfx(BgfxBackend * backend, const VertexMaterialClass * material)
+{
+    static const bool s_disabled = GgcFlags::Enabled(GgcFlag_BgfxNoMapperApply);
+    if (s_disabled)
+    {
+        return;
+    }
+    for (int stage = 0; stage < 2; ++stage)
+    {
+        if (material != nullptr)
+        {
+            VertexMaterialClass * mutableMaterial = const_cast<VertexMaterialClass *>(material);
+            TextureMapperClass * mapper = mutableMaterial->Peek_Mapper(stage);
+            if (mapper != nullptr)
+            {
+                mapper->Apply(mutableMaterial->Get_UV_Source(stage));
+                continue;
+            }
+            backend->Set_Texture_Coord_Source(stage, RB_TEXCOORD_MESH_UV, mutableMaterial->Get_UV_Source(stage));
+        }
+        else
+        {
+            backend->Set_Texture_Coord_Source(stage, RB_TEXCOORD_MESH_UV, stage);
+        }
+        backend->Set_Texture_Transform_Mode(stage, 0, false);
+    }
+}
+
 // Mirror the material fields used by fs_uber without applying DX8 state.
 // This is called from Set_Material and again at submit time because
 // DX8Wrapper::Draw can apply pending material state directly through
@@ -10503,6 +10545,7 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
     FixedFunctionState::Set_Lighting_Enabled(lightingEnabled);
     g_draw.explicitMaterialState = false;
     CaptureMaterialStateForBgfx(material);
+    ApplyMaterialMappersForBgfx(this, material);
 }
 
 void BgfxBackend::Apply_Material_State(const RenderBackendMaterialState & material)
