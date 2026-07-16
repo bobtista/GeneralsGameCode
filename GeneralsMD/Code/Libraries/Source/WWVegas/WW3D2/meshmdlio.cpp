@@ -1806,6 +1806,11 @@ WW3DErrorType MeshModelClass::read_prelit_material (ChunkLoadClass &cload, MeshL
 void MeshModelClass::post_process()
 {
 #if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @info bobtista 17/07/2026 Loader-side patch of shipped art: the USA
+	// Strategy Center's "AC BOX" sub-mesh authors these 16 vertices against atlas padding
+	// that the DX8 fixed-function pipeline happened to sample acceptably but the bgfx path
+	// renders as black. Remap them to the intended 24x24 texel window. If this asset is
+	// ever re-exported or modded, this remap silently overrides its UVs - remove it then.
 	if (stricmp(Get_Name(), "ABSTRATEGY.AC BOX") == 0
 		&& Get_Vertex_Count() > 59
 		&& DefMatDesc->Get_UV_Array(0, 0) != nullptr) {
@@ -1846,7 +1851,12 @@ void MeshModelClass::post_process()
 		}
 	}
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @performance bobtista 17/07/2026 The coplanar scan is O(polys^2) at
+	// load and only feeds the bgfx normal-bias (and instancing exclusion); the DX8 backend
+	// never consumes the flag, so skip the cost there.
 	Set_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS, Has_Coplanar_Opposite_Triangle_Pairs(this));
+#endif
 
 	// turn off backface culling if the mesh is supposed to be two-sided
 	if (Get_Flag(MeshGeometryClass::TWO_SIDED)) {
