@@ -1011,9 +1011,17 @@ void main()
 					vec3 toLight = u_lightPositions[li].xyz - v_worldPos;
 					float dist = length(toLight);
 					ldir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
-					float inner = u_lightParams[li].x;
-					float outer = max(u_lightParams[li].y, inner + 0.0001);
-					atten = 1.0 - clamp((dist - inner) / (outer - inner), 0.0, 1.0);
+					float inner = max(u_lightParams[li].x, 0.0001);
+					float outer = max(u_lightParams[li].y, inner);
+					// TheSuperHackers @bugfix bobtista 16/07/2026 Match the retail D3D point-light
+					// falloff (dx8wrapper Set_Light_Environment): inverse linear+quadratic
+					// 1/(1 + 0.1/irad*d + 8/orad^2*d^2) with the linear term dropped for a
+					// degenerate inner/outer range, and the hard D3D Range cutoff at outer.
+					// The previous linear ramp rendered point lights brighter near the source
+					// with a harder edge than the DX8 build.
+					float a1 = (outer - inner < 0.001) ? 0.0 : (0.1 / inner);
+					float a2 = 8.0 / (outer * outer);
+					atten = (dist <= outer) ? (1.0 / (1.0 + a1 * dist + a2 * dist * dist)) : 0.0;
 				}
 				float nDotL = max(0.0, dot(nrm, ldir));
 				litColor += (u_lightAmbients[li].rgb * matAmbient + u_lightColors[li].rgb * nDotL * matDiffuse) * atten;
