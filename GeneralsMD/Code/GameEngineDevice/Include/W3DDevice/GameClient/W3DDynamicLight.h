@@ -65,6 +65,11 @@ protected:
 	UnsignedInt m_curIncreaseFrameCount;
 	UnsignedInt m_decayFrameCount;
 	UnsignedInt m_increaseFrameCount;
+	// TheSuperHackers @bugfix bobtista 17/07/2026 Shadow-casting pulses advance their fade once per
+	// logic frame instead of once per rendered frame, so the ramp/decay is framerate-independent.
+	// Without this a load-settle or high-fps burst plays the whole pulse in a few render frames,
+	// flashing the cast shadow on and off.
+	UnsignedInt m_lastFadeLogicFrame;
 	Real		m_targetRange;
 	Vector3 m_targetAmbient;
 	Vector3 m_targetDiffuse;

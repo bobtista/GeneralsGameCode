@@ -315,7 +315,7 @@ class LightPulseFXNugget : public FXNugget
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(LightPulseFXNugget, "LightPulseFXNugget")
 public:
 
-	LightPulseFXNugget() : m_radius(0), m_increaseFrames(0), m_decreaseFrames(0), m_boundingCirclePct(0), m_castsShadows(false), m_shadowBias(0.0f)
+	LightPulseFXNugget() : m_radius(0), m_increaseFrames(0), m_decreaseFrames(0), m_boundingCirclePct(0), m_castsShadows(false), m_shadowBias(0.0f), m_shadowStrength(1.0f), m_heightOffset(0.0f)
 	{
 		m_color.red = m_color.green = m_color.blue = 0;
 	}
@@ -329,7 +329,12 @@ public:
 			if (m_boundingCirclePct > 0)
 				radius = (primary->getGeometryInfo().getBoundingCircleRadius() * m_boundingCirclePct);
 
-			TheDisplay->createLightPulse(primary->getPosition(), &m_color, 1, radius, m_increaseFrames, m_decreaseFrames, m_castsShadows, m_shadowBias);
+			// TheSuperHackers @bugfix bobtista 17/07/2026 Pass the configured ShadowStrength and lift
+			// the light by HeightOffset. A ground-level pulse casting at the hardcoded 1.0 strength
+			// draped a hard black grazing shadow off the struck object for the flash's lifetime.
+			Coord3D pos = *primary->getPosition();
+			pos.z += m_heightOffset;
+			TheDisplay->createLightPulse(&pos, &m_color, 1, radius, m_increaseFrames, m_decreaseFrames, m_castsShadows, m_shadowBias, m_shadowStrength);
 		}
 		else
 		{
@@ -341,7 +346,9 @@ public:
 	{
 		if (primary)
 		{
-			TheDisplay->createLightPulse(primary, &m_color, 1, m_radius, m_increaseFrames, m_decreaseFrames, m_castsShadows, m_shadowBias);
+			Coord3D pos = *primary;
+			pos.z += m_heightOffset;
+			TheDisplay->createLightPulse(&pos, &m_color, 1, m_radius, m_increaseFrames, m_decreaseFrames, m_castsShadows, m_shadowBias, m_shadowStrength);
 		}
 		else
 		{
@@ -360,6 +367,8 @@ public:
 			{ "DecreaseTime",			INI::parseDurationUnsignedInt,	nullptr, offsetof( LightPulseFXNugget, m_decreaseFrames ) },
 			{ "CastsShadows",			INI::parseBool,									nullptr, offsetof( LightPulseFXNugget, m_castsShadows ) },
 			{ "ShadowBias",				INI::parseReal,									nullptr, offsetof( LightPulseFXNugget, m_shadowBias ) },
+			{ "ShadowStrength",		INI::parseReal,									nullptr, offsetof( LightPulseFXNugget, m_shadowStrength ) },
+			{ "HeightOffset",			INI::parseReal,									nullptr, offsetof( LightPulseFXNugget, m_heightOffset ) },
 			{ nullptr, nullptr, nullptr, 0 }
 		};
 
@@ -376,6 +385,8 @@ private:
 	UnsignedInt		m_decreaseFrames;
 	Bool					m_castsShadows;
 	Real					m_shadowBias;
+	Real					m_shadowStrength;
+	Real					m_heightOffset;
 };
 EMPTY_DTOR(LightPulseFXNugget)
 
