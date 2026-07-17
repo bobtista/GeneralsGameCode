@@ -135,6 +135,14 @@ static RectClass makeAtlasSafeUVRect(const Image *image)
 	const Region2D *uv = image->getUV();
 	RectClass uvRect(uv->lo.x, uv->lo.y, uv->hi.x, uv->hi.y);
 
+	// TheSuperHackers @bugfix bobtista 17/07/2026 Only inset atlas sub-rects on the shader
+	// pipeline. The legacy fixed-function backend sampled the raw UV rect in retail; applying
+	// the half-texel inset there shifted UI sampling on the DX8 build.
+	if (g_renderBackend == nullptr || !g_renderBackend->Has_Shader_Pipeline())
+	{
+		return uvRect;
+	}
+
 	if (BitIsSet(image->getStatus(), IMAGE_STATUS_RAW_TEXTURE))
 	{
 		return uvRect;
