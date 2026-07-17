@@ -28,6 +28,7 @@
 #include <stdlib.h>
 
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
+#include "GameLogic/GameLogic.h"
 
 W3DDynamicLight::W3DDynamicLight():
 LightClass(LightClass::POINT)
@@ -39,6 +40,7 @@ LightClass(LightClass::POINT)
 	m_shadowBias = 0.0f;
 	m_shadowStrength = 1.0f;
 	m_targetShadowStrength = 1.0f;
+	m_lastFadeLogicFrame = 0xFFFFFFFF;
 
 }
 
@@ -50,6 +52,17 @@ void W3DDynamicLight::On_Frame_Update()
 {
 	if (!m_enabled) {
 		return;
+	}
+	// TheSuperHackers @bugfix bobtista 17/07/2026 Advance a shadow-casting pulse's fade at most once
+	// per logic frame so its ramp/decay tracks real time, not render framerate. Without this a
+	// load-settle or high-fps burst runs the whole pulse in a handful of render frames, flashing the
+	// cast shadow on and off. Vanilla (non-shadow) lights keep their original per-render-frame fade.
+	if (m_castsShadows && TheGameLogic != NULL) {
+		UnsignedInt logicFrame = TheGameLogic->getFrame();
+		if (logicFrame == m_lastFadeLogicFrame) {
+			return;
+		}
+		m_lastFadeLogicFrame = logicFrame;
 	}
 	Real factor = 1.0f;
 	if (m_curIncreaseFrameCount>0 && m_increaseFrameCount>0) {
@@ -86,6 +99,7 @@ void W3DDynamicLight::setFrameFade(UnsignedInt frameIncreaseTime, UnsignedInt de
 	m_curDecayFrameCount = decayFrameTime;
 	m_curIncreaseFrameCount = frameIncreaseTime;
 	m_increaseFrameCount = frameIncreaseTime;
+	m_lastFadeLogicFrame = 0xFFFFFFFF;
 	m_targetAmbient = Ambient;
 	m_targetDiffuse = Diffuse;
 	m_targetRange = FarAttenEnd;
