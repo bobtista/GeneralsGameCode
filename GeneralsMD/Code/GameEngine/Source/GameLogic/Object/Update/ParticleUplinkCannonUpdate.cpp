@@ -43,6 +43,7 @@
 #include "GameClient/ControlBar.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/Display.h"
+#include "GameClient/View.h"
 #include "GameClient/Drawable.h"
 #include "GameClient/ParticleSys.h"
 #include "GameClient/FXList.h"
@@ -763,6 +764,16 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 						flashColor.blue = 4.20f * intensity;
 						TheDisplay->createLightPulse( &flashPos, &flashColor, 110.0f, 260.0f, 0, 7, TRUE, 0.003f, 0.45f * intensity );
 						DEBUG_LOG(("PCANNON flash pulse frame=%d pos=(%.0f,%.0f,%.0f)", now, flashPos.x, flashPos.y, flashPos.z));
+					}
+
+					// TheSuperHackers @feature bobtista 17/07/2026 Light continuous camera rumble while
+					// the beam fires, like the Battle Master's fire shake but re-impulsed periodically
+					// so it sustains gently instead of building to the clamp. View-only (attenuates by
+					// the local camera's distance, decays on its own), so no logic/CRC/replay effect.
+					static const Bool noShake = GgcFlags::Enabled(GgcFlag_PCannonNoShake);
+					if( !noShake && TheTacticalView != NULL && (now % 6) == 0 )
+					{
+						TheTacticalView->shake( &m_currentTargetPosition, View::SHAKE_SUBTLE );
 					}
 				}
 				TheDisplay->updateTrackingLight( &beamLightPos, &beamColor, dramaticBeamLight ? 90.0f : 190.0f, dramaticBeamLight ? 290.0f : 560.0f, TRUE, 0.0015f, beamShadowStrength, snapBlend,
