@@ -45,8 +45,11 @@ void main()
 	// Original: oD0 = v2 * v1.yyyw (replicate color scale). In bgfx
 	// the diffuse comes in as BGRA on D3D paths — keep the same
 	// channel swap the uber shader uses.
+	// TheSuperHackers @bugfix bobtista 17/07/2026 The v1.yyyw swizzle scales only rgb;
+	// v1.w is the implicit 1.0 of the float3 normal stream, so alpha stays unscaled.
+	// Scaling all four lanes made pushed-aside trees fade instead of only darken.
 	vec4 diffuseColor = (u_vertexColorFlags.x > 0.5) ? a_color0.bgra : vec4_splat(1.0);
-	v_color0 = diffuseColor * a_normal.y;
+	v_color0 = vec4(diffuseColor.rgb * a_normal.y, diffuseColor.a);
 
 	// Shroud UV: (v0.xy + c32.xy) * c33.xy.
 	vec2 shroudUV = (a_position.xy + u_shroudOffset.xy) * u_shroudScale.xy;
