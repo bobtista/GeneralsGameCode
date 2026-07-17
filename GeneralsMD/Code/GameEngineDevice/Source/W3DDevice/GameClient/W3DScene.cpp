@@ -2155,6 +2155,14 @@ W3DDynamicLight * RTS3DScene::getADynamicLight()
 	{
 		pLight = (W3DDynamicLight*)dynaLightIt.Peek_Obj();
 		if (!pLight->isEnabled()) {
+			// TheSuperHackers @bugfix bobtista 17/07/2026 Reset the shadow-related fields on
+			// recycle. The nuke/beam shadow producers set them but other claimants (police
+			// coplight, searchlights) only fill color/position, so a recycled ex-shadow light
+			// stayed excluded from every light environment and competed for a shadow slot.
+			pLight->setCastsShadows(false);
+			pLight->setExcludeFromLightEnv(false);
+			pLight->setShadowBias(0.0f);
+			pLight->setShadowStrength(0.0f);
 			pLight->setEnabled(true);
 			return(pLight);
 		}
