@@ -255,12 +255,12 @@ UpdateSleepTime NeutronMissileSlowDeathBehavior::update()
 		if( TheDisplay != NULL && TheGlobalData != NULL && TheGlobalData->m_bgfxDynamicLightShadows )
 		{
 			Coord3D lightPos = pos;
-			lightPos.z += 70.0f;
+			lightPos.z += 300.0f;
 			RGBColor blastColor;
 			blastColor.red = 0.85f;
 			blastColor.green = 0.65f;
 			blastColor.blue = 0.4f;
-			TheDisplay->createLightPulse( &lightPos, &blastColor, 150.0f, 850.0f, 15, 200, TRUE, 0.0015f, 0.85f );
+			TheDisplay->createLightPulse( &lightPos, &blastColor, 150.0f, 450.0f, 30, 330, TRUE, 0.0015f, 0.35f );
 		}
 	}
 
