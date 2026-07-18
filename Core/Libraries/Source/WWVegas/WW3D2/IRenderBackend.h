@@ -1121,6 +1121,11 @@ public:
                                         int /*y*/,
                                         int /*width*/,
                                         int /*height*/) {}
+    virtual void Draw_Screen_Multiply_Quad(unsigned /*color*/,
+                                           int /*x*/,
+                                           int /*y*/,
+                                           int /*width*/,
+                                           int /*height*/) {}
 
     virtual void Draw_Strip(unsigned short start_index,
                             unsigned short index_count,
