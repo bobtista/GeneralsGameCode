@@ -173,6 +173,12 @@ protected:
 	ALuint playSample(AudioEventRTS *event, PlayingAudio *audio);
 	ALuint playSample3D(AudioEventRTS *event, PlayingAudio * audio);
 
+	// TheSuperHackers @bugfix bobtista 30/07/2026 Gapless queued playback for zero-delay multi-sample loops.
+	ALuint startQueuedLoop(AudioEventRTS *event, PlayingAudio *audio, Bool positional);
+	Bool queueOneLoopBuffer(PlayingAudio *playing);
+	void updateQueuedLoop(PlayingAudio *playing);
+	void releaseQueuedLoopBuffers(PlayingAudio *playing);
+
 protected:
 	void enumerateDevices(void);
 	void createListener(void);
