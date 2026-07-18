@@ -12732,6 +12732,41 @@ void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
 
 }
 
+void BgfxBackend::Draw_Screen_Multiply_Quad(unsigned color, int x, int y, int width, int height)
+{
+    if (!g_device.initialized || !bgfx::isValid(g_device.passthroughProgram)
+        || !Is_Triangle_Draw_Enabled())
+    {
+        return;
+    }
+
+    const float left = (2.0f * static_cast<float>(x) / g_device.width) - 1.0f;
+    const float right = (2.0f * static_cast<float>(x + width) / g_device.width) - 1.0f;
+    const float top = 1.0f - (2.0f * static_cast<float>(y) / g_device.height);
+    const float bottom = 1.0f - (2.0f * static_cast<float>(y + height) / g_device.height);
+
+    struct ScreenVert { float x, y, z; uint32_t rgba; };
+    bgfx::TransientVertexBuffer vb;
+    if (bgfx::getAvailTransientVertexBuffer(6, g_device.triangleLayout) < 6)
+    {
+        return;
+    }
+    bgfx::allocTransientVertexBuffer(&vb, 6, g_device.triangleLayout);
+    const ScreenVert verts[6] = {
+        { left, bottom, 0.0f, color }, { left, top, 0.0f, color }, { right, top, 0.0f, color },
+        { left, bottom, 0.0f, color }, { right, top, 0.0f, color }, { right, bottom, 0.0f, color },
+    };
+    std::memcpy(vb.data, verts, sizeof(verts));
+
+    float identity[16];
+    IdentityMatrix(identity);
+    bgfx::setViewTransform(kBgfxUIView, identity, identity);
+    bgfx::setVertexBuffer(0, &vb);
+    bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
+                   | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR));
+    bgfx::submit(kBgfxUIView, g_device.passthroughProgram);
+}
+
 // -- Draw calls --------------------------------------------------------------
 
 namespace
