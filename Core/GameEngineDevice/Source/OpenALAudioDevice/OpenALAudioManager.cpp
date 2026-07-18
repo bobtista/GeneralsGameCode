@@ -1289,6 +1289,13 @@ void OpenALAudioManager::releaseOpenALHandles(PlayingAudio* release)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::releasePlayingAudio(PlayingAudio* release)
 {
+	// TheSuperHackers @feature bobtista 18/07/2026 A queued loop owns several queued buffers; unqueue
+	// and close them (balancing the cache refcounts) before releaseOpenALHandles deletes the source.
+	if (release->m_queuedLoop)
+	{
+		releaseQueuedLoopBuffers(release);
+		release->m_bufferHandle = 0;    // already closed above; skip the single-handle close below
+	}
 	releaseOpenALHandles(release);	// forces stop of this audio
 	closeBuffer(release->m_bufferHandle);
 	if (release->m_cleanupAudioEventRTS) {
@@ -2544,6 +2551,36 @@ void OpenALAudioManager::processPlayingList(void)
 			continue;
 		}
 
+		// TheSuperHackers @feature bobtista 18/07/2026 Queued loops manage their own buffers; refill
+		// them here and release once the queue has fully drained (after a stop + decay tail).
+		if (playing->m_queuedLoop)
+		{
+			updateQueuedLoop(playing);
+			if (sourceIsStopped(playing->m_source))    // fully drained after stop + decay
+			{
+				releasePlayingAudio(playing);
+				it = m_playingSounds.erase(it);
+			}
+			else
+			{
+				if (m_volumeHasChanged)
+					adjustPlayingVolume(playing);
+				++it;
+			}
+			continue;
+		}
+
+		// TheSuperHackers @bugfix bobtista 17/07/2026 A native-looping source (see ggcCanUseNativeLoop)
+		// never stops on its own, so a pending stop request would otherwise loop forever. Stop it here
+		// and let the sourceIsStopped path below release it.
+		if (playing->m_requestStop)
+		{
+			ALint looping = AL_FALSE;
+			alGetSourcei(playing->m_source, AL_LOOPING, &looping);
+			if (looping == AL_TRUE)
+				alSourceStop(playing->m_source);
+		}
+
 		if (sourceIsStopped(playing->m_source))
 		{
 			// TheSuperHackers @bugfix bobtista 13/07/2026 Notify completion before releasing, standing in
@@ -2579,8 +2616,31 @@ void OpenALAudioManager::processPlayingList(void)
 			continue;
 		}
 
+		// TheSuperHackers @feature bobtista 18/07/2026 Refill a queued loop's buffers, then fall through
+		// so the position/cull/volume logic below still tracks it. The drained case is handled in the
+		// sourceIsStopped branch (release, not the reload completion path).
+		if (playing->m_queuedLoop)
+			updateQueuedLoop(playing);
+
+		// TheSuperHackers @bugfix bobtista 17/07/2026 A native-looping source never stops on its own;
+		// honor a pending stop so it does not loop forever, then let the path below release it.
+		if (playing->m_requestStop)
+		{
+			ALint looping = AL_FALSE;
+			alGetSourcei(playing->m_source, AL_LOOPING, &looping);
+			if (looping == AL_TRUE)
+				alSourceStop(playing->m_source);
+		}
+
 		if (sourceIsStopped(playing->m_source))
 		{
+			// A drained queued loop is finished (stop + decay played out); release it directly.
+			if (playing->m_queuedLoop)
+			{
+				releasePlayingAudio(playing);
+				it = m_playing3DSounds.erase(it);
+				continue;
+			}
 			// TheSuperHackers @bugfix bobtista 13/07/2026 Notify completion before releasing, standing in
 			// for the Miles end-of-sample callback, so multi-portion events (attack/sound/decay) and
 			// looping samples play their next portion. Release only if the source was not restarted.
@@ -3141,8 +3201,71 @@ void OpenALAudioManager::playStream(AudioEventRTS* event, OpenALAudioStream* str
 }
 
 //-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 17/07/2026 A pure, infinite, single-file loop (a steady beam,
+// engine hum, or ambient bed - no attack/decay portions and no time-of-day sample swaps) can loop
+// seamlessly on one static buffer via AL_LOOPING. The generic loop path instead lets the source
+// run to the end, then closes/reloads/replays the buffer on the next update tick, so an audible gap
+// recurs every cycle (the beam "cutting out and restarting"). Native looping removes the gap.
+// Multi-file / random / finite / portioned loops keep the reload path because they must change the
+// sample between iterations, which a single AL_LOOPING buffer cannot do.
+static Bool ggcCanUseNativeLoop(const AudioEventRTS* event)
+{
+	static const Bool disabled = (getenv("GGC_AUDIO_NO_NATIVE_LOOP") != NULL);
+	if (disabled)
+		return false;
+	const AudioEventInfo* info = event ? event->getAudioEventInfo() : NULL;
+	if (info == NULL)
+		return false;
+	if (!info->isPermanentSound())                 // AC_LOOP && loopCount == 0 (infinite)
+		return false;
+	if (info->m_soundType == AT_Music || info->m_soundType == AT_Streaming)
+		return false;                                // streamed, not a static buffer
+	if (info->m_delayMin != 0 || info->m_delayMax != 0)
+	{
+		return false;                                // delayed loops must return through the request scheduler
+	}
+	if (info->m_sounds.size() != 1)
+		return false;                                // one body sample only
+	if (!info->m_attackSounds.empty() || !info->m_decaySounds.empty())
+		return false;                                // attack/decay portions need the reload path
+	if (!info->m_soundsMorning.empty() || !info->m_soundsNight.empty() || !info->m_soundsEvening.empty())
+		return false;                                // time-of-day variants can swap the file
+	return true;
+}
+
+//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 30/07/2026 Use gapless queued playback automatically for
+// zero-delay multi-sample loops that ggcCanUseNativeLoop cannot cover - "loop all random" beds with
+// several body samples and/or an attack/decay (the Particle Cannon beam, unit engines, trains).
+// Delayed loops must return through startNextLoop so their configured pause is honored. The
+// GGC_AUDIO_QUEUED_LOOP override retains the original opt-in behavior for diagnostic comparisons.
+static Bool ggcUseQueuedLoop(const AudioEventRTS* event)
+{
+	static const Bool forceEnabled = (getenv("GGC_AUDIO_QUEUED_LOOP") != NULL);
+	const AudioEventInfo* info = event ? event->getAudioEventInfo() : NULL;
+	if (info == NULL)
+		return false;
+	if (info->m_soundType == AT_Music || info->m_soundType == AT_Streaming)
+		return false;
+	if (!info->isPermanentSound())                 // bound the scope to infinite loops
+		return false;
+	if (ggcCanUseNativeLoop(event))                // single-file loops already seamless via AL_LOOPING
+		return false;
+	if (info->m_sounds.empty())
+		return false;
+	if (!forceEnabled && (info->m_delayMin != 0 || info->m_delayMax != 0))
+	{
+		return false;                                // the queued path intentionally has no silence buffers
+	}
+	return true;
+}
+
+//-------------------------------------------------------------------------------------------------
 ALuint OpenALAudioManager::playSample(AudioEventRTS* event, PlayingAudio* audio)
 {
+	if (ggcUseQueuedLoop(event))
+		return startQueuedLoop(event, audio, false);
+
 	// Load the file in
 	ALuint bufferHandle = loadBufferForRead(event);
 	if (bufferHandle) {
@@ -3153,6 +3276,9 @@ ALuint OpenALAudioManager::playSample(AudioEventRTS* event, PlayingAudio* audio)
 		Real pitch = event->getPitchShift() != 0.0f ? event->getPitchShift() : 1.0f;
 		alSourcef(audio->m_source, AL_PITCH, pitch);
 		alSourcef(audio->m_source, AL_GAIN, getEffectiveVolume(event));
+		// Set explicitly (not just when true): sources are pooled, so a stale AL_LOOPING from a
+		// prior loop must be cleared for a one-shot reusing this source.
+		alSourcei(audio->m_source, AL_LOOPING, ggcCanUseNativeLoop(event) ? AL_TRUE : AL_FALSE);
 		alSourcePlay(audio->m_source);
 	}
 
@@ -3162,6 +3288,9 @@ ALuint OpenALAudioManager::playSample(AudioEventRTS* event, PlayingAudio* audio)
 //-------------------------------------------------------------------------------------------------
 ALuint OpenALAudioManager::playSample3D(AudioEventRTS* event, PlayingAudio* sample3D)
 {
+	if (ggcUseQueuedLoop(event))
+		return startQueuedLoop(event, sample3D, true);
+
 	const Coord3D* pos = getCurrentPositionFromEvent(event);
 	if (pos) {
 		ALuint handle = loadBufferForRead(event);
@@ -3194,6 +3323,9 @@ ALuint OpenALAudioManager::playSample3D(AudioEventRTS* event, PlayingAudio* samp
 			DEBUG_LOG(("Playing 3D sample '%s' at %f, %f, %f\n", event->getEventName().str(), x, y, z));
 #endif
 
+			// Seamless native loop for pure single-file loops (see ggcCanUseNativeLoop); set
+			// explicitly so a pooled source does not carry a stale AL_LOOPING into a one-shot.
+			alSourcei(source, AL_LOOPING, ggcCanUseNativeLoop(event) ? AL_TRUE : AL_FALSE);
 			// Start playback
 			alSourcePlay(source);
 		}
@@ -3201,6 +3333,159 @@ ALuint OpenALAudioManager::playSample3D(AudioEventRTS* event, PlayingAudio* samp
 	}
 
 	return 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+// Queue the buffer for the event's current portion (attack / body / decay), then advance the portion
+// state for the next call. Body samples stay in PP_Sound (infinite loop) until a stop is requested,
+// at which point playback falls through to the decay (if any) and then PP_Done. Returns false when
+// there is nothing more to queue.
+Bool OpenALAudioManager::queueOneLoopBuffer(PlayingAudio* playing)
+{
+	AudioEventRTS* ev = playing->m_audioEventRTS;
+	if (ev == NULL)
+		return false;
+
+	// A pending stop leaves the body loop for the decay tail (or straight to done).
+	if (playing->m_requestStop && ev->getNextPlayPortion() == PP_Sound)
+		ev->setNextPlayPortion(ev->getDecayFilename().isEmpty() ? PP_Done : PP_Decay);
+
+	const PortionToPlay portion = ev->getNextPlayPortion();
+	if (portion == PP_Done)
+		return false;
+	if (portion == PP_Sound)
+		ev->generateFilename();                          // pick the next (often random) body sample
+
+	const ALuint buf = loadBufferForRead(ev);            // resolves attack/body/decay by portion
+	if (buf == 0)
+		return false;
+	alSourceQueueBuffers(playing->m_source, 1, &buf);
+
+	if (portion == PP_Attack)
+		ev->setNextPlayPortion(PP_Sound);
+	else if (portion == PP_Decay)
+		ev->setNextPlayPortion(PP_Done);
+	// PP_Sound stays PP_Sound so the body keeps looping (the stop check above ends it).
+	return true;
+}
+
+//-------------------------------------------------------------------------------------------------
+ALuint OpenALAudioManager::startQueuedLoop(AudioEventRTS* event, PlayingAudio* audio, Bool positional)
+{
+	const ALuint source = audio->m_source;
+	if (positional)
+	{
+		const AudioSettings* audioSettings = getAudioSettings();
+		if (event->getAudioEventInfo()->m_type & ST_GLOBAL) {
+			alSourcef(source, AL_REFERENCE_DISTANCE, audioSettings->m_globalMinRange);
+			alSourcef(source, AL_MAX_DISTANCE, audioSettings->m_globalMaxRange);
+		}
+		else {
+			alSourcef(source, AL_REFERENCE_DISTANCE, event->getAudioEventInfo()->m_minDistance);
+			alSourcef(source, AL_MAX_DISTANCE, event->getAudioEventInfo()->m_maxDistance);
+		}
+		alSourcef(source, AL_ROLLOFF_FACTOR, 0.5f);
+		const Coord3D* pos = getCurrentPositionFromEvent(event);
+		if (pos)
+			alSource3f(source, AL_POSITION, pos->x, pos->y, pos->z);
+	}
+	else
+	{
+		alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
+	}
+	const Real pitch = event->getPitchShift() != 0.0f ? event->getPitchShift() : 1.0f;
+	alSourcef(source, AL_PITCH, pitch);
+	alSourcef(source, AL_GAIN, getEffectiveVolume(event));
+	alSourcei(source, AL_LOOPING, AL_FALSE);             // queued playback, not a single looping buffer
+
+	audio->m_queuedLoop = true;
+	audio->m_bufferHandle = 0;                           // cleanup is queue-based, not a single handle
+
+	Int queued = 0;
+	for (Int i = 0; i < 3; ++i) {                        // prime a small lookahead
+		if (!queueOneLoopBuffer(audio))
+			break;
+		++queued;
+	}
+	if (queued == 0)
+		return 0;                                        // nothing to play (e.g. missing files)
+
+	alSourcePlay(source);
+	return 1;                                            // nonzero = started (not a real buffer handle)
+}
+
+//-------------------------------------------------------------------------------------------------
+// Recycle processed buffers and keep the lookahead topped up. Called each update for a queued loop
+// instead of the stop/reload completion path.
+void OpenALAudioManager::updateQueuedLoop(PlayingAudio* playing)
+{
+	const ALuint source = playing->m_source;
+	AudioEventRTS* ev = playing->m_audioEventRTS;
+
+	// TheSuperHackers @bugfix bobtista 18/07/2026 On the first update after a stop, drop the queued
+	// body lookahead so the loop ends promptly. Without this the already-queued buffers keep playing
+	// for up to a few seconds after the emitter is gone. The currently-playing body is cut (masked by
+	// the decay), then only the decay tail is queued - matching how the retail native loop stopped.
+	if (playing->m_requestStop && ev != NULL && ev->getNextPlayPortion() == PP_Sound)
+	{
+		alSourceStop(source);
+		ALint pending = 0;
+		alGetSourcei(source, AL_BUFFERS_QUEUED, &pending);
+		while (pending-- > 0) {
+			ALuint b = 0;
+			alSourceUnqueueBuffers(source, 1, &b);
+			if (b != 0)
+				closeBuffer(b);
+		}
+		ev->setNextPlayPortion(ev->getDecayFilename().isEmpty() ? PP_Done : PP_Decay);
+		if (queueOneLoopBuffer(playing))     // queue the decay tail if the event has one
+			alSourcePlay(source);
+		return;                              // next update drains the decay and releases
+	}
+
+	ALint processed = 0;
+	alGetSourcei(source, AL_BUFFERS_PROCESSED, &processed);
+	while (processed-- > 0) {
+		ALuint done = 0;
+		alSourceUnqueueBuffers(source, 1, &done);
+		if (done != 0)
+			closeBuffer(done);                           // balance the getBufferForFile ref
+	}
+
+	ALint queued = 0;
+	alGetSourcei(source, AL_BUFFERS_QUEUED, &queued);
+	while (queued < 3) {
+		if (!queueOneLoopBuffer(playing))
+			break;
+		++queued;
+	}
+
+	// Resume if the source underran while buffers are still queued.
+	if (queued > 0) {
+		ALint state = 0;
+		alGetSourcei(source, AL_SOURCE_STATE, &state);
+		if (state != AL_PLAYING)
+			alSourcePlay(source);
+	}
+	// Volume and 3D position are handled by the processPlayingList branches that call this.
+}
+
+//-------------------------------------------------------------------------------------------------
+// Stop the source and unqueue+close every queued buffer so the cache refcounts stay balanced (the
+// generic release path only closes the single m_bufferHandle).
+void OpenALAudioManager::releaseQueuedLoopBuffers(PlayingAudio* playing)
+{
+	if (playing->m_source == 0)
+		return;
+	alSourceStop(playing->m_source);
+	ALint queued = 0;
+	alGetSourcei(playing->m_source, AL_BUFFERS_QUEUED, &queued);
+	while (queued-- > 0) {
+		ALuint buf = 0;
+		alSourceUnqueueBuffers(playing->m_source, 1, &buf);
+		if (buf != 0)
+			closeBuffer(buf);
+	}
 }
 
 //-------------------------------------------------------------------------------------------------

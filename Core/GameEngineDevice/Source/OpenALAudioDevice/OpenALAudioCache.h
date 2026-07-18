@@ -42,6 +42,10 @@ struct PlayingAudio
 
 	// The created OpenAL buffer handle for this file
 	ALuint m_bufferHandle = 0;
+	// TheSuperHackers @feature bobtista 18/07/2026 A gapless multi-sample loop: buffers are queued
+	// and refilled per update (attack -> body loop -> decay) instead of the stop/reload path, so its
+	// cleanup is queue-based, not a single m_bufferHandle. Opt-in via GGC_AUDIO_QUEUED_LOOP.
+	Bool m_queuedLoop = false;
 	Bool m_requestStop;
 	Bool m_cleanupAudioEventRTS;
 	Int m_framesFaded;
