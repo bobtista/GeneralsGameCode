@@ -174,7 +174,10 @@ Bool TransitionWindow::init()
 	// referenced by transition INI groups. The original Windows path assumes
 	// those references are valid; keep that behavior there, but avoid leaving
 	// a null transition object queued for the next frame on SDL/macOS.
-	if( !m_win )
+	// TheSuperHackers @bugfix bobtista 18/07/2026 Only bail for a named window that failed to
+	// resolve. Whole-screen fades (SCREENFADE/FULLFADE) have an empty WinName and no window by
+	// design, so bailing on them here dropped the load fade-out/fade-in on non-Windows builds.
+	if( !m_win && !m_winName.isEmpty() )
 	{
 		delete m_transition;
 		m_transition = nullptr;
@@ -214,13 +217,14 @@ void TransitionWindow::update( Int frame )
 	// unlinks itself and nulls m_win, but the transition object lives on in the handler. The style
 	// update()/reverse()/skip() methods dereference m_win (e.g. CountUpTransition::update -> winHide),
 	// so stop forwarding once the window is gone, and report finished so the group does not stall.
-	if(m_transition && m_win)
+	// Windowless whole-screen fades (empty WinName) never had a window, so keep forwarding those.
+	if(m_transition && (m_win || m_winName.isEmpty()))
 		m_transition->update( frame - m_currentFrameDelay);
 }
 
 Bool TransitionWindow::isFinished()
 {
-	if(m_transition && m_win)
+	if(m_transition && (m_win || m_winName.isEmpty()))
 		return m_transition->isFinished();
 	return TRUE;
 }
@@ -228,19 +232,19 @@ Bool TransitionWindow::isFinished()
 void TransitionWindow::reverse( Int totalFrames )
 {
 	//m_currentFrameDelay = totalFrames - (m_transition->getFrameLength() + m_frameDelay);
-	if(m_transition && m_win)
+	if(m_transition && (m_win || m_winName.isEmpty()))
 		m_transition->reverse();
 }
 
 void TransitionWindow::skip()
 {
-	if(m_transition && m_win)
+	if(m_transition && (m_win || m_winName.isEmpty()))
 		m_transition->skip();
 }
 
 void TransitionWindow::draw()
 {
-	if(m_transition && m_win)
+	if(m_transition && (m_win || m_winName.isEmpty()))
 		m_transition->draw();
 }
 
