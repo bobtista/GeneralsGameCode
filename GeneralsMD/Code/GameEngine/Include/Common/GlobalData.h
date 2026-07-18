@@ -192,6 +192,13 @@ public:
 	// TheSuperHackers @feature bobtista 16/07/2026 INI toggle for the experimental dramatic
 	// Particle Cannon lighting (mirrors the GGC_PCANNON_ENHANCED env flag, which still overrides).
 	Bool m_pcannonEnhanced;
+	// TheSuperHackers @tweak bobtista 18/07/2026 Live-tunable knobs for the enhanced Particle
+	// Cannon lighting so its feel can be dialed from Bgfx.ini without a rebuild.
+	Real m_pcannonFlashRadius;   ///< Max horizontal offset of a lightning flash from the beam
+	Int  m_pcannonFlashInterval; ///< Frames between flash windows (lower = more frequent)
+	Int  m_pcannonFlashFadeIn;   ///< Flash light fade-in frames (0 = instant pop)
+	Int  m_pcannonFlashFadeOut;  ///< Flash light fade-out frames
+	Real m_pcannonDimTarget;     ///< Scene ambient floor at the beam (lower = darker/more impact)
 	Bool m_bgfxPointFilter;
 	Bool m_bgfxSoftParticles;
 	Real m_bgfxSoftParticleFadeScale;
