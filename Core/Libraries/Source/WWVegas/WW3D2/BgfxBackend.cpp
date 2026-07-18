@@ -216,6 +216,7 @@ extern "C" int  GGC_GetBgfxDynamicLightShadowsEnabled();
 // TheSuperHackers @feature bobtista 16/07/2026 INI toggle for the dramatic Particle Cannon lighting
 // (Data/INI/Bgfx.ini PCannonEnhanced=Yes); the GGC_PCANNON_ENHANCED env flag still overrides.
 extern "C" int  GGC_GetPCannonEnhancedEnabled();
+extern "C" float GGC_GetPCannonDimTarget();
 #endif
 
 // Render-state globals. Defined here (external linkage), declared `extern`
@@ -2859,6 +2860,20 @@ static void SetupSunShadowView()
             maxExtent = fmaxf(maxExtent, fmaxf(fabsf(gR - cR0), fabsf(gU - cU0)));
         }
     }
+    // TheSuperHackers @bugfix bobtista 18/07/2026 Keep an active shadow-casting dynamic light (the
+    // enhanced Particle Cannon beam) inside the ortho + caster cull. The fit above is camera-centered,
+    // so as the beam sweeps toward the footprint edge its dramatic tree shadows clipped at the box.
+    // Grow the extent to reach the beam plus a margin for its lit foliage; feeds H and the cull radius
+    // below, so both track the beam. Beam pos is last frame's (SetupPointShadowView runs after) - fine
+    // at this scale. Only active while a beam casts, so normal scenes keep their tight camera fit.
+    if (g_draw.pointShadowLightValid && g_draw.pointShadowParams[0] >= 0.5f)
+    {
+        const float bR = g_draw.pointShadowLightPos[0] * lrx + g_draw.pointShadowLightPos[1] * lry;
+        const float bU = g_draw.pointShadowLightPos[0] * lux + g_draw.pointShadowLightPos[1] * luy;
+        const float kBeamShadowMargin = 300.0f;
+        maxExtent = fmaxf(maxExtent, fabsf(bR - cR0) + kBeamShadowMargin);
+        maxExtent = fmaxf(maxExtent, fabsf(bU - cU0) + kBeamShadowMargin);
+    }
     // TheSuperHackers @bugfix bobtista 18/06/2026 Size the ortho to the visible ground
     // footprint plus a small margin; an oversized ortho collapses on-screen shadow resolution
     // until thin shadows wash out and vanish.
@@ -3167,7 +3182,7 @@ static void UpdateDramaLighting()
         return;
     }
     const bool active = g_draw.pointShadowLightValid && (g_draw.pointShadowParams[0] >= 0.5f);
-    const float target = active ? 0.85f : 1.0f;
+    const float target = active ? GGC_GetPCannonDimTarget() : 1.0f;
     if (active)
     {
         // Electric-pattern clock for object receivers (see fs_uber): 2.0 + seconds, wrapping
