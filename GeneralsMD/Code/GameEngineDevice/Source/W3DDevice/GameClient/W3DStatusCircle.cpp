@@ -384,8 +384,13 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 			break;
 		case ScriptEngine::FADE_MULTIPLY:
 			// Straight multiply
+#if defined(GGC_RENDER_BACKEND_BGFX)
+			WW3D::Get_Render_Backend()->Draw_Screen_Multiply_Quad(diffuse, 0, 0,
+				TheGlobalData->m_xResolution, TheGlobalData->m_yResolution);
+#else
 			WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_SRC_COLOR);
 			WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	(2*3));
+#endif
 			break;
 	}
 	ShaderClass::Invalidate();
