@@ -735,10 +735,11 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 						snapBlend = TRUE;
 					}
 
-					// One lightning pulse may fire per 10-frame window, at a hashed frame within it,
-					// from a hashed direction beside the beam. increase 0 / decay 8 frames: it pops on
-					// and fades, so its cast shadow blinks in briefly and dissolves.
-					const UnsignedInt flashWindow = 10;
+					// One lightning pulse may fire per window (PCannonFlashInterval frames), at a hashed
+					// frame within it, from a hashed direction beside the beam. The pulse fades in over
+					// PCannonFlashFadeIn frames and out over PCannonFlashFadeOut frames so it pulses
+					// softly instead of strobing.
+					const UnsignedInt flashWindow = (UnsignedInt)max( 1, TheGlobalData->m_pcannonFlashInterval );
 					const UnsignedInt window = now / flashWindow;
 					UnsignedInt wh = window * 7919u + 97u;
 					wh = (wh ^ 61u) ^ (wh >> 16); wh *= 9u; wh = wh ^ (wh >> 4); wh *= 0x27d4eb2du; wh = wh ^ (wh >> 15);
@@ -747,7 +748,9 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 					if( !noFlash && windowHasFlash && now == flashStart )
 					{
 						const Real flashAngle = ((Real)((wh >> 12) & 0x3FFu) / 1023.0f) * 6.2832f;
-						const Real flashRadius = 100.0f + ((Real)((wh >> 22) & 0xFFu) / 255.0f) * 50.0f;
+						const Real flashRadiusMax = TheGlobalData->m_pcannonFlashRadius;
+						const Real flashRadiusMin = flashRadiusMax * 0.4f;
+						const Real flashRadius = flashRadiusMin + ((Real)((wh >> 22) & 0xFFu) / 255.0f) * (flashRadiusMax - flashRadiusMin);
 						Coord3D flashPos = m_currentTargetPosition;
 						flashPos.x += flashRadius * WWMath::Cosf( flashAngle );
 						flashPos.y += flashRadius * WWMath::Sinf( flashAngle );
@@ -762,8 +765,12 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 						flashColor.red = 0.70f * intensity;
 						flashColor.green = 1.40f * intensity;
 						flashColor.blue = 4.20f * intensity;
-						TheDisplay->createLightPulse( &flashPos, &flashColor, 110.0f, 260.0f, 0, 7, TRUE, 0.003f, 0.45f * intensity );
-						DEBUG_LOG(("PCANNON flash pulse frame=%d pos=(%.0f,%.0f,%.0f)", now, flashPos.x, flashPos.y, flashPos.z));
+						TheDisplay->createLightPulse( &flashPos, &flashColor, 110.0f, 260.0f,
+							TheGlobalData->m_pcannonFlashFadeIn, TheGlobalData->m_pcannonFlashFadeOut,
+							TRUE, 0.003f, 0.45f * intensity );
+						DEBUG_LOG(("PCANNON flash pulse frame=%d radius=%.0f pos=(%.0f,%.0f,%.0f) fadeIn=%d fadeOut=%d",
+							now, flashRadius, flashPos.x, flashPos.y, flashPos.z,
+							TheGlobalData->m_pcannonFlashFadeIn, TheGlobalData->m_pcannonFlashFadeOut));
 					}
 
 					// TheSuperHackers @feature bobtista 17/07/2026 Light continuous camera rumble while

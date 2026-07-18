@@ -355,6 +355,13 @@ extern "C" int GGC_GetPCannonEnhancedEnabled()
 	return (TheGlobalData && TheGlobalData->m_pcannonEnhanced) ? 1 : 0;
 }
 
+// TheSuperHackers @tweak bobtista 18/07/2026 Scene ambient floor at the beam for the enhanced
+// Particle Cannon dim, read by the bgfx backend. Lower = darker/more impact.
+extern "C" float GGC_GetPCannonDimTarget()
+{
+	return (TheGlobalData) ? (float)TheGlobalData->m_pcannonDimTarget : 0.72f;
+}
+
 // params: x = depth bias, y = shadow strength (0 = none, 1 = full).
 extern "C" void GGC_GetBgfxShadowMapParams(float * params)
 {
@@ -588,6 +595,11 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxStencilShadows",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxStencilShadows ) },
 	{ "BgfxDynamicLightShadows",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxDynamicLightShadows ) },
 	{ "PCannonEnhanced",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_pcannonEnhanced ) },
+	{ "PCannonFlashRadius",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_pcannonFlashRadius ) },
+	{ "PCannonFlashInterval",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_pcannonFlashInterval ) },
+	{ "PCannonFlashFadeIn",				INI::parseInt,				nullptr,			offsetof( GlobalData, m_pcannonFlashFadeIn ) },
+	{ "PCannonFlashFadeOut",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_pcannonFlashFadeOut ) },
+	{ "PCannonDimTarget",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_pcannonDimTarget ) },
 	{ "BgfxPointFilter",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxPointFilter ) },
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
@@ -1196,6 +1208,11 @@ GlobalData::GlobalData()
 	m_bgfxShadowMapStrength = 0.35f;
 	m_bgfxDynamicLightShadows = FALSE;
 	m_pcannonEnhanced = FALSE;
+	m_pcannonFlashRadius = 55.0f;
+	m_pcannonFlashInterval = 7;
+	m_pcannonFlashFadeIn = 4;
+	m_pcannonFlashFadeOut = 14;
+	m_pcannonDimTarget = 0.72f;
 	m_bgfxPointFilter = FALSE;
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
