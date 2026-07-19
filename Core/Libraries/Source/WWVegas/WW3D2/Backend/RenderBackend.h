@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include "IRenderBackend.h"
+#include "WW3D2/IRenderBackend.h"
 
 // The active rendering backend. Set by Init_Render_Backend() and cleared by
 // Shutdown_Render_Backend(); never null between those two calls.

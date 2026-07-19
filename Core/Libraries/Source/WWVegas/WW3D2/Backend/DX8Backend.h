@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include "IRenderBackend.h"
+#include "WW3D2/IRenderBackend.h"
 
 class DX8Backend : public IRenderBackend
 {
