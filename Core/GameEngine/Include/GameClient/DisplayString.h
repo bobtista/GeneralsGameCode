@@ -125,4 +125,30 @@ inline void DisplayString::setClipRegion( IRegion2D *region ) {}
 inline void DisplayString::notifyTextChanged() {}
 inline DisplayString *DisplayString::next() { return m_next; }
 
+// TheSuperHackers @feature bobtista 19/07/2026
+// DisplayString that does nothing. Used for Headless Mode.
+class DisplayStringDummy : public DisplayString
+{
+	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( DisplayStringDummy, "DisplayStringDummy" )
+public:
+	virtual void setWordWrap( Int wordWrap ) override {}
+	virtual void setWordWrapCentered( Bool isCentered ) override {}
+	virtual void draw( Int x, Int y, Color color, Color dropColor ) override {}
+	virtual void draw( Int x, Int y, Color color, Color dropColor, Int xDrop, Int yDrop ) override {}
+	virtual void getSize( Int *width, Int *height ) override
+	{
+		if( width != nullptr )
+		{
+			*width = 0;
+		}
+		if( height != nullptr )
+		{
+			*height = 0;
+		}
+	}
+	virtual Int getWidth( Int charPos = -1 ) override { return 0; }
+	virtual void setUseHotkey( Bool useHotkey, Color hotKeyColor ) override {}
+};
+EMPTY_DTOR(DisplayStringDummy)
+
 // EXTERNALS //////////////////////////////////////////////////////////////////

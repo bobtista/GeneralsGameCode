@@ -61,5 +61,53 @@ protected:
 	DisplayString *m_currentCheckpoint; ///< current checkpoint of strings to be freed
 };
 
+// TheSuperHackers @feature bobtista 19/07/2026
+// DisplayStringManager that creates DisplayStrings that do nothing. Used for Headless Mode.
+class DisplayStringManagerDummy : public DisplayStringManager
+{
+public:
+
+	DisplayStringManagerDummy() : m_dummyDisplayString(nullptr) {}
+
+	virtual ~DisplayStringManagerDummy() override
+	{
+		freeDisplayString( m_dummyDisplayString );
+		m_dummyDisplayString = nullptr;
+	}
+
+	virtual void init() override
+	{
+		m_dummyDisplayString = newDisplayString();
+	}
+
+	virtual DisplayString *newDisplayString() override
+	{
+		DisplayString *newString = newInstance(DisplayStringDummy);
+		link( newString );
+		return newString;
+	}
+
+	virtual void freeDisplayString( DisplayString *string ) override
+	{
+		if( string == nullptr )
+		{
+			return;
+		}
+		unLink( string );
+		if( m_currentCheckpoint == string )
+		{
+			m_currentCheckpoint = nullptr;
+		}
+		deleteInstance( string );
+	}
+
+	virtual DisplayString *getGroupNumeralString( Int numeral ) override { return m_dummyDisplayString; }
+	virtual DisplayString *getFormationLetterString() override { return m_dummyDisplayString; }
+
+protected:
+
+	DisplayString *m_dummyDisplayString; ///< shared no-op string for group numerals and formation letter
+};
+
 // EXTERNALS //////////////////////////////////////////////////////////////////////////////////////
 extern DisplayStringManager *TheDisplayStringManager;  ///< singleton extern
