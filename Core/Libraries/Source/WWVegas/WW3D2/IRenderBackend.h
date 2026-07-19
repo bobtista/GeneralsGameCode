@@ -45,10 +45,9 @@ class Vector3;
 
 enum TransformKind
 {
-    // Values match D3DTS_* so DX8Backend can map them without a branch.
-    RB_TRANSFORM_VIEW       = 2,  // D3DTS_VIEW
-    RB_TRANSFORM_PROJECTION = 3,  // D3DTS_PROJECTION
-    RB_TRANSFORM_WORLD      = 256 // D3DTS_WORLD
+    RB_TRANSFORM_WORLD,
+    RB_TRANSFORM_VIEW,
+    RB_TRANSFORM_PROJECTION
 };
 
 struct RenderBackendViewport

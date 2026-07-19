@@ -157,19 +157,33 @@ void DX8Backend::Invalidate_Cached_Render_States()
     DX8Wrapper::Invalidate_Cached_Render_States();
 }
 
+static D3DTRANSFORMSTATETYPE To_D3D_Transform(TransformKind transform)
+{
+    switch (transform)
+    {
+    case RB_TRANSFORM_VIEW:
+        return D3DTS_VIEW;
+    case RB_TRANSFORM_PROJECTION:
+        return D3DTS_PROJECTION;
+    case RB_TRANSFORM_WORLD:
+    default:
+        return D3DTS_WORLD;
+    }
+}
+
 void DX8Backend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 {
-    DX8Wrapper::Set_Transform(static_cast<D3DTRANSFORMSTATETYPE>(transform), m);
+    DX8Wrapper::Set_Transform(To_D3D_Transform(transform), m);
 }
 
 void DX8Backend::Set_Transform(TransformKind transform, const Matrix3D & m)
 {
-    DX8Wrapper::Set_Transform(static_cast<D3DTRANSFORMSTATETYPE>(transform), m);
+    DX8Wrapper::Set_Transform(To_D3D_Transform(transform), m);
 }
 
 void DX8Backend::Get_Transform(TransformKind transform, Matrix4x4 & m)
 {
-    DX8Wrapper::Get_Transform(static_cast<D3DTRANSFORMSTATETYPE>(transform), m);
+    DX8Wrapper::Get_Transform(To_D3D_Transform(transform), m);
 }
 
 void DX8Backend::Set_World_Identity()
