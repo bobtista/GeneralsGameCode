@@ -222,20 +222,31 @@ WideChar* UnicodeString::getBufferForRead(Int len)
 void UnicodeString::translate(const AsciiString& stringSrc)
 {
 	validate();
-	// TheSuperHackers @fix bobtista 02/04/2026 Implement UTF-8 conversion replacing 7-bit ASCII only implementation
+	// TheSuperHackers @fix bobtista 02/04/2026 Convert UTF-8 to wide, replacing the 7-bit ASCII only
+	// implementation. Data that is not valid UTF-8 (e.g. legacy CP1252) falls back to a 1:1 byte cast
+	// to preserve the original characters instead of producing replacement characters.
 	const char* src = stringSrc.str();
-	size_t srcLen = strlen(src);
-	size_t len = Utf8_To_Utf16Le_Len(src, srcLen);
-	if (len == 0)
+	const size_t srcLen = strlen(src);
+	if (srcLen == 0)
 	{
 		clear();
 		return;
 	}
-	ensureUniqueBufferOfSize((Int)len + 1, false, nullptr, nullptr);
-	WideChar* buf = peek();
-	if (Utf8_To_Utf16Le(buf, len + 1, src, srcLen) == 0)
+	if (Utf8_Validate(src, srcLen))
 	{
-		clear();
+		const size_t len = Utf8_To_Utf16Le_Len(src, srcLen);
+		ensureUniqueBufferOfSize((Int)len + 1, false, nullptr, nullptr);
+		Utf8_To_Utf16Le(peek(), len + 1, src, srcLen);
+	}
+	else
+	{
+		ensureUniqueBufferOfSize((Int)srcLen + 1, false, nullptr, nullptr);
+		WideChar* buf = peek();
+		for (size_t i = 0; i < srcLen; ++i)
+		{
+			buf[i] = (WideChar)(unsigned char)src[i];
+		}
+		buf[srcLen] = 0;
 	}
 	validate();
 }
