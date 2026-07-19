@@ -389,6 +389,16 @@ public:
 
 	virtual GameWindow *allocateNewWindow() override { return newInstance(GameWindowDummy); }
 
+	// TheSuperHackers @fix bobtista 19/07/2026 Return no message box window in headless mode
+	virtual GameWindow *gogoMessageBox(Int x, Int y, Int width, Int height, UnsignedShort buttonFlags,
+		UnicodeString titleString, UnicodeString bodyString,
+		GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
+		GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback) override { return nullptr; }
+	virtual GameWindow *gogoMessageBox(Int x, Int y, Int width, Int height, UnsignedShort buttonFlags,
+		UnicodeString titleString, UnicodeString bodyString,
+		GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
+		GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback, Bool useLogo) override { return nullptr; }
+
 	virtual GameWinDrawFunc getPushButtonImageDrawFunc() override { return nullptr; }
 	virtual GameWinDrawFunc getPushButtonDrawFunc() override { return nullptr; }
 	virtual GameWinDrawFunc getCheckBoxImageDrawFunc() override { return nullptr; }
