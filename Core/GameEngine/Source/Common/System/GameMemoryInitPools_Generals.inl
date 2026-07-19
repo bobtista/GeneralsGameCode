@@ -295,6 +295,7 @@ static PoolSizeRec PoolSizes[] =
 
 	{ "DozerActionStateMachine", 256, 32 },
 	{ "DozerPrimaryStateMachine", 256, 32 },
+	{ "DisplayStringDummy", 1024, 128 },
 	{ "W3DDisplayString", 1024, 128 },
 	{ "W3DDefaultDraw", 1024, 128 },
 	{ "W3DDebrisDraw", 1024, 128 },

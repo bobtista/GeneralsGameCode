@@ -252,7 +252,7 @@ void GameClient::init()
 	}
 
 	// create the display string factory
-	TheDisplayStringManager = createDisplayStringManager();
+	TheDisplayStringManager = TheGlobalData->m_headless ? NEW DisplayStringManagerDummy : createDisplayStringManager();
 	if( TheDisplayStringManager )	{
 		TheDisplayStringManager->init();
 		TheDisplayStringManager->setName("TheDisplayStringManager");
