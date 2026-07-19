@@ -138,8 +138,8 @@ void AsciiString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveData
 			// TheSuperHackers @fix Mauller 04/04/2025 Replace strcpy with safer memmove as memory regions can overlap when part of string is copied to itself
 			DEBUG_ASSERTCRASH(usableNumChars <= strlen(strToCopy), ("strToCopy is too small"));
 			memmove(m_data->peek(), strToCopy, usableNumChars);
+			m_data->peek()[usableNumChars] = 0;
 		}
-		m_data->peek()[usableNumChars] = 0;
 		if (strToCat)
 			strcat(m_data->peek(), strToCat);
 		return;
@@ -167,8 +167,8 @@ void AsciiString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveData
 	{
 		DEBUG_ASSERTCRASH(usableNumChars <= strlen(strToCopy), ("strToCopy is too small"));
 		strncpy(newData->peek(), strToCopy, usableNumChars);
+		newData->peek()[usableNumChars] = 0;
 	}
-	newData->peek()[usableNumChars] = 0;
 	if (strToCat)
 		strcat(newData->peek(), strToCat);
 

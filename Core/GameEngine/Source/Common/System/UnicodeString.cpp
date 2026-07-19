@@ -89,8 +89,8 @@ void UnicodeString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveDa
 			// TheSuperHackers @fix Mauller 04/04/2025 Replace wcscpy with safer memmove as memory regions can overlap when part of string is copied to itself
 			DEBUG_ASSERTCRASH(usableNumChars <= wcslen(strToCopy), ("strToCopy is too small"));
 			memmove(m_data->peek(), strToCopy, usableNumChars * sizeof(WideChar));
+			m_data->peek()[usableNumChars] = 0;
 		}
-		m_data->peek()[usableNumChars] = 0;
 		if (strToCat)
 			wcscat(m_data->peek(), strToCat);
 		return;
@@ -118,8 +118,8 @@ void UnicodeString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveDa
 	{
 		DEBUG_ASSERTCRASH(usableNumChars <= wcslen(strToCopy), ("strToCopy is too small"));
 		wcsncpy(newData->peek(), strToCopy, usableNumChars);
+		newData->peek()[usableNumChars] = 0;
 	}
-	newData->peek()[usableNumChars] = 0;
 	if (strToCat)
 		wcscat(newData->peek(), strToCat);
 
