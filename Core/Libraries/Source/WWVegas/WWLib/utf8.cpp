@@ -19,43 +19,268 @@
 #include "always.h"
 #include "utf8.h"
 
-#ifdef _WIN32
-#include <windows.h>
+// wchar_t is a 16-bit UTF-16 code unit on Windows and a 32-bit UTF-32 codepoint on most other
+// platforms. WCHAR_MAX lets us distinguish the two at compile time so the surrogate-pair paths
+// are excluded entirely (not just constant-folded) where wchar_t is wide enough to hold a codepoint.
+#if defined(WCHAR_MAX) && (WCHAR_MAX <= 0xFFFF)
+#define UTF8_WCHAR_IS_UTF16 1
+#else
+#define UTF8_WCHAR_IS_UTF16 0
+#endif
+
+static const unsigned int UTF8_CODEPOINT_MAX = 0x10FFFF;
+static const unsigned int UTF8_SURROGATE_MIN = 0xD800;
+static const unsigned int UTF8_SURROGATE_MAX = 0xDFFF;
+
+// Number of UTF-8 bytes required to encode a codepoint.
+static size_t Utf8_Encoded_Length(unsigned int cp)
+{
+	if (cp < 0x80)
+	{
+		return 1;
+	}
+	if (cp < 0x800)
+	{
+		return 2;
+	}
+	if (cp < 0x10000)
+	{
+		return 3;
+	}
+	return 4;
+}
+
+// Encode a codepoint to dest, which is assumed to have room. Returns the number of bytes written.
+static size_t Utf8_Encode(char* dest, unsigned int cp)
+{
+	if (cp < 0x80)
+	{
+		dest[0] = (char)cp;
+		return 1;
+	}
+	if (cp < 0x800)
+	{
+		dest[0] = (char)(0xC0 | (cp >> 6));
+		dest[1] = (char)(0x80 | (cp & 0x3F));
+		return 2;
+	}
+	if (cp < 0x10000)
+	{
+		dest[0] = (char)(0xE0 | (cp >> 12));
+		dest[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+		dest[2] = (char)(0x80 | (cp & 0x3F));
+		return 3;
+	}
+	dest[0] = (char)(0xF0 | (cp >> 18));
+	dest[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
+	dest[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
+	dest[3] = (char)(0x80 | (cp & 0x3F));
+	return 4;
+}
+
+// Decode one UTF-8 sequence at src, with srcLen bytes remaining. On success returns the number of
+// bytes consumed (1-4) and sets cp. Returns 0 on any malformed, overlong, out-of-range or surrogate
+// encoding.
+static size_t Utf8_Decode(const char* src, size_t srcLen, unsigned int& cp)
+{
+	const unsigned char lead = (unsigned char)src[0];
+	if (lead < 0x80)
+	{
+		cp = lead;
+		return 1;
+	}
+
+	size_t count;
+	unsigned int lowerBound;
+	if ((lead & 0xE0) == 0xC0)
+	{
+		count = 2;
+		cp = lead & 0x1F;
+		lowerBound = 0x80;
+	}
+	else if ((lead & 0xF0) == 0xE0)
+	{
+		count = 3;
+		cp = lead & 0x0F;
+		lowerBound = 0x800;
+	}
+	else if ((lead & 0xF8) == 0xF0)
+	{
+		count = 4;
+		cp = lead & 0x07;
+		lowerBound = 0x10000;
+	}
+	else
+	{
+		return 0; // a continuation byte or a 5/6-byte form cannot start a sequence
+	}
+
+	if (srcLen < count)
+	{
+		return 0; // truncated sequence
+	}
+	for (size_t i = 1; i < count; ++i)
+	{
+		const unsigned char trail = (unsigned char)src[i];
+		if ((trail & 0xC0) != 0x80)
+		{
+			return 0; // not a continuation byte
+		}
+		cp = (cp << 6) | (trail & 0x3F);
+	}
+
+	if (cp < lowerBound || cp > UTF8_CODEPOINT_MAX || (cp >= UTF8_SURROGATE_MIN && cp <= UTF8_SURROGATE_MAX))
+	{
+		return 0; // overlong, out of range, or a surrogate codepoint
+	}
+	return count;
+}
+
+// Read one codepoint from a wide buffer, advancing i. Combines UTF-16 surrogate pairs where wchar_t
+// is 16-bit; treats each element as a whole codepoint where wchar_t is 32-bit.
+static unsigned int Wide_Read(const wchar_t* src, size_t srcLen, size_t& i)
+{
+#if UTF8_WCHAR_IS_UTF16
+	unsigned int cp = (unsigned int)src[i++] & 0xFFFF;
+	if (cp >= 0xD800 && cp <= 0xDBFF && i < srcLen)
+	{
+		const unsigned int low = (unsigned int)src[i] & 0xFFFF;
+		if (low >= 0xDC00 && low <= 0xDFFF)
+		{
+			cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
+			++i;
+		}
+	}
+	return cp;
+#else
+	(void)srcLen;
+	return (unsigned int)src[i++];
+#endif
+}
+
+// Number of wide characters required to store a codepoint.
+static size_t Wide_Encoded_Length(unsigned int cp)
+{
+#if UTF8_WCHAR_IS_UTF16
+	return (cp >= 0x10000) ? 2 : 1;
+#else
+	(void)cp;
+	return 1;
+#endif
+}
+
+// Write one codepoint to a wide buffer, which is assumed to have room. Returns wide characters written.
+static size_t Wide_Write(wchar_t* dest, unsigned int cp)
+{
+#if UTF8_WCHAR_IS_UTF16
+	if (cp >= 0x10000)
+	{
+		cp -= 0x10000;
+		dest[0] = (wchar_t)(0xD800 + (cp >> 10));
+		dest[1] = (wchar_t)(0xDC00 + (cp & 0x3FF));
+		return 2;
+	}
+#endif
+	dest[0] = (wchar_t)cp;
+	return 1;
+}
+
+bool Utf8_Validate(const char* str, size_t length)
+{
+	size_t i = 0;
+	while (i < length)
+	{
+		unsigned int cp;
+		const size_t consumed = Utf8_Decode(str + i, length - i, cp);
+		if (consumed == 0)
+		{
+			return false;
+		}
+		i += consumed;
+	}
+	return true;
+}
 
 size_t Utf16Le_To_Utf8_Len(const wchar_t* src, size_t srcLen)
 {
-	const int bytes = WideCharToMultiByte(CP_UTF8, 0, src, (int)srcLen, nullptr, 0, nullptr, nullptr);
-	return (bytes >= 0) ? (size_t)bytes : 0;
+	size_t bytes = 0;
+	size_t i = 0;
+	while (i < srcLen)
+	{
+		const unsigned int cp = Wide_Read(src, srcLen, i);
+		bytes += Utf8_Encoded_Length(cp);
+	}
+	return bytes;
 }
 
 size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen)
 {
-	const int wchars = MultiByteToWideChar(CP_UTF8, 0, src, (int)srcLen, nullptr, 0);
-	return (wchars >= 0) ? (size_t)wchars : 0;
+	size_t units = 0;
+	size_t i = 0;
+	while (i < srcLen)
+	{
+		unsigned int cp;
+		const size_t consumed = Utf8_Decode(src + i, srcLen - i, cp);
+		if (consumed == 0)
+		{
+			return 0;
+		}
+		i += consumed;
+		units += Wide_Encoded_Length(cp);
+	}
+	return units;
 }
 
 size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen)
 {
-	const int written = WideCharToMultiByte(CP_UTF8, 0, src, (int)srcLen, dest, (int)destLen, nullptr, nullptr);
-	WWASSERT(written >= 0 && (size_t)written <= destLen);
-	if ((size_t)written < destLen)
+	size_t out = 0;
+	size_t i = 0;
+	while (i < srcLen)
 	{
-		dest[written] = '\0';
+		const unsigned int cp = Wide_Read(src, srcLen, i);
+		const size_t need = Utf8_Encoded_Length(cp);
+		if (out + need > destLen)
+		{
+			WWASSERT(false);
+			break;
+		}
+		out += Utf8_Encode(dest + out, cp);
 	}
-	return (size_t)written;
+	if (out < destLen)
+	{
+		dest[out] = '\0';
+	}
+	return out;
 }
 
 size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t srcLen)
 {
-	const int written = MultiByteToWideChar(CP_UTF8, 0, src, (int)srcLen, dest, (int)destLen);
-	WWASSERT(written >= 0 && (size_t)written <= destLen);
-	if ((size_t)written < destLen)
+	size_t out = 0;
+	size_t i = 0;
+	while (i < srcLen)
 	{
-		dest[written] = L'\0';
+		unsigned int cp;
+		const size_t consumed = Utf8_Decode(src + i, srcLen - i, cp);
+		if (consumed == 0)
+		{
+			if (destLen > 0)
+			{
+				dest[0] = L'\0';
+			}
+			return 0;
+		}
+		i += consumed;
+		const size_t need = Wide_Encoded_Length(cp);
+		if (out + need > destLen)
+		{
+			WWASSERT(false);
+			break;
+		}
+		out += Wide_Write(dest + out, cp);
 	}
-	return (size_t)written;
+	if (out < destLen)
+	{
+		dest[out] = L'\0';
+	}
+	return out;
 }
-
-#else
-#error "Not implemented"
-#endif

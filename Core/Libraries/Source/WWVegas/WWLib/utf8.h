@@ -21,29 +21,32 @@
 #include <stddef.h>
 #include <wchar.h>
 
-// NOTE: The current implementation is Windows-only and treats wchar_t as UTF-16LE.
-// On non-Windows platforms wchar_t is typically UTF-32, so a future cross-platform
-// implementation should migrate the wide parameters to uint16_t / char16_t.
+// UTF-8 <-> wide-character transcoding, hand-rolled per RFC 3629, using no platform text APIs.
+// The wide side is wchar_t, whose width is platform-dependent: on Windows it is a 16-bit UTF-16
+// code unit (astral codepoints use surrogate pairs); on most other platforms it is a 32-bit
+// UTF-32 codepoint. Both are handled transparently based on the width of wchar_t.
 
-// Returns the number of bytes needed for the UTF-8 representation of srcLen UTF-16LE
-// characters from src, not counting a null terminator. Returns 0 on failure or if srcLen is 0.
+// Returns true if the length bytes at str are well-formed UTF-8 per RFC 3629. Rejects overlong
+// encodings, codepoints above U+10FFFF, and UTF-16 surrogate codepoints. An empty range is valid.
+bool Utf8_Validate(const char* str, size_t length);
+
+// Returns the number of UTF-8 bytes needed for the UTF-8 representation of srcLen wide characters
+// from src, not counting a null terminator. Returns 0 if srcLen is 0.
 size_t Utf16Le_To_Utf8_Len(const wchar_t* src, size_t srcLen);
 
-// Returns the number of UTF-16LE elements needed for the UTF-16LE representation
-// of srcLen bytes from the UTF-8 string src, not counting a null terminator.
-// Returns 0 on failure or if srcLen is 0.
+// Returns the number of wide characters needed for the wide representation of srcLen bytes from the
+// UTF-8 string src, not counting a null terminator. Returns 0 on invalid UTF-8 or if srcLen is 0.
 size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen);
 
-// Converts srcLen UTF-16LE characters from src to UTF-8.
+// Converts srcLen wide characters from src to UTF-8.
 // destLen is the destination buffer capacity in bytes. Caller must ensure destLen is large enough
 // by querying Utf16Le_To_Utf8_Len first. Writes a null terminator if room remains, otherwise not.
-// Returns the number of bytes written on success, or 0 on failure.
-// On failure, dest[0] is set to '\0' if destLen > 0.
+// Returns the number of bytes written, or 0 if srcLen is 0.
 size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen);
 
-// Converts srcLen bytes from the UTF-8 string src to UTF-16LE characters.
-// destLen is the destination buffer capacity in wchar_t elements. Caller must ensure destLen is
+// Converts srcLen bytes from the UTF-8 string src to wide characters.
+// destLen is the destination buffer capacity in wide characters. Caller must ensure destLen is
 // large enough by querying Utf8_To_Utf16Le_Len first. Writes a null terminator if room remains,
-// otherwise not. Returns the number of wchar_t elements written on success, or 0 on failure.
-// On failure, dest[0] is set to L'\0' if destLen > 0.
+// otherwise not. Returns the number of wide characters written, or 0 on invalid UTF-8 or if srcLen
+// is 0. On failure, dest[0] is set to L'\0' if destLen > 0.
 size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t srcLen);
