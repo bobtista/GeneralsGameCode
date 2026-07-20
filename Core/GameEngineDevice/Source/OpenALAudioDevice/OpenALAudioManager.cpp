@@ -1683,6 +1683,7 @@ void OpenALAudioManager::openDevice(void)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::closeDevice(void)
 {
+	freeAllOpenALHandles();
 	unselectProvider();
 	alcMakeContextCurrent(nullptr);
 
