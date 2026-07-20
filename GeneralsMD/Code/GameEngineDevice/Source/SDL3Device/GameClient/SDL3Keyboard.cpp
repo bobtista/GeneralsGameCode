@@ -207,6 +207,9 @@ KeyDefType SDL3Keyboard::translateScancode(SDL_Scancode scancode) const
 		case SDL_SCANCODE_PAGEDOWN: return KEY_PGDN;
 		case SDL_SCANCODE_INSERT: return KEY_INS;
 		case SDL_SCANCODE_DELETE: return KEY_DEL;
+		case SDL_SCANCODE_NUMLOCKCLEAR: return KEY_NUM;
+		case SDL_SCANCODE_SCROLLLOCK: return KEY_SCROLL;
+		case SDL_SCANCODE_PRINTSCREEN: return KEY_SYSREQ;
 		default: return KEY_NONE;
 	}
 }
