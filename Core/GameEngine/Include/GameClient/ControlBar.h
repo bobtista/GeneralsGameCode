@@ -781,6 +781,7 @@ public:
 	void setArrowImage( const Image *arrowImage ){ m_genArrow = arrowImage;	}
 
 	void initSpecialPowershortcutBar( Player *player);
+	void rebuildSpecialPowerShortcutBarForResolution( Player *player);	///< Rebuild the shortcut bar after a resolution change without replaying the slide-in animation
 
 	void triggerRadarAttackGlow();
 

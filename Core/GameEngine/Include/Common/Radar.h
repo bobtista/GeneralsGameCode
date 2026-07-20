@@ -212,6 +212,11 @@ public:
 
 	virtual void newMap( TerrainLogic *terrain );	///< reset radar for new map
 
+	// TheSuperHackers @bugfix bobtista 20/07/2026 Re-hook the radar window pointer to the current
+	// ControlBar.wnd:LeftHUD after the control bar tree is rebuilt (e.g. a mid-match resolution
+	// change), without resetting radar data the way newMap does.
+	void reattachWindow();
+
 	virtual void draw( Int pixelX, Int pixelY, Int width, Int height ) = 0;	///< draw the radar
 
 	/// empty the entire shroud
