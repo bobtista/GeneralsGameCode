@@ -46,6 +46,7 @@ SDL3Mouse::SDL3Mouse() :
 		{
 			m_cursorTextures[i][j] = nullptr;
 			m_sdlCursors[i][j] = nullptr;
+			m_sdlCursorAniAttempted[i][j] = false;
 		}
 	}
 	reset();
@@ -63,6 +64,7 @@ SDL3Mouse::~SDL3Mouse()
 				SDL_DestroyCursor(m_sdlCursors[i][j]);
 				m_sdlCursors[i][j] = nullptr;
 			}
+			m_sdlCursorAniAttempted[i][j] = false;
 			REF_PTR_RELEASE(m_cursorTextures[i][j]);
 		}
 	}
@@ -115,6 +117,7 @@ void SDL3Mouse::initCursorResources()
 				SDL_DestroyCursor(m_sdlCursors[i][j]);
 				m_sdlCursors[i][j] = nullptr;
 			}
+			m_sdlCursorAniAttempted[i][j] = false;
 			REF_PTR_RELEASE(m_cursorTextures[i][j]);
 		}
 	}
@@ -483,8 +486,9 @@ SDL_Cursor *SDL3Mouse::getSDLColorCursor(MouseCursor cursor, Int frame)
 		frame = 0;
 	}
 
-	if (m_sdlCursors[cursor][frame] == nullptr)
+	if (m_sdlCursors[cursor][frame] == nullptr && !m_sdlCursorAniAttempted[cursor][frame])
 	{
+		m_sdlCursorAniAttempted[cursor][frame] = true;
 		m_sdlCursors[cursor][frame] = createSDLANICursor(cursor, frame);
 	}
 
