@@ -58,7 +58,20 @@ typedef struct WSAData
 #endif
 
 #ifndef WSAStartup
-#define WSAStartup(wVer, lpData) (0)
+static inline int WSAStartup(WORD wVersionRequested, LPWSADATA lpWSAData)
+{
+	if (lpWSAData != 0)
+	{
+		lpWSAData->wVersion = wVersionRequested;
+		lpWSAData->wHighVersion = wVersionRequested;
+		lpWSAData->szDescription[0] = '\0';
+		lpWSAData->szSystemStatus[0] = '\0';
+		lpWSAData->iMaxSockets = 0;
+		lpWSAData->iMaxUdpDg = 0;
+		lpWSAData->lpVendorInfo = 0;
+	}
+	return 0;
+}
 #endif
 
 #ifndef WSACleanup
