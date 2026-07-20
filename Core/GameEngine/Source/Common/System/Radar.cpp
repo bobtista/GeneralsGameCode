@@ -305,6 +305,14 @@ void Radar::update()
 }
 
 //-------------------------------------------------------------------------------------------------
+/** Re-hook the radar window pointer after the control bar window tree is rebuilt */
+//-------------------------------------------------------------------------------------------------
+void Radar::reattachWindow()
+{
+	Int id = NAMEKEY( "ControlBar.wnd:LeftHUD" );
+	m_radarWindow = TheWindowManager->winGetWindowFromId( nullptr, id );
+}
+
 /** Reset the radar for the new map data being given to it */
 //-------------------------------------------------------------------------------------------------
 void Radar::newMap( TerrainLogic *terrain )

@@ -3306,6 +3306,29 @@ void ControlBar::initSpecialPowershortcutBar( Player *player)
 
 }
 
+// TheSuperHackers @bugfix bobtista 20/07/2026 On a mid-match resolution change the generals-powers
+// shortcut bar must be recreated to rescale, but initSpecialPowershortcutBar leaves it hidden, which
+// makes updateSpecialPowerShortcut replay the 500ms slide-in every resize - a screenshot taken right
+// after a resize catches the bar mid-slide, clipped off the right edge. If the bar was already
+// visible, unhide it at its (correct, flush-right) rest position and populate it directly so the
+// hidden->show transition, and therefore the slide, never fires.
+void ControlBar::rebuildSpecialPowerShortcutBarForResolution( Player *player )
+{
+	initSpecialPowershortcutBar( player );
+
+	// recreateControlBar() rebuilt the whole ControlBar object just before this call, wiping any record
+	// of whether the shortcut bar was showing (m_specialPowerShortcutParent starts null on the new
+	// object). Decide from player state instead: if the local player has shortcut powers, unhide the
+	// freshly rebuilt bar at its rest position and populate it directly, so the hidden->show transition
+	// in updateSpecialPowerShortcut - and its 500ms slide-in that a resize would otherwise replay - never fires.
+	const Bool shouldShow = (m_specialPowerShortcutParent != nullptr) && canShowSpecialPowerShortcut();
+	if( shouldShow )
+	{
+		m_specialPowerShortcutParent->winHide( FALSE );
+		populateSpecialPowerShortcut( player );
+	}
+}
+
 void ControlBar::populateSpecialPowerShortcut( Player *player)
 {
 	const CommandSet *commandSet;
