@@ -307,6 +307,26 @@ static Bool GetSDLWindowSize(SDL_Window *window, Int *width, Int *height)
 	return TRUE;
 }
 
+static void GetLetterboxContentRect(Int windowWidth, Int windowHeight, Int *offsetX, Int *offsetY, Int *contentWidth, Int *contentHeight)
+{
+	*offsetX = 0;
+	*offsetY = 0;
+	*contentWidth = windowWidth;
+	*contentHeight = windowHeight;
+	if (g_renderBackend != NULL && g_renderBackend->Is_Present_Letterbox_Active())
+	{
+		*offsetX = g_renderBackend->Get_Present_Offset_X();
+		*offsetY = g_renderBackend->Get_Present_Offset_Y();
+		const Int cw = g_renderBackend->Get_Present_Content_Width();
+		const Int ch = g_renderBackend->Get_Present_Content_Height();
+		if (cw > 0 && ch > 0)
+		{
+			*contentWidth = cw;
+			*contentHeight = ch;
+		}
+	}
+}
+
 static void MapSDLPointToDisplayPoint(float rawX, float rawY, Uint32 windowID, Int *displayX, Int *displayY)
 {
 	if (displayX == nullptr || displayY == nullptr)
@@ -337,22 +357,11 @@ static void MapSDLPointToDisplayPoint(float rawX, float rawY, Uint32 windowID, I
 	// game is drawn in a centered sub-rect of the window. Subtract the bar offset and map against the
 	// content size so pointer coordinates land in the rendered area; clicks in the bars map outside
 	// the display bounds and are ignored downstream.
-	Int offsetX = 0;
-	Int offsetY = 0;
-	Int contentWidth = windowWidth;
-	Int contentHeight = windowHeight;
-	if (g_renderBackend != NULL && g_renderBackend->Is_Present_Letterbox_Active())
-	{
-		offsetX = g_renderBackend->Get_Present_Offset_X();
-		offsetY = g_renderBackend->Get_Present_Offset_Y();
-		const Int cw = g_renderBackend->Get_Present_Content_Width();
-		const Int ch = g_renderBackend->Get_Present_Content_Height();
-		if (cw > 0 && ch > 0)
-		{
-			contentWidth = cw;
-			contentHeight = ch;
-		}
-	}
+	Int offsetX;
+	Int offsetY;
+	Int contentWidth;
+	Int contentHeight;
+	GetLetterboxContentRect(windowWidth, windowHeight, &offsetX, &offsetY, &contentWidth, &contentHeight);
 
 	*displayX = static_cast<Int>(std::lround((rawX - static_cast<float>(offsetX)) * static_cast<float>(displayWidth) / static_cast<float>(contentWidth)));
 	*displayY = static_cast<Int>(std::lround((rawY - static_cast<float>(offsetY)) * static_cast<float>(displayHeight) / static_cast<float>(contentHeight)));
@@ -385,22 +394,11 @@ static void MapDisplayPointToSDLPoint(Int displayX, Int displayY, float *rawX, f
 
 	// Mirror the letterbox mapping in MapSDLPointToDisplayPoint: scale by the content size and add the
 	// bar offset so a warped cursor lands in the rendered sub-rect.
-	Int offsetX = 0;
-	Int offsetY = 0;
-	Int contentWidth = windowWidth;
-	Int contentHeight = windowHeight;
-	if (g_renderBackend != NULL && g_renderBackend->Is_Present_Letterbox_Active())
-	{
-		offsetX = g_renderBackend->Get_Present_Offset_X();
-		offsetY = g_renderBackend->Get_Present_Offset_Y();
-		const Int cw = g_renderBackend->Get_Present_Content_Width();
-		const Int ch = g_renderBackend->Get_Present_Content_Height();
-		if (cw > 0 && ch > 0)
-		{
-			contentWidth = cw;
-			contentHeight = ch;
-		}
-	}
+	Int offsetX;
+	Int offsetY;
+	Int contentWidth;
+	Int contentHeight;
+	GetLetterboxContentRect(windowWidth, windowHeight, &offsetX, &offsetY, &contentWidth, &contentHeight);
 
 	*rawX = static_cast<float>(displayX) * static_cast<float>(contentWidth) / static_cast<float>(displayWidth) + static_cast<float>(offsetX);
 	*rawY = static_cast<float>(displayY) * static_cast<float>(contentHeight) / static_cast<float>(displayHeight) + static_cast<float>(offsetY);
