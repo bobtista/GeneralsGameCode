@@ -61,6 +61,7 @@ private:
 	const Image *m_cursorImages[NUM_MOUSE_CURSORS];
 	TextureClass *m_cursorTextures[NUM_MOUSE_CURSORS][MAX_2D_CURSOR_ANIM_FRAMES];
 	SDL_Cursor *m_sdlCursors[NUM_MOUSE_CURSORS][MAX_2D_CURSOR_ANIM_FRAMES];
+	Bool m_sdlCursorAniAttempted[NUM_MOUSE_CURSORS][MAX_2D_CURSOR_ANIM_FRAMES];
 	MouseCursor m_lastAppliedSDLCursor;
 	Int m_lastAppliedSDLFrame;
 	Real m_currentAnimFrame;
