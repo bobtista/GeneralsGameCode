@@ -1,5 +1,5 @@
 $input  a_position, a_normal, a_color0, a_texcoord0
-$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_stage1UV, v_stage2UV, v_stage3UV, v_worldPos
+$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_stage1UV, v_stage2UV, v_sceneDepth, v_worldPos
 
 #include <bgfx_shader.sh>
 
@@ -32,6 +32,7 @@ void main()
 	// via a D3DCOLOR-style pack, so a_normal.x arrives as a float in
 	// [0, MAX_SWAY_TYPES].
 	int waveIdx = int(a_normal.x + 0.5);
+	waveIdx = min(max(waveIdx, 0), MAX_SWAY_TYPES_PLUS1 - 1);
 	vec4 wave = u_swayTable[waveIdx];
 
 	// Scale the sway by height and add to original position. Tops
@@ -58,7 +59,7 @@ void main()
 	v_stage0UV = a_texcoord0;
 	v_stage1UV = shroudUV;
 	v_stage2UV = a_texcoord0;
-	v_stage3UV = a_texcoord0;
+	v_sceneDepth = vec4(1.0, 0.0, 0.0, 0.0);
 
 	v_normal = vec3(0.0, 0.0, 1.0);  // grass billboards always face up
 
