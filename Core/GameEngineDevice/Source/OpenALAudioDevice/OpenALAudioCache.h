@@ -28,7 +28,6 @@
 #include "OpenALAudioDevice/OpenALAudioManager.h"
 #include "VideoDevice/FFmpeg/FFmpegFile.h"
 
-#include <mutex>
 #include <unordered_map>
 
 struct PlayingAudio
@@ -106,26 +105,16 @@ class OpenALAudioFileCache
 public:
 	OpenALAudioFileCache();
 
-	// Protected by mutex
 	virtual ~OpenALAudioFileCache();
 	ALuint getBufferForFile(const OpenFileInfo& fileToOpenFrom);
 	void closeBuffer(ALuint bufferToClose);
 	void setMaxSize(UnsignedInt size);
 	float getBufferLength(ALuint handle);
-	// End Protected by mutex
 
-	// Note: These functions should be used for informational purposes only. For speed reasons,
-	// they are not protected by the mutex, so they are not guarenteed to be valid if called from
-	// outside the audio cache. They should be used as a rough estimate only.
+	// Note: These accessors are unsynchronized snapshots for informational use only and
+	// should be treated as a rough estimate.
 	UnsignedInt getCurrentlyUsedSize() const { return m_currentlyUsedSize; }
 	UnsignedInt getMaxSize() const { return m_maxSize; }
-
-	static void getWaveData(void* wave_data,
-		uint8_t*& data,
-		UnsignedInt& size,
-		UnsignedInt& freq,
-		UnsignedInt& channels,
-		UnsignedInt& bitsPerSample);
 
 protected:
 	void releaseOpenAudioFile(OpenAudioFile* fileToRelease);
