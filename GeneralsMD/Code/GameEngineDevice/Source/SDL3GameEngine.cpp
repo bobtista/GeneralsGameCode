@@ -293,8 +293,10 @@ void SDL3GameEngine::applyPendingWindowResize()
 	}
 	if (TheInGameUI != NULL)
 	{
-		TheInGameUI->recreateControlBar();
-		TheInGameUI->refreshCustomUiResources();
+		// TheSuperHackers @bugfix bobtista 20/07/2026 Rebuild the whole in-game HUD for the new
+		// resolution (control bar, scheme, shortcut bar, radar, and the money/superweapon/timer caches
+		// that do not self-correct). Retail never changed resolution mid-match, so this path is new.
+		TheInGameUI->onResolutionChanged();
 	}
 	if (TheTacticalView != NULL)
 	{

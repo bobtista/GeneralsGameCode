@@ -1177,6 +1177,8 @@ InGameUI::InGameUI()
 	m_lastRenderFps = ~0u;
 	m_lastRenderFpsLimit = ~0u;
 	m_lastRenderFpsUpdateMs = 0u;
+	m_lastMoneyDisplayed = ~0u;
+	m_lastIncomeDisplayed = ~0u;
 
 	m_systemTimeString = nullptr;
 	m_systemTimeFont = "Tahoma";
@@ -2027,8 +2029,6 @@ void InGameUI::update()
 
 	// update the player money window if the money amount has changed
 	// this seems like as good a place as any to do the power hide/show
-	static UnsignedInt lastMoney = ~0u;
-	static UnsignedInt lastIncome = ~0u;
 	static NameKeyType moneyWindowKey = TheNameKeyGenerator->nameToKey( "ControlBar.wnd:MoneyDisplay" );
 	static NameKeyType powerWindowKey = TheNameKeyGenerator->nameToKey( "ControlBar.wnd:PowerWindow" );
 
@@ -2051,13 +2051,13 @@ void InGameUI::update()
 		if (!doShowIncome)
 		{
 			UnsignedInt currentMoney = money->countMoney();
-			if( lastMoney != currentMoney )
+			if( m_lastMoneyDisplayed != currentMoney )
 			{
 				UnicodeString buffer;
 
 				buffer.format(TheGameText->fetch( "GUI:ControlBarMoneyDisplay" ), currentMoney );
 				GadgetStaticTextSetText( moneyWin, buffer );
-				lastMoney = currentMoney;
+				m_lastMoneyDisplayed = currentMoney;
 
 			}
 		}
@@ -2066,7 +2066,7 @@ void InGameUI::update()
 			// TheSuperHackers @feature L3-M 21/08/2025 player money per minute
 			UnsignedInt currentMoney = money->countMoney();
 			UnsignedInt cashPerMin = money->getCashPerMinute();
-			if ( lastMoney != currentMoney || lastIncome != cashPerMin )
+			if ( m_lastMoneyDisplayed != currentMoney || m_lastIncomeDisplayed != cashPerMin )
 			{
 				UnicodeString buffer;
 				UnicodeString moneyStr = formatMoneyValue(currentMoney);
@@ -2074,8 +2074,8 @@ void InGameUI::update()
 
 				buffer.format(TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:ControlBarMoneyDisplayIncome", L"$ %ls +%ls/min", moneyStr.str(), incomeStr.str()));
 				GadgetStaticTextSetText(moneyWin, buffer);
-				lastMoney = currentMoney;
-				lastIncome = cashPerMin;
+				m_lastMoneyDisplayed = currentMoney;
+				m_lastIncomeDisplayed = cashPerMin;
 			}
 		}
 		moneyWin->winHide(FALSE);
@@ -6001,8 +6001,14 @@ void InGameUI::resetIdleWorker()
 
 void InGameUI::recreateControlBar()
 {
-	GameWindow *win = TheWindowManager->winGetWindowFromId(nullptr, TheNameKeyGenerator->nameToKey("ControlBar.wnd"));
-	deleteInstance(win);
+	// TheSuperHackers @bugfix bobtista 20/07/2026 The control bar layout has a single top-level window
+	// named "ControlBar.wnd:ControlBarParent" (see ControlBar.wnd); there is NO window named just
+	// "ControlBar.wnd". The old lookup for "ControlBar.wnd" returned NULL, so winDestroy was a no-op
+	// and every rebuild (each mid-match resize) stacked another control bar over the orphaned old one.
+	// Destroy the real parent; winDestroy recurses through every HUD child (radar, money, portrait).
+	static const NameKeyType controlBarParentKey = TheNameKeyGenerator->nameToKey("ControlBar.wnd:ControlBarParent");
+	GameWindow *win = TheWindowManager->winGetWindowFromId(nullptr, controlBarParentKey);
+	TheWindowManager->winDestroy(win);
 
 	m_idleWorkerWin = nullptr;
 
@@ -6011,6 +6017,77 @@ void InGameUI::recreateControlBar()
 	delete TheControlBar;
 	TheControlBar = NEW ControlBar;
 	TheControlBar->init();
+}
+
+// TheSuperHackers @bugfix bobtista 20/07/2026 Retail never changed resolution mid-match, so no path
+// rebuilds the whole in-game HUD on a live window resize. recreateControlBar() alone only rebuilds the
+// ControlBar.wnd tree; the money/superweapon/named-timer state and the radar window pointer are left
+// stale. This reproduces the game-start HUD build (GameLogic::startNewGame) and clears the cached
+// state that does not self-correct, so the HUD comes back intact after a resize.
+void InGameUI::onResolutionChanged()
+{
+	recreateControlBar();
+
+	const Bool inRealGame =
+		(TheGameLogic != NULL && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame());
+	if (inRealGame)
+	{
+		if (TheControlBar != NULL && ThePlayerList != NULL)
+		{
+			Player *localPlayer = ThePlayerList->getLocalPlayer();
+			if (localPlayer != NULL)
+			{
+				TheControlBar->setControlBarSchemeByPlayer(localPlayer);
+				TheControlBar->rebuildSpecialPowerShortcutBarForResolution(localPlayer);
+				TheControlBar->markUIDirty();
+			}
+		}
+
+		// The radar window pointer was destroyed with the old ControlBar.wnd tree; re-hook it to the
+		// freshly created LeftHUD window without resetting the radar data (newMap would wipe it).
+		if (TheRadar != NULL)
+		{
+			TheRadar->reattachWindow();
+		}
+	}
+
+	refreshCustomUiResources();
+
+	// The superweapon countdown and named-timer display strings cache their rendered width and only
+	// recompute it on setFont/setText. Their font size is resolution-scaled, so re-apply the font and
+	// force a text refresh; otherwise the name and time columns drift apart at the new size.
+	for (Int i = 0; i < MAX_PLAYER_COUNT; ++i)
+	{
+		for (SuperweaponMap::iterator mapIt = m_superweapons[i].begin(); mapIt != m_superweapons[i].end(); ++mapIt)
+		{
+			for (SuperweaponList::iterator listIt = mapIt->second.begin(); listIt != mapIt->second.end(); ++listIt)
+			{
+				SuperweaponInfo *info = *listIt;
+				if (info != NULL)
+				{
+					info->setFont(m_superweaponNormalFont, m_superweaponNormalPointSize, m_superweaponNormalBold);
+					info->m_forceUpdateText = TRUE;
+				}
+			}
+		}
+	}
+	for (NamedTimerMapIt timerIt = m_namedTimers.begin(); timerIt != m_namedTimers.end(); ++timerIt)
+	{
+		NamedTimerInfo *info = timerIt->second;
+		if (info != NULL && info->displayString != NULL)
+		{
+			info->displayString->setFont( TheFontLibrary->getFont( m_namedTimerNormalFont,
+				TheGlobalLanguageData->adjustFontSize(m_namedTimerNormalPointSize), m_namedTimerNormalBold ) );
+			info->timestamp = ~0u;
+		}
+	}
+
+	// Force the value caches to repaint the freshly recreated (blank) gadgets on the next update.
+	m_lastMoneyDisplayed = ~0u;
+	m_lastIncomeDisplayed = ~0u;
+	m_lastNetworkLatencyFrames = ~0u;
+	m_lastRenderFps = ~0u;
+	m_lastRenderFpsLimit = ~0u;
 }
 
 void InGameUI::refreshCustomUiResources()
