@@ -42,54 +42,6 @@
 extern Mouse *TheMouse;
 extern Keyboard *TheKeyboard;
 
-namespace
-{
-
-const char *ReadUtf8Codepoint(const char *text, WideChar &codepoint)
-{
-	const unsigned char lead = static_cast<unsigned char>(*text);
-	if (lead < 0x80)
-	{
-		codepoint = static_cast<WideChar>(lead);
-		return text + 1;
-	}
-
-	if ((lead & 0xE0) == 0xC0 &&
-	    (static_cast<unsigned char>(text[1]) & 0xC0) == 0x80)
-	{
-		codepoint = static_cast<WideChar>(((lead & 0x1F) << 6) |
-		                                  (static_cast<unsigned char>(text[1]) & 0x3F));
-		return text + 2;
-	}
-
-	if ((lead & 0xF0) == 0xE0 &&
-	    (static_cast<unsigned char>(text[1]) & 0xC0) == 0x80 &&
-	    (static_cast<unsigned char>(text[2]) & 0xC0) == 0x80)
-	{
-		codepoint = static_cast<WideChar>(((lead & 0x0F) << 12) |
-		                                  ((static_cast<unsigned char>(text[1]) & 0x3F) << 6) |
-		                                  (static_cast<unsigned char>(text[2]) & 0x3F));
-		return text + 3;
-	}
-
-	if ((lead & 0xF8) == 0xF0 &&
-	    (static_cast<unsigned char>(text[1]) & 0xC0) == 0x80 &&
-	    (static_cast<unsigned char>(text[2]) & 0xC0) == 0x80 &&
-	    (static_cast<unsigned char>(text[3]) & 0xC0) == 0x80)
-	{
-		codepoint = static_cast<WideChar>(((lead & 0x07) << 18) |
-		                                  ((static_cast<unsigned char>(text[1]) & 0x3F) << 12) |
-		                                  ((static_cast<unsigned char>(text[2]) & 0x3F) << 6) |
-		                                  (static_cast<unsigned char>(text[3]) & 0x3F));
-		return text + 4;
-	}
-
-	codepoint = 0;
-	return text + 1;
-}
-
-} // namespace
-
 SDL3GameEngine::SDL3GameEngine() :
 	m_sdlWindow(NULL),
 	m_textInputActive(false)
@@ -202,10 +154,14 @@ void SDL3GameEngine::handleTextInputEvent(const SDL_TextInputEvent &event)
 	}
 
 	const char *text = event.text;
-	while (*text != '\0')
+	size_t remaining = SDL_strlen(text);
+	while (remaining > 0)
 	{
-		WideChar codepoint = 0;
-		text = ReadUtf8Codepoint(text, codepoint);
+		Uint32 codepoint = SDL_StepUTF8(&text, &remaining);
+		if (codepoint == SDL_INVALID_UNICODE_CODEPOINT)
+		{
+			continue;
+		}
 		if (codepoint >= 32 || codepoint == '\n')
 		{
 			TheWindowManager->winSendInputMsg(window, GWM_IME_CHAR, static_cast<WindowMsgData>(codepoint), 0);
