@@ -21,12 +21,13 @@ option(RTS_MEMORYPOOL_DEBUG_CHECK_BLOCK_OWNERSHIP "Enables debug to verify that 
 option(RTS_MEMORYPOOL_DEBUG_INTENSE_DMA_BOOKKEEPING "Prints statistics for memory usage of Memory Pools." OFF)
 
 # Memory dump options
-option(RTS_CRASHDUMP_ENABLE "Enables writing crash dumps on unhandled exceptions or release crash failures." ON)
-
-# TheSuperHackers @tweak bobtista 28/05/2026 On non-Windows we only soft-default RTS_CRASHDUMP_ENABLE OFF when the user has not already pinned a value in the cache; FORCE was stomping explicit user overrides on every reconfigure.
-if(NOT WIN32 AND NOT DEFINED CACHE{RTS_CRASHDUMP_ENABLE})
-    set(RTS_CRASHDUMP_ENABLE OFF CACHE BOOL "Enables writing crash dumps on unhandled exceptions or release crash failures.")
+# TheSuperHackers @build bobtista 22/07/2026 Default crash dumps off on non-Windows since MiniDumper is Windows-only; deriving the per-platform default before option() lets it seed the correct default while still honoring explicit -D / preset overrides on reconfigure.
+if(WIN32)
+    set(_RTS_CRASHDUMP_DEFAULT ON)
+else()
+    set(_RTS_CRASHDUMP_DEFAULT OFF)
 endif()
+option(RTS_CRASHDUMP_ENABLE "Enables writing crash dumps on unhandled exceptions or release crash failures." ${_RTS_CRASHDUMP_DEFAULT})
 
 # Game Memory features
 add_feature_info(GameMemoryEnable RTS_GAMEMEMORY_ENABLE "Build with the original game memory implementation")
