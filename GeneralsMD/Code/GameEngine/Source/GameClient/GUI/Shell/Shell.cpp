@@ -93,7 +93,11 @@ void Shell::deconstruct()
 	WindowLayout *newTop = top();
 	while(newTop)
 	{
-		popImmediate();
+		// TheSuperHackers @bugfix bobtista 24/07/2026 Do not initialize the menu exposed by each
+		// pop while tearing down the entire stack.  Subsystems used by menu init callbacks may
+		// already have been destroyed; the save/load menu, for example, scans saves through
+		// TheGameState and crashed when it was exposed underneath the score screen on exit.
+		popImmediate( TRUE );
 		newTop = top();
 	}
 
@@ -425,7 +429,7 @@ void Shell::pop()
 	* from the shutdown() for the screen, it will be immediately popped off
 	* the stack */
 //-------------------------------------------------------------------------------------------------
-void Shell::popImmediate()
+void Shell::popImmediate( Bool suppressNextInit )
 {
 	WindowLayout *screen = top();
 
@@ -449,7 +453,7 @@ void Shell::popImmediate()
 	screen->runShutdown( &immediatePop );
 
 	// pop the screen of the stack
-	doPop( FALSE );
+	doPop( suppressNextInit );
 
 	if (TheIMEManager)
 		TheIMEManager->detach();
