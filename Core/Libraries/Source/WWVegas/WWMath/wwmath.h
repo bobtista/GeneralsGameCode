@@ -236,6 +236,27 @@ WWINLINE double WWMath::Pow(double x, double y)
 #endif
 }
 
+// TheSuperHackers @bugfix bobtista 21/07/2026 Square via a plain multiply under deterministic math.
+// Pow(x, 2) routes squaring through gm_pow/gm_powf (fdlibm), which is not bit-identical between the
+// x87 32-bit Windows build and macOS ARM64. A multiply is exact and cross-platform deterministic.
+WWINLINE double WWMath::Sqr(double x)
+{
+#if USE_DETERMINISTIC_MATH
+	return x * x;
+#else
+	return Pow(x, 2.0);
+#endif
+}
+
+WWINLINE float WWMath::Sqrf(float x)
+{
+#if USE_DETERMINISTIC_MATH
+	return x * x;
+#else
+	return Powf(x, 2.0f);
+#endif
+}
+
 WWINLINE float WWMath::Powf(float x, float y)
 {
 #if USE_DETERMINISTIC_MATH
