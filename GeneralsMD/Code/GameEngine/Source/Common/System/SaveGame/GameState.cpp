@@ -394,6 +394,13 @@ void GameState::addSnapshotBlock( AsciiString blockName, Snapshot *snapshot, Sna
 
 	}
 
+	// Snapshots with xfer disabled are not registered, so their blocks are omitted when saving
+	// and are skipped like unknown blocks when loading.
+	if( !snapshot->isXferEnabled() )
+	{
+		return;
+	}
+
 	// add to the list
 	SnapshotBlock blockInfo;
 	blockInfo.snapshot = snapshot;
