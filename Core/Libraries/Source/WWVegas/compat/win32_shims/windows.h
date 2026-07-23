@@ -956,6 +956,12 @@ typedef struct GUID {
 
 static inline char *_strdup(const char *src)
 {
+    // TheSuperHackers @bugfix bobtista 23/07/2026 Match Windows _strdup semantics: return NULL for NULL input.
+    // BSD/glibc strdup(NULL) dereferences NULL and crashes.
+    if (src == nullptr)
+    {
+        return nullptr;
+    }
     return ::strdup(src);
 }
 
