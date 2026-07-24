@@ -37,10 +37,33 @@ size_t wcsnlen(const wchar_t *str, size_t maxlen);
 template<typename T> size_t strlcpy_t(T *dst, const T *src, size_t dstsize);
 template<typename T> size_t strlcat_t(T *dst, const T *src, size_t dstsize);
 
+// TheSuperHackers @build bobtista 24/07/2026 glibc 2.38 added strlcpy, strlcat,
+// wcslcpy and wcslcat. Declaring or defining our own then collides with the libc
+// versions (C linkage / noexcept mismatch). Detect glibc >= 2.38 early so both the
+// declarations here and the inline definitions below are suppressed. Non-glibc
+// platforms such as macOS are unaffected: __GLIBC__ is undefined there.
+#if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 38))
+#ifndef HAVE_STRLCPY
+#define HAVE_STRLCPY 1
+#endif
+#ifndef HAVE_STRLCAT
+#define HAVE_STRLCAT 1
+#endif
+#ifndef HAVE_WCSLCPY
+#define HAVE_WCSLCPY 1
+#endif
+#endif
+
+#ifndef HAVE_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t dstsize);
+#endif
+#ifndef HAVE_STRLCAT
 size_t strlcat(char *dst, const char *src, size_t dstsize);
+#endif
+#ifndef HAVE_WCSLCPY
 size_t wcslcpy(wchar_t *dst, const wchar_t *src, size_t dstsize);
 size_t wcslcat(wchar_t *dst, const wchar_t *src, size_t dstsize);
+#endif
 
 template<typename T> size_t strlmove_t(T *dst, const T *src, size_t dstsize);
 template<typename T> size_t strlmcat_t(T *dst, const T *src, size_t dstsize);
@@ -132,22 +155,6 @@ template<typename T> size_t strlcat_t(T *dst, const T *src, size_t dstsize)
 	}
 	return dstlen + srclen; // length tried to create
 }
-
-// TheSuperHackers @build bobtista 24/07/2026 glibc 2.38 added strlcpy, strlcat,
-// wcslcpy and wcslcat; defining our own inline versions then collides with the
-// libc declarations. Suppress the fallbacks when glibc already provides them.
-// (Non-glibc platforms like macOS are unaffected - __GLIBC__ is undefined there.)
-#if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 38))
-#ifndef HAVE_STRLCPY
-#define HAVE_STRLCPY 1
-#endif
-#ifndef HAVE_STRLCAT
-#define HAVE_STRLCAT 1
-#endif
-#ifndef HAVE_WCSLCPY
-#define HAVE_WCSLCPY 1
-#endif
-#endif
 
 #ifndef HAVE_STRLCPY
 inline size_t strlcpy(char *dst, const char *src, size_t dstsize) { return strlcpy_t(dst, src, dstsize); }
