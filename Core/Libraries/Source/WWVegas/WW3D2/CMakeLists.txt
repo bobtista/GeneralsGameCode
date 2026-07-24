@@ -255,6 +255,15 @@ target_include_directories(corei_ww3d2 INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
+if(UNIX AND NOT APPLE)
+    find_package(Freetype REQUIRED)
+    find_package(Fontconfig REQUIRED)
+    target_link_libraries(corei_ww3d2 INTERFACE
+        Freetype::Freetype
+        Fontconfig::Fontconfig
+    )
+endif()
+
 if(NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_sources(corei_ww3d2 INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/formconv.cpp
