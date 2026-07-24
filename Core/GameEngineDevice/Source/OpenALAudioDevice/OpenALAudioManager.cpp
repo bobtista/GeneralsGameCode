@@ -868,7 +868,11 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 
 		OpenALAudioStream* stream;
 		if (!handleToKill || foundSoundToReplace) {
-			stream = new OpenALAudioStream;
+			// Miles serviced streams on a background thread. OpenAL refills them from the main
+			// update, which may be blocked for seconds during map loading. Prebuffer short speech
+			// streams so challenge taunts and briefings remain continuous; music keeps a rolling
+			// queue to avoid decoding entire tracks up front.
+			stream = new OpenALAudioStream(info->m_soundType == AT_Streaming);
 			// When we need more data ask FFmpeg for more data.
 			stream->setRequireDataCallback([ffmpegFile, stream]() {
 				// TheSuperHackers @bugfix bobtista 05/06/2026 decodePacket() returns false at
