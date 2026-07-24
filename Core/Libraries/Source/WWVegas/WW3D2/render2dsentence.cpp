@@ -64,6 +64,8 @@
 #endif
 
 #if !defined(_WIN32) && !defined(__APPLE__)
+#include <ft2build.h>
+#include FT_FREETYPE_H
 #include <fontconfig/fontconfig.h>
 #endif
 
