@@ -1515,6 +1515,15 @@ void InGameUI::handleRadiusCursor()
 {
 	if (!m_curRadiusCursor.isEmpty())
 	{
+		// The quit menu consumes gameplay input, but preDraw still runs and the hardware mouse
+		// position continues to change. Hide the targeting decal while the menu is open so this
+		// render-time update cannot make a special-power target appear interactive through it.
+		if (m_isQuitMenuVisible)
+		{
+			m_curRadiusCursor.setOpacity(0.0f);
+			return;
+		}
+
     if ( TheGlobalData->m_doubleClickAttackMove && m_duringDoubleClickAttackMoveGuardHintTimer > 0 )
     {
       m_curRadiusCursor.setOpacity( m_duringDoubleClickAttackMoveGuardHintTimer * 0.1f );
