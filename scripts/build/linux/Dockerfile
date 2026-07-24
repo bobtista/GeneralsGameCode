@@ -32,6 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1-mesa-dev \
         libegl1-mesa-dev \
         libvulkan-dev \
+        libfreetype6-dev \
+        libfontconfig1-dev \
         libasound2-dev \
         libpulse-dev \
         libavcodec-dev \
