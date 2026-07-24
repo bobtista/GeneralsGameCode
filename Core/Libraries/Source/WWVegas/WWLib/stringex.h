@@ -133,14 +133,32 @@ template<typename T> size_t strlcat_t(T *dst, const T *src, size_t dstsize)
 	return dstlen + srclen; // length tried to create
 }
 
+// TheSuperHackers @build bobtista 24/07/2026 glibc 2.38 added strlcpy, strlcat,
+// wcslcpy and wcslcat; defining our own inline versions then collides with the
+// libc declarations. Suppress the fallbacks when glibc already provides them.
+// (Non-glibc platforms like macOS are unaffected - __GLIBC__ is undefined there.)
+#if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 38))
+#ifndef HAVE_STRLCPY
+#define HAVE_STRLCPY 1
+#endif
+#ifndef HAVE_STRLCAT
+#define HAVE_STRLCAT 1
+#endif
+#ifndef HAVE_WCSLCPY
+#define HAVE_WCSLCPY 1
+#endif
+#endif
+
 #ifndef HAVE_STRLCPY
 inline size_t strlcpy(char *dst, const char *src, size_t dstsize) { return strlcpy_t(dst, src, dstsize); }
 #endif
 #ifndef HAVE_STRLCAT
 inline size_t strlcat(char *dst, const char *src, size_t dstsize) { return strlcat_t(dst, src, dstsize); }
 #endif
+#ifndef HAVE_WCSLCPY
 inline size_t wcslcpy(wchar_t *dst, const wchar_t *src, size_t dstsize) { return strlcpy_t(dst, src, dstsize); }
 inline size_t wcslcat(wchar_t *dst, const wchar_t *src, size_t dstsize) { return strlcat_t(dst, src, dstsize); }
+#endif
 
 // Templated strlmove. Prefer using this over strlcpy if dst and src overlap.
 // Moves src into dst until dstsize minus one. Always null terminates.
