@@ -422,7 +422,14 @@ Int FFmpegFile::getCurrentFrame() const
 	const FFmpegStream *stream = findMatch(AVMEDIA_TYPE_VIDEO);
 	if (stream == nullptr)
 		return 0;
+	// TheSuperHackers @build bobtista 24/07/2026 AVCodecContext::frame_number was
+	// renamed to frame_num in FFmpeg 6.0 (libavcodec 60). Support both so the
+	// video device builds against FFmpeg 5.1 (Debian 12) through 7.x.
+#if LIBAVCODEC_VERSION_MAJOR >= 60
 	return stream->codec_ctx->frame_num;
+#else
+	return stream->codec_ctx->frame_number;
+#endif
 }
 
 Int FFmpegFile::getPixelFormat() const
