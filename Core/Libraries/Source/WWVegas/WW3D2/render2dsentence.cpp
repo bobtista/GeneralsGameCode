@@ -60,6 +60,10 @@
 #include <vector>
 #endif
 
+#if !defined(_WIN32) && !defined(__APPLE__)
+#include <fontconfig/fontconfig.h>
+#endif
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 //	Local constants
@@ -1266,6 +1270,10 @@ FontCharsClass::FontCharsClass () :
 	GDIBitmap( nullptr ),
 	GDIBitmapBits ( nullptr ),
 	MemDC( nullptr ),
+#if !defined(_WIN32) && !defined(__APPLE__)
+	FTLibrary( nullptr ),
+	FTFace( nullptr ),
+#endif
 	CurrPixelOffset( 0 ),
 	PointSize( 0 ),
 	CharHeight( 0 ),
@@ -1513,19 +1521,80 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	CurrPixelOffset += ((char_width + PixelOverlap) * CharHeight);
 	return char_data;
 #elif !defined(_WIN32)
-	// GDI font rasterization is Win-only. Return a synthetic char with width
-	// so layout code can still compute extents on platforms without a native
-	// glyph backend.
+	// TheSuperHackers @port bobtista 24/07/2026 Adapted from
+	// fbraz3/GeneralsX's FreeType font backend.
+	FT_ULong codepoint = static_cast<FT_ULong>(static_cast<uint16>(ch));
+	FT_Error error = FT_Load_Char(FTFace, codepoint, FT_LOAD_RENDER);
+	if (error != 0 && codepoint != static_cast<FT_ULong>('?')) {
+		error = FT_Load_Char(FTFace, static_cast<FT_ULong>('?'), FT_LOAD_RENDER);
+	}
+	if (error != 0) {
+		return nullptr;
+	}
+
+	FT_GlyphSlot glyph = FTFace->glyph;
+	FT_Bitmap &bitmap = glyph->bitmap;
+	int x_origin = ch == 'W' ? 1 : 0;
+	int left_pad = glyph->bitmap_left < 0 ? -glyph->bitmap_left : 0;
+	int glyph_x = x_origin + left_pad + glyph->bitmap_left;
+	int glyph_right = glyph_x + static_cast<int>(bitmap.width);
+	int advance_width = static_cast<int>((glyph->advance.x + 63) >> 6);
+	int char_width = max(1, max(x_origin + left_pad + advance_width, glyph_right) + PixelOverlap);
+
+	Update_Current_Buffer(char_width);
+	uint16 *char_buffer = BufferList[BufferList.Count() - 1]->Buffer + CurrPixelOffset;
+	::memset(char_buffer, 0, static_cast<size_t>(char_width) * static_cast<size_t>(CharHeight) * sizeof(*char_buffer));
+
+	for (unsigned int row = 0; row < bitmap.rows; ++row) {
+		int dest_y = CharAscent - glyph->bitmap_top + static_cast<int>(row);
+		if (dest_y < 0 || dest_y >= CharHeight) {
+			continue;
+		}
+
+		const unsigned char *source_row = bitmap.pitch >= 0
+			? bitmap.buffer + static_cast<int>(row) * bitmap.pitch
+			: bitmap.buffer + (static_cast<int>(bitmap.rows) - 1 - static_cast<int>(row)) * -bitmap.pitch;
+		for (unsigned int col = 0; col < bitmap.width; ++col) {
+			int dest_x = glyph_x + static_cast<int>(col);
+			if (dest_x < 0 || dest_x >= char_width) {
+				continue;
+			}
+
+			uint8 pixel_value = 0;
+			if (bitmap.pixel_mode == FT_PIXEL_MODE_GRAY) {
+				pixel_value = source_row[col];
+				if (bitmap.num_grays > 1 && bitmap.num_grays != 256) {
+					pixel_value = static_cast<uint8>(
+						(static_cast<unsigned int>(pixel_value) * 255U) / (bitmap.num_grays - 1));
+				}
+			} else if (bitmap.pixel_mode == FT_PIXEL_MODE_MONO) {
+				pixel_value = (source_row[col >> 3] & (0x80U >> (col & 7))) != 0 ? 0xFF : 0;
+			} else {
+				continue;
+			}
+
+			// Match the CoreText path: premultiplied A4R4G4B4. The existing
+			// sentence texture upload and blit code consume these words directly.
+			uint8 alpha_value = (pixel_value >> 4) & 0xF;
+			uint16 pixel_color = static_cast<uint16>(alpha_value)
+				| (static_cast<uint16>(alpha_value) << 4)
+				| (static_cast<uint16>(alpha_value) << 8);
+			char_buffer[dest_y * char_width + dest_x] = pixel_color | (alpha_value << 12);
+		}
+	}
+
 	FontCharsClassCharDataStruct *char_data = W3DNEW FontCharsClassCharDataStruct;
 	char_data->Value = ch;
-	char_data->Width = static_cast<short>(PointSize);
-	char_data->Buffer = nullptr;
+	char_data->Width = static_cast<short>(char_width);
+	char_data->Buffer = char_buffer;
 	if (ch < 256) {
 		ASCIICharArray[ch] = char_data;
 	} else {
 		Grow_Unicode_Array(ch);
 		UnicodeCharArray[ch - FirstUnicodeChar] = char_data;
 	}
+
+	CurrPixelOffset += char_width * CharHeight;
 	return char_data;
 #else
 	int width	= PointSize * 2;
@@ -1713,20 +1782,80 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	CFRelease(font);
 	return true;
 #elif !defined(_WIN32)
-	// GDI/CoreText font rasterization is unavailable here. Synthesize plausible
-	// metrics from the point size so text layout still computes extents. Real
-	// glyph rasterization (e.g. FreeType) is a TODO for a legible Linux UI; until
-	// then glyph buffers are null (see the matching stub in Get_Char_Data) and
-	// on-screen text is blank.
-	(void)font_name;
-	int font_height = PointSize;
+	// TheSuperHackers @port bobtista 24/07/2026 Adapted from
+	// fbraz3/GeneralsX's FreeType and Fontconfig font backend.
+	if (FT_Init_FreeType(&FTLibrary) != 0) {
+		return false;
+	}
+
+	bool doingGenerals = font_name != nullptr && strcmp(font_name, "Generals") == 0;
+	const char *resolved_name = doingGenerals ? "Arial" : font_name;
+	if (resolved_name == nullptr || resolved_name[0] == '\0') {
+		resolved_name = "Arial";
+	}
+
+	FcConfig *config = FcInitLoadConfigAndFonts();
+	FcPattern *pattern = config != nullptr
+		? FcNameParse(reinterpret_cast<const FcChar8 *>(resolved_name))
+		: nullptr;
+	FcPattern *match = nullptr;
+	FcResult match_result = FcResultNoMatch;
+	if (pattern != nullptr) {
+		if (IsBold) {
+			FcPatternAddInteger(pattern, FC_WEIGHT, FC_WEIGHT_BOLD);
+		}
+		FcPatternAddBool(pattern, FC_SCALABLE, FcTrue);
+		FcConfigSubstitute(config, pattern, FcMatchPattern);
+		FcDefaultSubstitute(pattern);
+		match = FcFontMatch(config, pattern, &match_result);
+	}
+
+	FcChar8 *font_path = nullptr;
+	int face_index = 0;
+	bool found_font = match != nullptr
+		&& match_result == FcResultMatch
+		&& FcPatternGetString(match, FC_FILE, 0, &font_path) == FcResultMatch;
+	if (found_font) {
+		FcPatternGetInteger(match, FC_INDEX, 0, &face_index);
+	}
+
+	FT_Error face_error = found_font
+		? FT_New_Face(FTLibrary, reinterpret_cast<const char *>(font_path), face_index, &FTFace)
+		: FT_Err_Cannot_Open_Resource;
+
+	if (match != nullptr) {
+		FcPatternDestroy(match);
+	}
+	if (pattern != nullptr) {
+		FcPatternDestroy(pattern);
+	}
+	if (config != nullptr) {
+		FcConfigDestroy(config);
+	}
+	if (face_error != 0) {
+		FT_Done_FreeType(FTLibrary);
+		FTLibrary = nullptr;
+		return false;
+	}
+
+	int font_height = max(1, static_cast<int>(FT_MulDiv(PointSize, 96, 72)));
+	if (FT_Set_Pixel_Sizes(FTFace, 0, static_cast<FT_UInt>(font_height)) != 0) {
+		FT_Done_Face(FTFace);
+		FT_Done_FreeType(FTLibrary);
+		FTFace = nullptr;
+		FTLibrary = nullptr;
+		return false;
+	}
+
 	PixelOverlap = font_height / 8;
 	if (PixelOverlap < 0) PixelOverlap = 0;
 	if (PixelOverlap > 4) PixelOverlap = 4;
-	CharAscent = PointSize > 0 ? PointSize : 1;
-	CharHeight = CharAscent + (PointSize / 4);
-	if (CharHeight < 1) CharHeight = 1;
-	CharOverhang = 0;
+
+	CharAscent = max(1, static_cast<int>((FTFace->size->metrics.ascender + 63) >> 6));
+	int descent = max(0, static_cast<int>((-FTFace->size->metrics.descender + 63) >> 6));
+	int metrics_height = max(1, static_cast<int>((FTFace->size->metrics.height + 63) >> 6));
+	CharHeight = max(CharAscent + descent, metrics_height);
+	CharOverhang = doingGenerals ? 0 : 0;
 	return true;
 #else
 	HDC screen_dc = ::GetDC ((HWND)WW3D::Get_Window());
@@ -1834,6 +1963,16 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 void
 FontCharsClass::Free_GDI_Font ()
 {
+#if !defined(_WIN32) && !defined(__APPLE__)
+	if (FTFace != nullptr) {
+		FT_Done_Face(FTFace);
+		FTFace = nullptr;
+	}
+	if (FTLibrary != nullptr) {
+		FT_Done_FreeType(FTLibrary);
+		FTLibrary = nullptr;
+	}
+#else
 	//
 	//	Select the old font back into the DC and delete
 	// our font object
@@ -1861,6 +2000,7 @@ FontCharsClass::Free_GDI_Font ()
 		::DeleteDC( MemDC );
 		MemDC = nullptr;
 	}
+#endif
 }
 
 
