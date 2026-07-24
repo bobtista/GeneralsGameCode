@@ -44,8 +44,13 @@
 #include "WWLib/win.h"
 
 #if !defined(_WIN32) && !defined(__APPLE__)
-#include <ft2build.h>
-#include FT_FREETYPE_H
+// TheSuperHackers @build bobtista 24/07/2026 Forward-declare the FreeType handle
+// types (both are pointers) so this public header does not pull in <ft2build.h>.
+// Consumers of the WW3D2 headers (e.g. GameEngineDevice) do not link FreeType's
+// include directory; the real FreeType headers are included in render2dsentence.cpp
+// where the FT_Library / FT_Face objects are actually used.
+typedef struct FT_LibraryRec_ *FT_Library;
+typedef struct FT_FaceRec_    *FT_Face;
 #endif
 
 /*
