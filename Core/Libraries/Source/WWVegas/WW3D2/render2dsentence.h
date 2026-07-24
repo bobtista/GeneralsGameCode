@@ -43,6 +43,11 @@
 #include "WWLib/wwstring.h"
 #include "WWLib/win.h"
 
+#if !defined(_WIN32) && !defined(__APPLE__)
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#endif
+
 /*
 ** FontCharsClass
 */
@@ -126,6 +131,10 @@ private:
 	HFONT									GDIFont;
 	uint8 *								GDIBitmapBits;
 	HDC									MemDC;
+#if !defined(_WIN32) && !defined(__APPLE__)
+	FT_Library							FTLibrary;
+	FT_Face								FTFace;
+#endif
 	FontCharsClassCharDataStruct *					ASCIICharArray[256];
 	FontCharsClassCharDataStruct **					UnicodeCharArray;
 	uint16								FirstUnicodeChar;
