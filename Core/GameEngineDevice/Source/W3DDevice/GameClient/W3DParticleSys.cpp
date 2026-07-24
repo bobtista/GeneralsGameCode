@@ -41,10 +41,25 @@
 #include "WW3D2/RenderBackend.h"
 
 
-// TheSuperHackers @tweak bobtista 05/06/2026 Empirically-tuned boosts that make
-// ground-aligned additive foam read at retail brightness on the bgfx shader pipeline.
-static const float BGFX_ADDITIVE_FOAM_SIZE_BOOST = 2.0f;
-static const float BGFX_ADDITIVE_FOAM_COLOR_BOOST = 1.5f;
+// The shader pipeline renders these authored hull-contact foam systems smaller and dimmer than
+// the retail DX8 path. Keep the empirical compensation restricted to the known wake templates;
+// ground-aligned additive particles are also used by explosions and superweapon ground glows.
+static const float BGFX_WATER_WAKE_SIZE_BOOST = 2.0f;
+static const float BGFX_WATER_WAKE_COLOR_BOOST = 1.5f;
+
+static bool needsBgfxWaterWakeCompensation(ParticleSystem *sys)
+{
+	const ParticleSystemTemplate *particleTemplate = sys != nullptr ? sys->getTemplate() : nullptr;
+	if (particleTemplate == nullptr)
+	{
+		return false;
+	}
+
+	const AsciiString name = particleTemplate->getName();
+	return name.compareNoCase("BattleShipWaterRipples") == 0
+		|| name.compareNoCase("AirCarrierWaterRipples") == 0
+		|| name.compareNoCase("AmphibWaveRest") == 0;
+}
 
 //------------------------------------------------------------------------------ Performance Timers
 //#include "Common/PerfMetrics.h"
@@ -160,6 +175,9 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 
 	// Number of particles/points being rendered.
 	UnsignedInt pointCount = 0;
+
+	// TheSuperHackers @tweak bobtista 11/09/2026 The additive particle compensations below only apply to the shader pipeline backend.
+	const Bool useShaderPipeline = (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Has_Shader_Pipeline());
 
 	ParticleSystemManager::ParticleSystemList &particleSysList = TheParticleSystemManager->getAllParticleSystems();
 	for( ParticleSystemManager::ParticleSystemListIt it = particleSysList.begin(); it != particleSysList.end(); ++it)
@@ -279,23 +297,18 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			RGBAArray[pointCount].Y = color->green;
 			RGBAArray[pointCount].Z = color->blue;
 
-			// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned ADDITIVE water-surface foam
-			// renders dimmer through the shader pipeline than DX8; boost size 2x and color 1.5x
-			// (clamped), gated on batchPointGroups so the DX8 path is unaffected.
-			if (batchPointGroups
-				&& sys->m_isGroundAligned
-				&& sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			if (useShaderPipeline && needsBgfxWaterWakeCompensation(sys))
 			{
-				sizeArray[pointCount] *= BGFX_ADDITIVE_FOAM_SIZE_BOOST;
-				RGBAArray[pointCount].X = MIN(1.0f, color->red   * BGFX_ADDITIVE_FOAM_COLOR_BOOST);
-				RGBAArray[pointCount].Y = MIN(1.0f, color->green * BGFX_ADDITIVE_FOAM_COLOR_BOOST);
-				RGBAArray[pointCount].Z = MIN(1.0f, color->blue  * BGFX_ADDITIVE_FOAM_COLOR_BOOST);
+				sizeArray[pointCount] *= BGFX_WATER_WAKE_SIZE_BOOST;
+				RGBAArray[pointCount].X = MIN(1.0f, color->red * BGFX_WATER_WAKE_COLOR_BOOST);
+				RGBAArray[pointCount].Y = MIN(1.0f, color->green * BGFX_WATER_WAKE_COLOR_BOOST);
+				RGBAArray[pointCount].Z = MIN(1.0f, color->blue * BGFX_WATER_WAKE_COLOR_BOOST);
 			}
 
 			// TheSuperHackers @bugfix bobtista 27/05/2026 ADDITIVE particles keep m_alpha at the
 			// initial keyframe (often 0) and fs_uber's alpha-aware paths would discard them; force
-			// vertex alpha to 1.0, gated on batchPointGroups so DX8 keeps per-particle alpha.
-			if (batchPointGroups && sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			// vertex alpha to 1.0, gated on the shader pipeline backend so DX8 keeps per-particle alpha.
+			if (useShaderPipeline && sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
 			{
 				RGBAArray[pointCount].W = 1.0f;
 			}
