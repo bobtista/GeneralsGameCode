@@ -1,9 +1,10 @@
 # TheSuperHackers @build bobtista 24/07/2026 Native Linux build image for the
-# GeneralsMD SDL3/bgfx client. Debian 12 (cmake 3.25, meets the project minimum)
-# with the X11/Wayland/Vulkan/GL, audio, and FFmpeg dev headers SDL3, bgfx and
-# FindFFMPEG probe at configure time. This is a NATIVE build (gcc), unrelated to
-# the Wine/VC6 cross-build under resources/dockerbuild.
-FROM debian:12-slim
+# GeneralsMD SDL3/bgfx client. Ubuntu 24.04 to match the GitHub Actions
+# ubuntu-latest runner (same glibc/toolchain), with the X11/Wayland/Vulkan/GL,
+# audio, and FFmpeg dev headers SDL3, bgfx and FindFFMPEG probe at configure time.
+# This is a NATIVE build (gcc), unrelated to the Wine/VC6 cross-build under
+# resources/dockerbuild.
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
