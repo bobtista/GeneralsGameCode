@@ -65,43 +65,7 @@ static bool needsBgfxWaterWakeCompensation(ParticleSystem *sys)
 		|| name.compareNoCase("AmphibWaveRest") == 0;
 }
 
-static bool containsCaseInsensitive(const char *text, const char *needle)
-{
-	if (text == nullptr || needle == nullptr || *needle == '\0')
-	{
-		return false;
-	}
-	for (const char *cursor = text; *cursor != '\0'; ++cursor)
-	{
-		const char *a = cursor;
-		const char *b = needle;
-		while (*a != '\0' && *b != '\0')
-		{
-			const char ca = (*a >= 'A' && *a <= 'Z') ? static_cast<char>(*a - 'A' + 'a') : *a;
-			const char cb = (*b >= 'A' && *b <= 'Z') ? static_cast<char>(*b - 'A' + 'a') : *b;
-			if (ca != cb)
-			{
-				break;
-			}
-			++a;
-			++b;
-		}
-		if (*b == '\0')
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool shouldUseEmpPointGroupDepthOverride(TextureClass *texture)
-{
-	const char *name = texture != nullptr ? texture->Get_Full_Path().str() : nullptr;
-	return containsCaseInsensitive(name, "exempring")
-		|| containsCaseInsensitive(name, "exlnzflar");
-}
-
-static ShaderClass getParticlePointGroupShader(ParticleSystemInfo::ParticleShaderType shaderType, Bool billboard, TextureClass *texture)
+static ShaderClass getParticlePointGroupShader(ParticleSystemInfo::ParticleShaderType shaderType)
 {
 	ShaderClass shader = ShaderClass::_PresetAlphaSpriteShader;
 	switch( shaderType )
@@ -118,17 +82,6 @@ static ShaderClass getParticlePointGroupShader(ParticleSystemInfo::ParticleShade
 		case ParticleSystemInfo::MULTIPLY:
 			shader = ShaderClass::_PresetMultiplicativeSpriteShader;
 			break;
-	}
-
-	if (g_renderBackend != nullptr
-		&& g_renderBackend->Has_Shader_Pipeline()
-		&& shaderType == ParticleSystemInfo::ADDITIVE
-		&& !billboard)
-	{
-		if (shouldUseEmpPointGroupDepthOverride(texture))
-		{
-			shader.Set_Depth_Compare(ShaderClass::PASS_ALWAYS);
-		}
 	}
 
 	return shader;
@@ -212,7 +165,7 @@ void W3DParticleSystemManager::flushPointGroupBatch(RenderInfoClass &rinfo, Text
 
 	m_pointGroup->Set_Texture( texture );
 	m_pointGroup->Set_Flag( PointGroupClass::TRANSFORM, true );	// transform to screen space
-	m_pointGroup->Set_Shader( getParticlePointGroupShader(shaderType, billboard, texture) );
+	m_pointGroup->Set_Shader( getParticlePointGroupShader(shaderType) );
 
 	m_pointGroup->Set_Point_Mode( PointGroupClass::QUADS );
 	m_pointGroup->Set_Arrays( m_posBuffer, m_RGBABuffer, nullptr, m_sizeBuffer, m_angleBuffer, nullptr, count );
@@ -610,7 +563,7 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 				texture->Release_Ref();//release reference since it's held by pointGroup
 				m_pointGroup->Set_Flag( PointGroupClass::TRANSFORM, true );	// transform to screen space
 
-				m_pointGroup->Set_Shader( getParticlePointGroupShader(sys->getShaderType(), sys->shouldBillboard(), texture) );
+				m_pointGroup->Set_Shader( getParticlePointGroupShader(sys->getShaderType()) );
 
 				/// @todo Use both QUADS and TRIS for particles
 				m_pointGroup->Set_Point_Mode( PointGroupClass::QUADS );
