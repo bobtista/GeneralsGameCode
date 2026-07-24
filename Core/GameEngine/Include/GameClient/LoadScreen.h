@@ -63,6 +63,7 @@ public:
 	virtual void update( Int percent ); ///< Update the state of the slider bars
 	virtual void processProgress(Int playerId, Int percentage) = 0;
 	virtual void setProgressRange( Int min, Int max ) = 0;
+	virtual Bool isReadyForGameStart() const { return TRUE; }
 protected:
 	void setLoadScreen( GameWindow *g ) { m_loadScreen = g; }
 	GameWindow *m_loadScreen;		///< The GameWindow that is our loadscreen
@@ -143,6 +144,7 @@ public:
 	}
 
 	virtual void setProgressRange( Int min, Int max ) override;
+	virtual Bool isReadyForGameStart() const override;
 
 private:
 	GameWindow *m_progressBar;				///< Pointer to the Progress Bar on the window
@@ -154,6 +156,7 @@ private:
 
 	AudioEventRTS m_ambientLoop;
 	AudioHandle m_ambientLoopHandle;
+	AudioHandle m_tauntHandle;
 
 	GameWindow *m_bioNameLeft;
 	GameWindow *m_bioAgeLeft;
