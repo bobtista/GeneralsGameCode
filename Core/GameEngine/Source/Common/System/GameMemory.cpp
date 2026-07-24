@@ -2340,13 +2340,13 @@ void DynamicMemoryAllocator::freeBytes(void* pBlockPtr)
 
 	ScopedCriticalSection scopedCriticalSection(TheDmaCriticalSection);
 
-#if defined(__APPLE__)
-	// Apple frameworks and dylibs can resolve C++ delete to the game's global
-	// replacement operator. Only pointers that match our pool/raw-block ranges
-	// may be interpreted as MemoryPoolSingleBlock user data. Do not try to
-	// "repair" foreign deletes with free(): some Apple internals pass sentinel
-	// or interior values through delete during Metal compiler teardown, and
-	// malloc_size() is not a sufficient exact-allocation test for those values.
+#if defined(__APPLE__) || defined(__linux__)
+	// System frameworks and shared libraries can resolve C++ delete to the game's
+	// global replacement operator. Only pointers that match our pool/raw-block
+	// ranges may be interpreted as MemoryPoolSingleBlock user data. Do not try to
+	// "repair" foreign deletes with free(): some system internals pass sentinel
+	// or interior values through delete (e.g. Metal compiler teardown on macOS),
+	// and malloc_size() is not a sufficient exact-allocation test for those values.
 	if (!ownsUserBlockPointer(pBlockPtr))
 	{
 		return;
@@ -3378,12 +3378,13 @@ void operator delete[](void *p)
 	TheDynamicMemoryAllocator->freeBytes(p);
 }
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__linux__)
 //-----------------------------------------------------------------------------
 /**
-	Sized delete overloads used by modern libc++/Apple framework code. Since
-	our unsized global operator new can be interposed process-wide, these must
-	route back to the same allocator instead of libc++ eventually calling free().
+	Sized delete overloads used by modern libc++/libstdc++ and system library
+	code. Since our unsized global operator new can be interposed process-wide,
+	these must route back to the same allocator instead of the C++ runtime
+	eventually calling free().
 */
 void operator delete(void *p, size_t)
 {

@@ -139,6 +139,35 @@ int DX8Wrapper_PreserveFPU = 0;
 #include "vs_smudge_metal.bin.h"
 #include "fs_smudge_metal.bin.h"
 #define GGC_BGFX_SHADER(name) name##_metal
+#elif defined(GGC_BGFX_RENDERER_VULKAN)
+#include "vs_passthrough_spirv.bin.h"
+#include "fs_passthrough_spirv.bin.h"
+#include "vs_uber_spirv.bin.h"
+#include "vs_uber_instanced_spirv.bin.h"
+#include "vs_trees_spirv.bin.h"
+#include "fs_uber_spirv.bin.h"
+#include "fs_uber_array_spirv.bin.h"
+#include "fs_uber_frameconst_spirv.bin.h"
+#include "vs_uber_array_spirv.bin.h"
+#include "vs_shadow_volume_spirv.bin.h"
+#include "fs_shadow_volume_spirv.bin.h"
+#include "vs_shadow_apply_spirv.bin.h"
+#include "fs_shadow_apply_spirv.bin.h"
+#include "vs_scene_composite_spirv.bin.h"
+#include "fs_scene_composite_spirv.bin.h"
+#include "fs_bloom_bright_spirv.bin.h"
+#include "fs_bloom_blur_spirv.bin.h"
+#include "fs_ssao_spirv.bin.h"
+#include "fs_copy_spirv.bin.h"
+#include "vs_scene_depth_spirv.bin.h"
+#include "vs_scene_depth_instanced_spirv.bin.h"
+#include "fs_scene_depth_spirv.bin.h"
+#include "vs_shadow_caster_spirv.bin.h"
+#include "vs_shadow_caster_instanced_spirv.bin.h"
+#include "fs_shadow_caster_spirv.bin.h"
+#include "vs_smudge_spirv.bin.h"
+#include "fs_smudge_spirv.bin.h"
+#define GGC_BGFX_SHADER(name) name##_spirv
 #else
 #include "vs_passthrough_dx11.bin.h"
 #include "fs_passthrough_dx11.bin.h"
@@ -1444,9 +1473,53 @@ void *GetNativeWindowHandle(void *window)
     {
         return nativeWindow;
     }
+#elif defined(__linux__)
+    // TheSuperHackers @feature bobtista 24/07/2026 Linux native surface for bgfx.
+    // Prefer X11: bgfx takes the X11 Window XID as platformData.nwh (with the
+    // Display* as ndt, set separately in Initialize). Fall back to the Wayland
+    // surface pointer when running under a Wayland SDL video driver.
+    {
+        const Uint64 x11Window = SDL_GetNumberProperty(props, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0);
+        if (x11Window != 0)
+        {
+            return reinterpret_cast<void *>(static_cast<uintptr_t>(x11Window));
+        }
+        void *waylandSurface = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, NULL);
+        if (waylandSurface != NULL)
+        {
+            return waylandSurface;
+        }
+    }
 #endif
 #endif
     return window;
+}
+
+// TheSuperHackers @feature bobtista 24/07/2026 Native display/device handle for
+// bgfx platformData.ndt. Required on Linux (X11 Display* / Wayland wl_display*);
+// returns nullptr elsewhere, where bgfx derives the device from nwh alone.
+void *GetNativeDisplayHandle(void *window)
+{
+#if defined(SAGE_USE_SDL3) && defined(__linux__)
+    if (window != NULL)
+    {
+        SDL_Window *sdlWindow = static_cast<SDL_Window *>(window);
+        SDL_PropertiesID props = SDL_GetWindowProperties(sdlWindow);
+        void *x11Display = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, NULL);
+        if (x11Display != NULL)
+        {
+            return x11Display;
+        }
+        void *waylandDisplay = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, NULL);
+        if (waylandDisplay != NULL)
+        {
+            return waylandDisplay;
+        }
+    }
+#else
+    (void)window;
+#endif
+    return nullptr;
 }
 
 void BuildStandardVertexLayouts()
@@ -4087,7 +4160,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     }
 
     bgfx::PlatformData pd;
-    pd.ndt = nullptr;
+    pd.ndt = GetNativeDisplayHandle(g_device.window);
     pd.nwh = GetNativeWindowHandle(g_device.window);
     pd.context = nullptr;
     pd.backBuffer = nullptr;
