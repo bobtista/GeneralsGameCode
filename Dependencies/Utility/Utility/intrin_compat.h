@@ -98,6 +98,13 @@ static inline uint64_t _rdtsc()
     return __builtin_readcyclecounter();
 #elif defined(__has_builtin) && __has_builtin(__builtin_ia32_rdtsc)
     return __builtin_ia32_rdtsc();
+#elif defined(__aarch64__)
+    // TheSuperHackers @build bobtista 24/07/2026 GCC on aarch64 lacks
+    // __builtin_readcyclecounter; read the virtual counter directly. It is a
+    // monotonic, user-readable timer suitable for the profiler's timestamps.
+    uint64_t virtual_timer_value;
+    __asm__ __volatile__("mrs %0, cntvct_el0" : "=r"(virtual_timer_value));
+    return virtual_timer_value;
 #else
 #error "No implementation for _rdtsc"
 #endif
