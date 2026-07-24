@@ -45,10 +45,25 @@
 #include <cstdlib>
 #include <cstring>
 
-// TheSuperHackers @tweak bobtista 05/06/2026 Empirically-tuned boosts that make
-// ground-aligned additive foam read at retail brightness on the bgfx shader pipeline.
-static const float BGFX_ADDITIVE_FOAM_SIZE_BOOST = 2.0f;
-static const float BGFX_ADDITIVE_FOAM_COLOR_BOOST = 1.5f;
+// The shader pipeline renders these authored hull-contact foam systems smaller and dimmer than
+// the retail DX8 path. Keep the empirical compensation restricted to the known wake templates;
+// ground-aligned additive particles are also used by explosions and superweapon ground glows.
+static const float BGFX_WATER_WAKE_SIZE_BOOST = 2.0f;
+static const float BGFX_WATER_WAKE_COLOR_BOOST = 1.5f;
+
+static bool needsBgfxWaterWakeCompensation(ParticleSystem *sys)
+{
+	const ParticleSystemTemplate *particleTemplate = sys != nullptr ? sys->getTemplate() : nullptr;
+	if (particleTemplate == nullptr)
+	{
+		return false;
+	}
+
+	const AsciiString name = particleTemplate->getName();
+	return name.compareNoCase("BattleShipWaterRipples") == 0
+		|| name.compareNoCase("AirCarrierWaterRipples") == 0
+		|| name.compareNoCase("AmphibWaveRest") == 0;
+}
 
 static bool containsCaseInsensitive(const char *text, const char *needle)
 {
@@ -392,17 +407,12 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			RGBAArray[count].Y = color->green;
 			RGBAArray[count].Z = color->blue;
 
-			// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned ADDITIVE water-surface foam
-			// renders dimmer through the shader pipeline than DX8; boost size 2x and color 1.5x
-			// (clamped), gated on batchPointGroups so the DX8 path is unaffected.
-			if (batchPointGroups
-				&& sys->m_isGroundAligned
-				&& sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			if (batchPointGroups && needsBgfxWaterWakeCompensation(sys))
 			{
-				sizeArray[count] *= BGFX_ADDITIVE_FOAM_SIZE_BOOST;
-				RGBAArray[count].X = MIN(1.0f, color->red   * BGFX_ADDITIVE_FOAM_COLOR_BOOST);
-				RGBAArray[count].Y = MIN(1.0f, color->green * BGFX_ADDITIVE_FOAM_COLOR_BOOST);
-				RGBAArray[count].Z = MIN(1.0f, color->blue  * BGFX_ADDITIVE_FOAM_COLOR_BOOST);
+				sizeArray[count] *= BGFX_WATER_WAKE_SIZE_BOOST;
+				RGBAArray[count].X = MIN(1.0f, color->red * BGFX_WATER_WAKE_COLOR_BOOST);
+				RGBAArray[count].Y = MIN(1.0f, color->green * BGFX_WATER_WAKE_COLOR_BOOST);
+				RGBAArray[count].Z = MIN(1.0f, color->blue * BGFX_WATER_WAKE_COLOR_BOOST);
 			}
 
 			// TheSuperHackers @bugfix bobtista 27/05/2026 ADDITIVE particles keep m_alpha at the
