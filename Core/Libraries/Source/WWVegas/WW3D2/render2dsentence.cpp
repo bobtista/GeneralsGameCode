@@ -1712,6 +1712,22 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 
 	CFRelease(font);
 	return true;
+#elif !defined(_WIN32)
+	// GDI/CoreText font rasterization is unavailable here. Synthesize plausible
+	// metrics from the point size so text layout still computes extents. Real
+	// glyph rasterization (e.g. FreeType) is a TODO for a legible Linux UI; until
+	// then glyph buffers are null (see the matching stub in Get_Char_Data) and
+	// on-screen text is blank.
+	(void)font_name;
+	int font_height = PointSize;
+	PixelOverlap = font_height / 8;
+	if (PixelOverlap < 0) PixelOverlap = 0;
+	if (PixelOverlap > 4) PixelOverlap = 4;
+	CharAscent = PointSize > 0 ? PointSize : 1;
+	CharHeight = CharAscent + (PointSize / 4);
+	if (CharHeight < 1) CharHeight = 1;
+	CharOverhang = 0;
+	return true;
 #else
 	HDC screen_dc = ::GetDC ((HWND)WW3D::Get_Window());
 
