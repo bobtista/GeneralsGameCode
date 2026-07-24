@@ -2345,13 +2345,13 @@ void DynamicMemoryAllocator::freeBytes(void* pBlockPtr) noexcept
 
 	ScopedCriticalSection scopedCriticalSection(TheDmaCriticalSection);
 
-#if defined(__APPLE__)
-	// Apple frameworks and dylibs can resolve C++ delete to the game's global
-	// replacement operator. Only pointers that match our pool/raw-block ranges
-	// may be interpreted as MemoryPoolSingleBlock user data. Do not try to
-	// "repair" foreign deletes with free(): some Apple internals pass sentinel
-	// or interior values through delete during Metal compiler teardown, and
-	// malloc_size() is not a sufficient exact-allocation test for those values.
+#if defined(__APPLE__) || defined(__linux__)
+	// System frameworks and shared libraries can resolve C++ delete to the game's
+	// global replacement operator. Only pointers that match our pool/raw-block
+	// ranges may be interpreted as MemoryPoolSingleBlock user data. Do not try to
+	// "repair" foreign deletes with free(): some system internals pass sentinel
+	// or interior values through delete (e.g. Metal compiler teardown on macOS),
+	// and malloc_size() is not a sufficient exact-allocation test for those values.
 	if (!ownsUserBlockPointer(pBlockPtr))
 	{
 		return;
@@ -3431,6 +3431,7 @@ void operator delete[](void *p)
 	DEBUG_ASSERTCRASH(TheDynamicMemoryAllocator != nullptr, ("must init memory manager before calling global operator delete"));
 	TheDynamicMemoryAllocator->freeBytes(p);
 }
+
 
 void operator delete[](void *p, size_t)
 {
