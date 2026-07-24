@@ -24,6 +24,8 @@
 #include "Common/GameAudio.h"
 #include <AL/al.h>
 #include <AL/alc.h>
+#include <AL/alext.h>
+#include <atomic>
 
 class AudioEventRTS;
 
@@ -183,6 +185,16 @@ protected:
 	void enumerateDevices(void);
 	void createListener(void);
 	void initDelayFilter(void);
+	void initDeviceRecovery(void);
+	void shutdownDeviceRecovery(void);
+	Bool updateDeviceRecovery(void);
+	static void ALC_APIENTRY handleSystemAudioEvent(
+		ALCenum eventType,
+		ALCenum deviceType,
+		ALCdevice *device,
+		ALCsizei length,
+		const ALCchar *message,
+		void *userParam) ALC_API_NOEXCEPT;
 	Bool isValidProvider(void);
 	void initSamplePools(void);
 	void processRequest(AudioRequest *req);
@@ -259,5 +271,11 @@ protected:
 
 	ALCdevice *m_alcDevice = nullptr;
 	ALCcontext *m_alcContext = nullptr;
+	LPALCREOPENDEVICESOFT m_alcReopenDevice = nullptr;
+	LPALCEVENTISSUPPORTEDSOFT m_alcEventIsSupported = nullptr;
+	LPALCEVENTCONTROLSOFT m_alcEventControl = nullptr;
+	LPALCEVENTCALLBACKSOFT m_alcEventCallback = nullptr;
+	std::atomic_bool m_defaultDeviceChanged{false};
+	Int m_deviceReopenRetryUpdates = 0;
 	OpenALAudioStream* m_binkAudio = nullptr;
 };
