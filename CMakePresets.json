@@ -209,6 +209,28 @@
             }
         },
         {
+            "name": "linux-generalsmd-sdl3-bgfx",
+            "inherits": "default",
+            "hidden": false,
+            "displayName": "Linux GeneralsMD SDL3 bgfx Release",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "RTS_BUILD_GENERALS": "OFF",
+                "RTS_BUILD_GENERALS_TOOLS": "OFF",
+                "RTS_BUILD_ZEROHOUR": "ON",
+                "RTS_BUILD_ZEROHOUR_TOOLS": "OFF",
+                "RTS_BUILD_CORE_TOOLS": "OFF",
+                "RTS_BUILD_OPTION_FFMPEG": "ON",
+                "RTS_CRASHDUMP_ENABLE": "OFF",
+                "SAGE_USE_SDL3": "ON",
+                "SAGE_USE_OPENAL": "ON",
+                "RTS_GAMEMEMORY_ENABLE": "OFF",
+                "GGC_RENDER_BACKEND": "bgfx",
+                "GGC_BGFX_RENDERER": "vulkan"
+            }
+        },
+        {
             "name": "win32-generalsmd-sdl3-bgfx",
             "inherits": "win32-bgfx",
             "displayName": "Windows 32bit GeneralsMD SDL3 bgfx Release",

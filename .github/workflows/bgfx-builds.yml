@@ -225,10 +225,81 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+  linux:
+    name: linux-generalsmd-sdl3-bgfx
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.ref_name }}
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config ccache \
+            libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
+            libxinerama-dev libxfixes-dev libxrender-dev libxss-dev libxtst-dev \
+            libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libvulkan-dev \
+            libasound2-dev libpulse-dev \
+            libavcodec-dev libavformat-dev libavutil-dev libswscale-dev
+
+      - name: Cache CMake Dependencies
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: build/linux-generalsmd-sdl3-bgfx/_deps
+          key: cmake-deps-linux-generalsmd-sdl3-bgfx-${{ hashFiles('CMakePresets.json','cmake/**/*.cmake','**/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-deps-linux-generalsmd-sdl3-bgfx-
+
+      - name: Set Up ccache
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        with:
+          variant: ccache
+          key: bgfx-linux
+          max-size: 2G
+          verbose: 1
+
+      - name: Configure with CMake
+        run: |
+          cmake --preset linux-generalsmd-sdl3-bgfx -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build GeneralsMD
+        run: |
+          cmake --build build/linux-generalsmd-sdl3-bgfx --config Release --target z_generals -j"$(nproc)"
+          ccache -s
+
+      - name: Stage
+        run: |
+          bash scripts/build/linux/deploy-linux-generalsmd.sh linux-generalsmd-sdl3-bgfx Release
+          {
+            echo "Command & Conquer Generals Zero Hour (GeneralsMD) bgfx build"
+            echo "preset: linux-generalsmd-sdl3-bgfx (Release, x86_64)"
+            echo "ref: ${{ inputs.ref || github.ref_name }}"
+            echo "commit: $(git rev-parse HEAD)"
+            echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > "${GITHUB_WORKSPACE}/stage-linux/GeneralsZH-linux/BUILD_INFO.txt"
+
+      - name: Zip
+        run: |
+          cd "${GITHUB_WORKSPACE}/stage-linux/GeneralsZH-linux"
+          zip -ry "${GITHUB_WORKSPACE}/GeneralsZH-linux-x64.zip" .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: GeneralsZH-linux-x64
+          path: GeneralsZH-linux-x64.zip
+          retention-days: 30
+          if-no-files-found: error
+
   publish:
     name: Update latest-bgfx release
-    needs: [win64, macos]
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}
+    needs: [win64, macos, linux]
+    if: ${{ always() && needs.win64.result == 'success' && needs.macos.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.publish) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -256,13 +327,15 @@ jobs:
           | GeneralsZH-win64-debug.zip | Windows x64 Debug: exe + PDB + DLLs |
           | GeneralsZH-win64-debug-exe-only.zip | Windows x64 Debug: exe + PDB only |
           | GeneralsZH-macos-arm64.zip | macOS Apple Silicon: generalszh + bundled dylibs + run.sh |
+          | GeneralsZH-linux-x64.zip | Linux x86_64: generalszh + bundled libs + run.sh |
 
-          You need the retail Generals + Zero Hour game data. Unzip next to your \`.big\` files (Windows) or place the .big files in the unzipped folder and start with \`run.sh\` (macOS).
+          You need the retail Generals + Zero Hour game data. Unzip next to your \`.big\` files (Windows) or place the .big files in the unzipped folder and start with \`run.sh\` (macOS/Linux).
 
           Each build ships a default \`Data/INI/Bgfx.ini\` with the sun shadow map enabled (so object shadows render on all backends); delete it for pure engine defaults, or edit it to change render settings.
 
           - Windows: requires the VC++ 2022 x64 redistributable.
           - macOS: the binary is ad-hoc signed; after unzipping run \`xattr -dr com.apple.quarantine .\` inside the folder so Gatekeeper lets it launch.
+          - Linux: install runtime deps, e.g. \`sudo apt install libvulkan1 mesa-vulkan-drivers libsdl3-0 libavcodec60 libavformat60 libopenal1\` (names vary by distro), then start with \`run.sh\`.
           EOF
 
           gh release delete latest-bgfx --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
