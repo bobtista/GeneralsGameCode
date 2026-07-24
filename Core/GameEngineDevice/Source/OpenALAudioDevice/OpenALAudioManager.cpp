@@ -582,6 +582,10 @@ void OpenALAudioManager::update()
 	{
 		return;
 	}
+	if (!updateDeviceRecovery())
+	{
+		return;
+	}
 	setDeviceListenerPosition();
 	processRequestList();
 	processPlayingList();
@@ -1659,6 +1663,8 @@ void OpenALAudioManager::openDevice(void)
 		return;
 	}
 
+	initDeviceRecovery();
+
 #ifdef AL_EXT_debug
 	if (alcIsExtensionPresent(m_alcDevice, "ALC_EXT_debug")) {
 		auto alDebugMessageCallbackEXT = LPALDEBUGMESSAGECALLBACKEXT{};
@@ -1683,6 +1689,7 @@ void OpenALAudioManager::openDevice(void)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::closeDevice(void)
 {
+	shutdownDeviceRecovery();
 	freeAllOpenALHandles();
 	unselectProvider();
 	alcMakeContextCurrent(nullptr);
@@ -1698,6 +1705,147 @@ void OpenALAudioManager::closeDevice(void)
 		alcCloseDevice(m_alcDevice);
 		m_alcDevice = NULL;
 	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void ALC_APIENTRY OpenALAudioManager::handleSystemAudioEvent(
+	ALCenum eventType,
+	ALCenum deviceType,
+	MAYBE_UNUSED ALCdevice *device,
+	MAYBE_UNUSED ALCsizei length,
+	MAYBE_UNUSED const ALCchar *message,
+	void *userParam) ALC_API_NOEXCEPT
+{
+	if (eventType != ALC_EVENT_TYPE_DEFAULT_DEVICE_CHANGED_SOFT
+		|| deviceType != ALC_PLAYBACK_DEVICE_SOFT
+		|| userParam == nullptr)
+	{
+		return;
+	}
+
+	// OpenAL Soft invokes this callback from its device-notification thread. Only publish a flag
+	// here; reopening the device and touching engine state must happen on the main audio update.
+	static_cast<OpenALAudioManager *>(userParam)->m_defaultDeviceChanged.store(
+		true,
+		std::memory_order_release);
+}
+
+//-------------------------------------------------------------------------------------------------
+void OpenALAudioManager::initDeviceRecovery(void)
+{
+	m_defaultDeviceChanged.store(false, std::memory_order_relaxed);
+	m_deviceReopenRetryUpdates = 0;
+
+	if (alcIsExtensionPresent(m_alcDevice, "ALC_SOFT_reopen_device") == ALC_TRUE)
+	{
+		m_alcReopenDevice = reinterpret_cast<LPALCREOPENDEVICESOFT>(
+			alcGetProcAddress(m_alcDevice, "alcReopenDeviceSOFT"));
+	}
+
+	if (alcIsExtensionPresent(nullptr, "ALC_SOFT_system_events") != ALC_TRUE)
+	{
+		return;
+	}
+
+	m_alcEventIsSupported = reinterpret_cast<LPALCEVENTISSUPPORTEDSOFT>(
+		alcGetProcAddress(nullptr, "alcEventIsSupportedSOFT"));
+	m_alcEventControl = reinterpret_cast<LPALCEVENTCONTROLSOFT>(
+		alcGetProcAddress(nullptr, "alcEventControlSOFT"));
+	m_alcEventCallback = reinterpret_cast<LPALCEVENTCALLBACKSOFT>(
+		alcGetProcAddress(nullptr, "alcEventCallbackSOFT"));
+
+	if (m_alcEventIsSupported == nullptr
+		|| m_alcEventControl == nullptr
+		|| m_alcEventCallback == nullptr
+		|| m_alcEventIsSupported(
+			ALC_EVENT_TYPE_DEFAULT_DEVICE_CHANGED_SOFT,
+			ALC_PLAYBACK_DEVICE_SOFT) != ALC_EVENT_SUPPORTED_SOFT)
+	{
+		return;
+	}
+
+	const ALCenum event = ALC_EVENT_TYPE_DEFAULT_DEVICE_CHANGED_SOFT;
+	m_alcEventCallback(handleSystemAudioEvent, this);
+	if (m_alcEventControl(1, &event, ALC_TRUE) != ALC_TRUE)
+	{
+		m_alcEventCallback(nullptr, nullptr);
+		m_alcEventCallback = nullptr;
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void OpenALAudioManager::shutdownDeviceRecovery(void)
+{
+	if (m_alcEventControl != nullptr)
+	{
+		const ALCenum event = ALC_EVENT_TYPE_DEFAULT_DEVICE_CHANGED_SOFT;
+		m_alcEventControl(1, &event, ALC_FALSE);
+	}
+	if (m_alcEventCallback != nullptr)
+	{
+		m_alcEventCallback(nullptr, nullptr);
+	}
+
+	m_alcReopenDevice = nullptr;
+	m_alcEventIsSupported = nullptr;
+	m_alcEventControl = nullptr;
+	m_alcEventCallback = nullptr;
+	m_defaultDeviceChanged.store(false, std::memory_order_relaxed);
+	m_deviceReopenRetryUpdates = 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+Bool OpenALAudioManager::updateDeviceRecovery(void)
+{
+	ALCint isConnected = ALC_TRUE;
+	if (alcIsExtensionPresent(m_alcDevice, "ALC_EXT_disconnect") == ALC_TRUE)
+	{
+		alcGetIntegerv(m_alcDevice, ALC_CONNECTED, 1, &isConnected);
+	}
+
+	const Bool defaultDeviceChanged = m_defaultDeviceChanged.exchange(
+		false,
+		std::memory_order_acq_rel);
+	if (isConnected == ALC_TRUE && !defaultDeviceChanged)
+	{
+		m_deviceReopenRetryUpdates = 0;
+		return TRUE;
+	}
+
+	if (m_deviceReopenRetryUpdates > 0)
+	{
+		--m_deviceReopenRetryUpdates;
+		return isConnected == ALC_TRUE;
+	}
+
+	if (m_alcReopenDevice == nullptr)
+	{
+		// Preserve the request in case the extension becomes available after a transient device
+		// failure. Avoid processing stopped-source state while the device is disconnected.
+		m_defaultDeviceChanged.store(true, std::memory_order_release);
+		m_deviceReopenRetryUpdates = 30;
+		return isConnected == ALC_TRUE;
+	}
+
+	const AudioSettings *audioSettings = getAudioSettings();
+	const ALCint attributes[] = {
+		ALC_FREQUENCY,
+		audioSettings->m_outputRate,
+		0
+	};
+	DEBUG_LOG(("OpenAL playback device changed or disconnected; reopening the default device"));
+	if (m_alcReopenDevice(m_alcDevice, nullptr, attributes) == ALC_TRUE)
+	{
+		DEBUG_LOG(("OpenAL default playback device reopened successfully"));
+		m_deviceReopenRetryUpdates = 0;
+		return TRUE;
+	}
+
+	DEBUG_LOG(("Failed to reopen the OpenAL default playback device (ALC error 0x%X)",
+		alcGetError(m_alcDevice)));
+	m_defaultDeviceChanged.store(true, std::memory_order_release);
+	m_deviceReopenRetryUpdates = 30;
+	return isConnected == ALC_TRUE;
 }
 
 //-------------------------------------------------------------------------------------------------
