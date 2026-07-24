@@ -244,6 +244,7 @@ jobs:
             libxinerama-dev libxfixes-dev libxrender-dev libxss-dev libxtst-dev \
             libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev \
             libgl1-mesa-dev libegl1-mesa-dev libvulkan-dev \
+            libfreetype6-dev libfontconfig1-dev \
             libasound2-dev libpulse-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswscale-dev
 
