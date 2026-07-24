@@ -25,13 +25,12 @@
 #include <AL/al.h>
 #include <stdint.h>
 #include <functional>
-
-#define AL_STREAM_BUFFER_COUNT 32
+#include <vector>
 
 class OpenALAudioStream final
 {
 public:
-    OpenALAudioStream();
+    explicit OpenALAudioStream(bool prebufferEntireStream = false);
     ~OpenALAudioStream();
 
     void setRequireDataCallback(std::function<void()> callback) { m_requireDataCallback = callback; }
@@ -62,7 +61,8 @@ public:
 protected:
     std::function<void()> m_requireDataCallback = nullptr;
     ALuint m_source = 0;
-    ALuint m_buffers[AL_STREAM_BUFFER_COUNT] = {};
+    std::vector<ALuint> m_buffers;
+    unsigned int m_refillBufferCount = 0;
     unsigned int m_current_buffer_idx = 0;
     bool m_reachedEof = false;
     bool m_stopRequested = false;

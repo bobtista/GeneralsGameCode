@@ -20,10 +20,18 @@
 #include "OpenALAudioDevice/OpenALAudioManager.h"
 #include <AL/alext.h>
 
-OpenALAudioStream::OpenALAudioStream()
+namespace
+{
+constexpr unsigned int REALTIME_STREAM_BUFFER_COUNT = 32;
+constexpr unsigned int PREBUFFERED_STREAM_BUFFER_COUNT = 512;
+}
+
+OpenALAudioStream::OpenALAudioStream(bool prebufferEntireStream) :
+    m_buffers(prebufferEntireStream ? PREBUFFERED_STREAM_BUFFER_COUNT : REALTIME_STREAM_BUFFER_COUNT),
+    m_refillBufferCount(prebufferEntireStream ? PREBUFFERED_STREAM_BUFFER_COUNT : REALTIME_STREAM_BUFFER_COUNT / 2)
 {
     alGenSources(1, &m_source);
-    alGenBuffers(AL_STREAM_BUFFER_COUNT, m_buffers);
+    alGenBuffers(static_cast<ALsizei>(m_buffers.size()), m_buffers.data());
 
     // GeneralsX @bugfix BenderAI 22/04/2026 Force video stream source to non-positional direct playback.
     alSourcei(m_source, AL_SOURCE_RELATIVE, AL_TRUE);
@@ -54,7 +62,7 @@ OpenALAudioStream::~OpenALAudioStream()
     alSourcei(m_source, AL_BUFFER, 0);
     alDeleteSources(1, &m_source);
     // Now delete the buffers
-    alDeleteBuffers(AL_STREAM_BUFFER_COUNT, m_buffers);
+    alDeleteBuffers(static_cast<ALsizei>(m_buffers.size()), m_buffers.data());
 }
 
 bool OpenALAudioStream::bufferData(uint8_t *data, size_t data_size, ALenum format, int samplerate)
@@ -64,7 +72,7 @@ bool OpenALAudioStream::bufferData(uint8_t *data, size_t data_size, ALenum forma
 #endif
     ALint num_queued;
     alGetSourcei(m_source, AL_BUFFERS_QUEUED, &num_queued);
-    if (num_queued >= AL_STREAM_BUFFER_COUNT) {
+    if (num_queued >= static_cast<ALint>(m_buffers.size())) {
 #ifdef INTENSIVE_AUDIO_DEBUG
         DEBUG_LOG(("Having too many buffers already queued: %i", num_queued));
 #endif
@@ -101,7 +109,7 @@ bool OpenALAudioStream::bufferData(uint8_t *data, size_t data_size, ALenum forma
 
     m_current_buffer_idx++;
 
-    if (m_current_buffer_idx >= AL_STREAM_BUFFER_COUNT)
+    if (m_current_buffer_idx >= m_buffers.size())
         m_current_buffer_idx = 0;
 
     return true;
@@ -157,12 +165,12 @@ void OpenALAudioStream::update()
     DEBUG_LOG(("Having %i buffers queued\n", num_queued));
 #endif
 
-    if (num_queued < AL_STREAM_BUFFER_COUNT / 2 && m_requireDataCallback) {
+    if (num_queued < static_cast<ALint>(m_refillBufferCount) && m_requireDataCallback) {
         // GeneralsX @bugfix BenderAI 22/04/2026 Do not fake queue growth when callback fails to enqueue data.
         // Ask for more data to be buffered.
-        // Only fill up to the half, because some formats can output
-        // more than one buffer per decoded frame.
-        while (num_queued < AL_STREAM_BUFFER_COUNT / 2) {
+        // Music keeps a small rolling queue. Speech uses the full pool so synchronous map
+        // loading cannot starve it while the main thread is unavailable.
+        while (num_queued < static_cast<ALint>(m_refillBufferCount)) {
             m_requireDataCallback();
 
             ALint refreshedQueued = 0;
