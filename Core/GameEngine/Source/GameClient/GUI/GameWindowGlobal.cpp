@@ -208,7 +208,9 @@ Int GameWindowManager::winIsDigit( Int c )
 Int GameWindowManager::winIsAscii( Int c )
 {
 
-	return iswascii( c );
+	// TheSuperHackers @build bobtista 24/07/2026 iswascii is a nonstandard libc
+	// extension (absent from glibc by default). Test the 7-bit ASCII range directly.
+	return ( c & ~0x7F ) == 0;
 
 }
 
