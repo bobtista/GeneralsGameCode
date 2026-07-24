@@ -2631,6 +2631,13 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		Sleep(100);
 	}
 
+	while(m_loadScreen && !m_loadScreen->isReadyForGameStart())
+	{
+		updateLoadProgress(101);
+		TheAudio->update();
+		TheFramePacer->update();
+	}
+
 	// if we're in a load game, don't fade yet
 	if(loadingSaveGame == FALSE && TheTransitionHandler != nullptr && m_loadScreen)
 	{
