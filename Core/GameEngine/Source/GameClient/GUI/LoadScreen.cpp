@@ -713,6 +713,7 @@ ChallengeLoadScreen::ChallengeLoadScreen()
 	m_overlayVsBackdrop = nullptr;
 	m_overlayVs = nullptr;
 	m_wndVideoManager = nullptr;
+	m_tauntHandle = AHSV_NoSound;
 }
 
 ChallengeLoadScreen::~ChallengeLoadScreen()
@@ -1140,7 +1141,7 @@ void ChallengeLoadScreen::init( GameInfo *game )
 
 
 	AudioEventRTS event( generalOpponent->getRandomTauntSound() );
-	TheAudio->addAudioEvent( &event );
+	m_tauntHandle = TheAudio->addAudioEvent( &event );
 
 	m_ambientLoopHandle = TheAudio->addAudioEvent(&m_ambientLoop);
 	TheAudio->update();
@@ -1167,6 +1168,15 @@ void ChallengeLoadScreen::update( Int percent )
 void ChallengeLoadScreen::setProgressRange( Int min, Int max )
 {
 
+}
+
+Bool ChallengeLoadScreen::isReadyForGameStart() const
+{
+	// TheSuperHackers @bugfix bobtista 24/07/2026 The challenge taunt plays while the map loads.
+	// Keep the completed load screen visible until the taunt finishes instead of
+	// deleting it (and stopping the voice) as soon as the map reaches 100%.
+	return TheAudio == nullptr || m_tauntHandle < AHSV_FirstHandle ||
+		!TheAudio->isCurrentlyPlaying( m_tauntHandle );
 }
 
 // ShellGameLoadScreen Class //////////////////////////////////////////////////
@@ -2008,4 +2018,3 @@ void MapTransferLoadScreen::setCurrentFilename(AsciiString filename)
 		GadgetStaticTextSetText(m_fileNameText, txt);
 	}
 }
-
