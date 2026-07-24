@@ -7895,16 +7895,15 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     // model space, but FixedFunctionState's world is hard-wired to identity on bgfx; capture
     // the live per-mesh world so the replay places and rotates them correctly.
     // TheSuperHackers @feature bobtista 07/07/2026 Mesh-origin sorted draws always capture
-    // their world via the RB_SORTED_DRAW_MESH flag; the texture-name list remains for the
-    // non-mesh special cases (bib emblems, effect spheres) and as the name-only fallback
-    // behind GGC_BGFX_DISABLE_SORTED_MESH_ROUTING.
+    // their world via the RB_SORTED_DRAW_MESH flag; the texture-name list remains for
+    // non-mesh special cases and as the name-only fallback behind
+    // GGC_BGFX_DISABLE_SORTED_MESH_ROUTING.
     const char *texName = TextureDebugName(g_draw.sourceTextures[0]);
     const bool namedLocalModelDraw = texName != nullptr
         && (IsCommandCenterEmblemTextureName(texName)
             || IsRotorBlurTextureName(texName)
             || ContainsCaseInsensitive(texName, "ubsnkatak_01")
-            || ContainsCaseInsensitive(texName, "coplight")
-            || ContainsCaseInsensitive(texName, "exlighteningtile2"));
+            || ContainsCaseInsensitive(texName, "coplight"));
     if (meshLocalModelDraw && !namedLocalModelDraw)
     {
         LogSortedMeshDrawWithoutNamePredicate(g_draw.sourceTextures[0], texName);
@@ -8218,9 +8217,9 @@ static bool IsCommandCenterEmblemTextureName(const char *name);
 // TheSuperHackers @performance bobtista 15/06/2026 The sorted-draw routing predicates
 // scan the stage-0 texture name for special-case effect markers. During the sort flush
 // these run for ~1k particle draws/frame. Get_Full_Path returns a stable member ref (no
-// alloc), but the repeated case-insensitive scans add up. Cache the four marker results
+// alloc), but the repeated case-insensitive scans add up. Cache the marker results
 // keyed by the bound texture pointer so consecutive draws of one texture reuse them.
-struct SortedTexNameFlags { bool snk01; bool snk0; bool rotor; bool coplight; bool commandCenterEmblem; bool lightbeam; bool empRing; bool empLensFlare; bool empLightning; };
+struct SortedTexNameFlags { bool snk01; bool snk0; bool rotor; bool coplight; bool commandCenterEmblem; bool lightbeam; };
 static const SortedTexNameFlags & GetSortedTexNameFlags();
 
 static bool IsSortedAlphaDepthDecal(uint64_t state)
@@ -8339,33 +8338,6 @@ static bool IsSortedLightBeam(uint64_t /*state*/)
         && GetSortedTexNameFlags().lightbeam;
 }
 
-static bool IsEmpRingCandidate(uint64_t state)
-{
-    const unsigned particleFlags = RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK;
-    return g_views.inSortFlush
-        && (g_views.sortedBatchDrawFlags & particleFlags) != 0
-        && IsAnyAdditiveBlend(state)
-        && GetSortedTexNameFlags().empRing;
-}
-
-static bool IsEmpLensFlareCandidate(uint64_t state)
-{
-    const unsigned particleFlags = RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK;
-    return g_views.inSortFlush
-        && (g_views.sortedBatchDrawFlags & particleFlags) != 0
-        && IsAnyAdditiveBlend(state)
-        && GetSortedTexNameFlags().empLensFlare;
-}
-
-static bool IsEmpLightningSphereCandidate(uint64_t state)
-{
-    const unsigned particleFlags = RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK;
-    return g_views.inSortFlush
-        && (g_views.sortedBatchDrawFlags & particleFlags) == 0
-        && IsAnyAdditiveBlend(state)
-        && GetSortedTexNameFlags().empLightning;
-}
-
 static bool IsSortedLocalModelEffectDraw(uint64_t state)
 {
     return IsSortedMeshModelDraw(state)
@@ -8373,7 +8345,6 @@ static bool IsSortedLocalModelEffectDraw(uint64_t state)
         || IsSneakAttackAlphaDepthDecal(state)
         || IsSortedCopLightSprite(state)
         || IsSortedLightBeam(state)
-        || IsEmpLightningSphereCandidate(state)
         || (g_views.inSortFlush
             && GetSortedTexNameFlags().commandCenterEmblem);
 }
@@ -8448,20 +8419,6 @@ static uint64_t ApplySortedMaterialDecalDepthState(uint64_t state)
     state &= ~BGFX_STATE_DEPTH_TEST_MASK;
     state |= BGFX_STATE_DEPTH_TEST_LEQUAL;
     state &= ~BGFX_STATE_WRITE_Z;
-    return state;
-}
-
-static uint64_t ApplyEmpLightningSphereDrawState(uint64_t state)
-{
-    if (!IsEmpLightningSphereCandidate(state))
-    {
-        return state;
-    }
-
-    state &= ~BGFX_STATE_DEPTH_TEST_MASK;
-    state |= BGFX_STATE_DEPTH_TEST_LEQUAL;
-    state &= ~BGFX_STATE_WRITE_Z;
-    state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
     return state;
 }
 
@@ -8592,7 +8549,7 @@ static const SortedTexNameFlags & GetSortedTexNameFlags()
 {
     static const TextureBaseClass * s_cachedTex = nullptr;
     static bool s_valid = false;
-    static SortedTexNameFlags s_flags = { false, false, false, false, false, false, false, false, false };
+    static SortedTexNameFlags s_flags = { false, false, false, false, false, false };
     TextureBaseClass * tex = g_draw.sourceTextures[0];
     if (!s_valid || tex != s_cachedTex)
     {
@@ -8603,9 +8560,6 @@ static const SortedTexNameFlags & GetSortedTexNameFlags()
         s_flags.coplight = ContainsCaseInsensitive(n, "coplight");
         s_flags.commandCenterEmblem = IsCommandCenterEmblemTextureName(n);
         s_flags.lightbeam = ContainsCaseInsensitive(n, "lightbeam");
-        s_flags.empRing = ContainsCaseInsensitive(n, "exempring");
-        s_flags.empLensFlare = ContainsCaseInsensitive(n, "exlnzflar");
-        s_flags.empLightning = ContainsCaseInsensitive(n, "exlighteningtile2");
         s_cachedTex = tex;
         s_valid = true;
     }
@@ -8853,7 +8807,7 @@ static void UpdateAlphaMaskedShadowDecalMode()
     g_draw.texcoordSelect2[2] = isAlphaMaskedShadow ? 1.0f : 0.0f;
 }
 
-static void UpdateAlphaMaskAndSortedEffectModes(uint64_t state)
+static void UpdateAlphaMaskAndSortedModes(uint64_t state)
 {
     UpdateAlphaMaskedShadowDecalMode();
     if (IsSortedRotorBlur(state))
@@ -8879,24 +8833,6 @@ static void UpdateAlphaMaskAndSortedEffectModes(uint64_t state)
         // Keep them out of the generic material-opacity path, which can
         // inherit zero alpha from surrounding water/shroud submits.
         g_draw.texcoordSelect2[2] = 4.0f;
-    }
-    else if (IsEmpRingCandidate(state))
-    {
-        // The EMP Patriot ground ring should read as a violet afterglow under
-        // the sphere, not as an opaque white pancake.
-        g_draw.texcoordSelect2[2] = 7.0f;
-    }
-    else if (IsEmpLightningSphereCandidate(state))
-    {
-        // EXLighteningTile2 on the EMP spheroid carries the authored electric
-        // dome texture. Give it a blue/cyan additive treatment without
-        // touching same-texture point/streak particles.
-        g_draw.texcoordSelect2[2] = 6.0f;
-    }
-    else if (IsEmpLensFlareCandidate(state))
-    {
-        // Keep the EMP lens-flare systems as compact flare/streak energy.
-        g_draw.texcoordSelect2[2] = 5.0f;
     }
 }
 
@@ -8986,7 +8922,6 @@ static uint64_t ComputeFinalDrawState(bool triangle_strip)
     }
     state = ApplyProjectedAdditiveDecalDrawState(state);
     state = ApplySortedMaterialDecalDepthState(state);
-    state = ApplyEmpLightningSphereDrawState(state);
     if (g_draw.delayedObjectShroudPass)
     {
         state = ApplyDelayedObjectShroudDepthState(state);
@@ -10438,7 +10373,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
             ? 1.0f
             : 0.0f;
     }
-    UpdateAlphaMaskAndSortedEffectModes(state);
+    UpdateAlphaMaskAndSortedModes(state);
     UploadMaterialUniforms(submitView);
     if (bgfx::isValid(g_uniforms.uTexcoordSelect))
     {
@@ -10468,7 +10403,6 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     state = ApplyProjectedAdditiveDecalDrawState(state);
     state = ApplyColorWriteOverride(state);
     state = ApplySortedMaterialDecalDepthState(state);
-    state = ApplyEmpLightningSphereDrawState(state);
     // TheSuperHackers @bugfix bobtista 12/06/2026 Match SubmitEngineDraw: enable MSAA so sorted
     // translucent effects get the same edge antialiasing as opaque geometry on a multisampled target.
     state |= BGFX_STATE_MSAA;
@@ -13551,7 +13485,7 @@ void SubmitEngineDraw(unsigned short start_index,
         g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState)
             ? 1.0f
             : 0.0f;
-        UpdateAlphaMaskAndSortedEffectModes(blendState);
+        UpdateAlphaMaskAndSortedModes(blendState);
     }
     UploadMaterialUniforms(submitView);
     // TheSuperHackers @bugfix bobtista 17/07/2026 Skip the fixed-function light fallback
