@@ -336,7 +336,12 @@ jobs:
 
           - Windows: requires the VC++ 2022 x64 redistributable.
           - macOS: the binary is ad-hoc signed; after unzipping run \`xattr -dr com.apple.quarantine .\` inside the folder so Gatekeeper lets it launch.
-          - Linux: install runtime deps, e.g. \`sudo apt install libvulkan1 mesa-vulkan-drivers libsdl3-0 libavcodec60 libavformat60 libopenal1\` (names vary by distro), then start with \`run.sh\`.
+
+          Linux setup (GeneralsZH-linux-x64.zip):
+          1. Needs a modern 64-bit distro - the binary is built on Ubuntu 24.04 (glibc 2.39), so Ubuntu 24.04+/Fedora 40+ or newer. Older distros will not run it.
+          2. Install a Vulkan driver + runtime libs (SDL3 and OpenAL are bundled inside the zip; Vulkan and FFmpeg are not). On Ubuntu 24.04: \`sudo apt install libvulkan1 mesa-vulkan-drivers libavcodec60 libavformat60 libavutil58 libswscale7\`. Use your GPU vendor's Vulkan driver instead of mesa on NVIDIA; package names vary by distro.
+          3. \`unzip GeneralsZH-linux-x64.zip\`, copy your retail Zero Hour \`.big\` files into the unzipped folder next to \`generalszh\`, then start with \`./run.sh -win\`.
+          4. To load a mod (e.g. Shockwave): \`./install-mod.sh /path/to/Shw_noinstl.zip Shockwave\` then \`./run.sh -win -mod Shockwave\`.
           EOF
 
           gh release delete latest-bgfx --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
