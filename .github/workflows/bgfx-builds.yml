@@ -246,7 +246,7 @@ jobs:
             libgl1-mesa-dev libegl1-mesa-dev libvulkan-dev \
             libfreetype6-dev libfontconfig1-dev \
             libasound2-dev libpulse-dev \
-            libavcodec-dev libavformat-dev libavutil-dev libswscale-dev
+            nasm curl xz-utils
 
       - name: Cache CMake Dependencies
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
@@ -264,7 +264,19 @@ jobs:
           max-size: 2G
           verbose: 1
 
+      - name: Cache Minimal FFmpeg
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ${{ github.workspace }}/ffmpeg-min
+          key: ffmpeg-min-${{ hashFiles('scripts/build/linux/build-ffmpeg-minimal.sh') }}
+
+      - name: Build Minimal FFmpeg
+        run: |
+          bash scripts/build/linux/build-ffmpeg-minimal.sh "${GITHUB_WORKSPACE}/ffmpeg-min"
+
       - name: Configure with CMake
+        env:
+          PKG_CONFIG_PATH: ${{ github.workspace }}/ffmpeg-min/lib/pkgconfig
         run: |
           cmake --preset linux-generalsmd-sdl3-bgfx -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
@@ -338,8 +350,8 @@ jobs:
           - macOS: the binary is ad-hoc signed; after unzipping run \`xattr -dr com.apple.quarantine .\` inside the folder so Gatekeeper lets it launch.
 
           Linux setup (GeneralsZH-linux-x64.zip):
-          1. Needs a modern 64-bit distro - the binary is built on Ubuntu 24.04 (glibc 2.39), so Ubuntu 24.04+/Fedora 40+ or newer. Older distros will not run it.
-          2. Install a Vulkan driver + runtime libs (SDL3 and OpenAL are bundled inside the zip; Vulkan and FFmpeg are not). On Ubuntu 24.04: \`sudo apt install libvulkan1 mesa-vulkan-drivers libavcodec60 libavformat60 libavutil58 libswscale7\`. Use your GPU vendor's Vulkan driver instead of mesa on NVIDIA; package names vary by distro.
+          1. Needs a modern 64-bit distro (glibc 2.38+): Ubuntu 24.04+, Fedora 39+, current Arch, and Steam Deck (SteamOS 3.6+) all work. Older distros will not run it.
+          2. Install a Vulkan driver + a couple of runtime libs (SDL3, OpenAL and a stripped FFmpeg are bundled inside the zip). On Ubuntu/Debian: \`sudo apt install libvulkan1 mesa-vulkan-drivers libfreetype6 libfontconfig1\`. On Arch/SteamOS these are already present. Use your GPU vendor's Vulkan driver instead of mesa on NVIDIA; package names vary by distro.
           3. \`unzip GeneralsZH-linux-x64.zip\`, copy your retail Generals + Zero Hour \`.big\` files into the unzipped folder next to \`generalszh\`, then start with \`./run.sh -win\`.
              - Already playing via WINE / Proton / Steam / Lutris? Run \`./import-from-wine.sh\` from the unzipped folder to copy your existing \`.big\` files over automatically - no reinstall needed. Add \`--with-saves\` to also bring your options and saved games, or \`--prefix /path/to/game\` if it is not found in the usual places.
           4. Optional mod (e.g. Shockwave): put the mod's \`.big\` files in \`~/.local/share/Command and Conquer Generals Zero Hour Data/Shockwave/\` and launch with \`./run.sh -win -mod Shockwave\`.
