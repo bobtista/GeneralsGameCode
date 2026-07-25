@@ -342,12 +342,22 @@ jobs:
           | GeneralsZH-macos-arm64.zip | macOS Apple Silicon: generalszh + bundled dylibs + run.sh |
           | GeneralsZH-linux-x64.zip | Linux x86_64: generalszh + bundled libs + run.sh |
 
-          You need the retail Generals + Zero Hour game data. Unzip next to your \`.big\` files (Windows) or place the .big files in the unzipped folder and start with \`run.sh\` (macOS/Linux).
+          All three builds need the retail Generals + Zero Hour \`.big\` data files (the game assets). You do NOT need to install the original discs or the old retail Mac release - the \`.big\` files are identical on every platform, so just copy them from any existing install (Windows, an old CD install, a friend's copy) or wherever you keep them.
 
           Each build ships a default \`Data/INI/Bgfx.ini\` with the sun shadow map enabled (so object shadows render on all backends); delete it for pure engine defaults, or edit it to change render settings.
 
-          - Windows: requires the VC++ 2022 x64 redistributable.
-          - macOS: the binary is ad-hoc signed; after unzipping run \`xattr -dr com.apple.quarantine .\` inside the folder so Gatekeeper lets it launch.
+          Windows setup (GeneralsZH-win64.zip):
+          1. Install the VC++ 2022 x64 redistributable.
+          2. Unzip it into your Zero Hour folder (next to your \`.big\` files), or unzip anywhere and copy your \`.big\` files in next to \`generalszh.exe\`.
+          3. Launch \`generalszh.exe\` (add \`-win\` for windowed).
+          4. Optional mod (e.g. Shockwave): put the mod's \`.big\` files in \`Documents\Command and Conquer Generals Zero Hour Data\Shockwave\` and launch with \`-mod Shockwave\`.
+
+          macOS setup (GeneralsZH-macos-arm64.zip - Apple Silicon / M1 or newer only):
+          1. \`unzip GeneralsZH-macos-arm64.zip\` - you get a folder with \`generalszh\`, \`run.sh\`, the bundled libraries and \`Data/INI/Bgfx.ini\`. Everything the game needs is bundled inside; no Homebrew or extra installs.
+          2. Copy your retail Generals + Zero Hour \`.big\` files into that folder, next to \`generalszh\`.
+          3. Clear the Gatekeeper quarantine flag or it will refuse to launch: from inside the folder run \`xattr -dr com.apple.quarantine .\`.
+          4. Start it with \`./run.sh -win\`.
+          5. Optional mod (e.g. Shockwave): put the mod's \`.big\` files in \`~/Library/Application Support/Command and Conquer Generals Zero Hour Data/Shockwave/\` and launch with \`./run.sh -win -mod Shockwave\`.
 
           Linux setup (GeneralsZH-linux-x64.zip):
           1. Needs a modern 64-bit distro (glibc 2.38+): Ubuntu 24.04+, Fedora 39+, current Arch, and Steam Deck (SteamOS 3.6+) all work. Older distros will not run it.
