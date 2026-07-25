@@ -84,7 +84,15 @@ declare -a roots=(
 	"${HOME}/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common"
 	"${HOME}/Games"
 	"${HOME}/.local/share/lutris"
+	"/home/deck/.local/share/Steam/steamapps/common"
 )
+# Steam Deck / external drives mount microSD and USB libraries under /run/media
+# (either /run/media/<label> or /run/media/deck/<label>).
+shopt -s nullglob
+for g in /run/media/*/steamapps/common /run/media/*/*/steamapps/common; do
+	roots+=("${g}")
+done
+shopt -u nullglob
 [ -n "${WINEPREFIX:-}" ] && roots+=("${WINEPREFIX}")
 roots+=("${extra_roots[@]}")
 
@@ -143,10 +151,16 @@ if [ "${with_saves}" -eq 1 ]; then
 		"${HOME}/.wine"
 		"${HOME}/.steam/steam/steamapps/compatdata"
 		"${HOME}/.local/share/Steam/steamapps/compatdata"
+		"/home/deck/.local/share/Steam/steamapps/compatdata"
 		"${HOME}/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/compatdata"
 		"${HOME}/Games"
 		"${HOME}/.local/share/lutris"
 	)
+	shopt -s nullglob
+	for g in /run/media/*/steamapps/compatdata /run/media/*/*/steamapps/compatdata; do
+		save_roots+=("${g}")
+	done
+	shopt -u nullglob
 	[ -n "${WINEPREFIX:-}" ] && save_roots+=("${WINEPREFIX}")
 	save_roots+=("${extra_roots[@]}")
 	imported_any=0
