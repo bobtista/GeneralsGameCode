@@ -1538,7 +1538,7 @@ GameMessage::Type CommandTranslator::evaluateForceAttack( Drawable *draw, const 
 	return retVal;
 }
 
-void CommandTranslator::normalizeContextInputs(Drawable*& draw, Object*& obj, Drawable*& drawableInWay)
+void CommandTranslator::resolveContextTarget( Drawable *&draw, Object *&obj, Drawable *&drawableInWay )
 {
 	//This piece of code is used to prevent interaction with unselectable objects or masked objects. When we
 	//call this function, we typically pass in both a position and a drawable (if applicable), so if the
@@ -1579,7 +1579,7 @@ void CommandTranslator::normalizeContextInputs(Drawable*& draw, Object*& obj, Dr
 	}
 }
 
-GameMessage::Type CommandTranslator::handleWaypointModeCommand(const Coord3D* pos, Drawable* draw, const CommandEvaluateType& type)
+GameMessage::Type CommandTranslator::handleWaypointModeCommand( const Coord3D *pos, Drawable *draw, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
 
@@ -1601,7 +1601,7 @@ GameMessage::Type CommandTranslator::handleWaypointModeCommand(const Coord3D* po
 	return msgType;
 }
 
-void CommandTranslator::normalizeGuiCommandTarget( const CommandButton* command, Drawable*& draw, Object*& obj )
+void CommandTranslator::resolveGuiCommandTarget( const CommandButton *command, Drawable *&draw, Object *&obj )
 {
 	if( obj && obj->isKindOf( KINDOF_SHRUBBERY ) && !BitIsSet( command->getOptions(), ALLOW_SHRUBBERY_TARGET ) )
 	{
@@ -1663,18 +1663,17 @@ void CommandTranslator::normalizeGuiCommandTarget( const CommandButton* command,
 	* command would be if clicked
 	* NOTE: draw can be null, in which case we give a hint for the location */
 // ------------------------------------------------------------------------------------------------
-GameMessage::Type CommandTranslator::evaluateContextCommand(
-	Drawable *draw,
-	const Coord3D *pos,
-	CommandEvaluateType type
-) {
+GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
+																														 const Coord3D *pos,
+																														 CommandEvaluateType type )
+{
 	Object *obj = draw ? draw->getObject() : nullptr;
 	Drawable *drawableInWay = draw;
-	normalizeContextInputs(draw, obj, drawableInWay);
+	resolveContextTarget( draw, obj, drawableInWay );
 
 	// Then we should determine if the game currently prefers selection events. If it does, then return
 	// the invalid message.
-	if (obj && obj->isLocallyControlled() && TheInGameUI->isInPreferSelectionMode())
+	if( obj && obj->isLocallyControlled() && TheInGameUI->isInPreferSelectionMode() )
 	{
 		return GameMessage::MSG_INVALID;
 	}
@@ -1683,18 +1682,17 @@ GameMessage::Type CommandTranslator::evaluateContextCommand(
 	const CommandButton *command = TheInGameUI->getGUICommand();
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
 
-	if (command && command->getCommandType() == GUICOMMANDMODE_PLACE_BEACON)
+	if( command && command->getCommandType() == GUICOMMANDMODE_PLACE_BEACON )
 	{
 		msgType = GameMessage::MSG_VALID_GUICOMMAND_HINT;
-		TheMessageStream->appendMessage(msgType);
+		TheMessageStream->appendMessage( msgType );
 		return msgType;
 	}
 
-	const bool canPerformActions = (
-		TheInGameUI->areSelectedObjectsControllable() ||
-		(command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT)
-	);
-	if ( !canPerformActions )
+	const Bool canPerformActions = TheInGameUI->areSelectedObjectsControllable()
+		|| ( command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT );
+
+	if( !canPerformActions )
 	{
 		return GameMessage::MSG_INVALID;
 	}
@@ -1702,7 +1700,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand(
 	{
 		if( TheInGameUI->isInWaypointMode() )
 		{
-			return handleWaypointModeCommand(pos, draw, type);
+			return handleWaypointModeCommand( pos, draw, type );
 		}
 
 		CanAttackResult result;
@@ -1713,7 +1711,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand(
 				|| command->getCommandType() == GUI_COMMAND_SPECIAL_POWER
 				|| command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT))
 		{
-			normalizeGuiCommandTarget( command, draw, obj );
+			resolveGuiCommandTarget( command, draw, obj );
 
 			Bool currentlyValid = FALSE;
 			ObjectID objectID = obj ? obj->getID() : INVALID_ID;
