@@ -341,7 +341,7 @@ jobs:
           1. Needs a modern 64-bit distro - the binary is built on Ubuntu 24.04 (glibc 2.39), so Ubuntu 24.04+/Fedora 40+ or newer. Older distros will not run it.
           2. Install a Vulkan driver + runtime libs (SDL3 and OpenAL are bundled inside the zip; Vulkan and FFmpeg are not). On Ubuntu 24.04: \`sudo apt install libvulkan1 mesa-vulkan-drivers libavcodec60 libavformat60 libavutil58 libswscale7\`. Use your GPU vendor's Vulkan driver instead of mesa on NVIDIA; package names vary by distro.
           3. \`unzip GeneralsZH-linux-x64.zip\`, copy your retail Zero Hour \`.big\` files into the unzipped folder next to \`generalszh\`, then start with \`./run.sh -win\`.
-          4. To load a mod (e.g. Shockwave): \`./install-mod.sh /path/to/Shw_noinstl.zip Shockwave\` then \`./run.sh -win -mod Shockwave\`.
+          4. Optional mod (e.g. Shockwave): put the mod's \`.big\` files in \`~/.local/share/Command and Conquer Generals Zero Hour Data/Shockwave/\` and launch with \`./run.sh -win -mod Shockwave\`.
           EOF
 
           gh release delete latest-bgfx --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
