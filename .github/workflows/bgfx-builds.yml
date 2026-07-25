@@ -340,7 +340,8 @@ jobs:
           Linux setup (GeneralsZH-linux-x64.zip):
           1. Needs a modern 64-bit distro - the binary is built on Ubuntu 24.04 (glibc 2.39), so Ubuntu 24.04+/Fedora 40+ or newer. Older distros will not run it.
           2. Install a Vulkan driver + runtime libs (SDL3 and OpenAL are bundled inside the zip; Vulkan and FFmpeg are not). On Ubuntu 24.04: \`sudo apt install libvulkan1 mesa-vulkan-drivers libavcodec60 libavformat60 libavutil58 libswscale7\`. Use your GPU vendor's Vulkan driver instead of mesa on NVIDIA; package names vary by distro.
-          3. \`unzip GeneralsZH-linux-x64.zip\`, copy your retail Zero Hour \`.big\` files into the unzipped folder next to \`generalszh\`, then start with \`./run.sh -win\`.
+          3. \`unzip GeneralsZH-linux-x64.zip\`, copy your retail Generals + Zero Hour \`.big\` files into the unzipped folder next to \`generalszh\`, then start with \`./run.sh -win\`.
+             - Already playing via WINE / Proton / Steam / Lutris? Run \`./import-from-wine.sh\` from the unzipped folder to copy your existing \`.big\` files over automatically - no reinstall needed. Add \`--with-saves\` to also bring your options and saved games, or \`--prefix /path/to/game\` if it is not found in the usual places.
           4. Optional mod (e.g. Shockwave): put the mod's \`.big\` files in \`~/.local/share/Command and Conquer Generals Zero Hour Data/Shockwave/\` and launch with \`./run.sh -win -mod Shockwave\`.
           EOF
 
