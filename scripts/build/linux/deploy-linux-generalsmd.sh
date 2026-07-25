@@ -45,6 +45,11 @@ exec "${here}/generalszh" "$@"
 EOF
 chmod +x "${stage_dir}/run.sh"
 
+# Ship the WINE-migration helper so players can pull their existing .big assets
+# over without reinstalling.
+cp -v "${repo_root}/scripts/build/linux/import-from-wine.sh" "${stage_dir}/import-from-wine.sh"
+chmod +x "${stage_dir}/import-from-wine.sh"
+
 # Ship the default render settings (sun shadow map on) unless one already exists.
 mkdir -p "${stage_dir}/Data/INI"
 cp -n "${repo_root}/scripts/build/dist/Bgfx.ini" "${stage_dir}/Data/INI/Bgfx.ini"
