@@ -69,6 +69,28 @@ private:
 	void resolveGuiCommandTarget( const CommandButton *command, Drawable *&draw, Object *&obj );
 
 	GameMessage::Type handleWaypointModeCommand( const Coord3D *pos, Drawable *draw, CommandEvaluateType type );
+	GameMessage::Type handleGuiCommand( const CommandButton *command, Drawable *draw, Object *obj, const Coord3D *pos, CommandEvaluateType type );
+	GameMessage::Type handleSpecialPowerConstructCommand( const CommandButton *command, Drawable *draw, const Coord3D *pos, CommandEvaluateType type );
+	GameMessage::Type handleSpecialPowerOverrideDestinationCommand( const Coord3D *pos, CommandEvaluateType type );
+	GameMessage::Type handleResumeConstructionCommand( Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleDockCommand( Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleRepairObjectCommand( Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleGetRepairedCommand( Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleGetHealedCommand( Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleHijackVehicleCommand( Drawable *draw, CommandEvaluateType type );
+	GameMessage::Type handleConvertToCarBombCommand( Drawable *draw, Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleSabotageBuildingCommand( Drawable *draw, CommandEvaluateType type );
+	GameMessage::Type handleSalvageCommand( Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleEnterObjectCommand( Drawable *draw, Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleAttackObjectCommand( Drawable *draw, Object *obj, CommandEvaluateType type, GameMessage::Type hintType );
+	GameMessage::Type handleCaptureBuildingCommand( Drawable *draw, Object *obj, const Coord3D *pos, CommandEvaluateType type );
+	GameMessage::Type handleHackCommand( Drawable *draw, Object *obj, const Coord3D *pos, CommandEvaluateType type, SpecialPowerType hackPower );
+#ifdef ALLOW_SURRENDER
+	GameMessage::Type handlePickUpPrisonerCommand( Drawable *draw, Object *obj, CommandEvaluateType type );
+#endif
+	GameMessage::Type handleSetRallyPointCommand( const Coord3D *pos, CommandEvaluateType type );
+	GameMessage::Type handleImpossibleAttackHint( const Coord3D *pos );
+	GameMessage::Type handleDefaultMoveCommand( Drawable *draw, Drawable *drawableInWay, const Coord3D *pos, CommandEvaluateType type );
 
 	virtual GameMessageDisposition translateGameMessage(const GameMessage *msg) override;
 };
