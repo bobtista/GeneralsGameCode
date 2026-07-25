@@ -342,7 +342,7 @@ jobs:
           | GeneralsZH-macos-arm64.zip | macOS Apple Silicon: generalszh + bundled dylibs + run.sh |
           | GeneralsZH-linux-x64.zip | Linux x86_64: generalszh + bundled libs + run.sh |
 
-          All three builds need the retail Generals + Zero Hour \`.big\` data files (the game assets). You do NOT need to install the original discs or the old retail Mac release - the \`.big\` files are identical on every platform, so just copy them from any existing install (Windows, an old CD install, a friend's copy) or wherever you keep them.
+          All three builds need the retail Generals + Zero Hour \`.big\` data files (the game assets) from a copy of the game you own. You do NOT need to install the original discs or the old retail Mac release - the \`.big\` files are identical on every platform, so just copy them across from your own existing install (e.g. your Windows or CD install) or wherever you keep your game files.
 
           Each build ships a default \`Data/INI/Bgfx.ini\` with the sun shadow map enabled (so object shadows render on all backends); delete it for pure engine defaults, or edit it to change render settings.
 
