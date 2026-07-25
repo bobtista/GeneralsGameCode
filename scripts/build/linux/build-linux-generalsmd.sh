@@ -26,6 +26,8 @@ docker run --rm \
     -w /src \
     "${image}" \
     bash -euo pipefail -c "
+        bash scripts/build/linux/build-ffmpeg-minimal.sh /src/build/ffmpeg-min
+        export PKG_CONFIG_PATH=/src/build/ffmpeg-min/lib/pkgconfig
         cmake --preset ${preset}
         cmake --build build/${preset} --target ${target} -j\$(nproc)
     "
