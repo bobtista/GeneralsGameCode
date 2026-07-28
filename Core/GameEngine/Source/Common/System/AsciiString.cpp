@@ -275,18 +275,16 @@ void AsciiString::translate(const UnicodeString& stringSrc)
 	validate();
 	// TheSuperHackers @fix bobtista 02/04/2026 Implement UTF-8 conversion replacing 7-bit ASCII only implementation
 	const WideChar* src = stringSrc.str();
-	size_t srcLen = wcslen(src);
-	size_t len = Utf16Le_To_Utf8_Len(src, srcLen);
+	const size_t srcLen = wcslen(src);
+	const size_t len = Utf16Le_To_Utf8_Len(src, srcLen);
 	if (len == 0)
 	{
 		clear();
-		return;
 	}
-	ensureUniqueBufferOfSize((Int)len + 1, false, nullptr, nullptr);
-	char* buf = peek();
-	if (Utf16Le_To_Utf8(buf, len + 1, src, srcLen) == 0)
+	else
 	{
-		clear();
+		ensureUniqueBufferOfSize((Int)len + 1, false, nullptr, nullptr);
+		Utf16Le_To_Utf8(peek(), len + 1, src, srcLen);
 	}
 	validate();
 }

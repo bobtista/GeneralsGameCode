@@ -26,6 +26,10 @@
 // code unit (astral codepoints use surrogate pairs); on most other platforms it is a 32-bit
 // UTF-32 codepoint. Both are handled transparently based on the width of wchar_t.
 
+// Returned by the decoding functions when the source is not well-formed UTF-8. A return of 0 means
+// an empty result, which is a success and must not be confused with a decoding failure.
+const size_t UTF8_INVALID = (size_t)-1;
+
 // Returns true if the length bytes at str are well-formed UTF-8 per RFC 3629. Rejects overlong
 // encodings, codepoints above U+10FFFF, and UTF-16 surrogate codepoints. An empty range is valid.
 bool Utf8_Validate(const char* str, size_t length);
@@ -35,7 +39,8 @@ bool Utf8_Validate(const char* str, size_t length);
 size_t Utf16Le_To_Utf8_Len(const wchar_t* src, size_t srcLen);
 
 // Returns the number of wide characters needed for the wide representation of srcLen bytes from the
-// UTF-8 string src, not counting a null terminator. Returns 0 on invalid UTF-8 or if srcLen is 0.
+// UTF-8 string src, not counting a null terminator. Returns 0 if srcLen is 0, or UTF8_INVALID if
+// src is not well-formed UTF-8.
 size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen);
 
 // Converts srcLen wide characters from src to UTF-8.
@@ -47,6 +52,6 @@ size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t sr
 // Converts srcLen bytes from the UTF-8 string src to wide characters.
 // destLen is the destination buffer capacity in wide characters. Caller must ensure destLen is
 // large enough by querying Utf8_To_Utf16Le_Len first. Writes a null terminator if room remains,
-// otherwise not. Returns the number of wide characters written, or 0 on invalid UTF-8 or if srcLen
-// is 0. On failure, dest[0] is set to L'\0' if destLen > 0.
+// otherwise not. Returns the number of wide characters written, 0 if srcLen is 0, or UTF8_INVALID
+// if src is not well-formed UTF-8. On failure, dest[0] is set to L'\0' if destLen > 0.
 size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t srcLen);

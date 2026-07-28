@@ -231,7 +231,7 @@ size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen)
 		const size_t consumed = Utf8_Decode(src + i, srcLen - i, cp);
 		if (consumed == 0)
 		{
-			return 0;
+			return UTF8_INVALID;
 		}
 		i += consumed;
 		units += Wide_Encoded_Length(cp);
@@ -275,7 +275,7 @@ size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t sr
 			{
 				dest[0] = L'\0';
 			}
-			return 0;
+			return UTF8_INVALID;
 		}
 		i += consumed;
 		const size_t need = Wide_Encoded_Length(cp);

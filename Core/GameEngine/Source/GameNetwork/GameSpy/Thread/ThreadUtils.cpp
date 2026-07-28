@@ -35,16 +35,13 @@
 // TheSuperHackers @refactor bobtista 02/04/2026 Use WWLib UTF-8 functions instead of raw Win32 API calls
 std::wstring MultiByteToWideCharSingleLine( const char *orig )
 {
-	size_t srcLen = strlen(orig);
-	size_t len = Utf8_To_Utf16Le_Len(orig, srcLen);
-	if (len == 0)
+	const size_t srcLen = strlen(orig);
+	const size_t len = Utf8_To_Utf16Le_Len(orig, srcLen);
+	if (len == 0 || len == UTF8_INVALID)
 		return std::wstring();
 	std::wstring ret;
 	ret.resize(len);
-	if (Utf8_To_Utf16Le(&ret[0], len, orig, srcLen) == 0)
-	{
-		return std::wstring();
-	}
+	Utf8_To_Utf16Le(&ret[0], len, orig, srcLen);
 	WideChar *c = nullptr;
 	do
 	{
@@ -70,16 +67,13 @@ std::wstring MultiByteToWideCharSingleLine( const char *orig )
 
 std::string WideCharStringToMultiByte( const WideChar *orig )
 {
-	size_t srcLen = wcslen(orig);
-	size_t len = Utf16Le_To_Utf8_Len(orig, srcLen);
+	const size_t srcLen = wcslen(orig);
+	const size_t len = Utf16Le_To_Utf8_Len(orig, srcLen);
 	if (len == 0)
 		return std::string();
 	std::string ret;
 	ret.resize(len);
-	if (Utf16Le_To_Utf8(&ret[0], len, orig, srcLen) == 0)
-	{
-		return std::string();
-	}
+	Utf16Le_To_Utf8(&ret[0], len, orig, srcLen);
 	return ret;
 }
 
