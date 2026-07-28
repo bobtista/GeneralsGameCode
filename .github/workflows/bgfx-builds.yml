@@ -362,9 +362,11 @@ jobs:
           Linux setup (GeneralsZH-linux-x64.zip):
           1. Needs a modern 64-bit distro (glibc 2.38+): Ubuntu 24.04+, Fedora 39+, current Arch, and Steam Deck (SteamOS 3.6+) all work. Older distros will not run it.
           2. Install a Vulkan driver + a couple of runtime libs (SDL3, OpenAL and a stripped FFmpeg are bundled inside the zip). On Ubuntu/Debian: \`sudo apt install libvulkan1 mesa-vulkan-drivers libfreetype6 libfontconfig1\`. On Arch/SteamOS these are already present. Use your GPU vendor's Vulkan driver instead of mesa on NVIDIA; package names vary by distro.
-          3. \`unzip GeneralsZH-linux-x64.zip\`, copy your retail Generals + Zero Hour \`.big\` files into the unzipped folder next to \`generalszh\`, then start with \`./run.sh -win\`.
-             - Already playing via WINE / Proton / Steam / Lutris? Run \`./import-from-wine.sh\` from the unzipped folder to copy your existing \`.big\` files over automatically - no reinstall needed. Add \`--with-saves\` to also bring your options and saved games, or \`--prefix /path/to/game\` if it is not found in the usual places.
-          4. Optional mod (e.g. Shockwave): put the mod's \`.big\` files in \`~/.local/share/Command and Conquer Generals Zero Hour Data/Shockwave/\` and launch with \`./run.sh -win -mod Shockwave\`.
+          3. \`unzip GeneralsZH-linux-x64.zip\`, then run \`./import-from-wine.sh\` from the unzipped folder. It locates an existing WINE / Proton / Steam / Lutris install on its own - including Steam on Debian / Ubuntu / Mint and libraries on a second drive - and copies the \`.big\` archives plus the loose \`Data\` folders next to \`generalszh\`. Add \`--with-saves\` to bring your options and saved games across as well, or \`--prefix /path/to/game\` if your install lives somewhere unusual.
+          4. Start the game with \`./run.sh -win\`.
+             - Copying by hand instead? Take every \`.big\` file **and** the install's loose \`Data\` folder: the skirmish / multiplayer scripts, the mouse cursors and the videos are not inside the \`.big\` archives, and skirmish AI misbehaves without them.
+             - Own it on Steam and happy to play in place? \`unzip\` straight into your Zero Hour folder and run \`./run.sh -win\` from there - the engine reads \`ZH_Generals/\` for the base Generals assets by itself, so nothing needs copying at all.
+          5. Optional mod (e.g. Shockwave): put the mod's \`.big\` files in \`~/.local/share/Command and Conquer Generals Zero Hour Data/Shockwave/\` and launch with \`./run.sh -win -mod Shockwave\`.
           EOF
 
           gh release delete latest-bgfx --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
