@@ -30,10 +30,6 @@
 // an empty result, which is a success and must not be confused with a decoding failure.
 const size_t UTF8_INVALID = (size_t)-1;
 
-// Returns true if the length bytes at str are well-formed UTF-8 per RFC 3629. Rejects overlong
-// encodings, codepoints above U+10FFFF, and UTF-16 surrogate codepoints. An empty range is valid.
-bool Utf8_Validate(const char* str, size_t length);
-
 // Returns the number of UTF-8 bytes needed for the UTF-8 representation of srcLen wide characters
 // from src, not counting a null terminator. Returns 0 if srcLen is 0. Wide values that have no
 // UTF-8 representation are counted as U+FFFD.

@@ -193,22 +193,6 @@ static size_t Wide_Write(wchar_t* dest, unsigned int cp)
 	return 1;
 }
 
-bool Utf8_Validate(const char* str, size_t length)
-{
-	size_t i = 0;
-	while (i < length)
-	{
-		unsigned int cp;
-		const size_t consumed = Utf8_Decode(str + i, length - i, cp);
-		if (consumed == 0)
-		{
-			return false;
-		}
-		i += consumed;
-	}
-	return true;
-}
-
 size_t Wide_To_Utf8_Len(const wchar_t* src, size_t srcLen)
 {
 	size_t bytes = 0;
