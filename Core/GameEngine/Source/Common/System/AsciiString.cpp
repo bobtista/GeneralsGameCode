@@ -45,7 +45,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/CriticalSection.h"
-#include "utf8.h"
+#include "WWLib/utf8.h"
 
 
 // -----------------------------------------------------
