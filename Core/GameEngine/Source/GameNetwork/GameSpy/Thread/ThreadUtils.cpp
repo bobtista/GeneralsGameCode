@@ -37,11 +37,24 @@ std::wstring MultiByteToWideCharSingleLine( const char *orig )
 {
 	const size_t srcLen = strlen(orig);
 	const size_t len = Utf8_To_Utf16Le_Len(orig, srcLen);
-	if (len == 0 || len == UTF8_INVALID)
+	if (len == 0)
 		return std::wstring();
 	std::wstring ret;
-	ret.resize(len);
-	Utf8_To_Utf16Le(&ret[0], len, orig, srcLen);
+	if (len == UTF8_INVALID)
+	{
+		// Not UTF-8. Fall back to a 1:1 byte cast so legacy data keeps its characters, matching
+		// UnicodeString::translate.
+		ret.resize(srcLen);
+		for (size_t i = 0; i < srcLen; ++i)
+		{
+			ret[i] = (WideChar)(unsigned char)orig[i];
+		}
+	}
+	else
+	{
+		ret.resize(len);
+		Utf8_To_Utf16Le(&ret[0], len, orig, srcLen);
+	}
 	WideChar *c = nullptr;
 	do
 	{
