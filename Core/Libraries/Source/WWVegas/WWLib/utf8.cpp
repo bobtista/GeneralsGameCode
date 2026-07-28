@@ -31,6 +31,7 @@
 static const unsigned int UTF8_CODEPOINT_MAX = 0x10FFFF;
 static const unsigned int UTF8_SURROGATE_MIN = 0xD800;
 static const unsigned int UTF8_SURROGATE_MAX = 0xDFFF;
+static const unsigned int UTF8_REPLACEMENT_CHAR = 0xFFFD;
 
 // Number of UTF-8 bytes required to encode a codepoint.
 static size_t Utf8_Encoded_Length(unsigned int cp)
@@ -137,25 +138,32 @@ static size_t Utf8_Decode(const char* src, size_t srcLen, unsigned int& cp)
 }
 
 // Read one codepoint from a wide buffer, advancing i. Combines UTF-16 surrogate pairs where wchar_t
-// is 16-bit; treats each element as a whole codepoint where wchar_t is 32-bit.
+// is 16-bit; treats each element as a whole codepoint where wchar_t is 32-bit. Wide data that has
+// no UTF-8 representation is reported as U+FFFD, so the encoder never emits a sequence that the
+// decoder would reject.
 static unsigned int Wide_Read(const wchar_t* src, size_t srcLen, size_t& i)
 {
+	unsigned int cp;
 #if UTF8_WCHAR_IS_UTF16
-	unsigned int cp = (unsigned int)src[i++] & 0xFFFF;
-	if (cp >= 0xD800 && cp <= 0xDBFF && i < srcLen)
+	cp = (unsigned int)src[i++] & 0xFFFF;
+	if (cp >= UTF8_SURROGATE_MIN && cp <= 0xDBFF && i < srcLen)
 	{
 		const unsigned int low = (unsigned int)src[i] & 0xFFFF;
-		if (low >= 0xDC00 && low <= 0xDFFF)
+		if (low >= 0xDC00 && low <= UTF8_SURROGATE_MAX)
 		{
-			cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
+			cp = 0x10000 + ((cp - UTF8_SURROGATE_MIN) << 10) + (low - 0xDC00);
 			++i;
 		}
 	}
-	return cp;
 #else
 	(void)srcLen;
-	return (unsigned int)src[i++];
+	cp = (unsigned int)src[i++];
 #endif
+	if (cp > UTF8_CODEPOINT_MAX || (cp >= UTF8_SURROGATE_MIN && cp <= UTF8_SURROGATE_MAX))
+	{
+		cp = UTF8_REPLACEMENT_CHAR;
+	}
+	return cp;
 }
 
 // Number of wide characters required to store a codepoint.
