@@ -35,23 +35,25 @@ const size_t UTF8_INVALID = (size_t)-1;
 bool Utf8_Validate(const char* str, size_t length);
 
 // Returns the number of UTF-8 bytes needed for the UTF-8 representation of srcLen wide characters
-// from src, not counting a null terminator. Returns 0 if srcLen is 0.
-size_t Utf16Le_To_Utf8_Len(const wchar_t* src, size_t srcLen);
+// from src, not counting a null terminator. Returns 0 if srcLen is 0. Wide values that have no
+// UTF-8 representation are counted as U+FFFD.
+size_t Wide_To_Utf8_Len(const wchar_t* src, size_t srcLen);
 
 // Returns the number of wide characters needed for the wide representation of srcLen bytes from the
 // UTF-8 string src, not counting a null terminator. Returns 0 if srcLen is 0, or UTF8_INVALID if
 // src is not well-formed UTF-8.
-size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen);
+size_t Utf8_To_Wide_Len(const char* src, size_t srcLen);
 
 // Converts srcLen wide characters from src to UTF-8.
 // destLen is the destination buffer capacity in bytes. Caller must ensure destLen is large enough
-// by querying Utf16Le_To_Utf8_Len first. Writes a null terminator if room remains, otherwise not.
-// Returns the number of bytes written, or 0 if srcLen is 0.
-size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen);
+// by querying Wide_To_Utf8_Len first. Writes a null terminator if room remains, otherwise not.
+// Returns the number of bytes written, or 0 if srcLen is 0. Wide values that have no UTF-8
+// representation are written as U+FFFD, so the output always decodes back through Utf8_To_Wide.
+size_t Wide_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen);
 
 // Converts srcLen bytes from the UTF-8 string src to wide characters.
 // destLen is the destination buffer capacity in wide characters. Caller must ensure destLen is
-// large enough by querying Utf8_To_Utf16Le_Len first. Writes a null terminator if room remains,
+// large enough by querying Utf8_To_Wide_Len first. Writes a null terminator if room remains,
 // otherwise not. Returns the number of wide characters written, 0 if srcLen is 0, or UTF8_INVALID
 // if src is not well-formed UTF-8. On failure, dest[0] is set to L'\0' if destLen > 0.
-size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t srcLen);
+size_t Utf8_To_Wide(wchar_t* dest, size_t destLen, const char* src, size_t srcLen);

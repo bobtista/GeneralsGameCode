@@ -209,7 +209,7 @@ bool Utf8_Validate(const char* str, size_t length)
 	return true;
 }
 
-size_t Utf16Le_To_Utf8_Len(const wchar_t* src, size_t srcLen)
+size_t Wide_To_Utf8_Len(const wchar_t* src, size_t srcLen)
 {
 	size_t bytes = 0;
 	size_t i = 0;
@@ -221,7 +221,7 @@ size_t Utf16Le_To_Utf8_Len(const wchar_t* src, size_t srcLen)
 	return bytes;
 }
 
-size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen)
+size_t Utf8_To_Wide_Len(const char* src, size_t srcLen)
 {
 	size_t units = 0;
 	size_t i = 0;
@@ -239,7 +239,7 @@ size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen)
 	return units;
 }
 
-size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen)
+size_t Wide_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen)
 {
 	size_t out = 0;
 	size_t i = 0;
@@ -261,7 +261,7 @@ size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t sr
 	return out;
 }
 
-size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t srcLen)
+size_t Utf8_To_Wide(wchar_t* dest, size_t destLen, const char* src, size_t srcLen)
 {
 	size_t out = 0;
 	size_t i = 0;

@@ -36,7 +36,7 @@
 std::wstring MultiByteToWideCharSingleLine( const char *orig )
 {
 	const size_t srcLen = strlen(orig);
-	const size_t len = Utf8_To_Utf16Le_Len(orig, srcLen);
+	const size_t len = Utf8_To_Wide_Len(orig, srcLen);
 	if (len == 0)
 		return std::wstring();
 	std::wstring ret;
@@ -53,7 +53,7 @@ std::wstring MultiByteToWideCharSingleLine( const char *orig )
 	else
 	{
 		ret.resize(len);
-		Utf8_To_Utf16Le(&ret[0], len, orig, srcLen);
+		Utf8_To_Wide(&ret[0], len, orig, srcLen);
 	}
 	WideChar *c = nullptr;
 	do
@@ -81,12 +81,12 @@ std::wstring MultiByteToWideCharSingleLine( const char *orig )
 std::string WideCharStringToMultiByte( const WideChar *orig )
 {
 	const size_t srcLen = wcslen(orig);
-	const size_t len = Utf16Le_To_Utf8_Len(orig, srcLen);
+	const size_t len = Wide_To_Utf8_Len(orig, srcLen);
 	if (len == 0)
 		return std::string();
 	std::string ret;
 	ret.resize(len);
-	Utf16Le_To_Utf8(&ret[0], len, orig, srcLen);
+	Wide_To_Utf8(&ret[0], len, orig, srcLen);
 	return ret;
 }
 
