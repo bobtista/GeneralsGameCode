@@ -70,7 +70,11 @@ jobs:
         shell: pwsh
         run: |
           $asset = "$env:FFMPEG_WIN64_ASSET.zip"
-          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/$asset" -OutFile ffmpeg.zip
+          # The rolling alias assets (ffmpeg-nX.Y-latest-*) live in the release TAGGED
+          # "latest", which is not the same thing as the newest release. Asking for
+          # releases/latest/download resolves to whatever autobuild-* published most
+          # recently, and those carry versioned names only, so the pinned asset 404s.
+          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/$asset" -OutFile ffmpeg.zip
           Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg-tmp
           $inner = Get-ChildItem -Directory ffmpeg-tmp | Select-Object -First 1
           New-Item -ItemType Directory -Force -Path .deps-cache | Out-Null
