@@ -155,9 +155,29 @@ echo "Searching for existing Generals / Zero Hour .big files..."
 # folders under one root; the native build needs the union of both.
 declare -A seen=()
 declare -a found=()
+# TheSuperHackers @build bobtista 29/07/2026 Track the folders the archives came
+# from separately instead of deriving them from the deduped list below. This
+# folder is a destination, not a source, and when it sits inside a search root
+# (~/Games, a Steam library) the archives already copied here win that dedup and
+# hide the install they came from - which used to leave the loose Data folders
+# undiscovered on any second run.
+declare -a game_dirs=()
+here_real="$(cd "${here}" && pwd -P)"
+seen_game_dirs=""
 for root in "${roots[@]}"; do
 	[ -d "${root}" ] || continue
 	while IFS= read -r -d '' big; do
+		big_dir="$(cd "$(dirname "${big}")" && pwd -P)"
+		if [ "${big_dir}" != "${here_real}" ]; then
+			case "${seen_game_dirs}" in
+				*"|${big_dir}|"*)
+					;;
+				*)
+					seen_game_dirs="${seen_game_dirs}|${big_dir}|"
+					game_dirs+=("${big_dir}")
+					;;
+			esac
+		fi
 		key="$(basename "${big}")"
 		key="${key,,}"
 		if [ -z "${seen[${key}]:-}" ]; then
@@ -205,15 +225,7 @@ if [ "${with_data}" -eq 1 ]; then
 	# archived ones (including our own Data/INI/Bgfx.ini).
 	declare -a zh_dirs=()
 	declare -a base_dirs=()
-	seen_game_dirs=""
-	for big in "${found[@]}"; do
-		game_dir="$(cd "$(dirname "${big}")" && pwd -P)"
-		case "${seen_game_dirs}" in
-			*"|${game_dir}|"*)
-				continue
-				;;
-		esac
-		seen_game_dirs="${seen_game_dirs}|${game_dir}|"
+	for game_dir in "${game_dirs[@]}"; do
 		shopt -s nullglob
 		data_roots=("${game_dir}"/[Dd]ata)
 		zh_archives=("${game_dir}"/*[Zz][Hh].big)
