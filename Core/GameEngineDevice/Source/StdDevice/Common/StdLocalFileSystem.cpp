@@ -74,13 +74,6 @@ static std::filesystem::path fixFilenameFromWindowsPath(const Char *filename, In
 		for (auto& p : path)
 		{
 			std::filesystem::path pathFixedPart;
-			if (pathCurrent.empty())
-			{
-				// Load the first part of the path
-				pathFixed /= p;
-				pathCurrent /= p;
-				continue;
-			}
 
 			if (std::filesystem::exists(pathCurrent / p, ec))
 			{
@@ -92,8 +85,16 @@ static std::filesystem::path fixFilenameFromWindowsPath(const Char *filename, In
 			}
 			else
 			{
-				// Check if the subpath exists using case-insensitive comparison
-				for (auto& entry : std::filesystem::directory_iterator(pathFixed, ec))
+				// Check if the subpath exists using case-insensitive comparison.
+				// TheSuperHackers @bugfix bobtista 29/07/2026 Scan the working
+				// directory for the leading component of a relative path. It used to
+				// be copied through verbatim, so on a case-sensitive filesystem a
+				// literal such as "data\Scripts\SkirmishScripts.scb" never matched an
+				// on-disk "Data" and the open failed, leaving skirmish games with no
+				// scripts and no teams on Linux. Windows and macOS hid the bug behind
+				// a case-insensitive filesystem.
+				const std::filesystem::path scanDir = pathFixed.empty() ? std::filesystem::path(".") : pathFixed;
+				for (auto& entry : std::filesystem::directory_iterator(scanDir, ec))
 				{
 					if (strcasecmp(entry.path().filename().string().c_str(), p.string().c_str()) == 0)
 					{
