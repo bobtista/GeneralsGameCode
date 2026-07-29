@@ -1263,6 +1263,12 @@ Int parseMod(char *args[], Int num)
 
 		if (!TheLocalFileSystem->doesFileExist(modPath.str()))
 		{
+			// TheSuperHackers @tweak bobtista 29/07/2026 A mistyped mod name used to
+			// drop back to the base game silently in release builds, which looks just
+			// like a mod that loaded and changed nothing. Report it where a release
+			// build can see it, as failed archive mounts already do.
+			fprintf(stderr, "[ggc] mod not found, starting without it: %s\n", modPath.str());
+			fflush(stderr);
 			DEBUG_LOG(("Mod does not exist."));
 			return 2; // no such file/dir.
 		}
@@ -1271,6 +1277,8 @@ Int parseMod(char *args[], Int num)
 		struct _stat statBuf;
 		if (_stat(modPath.str(), &statBuf) != 0)
 		{
+			fprintf(stderr, "[ggc] mod could not be read, starting without it: %s\n", modPath.str());
+			fflush(stderr);
 			DEBUG_LOG(("Could not _stat() mod."));
 			return 2; // could not stat the file/dir.
 		}
