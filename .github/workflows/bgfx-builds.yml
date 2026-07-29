@@ -74,7 +74,22 @@ jobs:
           # "latest", which is not the same thing as the newest release. Asking for
           # releases/latest/download resolves to whatever autobuild-* published most
           # recently, and those carry versioned names only, so the pinned asset 404s.
-          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/$asset" -OutFile ffmpeg.zip
+          $uri = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/$asset"
+          # Every autobuild deletes and re-uploads those alias assets, so a download
+          # landing in that window 404s on a file that exists minutes either side.
+          # Retry instead of failing the build over a few seconds of republishing.
+          $downloaded = $false
+          foreach ($attempt in 1..5) {
+            try {
+              Invoke-WebRequest -Uri $uri -OutFile ffmpeg.zip
+              $downloaded = $true
+              break
+            } catch {
+              Write-Host "FFmpeg download attempt $attempt/5 failed: $($_.Exception.Message)"
+              if ($attempt -lt 5) { Start-Sleep -Seconds 30 }
+            }
+          }
+          if (-not $downloaded) { throw "FFmpeg download failed after 5 attempts: $uri" }
           Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg-tmp
           $inner = Get-ChildItem -Directory ffmpeg-tmp | Select-Object -First 1
           New-Item -ItemType Directory -Force -Path .deps-cache | Out-Null
