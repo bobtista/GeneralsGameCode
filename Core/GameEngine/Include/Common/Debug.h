@@ -223,10 +223,14 @@ DEBUG_EXTERN_C void ReleaseCrashLocalized(const AsciiString& p, const AsciiStrin
 class SimpleProfiler
 {
 private:
-	__int64 m_freq;
-	__int64 m_startThisSession;
-	__int64 m_totalThisSession;
-	__int64 m_totalAllSessions;
+	// TheSuperHackers @build bobtista 29/07/2026 __int64 is an MSVC extension, so every
+	// non-Windows build with debug profiling enabled failed to compile here. long long is
+	// the same 64-bit signed type and matches the LARGE_INTEGER::QuadPart these members
+	// are cast to when queried.
+	long long m_freq;
+	long long m_startThisSession;
+	long long m_totalThisSession;
+	long long m_totalAllSessions;
 	int			m_numSessions;
 
 public:
