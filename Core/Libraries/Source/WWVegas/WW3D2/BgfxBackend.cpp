@@ -4004,10 +4004,15 @@ static void SubmitSceneComposite()
     // Texel size of the (supersampled) scene color the composite samples.
     const float texW = g_device.sceneRenderWidth > 0 ? static_cast<float>(g_device.sceneRenderWidth) : static_cast<float>(g_device.width);
     const float texH = g_device.sceneRenderHeight > 0 ? static_cast<float>(g_device.sceneRenderHeight) : static_cast<float>(g_device.height);
+    // TheSuperHackers @bugfix 30/07/2026 .z carries the V-flip flag for the
+    // composite. Render targets are bottom-left origin on GLES and WebGL but top-left on
+    // DX11 and Metal, so without it the whole 3D scene comes out of this pass upside down
+    // on those renderers, while the UI - drawn straight to the backbuffer - stays the right
+    // way up. The cap decides it, so DX11 and Metal pass 0.0 and are unaffected.
     const float postTexelSize[4] = {
         1.0f / texW,
         1.0f / texH,
-        0.0f,
+        bgfx::getCaps()->originBottomLeft ? 1.0f : 0.0f,
         0.0f
     };
     if (bgfx::isValid(g_uniforms.uPostParams))
