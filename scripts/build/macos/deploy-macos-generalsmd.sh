@@ -177,6 +177,13 @@ exec "${script_dir}/generalszh" "$@"
 WRAPPER
 chmod +x "${runtime_dir}/run.sh"
 
+# Ship the default render settings (sun shadow map on) unless one already exists,
+# so a local re-deploy never clobbers the user's own Bgfx.ini.
+mkdir -p "${runtime_dir}/Data/INI"
+if [[ ! -e "${runtime_dir}/Data/INI/Bgfx.ini" ]]; then
+    cp "${repo_root}/scripts/build/dist/Bgfx.ini" "${runtime_dir}/Data/INI/Bgfx.ini"
+fi
+
 echo ""
 echo "Deploy complete"
 echo "   Executable: ${runtime_dir}/${binary_name}"
