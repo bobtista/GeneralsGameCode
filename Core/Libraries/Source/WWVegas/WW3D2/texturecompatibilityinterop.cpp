@@ -36,7 +36,7 @@
 #include "surfaceclass.h"
 #include "texture.h"
 #include "textureloader.h"
-#include "ww3d.h"
+#include "WW3D2/ww3d.h"
 
 namespace
 {

@@ -79,8 +79,8 @@
 // camera's view + projection matrices through the active render backend
 // instead of straight to DX8Wrapper, so the bgfx backend can capture
 // them. The dx8 backend forwards to DX8Wrapper unchanged.
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "WW3D2/RenderBackend.h"
+#include "WW3D2/IRenderBackend.h"
 
 
 /***********************************************************************************************

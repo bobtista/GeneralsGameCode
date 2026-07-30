@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "legacyd3dmatrix.h"
+#include "WWMath/legacyd3dmatrix.h"
 
 #if !defined(GGC_RENDER_BACKEND_BGFX)
 struct IDirect3DBaseTexture8;
