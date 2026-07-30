@@ -11,7 +11,7 @@
 #pragma once
 
 #include "always.h"
-#include "wwdebug.h"
+#include "WWDebug/wwdebug.h"
 #include "IRenderBackend.h"
 #include "RenderBufferTypes.h"
 

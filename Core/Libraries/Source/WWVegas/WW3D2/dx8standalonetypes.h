@@ -23,7 +23,7 @@
 #endif
 
 #include "WWLib/win.h"
-#include "legacyd3dmatrix.h"
+#include "WWMath/legacyd3dmatrix.h"
 
 #include <cstdint>
 
