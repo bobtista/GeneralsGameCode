@@ -45,5 +45,9 @@ exec "${here}/generalszh" "$@"
 EOF
 chmod +x "${stage_dir}/run.sh"
 
+# Ship the default render settings (sun shadow map on) unless one already exists.
+mkdir -p "${stage_dir}/Data/INI"
+cp -n "${repo_root}/scripts/build/dist/Bgfx.ini" "${stage_dir}/Data/INI/Bgfx.ini"
+
 echo "Staged Linux build to: ${stage_dir}"
 ls -la "${stage_dir}" "${stage_dir}/libs"
