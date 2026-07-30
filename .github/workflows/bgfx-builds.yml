@@ -141,6 +141,11 @@ jobs:
             "built: $((Get-Date).ToUniversalTime().ToString('o'))"
           ) | Set-Content "$stage/BUILD_INFO.txt"
 
+          # Ship the default render settings (sun shadow map on). The exe-only zip
+          # excludes Data\ via the $slim filter below.
+          New-Item -ItemType Directory -Force -Path "$stage/Data/INI" | Out-Null
+          Copy-Item "scripts/build/dist/Bgfx.ini" "$stage/Data/INI/Bgfx.ini"
+
           Compress-Archive -Path "$stage/*" -DestinationPath "${{ matrix.zip }}.zip"
 
           $slim = Get-ChildItem "$stage/*" -Include "*.exe","*.pdb","BUILD_INFO.txt"
@@ -253,6 +258,8 @@ jobs:
           | GeneralsZH-macos-arm64.zip | macOS Apple Silicon: generalszh + bundled dylibs + run.sh |
 
           You need the retail Generals + Zero Hour game data. Unzip next to your \`.big\` files (Windows) or place the .big files in the unzipped folder and start with \`run.sh\` (macOS).
+
+          Each build ships a default \`Data/INI/Bgfx.ini\` with the sun shadow map enabled (so object shadows render on all backends); delete it for pure engine defaults, or edit it to change render settings.
 
           - Windows: requires the VC++ 2022 x64 redistributable.
           - macOS: the binary is ad-hoc signed; after unzipping run \`xattr -dr com.apple.quarantine .\` inside the folder so Gatekeeper lets it launch.
