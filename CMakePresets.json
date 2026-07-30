@@ -186,6 +186,7 @@
             "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0",
                 "RTS_BUILD_GENERALS": "OFF",
                 "RTS_BUILD_GENERALS_TOOLS": "OFF",
                 "RTS_BUILD_ZEROHOUR": "ON",
