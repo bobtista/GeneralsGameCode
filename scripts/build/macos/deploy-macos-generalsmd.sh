@@ -8,6 +8,11 @@ set -euo pipefail
 #
 # Default runtime dir: ~/TheSuperHackers/GeneralsZH/
 # Override with GGC_MACOS_RUNTIME_DIR=/path/to/install/dir
+#
+# Set GGC_MACOS_DATA_DIR=/path/to/retail/archives to have the wrapper export that path
+# as $CNC_ZH_INSTALLPATH, so a runtime directory holding only the engine can mount
+# archives kept elsewhere instead of needing its own copy. Left unset, the wrapper says
+# nothing about it and the archives beside the binary are used as before.
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 preset="${1:-${GGC_MACOS_PRESET:-macos-generalsmd-sdl3-bgfx}}"
@@ -173,6 +178,20 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 cd "${script_dir}"
 export DYLD_LIBRARY_PATH="${script_dir}:${DYLD_LIBRARY_PATH:-}"
+WRAPPER
+
+if [[ -n "${GGC_MACOS_DATA_DIR:-}" ]]; then
+    # The trailing slash is required: the engine concatenates this root with each archive
+    # filename without inserting a separator, so a bare directory yields "/path/toINIZH.big"
+    # and every archive silently fails to open.
+    cat >> "${runtime_dir}/run.sh" <<WRAPPER_DATA
+# Retail archive root, honoured by GetStringFromRegistry on non-Windows. An explicit
+# value wins, so a single deploy can be pointed at different data without redeploying.
+export CNC_ZH_INSTALLPATH="\${CNC_ZH_INSTALLPATH:-${GGC_MACOS_DATA_DIR%/}/}"
+WRAPPER_DATA
+fi
+
+cat >> "${runtime_dir}/run.sh" <<'WRAPPER'
 exec "${script_dir}/generalszh" "$@"
 WRAPPER
 chmod +x "${runtime_dir}/run.sh"
@@ -192,4 +211,8 @@ echo ""
 echo "Run with:"
 echo "  ${runtime_dir}/run.sh"
 echo ""
-echo "Place your retail Generals + Zero Hour .big files in ${runtime_dir}/ before launching."
+if [[ -n "${GGC_MACOS_DATA_DIR:-}" ]]; then
+    echo "Retail archives are read from ${GGC_MACOS_DATA_DIR%/}/ via \$CNC_ZH_INSTALLPATH."
+else
+    echo "Place your retail Generals + Zero Hour .big files in ${runtime_dir}/ before launching."
+fi
