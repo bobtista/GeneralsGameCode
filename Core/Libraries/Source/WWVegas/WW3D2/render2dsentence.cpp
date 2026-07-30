@@ -42,7 +42,7 @@
 #include "IRenderBackend.h"
 #include "RenderBackend.h"
 #if !defined(__APPLE__)
-#include "ww3d.h"
+#include "WW3D2/ww3d.h"
 #endif
 
 #if defined(__APPLE__)
