@@ -11,9 +11,9 @@
 #pragma once
 
 #include "fixedfunctionlegacytypes.h"
-#include "shader.h"
+#include "WW3D2/shader.h"
 #include "texture.h"
-#include "vertmaterial.h"
+#include "WW3D2/vertmaterial.h"
 
 const unsigned MAX_TEXTURE_STAGES=8;
 const unsigned MAX_VERTEX_STREAMS=2;

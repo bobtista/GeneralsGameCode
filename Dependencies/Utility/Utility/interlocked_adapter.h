@@ -28,4 +28,23 @@
 
 	#include <windows.h>
 
+#elif !defined(_WIN32)
+
+inline PVOID InterlockedExchangePointer(PVOID volatile *Target, PVOID Value)
+{
+	return __atomic_exchange_n(Target, Value, __ATOMIC_SEQ_CST);
+}
+
+inline PVOID InterlockedCompareExchangePointer(PVOID volatile *Destination, PVOID Exchange, PVOID Comparand)
+{
+	__atomic_compare_exchange_n(
+		Destination,
+		&Comparand,
+		Exchange,
+		false,
+		__ATOMIC_SEQ_CST,
+		__ATOMIC_SEQ_CST);
+	return Comparand;
+}
+
 #endif
