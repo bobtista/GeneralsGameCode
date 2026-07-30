@@ -50,6 +50,9 @@ Here's an overview of our current focus and future plans
 You need the original *Command & Conquer: Generals* and *Zero Hour* game data to play. The easiest way is through
 *Command & Conquer The Ultimate Collection* on [Steam](https://store.steampowered.com/bundle/39394).
 
+For the experimental rolling Windows x64, macOS Apple Silicon, and Linux x86_64 bgfx builds from this fork, see
+[Installing and Playing](INSTALLING.md).
+
 **Windows:** Download the latest build from [GitHub Releases](https://github.com/TheSuperHackers/GeneralsGameCode/releases),
 extract into your game directory, and follow the [Wiki](https://github.com/TheSuperHackers/GeneralsGameCode/wiki) instructions.
 
