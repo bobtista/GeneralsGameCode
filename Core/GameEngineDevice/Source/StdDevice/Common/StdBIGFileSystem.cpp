@@ -314,6 +314,15 @@ void StdBIGFileSystem::closeAllFiles() {
 
 Bool StdBIGFileSystem::loadBigFilesFromDirectory(AsciiString dir, AsciiString fileMask, Bool overwrite) {
 
+	// TheSuperHackers @bugfix bobtista 30/07/2026 Normalize external archive
+	// roots before getFileListInDirectory concatenates the root and filename.
+	// Environment paths without a trailing separator otherwise enumerate the
+	// directory but try to open "/path/to/dataINIZH.big".
+	if (!dir.isEmpty() && !dir.endsWith("/") && !dir.endsWith("\\"))
+	{
+		dir.concat('/');
+	}
+
 	FilenameList filenameList;
 	TheLocalFileSystem->getFileListInDirectory(dir, "", fileMask, filenameList, TRUE);
 	std::vector<AsciiString> sortedFiles(filenameList.begin(), filenameList.end());
