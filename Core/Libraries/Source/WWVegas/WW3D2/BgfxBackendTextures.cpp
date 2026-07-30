@@ -37,7 +37,7 @@
 
 #include "texture.h"
 #include "surfaceclass.h"
-#include "wwdebug.h"
+#include "WWDebug/wwdebug.h"
 
 #include "BgfxBackend.h"
 #include "BgfxBackendState.h"

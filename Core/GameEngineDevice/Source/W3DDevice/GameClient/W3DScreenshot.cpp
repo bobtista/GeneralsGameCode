@@ -20,8 +20,11 @@
 #include "Common/GlobalData.h"
 #include "GameClient/GameText.h"
 #include "GameClient/InGameUI.h"
+#include "WW3D2/RenderBackend.h"
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/surfaceclass.h"
+#endif
 #include "WWLib/mpsc_intrusive_queue.h"
 #include <stb_image_write.h>
 
@@ -166,6 +169,29 @@ void W3D_TakeCompressedScreenshot(ScreenshotFormat format, Int jpegQuality)
 	sprintf(leafname, "sshot_%04d%02d%02d_%02d%02d%02d_%03d.%s",
 		st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds, extension);
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// bgfx performs the back-buffer readback asynchronously and currently exposes PNG as its
+	// native compressed screenshot format. Keep F12 functional when it requests the legacy JPEG
+	// format by emitting PNG instead; Ctrl+F12 already requests PNG explicitly.
+	char pathname[_MAX_PATH];
+	strlcpy(pathname, TheGlobalData->getPath_UserData().str(), ARRAY_SIZE(pathname));
+	strlcat(pathname, "Screenshots\\", ARRAY_SIZE(pathname));
+	CreateDirectory(pathname, nullptr);
+
+	char* extensionStart = strrchr(leafname, '.');
+	if (extensionStart != nullptr)
+	{
+		strlcpy(extensionStart + 1, "png", ARRAY_SIZE(leafname) - (extensionStart + 1 - leafname));
+	}
+	strlcat(pathname, leafname, ARRAY_SIZE(pathname));
+
+	if (g_renderBackend != nullptr && g_renderBackend->Request_Native_Screen_Shot(pathname))
+	{
+		UnicodeString ufileName;
+		ufileName.translate(leafname);
+		TheInGameUI->message(TheGameText->fetch("GUI:ScreenCapture"), ufileName.str());
+	}
+#else
 	// TheSuperHackers @bugfix xezon 21/05/2025 Get the back buffer and create a copy of the surface.
 	// Originally this code took the front buffer and tried to lock it. This does not work when the
 	// render view clips outside the desktop boundaries. It crashed the game.
@@ -233,4 +259,5 @@ void W3D_TakeCompressedScreenshot(ScreenshotFormat format, Int jpegQuality)
 	{
 		delete threadData;
 	}
+#endif
 }

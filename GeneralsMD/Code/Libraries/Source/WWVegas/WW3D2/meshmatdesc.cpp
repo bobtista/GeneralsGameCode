@@ -42,8 +42,8 @@
 #include "WWLib/realcrc.h"
 #include "WW3D2/ww3dcolor.h"
 #include "meshmdl.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "WW3D2/RenderBackend.h"
+#include "WW3D2/IRenderBackend.h"
 
 
 /**************************************************************************************************
