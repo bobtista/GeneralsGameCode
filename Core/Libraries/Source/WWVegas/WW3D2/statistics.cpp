@@ -21,8 +21,8 @@
 #include "WWLib/simplevec.h"
 #include "textureloader.h"
 #include "texture.h"
-#include "shader.h"
-#include "ww3d.h"
+#include "WW3D2/shader.h"
+#include "WW3D2/ww3d.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
