@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# TheSuperHackers @build bobtista 28/04/2026 Flat-directory deploy for the
-# GeneralsMD macOS build. Copies the built binary into a runtime directory next
-# to the user's .big assets, bundles its dylib dependencies via dylibbundler,
-# and writes a run.sh wrapper.
+# TheSuperHackers @build bobtista 28/04/2026 Deploy the GeneralsMD macOS build.
+# Copies the built binary into a runtime directory next to the user's .big
+# assets, bundles its dylib dependencies via dylibbundler, and writes a run.sh
+# wrapper.
 #
 # Default runtime dir: ~/TheSuperHackers/GeneralsZH/
 # Override with GGC_MACOS_RUNTIME_DIR=/path/to/install/dir
@@ -181,13 +181,10 @@ export DYLD_LIBRARY_PATH="${script_dir}:${DYLD_LIBRARY_PATH:-}"
 WRAPPER
 
 if [[ -n "${GGC_MACOS_DATA_DIR:-}" ]]; then
-    # The trailing slash is required: the engine concatenates this root with each archive
-    # filename without inserting a separator, so a bare directory yields "/path/toINIZH.big"
-    # and every archive silently fails to open.
     cat >> "${runtime_dir}/run.sh" <<WRAPPER_DATA
 # Retail archive root, honoured by GetStringFromRegistry on non-Windows. An explicit
 # value wins, so a single deploy can be pointed at different data without redeploying.
-export CNC_ZH_INSTALLPATH="\${CNC_ZH_INSTALLPATH:-${GGC_MACOS_DATA_DIR%/}/}"
+export CNC_ZH_INSTALLPATH="\${CNC_ZH_INSTALLPATH:-${GGC_MACOS_DATA_DIR%/}}"
 WRAPPER_DATA
 fi
 
@@ -203,6 +200,11 @@ if [[ ! -e "${runtime_dir}/Data/INI/Bgfx.ini" ]]; then
     cp "${repo_root}/scripts/build/dist/Bgfx.ini" "${runtime_dir}/Data/INI/Bgfx.ini"
 fi
 
+# Keep the distributed runtime self-contained and preserve the license and
+# installation instructions beside the binary.
+cp -f "${repo_root}/LICENSE.md" "${runtime_dir}/LICENSE.md"
+cp -f "${repo_root}/INSTALLING.md" "${runtime_dir}/INSTALLING.md"
+
 echo ""
 echo "Deploy complete"
 echo "   Executable: ${runtime_dir}/${binary_name}"
@@ -212,7 +214,7 @@ echo "Run with:"
 echo "  ${runtime_dir}/run.sh"
 echo ""
 if [[ -n "${GGC_MACOS_DATA_DIR:-}" ]]; then
-    echo "Retail archives are read from ${GGC_MACOS_DATA_DIR%/}/ via \$CNC_ZH_INSTALLPATH."
+    echo "Retail archives are read from ${GGC_MACOS_DATA_DIR%/} via \$CNC_ZH_INSTALLPATH."
 else
     echo "Place your retail Generals + Zero Hour .big files in ${runtime_dir}/ before launching."
 fi
