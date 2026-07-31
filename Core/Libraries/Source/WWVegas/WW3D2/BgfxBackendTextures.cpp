@@ -337,6 +337,18 @@ static bgfx::TextureFormat::Enum GetBgfxTextureUploadFormat(WW3DFormat fmt)
         // matte pixels used by projected decals such as spy satellite grids.
         return bgfx::TextureFormat::BGRA8;
     }
+#if !defined(_WIN32)
+    if (fmt == WW3D_FORMAT_A1R5G5B5)
+    {
+        // TheSuperHackers @bugfix 30/07/2026 BGR5A1 is not a native GLES
+        // format. Emitting it leaves bgfx to convert on upload, which over-reads the
+        // source buffer, and what reaches the screen is the terrain atlas - the game's
+        // only large A1R5G5B5 surface - rendered as coloured speckle. Expand to BGRA8
+        // up front instead, exactly like the A4R4G4B4 path above. Windows keeps the
+        // native 16-bit upload.
+        return bgfx::TextureFormat::BGRA8;
+    }
+#endif
     return TranslateWW3DFormat(fmt);
 }
 
@@ -513,6 +525,36 @@ static void ExpandA4R4G4B4ToBGRA8(const uint8_t * srcRow, unsigned srcPitch,
     }
 }
 
+// TheSuperHackers @bugfix 30/07/2026 Companion to the A1R5G5B5 case in
+// GetBgfxTextureUploadFormat: widen each 5-bit channel to 8 bits (replicating the top
+// bits so 0x1f maps to 0xff) and the 1-bit alpha to fully opaque or transparent.
+static void ExpandA1R5G5B5ToBGRA8(const uint8_t * srcRow, unsigned srcPitch,
+    unsigned width, unsigned height, const bgfx::Memory * mem)
+{
+    uint8_t * dst = mem->data;
+    for (unsigned y = 0; y < height; ++y)
+    {
+        const uint16_t * src = reinterpret_cast<const uint16_t *>(srcRow);
+        for (unsigned x = 0; x < width; ++x)
+        {
+            const uint16_t p = src[x];
+            const uint8_t a = (p & 0x8000) ? 0xff : 0x00;
+            const uint8_t r5 = static_cast<uint8_t>((p >> 10) & 0x1f);
+            const uint8_t g5 = static_cast<uint8_t>((p >> 5) & 0x1f);
+            const uint8_t b5 = static_cast<uint8_t>(p & 0x1f);
+            const uint8_t r8 = static_cast<uint8_t>((r5 << 3) | (r5 >> 2));
+            const uint8_t g8 = static_cast<uint8_t>((g5 << 3) | (g5 >> 2));
+            const uint8_t b8 = static_cast<uint8_t>((b5 << 3) | (b5 >> 2));
+            dst[0] = b8;
+            dst[1] = g8;
+            dst[2] = r8;
+            dst[3] = a;
+            dst += 4;
+        }
+        srcRow += srcPitch;
+    }
+}
+
 static void DecodeRgb565(uint16_t value, uint8_t *rgb)
 {
     rgb[0] = static_cast<uint8_t>(((value >> 11) & 0x1F) * 255 / 31);
@@ -662,9 +704,13 @@ static bool IsTerrainAtlasTexture(TextureClass * tex2d,
 	// while bgfx creates a full mip chain whenever mips are enabled. Upload a
 		// complete atlas-safe chain only for textures explicitly tagged by the
 			// terrain atlas builder.
+		// TheSuperHackers @bugfix 30/07/2026 Also accept the format the
+		// atlas is expanded to off Windows (see GetBgfxTextureUploadFormat), or the
+		// terrain would silently lose its atlas-safe mip chain there.
 		return tex2d != nullptr
 			&& sourceFmt == WW3D_FORMAT_A1R5G5B5
-			&& bgfxFmt == bgfx::TextureFormat::BGR5A1
+			&& (bgfxFmt == bgfx::TextureFormat::BGR5A1
+				|| bgfxFmt == bgfx::TextureFormat::BGRA8)
 			&& tex2d->Has_Atlas_Regions();
 }
 
@@ -935,6 +981,12 @@ static bool CopyTextureLevel(TextureClass * tex2d,
     {
         ExpandA4R4G4B4ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, mem);
     }
+    else if (mip.Format == WW3D_FORMAT_A1R5G5B5
+        && bgfxFmt == bgfx::TextureFormat::BGRA8
+        && !isCompressed)
+    {
+        ExpandA1R5G5B5ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, mem);
+    }
     else if (expandDXT5ToBGRA8)
     {
         ExpandDXT5ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, mem->data);
@@ -974,9 +1026,16 @@ static bool CopyTextureLevel(TextureClass * tex2d,
     return true;
 }
 
+// TheSuperHackers @bugfix 30/07/2026 The atlas is filtered as 16-bit
+// A1R5G5B5 throughout - that is what the tile-aware mip builder works on - but off
+// Windows the texture itself is created as BGRA8 (see GetBgfxTextureUploadFormat), so
+// every level has to be widened before it is handed to bgfx. Uploading the 16-bit
+// buffer into a 32-bit texture is what left the terrain as coloured speckle.
 static bool UploadTerrainAtlasMips(TextureClass * tex2d,
-	bgfx::TextureHandle h, const std::vector<TextureBaseClass::TextureMipSnapshot> & mips)
+	bgfx::TextureHandle h, const std::vector<TextureBaseClass::TextureMipSnapshot> & mips,
+	bgfx::TextureFormat::Enum bgfxFmt)
 {
+	const bool expandToBGRA8 = (bgfxFmt == bgfx::TextureFormat::BGRA8);
 	std::vector<uint16_t> prev;
 	unsigned prevWidth = 0;
 	unsigned prevHeight = 0;
@@ -987,13 +1046,24 @@ static bool UploadTerrainAtlasMips(TextureClass * tex2d,
 		const bgfx::Memory * mem = nullptr;
 		uint16_t mipWidth = 0;
 		uint16_t mipHeight = 0;
-		if (!CopyTextureLevel(tex2d, bgfx::TextureFormat::BGR5A1, mips[mip], mip,
+		// CopyTextureLevel expands A1R5G5B5 to the wide format itself, so ask it for
+		// whatever is actually being uploaded rather than converting a second buffer
+		// afterwards - bgfx has no way to hand an unused allocation back.
+		if (!CopyTextureLevel(tex2d, bgfxFmt, mips[mip], mip,
 							  &mem, &mipWidth, &mipHeight))
 		{
 			return false;
 		}
-		prev.resize(mipWidth * mipHeight);
-		std::memcpy(&prev[0], mem->data, prev.size() * sizeof(uint16_t));
+		// The tile-aware mip builder below works on A1R5G5B5 whatever gets uploaded,
+		// so keep its 16-bit input from the source snapshot, honouring its pitch.
+		const TextureBaseClass::TextureMipSnapshot & srcMip = mips[mip];
+		prev.resize(static_cast<size_t>(mipWidth) * mipHeight);
+		for (unsigned y = 0; y < mipHeight; ++y)
+		{
+			std::memcpy(&prev[static_cast<size_t>(y) * mipWidth],
+				&srcMip.Data[static_cast<size_t>(y) * srcMip.Pitch],
+				static_cast<size_t>(mipWidth) * sizeof(uint16_t));
+		}
 		prevWidth = mipWidth;
 		prevHeight = mipHeight;
 		bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
@@ -1014,10 +1084,23 @@ static bool UploadTerrainAtlasMips(TextureClass * tex2d,
 		BuildTerrainAtlasMip(prev, prevWidth, prevHeight, next, validMask,
 			nextWidth, nextHeight, tex2d->Get_Atlas_Regions(), mip - 1);
 		BleedTerrainAtlasMipGaps(next, validMask, nextWidth, nextHeight);
-		const bgfx::Memory * nextMem = bgfx::copy(&next[0], static_cast<uint32_t>(next.size() * sizeof(uint16_t)));
+		const bgfx::Memory * nextMem = nullptr;
+		unsigned nextBytesPerPixel = static_cast<unsigned>(sizeof(uint16_t));
+		if (expandToBGRA8)
+		{
+			nextMem = bgfx::alloc(static_cast<uint32_t>(nextWidth) * nextHeight * 4);
+			ExpandA1R5G5B5ToBGRA8(reinterpret_cast<const uint8_t *>(&next[0]),
+				static_cast<unsigned>(nextWidth * sizeof(uint16_t)),
+				nextWidth, nextHeight, nextMem);
+			nextBytesPerPixel = 4;
+		}
+		else
+		{
+			nextMem = bgfx::copy(&next[0], static_cast<uint32_t>(next.size() * sizeof(uint16_t)));
+		}
 		bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
 			static_cast<uint16_t>(nextWidth), static_cast<uint16_t>(nextHeight),
-			nextMem, static_cast<uint16_t>(nextWidth * sizeof(uint16_t)));
+			nextMem, static_cast<uint16_t>(nextWidth * nextBytesPerPixel));
 		g_stats.textureUploads++;
 		prev.swap(next);
 		prevWidth = nextWidth;
@@ -1394,7 +1477,7 @@ static bool UploadBgfxTextureMips(TextureClass *tex2d,
 {
     if (plan.terrainAtlasSafeMips)
     {
-        return UploadTerrainAtlasMips(tex2d, handle, mips);
+        return UploadTerrainAtlasMips(tex2d, handle, mips, plan.uploadFormat);
     }
     if (plan.packedMeshAtlas)
     {
