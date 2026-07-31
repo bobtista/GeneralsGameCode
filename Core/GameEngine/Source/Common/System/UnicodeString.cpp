@@ -415,6 +415,17 @@ static void translateWideFormat(const WideChar* in, WideChar* out, size_t outCap
 			}
 			++p;
 		}
+		// TheSuperHackers @bugfix 29/07/2026 Hold the length modifiers back until
+		// the conversion character is known, because an 'h' on s/c has to be dropped rather
+		// than passed through. MSVC spells a narrow argument %hs/%hc, but musl (Emscripten)
+		// rejects that outright: vswprintf returns -1 and the whole string comes out empty.
+		// GameText formats its missing-label placeholder that way ("MISSING: '%hs'"), so any
+		// INI naming a label the string table lacks - retail CommandMap.ini asks for
+		// GUI:SaveView5, which generals.csf does not define - fetched an empty string and
+		// INI::parseAndTranslateLabel threw, killing the engine during startup. Modifiers on
+		// other conversions (%hd, %zu) still pass through untouched.
+		WideChar lengthMods[8];
+		size_t lengthModCount = 0;
 		Bool wideLen = FALSE;
 		Bool narrowLen = FALSE;
 		while (*p != 0 && isLengthModChar(*p))
@@ -433,9 +444,9 @@ static void translateWideFormat(const WideChar* in, WideChar* out, size_t outCap
 			{
 				wideLen = TRUE;
 			}
-			if (o + 1 < outCap)
+			if (lengthModCount < sizeof(lengthMods) / sizeof(lengthMods[0]))
 			{
-				out[o++] = emit;
+				lengthMods[lengthModCount++] = emit;
 			}
 			++p;
 		}
@@ -446,9 +457,21 @@ static void translateWideFormat(const WideChar* in, WideChar* out, size_t outCap
 		}
 		if (c == L's' || c == L'c')
 		{
-			if (!wideLen && !narrowLen && o + 1 < outCap)
+			// %hs/%hc mean narrow, which is exactly what a bare %s/%c already means to libc,
+			// so the modifier is dropped entirely. Anything else wide keeps its 'l'.
+			if (!narrowLen)
 			{
-				out[o++] = L'l';
+				for (size_t i = 0; i < lengthModCount; ++i)
+				{
+					if (o + 1 < outCap)
+					{
+						out[o++] = lengthMods[i];
+					}
+				}
+				if (!wideLen && o + 1 < outCap)
+				{
+					out[o++] = L'l';
+				}
 			}
 			if (o + 1 < outCap)
 			{
@@ -466,6 +489,13 @@ static void translateWideFormat(const WideChar* in, WideChar* out, size_t outCap
 		}
 		else
 		{
+			for (size_t i = 0; i < lengthModCount; ++i)
+			{
+				if (o + 1 < outCap)
+				{
+					out[o++] = lengthMods[i];
+				}
+			}
 			if (o + 1 < outCap)
 			{
 				out[o++] = c;
