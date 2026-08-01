@@ -109,27 +109,25 @@ inline int _wtoi(const wchar_t *str)
 // itoa is non-standard; some Win headers expose it. Provide a snprintf-backed
 // version so legacy callers keep working.
 #include <cstdio>
-inline char *itoa(int value, char *buffer, int radix)
+// TheSuperHackers @bugfix bobtista 01/08/2026 Take the destination as an array reference so the
+// bound comes from the caller's buffer instead of an assumed 16 bytes. glibc's _FORTIFY_SOURCE
+// compares the snprintf bound against the known object size and aborts the process when the
+// bound is larger, so the fixed 16 killed every caller with a smaller buffer - notably the
+// char suffix[8] in OpenContain's transport exit path, which aborted on every unload.
+template <size_t N>
+inline char *itoa(int value, char (&buffer)[N], int radix)
 {
-    if (buffer == nullptr)
+    if (radix == 16)
     {
-        return nullptr;
-    }
-    if (radix == 10)
-    {
-        std::snprintf(buffer, 16, "%d", value);
-    }
-    else if (radix == 16)
-    {
-        std::snprintf(buffer, 16, "%x", value);
+        std::snprintf(buffer, N, "%x", value);
     }
     else if (radix == 8)
     {
-        std::snprintf(buffer, 16, "%o", value);
+        std::snprintf(buffer, N, "%o", value);
     }
     else
     {
-        std::snprintf(buffer, 16, "%d", value);
+        std::snprintf(buffer, N, "%d", value);
     }
     return buffer;
 }
