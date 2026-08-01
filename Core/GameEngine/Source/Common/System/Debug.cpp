@@ -61,6 +61,7 @@
 #include "Common/CommandLine.h"
 #include "Common/Debug.h"
 #include "Common/CRCDebug.h"
+#include "GgcRuntimeFlags.h"
 #include "Common/UnicodeString.h"
 #include "GameClient/ClientInstance.h"
 #include "GameClient/GameText.h"
@@ -116,8 +117,8 @@ static int theDebugFlags = 0;
 // TheSuperHackers @performance bobtista 14/06/2026 When false (default) the debug log is
 // buffered and only flushed on crash/assert/shutdown. Flushing every line turned each
 // DEBUG_LOG into a blocking disk write, which crippled debug-build framerate on log-heavy
-// frames. Flip to true (e.g. from the debugger) for per-line durability while chasing a
-// hard crash that bypasses the handled crash paths.
+// frames. Set GGC_LOG_FLUSH=1 for per-line durability while chasing a hard crash that
+// bypasses the handled crash paths, such as a libc abort.
 static bool theFlushDebugLogEachLine = false;
 static DWORD theMainThreadID = 0;
 // ----------------------------------------------------------------------------
@@ -383,6 +384,11 @@ void DebugInit(int flags)
 		theMainThreadID = GetCurrentThreadId();
 
 	#ifdef DEBUG_LOGGING
+
+		// TheSuperHackers @feature bobtista 01/08/2026 A crash that never reaches a handled path,
+		// such as a libc abort, dies with the last buffered lines still unwritten. Let a remote
+		// tester trade framerate for a complete log tail without needing a debugger.
+		theFlushDebugLogEachLine = GgcFlags::Enabled(GgcFlag_LogFlush);
 
 		// TheSuperHackers @info Debug initialization can happen very early.
 		// Determine the client instance id before creating the log file with an instance specific name.
