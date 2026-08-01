@@ -140,6 +140,7 @@ enum GgcFlagType
 	X(GgcFlag_TriggerWorld, "GGC_TRIGGER_WORLD", NULL, GgcTier_Harness, GgcFlagType_String, 0, 0.0f, "world-coordinate target x,y[,z] for the auto-fired command or power") \
 	X(GgcFlag_TriggerDelayFrames, "GGC_TRIGGER_DELAY_FRAMES", NULL, GgcTier_Harness, GgcFlagType_Int, 90, 0.0f, "delay in frames before the auto-fired command or power fires") \
 	/* --- Diagnostics --- */ \
+	X(GgcFlag_LogFlush, "GGC_LOG_FLUSH", NULL, GgcTier_Diagnostic, GgcFlagType_Truthy, 0, 0.0f, "flush the debug log after every line so an unhandled crash keeps the tail") \
 	X(GgcFlag_Trace, "GGC_TRACE", NULL, GgcTier_Diagnostic, GgcFlagType_Presence, 0, 0.0f, "verbose [ggc] trace: init breadcrumbs, bgfx info lines, routing logs") \
 	X(GgcFlag_BgfxDebug, "GGC_BGFX_DEBUG", NULL, GgcTier_Diagnostic, GgcFlagType_Presence, 0, 0.0f, "enable bgfx debug/verbose init diagnostics") \
 	X(GgcFlag_BgfxPerfLog, "GGC_BGFX_PERF_LOG", NULL, GgcTier_Diagnostic, GgcFlagType_Presence, 0, 0.0f, "periodic perf-stats logging; numeric value overrides the emit interval") \
