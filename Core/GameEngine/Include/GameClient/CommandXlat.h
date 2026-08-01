@@ -89,7 +89,7 @@ private:
 	GameMessage::Type handlePickUpPrisonerCommand( Drawable *draw, Object *obj, CommandEvaluateType type );
 #endif
 	GameMessage::Type handleSetRallyPointCommand( const Coord3D *pos, CommandEvaluateType type );
-	GameMessage::Type handleImpossibleAttackHint( const Coord3D *pos );
+	GameMessage::Type handleInvalidShotCommand( const Coord3D *pos );
 	GameMessage::Type handleDefaultMoveCommand( Drawable *draw, Drawable *drawableInWay, const Coord3D *pos, CommandEvaluateType type );
 
 	virtual GameMessageDisposition translateGameMessage(const GameMessage *msg) override;

@@ -1579,28 +1579,6 @@ void CommandTranslator::resolveContextTarget( Drawable *&draw, Object *&obj, Dra
 	}
 }
 
-GameMessage::Type CommandTranslator::handleWaypointModeCommand( const Coord3D *pos, Drawable *draw, CommandEvaluateType type )
-{
-	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-
-	//Override any *other* commands with waypoint commands.
-	if( type == DO_COMMAND || type == EVALUATE_ONLY )
-	{
-		if( TheTerrainLogic )
-		{
-			msgType = issueMoveToLocationCommand( pos, draw, type );
-		}
-	}
-	else
-	{
-		msgType = GameMessage::MSG_ADD_WAYPOINT_HINT;
-		GameMessage* hintMessage = TheMessageStream->appendMessage( msgType );
-		hintMessage->appendLocationArgument( *pos );
-	}
-
-	return msgType;
-}
-
 void CommandTranslator::resolveGuiCommandTarget( const CommandButton *command, Drawable *&draw, Object *&obj )
 {
 	if( obj && obj->isKindOf( KINDOF_SHRUBBERY ) && !BitIsSet( command->getOptions(), ALLOW_SHRUBBERY_TARGET ) )
@@ -1655,10 +1633,31 @@ void CommandTranslator::resolveGuiCommandTarget( const CommandButton *command, D
 	}
 }
 
+GameMessage::Type CommandTranslator::handleWaypointModeCommand( const Coord3D *pos, Drawable *draw, CommandEvaluateType type )
+{
+	GameMessage::Type msgType = GameMessage::MSG_INVALID;
+
+	//Override any *other* commands with waypoint commands.
+	if( type == DO_COMMAND || type == EVALUATE_ONLY )
+	{
+		if( TheTerrainLogic )
+		{
+			msgType = issueMoveToLocationCommand( pos, draw, type );
+		}
+	}
+	else
+	{
+		msgType = GameMessage::MSG_ADD_WAYPOINT_HINT;
+		GameMessage* hintMessage = TheMessageStream->appendMessage( msgType );
+		hintMessage->appendLocationArgument( *pos );
+	}
+
+	return msgType;
+}
+
 GameMessage::Type CommandTranslator::handleGuiCommand( const CommandButton *command, Drawable *draw, Object *obj, const Coord3D *pos, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	resolveGuiCommandTarget( command, draw, obj );
 
@@ -1748,14 +1747,14 @@ GameMessage::Type CommandTranslator::handleGuiCommand( const CommandButton *comm
 		else
 		{
 			msgType = GameMessage::MSG_VALID_GUICOMMAND_HINT;
-			hintMessage = TheMessageStream->appendMessage( msgType );
+			GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 			hintMessage->appendObjectIDArgument( objectID );
 		}
 	}
 	else	// not currently valid
 	{
 		msgType = GameMessage::MSG_INVALID_GUICOMMAND_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( objectID );
 	}
 
@@ -1793,7 +1792,6 @@ GameMessage::Type CommandTranslator::handleSpecialPowerConstructCommand( const C
 GameMessage::Type CommandTranslator::handleSpecialPowerOverrideDestinationCommand( const Coord3D *pos, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -1816,7 +1814,7 @@ GameMessage::Type CommandTranslator::handleSpecialPowerOverrideDestinationComman
 
 		// generate a hint message
 		msgType = GameMessage::MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		TheMessageStream->appendMessage( msgType );
 
 	}
 
@@ -1826,7 +1824,6 @@ GameMessage::Type CommandTranslator::handleSpecialPowerOverrideDestinationComman
 GameMessage::Type CommandTranslator::handleResumeConstructionCommand( Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -1849,7 +1846,7 @@ GameMessage::Type CommandTranslator::handleResumeConstructionCommand( Object *ob
 
 		// generate a hint message
 		msgType = GameMessage::MSG_RESUME_CONSTRUCTION_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( obj->getID() );
 
 	}
@@ -1860,7 +1857,6 @@ GameMessage::Type CommandTranslator::handleResumeConstructionCommand( Object *ob
 GameMessage::Type CommandTranslator::handleDockCommand( Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	//
 	// The actual logic is simply to AIUpdate::dock with the target, the hint is the
@@ -1887,7 +1883,7 @@ GameMessage::Type CommandTranslator::handleDockCommand( Object *obj, CommandEval
 
 		// make the hint
 		msgType = GameMessage::MSG_DOCK_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( obj->getID() );
 
 	}
@@ -1898,7 +1894,6 @@ GameMessage::Type CommandTranslator::handleDockCommand( Object *obj, CommandEval
 GameMessage::Type CommandTranslator::handleRepairObjectCommand( Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -1921,7 +1916,7 @@ GameMessage::Type CommandTranslator::handleRepairObjectCommand( Object *obj, Com
 
 		// generate a hint message
 		msgType = GameMessage::MSG_DO_REPAIR_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( obj->getID() );
 
 	}
@@ -1932,7 +1927,6 @@ GameMessage::Type CommandTranslator::handleRepairObjectCommand( Object *obj, Com
 GameMessage::Type CommandTranslator::handleGetRepairedCommand( Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -1957,7 +1951,7 @@ GameMessage::Type CommandTranslator::handleGetRepairedCommand( Object *obj, Comm
 
 		// generate a hint message
 		msgType = GameMessage::MSG_GET_REPAIRED_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( obj->getID() );
 
 	}
@@ -1968,7 +1962,6 @@ GameMessage::Type CommandTranslator::handleGetRepairedCommand( Object *obj, Comm
 GameMessage::Type CommandTranslator::handleGetHealedCommand( Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -1991,7 +1984,7 @@ GameMessage::Type CommandTranslator::handleGetHealedCommand( Object *obj, Comman
 
 		// generate hint message
 		msgType = GameMessage::MSG_GET_HEALED_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType);
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType);
 		hintMessage->appendObjectIDArgument( obj->getID() );
 
 	}
@@ -2002,7 +1995,6 @@ GameMessage::Type CommandTranslator::handleGetHealedCommand( Object *obj, Comman
 GameMessage::Type CommandTranslator::handleHijackVehicleCommand( Drawable *draw, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -2016,7 +2008,7 @@ GameMessage::Type CommandTranslator::handleHijackVehicleCommand( Drawable *draw,
 	{
 
 		msgType = GameMessage::MSG_HIJACK_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( draw->getObject()->getID() );
 
 	}
@@ -2027,7 +2019,6 @@ GameMessage::Type CommandTranslator::handleHijackVehicleCommand( Drawable *draw,
 GameMessage::Type CommandTranslator::handleConvertToCarBombCommand( Drawable *draw, Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -2040,7 +2031,7 @@ GameMessage::Type CommandTranslator::handleConvertToCarBombCommand( Drawable *dr
 	{
 
 		msgType = GameMessage::MSG_CONVERT_TO_CARBOMB_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( obj->getID() );
 
 	}
@@ -2051,7 +2042,6 @@ GameMessage::Type CommandTranslator::handleConvertToCarBombCommand( Drawable *dr
 GameMessage::Type CommandTranslator::handleSabotageBuildingCommand( Drawable *draw, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -2060,7 +2050,7 @@ GameMessage::Type CommandTranslator::handleSabotageBuildingCommand( Drawable *dr
 	else
 	{
 		msgType = GameMessage::MSG_SABOTAGE_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( draw->getObject()->getID() );
 	}
 
@@ -2093,7 +2083,6 @@ GameMessage::Type CommandTranslator::handleSalvageCommand( Object *obj, CommandE
 GameMessage::Type CommandTranslator::handleEnterObjectCommand( Drawable *draw, Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -2106,7 +2095,7 @@ GameMessage::Type CommandTranslator::handleEnterObjectCommand( Drawable *draw, O
 	{
 
 		msgType = GameMessage::MSG_ENTER_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( obj->getID() );
 	}
 
@@ -2116,7 +2105,6 @@ GameMessage::Type CommandTranslator::handleEnterObjectCommand( Drawable *draw, O
 GameMessage::Type CommandTranslator::handleAttackObjectCommand( Drawable *draw, Object *obj, CommandEvaluateType type, GameMessage::Type hintType )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -2130,7 +2118,7 @@ GameMessage::Type CommandTranslator::handleAttackObjectCommand( Drawable *draw, 
 
 		// Generate an Attack hint
 		msgType = hintType;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( obj->getID() );
 
 	}
@@ -2141,7 +2129,6 @@ GameMessage::Type CommandTranslator::handleAttackObjectCommand( Drawable *draw, 
 GameMessage::Type CommandTranslator::handleCaptureBuildingCommand( Drawable *draw, Object *obj, const Coord3D *pos, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	//@TODO: Kris
 	//PRELIMINARY CODE FOR HOOKING IN AUTO SPECIALS --- WILL BE REDONE!
@@ -2170,14 +2157,14 @@ GameMessage::Type CommandTranslator::handleCaptureBuildingCommand( Drawable *dra
 				{
 					//Issue the black lotus hack hint for capturing a building.
 					msgType = GameMessage::MSG_HACK_HINT;
-					hintMessage = TheMessageStream->appendMessage( msgType );
+					GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 					hintMessage->appendObjectIDArgument( obj->getID() );
 				}
 				else if( spType == SPECIAL_INFANTRY_CAPTURE_BUILDING )
 				{
 					//Issue the infantry hint for capturing a building
 					msgType = GameMessage::MSG_CAPTUREBUILDING_HINT;
-					hintMessage = TheMessageStream->appendMessage( msgType );
+					GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 					hintMessage->appendObjectIDArgument( obj->getID() );
 				}
 			}
@@ -2190,7 +2177,6 @@ GameMessage::Type CommandTranslator::handleCaptureBuildingCommand( Drawable *dra
 GameMessage::Type CommandTranslator::handleHackCommand( Drawable *draw, Object *obj, const Coord3D *pos, CommandEvaluateType type, SpecialPowerType hackPower )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -2219,7 +2205,7 @@ GameMessage::Type CommandTranslator::handleHackCommand( Drawable *draw, Object *
 	else
 	{
 		msgType = GameMessage::MSG_HACK_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( obj->getID() );
 	}
 
@@ -2230,7 +2216,6 @@ GameMessage::Type CommandTranslator::handleHackCommand( Drawable *draw, Object *
 GameMessage::Type CommandTranslator::handlePickUpPrisonerCommand( Drawable *draw, Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	if( type == DO_COMMAND || type == EVALUATE_ONLY )
 	{
@@ -2243,7 +2228,7 @@ GameMessage::Type CommandTranslator::handlePickUpPrisonerCommand( Drawable *draw
 	{
 
 		msgType = GameMessage::MSG_PICK_UP_PRISONER_HINT;
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendObjectIDArgument( obj->getID() );
 
 	}
@@ -2255,7 +2240,6 @@ GameMessage::Type CommandTranslator::handlePickUpPrisonerCommand( Drawable *draw
 GameMessage::Type CommandTranslator::handleSetRallyPointCommand( const Coord3D *pos, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_SET_RALLY_POINT;
-	GameMessage *hintMessage;
 
 	if (type == DO_COMMAND) {
 		const DrawableList *allSelectedDrawables = TheInGameUI->getAllSelectedDrawables();
@@ -2270,14 +2254,14 @@ GameMessage::Type CommandTranslator::handleSetRallyPointCommand( const Coord3D *
 		}
 	} else if (type == DO_HINT) {
 		msgType = GameMessage::MSG_SET_RALLY_POINT_HINT;
-		hintMessage = TheMessageStream->appendMessage(msgType);
+		GameMessage *hintMessage = TheMessageStream->appendMessage(msgType);
 		hintMessage->appendLocationArgument(*pos);
 	}
 
 	return msgType;
 }
 
-GameMessage::Type CommandTranslator::handleImpossibleAttackHint( const Coord3D *pos )
+GameMessage::Type CommandTranslator::handleInvalidShotCommand( const Coord3D *pos )
 {
 	GameMessage::Type msgType = GameMessage::MSG_IMPOSSIBLE_ATTACK_HINT;
 	GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
@@ -2289,7 +2273,6 @@ GameMessage::Type CommandTranslator::handleImpossibleAttackHint( const Coord3D *
 GameMessage::Type CommandTranslator::handleDefaultMoveCommand( Drawable *draw, Drawable *drawableInWay, const Coord3D *pos, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
-	GameMessage *hintMessage;
 
 	//
 	// NOTE: If you change this command evaluation function in what it will do
@@ -2372,7 +2355,7 @@ GameMessage::Type CommandTranslator::handleDefaultMoveCommand( Drawable *draw, D
 			//Normal and forced move.
 			msgType = GameMessage::MSG_DO_MOVETO_HINT;
 		}
-		hintMessage = TheMessageStream->appendMessage( msgType );
+		GameMessage *hintMessage = TheMessageStream->appendMessage( msgType );
 		hintMessage->appendLocationArgument( *pos );
 
 	}
@@ -2426,7 +2409,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		return handleWaypointModeCommand( pos, draw, type );
 	}
 
-	CanAttackResult result;
+	CanAttackResult result = ATTACKRESULT_NOT_POSSIBLE;
 
 	if(command &&
 		(command->isContextCommand()
@@ -2440,21 +2423,15 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 	{
 		return handleSpecialPowerConstructCommand( command, draw, pos, type );
 	}
-
-
-	// ********************************************************************************************
 	else if( TheInGameUI->canSelectedObjectsOverrideSpecialPowerDestination( pos, InGameUI::SELECTION_ANY, SPECIAL_INVALID ) )
 	{
 		return handleSpecialPowerOverrideDestinationCommand( pos, type );
 	}
-
-	// ********************************************************************************************
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_RESUME_CONSTRUCTION, obj, InGameUI::SELECTION_ANY ) )
 	{
 		return handleResumeConstructionCommand( obj, type );
 	}
-	// ********************************************************************************************
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DOCK_AT,
 																										obj,
@@ -2462,25 +2439,21 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 	{
 		return handleDockCommand( obj, type );
 	}
-	// ********************************************************************************************
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_REPAIR_OBJECT, obj, InGameUI::SELECTION_ANY ) )
 	{
 		return handleRepairObjectCommand( obj, type );
 	}
-	// ********************************************************************************************
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_REPAIRED_AT, obj, InGameUI::SELECTION_ANY ) )
 	{
 		return handleGetRepairedCommand( obj, type );
 	}
-	// ********************************************************************************************
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_HEALED_AT, obj, InGameUI::SELECTION_ANY ) )
 	{
 		return handleGetHealedCommand( obj, type );
 	}
-	// ********************************************************************************************
 	else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_HIJACK_VEHICLE,
 																										draw->getObject(),
@@ -2488,13 +2461,11 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 	{
 		return handleHijackVehicleCommand( draw, type );
 	}
-	// ********************************************************************************************
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB, obj, InGameUI::SELECTION_ANY ) )
 	{
 		return handleConvertToCarBombCommand( draw, obj, type );
 	}
-	// ********************************************************************************************
 	else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SABOTAGE_BUILDING,
 																										draw->getObject(),
@@ -2502,67 +2473,53 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 	{
 		return handleSabotageBuildingCommand( draw, type );
 	}
-	// ********************************************************************************************
 	else if( draw && !TheInGameUI->isInForceAttackMode() && canSelectionSalvage(obj) )
 	{
 		return handleSalvageCommand( obj, type );
 	}
-	// ********************************************************************************************
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_ENTER_OBJECT, obj, InGameUI::SELECTION_ANY, true ) )
 	{
 		return handleEnterObjectCommand( draw, obj, type );
 	}
-	// ********************************************************************************************
 	else if( draw && (result = TheInGameUI->getCanSelectedObjectsAttack( InGameUI::ACTIONTYPE_ATTACK_OBJECT, obj, InGameUI::SELECTION_ANY, TheInGameUI->isInForceAttackMode() )) == ATTACKRESULT_POSSIBLE )
 	{
 		return handleAttackObjectCommand( draw, obj, type, GameMessage::MSG_DO_ATTACK_OBJECT_HINT );
 	}
-	// ********************************************************************************************
 	else if( draw && result == ATTACKRESULT_POSSIBLE_AFTER_MOVING )
 	{
 		return handleAttackObjectCommand( draw, obj, type, GameMessage::MSG_DO_ATTACK_OBJECT_AFTER_MOVING_HINT );
 	}
-	// ********************************************************************************************
 	else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CAPTURE_BUILDING, obj, InGameUI::SELECTION_ANY ) )
 	{
 		return handleCaptureBuildingCommand( draw, obj, pos, type );
 	}
-	// ********************************************************************************************
 	else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DISABLE_VEHICLE_VIA_HACKING, obj, InGameUI::SELECTION_ANY ) )
 	{
 		return handleHackCommand( draw, obj, pos, type, SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK );
 	}
-	// ********************************************************************************************
 	else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_STEAL_CASH_VIA_HACKING, obj, InGameUI::SELECTION_ANY ) )
 	{
 		return handleHackCommand( draw, obj, pos, type, SPECIAL_BLACKLOTUS_STEAL_CASH_HACK );
 	}
-	// ********************************************************************************************
 	else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DISABLE_BUILDING_VIA_HACKING, obj, InGameUI::SELECTION_ANY ) )
 	{
 		return handleHackCommand( draw, obj, pos, type, SPECIAL_HACKER_DISABLE_BUILDING );
 	}
 #ifdef ALLOW_SURRENDER
-	// ********************************************************************************************
 	else if( draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_PICK_UP_PRISONER, obj, InGameUI::SELECTION_ANY ) )
 	{
 		return handlePickUpPrisonerCommand( draw, obj, type );
 	}
 #endif
-	// ********************************************************************************************
 	else if ( !draw && TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SET_RALLY_POINT, nullptr, InGameUI::SELECTION_ALL, FALSE ))
 	{
 		return handleSetRallyPointCommand( pos, type );
 	}
-
-	// ********************************************************************************************
 	else if( draw && result == ATTACKRESULT_INVALID_SHOT )
 	{
-		return handleImpossibleAttackHint( pos );
+		return handleInvalidShotCommand( pos );
 	}
-
-	// ********************************************************************************************
 	else
 	{
 		return handleDefaultMoveCommand( draw, drawableInWay, pos, type );
