@@ -37,6 +37,7 @@
 #include "Common/CommandLine.h"
 #include "Common/Debug.h"
 #include "Common/CRCDebug.h"
+#include "GgcRuntimeFlags.h"
 #include "Common/UnicodeString.h"
 #include "GameClient/ClientInstance.h"
 #include "GameClient/GameText.h"
@@ -139,6 +140,11 @@ void GameDebugInit(int flags)
 	DebugInit(flags);
 
 #ifdef DEBUG_LOGGING
+	// TheSuperHackers @feature bobtista 01/08/2026 A crash that never reaches a handled path,
+	// such as a libc abort, dies with the last buffered lines still unwritten. Let a remote
+	// tester trade framerate for a complete log tail without needing a debugger.
+	DebugSetFlushLogEachLine(GgcFlags::Enabled(GgcFlag_LogFlush));
+
 	// TheSuperHackers @info Debug initialization can happen very early.
 	// Determine the client instance id before creating the log file with an instance specific name.
 	CommandLine::parseCommandLineForStartup();
