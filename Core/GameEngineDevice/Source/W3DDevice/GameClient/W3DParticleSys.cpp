@@ -269,7 +269,14 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 				&& batchShader == sys->getShaderType()
 				&& batchBillboard == sys->shouldBillboard()
 				&& batchVolumeDepth == sys->getVolumeParticleDepth());
-			if (batchBase > 0 && (isStreak || isVolume || !keyMatches))
+			// TheSuperHackers @bugfix bobtista 01/08/2026 Also flush once the shared buffer is
+			// full. Without this an emitter whose predecessors filled it exactly to
+			// MAX_POINTS_PER_GROUP kept the same bucket key, so no flush ran and the arrays
+			// below started one element past the end. The fill check further down compares
+			// batchBase + count against MAX_POINTS_PER_GROUP for equality, which can no longer
+			// hit, so the emitter wrote past the buffer for every one of its particles and
+			// corrupted unrelated heap.
+			if (batchBase > 0 && (isStreak || isVolume || !keyMatches || batchBase >= MAX_POINTS_PER_GROUP))
 			{
 				flushPointGroupBatch( rinfo, batchTexture, batchShader, batchBillboard, batchVolumeDepth, batchBase );
 				batchTexture->Release_Ref();
@@ -323,7 +330,9 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 
 			angleArray[count] = (uint8)(p->getAngle() * 255.0f / (2.0f * PI));
 
-			if (batchBase + (++count) == MAX_POINTS_PER_GROUP)
+			// TheSuperHackers @bugfix bobtista 01/08/2026 Compare with >= so the buffer bound
+			// still holds if the base ever advances past an exact match.
+			if (batchBase + (++count) >= MAX_POINTS_PER_GROUP)
 			{
 				// TheSuperHackers @perf bobtista 03/06/2026 The shared buffer filled while a same-key
 				// batch was already accumulated in front of this emitter. Flush that prior batch, then
