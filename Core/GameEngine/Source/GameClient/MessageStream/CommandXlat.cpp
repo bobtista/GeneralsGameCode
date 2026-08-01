@@ -2016,7 +2016,7 @@ GameMessage::Type CommandTranslator::handleHijackVehicleCommand( Drawable *draw,
 	return msgType;
 }
 
-GameMessage::Type CommandTranslator::handleConvertToCarBombCommand( Drawable *draw, Object *obj, CommandEvaluateType type )
+GameMessage::Type CommandTranslator::handleConvertObjectToCarBombCommand( Drawable *draw, Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
 
@@ -2464,7 +2464,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB, obj, InGameUI::SELECTION_ANY ) )
 	{
-		return handleConvertToCarBombCommand( draw, obj, type );
+		return handleConvertObjectToCarBombCommand( draw, obj, type );
 	}
 	else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SABOTAGE_BUILDING,

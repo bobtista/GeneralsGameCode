@@ -78,7 +78,7 @@ private:
 	GameMessage::Type handleGetRepairedAtCommand( Object *obj, CommandEvaluateType type );
 	GameMessage::Type handleGetHealedAtCommand( Object *obj, CommandEvaluateType type );
 	GameMessage::Type handleHijackVehicleCommand( Drawable *draw, CommandEvaluateType type );
-	GameMessage::Type handleConvertToCarBombCommand( Drawable *draw, Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleConvertObjectToCarBombCommand( Drawable *draw, Object *obj, CommandEvaluateType type );
 	GameMessage::Type handleSabotageBuildingCommand( Drawable *draw, CommandEvaluateType type );
 	GameMessage::Type handleSalvageCommand( Object *obj, CommandEvaluateType type );
 	GameMessage::Type handleEnterObjectCommand( Drawable *draw, Object *obj, CommandEvaluateType type );
