@@ -1854,7 +1854,7 @@ GameMessage::Type CommandTranslator::handleResumeConstructionCommand( Object *ob
 	return msgType;
 }
 
-GameMessage::Type CommandTranslator::handleDockCommand( Object *obj, CommandEvaluateType type )
+GameMessage::Type CommandTranslator::handleDockAtCommand( Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
 
@@ -1924,7 +1924,7 @@ GameMessage::Type CommandTranslator::handleRepairObjectCommand( Object *obj, Com
 	return msgType;
 }
 
-GameMessage::Type CommandTranslator::handleGetRepairedCommand( Object *obj, CommandEvaluateType type )
+GameMessage::Type CommandTranslator::handleGetRepairedAtCommand( Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
 
@@ -1959,7 +1959,7 @@ GameMessage::Type CommandTranslator::handleGetRepairedCommand( Object *obj, Comm
 	return msgType;
 }
 
-GameMessage::Type CommandTranslator::handleGetHealedCommand( Object *obj, CommandEvaluateType type )
+GameMessage::Type CommandTranslator::handleGetHealedAtCommand( Object *obj, CommandEvaluateType type )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
 
@@ -2437,7 +2437,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 																										obj,
 																										InGameUI::SELECTION_ALL ) )
 	{
-		return handleDockCommand( obj, type );
+		return handleDockAtCommand( obj, type );
 	}
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_REPAIR_OBJECT, obj, InGameUI::SELECTION_ANY ) )
@@ -2447,12 +2447,12 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_REPAIRED_AT, obj, InGameUI::SELECTION_ANY ) )
 	{
-		return handleGetRepairedCommand( obj, type );
+		return handleGetRepairedAtCommand( obj, type );
 	}
 	else if( draw && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_HEALED_AT, obj, InGameUI::SELECTION_ANY ) )
 	{
-		return handleGetHealedCommand( obj, type );
+		return handleGetHealedAtCommand( obj, type );
 	}
 	else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
 					 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_HIJACK_VEHICLE,

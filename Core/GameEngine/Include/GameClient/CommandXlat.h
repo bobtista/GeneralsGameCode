@@ -73,10 +73,10 @@ private:
 	GameMessage::Type handleSpecialPowerConstructCommand( const CommandButton *command, Drawable *draw, const Coord3D *pos, CommandEvaluateType type );
 	GameMessage::Type handleSpecialPowerOverrideDestinationCommand( const Coord3D *pos, CommandEvaluateType type );
 	GameMessage::Type handleResumeConstructionCommand( Object *obj, CommandEvaluateType type );
-	GameMessage::Type handleDockCommand( Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleDockAtCommand( Object *obj, CommandEvaluateType type );
 	GameMessage::Type handleRepairObjectCommand( Object *obj, CommandEvaluateType type );
-	GameMessage::Type handleGetRepairedCommand( Object *obj, CommandEvaluateType type );
-	GameMessage::Type handleGetHealedCommand( Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleGetRepairedAtCommand( Object *obj, CommandEvaluateType type );
+	GameMessage::Type handleGetHealedAtCommand( Object *obj, CommandEvaluateType type );
 	GameMessage::Type handleHijackVehicleCommand( Drawable *draw, CommandEvaluateType type );
 	GameMessage::Type handleConvertToCarBombCommand( Drawable *draw, Object *obj, CommandEvaluateType type );
 	GameMessage::Type handleSabotageBuildingCommand( Drawable *draw, CommandEvaluateType type );
