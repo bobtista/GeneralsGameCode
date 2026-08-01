@@ -31,6 +31,7 @@ env:
 
 jobs:
   win64:
+    if: false  # debug branch: linux only
     name: ${{ matrix.preset }}
     strategy:
       fail-fast: false
@@ -185,6 +186,7 @@ jobs:
           if-no-files-found: error
 
   macos:
+    if: false  # debug branch: linux only
     name: macos-generalsmd-sdl3-bgfx
     runs-on: macos-15
     timeout-minutes: 120
@@ -301,7 +303,7 @@ jobs:
         env:
           PKG_CONFIG_PATH: ${{ github.workspace }}/ffmpeg-min/lib/pkgconfig
         run: |
-          cmake --preset linux-generalsmd-sdl3-bgfx -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --preset linux-generalsmd-sdl3-bgfx -DRTS_DEBUG_LOGGING=ON -DRTS_DEBUG_PROFILE=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build GeneralsMD
         run: |
