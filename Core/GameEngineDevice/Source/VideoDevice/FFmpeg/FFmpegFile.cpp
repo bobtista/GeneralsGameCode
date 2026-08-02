@@ -239,6 +239,65 @@ void FFmpegFile::close()
 		m_file->close();
 		m_file = nullptr;
 	}
+
+	m_flushed = false;
+}
+
+// TheSuperHackers @bugfix bobtista 02/08/2026 Hand every frame the decoder has ready to the
+// callback. Returns false only on a hard decode error; a decoder asking for more input, or one
+// that has finished draining, is not an error.
+Bool FFmpegFile::receiveFrames(FFmpegStream &stream)
+{
+	for (;;)
+	{
+		const int result = avcodec_receive_frame(stream.codec_ctx, stream.frame);
+		if (result == AVERROR(EAGAIN) || result == AVERROR_EOF)
+		{
+			return true;
+		}
+
+		if (result < 0)
+		{
+			char error_buffer[1024];
+			av_strerror(result, error_buffer, sizeof(error_buffer));
+			DEBUG_LOG(("Failed 'avcodec_receive_frame': %s", error_buffer));
+			return false;
+		}
+
+		if (m_frameCallback != nullptr)
+		{
+			m_frameCallback(stream.frame, stream.stream_idx, stream.stream_type, m_userData);
+		}
+	}
+}
+
+// TheSuperHackers @bugfix bobtista 02/08/2026 Emit the frames the decoders were still holding when
+// the container ran dry, one per stream per call so the caller can stop as soon as it has the video
+// frame it wanted. Returns false once every decoder is empty, which ends the stream.
+Bool FFmpegFile::drainDecoders()
+{
+	Bool emittedFrame = false;
+
+	for (auto &stream : m_streams)
+	{
+		if (stream.codec_ctx == nullptr)
+		{
+			continue;
+		}
+
+		if (avcodec_receive_frame(stream.codec_ctx, stream.frame) < 0)
+		{
+			continue;
+		}
+
+		if (m_frameCallback != nullptr)
+		{
+			m_frameCallback(stream.frame, stream.stream_idx, stream.stream_type, m_userData);
+		}
+		emittedFrame = true;
+	}
+
+	return emittedFrame;
 }
 
 Bool FFmpegFile::decodePacket()
@@ -246,9 +305,37 @@ Bool FFmpegFile::decodePacket()
 	DEBUG_ASSERTCRASH(m_fmtCtx != nullptr, ("null format context"));
 	DEBUG_ASSERTCRASH(m_packet != nullptr, ("null packet pointer"));
 
+	if (m_flushed)
+	{
+		return drainDecoders();
+	}
+
 	int result = av_read_frame(m_fmtCtx, m_packet);
-	if (result == AVERROR_EOF)
-		return false;
+	if (result < 0)
+	{
+		// TheSuperHackers @bugfix bobtista 02/08/2026 Flush the decoders when the container runs
+		// out instead of returning right away. A decoder buffers frames internally, and how many
+		// depends on the FFmpeg build and the thread count it picks for the machine, so those
+		// frames were silently dropped and the stream ended short of getNumFrames() on some
+		// platforms and not others. Callers that play until the last frame then never finished.
+		if (result != AVERROR_EOF)
+		{
+			char error_buffer[1024];
+			av_strerror(result, error_buffer, sizeof(error_buffer));
+			DEBUG_LOG(("Failed 'av_read_frame': %s", error_buffer));
+		}
+
+		for (auto &stream : m_streams)
+		{
+			if (stream.codec_ctx != nullptr)
+			{
+				avcodec_send_packet(stream.codec_ctx, nullptr);
+			}
+		}
+		m_flushed = true;
+
+		return drainDecoders();
+	}
 
 	const int stream_idx = m_packet->stream_index;
 	DEBUG_ASSERTCRASH(m_streams.size() > stream_idx, ("stream index out of bounds"));
@@ -256,9 +343,21 @@ Bool FFmpegFile::decodePacket()
 	auto &stream = m_streams[stream_idx];
 	AVCodecContext *codec_ctx = stream.codec_ctx;
 	result = avcodec_send_packet(codec_ctx, m_packet);
-	// Check if we need more data
+
+	// TheSuperHackers @bugfix bobtista 02/08/2026 AVERROR(EAGAIN) means the decoder cannot take
+	// more input until its pending output is read. This used to return early, and the next call
+	// overwrote the packet with av_read_frame, so the packet and its frame were lost every time it
+	// happened. Read the pending output and resend the same packet instead.
 	if (result == AVERROR(EAGAIN))
-		return true;
+	{
+		if (!receiveFrames(stream))
+		{
+			av_packet_unref(m_packet);
+			return false;
+		}
+		result = avcodec_send_packet(codec_ctx, m_packet);
+	}
+	av_packet_unref(m_packet);
 
 	// Handle any other errors
 	if (result < 0) {
@@ -267,30 +366,9 @@ Bool FFmpegFile::decodePacket()
 		DEBUG_LOG(("Failed 'avcodec_send_packet': %s", error_buffer));
 		return false;
 	}
-	av_packet_unref(m_packet);
 
 	// Get all frames in this packet
-	while (result >= 0) {
-		result = avcodec_receive_frame(codec_ctx, stream.frame);
-
-		// Check if we need more data
-		if (result == AVERROR(EAGAIN))
-			return true;
-
-		// Handle any other errors
-		if (result < 0) {
-			char error_buffer[1024];
-			av_strerror(result, error_buffer, sizeof(error_buffer));
-			DEBUG_LOG(("Failed 'avcodec_receive_frame': %s", error_buffer));
-			return false;
-		}
-
-		if (m_frameCallback != nullptr) {
-			m_frameCallback(stream.frame, stream_idx, stream.stream_type, m_userData);
-		}
-	}
-
-	return true;
+	return receiveFrames(stream);
 }
 
 void FFmpegFile::seekFrame(int frame_idx)
@@ -330,6 +408,8 @@ void FFmpegFile::seekFrame(int frame_idx)
 			avcodec_flush_buffers(stream.codec_ctx);
 		}
 	}
+
+	m_flushed = false;
 }
 
 Bool FFmpegFile::hasAudio() const
