@@ -537,7 +537,13 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		// TheSuperHackers @bugfix Originally this movie render loop stopped rendering when the game window was inactive.
 		// This either skipped the movie or caused decompression artifacts. Now the video just keeps playing until it done.
 
+		// TheSuperHackers @bugfix bobtista 02/08/2026 A movie shorter than FRAME_FUDGE_ADD frames
+		// made this zero, and the modulo below then divided by zero.
 		Int progressUpdateCount = m_videoStream->frameCount() / FRAME_FUDGE_ADD;
+		if (progressUpdateCount < 1)
+		{
+			progressUpdateCount = 1;
+		}
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
 		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
 		{
@@ -559,7 +565,16 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 			moveWindows( m_videoStream->frameIndex());
 #endif
 
+			// TheSuperHackers @bugfix bobtista 02/08/2026 Stop when the stream stops advancing. An
+			// exhausted stream reports frame 0 forever (the Bink end-of-stream contract), so a movie
+			// that ends before frameCount() left this loop spinning at full speed forever with the
+			// game stuck on the load screen and every core pegged.
+			const Int frameIndexBeforeAdvance = m_videoStream->frameIndex();
 			m_videoStream->frameNext();
+			if (m_videoStream->frameIndex() <= frameIndexBeforeAdvance)
+			{
+				break;
+			}
 
 			if(m_videoBuffer)
 				m_loadScreen->winGetInstanceData()->setVideoBuffer(m_videoBuffer);
@@ -1049,7 +1064,13 @@ void ChallengeLoadScreen::init( GameInfo *game )
 		// TheSuperHackers @bugfix Originally this movie render loop stopped rendering when the game window was inactive.
 		// This either skipped the movie or caused decompression artifacts. Now the video just keeps playing until it done.
 
+		// TheSuperHackers @bugfix bobtista 02/08/2026 A movie shorter than FRAME_FUDGE_ADD frames
+		// made this zero, and the modulo below then divided by zero.
 		Int progressUpdateCount = m_videoStream->frameCount() / FRAME_FUDGE_ADD;
+		if (progressUpdateCount < 1)
+		{
+			progressUpdateCount = 1;
+		}
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
 		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
 		{
@@ -1066,7 +1087,17 @@ void ChallengeLoadScreen::init( GameInfo *game )
 
 			m_videoStream->frameDecompress();
 			m_videoStream->frameRender(m_videoBuffer);
+
+			// TheSuperHackers @bugfix bobtista 02/08/2026 Stop when the stream stops advancing. An
+			// exhausted stream reports frame 0 forever (the Bink end-of-stream contract), so a movie
+			// that ends before frameCount() left this loop spinning at full speed forever with the
+			// game stuck on the load screen and every core pegged.
+			const Int frameIndexBeforeAdvance = m_videoStream->frameIndex();
 			m_videoStream->frameNext();
+			if (m_videoStream->frameIndex() <= frameIndexBeforeAdvance)
+			{
+				break;
+			}
 
 			if(m_videoBuffer)
 				m_loadScreen->winGetInstanceData()->setVideoBuffer(m_videoBuffer);
