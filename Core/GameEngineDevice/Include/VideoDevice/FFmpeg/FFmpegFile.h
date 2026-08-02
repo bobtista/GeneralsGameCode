@@ -87,6 +87,8 @@ private:
 	static Int readPacket(void *opaque, UnsignedByte *buf, Int buf_size);
 	static Int64 seekPacket(void *opaque, Int64 offset, Int whence);
 	const FFmpegStream *findMatch(int type) const;
+	Bool receiveFrames(FFmpegStream &stream);
+	Bool drainDecoders();
 
 	FFmpegFrameCallback 		m_frameCallback = nullptr; ///< Callback for frame processing
 	AVFormatContext 			*m_fmtCtx = nullptr; ///< Format context for AVFormat
@@ -95,4 +97,5 @@ private:
 	std::vector<FFmpegStream> 	m_streams; ///< List of streams in the file
 	File 						*m_file = nullptr;	///< File handle for the file
 	void 						*m_userData = nullptr; ///< User data for the callback
+	Bool 						m_flushed = false; ///< The container ran dry and the decoders were sent their flush packet
 };
