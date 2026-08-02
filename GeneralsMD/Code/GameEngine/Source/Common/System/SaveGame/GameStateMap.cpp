@@ -45,6 +45,38 @@
 // GLOBALS ////////////////////////////////////////////////////////////////////////////////////////
 GameStateMap *TheGameStateMap = nullptr;
 
+// TheSuperHackers @bugfix bobtista 02/08/2026 Clear the loading-save flag on every exit path.
+// GameStateMap::xfer throws on corrupt or incompatible save data, which skipped the clear at the
+// end of the load and left TheGameLogic->isLoadingSave() set for the rest of the process; nothing
+// else ever resets it, since GameLogic is constructed once and neither reset() nor clearGameData()
+// touches it. canOpenQuitMenu() tests that flag, so one failed load disabled the ESC menu in every
+// game started afterwards, including skirmish.
+namespace
+{
+	class LoadingSaveLatch
+	{
+	public:
+		explicit LoadingSaveLatch( Bool loading ) : m_loading(loading)
+		{
+			if( m_loading && TheGameLogic != nullptr )
+			{
+				TheGameLogic->setLoadingSave( TRUE );
+			}
+		}
+
+		~LoadingSaveLatch()
+		{
+			if( m_loading && TheGameLogic != nullptr )
+			{
+				TheGameLogic->setLoadingSave( FALSE );
+			}
+		}
+
+	private:
+		Bool m_loading;
+	};
+}
+
 // METHODS ////////////////////////////////////////////////////////////////////////////////////////
 
 // ------------------------------------------------------------------------------------------------
@@ -257,10 +289,7 @@ static void extractAndSaveMap( AsciiString mapToSave, Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void GameStateMap::xfer( Xfer *xfer )
 {
-	if( xfer->getXferMode() == XFER_LOAD )
-	{
-		TheGameLogic->setLoadingSave( TRUE );
-	}
+	const LoadingSaveLatch loadingSaveLatch( xfer->getXferMode() == XFER_LOAD );
 
 	// version
 	const XferVersion currentVersion = 2;
@@ -453,7 +482,6 @@ void GameStateMap::xfer( Xfer *xfer )
 	if( xfer->getXferMode() == XFER_LOAD )
 	{
 		TheGameLogic->startNewGame( TRUE );
-		TheGameLogic->setLoadingSave( FALSE );
 	}
 
 }
