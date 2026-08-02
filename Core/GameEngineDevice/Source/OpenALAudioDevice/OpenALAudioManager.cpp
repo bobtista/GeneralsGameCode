@@ -663,6 +663,12 @@ void OpenALAudioManager::stopAudio(AudioAffect which)
 }
 
 //-------------------------------------------------------------------------------------------------
+Bool OpenALAudioManager::isPlayingAudioPaused(const PlayingAudio* playing) const
+{
+	return playing && playing->m_heldByPause;
+}
+
+//-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::pauseAudio(AudioAffect which)
 {
 	std::list<PlayingAudio*>::iterator it;
@@ -674,6 +680,7 @@ void OpenALAudioManager::pauseAudio(AudioAffect which)
 			if (playing) {
 				// TheSuperHackers @bugfix bobtista 28/05/2026 alSourcePause preserves playback offset so resume continues from the same sample.
 				alSourcePause(playing->m_source);
+				playing->m_heldByPause = true;
 			}
 		}
 	}
@@ -684,6 +691,7 @@ void OpenALAudioManager::pauseAudio(AudioAffect which)
 			if (playing) {
 				// TheSuperHackers @bugfix bobtista 28/05/2026 alSourcePause preserves playback offset so resume continues from the same sample.
 				alSourcePause(playing->m_source);
+				playing->m_heldByPause = true;
 			}
 		}
 	}
@@ -707,6 +715,7 @@ void OpenALAudioManager::pauseAudio(AudioAffect which)
 				// GeneralsX @bugfix BenderAI 11/03/2026 - streams use m_stream->pause(), not alSourcePause(m_source) which is always 0
 				if (playing->m_stream) {
 					playing->m_stream->pause();
+					playing->m_heldByPause = true;
 				}
 			}
 		}
@@ -741,8 +750,11 @@ void OpenALAudioManager::resumeAudio(AudioAffect which)
 			playing = *it;
 			// TheSuperHackers @bugfix bobtista 13/07/2026 Only resume paused sources; alSourcePlay
 			// on a playing source rewinds it to the beginning, restarting every live sound on unpause.
-			if (playing && sourceIsPaused(playing->m_source)) {
-				alSourcePlay(playing->m_source);
+			if (playing) {
+				playing->m_heldByPause = false;
+				if (sourceIsPaused(playing->m_source)) {
+					alSourcePlay(playing->m_source);
+				}
 			}
 		}
 	}
@@ -752,8 +764,11 @@ void OpenALAudioManager::resumeAudio(AudioAffect which)
 			playing = *it;
 			// TheSuperHackers @bugfix bobtista 13/07/2026 Only resume paused sources; alSourcePlay
 			// on a playing source rewinds it to the beginning, restarting every live sound on unpause.
-			if (playing && sourceIsPaused(playing->m_source)) {
-				alSourcePlay(playing->m_source);
+			if (playing) {
+				playing->m_heldByPause = false;
+				if (sourceIsPaused(playing->m_source)) {
+					alSourcePlay(playing->m_source);
+				}
 			}
 		}
 	}
@@ -775,6 +790,7 @@ void OpenALAudioManager::resumeAudio(AudioAffect which)
 				}
 				// TheSuperHackers @bugfix bobtista 13/07/2026 Only resume paused sources; alSourcePlay
 				// on a playing source rewinds it to the start of its queued buffers.
+				playing->m_heldByPause = false;
 				if (sourceIsPaused(playing->m_stream->getSource())) {
 					alSourcePlay(playing->m_stream->getSource());
 				}
@@ -2704,6 +2720,19 @@ void OpenALAudioManager::processPlayingList(void)
 			continue;
 		}
 
+		// TheSuperHackers @bugfix bobtista 02/08/2026 Hold a paused sound until it is resumed. The
+		// queued-loop refill restarts an underrun source and the completion path below starts the next
+		// portion of a stopped one, both of which are audible while the game is paused.
+		if (isPlayingAudioPaused(playing))
+		{
+			if (m_volumeHasChanged)
+			{
+				adjustPlayingVolume(playing);
+			}
+			++it;
+			continue;
+		}
+
 		// TheSuperHackers @feature bobtista 18/07/2026 Queued loops manage their own buffers; refill
 		// them here and release once the queue has fully drained (after a stop + decay tail).
 		if (playing->m_queuedLoop)
@@ -2766,6 +2795,16 @@ void OpenALAudioManager::processPlayingList(void)
 		if (!playing)
 		{
 			it = m_playing3DSounds.erase(it);
+			continue;
+		}
+
+		if (isPlayingAudioPaused(playing))
+		{
+			if (m_volumeHasChanged)
+			{
+				adjustPlayingVolume(playing);
+			}
+			++it;
 			continue;
 		}
 
@@ -2880,6 +2919,18 @@ void OpenALAudioManager::processPlayingList(void)
 		if (!playing)
 		{
 			it = m_playingStreams.erase(it);
+			continue;
+		}
+
+		// A drained stream is restarted by the update() below, so a paused one must be held back here
+		// as well; the source state cannot be used because pause is a no-op once it has stopped.
+		if (isPlayingAudioPaused(playing))
+		{
+			if (m_volumeHasChanged)
+			{
+				adjustPlayingVolume(playing);
+			}
+			++it;
 			continue;
 		}
 
