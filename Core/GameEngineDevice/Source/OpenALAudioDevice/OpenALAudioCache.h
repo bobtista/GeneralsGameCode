@@ -48,6 +48,10 @@ struct PlayingAudio
 	Bool m_requestStop;
 	Bool m_cleanupAudioEventRTS;
 	Int m_framesFaded;
+	// TheSuperHackers @bugfix bobtista 02/08/2026 Set by pauseAudio on everything it captured, so the
+	// update loop holds exactly that set. A source that had already stopped never enters AL_PAUSED,
+	// and a sound started later during the pause must keep behaving normally.
+	Bool m_heldByPause;
 
 	PlayingAudio() :
 		m_type(PAT_INVALID),
@@ -55,7 +59,8 @@ struct PlayingAudio
 		m_requestStop(false),
 		m_cleanupAudioEventRTS(true),
 		m_source(0),
-		m_framesFaded(0)
+		m_framesFaded(0),
+		m_heldByPause(false)
 	{ }
 };
 

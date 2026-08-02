@@ -218,6 +218,8 @@ protected:
 
 	void adjustPlayingVolume(PlayingAudio *audio);
 
+	Bool isPlayingAudioPaused(const PlayingAudio *playing) const;
+
 	void stopAllSpeech(void);
     static ALenum getALFormat(uint8_t channels, uint8_t bitsPerSample);
 protected:
