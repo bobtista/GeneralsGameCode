@@ -774,7 +774,17 @@ void PlayMovieAndBlock(AsciiString movieTitle)
 
 		videoStream->frameDecompress();
 		videoStream->frameRender(videoBuffer);
+
+		// TheSuperHackers @bugfix bobtista 02/08/2026 Stop when the stream stops advancing. An
+		// exhausted stream reports frame 0 forever (the Bink end-of-stream contract), so a movie
+		// that ends before frameCount() left this loop spinning at full speed forever with the game
+		// stuck on a black screen and every core pegged.
+		const Int frameIndexBeforeAdvance = videoStream->frameIndex();
 		videoStream->frameNext();
+		if (videoStream->frameIndex() <= frameIndexBeforeAdvance)
+		{
+			break;
+		}
 
 		if(videoBuffer)
 			movieWindow->winGetInstanceData()->setVideoBuffer(videoBuffer);
