@@ -264,7 +264,16 @@ void Display::update()
 			m_videoStream->frameRender( m_videoBuffer );
 			if( m_videoStream->frameIndex() != m_videoStream->frameCount() - 1)
 			{
+				// TheSuperHackers @bugfix bobtista 02/08/2026 Also stop when the stream stops
+				// advancing. An exhausted stream reports frame 0 forever (the Bink end-of-stream
+				// contract), so a movie that ends before frameCount() was never stopped and the
+				// intro never handed off to the shell.
+				const Int frameIndexBeforeAdvance = m_videoStream->frameIndex();
 				m_videoStream->frameNext();
+				if( m_videoStream->frameIndex() <= frameIndexBeforeAdvance )
+				{
+					stopMovie();
+				}
 			}
 			else
 			{
