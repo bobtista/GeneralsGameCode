@@ -65,20 +65,53 @@ OpenALAudioStream::~OpenALAudioStream()
     alDeleteBuffers(static_cast<ALsizei>(m_buffers.size()), m_buffers.data());
 }
 
+bool OpenALAudioStream::isQueueFull()
+{
+    ALint num_queued;
+    alGetSourcei(m_source, AL_BUFFERS_QUEUED, &num_queued);
+    return num_queued >= static_cast<ALint>(m_buffers.size());
+}
+
+// TheSuperHackers @bugfix bobtista 03/08/2026 One decoder packet can carry more audio frames than
+// the queue has room for - an ADPCM speech packet holds two - and the caller decoding them cannot
+// give them back. Rejecting the overflow silently deleted that audio: a prebuffered speech stream
+// refills to its full pool, so every packet that straddled the limit lost a frame, and any dialog
+// longer than the pool (the campaign-ending newscaster lines) played its tail with every other
+// 46ms chunk missing. Hold the overflow until a buffer frees up and queue it before new data.
 bool OpenALAudioStream::bufferData(uint8_t *data, size_t data_size, ALenum format, int samplerate)
 {
 #ifdef INTENSIVE_AUDIO_DEBUG
     DEBUG_LOG(("Buffering %zu bytes of data (samplerate: %i, format: %i)\n", data_size, samplerate, format));
 #endif
-    ALint num_queued;
-    alGetSourcei(m_source, AL_BUFFERS_QUEUED, &num_queued);
-    if (num_queued >= static_cast<ALint>(m_buffers.size())) {
-#ifdef INTENSIVE_AUDIO_DEBUG
-        DEBUG_LOG(("Having too many buffers already queued: %i", num_queued));
-#endif
-        return false;
+    if (m_heldBuffers.empty() && !isQueueFull()) {
+        return queueBuffer(data, data_size, format, samplerate);
     }
 
+    // A stream that never drains its held audio is being fed faster than it plays; dropping the
+    // oldest keeps the backlog bounded and degrades to the previous behavior instead of growing.
+    if (m_heldBuffers.size() >= m_buffers.size()) {
+        m_heldBuffers.pop_front();
+    }
+
+    m_heldBuffers.push_back(HeldBuffer());
+    HeldBuffer &held = m_heldBuffers.back();
+    held.m_data.assign(data, data + data_size);
+    held.m_format = format;
+    held.m_samplerate = samplerate;
+    return false;
+}
+
+void OpenALAudioStream::queueHeldBuffers()
+{
+    while (!m_heldBuffers.empty() && !isQueueFull()) {
+        const HeldBuffer &held = m_heldBuffers.front();
+        queueBuffer(held.m_data.data(), held.m_data.size(), held.m_format, held.m_samplerate);
+        m_heldBuffers.pop_front();
+    }
+}
+
+bool OpenALAudioStream::queueBuffer(const uint8_t *data, size_t data_size, ALenum format, int samplerate)
+{
     ALuint &current_buffer = m_buffers[m_current_buffer_idx];
     // GeneralsX @bugfix BenderAI 22/04/2026 Detect and reject invalid OpenAL buffer/queue operations.
     while (alGetError() != AL_NO_ERROR) {}
@@ -159,6 +192,8 @@ void OpenALAudioStream::update()
         processedToUnqueue--;
     }
 
+    queueHeldBuffers();
+
     ALint num_queued;
     alGetSourcei(m_source, AL_BUFFERS_QUEUED, &num_queued);
 #ifdef INTENSIVE_AUDIO_DEBUG
@@ -213,6 +248,7 @@ void OpenALAudioStream::reset()
         alSourceUnqueueBuffers(m_source, 1, &buf);
         num_queued--;
     }
+    m_heldBuffers.clear();
     m_current_buffer_idx = 0;
     m_reachedEof = false;
     m_stopRequested = false;
