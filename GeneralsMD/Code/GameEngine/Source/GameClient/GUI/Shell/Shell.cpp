@@ -212,7 +212,6 @@ void Shell::update()
 
 	}
 
-	// TheSuperHackers @tweak bobtista 08/07/2026 Update the animate window manager every frame, it paces itself now
 	m_animateWindowManager->update();
 
 }
