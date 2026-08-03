@@ -24,6 +24,7 @@
 #include "always.h"
 #include <AL/al.h>
 #include <stdint.h>
+#include <deque>
 #include <functional>
 #include <vector>
 
@@ -59,6 +60,19 @@ public:
     void setVolume(float vol) { alSourcef(m_source, AL_GAIN, vol); }
 
 protected:
+    // TheSuperHackers @bugfix bobtista 03/08/2026 Audio that arrived while the buffer queue was
+    // full, held until a buffer frees up instead of being discarded.
+    struct HeldBuffer
+    {
+        std::vector<uint8_t> m_data;
+        ALenum m_format;
+        int m_samplerate;
+    };
+
+    bool isQueueFull();
+    bool queueBuffer(const uint8_t *data, size_t data_size, ALenum format, int samplerate);
+    void queueHeldBuffers();
+
     std::function<void()> m_requireDataCallback = nullptr;
     ALuint m_source = 0;
     std::vector<ALuint> m_buffers;
@@ -71,4 +85,5 @@ protected:
     // queued while the source was not playing so an underrun recovery can drop exactly the played
     // ones instead of replaying them.
     ALint m_buffersQueuedWhileNotPlaying = 0;
+    std::deque<HeldBuffer> m_heldBuffers;
 };
