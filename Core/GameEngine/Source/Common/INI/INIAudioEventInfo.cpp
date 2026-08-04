@@ -54,8 +54,12 @@ void INI::parseMusicTrackDefinition( INI* ini )
 		return;
 	}
 
+	// TheSuperHackers @bugfix bobtista 04/08/2026 DefaultMusicTrack is the prototype the real tracks
+	// are seeded from and carries the placeholder "NoFilename". It used to find itself here and so
+	// registered itself as a selectable track, letting next/previous track land on it and fail to
+	// open Data\Audio\Tracks\NoFilename. Seed and register only the tracks defined after it.
 	AudioEventInfo *defaultInfo = TheAudio->findAudioEventInfo("DefaultMusicTrack");
-	if (defaultInfo) {
+	if (defaultInfo && defaultInfo != track) {
 		(*track) = (*defaultInfo);
 		TheAudio->addTrackName( name );
 	}
