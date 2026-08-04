@@ -45,6 +45,10 @@ struct PlayingAudio
 	// and refilled per update (attack -> body loop -> decay) instead of the stop/reload path, so its
 	// cleanup is queue-based, not a single m_bufferHandle. Opt-in via GGC_AUDIO_QUEUED_LOOP.
 	Bool m_queuedLoop = false;
+	// TheSuperHackers @bugfix bobtista 04/08/2026 Format of the buffers currently queued on m_source,
+	// or 0 when the queue is empty. A source keeps the format of its queue, so a sample recorded at a
+	// different rate or depth cannot be appended to it (see queueOneLoopBuffer).
+	UnsignedInt m_queuedFormat = 0;
 	Bool m_requestStop;
 	Bool m_cleanupAudioEventRTS;
 	Int m_framesFaded;
