@@ -154,6 +154,16 @@ static void findClosestKindOf( Object *obj, void *userData )
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TheSuperHackers @tweak bobtista 04/08/2026 Battle plan tracing runs once per affected object on
+// every plan change, so it dominated the log whenever a Strategy Center was active. Opt in when
+// working on battle plan bonuses themselves.
+#define no_BATTLE_PLAN_DEBUG
+#ifdef BATTLE_PLAN_DEBUG
+#define BATTLEPLAN_LOG(m) DEBUG_LOG(m)
+#else
+#define BATTLEPLAN_LOG(m) ((void)0)
+#endif
+
 #ifdef DEBUG_CRC
 #define CRCDUMPBATTLEPLANBONUSES(x,y,z) dumpBattlePlanBonuses(x, #x, y, z, __FILE__, __LINE__, FALSE)
 #define DUMPBATTLEPLANBONUSES(x,y,z) dumpBattlePlanBonuses(x, #x, y, z, __FILE__, __LINE__, TRUE)
@@ -186,6 +196,9 @@ void dumpBattlePlanBonuses(const BattlePlanBonusesData *b, AsciiString name, con
 		kindofMaskAsAsciiString(b->m_invalidKindOf).str()));
 	if (!doDebugLog)
 		return;
+	// TheSuperHackers @tweak bobtista 04/08/2026 DEBUG_CRC follows DEBUG_LOGGING, so this mirrored the
+	// line above into the normal log for every battle plan change. The CRC log above still gets it.
+#ifdef BATTLE_PLAN_DEBUG
 	DEBUG_LOG(("dumpBattlePlanBonuses() %s:%d %s\n  Player %d(%ls) object %d(%s) armor:%g/%8.8X bombardment:%d, holdTheLine:%d, searchAndDestroy:%d sight:%g/%8.8X, valid:%s invalid:%s",
 		fname.str(), line, name.str(),
 		(p)?p->getPlayerIndex():-1, (p)?((Player *)p)->getPlayerDisplayName().str():L"<No Name>", (o)?o->getID():-1, (o)?o->getTemplate()->getName().str():"<No Name>",
@@ -194,6 +207,7 @@ void dumpBattlePlanBonuses(const BattlePlanBonusesData *b, AsciiString name, con
 		b->m_sightRangeScalar, AS_INT(b->m_sightRangeScalar),
 		kindofMaskAsAsciiString(b->m_validKindOf).str(),
 		kindofMaskAsAsciiString(b->m_invalidKindOf).str()));
+#endif
 }
 #else
 #define DUMPBATTLEPLANBONUSES(x,y,z)
@@ -3553,7 +3567,7 @@ static void localApplyBattlePlanBonusesToObject( Object *obj, void *userData )
 	Object *objectToValidate = obj;
 	Object *objectToModify = obj;
 
-	DEBUG_LOG(("localApplyBattlePlanBonusesToObject() - looking at object %d (%s)",
+	BATTLEPLAN_LOG(("localApplyBattlePlanBonusesToObject() - looking at object %d (%s)",
 		(objectToValidate)?objectToValidate->getID():INVALID_ID,
 		(objectToValidate)?objectToValidate->getTemplate()->getName().str():"<No Object>"));
 
@@ -3563,20 +3577,20 @@ static void localApplyBattlePlanBonusesToObject( Object *obj, void *userData )
 	if( isProjectile )
 	{
 		objectToValidate = TheGameLogic->findObjectByID( obj->getProducerID() );
-		DEBUG_LOG(("Object is a projectile - looking at object %d (%s) instead",
+		BATTLEPLAN_LOG(("Object is a projectile - looking at object %d (%s) instead",
 			(objectToValidate)?objectToValidate->getID():INVALID_ID,
 			(objectToValidate)?objectToValidate->getTemplate()->getName().str():"<No Object>"));
 	}
 	if( objectToValidate && objectToValidate->isAnyKindOf( bonus->m_validKindOf ) )
 	{
-		DEBUG_LOG(("Is valid kindof"));
+		BATTLEPLAN_LOG(("Is valid kindof"));
 		if( !objectToValidate->isAnyKindOf( bonus->m_invalidKindOf ) )
 		{
-			DEBUG_LOG(("Is not invalid kindof"));
+			BATTLEPLAN_LOG(("Is not invalid kindof"));
 			//Quite the trek eh? Now we can apply the bonuses!
 			if( !isProjectile )
 			{
-				DEBUG_LOG(("Is not projectile.  Armor scalar is %g", bonus->m_armorScalar));
+				BATTLEPLAN_LOG(("Is not projectile.  Armor scalar is %g", bonus->m_armorScalar));
 				//Really important to not apply certain bonuses like health augmentation to projectiles!
 				if( bonus->m_armorScalar != 1.0f )
 				{
@@ -3586,7 +3600,7 @@ static void localApplyBattlePlanBonusesToObject( Object *obj, void *userData )
 						bonus->m_armorScalar, AS_INT(bonus->m_armorScalar), objectToModify->getID(),
 						objectToModify->getTemplate()->getDisplayName().str(),
 						objectToModify->getControllingPlayer()->getPlayerIndex()));
-					DEBUG_LOG(("After apply, armor scalar is %g", body->getDamageScalar()));
+					BATTLEPLAN_LOG(("After apply, armor scalar is %g", body->getDamageScalar()));
 				}
 				if( bonus->m_sightRangeScalar != 1.0f )
 				{
@@ -3660,13 +3674,13 @@ void Player::applyBattlePlanBonusesForPlayerObjects( const BattlePlanBonusesData
 	//Only allocate the battle plan bonuses if we actually use it!
 	if( !m_battlePlanBonuses )
 	{
-		DEBUG_LOG(("Allocating new m_battlePlanBonuses"));
+		BATTLEPLAN_LOG(("Allocating new m_battlePlanBonuses"));
 		m_battlePlanBonuses = newInstance( BattlePlanBonuses );
 		*static_cast<BattlePlanBonusesData*>(m_battlePlanBonuses) = *bonus;
 	}
 	else
 	{
-		DEBUG_LOG(("Adding bonus into existing m_battlePlanBonuses"));
+		BATTLEPLAN_LOG(("Adding bonus into existing m_battlePlanBonuses"));
 		DUMPBATTLEPLANBONUSES(m_battlePlanBonuses, this, nullptr);
 		//Just apply the differences by multiplying the scalars together (kindofs won't change)
 		//These bonuses are used for new objects that are created or objects that are transferred
