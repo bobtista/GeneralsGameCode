@@ -4148,7 +4148,12 @@ void Object::xfer( Xfer *xfer )
 	xfer->xferObjectID( &id );
 	setID( id );
 
+	// TheSuperHackers @tweak bobtista 04/08/2026 One line per object on every save and every load,
+	// which is thousands of lines per session. Opt in when tracing a save or load ordering problem.
+#define no_XFER_OBJECT_DEBUG
+#ifdef XFER_OBJECT_DEBUG
 	DEBUG_LOG(("Xfer Object %s id=%d",getTemplate()->getName().str(),id));
+#endif
 
 	if (version >= 7)
 	{
