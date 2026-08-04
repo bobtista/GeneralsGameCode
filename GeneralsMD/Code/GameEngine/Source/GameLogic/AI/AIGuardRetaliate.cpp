@@ -597,6 +597,26 @@ void AIGuardRetaliateReturnState::loadPostProcess()
 }
 
 //--------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 04/08/2026 The machine maps this state's failure to the inner
+// state, which assumes lookForInnerTarget has just picked a nemesis. The movement itself also
+// reports failure when the owner is immobile or cannot path back to the guard position, and then
+// the inner state runs on a stale nemesis, bails immediately, and the machine cycles
+// inner -> outer -> crate -> return forever without ever settling. Report a movement failure as
+// success instead, so the owner idles where it is and keeps scanning from there.
+static StateReturnType ggcReturnStatus( StateReturnType status )
+{
+#if RETAIL_COMPATIBLE_CRC
+	return status;
+#else
+	if (status == STATE_FAILURE)
+	{
+		return STATE_SUCCESS;
+	}
+	return status;
+#endif
+}
+
+//--------------------------------------------------------------------------------------
 StateReturnType AIGuardRetaliateReturnState::onEnter()
 {
 	UnsignedInt now = TheGameLogic->getFrame();
@@ -614,7 +634,7 @@ StateReturnType AIGuardRetaliateReturnState::onEnter()
 		TheAI->pathfinder()->adjustDestination(getMachineOwner(), ai->getLocomotorSet(), &m_goalPosition);
 	}
 	setAdjustsDestination(true);
-	return AIInternalMoveToState::onEnter();
+	return ggcReturnStatus( AIInternalMoveToState::onEnter() );
 }
 
 //--------------------------------------------------------------------------------------
@@ -629,7 +649,7 @@ StateReturnType AIGuardRetaliateReturnState::update()
 	}
 
 	// Just let the return movement finish.
-	return AIInternalMoveToState::update();
+	return ggcReturnStatus( AIInternalMoveToState::update() );
 }
 
 //--------------------------------------------------------------------------------------
