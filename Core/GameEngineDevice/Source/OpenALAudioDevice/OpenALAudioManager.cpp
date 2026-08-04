@@ -470,19 +470,27 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 static void AL_APIENTRY debugCallbackAL(ALenum source, ALenum type, ALuint id,
 	ALenum severity, ALsizei length, const ALchar* message, void* userParam ) noexcept
 {
+	// TheSuperHackers @bugfix bobtista 04/08/2026 An AL message carries its own trailing newlines and
+	// DEBUG_LOG appends another, so each one used to cost two blank lines in the log. Trim it here.
+	Int len = (length > 0) ? (Int)length : (Int)strlen(message);
+	while (len > 0 && (message[len - 1] == '\n' || message[len - 1] == '\r'))
+	{
+		--len;
+	}
+
 	switch (severity)
 	{
 	case AL_DEBUG_SEVERITY_HIGH_EXT:
-		DEBUG_LOG(("OpenAL Error: %s\n", message));
+		DEBUG_LOG(("OpenAL Error: %.*s", len, message));
 		break;
 	case AL_DEBUG_SEVERITY_MEDIUM_EXT:
-		DEBUG_LOG(("OpenAL Warning: %s\n", message));
+		DEBUG_LOG(("OpenAL Warning: %.*s", len, message));
 		break;
 	case AL_DEBUG_SEVERITY_LOW_EXT:
-		DEBUG_LOG(("OpenAL Info: %s\n", message));
+		DEBUG_LOG(("OpenAL Info: %.*s", len, message));
 		break;
 	default:
-		DEBUG_LOG(("OpenAL Message: %s\n", message));
+		DEBUG_LOG(("OpenAL Message: %.*s", len, message));
 		break;
 	}
 
@@ -3540,6 +3548,23 @@ ALuint OpenALAudioManager::playSample3D(AudioEventRTS* event, PlayingAudio* samp
 }
 
 //-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 04/08/2026 Identity of a buffer's PCM format. alSourceQueueBuffers
+// rejects a buffer whose rate, sample depth or channel count differs from the buffers already queued
+// on the source, so the format has to be compared before queueing rather than after.
+static UnsignedInt ggcBufferFormatKey(ALuint buffer)
+{
+	ALint freq = 0;
+	ALint bits = 0;
+	ALint channels = 0;
+	alGetBufferi(buffer, AL_FREQUENCY, &freq);
+	alGetBufferi(buffer, AL_BITS, &bits);
+	alGetBufferi(buffer, AL_CHANNELS, &channels);
+	// Six bits each for depth and channel count so 16 does not alias to 0, and the rate keeps the
+	// rest. Nonzero for any real buffer, so 0 stays available to mean "nothing queued".
+	return ((UnsignedInt)freq << 12) | (((UnsignedInt)bits & 0x3F) << 6) | ((UnsignedInt)channels & 0x3F);
+}
+
+//-------------------------------------------------------------------------------------------------
 // Queue the buffer for the event's current portion (attack / body / decay), then advance the portion
 // state for the next call. Body samples stay in PP_Sound (infinite loop) until a stop is requested,
 // at which point playback falls through to the decay (if any) and then PP_Done. Returns false when
@@ -3563,7 +3588,23 @@ Bool OpenALAudioManager::queueOneLoopBuffer(PlayingAudio* playing)
 	const ALuint buf = loadBufferForRead(ev);            // resolves attack/body/decay by portion
 	if (buf == 0)
 		return false;
+
+	// TheSuperHackers @bugfix bobtista 04/08/2026 Events that mix sample rates between their portions
+	// or random body samples cannot have both formats on one queue. Queueing anyway makes OpenAL drop
+	// the buffer, which silences that portion and leaks its cache reference, so hold it back instead.
+	// The next update either picks a compatible sample or, once the queue has drained, starts a fresh
+	// queue at the new format (updateQueuedLoop clears m_queuedFormat there). A body sample recorded
+	// at an odd rate is therefore skipped rather than played, which keeps the loop gapless - the whole
+	// point of the queued path - at the cost of never picking that one sample.
+	const UnsignedInt format = ggcBufferFormatKey(buf);
+	if (playing->m_queuedFormat != 0 && format != playing->m_queuedFormat)
+	{
+		closeBuffer(buf);
+		return false;
+	}
+
 	alSourceQueueBuffers(playing->m_source, 1, &buf);
+	playing->m_queuedFormat = format;
 
 	if (portion == PP_Attack)
 		ev->setNextPlayPortion(PP_Sound);
@@ -3641,6 +3682,7 @@ void OpenALAudioManager::updateQueuedLoop(PlayingAudio* playing)
 			if (b != 0)
 				closeBuffer(b);
 		}
+		playing->m_queuedFormat = 0;         // emptied, so the decay may differ in format from the body
 		ev->setNextPlayPortion(ev->getDecayFilename().isEmpty() ? PP_Done : PP_Decay);
 		if (queueOneLoopBuffer(playing))     // queue the decay tail if the event has one
 			alSourcePlay(source);
@@ -3658,6 +3700,11 @@ void OpenALAudioManager::updateQueuedLoop(PlayingAudio* playing)
 
 	ALint queued = 0;
 	alGetSourcei(source, AL_BUFFERS_QUEUED, &queued);
+	// An empty queue no longer constrains the format, so a sample held back by the check in
+	// queueOneLoopBuffer can start a fresh queue here. Without this the loop would stall on the
+	// first rate change and be released as stopped.
+	if (queued == 0)
+		playing->m_queuedFormat = 0;
 	while (queued < 3) {
 		if (!queueOneLoopBuffer(playing))
 			break;
@@ -3690,6 +3737,7 @@ void OpenALAudioManager::releaseQueuedLoopBuffers(PlayingAudio* playing)
 		if (buf != 0)
 			closeBuffer(buf);
 	}
+	playing->m_queuedFormat = 0;
 }
 
 //-------------------------------------------------------------------------------------------------
