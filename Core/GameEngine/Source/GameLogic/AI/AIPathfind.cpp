@@ -2655,7 +2655,7 @@ Path *Pathfinder::internalFindPath( Object *obj, const LocomotorSet& locomotorSe
 	DEBUG_LOG(("internal find path..."));
 #endif
 
-#ifdef DEBUG_LOGGING
+#ifdef INTENSE_DEBUG
 	Int startTimeMS = ::GetTickCount();
 #endif
 	Bool centerInCell = true;
@@ -2911,7 +2911,7 @@ Path *Pathfinder::internalFindPath( Object *obj, const LocomotorSet& locomotorSe
 	}
 #endif
 
-#ifdef DEBUG_LOGGING
+#ifdef INTENSE_DEBUG
 	if (obj)
 	{
 		Bool valid;
@@ -3748,7 +3748,7 @@ Path *Pathfinder::internal_findHierarchicalPath( Bool isHuman, const LocomotorSu
 													 const Coord3D *rawTo, Bool crusher, Bool closestOK)
 {
 	//CRCDEBUG_LOG(("Pathfinder::findGroundPath()"));
-#ifdef DEBUG_LOGGING
+#ifdef INTENSE_DEBUG
 	Int startTimeMS = ::GetTickCount();
 #endif
 
@@ -4292,8 +4292,13 @@ Path *Pathfinder::internal_findHierarchicalPath( Bool isHuman, const LocomotorSu
 	}
 #endif
 
+	// TheSuperHackers @tweak bobtista 04/08/2026 A failed path is routine for a unit ordered somewhere
+	// it cannot reach, so this traced roughly two thousand lines per mission. Behind INTENSE_DEBUG with
+	// the rest of the per-path tracing.
+#ifdef INTENSE_DEBUG
 	DEBUG_LOG(("%d FindHierarchicalPath failed from (%f,%f) to (%f,%f) --", TheGameLogic->getFrame(), from->x, from->y, to->x, to->y));
 	DEBUG_LOG(("time %f", (::GetTickCount()-startTimeMS)/1000.0f));
+#endif
 
 #ifdef DUMP_PERF_STATS
 	TheGameLogic->incrementOverallFailedPathfinds();
@@ -4851,7 +4856,7 @@ Path *Pathfinder::findClosestPath( Object *obj, const LocomotorSet& locomotorSet
 																	Coord3D *rawTo, Bool blocked, Real pathCostMultiplier, Bool moveAllies)
 {
 	//CRCDEBUG_LOG(("Pathfinder::findClosestPath()"));
-#ifdef DEBUG_LOGGING
+#ifdef INTENSE_DEBUG
 	Int startTimeMS = ::GetTickCount();
 #endif
 	Bool isHuman = true;
@@ -5165,11 +5170,13 @@ Path *Pathfinder::findClosestPath( Object *obj, const LocomotorSet& locomotorSet
 	}
 
 	// failure - goal cannot be reached
-#ifdef DEBUG_LOGGING
+#ifdef INTENSE_DEBUG
 	Bool valid;
 	valid = validMovementPosition( isCrusher, obj->getLayer(), locomotorSet, to ) ;
 
-	DEBUG_LOG(("Pathfind(findClosestPath) failed from (%f,%f) to (%f,%f), original valid %d --", TheGameLogic->getFrame(), from->x, from->y, to->x, to->y, valid));
+	// TheSuperHackers @bugfix bobtista 04/08/2026 The frame was passed without a matching specifier,
+	// so every field of this line was shifted by one argument.
+	DEBUG_LOG(("%d Pathfind(findClosestPath) failed from (%f,%f) to (%f,%f), original valid %d --", TheGameLogic->getFrame(), from->x, from->y, to->x, to->y, valid));
 	DEBUG_LOG(("Unit '%s', time %f", obj->getTemplate()->getName().str(), (::GetTickCount()-startTimeMS)/1000.0f));
 #endif
 #if defined(RTS_DEBUG)
@@ -6502,7 +6509,7 @@ Path *Pathfinder::getMoveAwayFromPath(Object* obj, Object *otherObj,
 	if (!m_isMapReady)
 		return nullptr; // Should always be ok.
 
-#ifdef DEBUG_LOGGING
+#ifdef INTENSE_DEBUG
 	Int startTimeMS = ::GetTickCount();
 #endif
 	Bool isHuman = true;
@@ -6665,8 +6672,10 @@ Path *Pathfinder::getMoveAwayFromPath(Object* obj, Object *otherObj,
 	debugShowSearch(true);
 #endif
 
+#ifdef INTENSE_DEBUG
 	DEBUG_LOG(("%d getMoveAwayFromPath pathfind failed --", TheGameLogic->getFrame()));
 	DEBUG_LOG(("Unit '%s', time %f", obj->getTemplate()->getName().str(), (::GetTickCount()-startTimeMS)/1000.0f));
+#endif
 
 	m_isTunneling = false;
 #if RETAIL_COMPATIBLE_PATHFINDING
@@ -6689,7 +6698,7 @@ Path *Pathfinder::patchPath( const Object *obj, const LocomotorSet& locomotorSet
 		Path *originalPath, Bool blocked )
 {
 	//CRCDEBUG_LOG(("Pathfinder::patchPath()"));
-#ifdef DEBUG_LOGGING
+#ifdef INTENSE_DEBUG
 	Int startTimeMS = ::GetTickCount();
 #endif
 	if (originalPath==nullptr) return nullptr;
@@ -6884,8 +6893,10 @@ Path *Pathfinder::patchPath( const Object *obj, const LocomotorSet& locomotorSet
 		}
 	}
 
+#ifdef INTENSE_DEBUG
 	DEBUG_LOG(("%d patchPath Pathfind failed --", TheGameLogic->getFrame()));
 	DEBUG_LOG(("Unit '%s', time %f", obj->getTemplate()->getName().str(), (::GetTickCount()-startTimeMS)/1000.0f));
+#endif
 
 #if defined(RTS_DEBUG)
 	if (TheGlobalData->m_debugAI) {
