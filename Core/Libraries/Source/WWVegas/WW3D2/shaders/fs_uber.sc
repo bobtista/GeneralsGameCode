@@ -441,18 +441,80 @@ float samplePointShadow(vec3 worldPos, vec3 nrm)
 	return lit * (1.0 / 9.0);
 }
 
-// TheSuperHackers @feature bobtista 15/07/2026 Cheap 1D value noise for the drama electric
-// pattern. Inputs stay small (the clock wraps at 30s) for sin-hash float precision.
-float ggcHash11(float n)
+// TheSuperHackers @bugfix bobtista 05/08/2026 2D noise for the arc network. A 1D noise is a set
+// of straight parallel stripes by construction, so the old crossed-1D veins could only ever draw
+// a lattice of straight lines - fine on a wall, but a carrier deck showed it for what it was.
+float ggcHash21(vec2 p)
 {
-	return fract(sin(n) * 43758.5453123);
+	return fract(sin(p.x * 127.1 + p.y * 311.7) * 43758.5453123);
 }
-float ggcValueNoise1(float x)
+float ggcValueNoise2(vec2 p)
 {
-	float i = floor(x);
-	float f = fract(x);
+	vec2 i = floor(p);
+	vec2 f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
-	return mix(ggcHash11(i), ggcHash11(i + 1.0), f);
+	float a = ggcHash21(i);
+	float b = ggcHash21(i + vec2(1.0, 0.0));
+	float c = ggcHash21(i + vec2(0.0, 1.0));
+	float d = ggcHash21(i + vec2(1.0, 1.0));
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+vec2 ggcHash22(vec2 p)
+{
+	return fract(sin(vec2(p.x * 127.1 + p.y * 311.7, p.x * 269.5 + p.y * 183.3)) * 43758.5453);
+}
+
+// Distance between the two nearest cell points: near zero along the cell borders, which form a
+// branching network with Y junctions. Level sets of a smooth field can only close into loops -
+// this is what gives the arcs forks instead of rings.
+float ggcVoronoiEdge(vec2 p)
+{
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	float f1 = 9.0;
+	float f2 = 9.0;
+	for (int oy = -1; oy <= 1; ++oy)
+	{
+		for (int ox = -1; ox <= 1; ++ox)
+		{
+			vec2 o = vec2(float(ox), float(oy));
+			vec2 c = o + ggcHash22(i + o) - f;
+			float d = length(c);
+			float nearest = min(f1, d);
+			f2 = min(f2, max(f1, d));
+			f1 = nearest;
+		}
+	}
+	return f2 - f1;
+}
+
+// One electric arc network over a surface-aligned coordinate pair. Time is quantised into about
+// six strike windows a second, each a hard attack followed by a fast decay: within a window
+// nothing moves, and between windows the network reshapes and the lit region jumps somewhere
+// else. That discontinuity is what reads as lightning - anything that translates smoothly reads
+// as flowing energy instead. Two warp octaves keep the cells from looking like a regular
+// honeycomb.
+// NOTE when retuning: ggcValueNoise2 is built on fract(), so it spans 0..1 and averages ~0.5,
+// not -1..1 around zero. The activation window has to sit high in that range or most of the
+// network lights at once and the whole surface turns into a lit honeycomb.
+float ggcDramaArcVein(vec2 p, float tt)
+{
+	float slot = floor(tt * 6.0);
+	float phase = tt * 6.0 - slot;
+	float env = exp2(-phase * 7.0);
+	float st = slot * 0.37;
+	vec2 q = vec2(ggcValueNoise2(vec2(p.x * 0.02, p.y * 0.02 + st)),
+	              ggcValueNoise2(vec2(p.x * 0.02 + 5.2, p.y * 0.02 + 1.3 + st)));
+	vec2 w = p + (q * 2.0 - 1.0) * 12.0;
+	vec2 r = vec2(ggcValueNoise2(vec2(w.x * 0.07 + 2.1, w.y * 0.07 + st * 1.7)),
+	              ggcValueNoise2(vec2(w.x * 0.07 + 9.7, w.y * 0.07 + 4.4 - st * 1.3)));
+	w += (r * 2.0 - 1.0) * 5.0;
+	float v = ggcVoronoiEdge(w * 0.04);
+	float glow = 1.0 - smoothstep(0.0, 0.117, v);
+	float core = 1.0 - smoothstep(0.0, 0.045, v);
+	vec2 jump = vec2(ggcHash21(vec2(slot, 11.0)), ggcHash21(vec2(slot, 41.0))) * 500.0;
+	float act = smoothstep(0.62, 0.92, ggcValueNoise2(vec2(p.x * 0.03 + jump.x, p.y * 0.03 + jump.y)));
+	return (glow * 0.7 + core * 2.2) * act * env;
 }
 
 // TheSuperHackers @feature bobtista 15/07/2026 GGC_PCANNON_ENHANCED radial scene dip (see
@@ -1340,32 +1402,49 @@ void main()
 			float dramaClock = u_pointShadowLightColor.w;
 			if (dramaClock > 1.5 && u_atestParams.y < 0.5)
 			{
-				// Blue lightning veins on solid surfaces near the beam: two crossing ridged
-				// noise fields intersect into thin filaments, sharpened and gated by a bursty
-				// time-noise so arcs snap on and off like an electrical storm - additive and
-				// blue, never a brightness wave over the whole surface.
-				float tt = dramaClock - 2.0;
-				float n1 = ggcValueNoise1(v_worldPos.z * 0.25 + (v_worldPos.x + v_worldPos.y) * 0.08 + tt * 7.0);
-				float n2 = ggcValueNoise1(v_worldPos.z * 0.42 - tt * 11.0 + (v_worldPos.x - v_worldPos.y) * 0.11 + 37.0);
-				float v1 = 1.0 - abs(n1 * 2.0 - 1.0);
-				float v2 = 1.0 - abs(n2 * 2.0 - 1.0);
-				float vein = v1 * v2;
-				vein = vein * vein * vein;
-				float burst = ggcValueNoise1(tt * 5.0 + floor((v_worldPos.x + v_worldPos.y) * 0.02) * 3.7);
-				float arc = vein * step(0.42, burst);
 				// Proximity to the NEAREST beam so both cannons get arcs, not just slot 1's beam
 				// (u_pointShadow2LightPos is the second beam when u_pointShadow2Params.w > 0).
+				// Evaluated first: it gates the whole pattern, and the network is far too costly
+				// to compute for pixels that would multiply it away.
 				float beamProx = clamp(1.0 - length(u_pointShadowLightPos.xyz - v_worldPos) / max(u_pointShadowLightPos.w, 1.0), 0.0, 1.0);
 				if (u_pointShadow2Params.w > 0.0)
 				{
 					float prox2 = clamp(1.0 - length(u_pointShadow2LightPos.xyz - v_worldPos) / max(u_pointShadow2LightPos.w, 1.0), 0.0, 1.0);
 					beamProx = max(beamProx, prox2);
 				}
-				// Headroom-limited: bright thin geometry (chainlink fences, radar dishes, white
-				// panels) otherwise clips to solid white under the arcs.
-				vec3 arcAdd = vec3(0.45, 0.8, 1.9) * arc * beamProx;
-				arcAdd *= clamp(0.82 - max(current.r, max(current.g, current.b)), 0.0, 1.0);
-				current.rgb += arcAdd;
+				if (beamProx > 0.0)
+				{
+					// Blue lightning on solid surfaces near the beam: a branching arc network
+					// with charge crawling along it - additive and blue, never a brightness
+					// wave over the whole surface.
+					float tt = dramaClock - 2.0;
+					// Triplanar, so the network runs across the surface whatever its facing.
+					// Weights are sharpened hard: a near-axis receiver takes a single projection,
+					// which both avoids washing the pattern out and skips two of the three
+					// evaluations. Only curved geometry pays for more than one.
+					vec3 planeW = abs(pointNrm);
+					planeW = planeW * planeW;
+					planeW = planeW * planeW;
+					planeW /= max(planeW.x + planeW.y + planeW.z, 1e-5);
+					float vein = 0.0;
+					if (planeW.x > 0.02)
+					{
+						vein += ggcDramaArcVein(vec2(v_worldPos.y, v_worldPos.z), tt) * planeW.x;
+					}
+					if (planeW.y > 0.02)
+					{
+						vein += ggcDramaArcVein(vec2(v_worldPos.x, v_worldPos.z), tt) * planeW.y;
+					}
+					if (planeW.z > 0.02)
+					{
+						vein += ggcDramaArcVein(vec2(v_worldPos.x, v_worldPos.y), tt) * planeW.z;
+					}
+					// Headroom-limited: bright thin geometry (chainlink fences, radar dishes,
+					// white panels) otherwise clips to solid white under the arcs.
+					vec3 arcAdd = vec3(0.45, 0.8, 1.9) * vein * beamProx;
+					arcAdd *= clamp(0.82 - max(current.r, max(current.g, current.b)), 0.0, 1.0);
+					current.rgb += arcAdd;
+				}
 			}
 			applyNukePointLight(current.rgb, v_worldPos, pointNrm, current.rgb, pointViewDir, pointSpecPower, pointCutoutDamp);
 			applyFlashPointLight(current.rgb, v_worldPos, pointNrm, current.rgb, pointViewDir, pointSpecPower, flashDamp);
