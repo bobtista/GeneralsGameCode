@@ -173,9 +173,10 @@ void AnimateWindowManager::reset()
 
 // TheSuperHackers @tweak bobtista 04/08/2026 Advances the animations by a fractional base rate frame
 // so that they move fluently on high render frame rates.
+// TheSuperHackers @feature bobtista 05/08/2026 Scale by the user game window movement speed preference.
 void AnimateWindowManager::update()
 {
-	const Real deltaFrames = TheFramePacer->getBaseOverUpdateFpsRatio();
+	const Real deltaFrames = TheFramePacer->getBaseOverUpdateFpsRatio() * TheGlobalData->m_gameWindowMovementSpeedMultiplier;
 
 	ProcessAnimateWindow *processAnim = nullptr;
 

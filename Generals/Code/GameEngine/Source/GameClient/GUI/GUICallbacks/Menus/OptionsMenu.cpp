@@ -799,6 +799,16 @@ static void saveOptions()
 	}
 
 	//-------------------------------------------------------------------------------------------------
+	// Set Game Window Movement Speed Multiplier
+	{
+		Real speed = pref->getGameWindowMovementSpeedMultiplier();
+		AsciiString prefString;
+		prefString.format("%g", speed);
+		(*pref)["GameWindowMovementSpeedMultiplier"] = prefString;
+		TheWritableGlobalData->m_gameWindowMovementSpeedMultiplier = speed;
+	}
+
+	//-------------------------------------------------------------------------------------------------
 	// Set JPEG screenshot quality
 	{
 		Int quality = pref->getJpegQuality();
