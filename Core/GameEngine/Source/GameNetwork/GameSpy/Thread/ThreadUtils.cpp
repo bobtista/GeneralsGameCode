@@ -36,11 +36,11 @@
 std::wstring MultiByteToWideCharSingleLine( const char *orig )
 {
 	const size_t srcLen = strlen(orig);
-	const size_t len = Utf8_To_Wide_Len(orig, srcLen);
-	if (len == 0)
+	const size_t dstLen = Utf8_To_Wide_Len(orig, srcLen);
+	if (dstLen == 0)
 		return std::wstring();
 	std::wstring ret;
-	if (len == UTF8_INVALID)
+	if (dstLen == UTF8_INVALID)
 	{
 		// Not UTF-8. Fall back to a 1:1 byte cast so legacy data keeps its characters, matching
 		// UnicodeString::translate.
@@ -52,8 +52,8 @@ std::wstring MultiByteToWideCharSingleLine( const char *orig )
 	}
 	else
 	{
-		ret.resize(len);
-		Utf8_To_Wide(&ret[0], len, orig, srcLen);
+		ret.resize(dstLen);
+		Utf8_To_Wide(&ret[0], dstLen, orig, srcLen);
 	}
 	WideChar *c = nullptr;
 	do
@@ -81,12 +81,12 @@ std::wstring MultiByteToWideCharSingleLine( const char *orig )
 std::string WideCharStringToMultiByte( const WideChar *orig )
 {
 	const size_t srcLen = wcslen(orig);
-	const size_t len = Wide_To_Utf8_Len(orig, srcLen);
-	if (len == 0)
+	const size_t dstLen = Wide_To_Utf8_Len(orig, srcLen);
+	if (dstLen == 0)
 		return std::string();
 	std::string ret;
-	ret.resize(len);
-	Wide_To_Utf8(&ret[0], len, orig, srcLen);
+	ret.resize(dstLen);
+	Wide_To_Utf8(&ret[0], dstLen, orig, srcLen);
 	return ret;
 }
 

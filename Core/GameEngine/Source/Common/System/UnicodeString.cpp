@@ -227,12 +227,12 @@ void UnicodeString::translate(const AsciiString& stringSrc)
 	// to preserve the original characters instead of producing replacement characters.
 	const char* src = stringSrc.str();
 	const size_t srcLen = strlen(src);
-	const size_t len = Utf8_To_Wide_Len(src, srcLen);
+	const size_t dstLen = Utf8_To_Wide_Len(src, srcLen);
 	if (srcLen == 0)
 	{
 		clear();
 	}
-	else if (len == UTF8_INVALID)
+	else if (dstLen == UTF8_INVALID)
 	{
 		ensureUniqueBufferOfSize((Int)srcLen + 1, false, nullptr, nullptr);
 		WideChar* buf = peek();
@@ -244,8 +244,8 @@ void UnicodeString::translate(const AsciiString& stringSrc)
 	}
 	else
 	{
-		ensureUniqueBufferOfSize((Int)len + 1, false, nullptr, nullptr);
-		Utf8_To_Wide(peek(), len + 1, src, srcLen);
+		ensureUniqueBufferOfSize((Int)dstLen + 1, false, nullptr, nullptr);
+		Utf8_To_Wide(peek(), dstLen + 1, src, srcLen);
 	}
 	validate();
 }
