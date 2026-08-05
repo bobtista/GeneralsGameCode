@@ -227,6 +227,7 @@ size_t Utf8_To_Wide_Len(const char* src, size_t srcLen)
 
 size_t Wide_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen)
 {
+	size_t needed = 0;
 	size_t out = 0;
 	size_t i = 0;
 	while (i < srcLen)
@@ -234,22 +235,23 @@ size_t Wide_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLe
 		unsigned int cp;
 		i += Wide_Read(src + i, srcLen - i, cp);
 		const size_t need = Utf8_Encoded_Length(cp);
-		if (out + need > destLen)
+		// Stop writing at the first codepoint that does not fit, but keep counting for the caller.
+		if (needed == out && out + need <= destLen)
 		{
-			WWASSERT(false);
-			break;
+			out += Utf8_Encode(dest + out, cp);
 		}
-		out += Utf8_Encode(dest + out, cp);
+		needed += need;
 	}
 	if (out < destLen)
 	{
 		dest[out] = '\0';
 	}
-	return out;
+	return needed;
 }
 
 size_t Utf8_To_Wide(wchar_t* dest, size_t destLen, const char* src, size_t srcLen)
 {
+	size_t needed = 0;
 	size_t out = 0;
 	size_t i = 0;
 	while (i < srcLen)
@@ -266,16 +268,16 @@ size_t Utf8_To_Wide(wchar_t* dest, size_t destLen, const char* src, size_t srcLe
 		}
 		i += consumed;
 		const size_t need = Wide_Encoded_Length(cp);
-		if (out + need > destLen)
+		// Stop writing at the first codepoint that does not fit, but keep counting for the caller.
+		if (needed == out && out + need <= destLen)
 		{
-			WWASSERT(false);
-			break;
+			out += Wide_Write(dest + out, cp);
 		}
-		out += Wide_Write(dest + out, cp);
+		needed += need;
 	}
 	if (out < destLen)
 	{
 		dest[out] = L'\0';
 	}
-	return out;
+	return needed;
 }

@@ -40,16 +40,19 @@ size_t Wide_To_Utf8_Len(const wchar_t* src, size_t srcLen);
 // src is not well-formed UTF-8.
 size_t Utf8_To_Wide_Len(const char* src, size_t srcLen);
 
-// Converts srcLen wide characters from src to UTF-8.
-// destLen is the destination buffer capacity in bytes. Caller must ensure destLen is large enough
-// by querying Wide_To_Utf8_Len first. Writes a null terminator if room remains, otherwise not.
-// Returns the number of bytes written, or 0 if srcLen is 0. Wide values that have no UTF-8
+// Converts srcLen wide characters from src to UTF-8. destLen is the destination buffer capacity in
+// bytes. Writes a null terminator if room remains, otherwise not. Wide values that have no UTF-8
 // representation are written as U+FFFD, so the output always decodes back through Utf8_To_Wide.
+// Returns the bytes the whole conversion needs, not counting a null terminator, which is what gets
+// written when it fits. More than destLen means the output was truncated on a codepoint boundary
+// and that is the size to retry with, plus one for the terminator. Pass destLen 0 to measure.
 size_t Wide_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen);
 
-// Converts srcLen bytes from the UTF-8 string src to wide characters.
-// destLen is the destination buffer capacity in wide characters. Caller must ensure destLen is
-// large enough by querying Utf8_To_Wide_Len first. Writes a null terminator if room remains,
-// otherwise not. Returns the number of wide characters written, 0 if srcLen is 0, or UTF8_INVALID
-// if src is not well-formed UTF-8. On failure, dest[0] is set to L'\0' if destLen > 0.
+// Converts srcLen bytes from the UTF-8 string src to wide characters. destLen is the destination
+// buffer capacity in wide characters. Writes a null terminator if room remains, otherwise not.
+// Returns the wide characters the whole conversion needs, not counting a null terminator, which is
+// what gets written when it fits. More than destLen means the output was truncated on a codepoint
+// boundary and that is the size to retry with, plus one for the terminator. Pass destLen 0 to
+// measure. Returns UTF8_INVALID if src is not well-formed UTF-8, setting dest[0] to L'\0' if
+// destLen > 0.
 size_t Utf8_To_Wide(wchar_t* dest, size_t destLen, const char* src, size_t srcLen);
