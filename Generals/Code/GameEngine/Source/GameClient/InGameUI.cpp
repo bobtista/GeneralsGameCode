@@ -1168,7 +1168,6 @@ InGameUI::InGameUI()
 	m_gameTimeColor = GameMakeColor( 255, 255, 255, 255 );
 	m_gameTimeDropColor = GameMakeColor( 0, 0, 0, 255 );
 	m_gameTimeReservedWidth = 0;
-	m_gameTimeFrameReservedWidth = 0;
 
 	m_playerInfoListFont = "Tahoma";
 	m_playerInfoListPointSize = TheGlobalData->m_playerInfoListFontSize;
@@ -5970,8 +5969,7 @@ void InGameUI::refreshGameTimeResources()
 	Int maxDigitWidth = 0;
 	for (WideChar digit = L'0'; digit <= L'9'; ++digit)
 	{
-		UnicodeString digitString;
-		digitString.concat(digit);
+		WideChar digitString[2] = { digit, 0 };
 		m_gameTimeString->setText(digitString);
 		Int digitWidth = m_gameTimeString->getWidth();
 		if (digitWidth > maxDigitWidth)
@@ -5985,8 +5983,7 @@ void InGameUI::refreshGameTimeResources()
 	m_gameTimeString->setText(UnicodeString(L"."));
 	Int dotWidth = m_gameTimeString->getWidth();
 
-	m_gameTimeReservedWidth = 6 * maxDigitWidth + 2 * colonWidth;
-	m_gameTimeFrameReservedWidth = dotWidth + 2 * maxDigitWidth;
+	m_gameTimeReservedWidth = (6 * maxDigitWidth + 2 * colonWidth) + (dotWidth + 2 * maxDigitWidth);
 }
 
 void InGameUI::refreshPlayerInfoListResources()
@@ -6179,7 +6176,7 @@ void InGameUI::drawGameTime()
 
 	// TheSuperHackers @info this implicitly offsets the game timer from the right instead of left of the screen
 	// TheSuperHackers @fix bobtista 07/07/2026 Anchor timer left to reserved widths so it stops jittering; butt frame against its live right edge
-	int horizontalTimerOffset = TheDisplay->getWidth() - (Int)m_gameTimePosition.x - m_gameTimeReservedWidth - m_gameTimeFrameReservedWidth;
+	int horizontalTimerOffset = TheDisplay->getWidth() - (Int)m_gameTimePosition.x - m_gameTimeReservedWidth;
 	int horizontalFrameOffset = horizontalTimerOffset + m_gameTimeString->getWidth();
 
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
