@@ -149,8 +149,7 @@ CW3DViewDoc::CleanupResources ()
         }
 
         // Release the 2D scene we allocated to display background BMPs
-        m_pC2DScene->Release_Ref ();
-        m_pC2DScene = nullptr;
+        m_pC2DScene.Clear ();
     }
 
     if (m_pCBackObjectScene)
@@ -162,8 +161,7 @@ CW3DViewDoc::CleanupResources ()
         }
 
         // Release the scene we allocated to display background objects
-        m_pCBackObjectScene->Release_Ref ();
-        m_pCBackObjectScene = nullptr;
+        m_pCBackObjectScene.Clear ();
     }
 
 	if (m_pCursor != nullptr) {
@@ -182,15 +180,14 @@ CW3DViewDoc::CleanupResources ()
         if (m_pCSceneLight)
         {
             // Remove the light from the scene
-				Remove_Object_From_Scene (m_pCSceneLight);
+				Remove_Object_From_Scene (m_pCSceneLight.Peek());
         }
 
 		  // Get rid of the lined up objects.
 		  m_pCScene->Clear_Lineup();
 
         // Release the scene object we allocated earlier
-        m_pCScene->Release_Ref ();
-        m_pCScene = nullptr;
+        m_pCScene.Clear ();
     }
 
 	 // Was there a dazzle layer?
@@ -201,30 +198,26 @@ CW3DViewDoc::CleanupResources ()
     if (m_pC2DCamera)
     {
         // Free the camera object
-        m_pC2DCamera->Release_Ref ();
-        m_pC2DCamera = nullptr;
+        m_pC2DCamera.Clear ();
     }
 
     // Was there a valid background camera?
     if (m_pCBackObjectCamera)
     {
         // Free the camera object
-        m_pCBackObjectCamera->Release_Ref ();
-        m_pCBackObjectCamera = nullptr;
+        m_pCBackObjectCamera.Clear ();
     }
 
     // Was there a valid background BMP?
     if (m_pCBackgroundBMP)
     {
-        m_pCBackgroundBMP->Release_Ref ();
-        m_pCBackgroundBMP = nullptr;
+        m_pCBackgroundBMP.Clear ();
     }
 
     // Was there a valid scene light?
     if (m_pCSceneLight)
     {
-        m_pCSceneLight->Release_Ref ();
-        m_pCSceneLight = nullptr;
+        m_pCSceneLight.Clear ();
     }
 
     // Free the currently displayed object
@@ -338,7 +331,7 @@ CW3DViewDoc::InitScene ()
 		//
 		ParticleEmitterClass::Set_Default_Remove_On_Complete (false);
 
-		m_pCScene = new ViewerSceneClass;
+		m_pCScene.Assign_No_Add_Ref (new ViewerSceneClass);
 		ASSERT (m_pCScene);
 		if (m_pCScene != nullptr) {
 
@@ -349,7 +342,7 @@ CW3DViewDoc::InitScene ()
 			m_pCScene->Set_Fog_Color(GetBackgroundColor());
 
 			// Create a new scene light
-			m_pCSceneLight = new LightClass;
+			m_pCSceneLight.Assign_No_Add_Ref (new LightClass);
 			ASSERT (m_pCSceneLight);
 
 			if (m_pCSceneLight != nullptr) {
@@ -365,12 +358,12 @@ CW3DViewDoc::InitScene ()
 				m_pCSceneLight->Set_Specular (Vector3(1, 1, 1));
 
 				// Add this light to the scene
-				m_pCScene->Add_Render_Object (m_pCSceneLight);
+				m_pCScene->Add_Render_Object (m_pCSceneLight.Peek());
 			}
 		}
 
 		// Instantiate a new 2D scene
-		m_pC2DScene = new SimpleSceneClass;
+		m_pC2DScene.Assign_No_Add_Ref (new SimpleSceneClass);
 		ASSERT (m_pC2DScene);
 
 		// Instantiate a new 2D cursor scene
@@ -381,7 +374,7 @@ CW3DViewDoc::InitScene ()
 		m_pCursorScene->Add_Render_Object (m_pCursor.Peek());
 
 
-		m_pCBackObjectScene = new SimpleSceneClass;
+		m_pCBackObjectScene.Assign_No_Add_Ref (new SimpleSceneClass);
 
 		// Were we successful in instantiating the scene object?
 		ASSERT (m_pCBackObjectScene);
@@ -394,7 +387,7 @@ CW3DViewDoc::InitScene ()
 
 		// Create a new instance of the camera class to use
 		// when rendering the background object
-		m_pCBackObjectCamera = new CameraClass ();
+		m_pCBackObjectCamera.Assign_No_Add_Ref (new CameraClass ());
 
 		// Were we successful in creating the new instance?
 		ASSERT (m_pCBackObjectCamera);
@@ -408,7 +401,7 @@ CW3DViewDoc::InitScene ()
 
 		// Create a new instance of the camera class to use
 		// when rendering the background BMP
-		m_pC2DCamera = new CameraClass ();
+		m_pC2DCamera.Assign_No_Add_Ref (new CameraClass ());
 
 		// Were we successful in creating the new instance?
 		ASSERT (m_pC2DCamera);
@@ -1235,8 +1228,7 @@ CW3DViewDoc::SetBackgroundBMP (LPCTSTR pszBackgroundBMP)
             // Remove the background BMP from the scene
             // and release its pointer
 				m_pCBackgroundBMP->Remove ();
-            m_pCBackgroundBMP->Release_Ref ();
-            m_pCBackgroundBMP = nullptr;
+            m_pCBackgroundBMP.Clear ();
         }
 
         // Is this a new background BMP?
@@ -1244,14 +1236,14 @@ CW3DViewDoc::SetBackgroundBMP (LPCTSTR pszBackgroundBMP)
             (m_stringBackgroundBMP.CompareNoCase (pszBackgroundBMP) != 0))
         {
 				// Create a new instance of the BMP object to use
-            m_pCBackgroundBMP = new Bitmap2DObjClass (pszBackgroundBMP, 0.5F, 0.5F, TRUE, FALSE);
+            m_pCBackgroundBMP.Assign_No_Add_Ref (new Bitmap2DObjClass (pszBackgroundBMP, 0.5F, 0.5F, TRUE, FALSE));
 
             // Were we successful in creating the bitmap object?
             ASSERT (m_pCBackgroundBMP);
             if (m_pCBackgroundBMP)
             {
                 // Add the object to the scene
-					 m_pC2DScene->Add_Render_Object (m_pCBackgroundBMP);
+					 m_pC2DScene->Add_Render_Object (m_pCBackgroundBMP.Peek());
             }
         }
 
@@ -1775,14 +1767,13 @@ CW3DViewDoc::SetBackgroundObject (LPCTSTR pszBackgroundObjectName)
 				m_pCBackgroundObject->Remove ();
 
             // Free the object
-            m_pCBackgroundObject->Release_Ref ();
-            m_pCBackgroundObject = nullptr;
+            m_pCBackgroundObject.Clear ();
         }
 
         if (pszBackgroundObjectName)
         {
             // Create a new instance of the render object to use as the background
-            m_pCBackgroundObject = WW3DAssetManager::Get_Instance()->Create_Render_Obj (pszBackgroundObjectName);
+            m_pCBackgroundObject.Assign_No_Add_Ref (WW3DAssetManager::Get_Instance()->Create_Render_Obj (pszBackgroundObjectName));
 
             ASSERT (m_pCBackgroundObject);
             if (m_pCBackgroundObject)
@@ -1806,7 +1797,7 @@ CW3DViewDoc::SetBackgroundObject (LPCTSTR pszBackgroundObjectName)
                 m_pCBackObjectCamera->Set_Clip_Planes (1, cameraDepth);
 
                 // Add the background object to the scene
-					 m_pCBackObjectScene->Add_Render_Object (m_pCBackgroundObject);
+					 m_pCBackObjectScene->Add_Render_Object (m_pCBackgroundObject.Peek());
             }
         }
 

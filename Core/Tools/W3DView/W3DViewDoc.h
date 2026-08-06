@@ -109,13 +109,13 @@ public:
 	//
 	//  Accessors
 	//
-	CameraClass *			Get2DCamera () const				{ return m_pC2DCamera; }
-	CameraClass *			GetBackObjectCamera () const		{ return m_pCBackObjectCamera; }
-	SceneClass *			Get2DScene () const					{ return m_pC2DScene; }
+	CameraClass *			Get2DCamera () const				{ return m_pC2DCamera.Peek(); }
+	CameraClass *			GetBackObjectCamera () const		{ return m_pCBackObjectCamera.Peek(); }
+	SceneClass *			Get2DScene () const					{ return m_pC2DScene.Peek(); }
 	SceneClass *			GetCursorScene () const			{ return m_pCursorScene.Peek(); }
-	ViewerSceneClass *	GetScene () const					{ return m_pCScene; }
-	SceneClass *			GetBackObjectScene () const		{ return m_pCBackObjectScene; }
-	LightClass *			GetSceneLight () const				{ return m_pCSceneLight; }
+	ViewerSceneClass *	GetScene () const					{ return m_pCScene.Peek(); }
+	SceneClass *			GetBackObjectScene () const		{ return m_pCBackObjectScene.Peek(); }
+	LightClass *			GetSceneLight () const				{ return m_pCSceneLight.Peek(); }
 	RenderObjClass *		GetDisplayedObject () const		{ return m_pCRenderObj.Peek(); }
 	HAnimClass *			GetCurrentAnimation () const		{ return m_pCAnimation.Peek(); }
 	const HTreeClass *	Get_Current_HTree () const;
@@ -289,19 +289,19 @@ private:
 	//////////////////////////////////////////////////////////////////
 	//  Private member data
 	//////////////////////////////////////////////////////////////////
-	ViewerSceneClass *	m_pCScene;
-	SceneClass *			m_pC2DScene;
+	RefCountPtr<ViewerSceneClass>	m_pCScene;
+	RefCountPtr<SceneClass>			m_pC2DScene;
 	RefCountPtr<SceneClass>			m_pCursorScene;
-	SceneClass *			m_pCBackObjectScene;
+	RefCountPtr<SceneClass>			m_pCBackObjectScene;
 	DazzleLayerClass *	m_pDazzleLayer;
 	RefCountPtr<RenderObjClass>		m_pCRenderObj;
-	RenderObjClass *		m_pCBackgroundObject;
+	RefCountPtr<RenderObjClass>		m_pCBackgroundObject;
 	RefCountPtr<HAnimClass>			m_pCAnimation;
 	HAnimComboClass *		m_pCAnimCombo;
-	LightClass *			m_pCSceneLight;
-	Bitmap2DObjClass *	m_pCBackgroundBMP;
-	CameraClass *			m_pC2DCamera;
-	CameraClass *			m_pCBackObjectCamera;
+	RefCountPtr<LightClass>			m_pCSceneLight;
+	RefCountPtr<Bitmap2DObjClass>	m_pCBackgroundBMP;
+	RefCountPtr<CameraClass>			m_pC2DCamera;
+	RefCountPtr<CameraClass>			m_pCBackObjectCamera;
 	RefCountPtr<ScreenCursorClass>	m_pCursor;
 	Vector3					m_backgroundColor;
 	CString					m_stringBackgroundBMP;
