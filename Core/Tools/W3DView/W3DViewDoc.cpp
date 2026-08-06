@@ -194,31 +194,13 @@ CW3DViewDoc::CleanupResources ()
 	 delete m_pDazzleLayer;
 	 m_pDazzleLayer = nullptr;
 
-    // Was there a valid 2D camera?
-    if (m_pC2DCamera)
-    {
-        // Free the camera object
-        m_pC2DCamera.Clear ();
-    }
+    // Free the camera objects
+    m_pC2DCamera.Clear ();
+    m_pCBackObjectCamera.Clear ();
 
-    // Was there a valid background camera?
-    if (m_pCBackObjectCamera)
-    {
-        // Free the camera object
-        m_pCBackObjectCamera.Clear ();
-    }
-
-    // Was there a valid background BMP?
-    if (m_pCBackgroundBMP)
-    {
-        m_pCBackgroundBMP.Clear ();
-    }
-
-    // Was there a valid scene light?
-    if (m_pCSceneLight)
-    {
-        m_pCSceneLight.Clear ();
-    }
+    // Free the background BMP and scene light
+    m_pCBackgroundBMP.Clear ();
+    m_pCSceneLight.Clear ();
 
     // Free the currently displayed object
     SAFE_DELETE (m_pCAnimCombo);
