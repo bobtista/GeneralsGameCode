@@ -140,29 +140,23 @@ CW3DViewDoc::~CW3DViewDoc ()
 void
 CW3DViewDoc::CleanupResources ()
 {
-    if (m_pC2DScene)
+    if (m_pCBackgroundBMP)
     {
-		  if (m_pCBackgroundBMP)
-        {
-            // Remove the background BMP from the scene
-				m_pCBackgroundBMP->Remove ();
-        }
-
-        // Release the 2D scene we allocated to display background BMPs
-        m_pC2DScene.Clear ();
+        // Remove the background BMP from the scene
+        m_pCBackgroundBMP->Remove ();
     }
 
-    if (m_pCBackObjectScene)
-    {
-        if (m_pCBackgroundObject)
-        {
-            // Remove the background BMP from the scene
-				m_pCBackgroundObject->Remove ();
-        }
+    // Release the 2D scene we allocated to display background BMPs
+    m_pC2DScene.Clear ();
 
-        // Release the scene we allocated to display background objects
-        m_pCBackObjectScene.Clear ();
+    if (m_pCBackgroundObject)
+    {
+        // Remove the background BMP from the scene
+        m_pCBackgroundObject->Remove ();
     }
+
+    // Release the scene we allocated to display background objects
+    m_pCBackObjectScene.Clear ();
 
 	if (m_pCursor != nullptr) {
 		m_pCursor->Remove ();
