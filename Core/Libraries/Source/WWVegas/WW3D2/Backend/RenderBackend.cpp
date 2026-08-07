@@ -23,10 +23,16 @@
 #include "RenderBackend.h"
 #include "DX8Backend.h"
 
+#include "WWDebug/wwdebug.h"
+
 IRenderBackend * g_renderBackend = nullptr;
 
 void Init_Render_Backend()
 {
+    // Construction is single shot. WW3D::Init pairs with WW3D::Shutdown, which
+    // destroys the backend again, so arriving here with a live backend means the
+    // library lifecycle is unbalanced.
+    WWASSERT(g_renderBackend == nullptr);
     if (g_renderBackend != nullptr)
     {
         return;

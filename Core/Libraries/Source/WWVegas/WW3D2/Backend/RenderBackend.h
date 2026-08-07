@@ -28,8 +28,10 @@
 // Shutdown_Render_Backend(); never null between those two calls.
 extern IRenderBackend * g_renderBackend;
 
-// Create the render backend. Must be called after the render device is ready.
+// Create the render backend. Called once from WW3D::Init, before any render
+// device exists, and exactly once per Shutdown_Render_Backend().
 void Init_Render_Backend();
 
-// Destroy the render backend. Must be called before the render device is released.
+// Destroy the render backend. Called from WW3D::Shutdown, after the render
+// device has been released.
 void Shutdown_Render_Backend();

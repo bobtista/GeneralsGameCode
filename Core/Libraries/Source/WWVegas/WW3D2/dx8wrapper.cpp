@@ -392,10 +392,9 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 
 	Set_Default_Global_Render_States();
 
-	// TheSuperHackers @refactor bobtista 10/04/2026 Construct the global
-	// IRenderBackend instance now that the D3D device is ready, then let it
-	// bring up any device of its own.
-	Init_Render_Backend();
+	// TheSuperHackers @refactor bobtista 10/04/2026 The backend object is created
+	// in WW3D::Init and outlives every device cycle. Only its device dependent
+	// state is brought up here, now that the D3D device is ready.
 	g_renderBackend->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
 }
 
@@ -457,14 +456,13 @@ void DX8Wrapper::Invalidate_Cached_Render_States()
 
 void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 {
-	// TheSuperHackers @refactor bobtista 10/04/2026 Tear down the render
-	// backend before the D3D device is released so any backend-owned
-	// resources get released first.
+	// TheSuperHackers @refactor bobtista 10/04/2026 Release the backend's device
+	// dependent state before the D3D device goes away. The backend object itself
+	// is destroyed later, in WW3D::Shutdown.
 	if (g_renderBackend != nullptr)
 	{
 		g_renderBackend->Shutdown();
 	}
-	Shutdown_Render_Backend();
 
 	/*
 	** Shutdown ww3d systems
