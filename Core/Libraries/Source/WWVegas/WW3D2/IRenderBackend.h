@@ -32,7 +32,6 @@ class VertexMaterialClass;
 class TextureBaseClass;
 class TextureClass;
 class ZTextureClass;
-class SurfaceClass;
 class VertexBufferClass;
 class IndexBufferClass;
 class DynamicVBAccessClass;
@@ -83,7 +82,6 @@ public:
     virtual bool Is_Device_Lost() const = 0;
     virtual bool Has_Stencil() = 0;
     virtual WW3DFormat Get_Back_Buffer_Format() = 0;
-    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) = 0;
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) = 0;
 
     virtual void Begin_Scene() = 0;

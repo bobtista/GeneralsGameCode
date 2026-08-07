@@ -53,11 +53,6 @@ WW3DFormat DX8Backend::Get_Back_Buffer_Format()
     return DX8Wrapper::getBackBufferFormat();
 }
 
-SurfaceClass * DX8Backend::Get_Back_Buffer(unsigned int num)
-{
-    return DX8Wrapper::_Get_DX8_Back_Buffer(num);
-}
-
 void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit)
 {
     DX8Wrapper::Set_Gamma(gamma, bright, contrast, calibrate, uselimit);

@@ -33,7 +33,6 @@ public:
     virtual bool Is_Device_Lost() const override;
     virtual bool Has_Stencil() override;
     virtual WW3DFormat Get_Back_Buffer_Format() override;
-    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) override;
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) override;
 
     virtual void Begin_Scene() override;
