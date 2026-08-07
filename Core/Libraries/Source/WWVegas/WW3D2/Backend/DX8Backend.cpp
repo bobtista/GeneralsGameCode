@@ -271,12 +271,12 @@ void DX8Backend::Draw_Strip(unsigned short start_index,
     DX8Wrapper::Draw_Strip(start_index, index_count, min_vertex_index, vertex_count);
 }
 
-void DX8Backend::Set_Vertex_Shader(unsigned long vertex_shader)
+void DX8Backend::Set_Vertex_Shader(unsigned int vertex_shader)
 {
     DX8Wrapper::Set_Vertex_Shader(static_cast<DWORD>(vertex_shader));
 }
 
-void DX8Backend::Set_Pixel_Shader(unsigned long pixel_shader)
+void DX8Backend::Set_Pixel_Shader(unsigned int pixel_shader)
 {
     DX8Wrapper::Set_Pixel_Shader(static_cast<DWORD>(pixel_shader));
 }

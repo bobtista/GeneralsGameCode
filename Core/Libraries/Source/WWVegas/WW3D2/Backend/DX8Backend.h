@@ -89,9 +89,8 @@ public:
                             unsigned short min_vertex_index,
                             unsigned short vertex_count) override;
 
-    // The shader id is treated as an opaque unsigned long.
-    virtual void Set_Vertex_Shader(unsigned long vertex_shader) override;
-    virtual void Set_Pixel_Shader(unsigned long pixel_shader) override;
+    virtual void Set_Vertex_Shader(unsigned int vertex_shader) override;
+    virtual void Set_Pixel_Shader(unsigned int pixel_shader) override;
     virtual void Set_Vertex_Shader_Constant(int reg, const void * data, int count) override;
     virtual void Set_Pixel_Shader_Constant(int reg, const void * data, int count) override;
 

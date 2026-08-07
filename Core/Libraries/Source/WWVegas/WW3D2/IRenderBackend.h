@@ -143,9 +143,10 @@ public:
                             unsigned short min_vertex_index,
                             unsigned short vertex_count) = 0;
 
-    // The shader id is treated as an opaque unsigned long.
-    virtual void Set_Vertex_Shader(unsigned long vertex_shader) = 0;
-    virtual void Set_Pixel_Shader(unsigned long pixel_shader) = 0;
+    // Legacy fixed function vertex format code or shader handle. Always 32 bits
+    // wide; unsigned long would be 64 bits on targets where long is 64-bit.
+    virtual void Set_Vertex_Shader(unsigned int vertex_shader) = 0;
+    virtual void Set_Pixel_Shader(unsigned int pixel_shader) = 0;
     virtual void Set_Vertex_Shader_Constant(int reg, const void * data, int count) = 0;
     virtual void Set_Pixel_Shader_Constant(int reg, const void * data, int count) = 0;
 
