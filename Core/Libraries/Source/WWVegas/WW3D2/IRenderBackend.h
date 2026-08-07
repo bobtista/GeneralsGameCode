@@ -96,8 +96,8 @@ public:
 
     virtual void Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream) = 0;
     virtual void Set_Vertex_Buffer(const DynamicVBAccessClass & vba) = 0;
-    virtual void Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset) = 0;
-    virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) = 0;
+    virtual void Set_Index_Buffer(const IndexBufferClass * ib, unsigned int index_base_offset) = 0;
+    virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned int index_base_offset) = 0;
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) = 0;
 
     virtual void Set_Shader(const ShaderClass & shader) = 0;
@@ -127,21 +127,25 @@ public:
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) = 0;
     virtual LightEnvironmentClass * Get_Light_Environment() const = 0;
 
-    virtual void Draw_Triangles(unsigned short start_index,
-                                unsigned short polygon_count,
-                                unsigned short min_vertex_index,
-                                unsigned short vertex_count) = 0;
+    // Ranges are unsigned int rather than the DX8 era unsigned short so the
+    // interface does not pin every future backend to 16-bit draw counts. The DX8
+    // reference backend narrows on the way through to DX8Wrapper.
+
+    virtual void Draw_Triangles(unsigned int start_index,
+                                unsigned int polygon_count,
+                                unsigned int min_vertex_index,
+                                unsigned int vertex_count) = 0;
 
     virtual void Draw_Triangles(unsigned int buffer_type,
-                                unsigned short start_index,
-                                unsigned short polygon_count,
-                                unsigned short min_vertex_index,
-                                unsigned short vertex_count) = 0;
+                                unsigned int start_index,
+                                unsigned int polygon_count,
+                                unsigned int min_vertex_index,
+                                unsigned int vertex_count) = 0;
 
-    virtual void Draw_Strip(unsigned short start_index,
-                            unsigned short index_count,
-                            unsigned short min_vertex_index,
-                            unsigned short vertex_count) = 0;
+    virtual void Draw_Strip(unsigned int start_index,
+                            unsigned int index_count,
+                            unsigned int min_vertex_index,
+                            unsigned int vertex_count) = 0;
 
     // Legacy fixed function vertex format code or shader handle. Always 32 bits
     // wide; unsigned long would be 64 bits on targets where long is 64-bit.
