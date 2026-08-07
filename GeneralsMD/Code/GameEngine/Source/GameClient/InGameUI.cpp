@@ -6098,7 +6098,7 @@ void InGameUI::refreshGameTimeResources()
 	m_gameTimeString->setFont(gameTimeFont);
 	m_gameTimeFrameString->setFont(gameTimeFont);
 
-	// TheSuperHackers @fix bobtista 07/07/2026 Reserve widths from the widest digit so the clock does not jitter
+	// TheSuperHackers @info bobtista 07/07/2026 Reserve widths from the widest digit so the clock does not jitter
 	Int maxDigitWidth = 0;
 	for (WideChar digit = L'0'; digit <= L'9'; ++digit)
 	{
@@ -6111,9 +6111,9 @@ void InGameUI::refreshGameTimeResources()
 		}
 	}
 
-	m_gameTimeString->setText(UnicodeString(L":"));
+	m_gameTimeString->setText(L":");
 	Int colonWidth = m_gameTimeString->getWidth();
-	m_gameTimeString->setText(UnicodeString(L"."));
+	m_gameTimeString->setText(L".");
 	Int dotWidth = m_gameTimeString->getWidth();
 
 	m_gameTimeReservedWidth = (6 * maxDigitWidth + 2 * colonWidth) + (dotWidth + 2 * maxDigitWidth);
@@ -6308,7 +6308,6 @@ void InGameUI::drawGameTime()
     m_gameTimeFrameString->setText(gameTimeFrameString);
 
 	// TheSuperHackers @info this implicitly offsets the game timer from the right instead of left of the screen
-	// TheSuperHackers @fix bobtista 07/07/2026 Anchor timer left to reserved widths so it stops jittering; butt frame against its live right edge
 	int horizontalTimerOffset = TheDisplay->getWidth() - (Int)m_gameTimePosition.x - m_gameTimeReservedWidth;
 	int horizontalFrameOffset = horizontalTimerOffset + m_gameTimeString->getWidth();
 
