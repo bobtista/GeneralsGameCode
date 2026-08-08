@@ -145,7 +145,18 @@ void W3DDependencyModelDraw::adjustTransformMtx(Matrix3D& mtx) const
 			else
 			{
         mtx = *theirDrawable->getTransformMatrix();//TransformMatrix();
-				DEBUG_LOG(("m_attachToDrawableBoneInContainer %s not found",getW3DDependencyModelDrawModuleData()->m_attachToDrawableBoneInContainer.str()));
+				// TheSuperHackers @tweak bobtista 08/08/2026 This fired once per frame for every
+				// dependent drawable whose container lacks the bone, which was over half of a
+				// release log. Report each module's missing bone once instead of every frame.
+				{
+					const W3DDependencyModelDrawModuleData *reportData = getW3DDependencyModelDrawModuleData();
+					static const W3DDependencyModelDrawModuleData *lastReportedData = NULL;
+					if( reportData != lastReportedData )
+					{
+						lastReportedData = reportData;
+						DEBUG_LOG(("m_attachToDrawableBoneInContainer %s not found",reportData->m_attachToDrawableBoneInContainer.str()));
+					}
+				}
 			}
 		}
 	}
