@@ -143,7 +143,25 @@ void GameDebugInit(int flags)
 	// TheSuperHackers @feature bobtista 01/08/2026 A crash that never reaches a handled path,
 	// such as a libc abort, dies with the last buffered lines still unwritten. Let a remote
 	// tester trade framerate for a complete log tail without needing a debugger.
-	DebugSetFlushLogEachLine(GgcFlags::Enabled(GgcFlag_LogFlush));
+	// TheSuperHackers @tweak bobtista 08/08/2026 A Release build that carries logging exists to
+	// collect crash reports from players, so it defaults to durable. Debug builds keep the
+	// buffered default, where the log is far chattier and the per-line write costs framerate.
+	// GGC_LOG_FLUSH overrides either default in both directions.
+	{
+		const char *logFlushValue = GgcFlags::StringValue(GgcFlag_LogFlush);
+		if (logFlushValue != nullptr)
+		{
+			DebugSetFlushLogEachLine(strcmp(logFlushValue, "0") != 0 && strcmp(logFlushValue, "false") != 0);
+		}
+		else
+		{
+#if defined(RTS_DEBUG)
+			DebugSetFlushLogEachLine(false);
+#else
+			DebugSetFlushLogEachLine(true);
+#endif
+		}
+	}
 
 	// TheSuperHackers @info Debug initialization can happen very early.
 	// Determine the client instance id before creating the log file with an instance specific name.

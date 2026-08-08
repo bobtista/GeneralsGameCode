@@ -90,11 +90,12 @@ static char theLogFileNamePrev[ _MAX_PATH ];
 #define LARGE_BUFFER	8192
 static char theBuffer[ LARGE_BUFFER ];	// make it big to avoid weird overflow bugs in debug mode
 static int theDebugFlags = 0;
-// TheSuperHackers @performance bobtista 14/06/2026 When false (default) the debug log is
-// buffered and only flushed on crash/assert/shutdown. Flushing every line turned each
-// DEBUG_LOG into a blocking disk write, which crippled debug-build framerate on log-heavy
-// frames. Set GGC_LOG_FLUSH=1 for per-line durability while chasing a hard crash that
-// bypasses the handled crash paths, such as a libc abort.
+// TheSuperHackers @performance bobtista 14/06/2026 When false the debug log is buffered and
+// only flushed on crash/assert/shutdown. Flushing every line turned each DEBUG_LOG into a
+// blocking disk write, which crippled debug-build framerate on log-heavy frames. Set
+// GGC_LOG_FLUSH=1 for per-line durability while chasing a hard crash that bypasses the
+// handled crash paths, such as a libc abort. The startup default is chosen by build config
+// where the log file is opened; GGC_LOG_FLUSH=0 forces buffering back on.
 static bool theFlushDebugLogEachLine = false;
 static DWORD theMainThreadID = 0;
 static DebugCrashHandler theCrashHandler = nullptr;
