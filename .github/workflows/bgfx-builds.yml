@@ -136,7 +136,12 @@ jobs:
         shell: pwsh
         run: |
           cmake --build build/${{ matrix.preset }} --config ${{ matrix.config }} --target z_generals
+          # The pwsh wrapper exits with the LAST command's code, so an unguarded
+          # sccache --show-stats reported success for a failed build and the job
+          # went on to publish archives with no executable in them.
+          $buildExit = $LASTEXITCODE
           sccache --show-stats
+          if ($buildExit -ne 0) { exit $buildExit }
 
       - name: Stage and Zip
         shell: pwsh
@@ -148,6 +153,13 @@ jobs:
           Copy-Item "$build/GeneralsMD/$cfg/*.exe" $stage
           if (Test-Path "$build/GeneralsMD/$cfg/*.pdb") {
             Copy-Item "$build/GeneralsMD/$cfg/*.pdb" $stage
+          }
+
+          # A wildcard copy whose directory exists but holds no match is silent, so a
+          # missing executable produced a docs-only zip instead of failing the job.
+          $staged = Get-ChildItem -Path "$stage/*.exe" -ErrorAction SilentlyContinue
+          if (-not $staged) {
+            throw "No executable staged from $build/GeneralsMD/$cfg - the build did not produce one"
           }
 
           $dlls = Get-ChildItem -Path "$build/_deps" -Recurse -Include "SDL3*.dll","OpenAL32*.dll" |
