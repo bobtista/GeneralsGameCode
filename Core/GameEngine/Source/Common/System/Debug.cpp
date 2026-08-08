@@ -114,11 +114,12 @@ static char theLogFileNamePrev[ _MAX_PATH ];
 #define LARGE_BUFFER	8192
 static char theBuffer[ LARGE_BUFFER ];	// make it big to avoid weird overflow bugs in debug mode
 static int theDebugFlags = 0;
-// TheSuperHackers @performance bobtista 14/06/2026 When false (default) the debug log is
-// buffered and only flushed on crash/assert/shutdown. Flushing every line turned each
-// DEBUG_LOG into a blocking disk write, which crippled debug-build framerate on log-heavy
-// frames. Set GGC_LOG_FLUSH=1 for per-line durability while chasing a hard crash that
-// bypasses the handled crash paths, such as a libc abort.
+// TheSuperHackers @performance bobtista 14/06/2026 When false the debug log is buffered and
+// only flushed on crash/assert/shutdown. Flushing every line turned each DEBUG_LOG into a
+// blocking disk write, which crippled debug-build framerate on log-heavy frames. Set
+// GGC_LOG_FLUSH=1 for per-line durability while chasing a hard crash that bypasses the
+// handled crash paths, such as a libc abort. The startup default is chosen by build config
+// where the log file is opened; GGC_LOG_FLUSH=0 forces buffering back on.
 static bool theFlushDebugLogEachLine = false;
 static DWORD theMainThreadID = 0;
 // ----------------------------------------------------------------------------
@@ -388,7 +389,25 @@ void DebugInit(int flags)
 		// TheSuperHackers @feature bobtista 01/08/2026 A crash that never reaches a handled path,
 		// such as a libc abort, dies with the last buffered lines still unwritten. Let a remote
 		// tester trade framerate for a complete log tail without needing a debugger.
-		theFlushDebugLogEachLine = GgcFlags::Enabled(GgcFlag_LogFlush);
+		// TheSuperHackers @tweak bobtista 08/08/2026 A Release build that carries logging exists to
+		// collect crash reports from players, so it defaults to durable. Debug builds keep the
+		// buffered default, where the log is far chattier and the per-line write costs framerate.
+		// GGC_LOG_FLUSH overrides either default in both directions.
+		{
+			const char *logFlushValue = GgcFlags::StringValue(GgcFlag_LogFlush);
+			if (logFlushValue != NULL)
+			{
+				theFlushDebugLogEachLine = (strcmp(logFlushValue, "0") != 0 && strcmp(logFlushValue, "false") != 0);
+			}
+			else
+			{
+#if defined(RTS_DEBUG)
+				theFlushDebugLogEachLine = false;
+#else
+				theFlushDebugLogEachLine = true;
+#endif
+			}
+		}
 
 		// TheSuperHackers @info Debug initialization can happen very early.
 		// Determine the client instance id before creating the log file with an instance specific name.
