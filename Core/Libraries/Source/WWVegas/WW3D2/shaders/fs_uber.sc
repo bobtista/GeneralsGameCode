@@ -547,10 +547,15 @@ float ggcDramaDimFactor(vec3 worldPos)
 	float glowT = 1.0 - clamp(d * (1.0 / 210.0), 0.0, 1.0);
 	glowT = glowT * glowT;
 	float glow = effect * glowT * 2.4;
-	// Gentle dim that increases with distance so the rest of the screen is a bit darker.
+	// Gentle dim just outside the glow pool, so the beam reads bright against darker ground.
 	float dimT = clamp((d - 150.0) * abs(u_dramaDim.z), 0.0, 1.0);
 	dimT = dimT * dimT * (3.0 - 2.0 * dimT);
-	float dimBase = 1.0 - effect * dimT;
+	// The dim is a pool around the beam, not a global exposure change: past the hold band it
+	// eases back to full brightness. Without this the falloff clamps at its floor and stays
+	// there for every pixel beyond it, so a cannon firing off screen darkened the whole map.
+	float dimFade = 1.0 - clamp((d - 450.0) * (1.0 / 250.0), 0.0, 1.0);
+	dimFade = dimFade * dimFade * (3.0 - 2.0 * dimFade);
+	float dimBase = 1.0 - effect * dimT * dimFade;
 	return dimBase + glow;
 }
 
