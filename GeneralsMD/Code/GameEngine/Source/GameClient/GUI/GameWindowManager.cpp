@@ -819,6 +819,18 @@ WinInputReturnCode GameWindowManager::winProcessKey( UnsignedByte key,
 
 	}
 
+#if defined(DEBUG_LOGGING)
+	// TheSuperHackers @info bobtista 04/08/2026 Report which window consumed a keystroke so a menu
+	// that never sees ESC can be told apart from one whose handler ran and did nothing.
+	if( key == KEY_ESC )
+	{
+		DEBUG_LOG(("winProcessKey(KEY_ESC) state=%d: focus=%d used=%d",
+			(Int)state,
+			m_keyboardFocus ? m_keyboardFocus->winGetWindowId() : -1,
+			returnCode == WIN_INPUT_USED ? 1 : 0));
+	}
+#endif
+
 	return returnCode;
 
 }
@@ -837,6 +849,10 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 	GameWindow *toolTipWindow = nullptr;
 	Int dx, dy;
 	Bool clearGrabWindow = FALSE;
+
+#if defined(DEBUG_LOGGING)
+	GameWindow *const debugEntryGrabWindow = m_grabWindow;
+#endif
 
 	// pack mouse coords into one entity for message passing
 	packedMouseCoords = SHORTTOLONG( mousePos->x, mousePos->y );
@@ -1170,6 +1186,22 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 		clearGrabWindow = FALSE;
 
 	}
+
+#if defined(DEBUG_LOGGING)
+	// TheSuperHackers @info bobtista 04/08/2026 Report where a click actually landed so an
+	// unresponsive menu can be told apart from input that never arrived at all.
+	if( msg == GWM_LEFT_DOWN || msg == GWM_LEFT_UP )
+	{
+		DEBUG_LOG(("winProcessMouseEvent(%s) at %d,%d: target=%d entryGrab=%d captor=%d modal=%d used=%d",
+			msg == GWM_LEFT_DOWN ? "LEFT_DOWN" : "LEFT_UP",
+			mousePos->x, mousePos->y,
+			window ? window->winGetWindowId() : -1,
+			debugEntryGrabWindow ? debugEntryGrabWindow->winGetWindowId() : -1,
+			m_mouseCaptor ? m_mouseCaptor->winGetWindowId() : -1,
+			(m_modalHead && m_modalHead->window) ? m_modalHead->window->winGetWindowId() : -1,
+			returnCode == WIN_INPUT_USED ? 1 : 0));
+	}
+#endif
 
 	return returnCode;
 

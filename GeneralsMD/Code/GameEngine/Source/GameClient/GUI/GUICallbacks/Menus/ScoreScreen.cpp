@@ -91,6 +91,7 @@
 #include "GameClient/CampaignManager.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/VideoPlayer.h"
+#include "GameClient/View.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 #include "GameNetwork/NetworkDefs.h"
@@ -152,6 +153,29 @@ void finishSinglePlayerInit();
 static Bool s_needToFinishSinglePlayerInit = FALSE;
 static Bool buttonIsFinishCampaign = FALSE;
 static WindowLayout *s_blankLayout = nullptr;
+
+#if defined(DEBUG_LOGGING)
+// TheSuperHackers @info bobtista 04/08/2026 Timestamps the score screen so the delay before the
+// buttons accept input can be measured against the window and transition state.
+static UnsignedInt s_debugInitTimeMsec = 0;
+static UnsignedInt s_debugLastReportMsec = 0;
+
+static void debugReportScoreScreenState( const char *what )
+{
+	const UnsignedInt now = timeGetTime();
+	DEBUG_LOG(("ScoreScreen[%s] +%ums: ok(hidden=%d enabled=%d) continue(hidden=%d enabled=%d) transitionFinished=%d shellActive=%d mouseLocked=%d uiScrolling=%d",
+		what,
+		now - s_debugInitTimeMsec,
+		buttonOk ? (buttonOk->winIsHidden() ? 1 : 0) : -1,
+		buttonOk ? (BitIsSet( buttonOk->winGetStatus(), WIN_STATUS_ENABLED ) ? 1 : 0) : -1,
+		buttonContinue ? (buttonContinue->winIsHidden() ? 1 : 0) : -1,
+		buttonContinue ? (BitIsSet( buttonContinue->winGetStatus(), WIN_STATUS_ENABLED ) ? 1 : 0) : -1,
+		(TheTransitionHandler && TheTransitionHandler->isFinished()) ? 1 : 0,
+		(TheShell && TheShell->isShellActive()) ? 1 : 0,
+		(TheTacticalView && TheTacticalView->isMouseLocked()) ? 1 : 0,
+		(TheInGameUI && TheInGameUI->isScrolling()) ? 1 : 0));
+}
+#endif
 
 void initSkirmish();
 void initLANMultiPlayer();
@@ -396,6 +420,12 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 		s_blankLayout->bringForward();
 	}
 
+#if defined(DEBUG_LOGGING)
+	s_debugInitTimeMsec = timeGetTime();
+	s_debugLastReportMsec = 0;
+	debugReportScoreScreenState("init");
+#endif
+
 }
 
 void FixupScoreScreenMovieWindow()
@@ -438,7 +468,21 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 	{
 		finishSinglePlayerInit();
 		s_needToFinishSinglePlayerInit = FALSE;
+#if defined(DEBUG_LOGGING)
+		debugReportScoreScreenState("finishInit");
+#endif
 	}
+
+#if defined(DEBUG_LOGGING)
+	{
+		const UnsignedInt now = timeGetTime();
+		if( now - s_debugLastReportMsec >= 500 )
+		{
+			s_debugLastReportMsec = now;
+			debugReportScoreScreenState("update");
+		}
+	}
+#endif
 
 	//TheGameLogic->clearGameData() gets called after ScoreScreenInit and before the
 	//first ScoreScreenUpdate(), so it was creatively moved here so we can actually
@@ -554,6 +598,9 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 		// --------------------------------------------------------------------------------------------
 		case GBM_SELECTED:
 		{
+#if defined(DEBUG_LOGGING)
+			debugReportScoreScreenState("selected");
+#endif
 			TheTransitionHandler->remove("ScoreScreenShow", TRUE);
 			ReplayWasPressed = FALSE;
 
