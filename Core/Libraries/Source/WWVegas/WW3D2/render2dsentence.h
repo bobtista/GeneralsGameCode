@@ -61,12 +61,18 @@ class	SurfaceClass;
 //
 //	Private data structures
 //
+// TheSuperHackers @bugfix bobtista 07/08/2026 Width is the glyph bitmap width and
+// Advance is the pen advance. They are equal on Windows, where GDI reports one
+// extent, but differ on backends that must widen the bitmap to fit ink that
+// overhangs the advance. Spacing text by Width there made per-glyph pen advances
+// vary within a proportional font whose digits are actually tabular.
 class FontCharsClassCharDataStruct
 {
 	W3DMPO_CODE(FontCharsClassCharDataStruct)
 public:
 	WCHAR				Value;
 	short				Width;
+	short				Advance;
 	uint16 *		Buffer;
 };
 
