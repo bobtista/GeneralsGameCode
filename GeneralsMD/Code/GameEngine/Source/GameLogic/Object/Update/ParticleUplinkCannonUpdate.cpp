@@ -768,9 +768,16 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 						TheDisplay->createLightPulse( &flashPos, &flashColor, 110.0f, 260.0f,
 							TheGlobalData->m_pcannonFlashFadeIn, TheGlobalData->m_pcannonFlashFadeOut,
 							TRUE, 0.003f, 0.45f * intensity );
-						DEBUG_LOG(("PCANNON flash pulse frame=%d radius=%.0f pos=(%.0f,%.0f,%.0f) fadeIn=%d fadeOut=%d",
-							now, flashRadius, flashPos.x, flashPos.y, flashPos.z,
-							TheGlobalData->m_pcannonFlashFadeIn, TheGlobalData->m_pcannonFlashFadeOut));
+						// TheSuperHackers @tweak bobtista 08/08/2026 Prototype tracing that emits per
+						// flash pulse. Keep it reachable for tuning but off by default, so it does
+						// not fill the log a release build now ships to players.
+						static const Bool tracePCannonFlash = GgcFlags::Enabled(GgcFlag_Trace);
+						if( tracePCannonFlash )
+						{
+							DEBUG_LOG(("PCANNON flash pulse frame=%d radius=%.0f pos=(%.0f,%.0f,%.0f) fadeIn=%d fadeOut=%d",
+								now, flashRadius, flashPos.x, flashPos.y, flashPos.z,
+								TheGlobalData->m_pcannonFlashFadeIn, TheGlobalData->m_pcannonFlashFadeOut));
+						}
 					}
 
 					// TheSuperHackers @feature bobtista 17/07/2026 Light continuous camera rumble while
