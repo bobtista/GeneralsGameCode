@@ -203,6 +203,7 @@ if(NOT WIN32)
         Include/VideoDevice/Bink/BinkVideoPlayer.h
         Include/Win32Device/Common/Win32BIGFile.h
         Include/Win32Device/Common/Win32BIGFileSystem.h
+        Include/Win32Device/Common/Win32GameEngine.h
         Include/Win32Device/Common/Win32LocalFile.h
         Include/Win32Device/Common/Win32LocalFileSystem.h
         Include/Win32Device/GameClient/Win32DIKeyboard.h
@@ -211,8 +212,10 @@ if(NOT WIN32)
         Source/VideoDevice/Bink/BinkVideoPlayer.cpp
         Source/Win32Device/Common/Win32BIGFile.cpp
         Source/Win32Device/Common/Win32BIGFileSystem.cpp
+        Source/Win32Device/Common/Win32GameEngine.cpp
         Source/Win32Device/Common/Win32LocalFile.cpp
         Source/Win32Device/Common/Win32LocalFileSystem.cpp
+        Source/Win32Device/Common/Win32OSDisplay.cpp
         Source/Win32Device/GameClient/Win32DIKeyboard.cpp
         Source/Win32Device/GameClient/Win32Mouse.cpp
     )
