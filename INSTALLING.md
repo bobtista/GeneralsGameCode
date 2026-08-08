@@ -262,6 +262,7 @@ Confirm that the name passed to `-mod` matches the directory name exactly.
 Open an issue in the [fork's issue tracker](https://github.com/bobtista/GeneralsGameCode/issues) and include:
 
 - `BUILD_INFO.txt`
+- `DebugLogFile.txt` from the game folder, beside the executable
 - Operating system and version
 - CPU architecture
 - GPU and driver version
@@ -270,6 +271,13 @@ Open an issue in the [fork's issue tracker](https://github.com/bobtista/Generals
 - What you expected to happen
 - What actually happened
 - A save or replay when relevant
+
+These builds write `DebugLogFile.txt` next to the executable, and move the previous run's log
+to `DebugLogFilePrev.txt`. If the game crashed and you have since relaunched it, the crash is in
+`DebugLogFilePrev.txt`, so attach that one.
+
+On Windows, also attach any `Crash*.dmp` files from
+`Documents\Command and Conquer Generals Zero Hour Data\`.
 
 On macOS or Linux, capture terminal output with:
 
