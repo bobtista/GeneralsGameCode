@@ -172,6 +172,28 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 	Bool forceKeepMessage = FALSE;
 	WinInputReturnCode returnCode = WIN_INPUT_NOT_USED;
 
+#if defined(DEBUG_LOGGING)
+	// TheSuperHackers @info bobtista 04/08/2026 The mouse lock gate below drops raw input before it
+	// can reach TheWindowManager, so the GUI keeps rendering while ignoring clicks and keys. Report
+	// every change of the gate state so a dead menu can be attributed to it.
+	{
+		const Bool mouseLocked = (TheTacticalView != nullptr && TheTacticalView->isMouseLocked());
+		const Bool uiScrolling = (TheInGameUI != nullptr && TheInGameUI->isScrolling());
+		const Int gateState = mouseLocked ? (uiScrolling ? 1 : 2) : 0;
+		static Int lastGateState = 0;
+		if( gateState != lastGateState )
+		{
+			lastGateState = gateState;
+			DEBUG_LOG(("WindowXlat gate: mouseLocked=%d uiScrolling=%d shellActive=%d inputEnabled=%d -> %s",
+				mouseLocked ? 1 : 0,
+				uiScrolling ? 1 : 0,
+				(TheShell != nullptr && TheShell->isShellActive()) ? 1 : 0,
+				(TheInGameUI != nullptr && TheInGameUI->getInputEnabled()) ? 1 : 0,
+				gateState == 0 ? "OPEN" : (gateState == 1 ? "MOUSE POS AND KEYS DROPPED" : "ALL GUI INPUT DROPPED")));
+		}
+	}
+#endif
+
 	if (TheTacticalView && TheTacticalView->isMouseLocked())
 	{
 		//Kris: Aug 15, 2003
