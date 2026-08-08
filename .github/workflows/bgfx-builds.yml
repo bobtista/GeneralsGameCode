@@ -39,9 +39,15 @@ jobs:
           - preset: win64
             config: Release
             zip: GeneralsZH-win64
+            # Release archives ship logging so player crash reports carry a DebugLogFile.txt.
+            # Enabling logging alone would re-enable crashing/stacktrace/profile through
+            # ALLOW_DEBUG_UTILS, so each is disabled explicitly. Assert dialogs stay off.
+            logflags: -DRTS_DEBUG_LOGGING=ON -DRTS_DEBUG_CRASHING=OFF -DRTS_DEBUG_STACKTRACE=OFF -DRTS_DEBUG_PROFILE=OFF
           - preset: win64-debug
             config: Debug
             zip: GeneralsZH-win64-debug
+            # The debug archive keeps its asserts and stack traces.
+            logflags: ""
     runs-on: windows-2022
     timeout-minutes: 120
     outputs:
@@ -124,7 +130,7 @@ jobs:
       - name: Configure with CMake
         shell: pwsh
         run: |
-          cmake --preset ${{ matrix.preset }} -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          cmake --preset ${{ matrix.preset }} ${{ matrix.logflags }} -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
       - name: Build GeneralsMD
         shell: pwsh
@@ -221,7 +227,7 @@ jobs:
 
       - name: Configure with CMake
         run: |
-          cmake --preset macos-generalsmd-sdl3-bgfx -DRTS_CRASHDUMP_ENABLE=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --preset macos-generalsmd-sdl3-bgfx -DRTS_CRASHDUMP_ENABLE=OFF -DRTS_DEBUG_LOGGING=ON -DRTS_DEBUG_CRASHING=OFF -DRTS_DEBUG_STACKTRACE=OFF -DRTS_DEBUG_PROFILE=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build and Stage GeneralsMD
         run: |
@@ -301,7 +307,7 @@ jobs:
         env:
           PKG_CONFIG_PATH: ${{ github.workspace }}/ffmpeg-min/lib/pkgconfig
         run: |
-          cmake --preset linux-generalsmd-sdl3-bgfx -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --preset linux-generalsmd-sdl3-bgfx -DRTS_DEBUG_LOGGING=ON -DRTS_DEBUG_CRASHING=OFF -DRTS_DEBUG_STACKTRACE=OFF -DRTS_DEBUG_PROFILE=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build GeneralsMD
         run: |
