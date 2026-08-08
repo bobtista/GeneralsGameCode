@@ -1476,7 +1476,7 @@ FontCharsClass::Get_Char_Spacing (WCHAR ch)
 	const FontCharsClassCharDataStruct	* data = Get_Char_Data( ch );
 	if ( data != nullptr ) {
 		if ( data->Width != 0 ) {
-			return data->Width - PixelOverlap - CharOverhang;
+			return data->Advance - PixelOverlap - CharOverhang;
 		}
 	}
 
@@ -1625,6 +1625,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	FontCharsClassCharDataStruct *char_data = W3DNEW FontCharsClassCharDataStruct;
 	char_data->Value = ch;
 	char_data->Width = static_cast<short>(char_width);
+	char_data->Advance = static_cast<short>(advance_width);
 	char_data->Buffer = BufferList[BufferList.Count() - 1].Buffer + CurrPixelOffset;
 
 	if (ch < 256) {
@@ -1697,6 +1698,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	FontCharsClassCharDataStruct *char_data = W3DNEW FontCharsClassCharDataStruct;
 	char_data->Value = ch;
 	char_data->Width = static_cast<short>(char_width);
+	char_data->Advance = static_cast<short>(x_origin + advance_width + PixelOverlap);
 	char_data->Buffer = char_buffer;
 	if (ch < 256) {
 		ASCIICharArray[ch] = char_data;
@@ -1818,6 +1820,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	FontCharsClassCharDataStruct *char_data	= W3DNEW FontCharsClassCharDataStruct;
 	char_data->Value				= ch;
 	char_data->Width				= char_size.cx;
+	char_data->Advance			= char_size.cx;
 	char_data->Buffer				= glyph_buffer_p;
 
 	//
