@@ -246,6 +246,24 @@ void Connection::setQuitting()
 }
 
 /**
+ * Returns true if an unsent frame info command is waiting. Retries are excluded so this
+ * cannot defeat the retry backoff.
+ */
+Bool Connection::hasPendingFrameInfo(time_t curtime) {
+	static const Bool flushFrameInfo = (getenv("GGC_NET_NOFLUSH") == nullptr);
+	if (!flushFrameInfo) {
+		return FALSE;
+	}
+
+	for (NetCommandRef *msg = m_netCommandList->getFirstMessage(); msg != nullptr; msg = msg->getNext()) {
+		if (msg->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO && msg->getTimeLastSent() == -1) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+/**
  * This is the good part. We take all the network commands queued up for this connection,
  * packetize them and put them on the transport's send queue for actual sending.
  */
@@ -264,7 +282,15 @@ UnsignedInt Connection::doSend() {
 
 	if ((curtime - m_lastTimeSent) < m_frameGrouping) {
 //		DEBUG_LOG(("not sending packet, time = %d, m_lastFrameSent = %d, m_frameGrouping = %d", curtime, m_lastTimeSent, m_frameGrouping));
-		return 0;
+
+		// TheSuperHackers @bugfix bobtista 09/08/2026 Frame info gates the peer's simulation, so
+		// holding it back for the grouping interval spends the run ahead cushion on our own
+		// batching. The grouping interval is itself derived from the run ahead, so a peer can
+		// never buffer more than the delay this creates. Let a pending frame info go out at once
+		// and keep batching everything else.
+		if (!hasPendingFrameInfo(curtime)) {
+			return 0;
+		}
 	}
 
 	// iterate through all the messages and put them into a packet(s).

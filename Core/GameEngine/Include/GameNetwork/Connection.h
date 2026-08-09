@@ -54,6 +54,7 @@ public:
 	void reset();
 
 	UnsignedInt doSend();
+	Bool hasPendingFrameInfo(time_t curtime);
 	void doRecv();
 
 	Bool allCommandsReady(UnsignedInt frame);
