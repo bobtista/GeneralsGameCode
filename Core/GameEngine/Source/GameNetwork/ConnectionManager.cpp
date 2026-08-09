@@ -1409,9 +1409,15 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
 			// TheSuperHackers @info if the runahead goes below 3 logic frames it can start to introduce stutter
 			// We also limit the upper range of the runahead to prevent it getting out of hand
-			const Int clampedRunAhead = clamp<Int>(MIN_RUNAHEAD, newRunAhead, MAX_FRAMES_AHEAD / 2);
+			// TheSuperHackers @debug bobtista 09/08/2026 The floor decides the run ahead on a fast
+			// link, because the computed value sits below it. Retail used 10 and assumed a wired
+			// LAN; 4 leaves less buffer than a wireless link's own latency tail. Tunable so the
+			// right value can be measured rather than guessed.
+			static const Int minRunAhead = (getenv("GGC_NET_MIN_RUNAHEAD") != nullptr)
+				? atoi(getenv("GGC_NET_MIN_RUNAHEAD")) : MIN_RUNAHEAD;
+			const Int clampedRunAhead = clamp<Int>(minRunAhead, newRunAhead, MAX_FRAMES_AHEAD / 2);
 			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG runahead p90Latency=%.4fs meanLatency=%.4fs slackScale=%.2f minFps=%d computed=%d clamped=%d floor=%d realLatencySamples=%d perPlayerLatency=[%.4f %.4f %.4f %.4f] connLatency=[%.1fms %.1fms %.1fms %.1fms]",
-				getMaximumLatency(), m_frameMetrics.getAverageLatency(), runAheadSlackScale, minFps, newRunAhead, clampedRunAhead, MIN_RUNAHEAD,
+				getMaximumLatency(), m_frameMetrics.getAverageLatency(), runAheadSlackScale, minFps, newRunAhead, clampedRunAhead, minRunAhead,
 				m_frameMetrics.getRealLatencySampleCount(),
 				m_latencyAverages[0], m_latencyAverages[1], m_latencyAverages[2], m_latencyAverages[3],
 				(m_connections[0] != nullptr) ? m_connections[0]->getAverageLatency() : -1.0f,
