@@ -39,9 +39,15 @@ jobs:
           - preset: win64
             config: Release
             zip: GeneralsZH-win64
+            # Release archives ship logging so player crash reports carry a DebugLogFile.txt.
+            # Enabling logging alone would re-enable crashing/stacktrace/profile through
+            # ALLOW_DEBUG_UTILS, so each is disabled explicitly. Assert dialogs stay off.
+            logflags: -DRTS_DEBUG_LOGGING=ON -DRTS_DEBUG_CRASHING=OFF -DRTS_DEBUG_STACKTRACE=OFF -DRTS_DEBUG_PROFILE=OFF
           - preset: win64-debug
             config: Debug
             zip: GeneralsZH-win64-debug
+            # The debug archive keeps its asserts and stack traces.
+            logflags: ""
     runs-on: windows-2022
     timeout-minutes: 120
     outputs:
@@ -70,7 +76,26 @@ jobs:
         shell: pwsh
         run: |
           $asset = "$env:FFMPEG_WIN64_ASSET.zip"
-          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/$asset" -OutFile ffmpeg.zip
+          # The rolling alias assets (ffmpeg-nX.Y-latest-*) live in the release TAGGED
+          # "latest", which is not the same thing as the newest release. Asking for
+          # releases/latest/download resolves to whatever autobuild-* published most
+          # recently, and those carry versioned names only, so the pinned asset 404s.
+          $uri = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/$asset"
+          # Every autobuild deletes and re-uploads those alias assets, so a download
+          # landing in that window 404s on a file that exists minutes either side.
+          # Retry instead of failing the build over a few seconds of republishing.
+          $downloaded = $false
+          foreach ($attempt in 1..5) {
+            try {
+              Invoke-WebRequest -Uri $uri -OutFile ffmpeg.zip
+              $downloaded = $true
+              break
+            } catch {
+              Write-Host "FFmpeg download attempt $attempt/5 failed: $($_.Exception.Message)"
+              if ($attempt -lt 5) { Start-Sleep -Seconds 30 }
+            }
+          }
+          if (-not $downloaded) { throw "FFmpeg download failed after 5 attempts: $uri" }
           Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg-tmp
           $inner = Get-ChildItem -Directory ffmpeg-tmp | Select-Object -First 1
           New-Item -ItemType Directory -Force -Path .deps-cache | Out-Null
@@ -105,24 +130,36 @@ jobs:
       - name: Configure with CMake
         shell: pwsh
         run: |
-          cmake --preset ${{ matrix.preset }} -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          cmake --preset ${{ matrix.preset }} ${{ matrix.logflags }} -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
 
       - name: Build GeneralsMD
         shell: pwsh
         run: |
           cmake --build build/${{ matrix.preset }} --config ${{ matrix.config }} --target z_generals
+          # The pwsh wrapper exits with the LAST command's code, so an unguarded
+          # sccache --show-stats reported success for a failed build and the job
+          # went on to publish archives with no executable in them.
+          $buildExit = $LASTEXITCODE
           sccache --show-stats
+          if ($buildExit -ne 0) { exit $buildExit }
 
       - name: Stage and Zip
         shell: pwsh
         run: |
           $build = "build/${{ matrix.preset }}"
           $cfg = "${{ matrix.config }}"
-          $stage = New-Item -ItemType Directory -Force -Path "stage"
+          $stage = New-Item -ItemType Directory -Force -Path "stage/${{ matrix.zip }}"
 
           Copy-Item "$build/GeneralsMD/$cfg/*.exe" $stage
           if (Test-Path "$build/GeneralsMD/$cfg/*.pdb") {
             Copy-Item "$build/GeneralsMD/$cfg/*.pdb" $stage
+          }
+
+          # A wildcard copy whose directory exists but holds no match is silent, so a
+          # missing executable produced a docs-only zip instead of failing the job.
+          $staged = Get-ChildItem -Path "$stage/*.exe" -ErrorAction SilentlyContinue
+          if (-not $staged) {
+            throw "No executable staged from $build/GeneralsMD/$cfg - the build did not produce one"
           }
 
           $dlls = Get-ChildItem -Path "$build/_deps" -Recurse -Include "SDL3*.dll","OpenAL32*.dll" |
@@ -145,11 +182,15 @@ jobs:
           # excludes Data\ via the $slim filter below.
           New-Item -ItemType Directory -Force -Path "$stage/Data/INI" | Out-Null
           Copy-Item "scripts/build/dist/Bgfx.ini" "$stage/Data/INI/Bgfx.ini"
+          Copy-Item "LICENSE.md","INSTALLING.md" $stage
 
-          Compress-Archive -Path "$stage/*" -DestinationPath "${{ matrix.zip }}.zip"
+          Compress-Archive -Path $stage.FullName -DestinationPath "${{ matrix.zip }}.zip"
 
-          $slim = Get-ChildItem "$stage/*" -Include "*.exe","*.pdb","BUILD_INFO.txt"
-          Compress-Archive -Path ($slim | ForEach-Object FullName) -DestinationPath "${{ matrix.zip }}-exe-only.zip"
+          $slimStage = New-Item -ItemType Directory -Force -Path "stage/${{ matrix.zip }}-exe-only"
+          Get-ChildItem "$stage/*" -Include "*.exe","*.pdb","BUILD_INFO.txt" |
+            Copy-Item -Destination $slimStage
+          Copy-Item "LICENSE.md","INSTALLING.md" $slimStage
+          Compress-Archive -Path $slimStage.FullName -DestinationPath "${{ matrix.zip }}-exe-only.zip"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -166,7 +207,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 120
     env:
-      GGC_MACOS_RUNTIME_DIR: ${{ github.workspace }}/stage-macos/GeneralsZH-macos
+      GGC_MACOS_RUNTIME_DIR: ${{ github.workspace }}/stage-macos/GeneralsZH-macos-arm64
     steps:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -198,7 +239,7 @@ jobs:
 
       - name: Configure with CMake
         run: |
-          cmake --preset macos-generalsmd-sdl3-bgfx -DRTS_CRASHDUMP_ENABLE=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --preset macos-generalsmd-sdl3-bgfx -DRTS_CRASHDUMP_ENABLE=OFF -DRTS_DEBUG_LOGGING=ON -DRTS_DEBUG_CRASHING=OFF -DRTS_DEBUG_STACKTRACE=OFF -DRTS_DEBUG_PROFILE=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build and Stage GeneralsMD
         run: |
@@ -214,8 +255,8 @@ jobs:
             echo "commit: $(git rev-parse HEAD)"
             echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > "${GGC_MACOS_RUNTIME_DIR}/BUILD_INFO.txt"
-          cd "${GGC_MACOS_RUNTIME_DIR}"
-          zip -ry "${GITHUB_WORKSPACE}/GeneralsZH-macos-arm64.zip" .
+          cd "$(dirname "${GGC_MACOS_RUNTIME_DIR}")"
+          zip -ry "${GITHUB_WORKSPACE}/GeneralsZH-macos-arm64.zip" "$(basename "${GGC_MACOS_RUNTIME_DIR}")"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -225,10 +266,94 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+  linux:
+    name: linux-generalsmd-sdl3-bgfx
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.ref_name }}
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config ccache \
+            libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
+            libxinerama-dev libxfixes-dev libxrender-dev libxss-dev libxtst-dev \
+            libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libvulkan-dev \
+            libfreetype6-dev libfontconfig1-dev \
+            libasound2-dev libpulse-dev \
+            nasm curl xz-utils
+
+      - name: Cache CMake Dependencies
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: build/linux-generalsmd-sdl3-bgfx/_deps
+          key: cmake-deps-linux-generalsmd-sdl3-bgfx-${{ hashFiles('CMakePresets.json','cmake/**/*.cmake','**/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-deps-linux-generalsmd-sdl3-bgfx-
+
+      - name: Set Up ccache
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        with:
+          variant: ccache
+          key: bgfx-linux
+          max-size: 2G
+          verbose: 1
+
+      - name: Cache Minimal FFmpeg
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ${{ github.workspace }}/ffmpeg-min
+          key: ffmpeg-min-${{ hashFiles('scripts/build/linux/build-ffmpeg-minimal.sh') }}
+
+      - name: Build Minimal FFmpeg
+        run: |
+          bash scripts/build/linux/build-ffmpeg-minimal.sh "${GITHUB_WORKSPACE}/ffmpeg-min"
+
+      - name: Configure with CMake
+        env:
+          PKG_CONFIG_PATH: ${{ github.workspace }}/ffmpeg-min/lib/pkgconfig
+        run: |
+          cmake --preset linux-generalsmd-sdl3-bgfx -DRTS_DEBUG_LOGGING=ON -DRTS_DEBUG_CRASHING=OFF -DRTS_DEBUG_STACKTRACE=OFF -DRTS_DEBUG_PROFILE=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build GeneralsMD
+        run: |
+          cmake --build build/linux-generalsmd-sdl3-bgfx --config Release --target z_generals -j"$(nproc)"
+          ccache -s
+
+      - name: Stage
+        run: |
+          bash scripts/build/linux/deploy-linux-generalsmd.sh linux-generalsmd-sdl3-bgfx Release
+          {
+            echo "Command & Conquer Generals Zero Hour (GeneralsMD) bgfx build"
+            echo "preset: linux-generalsmd-sdl3-bgfx (Release, x86_64)"
+            echo "ref: ${{ inputs.ref || github.ref_name }}"
+            echo "commit: $(git rev-parse HEAD)"
+            echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > "${GITHUB_WORKSPACE}/stage-linux/GeneralsZH-linux-x64/BUILD_INFO.txt"
+
+      - name: Zip
+        run: |
+          cd "${GITHUB_WORKSPACE}/stage-linux"
+          zip -ry "${GITHUB_WORKSPACE}/GeneralsZH-linux-x64.zip" GeneralsZH-linux-x64
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: GeneralsZH-linux-x64
+          path: GeneralsZH-linux-x64.zip
+          retention-days: 30
+          if-no-files-found: error
+
   publish:
     name: Update latest-bgfx release
-    needs: [win64, macos]
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}
+    needs: [win64, macos, linux]
+    if: ${{ always() && needs.win64.result == 'success' && needs.macos.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.publish) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -244,29 +369,31 @@ jobs:
           SHA: ${{ needs.win64.outputs.sha }}
           REF: ${{ inputs.ref || github.ref_name }}
         run: |
+          (
+            cd dist
+            LC_ALL=C sha256sum *.zip > SHA256SUMS.txt
+          )
+
           cat > notes.md <<EOF
           Latest bgfx builds of Zero Hour (GeneralsMD), automatically updated.
 
           Built from \`${REF}\` @ ${SHA} on $(date -u +%Y-%m-%d\ %H:%M\ UTC).
 
+          See the [installation guide](https://github.com/${GITHUB_REPOSITORY}/blob/${SHA}/INSTALLING.md) for platform requirements, retail game-data setup, mods and troubleshooting. Every archive also contains \`INSTALLING.md\`, \`LICENSE.md\` and \`BUILD_INFO.txt\`.
+
           | Asset | Contents |
           | --- | --- |
           | GeneralsZH-win64.zip | Windows x64 Release: generalszh.exe + SDL3/OpenAL/FFmpeg DLLs |
-          | GeneralsZH-win64-exe-only.zip | Windows x64 Release: exe only (you already have the DLLs) |
+          | GeneralsZH-win64-exe-only.zip | Windows x64 Release: exe + PDB (requires matching runtime DLLs) |
           | GeneralsZH-win64-debug.zip | Windows x64 Debug: exe + PDB + DLLs |
-          | GeneralsZH-win64-debug-exe-only.zip | Windows x64 Debug: exe + PDB only |
+          | GeneralsZH-win64-debug-exe-only.zip | Windows x64 Debug: exe + PDB (requires matching runtime DLLs) |
           | GeneralsZH-macos-arm64.zip | macOS Apple Silicon: generalszh + bundled dylibs + run.sh |
-
-          You need the retail Generals + Zero Hour game data. Unzip next to your \`.big\` files (Windows) or place the .big files in the unzipped folder and start with \`run.sh\` (macOS).
-
-          Each build ships a default \`Data/INI/Bgfx.ini\` with the sun shadow map enabled (so object shadows render on all backends); delete it for pure engine defaults, or edit it to change render settings.
-
-          - Windows: requires the VC++ 2022 x64 redistributable.
-          - macOS: the binary is ad-hoc signed; after unzipping run \`xattr -dr com.apple.quarantine .\` inside the folder so Gatekeeper lets it launch.
+          | GeneralsZH-linux-x64.zip | Linux x86_64: generalszh + bundled libs + run.sh |
+          | SHA256SUMS.txt | SHA-256 checksums for every build archive |
           EOF
 
           gh release delete latest-bgfx --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
-          gh release create latest-bgfx dist/*.zip \
+          gh release create latest-bgfx dist/*.zip dist/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
             --target "$SHA" \
             --prerelease \
