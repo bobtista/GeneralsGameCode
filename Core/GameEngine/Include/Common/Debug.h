@@ -151,6 +151,10 @@ class AsciiString;
 	// reopen the log there. Does nothing when the log already opened successfully.
 	DEBUG_EXTERN_C void DebugReopenLogInDirectory(const char *directoryPath);
 
+	// TheSuperHackers @bugfix bobtista 09/08/2026 Force the buffered log to disk. Call from crash
+	// paths so the tail survives, which is what lets normal logging stay buffered and cheap.
+	DEBUG_EXTERN_C void DebugFlushLog();
+
 	// This defines a bitmask of log types that we care about, to allow some flexability
 	// in what gets logged.  This should be extended to asserts, too, but the assert box
 	// is waiting to be rewritten. -MDC 3/19/2003

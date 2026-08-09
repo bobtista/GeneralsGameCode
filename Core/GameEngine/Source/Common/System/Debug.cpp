@@ -118,8 +118,8 @@ static int theDebugFlags = 0;
 // only flushed on crash/assert/shutdown. Flushing every line turned each DEBUG_LOG into a
 // blocking disk write, which crippled debug-build framerate on log-heavy frames. Set
 // GGC_LOG_FLUSH=1 for per-line durability while chasing a hard crash that bypasses the
-// handled crash paths, such as a libc abort. The startup default is chosen by build config
-// where the log file is opened; GGC_LOG_FLUSH=0 forces buffering back on.
+// handled crash paths, such as a libc abort. It stays off by default in every configuration;
+// the crash paths call DebugFlushLog() so the tail survives without paying a write per line.
 static bool theFlushDebugLogEachLine = false;
 static DWORD theMainThreadID = 0;
 // ----------------------------------------------------------------------------
@@ -277,6 +277,11 @@ static void flushLogFile()
 		fflush(theLogFile);
 }
 
+DEBUG_EXTERN_C void DebugFlushLog()
+{
+	flushLogFile();
+}
+
 // TheSuperHackers @refactor bobtista 09/08/2026 Shared by the initial open beside the
 // executable and by the reopen into the user data directory, so both name the log the same way.
 static void buildLogFileNames(const char *dirPath)
@@ -414,25 +419,13 @@ void DebugInit(int flags)
 		// TheSuperHackers @feature bobtista 01/08/2026 A crash that never reaches a handled path,
 		// such as a libc abort, dies with the last buffered lines still unwritten. Let a remote
 		// tester trade framerate for a complete log tail without needing a debugger.
-		// TheSuperHackers @tweak bobtista 08/08/2026 A Release build that carries logging exists to
-		// collect crash reports from players, so it defaults to durable. Debug builds keep the
-		// buffered default, where the log is far chattier and the per-line write costs framerate.
-		// GGC_LOG_FLUSH overrides either default in both directions.
-		{
-			const char *logFlushValue = GgcFlags::StringValue(GgcFlag_LogFlush);
-			if (logFlushValue != NULL)
-			{
-				theFlushDebugLogEachLine = (strcmp(logFlushValue, "0") != 0 && strcmp(logFlushValue, "false") != 0);
-			}
-			else
-			{
-#if defined(RTS_DEBUG)
-				theFlushDebugLogEachLine = false;
-#else
-				theFlushDebugLogEachLine = true;
-#endif
-			}
-		}
+		// TheSuperHackers @bugfix bobtista 09/08/2026 This briefly defaulted to on for release
+		// builds carrying logging. A blocking write per line stalls the frame whenever logging
+		// bursts, and on Windows the log often sits in a cloud-synced Documents folder where each
+		// write costs far more. In a lockstep network game one player's stall halts every player,
+		// which showed up as the whole match freezing every few seconds. The crash paths flush
+		// explicitly instead, so durability no longer costs frame time.
+		theFlushDebugLogEachLine = GgcFlags::Enabled(GgcFlag_LogFlush);
 
 		// TheSuperHackers @info Debug initialization can happen very early.
 		// Determine the client instance id before creating the log file with an instance specific name.
@@ -497,6 +490,12 @@ DEBUG_EXTERN_C void DebugReopenLogInDirectory(const char *directoryPath)
 	if (theLogFile != nullptr)
 	{
 		return; // the log opened beside the executable, leave it there
+	}
+	if (theLogFileName[0] == 0)
+	{
+		// The open was never attempted, so there is nothing to recover. This happens when startup
+		// bails before the log is created, such as a second instance refusing to run.
+		return;
 	}
 	if (directoryPath == nullptr || directoryPath[0] == 0)
 	{
