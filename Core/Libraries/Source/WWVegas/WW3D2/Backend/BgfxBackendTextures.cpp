@@ -22,6 +22,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -86,11 +87,11 @@ static bool ShouldLogEffectTexture(TextureClass * tex2d)
 static void LogEffectTextureUpload(TextureClass *tex2d,
     bgfx::TextureFormat::Enum bgfxFmt,
     const TextureBaseClass::TextureMipSnapshot &mip,
-    const bgfx::Memory *mem,
+    const uint8_t *data,
     unsigned expectedPitch,
     unsigned numRows)
 {
-    if (!ShouldLogEffectTexture(tex2d) || mem == nullptr)
+    if (!ShouldLogEffectTexture(tex2d) || data == nullptr)
     {
         return;
     }
@@ -103,7 +104,7 @@ static void LogEffectTextureUpload(TextureClass *tex2d,
         const unsigned pixelCount = (expectedPitch / 4) * numRows;
         for (unsigned i = 0; i < pixelCount; ++i)
         {
-            const unsigned alpha = mem->data[i * 4 + 3];
+            const unsigned alpha = data[i * 4 + 3];
             minAlpha = alpha < minAlpha ? alpha : minAlpha;
             maxAlpha = alpha > maxAlpha ? alpha : maxAlpha;
             nonZeroAlpha += alpha != 0 ? 1 : 0;
@@ -247,10 +248,10 @@ bool BgfxBackend::Supports_Compressed_Textures() const
 
 // TheSuperHackers @refactor bobtista 20/04/2026 The legacy renderer ignores the X byte of X8R8G8B8 and samples alpha as 1.0. bgfx BGRA8 samples memory literally, so FFmpeg-produced procedural frames (BGR0, alpha byte = 0) would draw transparent under SRC_ALPHA blending. Force alpha=0xFF only when the texture has no file path, so TGA-loaded X8R8G8B8 textures (scorch marks, decals) keep their real alpha data.
 static void ForceOpaqueIfProceduralX8R8G8B8(TextureClass * tex2d,
-    bgfx::TextureFormat::Enum bgfxFmt, const bgfx::Memory * mem,
+    bgfx::TextureFormat::Enum bgfxFmt, uint8_t * data,
     unsigned expectedPitch, unsigned numRows)
 {
-    if (tex2d == nullptr || mem == nullptr)
+    if (tex2d == nullptr || data == nullptr)
     {
         return;
     }
@@ -266,7 +267,7 @@ static void ForceOpaqueIfProceduralX8R8G8B8(TextureClass * tex2d,
     {
         return;
     }
-    uint8_t * px = mem->data;
+    uint8_t * px = data;
     const unsigned pixelCount = (expectedPitch / 4) * numRows;
     for (unsigned i = 0; i < pixelCount; ++i)
     {
@@ -275,10 +276,10 @@ static void ForceOpaqueIfProceduralX8R8G8B8(TextureClass * tex2d,
 }
 
 static void ApplyTeamColorTextureKey(TextureClass * tex2d,
-    bgfx::TextureFormat::Enum bgfxFmt, const bgfx::Memory * mem,
+    bgfx::TextureFormat::Enum bgfxFmt, uint8_t * data,
     unsigned expectedPitch, unsigned numRows)
 {
-    if (tex2d == nullptr || mem == nullptr)
+    if (tex2d == nullptr || data == nullptr)
     {
         return;
     }
@@ -293,7 +294,7 @@ static void ApplyTeamColorTextureKey(TextureClass * tex2d,
         return;
     }
 
-    uint8_t * pix = mem->data;
+    uint8_t * pix = data;
     const unsigned pixelCount = expectedPitch / 4 * numRows;
     for (unsigned i = 0; i < pixelCount; ++i)
     {
@@ -492,9 +493,8 @@ static bool ShouldUseBaseMipForThinDxt1Strip(const std::vector<TextureBaseClass:
 }
 
 static void ExpandA4R4G4B4ToBGRA8(const uint8_t * srcRow, unsigned srcPitch,
-    unsigned width, unsigned height, const bgfx::Memory * mem)
+    unsigned width, unsigned height, uint8_t * dst)
 {
-    uint8_t * dst = mem->data;
     for (unsigned y = 0; y < height; ++y)
     {
         const uint16_t * src = reinterpret_cast<const uint16_t *>(srcRow);
@@ -870,22 +870,20 @@ static void BleedTerrainAtlasMipGaps(std::vector<uint16_t> & pixels,
 	}
 }
 
-static bool CopyTextureLevel(TextureClass * tex2d,
-    bgfx::TextureFormat::Enum bgfxFmt,
-    const TextureBaseClass::TextureMipSnapshot & mip,
-    unsigned level,
-    bgfx::Memory const ** outMem,
-    uint16_t * outWidth,
-    uint16_t * outHeight)
+struct TextureLevelCopyLayout
 {
-    (void)level;
-    if (tex2d == nullptr || outMem == nullptr
-        || outWidth == nullptr || outHeight == nullptr)
-    {
-        return false;
-    }
+    bool isCompressed = false;
+    bool expandDXT5ToBGRA8 = false;
+    unsigned expectedPitch = 0;
+    unsigned numRows = 0;
+    unsigned totalBytes = 0;
+};
 
-    if (mip.Data.empty() || mip.Width == 0 || mip.Height == 0)
+static bool GetTextureLevelCopyLayout(bgfx::TextureFormat::Enum bgfxFmt,
+    const TextureBaseClass::TextureMipSnapshot &mip,
+    TextureLevelCopyLayout *outLayout)
+{
+    if (outLayout == nullptr || mip.Data.empty() || mip.Width == 0 || mip.Height == 0)
     {
         return false;
     }
@@ -905,7 +903,6 @@ static bool CopyTextureLevel(TextureClass * tex2d,
         numRows = mip.Height;
     }
 
-    const unsigned totalBytes = numRows * expectedPitch;
     const unsigned srcPitch = mip.Pitch;
     const bool expandDXT5ToBGRA8 =
         mip.Format == WW3D_FORMAT_DXT5
@@ -930,44 +927,96 @@ static bool CopyTextureLevel(TextureClass * tex2d,
     {
         return false;
     }
-    const bgfx::Memory * mem = bgfx::alloc(totalBytes);
+
+    const uint64_t totalBytes = static_cast<uint64_t>(numRows) * expectedPitch;
+    if (totalBytes > std::numeric_limits<uint32_t>::max())
+    {
+        return false;
+    }
+
+    TextureLevelCopyLayout layout;
+    layout.isCompressed = isCompressed;
+    layout.expandDXT5ToBGRA8 = expandDXT5ToBGRA8;
+    layout.expectedPitch = expectedPitch;
+    layout.numRows = numRows;
+    layout.totalBytes = static_cast<unsigned>(totalBytes);
+    *outLayout = layout;
+    return true;
+}
+
+static void CopyTextureLevelData(TextureClass *tex2d,
+    bgfx::TextureFormat::Enum bgfxFmt,
+    const TextureBaseClass::TextureMipSnapshot &mip,
+    const TextureLevelCopyLayout &layout,
+    uint8_t *data)
+{
+    const unsigned srcPitch = mip.Pitch;
     if (mip.Format == WW3D_FORMAT_A4R4G4B4
         && bgfxFmt == bgfx::TextureFormat::BGRA8
-        && !isCompressed)
+        && !layout.isCompressed)
     {
-        ExpandA4R4G4B4ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, mem);
+        ExpandA4R4G4B4ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, data);
     }
-    else if (expandDXT5ToBGRA8)
+    else if (layout.expandDXT5ToBGRA8)
     {
-        ExpandDXT5ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, mem->data);
+        ExpandDXT5ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, data);
     }
-    else if (srcPitch == expectedPitch)
+    else if (srcPitch == layout.expectedPitch)
     {
-        std::memcpy(mem->data, &mip.Data[0], totalBytes);
+        std::memcpy(data, &mip.Data[0], layout.totalBytes);
     }
     else
     {
-        const unsigned copyPitch = (srcPitch < expectedPitch) ? srcPitch : expectedPitch;
+        const unsigned copyPitch = (srcPitch < layout.expectedPitch) ? srcPitch : layout.expectedPitch;
         const uint8_t * src = &mip.Data[0];
-        uint8_t * dst = mem->data;
-        for (unsigned row = 0; row < numRows; ++row)
+        uint8_t * dst = data;
+        for (unsigned row = 0; row < layout.numRows; ++row)
         {
             std::memcpy(dst, src, copyPitch);
-            if (copyPitch < expectedPitch)
+            if (copyPitch < layout.expectedPitch)
             {
-                std::memset(dst + copyPitch, 0, expectedPitch - copyPitch);
+                std::memset(dst + copyPitch, 0, layout.expectedPitch - copyPitch);
             }
             src += srcPitch;
-            dst += expectedPitch;
+            dst += layout.expectedPitch;
         }
     }
 
-    if (!isCompressed)
+    if (!layout.isCompressed)
     {
-        ApplyTeamColorTextureKey(tex2d, bgfxFmt, mem, expectedPitch, numRows);
-        ForceOpaqueIfProceduralX8R8G8B8(tex2d, bgfxFmt, mem, expectedPitch, numRows);
+        ApplyTeamColorTextureKey(tex2d, bgfxFmt, data, layout.expectedPitch, layout.numRows);
+        ForceOpaqueIfProceduralX8R8G8B8(tex2d, bgfxFmt, data, layout.expectedPitch, layout.numRows);
     }
-    LogEffectTextureUpload(tex2d, bgfxFmt, mip, mem, expectedPitch, numRows);
+    LogEffectTextureUpload(tex2d, bgfxFmt, mip, data, layout.expectedPitch, layout.numRows);
+}
+
+static bool CopyTextureLevel(TextureClass * tex2d,
+    bgfx::TextureFormat::Enum bgfxFmt,
+    const TextureBaseClass::TextureMipSnapshot & mip,
+    unsigned level,
+    bgfx::Memory const ** outMem,
+    uint16_t * outWidth,
+    uint16_t * outHeight)
+{
+    (void)level;
+    if (tex2d == nullptr || outMem == nullptr
+        || outWidth == nullptr || outHeight == nullptr)
+    {
+        return false;
+    }
+
+    TextureLevelCopyLayout layout;
+    if (!GetTextureLevelCopyLayout(bgfxFmt, mip, &layout))
+    {
+        return false;
+    }
+
+    const bgfx::Memory * mem = bgfx::alloc(layout.totalBytes);
+    if (mem == nullptr)
+    {
+        return false;
+    }
+    CopyTextureLevelData(tex2d, bgfxFmt, mip, layout, mem->data);
 
     *outMem = mem;
     *outWidth = static_cast<uint16_t>(mip.Width);
@@ -1375,11 +1424,11 @@ static ImmutableTextureStagingDiagState g_immutableTextureStagingDiag;
 static void LogImmutableTextureStagingDiagHeader(unsigned intervalSeconds)
 {
 #ifdef DEBUG_LOGGING
-    WWDEBUG_SAY(("[BgfxTextureLeak] enabled interval=%us; bytes count the per-level staging allocations that are not transferred to bgfx",
+    WWDEBUG_SAY(("[BgfxTextureLeak] enabled interval=%us build=fixed; avoidedBytes estimate the removed per-level staging allocations",
         intervalSeconds));
 #else
     std::fprintf(stderr,
-        "[BgfxTextureLeak] enabled interval=%us; bytes count the per-level staging allocations that are not transferred to bgfx\n",
+        "[BgfxTextureLeak] enabled interval=%us build=fixed; avoidedBytes estimate the removed per-level staging allocations\n",
         intervalSeconds);
     std::fflush(stderr);
 #endif
@@ -1400,7 +1449,7 @@ static void LogImmutableTextureStagingDiagSummary(unsigned intervalSeconds)
         });
 
 #ifdef DEBUG_LOGGING
-    WWDEBUG_SAY(("[BgfxTextureLeak] frame=%u interval=%us totalBytes=%llu totalCreates=%llu textures=%u",
+    WWDEBUG_SAY(("[BgfxTextureLeak] frame=%u interval=%us avoidedBytes=%llu totalCreates=%llu textures=%u",
         g_stats.frameIndex,
         intervalSeconds,
         static_cast<unsigned long long>(state.cumulativeBytes),
@@ -1408,7 +1457,7 @@ static void LogImmutableTextureStagingDiagSummary(unsigned intervalSeconds)
         static_cast<unsigned>(ranked.size())));
 #else
     std::fprintf(stderr,
-        "[BgfxTextureLeak] frame=%u interval=%us totalBytes=%llu totalCreates=%llu textures=%u\n",
+        "[BgfxTextureLeak] frame=%u interval=%us avoidedBytes=%llu totalCreates=%llu textures=%u\n",
         g_stats.frameIndex,
         intervalSeconds,
         static_cast<unsigned long long>(state.cumulativeBytes),
@@ -1421,7 +1470,7 @@ static void LogImmutableTextureStagingDiagSummary(unsigned intervalSeconds)
     {
         const ImmutableTextureStagingDiagEntry &entry = *ranked[rank];
 #ifdef DEBUG_LOGGING
-        WWDEBUG_SAY(("[BgfxTextureLeak] rank=%u bytes=%llu creates=%llu texture=%s size=%ux%u mips=%u revision=%u sourceFmt=%d createFmt=%d variant=%u",
+        WWDEBUG_SAY(("[BgfxTextureLeak] rank=%u avoidedBytes=%llu creates=%llu texture=%s size=%ux%u mips=%u revision=%u sourceFmt=%d createFmt=%d variant=%u",
             static_cast<unsigned>(rank + 1),
             static_cast<unsigned long long>(entry.cumulativeBytes),
             static_cast<unsigned long long>(entry.createCount),
@@ -1435,7 +1484,7 @@ static void LogImmutableTextureStagingDiagSummary(unsigned intervalSeconds)
             entry.uploadVariant));
 #else
         std::fprintf(stderr,
-            "[BgfxTextureLeak] rank=%u bytes=%llu creates=%llu texture=%s size=%ux%u mips=%u revision=%u sourceFmt=%d createFmt=%d variant=%u\n",
+            "[BgfxTextureLeak] rank=%u avoidedBytes=%llu creates=%llu texture=%s size=%ux%u mips=%u revision=%u sourceFmt=%d createFmt=%d variant=%u\n",
             static_cast<unsigned>(rank + 1),
             static_cast<unsigned long long>(entry.cumulativeBytes),
             static_cast<unsigned long long>(entry.createCount),
@@ -1623,29 +1672,35 @@ static bool TryCreateImmutableBaseMip(TextureClass *tex2d,
         return false;
     }
 
-    const bgfx::Memory *levelMem[16] = { nullptr };
-    uint16_t levelW[16] = { 0 };
-    uint16_t levelH[16] = { 0 };
-    uint32_t totalBytes = 0;
+    TextureLevelCopyLayout layouts[16];
+    uint64_t totalBytes64 = 0;
     for (unsigned mip = 0; mip < useLevels; ++mip)
     {
-        if (!CopyTextureLevel(tex2d, plan.uploadFormat, mips[mip], mip,
-                              &levelMem[mip], &levelW[mip], &levelH[mip])
-            || levelMem[mip] == nullptr)
+        if (!GetTextureLevelCopyLayout(plan.uploadFormat, mips[mip], &layouts[mip]))
         {
             return false;
         }
-        totalBytes += levelMem[mip]->size;
+        totalBytes64 += layouts[mip].totalBytes;
+        if (totalBytes64 > std::numeric_limits<uint32_t>::max())
+        {
+            return false;
+        }
     }
 
+    const uint32_t totalBytes = static_cast<uint32_t>(totalBytes64);
     RecordImmutableTextureStagingAllocation(tex2d, plan, useLevels, totalBytes);
 
     const bgfx::Memory *packed = bgfx::alloc(totalBytes);
+    if (packed == nullptr)
+    {
+        return false;
+    }
     uint32_t offset = 0;
     for (unsigned mip = 0; mip < useLevels; ++mip)
     {
-        std::memcpy(packed->data + offset, levelMem[mip]->data, levelMem[mip]->size);
-        offset += levelMem[mip]->size;
+        CopyTextureLevelData(tex2d, plan.uploadFormat, mips[mip], layouts[mip], packed->data + offset);
+        offset += layouts[mip].totalBytes;
+        g_stats.textureCopies++;
     }
 
     *outHandle = bgfx::createTexture2D(static_cast<uint16_t>(baseW),
