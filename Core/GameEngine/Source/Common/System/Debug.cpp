@@ -276,6 +276,31 @@ static void flushLogFile()
 	if (theLogFile)
 		fflush(theLogFile);
 }
+
+// TheSuperHackers @refactor bobtista 09/08/2026 Shared by the initial open beside the
+// executable and by the reopen into the user data directory, so both name the log the same way.
+static void buildLogFileNames(const char *dirPath)
+{
+	strlcpy(theLogFileNamePrev, dirPath, ARRAY_SIZE(theLogFileNamePrev));
+	strlcat(theLogFileNamePrev, gAppPrefix, ARRAY_SIZE(theLogFileNamePrev));
+	strlcat(theLogFileNamePrev, DEBUG_FILE_NAME_PREV, ARRAY_SIZE(theLogFileNamePrev));
+	if (rts::ClientInstance::getInstanceId() > 1u)
+	{
+		size_t offset = strlen(theLogFileNamePrev);
+		snprintf(theLogFileNamePrev + offset, ARRAY_SIZE(theLogFileNamePrev) - offset, "_Instance%.2u", rts::ClientInstance::getInstanceId());
+	}
+	strlcat(theLogFileNamePrev, ".txt", ARRAY_SIZE(theLogFileNamePrev));
+
+	strlcpy(theLogFileName, dirPath, ARRAY_SIZE(theLogFileName));
+	strlcat(theLogFileName, gAppPrefix, ARRAY_SIZE(theLogFileName));
+	strlcat(theLogFileName, DEBUG_FILE_NAME, ARRAY_SIZE(theLogFileName));
+	if (rts::ClientInstance::getInstanceId() > 1u)
+	{
+		size_t offset = strlen(theLogFileName);
+		snprintf(theLogFileName + offset, ARRAY_SIZE(theLogFileName) - offset, "_Instance%.2u", rts::ClientInstance::getInstanceId());
+	}
+	strlcat(theLogFileName, ".txt", ARRAY_SIZE(theLogFileName));
+}
 #endif // DEBUG_LOGGING
 
 // ----------------------------------------------------------------------------
@@ -428,26 +453,8 @@ void DebugInit(int flags)
 		}
 
 		static_assert(ARRAY_SIZE(theLogFileNamePrev) >= ARRAY_SIZE(dirbuf), "Incorrect array size");
-		strcpy(theLogFileNamePrev, dirbuf);
-		strlcat(theLogFileNamePrev, gAppPrefix, ARRAY_SIZE(theLogFileNamePrev));
-		strlcat(theLogFileNamePrev, DEBUG_FILE_NAME_PREV, ARRAY_SIZE(theLogFileNamePrev));
-		if (rts::ClientInstance::getInstanceId() > 1u)
-		{
-			size_t offset = strlen(theLogFileNamePrev);
-			snprintf(theLogFileNamePrev + offset, ARRAY_SIZE(theLogFileNamePrev) - offset, "_Instance%.2u", rts::ClientInstance::getInstanceId());
-		}
-		strlcat(theLogFileNamePrev, ".txt", ARRAY_SIZE(theLogFileNamePrev));
-
 		static_assert(ARRAY_SIZE(theLogFileName) >= ARRAY_SIZE(dirbuf), "Incorrect array size");
-		strcpy(theLogFileName, dirbuf);
-		strlcat(theLogFileName, gAppPrefix, ARRAY_SIZE(theLogFileNamePrev));
-		strlcat(theLogFileName, DEBUG_FILE_NAME, ARRAY_SIZE(theLogFileNamePrev));
-		if (rts::ClientInstance::getInstanceId() > 1u)
-		{
-			size_t offset = strlen(theLogFileName);
-			snprintf(theLogFileName + offset, ARRAY_SIZE(theLogFileName) - offset, "_Instance%.2u", rts::ClientInstance::getInstanceId());
-		}
-		strlcat(theLogFileName, ".txt", ARRAY_SIZE(theLogFileNamePrev));
+		buildLogFileNames(dirbuf);
 
 		remove(theLogFileNamePrev);
 		if (rename(theLogFileName, theLogFileNamePrev) != 0)
@@ -471,6 +478,61 @@ void DebugInit(int flags)
 	#endif
 	}
 
+}
+#endif
+
+// ----------------------------------------------------------------------------
+// DebugReopenLogInDirectory
+// ----------------------------------------------------------------------------
+#ifdef DEBUG_LOGGING
+/**
+	Reopen the debug log inside the given directory when the initial open failed.
+
+	The log is created beside the executable, which a retail install under Program Files
+	does not let the game write. That failure was silent, so a crash report carried no log
+	at all. The game calls this once the user data directory is known, which is writable.
+*/
+DEBUG_EXTERN_C void DebugReopenLogInDirectory(const char *directoryPath)
+{
+	if (theLogFile != nullptr)
+	{
+		return; // the log opened beside the executable, leave it there
+	}
+	if (directoryPath == nullptr || directoryPath[0] == 0)
+	{
+		return;
+	}
+	if ((theDebugFlags & DEBUG_FLAG_LOG_TO_FILE) == 0)
+	{
+		return;
+	}
+
+	char failedPath[_MAX_PATH];
+	strlcpy(failedPath, theLogFileName, ARRAY_SIZE(failedPath));
+
+	char dirBuf[_MAX_PATH];
+	strlcpy(dirBuf, directoryPath, ARRAY_SIZE(dirBuf));
+	const size_t dirLen = strlen(dirBuf);
+	if (dirLen > 0 && dirBuf[dirLen - 1] != '\\' && dirBuf[dirLen - 1] != '/')
+	{
+#ifdef _WIN32
+		strlcat(dirBuf, "\\", ARRAY_SIZE(dirBuf));
+#else
+		strlcat(dirBuf, "/", ARRAY_SIZE(dirBuf));
+#endif
+	}
+
+	buildLogFileNames(dirBuf);
+
+	remove(theLogFileNamePrev);
+	rename(theLogFileName, theLogFileNamePrev);
+
+	theLogFile = fopen(theLogFileName, "w");
+	if (theLogFile != nullptr)
+	{
+		DebugLog("Log %s opened: %s", theLogFileName, getCurrentTimeString());
+		DebugLog("Note: '%s' could not be opened for writing, so the log was moved here.", failedPath);
+	}
 }
 #endif
 

@@ -145,6 +145,12 @@ class AsciiString;
 	DEBUG_EXTERN_C const char* DebugGetLogFileName();
 	DEBUG_EXTERN_C const char* DebugGetLogFileNamePrev();
 
+	// TheSuperHackers @bugfix bobtista 09/08/2026 The log opens beside the executable, which a
+	// retail install under Program Files does not let the game write. That failed silently and
+	// left crash reports with no log at all. Call this once the user data directory is known to
+	// reopen the log there. Does nothing when the log already opened successfully.
+	DEBUG_EXTERN_C void DebugReopenLogInDirectory(const char *directoryPath);
+
 	// This defines a bitmask of log types that we care about, to allow some flexability
 	// in what gets logged.  This should be extended to asserts, too, but the assert box
 	// is waiting to be rewritten. -MDC 3/19/2003
