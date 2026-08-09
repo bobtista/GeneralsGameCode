@@ -401,8 +401,6 @@ struct BgfxDraw
     float grayscaleEnable[4]  = { 0.0f, 0.0f, 0.0f, 0.0f };
     float tssOps0[4]          = { 3.0f, 3.0f, 0.0f, 0.0f };
     float tssOps1[4]          = { 0.0f, 0.0f, 0.0f, 0.0f };
-    float shaderTssOps0[4]    = { 3.0f, 3.0f, 0.0f, 0.0f };
-    float shaderTssOps1[4]    = { 0.0f, 0.0f, 0.0f, 0.0f };
     bool atestEnabled         = false;
     float atestRef            = 0.0f;
     float atestFunc           = 0.0f;

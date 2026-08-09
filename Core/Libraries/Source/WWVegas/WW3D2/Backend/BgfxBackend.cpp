@@ -10009,8 +10009,13 @@ static void UploadMaterialUniforms_Body(bgfx::ViewId submitView)
         std::memcpy(m[MU_MatEmissive], g_draw.matEmissive, sizeof(float) * 4);
         m[MU_TssOps0][0] = g_draw.tssOps0[0];
         m[MU_TssOps0][1] = g_draw.tssOps0[1];
-        m[MU_TssOps0][2] = g_draw.shaderTssOps0[2];
-        m[MU_TssOps0][3] = g_draw.shaderTssOps0[3];
+        // TheSuperHackers @bugfix bobtista 09/08/2026 Take the secondary stage ops from tssOps0
+        // like every other stage-1 predicate in the backend does. Set_Shader rewrites these from
+        // the ShaderClass, so the shader-derived value is still the default; reading the separate
+        // shaderTssOps0 copy instead discarded the ops that call sites program directly, which
+        // dropped the shroud multiply W3DShaderManager::setShroudTex installs on stage 1.
+        m[MU_TssOps0][2] = g_draw.tssOps0[2];
+        m[MU_TssOps0][3] = g_draw.tssOps0[3];
         std::memcpy(m[MU_TssOps1], g_draw.tssOps1, sizeof(float) * 4);
         {
             const float effectiveAtestRef = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
@@ -10975,7 +10980,11 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     g_draw.depthFuncBits = TranslateDepthCompare(shader.Get_Depth_Compare());
     g_draw.depthFunc = static_cast<unsigned>(MapShaderDepthCompareToBackendCompare(shader.Get_Depth_Compare()));
     BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef, &g_draw.atestFunc);
-    BuildTssOpsForShader(shader, g_draw.shaderTssOps0, g_draw.shaderTssOps1, &g_draw.shaderAtestRef, &g_draw.shaderAtestFunc);
+    // Keep pristine copies of the shader-derived alpha test, so Draw can restore them when
+    // nothing set the alpha test explicitly. BuildTssOpsForShader depends only on the shader,
+    // so recomputing it here would produce the values just written.
+    g_draw.shaderAtestRef = g_draw.atestRef;
+    g_draw.shaderAtestFunc = g_draw.atestFunc;
     g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
     g_draw.legacyPixelShaderMode[0] = static_cast<float>(RB_LEGACY_PIXEL_SHADER_NONE);
     Clear_State_Overrides();
