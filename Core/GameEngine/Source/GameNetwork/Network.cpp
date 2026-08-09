@@ -763,6 +763,7 @@ void Network::update()
 			m_runAhead, m_frameRate, (Int)m_conMgr->getMinimumCushion(),
 			TheFramePacer != nullptr ? TheFramePacer->isActualFramesPerSecondLimitEnabled() : FALSE,
 			TheFramePacer != nullptr ? TheFramePacer->getActualFramesPerSecondLimit() : 0));
+		NETDIAG_CALL(reportPollGap());
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG transport sendQueued=%u sendFailed=%u recvStored=%u recvDropped=%u",
 			s_transportSendQueued, s_transportSendFailed, s_transportRecvStored, s_transportRecvDropped));
 	}

@@ -1321,6 +1321,7 @@ void ConnectionManager::update(Bool isInGame) {
 		return;
 	}
 
+	NETDIAG_CALL(onRecvPoll());
 	m_transport->doRecv();
 
 	if (isInGame) {

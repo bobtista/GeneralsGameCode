@@ -62,6 +62,10 @@ public:
 		m_stallTotalMs = 0;
 		m_logicFrames = 0;
 		m_renderFrames = 0;
+		m_lastPollMs = 0;
+		m_pollGapTotal = 0;
+		m_pollGapCount = 0;
+		m_pollGapMax = 0;
 		m_rateWindowStartMs = timeGetTime();
 	}
 
@@ -141,6 +145,29 @@ public:
 	void onLogicFrame() { ++m_logicFrames; }
 	void onRenderFrame() { ++m_renderFrames; }
 
+	// How often the socket is actually drained. Anything a packet spends waiting here is latency
+	// the engine adds on top of the wire, and it is paid on both hops of every round trip.
+	void onRecvPoll()
+	{
+		const UnsignedInt nowMs = timeGetTime();
+		if (m_lastPollMs != 0)
+		{
+			const UnsignedInt gap = nowMs - m_lastPollMs;
+			m_pollGapTotal += gap;
+			++m_pollGapCount;
+			if (gap > m_pollGapMax) { m_pollGapMax = gap; }
+		}
+		m_lastPollMs = nowMs;
+	}
+
+	void reportPollGap()
+	{
+		if (m_pollGapCount == 0) { return; }
+		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG poll gaps=%d meanMs=%.2f maxMs=%d",
+			m_pollGapCount, (Real)m_pollGapTotal / (Real)m_pollGapCount, m_pollGapMax));
+		m_pollGapCount = 0; m_pollGapTotal = 0; m_pollGapMax = 0;
+	}
+
 	// Emits measured logic and render rates once per second. Everything here is
 	// counted directly rather than inferred from runahead command spacing.
 	void reportRates(Real displayAvgFps, Real displayInstFps, Int metricsAvgFps,
@@ -181,6 +208,10 @@ private:
 
 	Int m_logicFrames;
 	Int m_renderFrames;
+	UnsignedInt m_lastPollMs;
+	UnsignedInt m_pollGapTotal;
+	Int m_pollGapCount;
+	UnsignedInt m_pollGapMax;
 	UnsignedInt m_rateWindowStartMs;
 };
 
