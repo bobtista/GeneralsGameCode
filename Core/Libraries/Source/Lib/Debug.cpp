@@ -406,8 +406,31 @@ void DebugInit(int flags)
 	can write to different files. The log file of the previous run is kept under
 	another name. Until this is called, messages are logged to the console only.
 */
+static char theLogFilePrefix[ _MAX_PATH ];
+static char theLogFileSuffix[ _MAX_PATH ];
+
+// TheSuperHackers @refactor bobtista 09/08/2026 Shared by the initial open beside the
+// executable and by the reopen into the user data directory, so both name the log the same way.
+static void buildLogFileNames(const char *dirPath)
+{
+	strlcpy(theLogFileNamePrev, dirPath, ARRAY_SIZE(theLogFileNamePrev));
+	strlcat(theLogFileNamePrev, theLogFilePrefix, ARRAY_SIZE(theLogFileNamePrev));
+	strlcat(theLogFileNamePrev, DEBUG_FILE_NAME_PREV, ARRAY_SIZE(theLogFileNamePrev));
+	strlcat(theLogFileNamePrev, theLogFileSuffix, ARRAY_SIZE(theLogFileNamePrev));
+	strlcat(theLogFileNamePrev, ".txt", ARRAY_SIZE(theLogFileNamePrev));
+
+	strlcpy(theLogFileName, dirPath, ARRAY_SIZE(theLogFileName));
+	strlcat(theLogFileName, theLogFilePrefix, ARRAY_SIZE(theLogFileName));
+	strlcat(theLogFileName, DEBUG_FILE_NAME, ARRAY_SIZE(theLogFileName));
+	strlcat(theLogFileName, theLogFileSuffix, ARRAY_SIZE(theLogFileName));
+	strlcat(theLogFileName, ".txt", ARRAY_SIZE(theLogFileName));
+}
+
 void DebugOpenLogFile(const char *prefix, const char *suffix)
 {
+	strlcpy(theLogFilePrefix, prefix, ARRAY_SIZE(theLogFilePrefix));
+	strlcpy(theLogFileSuffix, suffix, ARRAY_SIZE(theLogFileSuffix));
+
 	char dirbuf[ _MAX_PATH ];
 	// TheSuperHackers @bugfix bobtista 09/06/2026 Start empty so a platform whose
 	// GetModuleFileName is a no-op stub (non-Windows) leaves no uninitialized garbage in
@@ -420,18 +443,8 @@ void DebugOpenLogFile(const char *prefix, const char *suffix)
 	}
 
 	static_assert(ARRAY_SIZE(theLogFileNamePrev) >= ARRAY_SIZE(dirbuf), "Incorrect array size");
-	strcpy(theLogFileNamePrev, dirbuf);
-	strlcat(theLogFileNamePrev, prefix, ARRAY_SIZE(theLogFileNamePrev));
-	strlcat(theLogFileNamePrev, DEBUG_FILE_NAME_PREV, ARRAY_SIZE(theLogFileNamePrev));
-	strlcat(theLogFileNamePrev, suffix, ARRAY_SIZE(theLogFileNamePrev));
-	strlcat(theLogFileNamePrev, ".txt", ARRAY_SIZE(theLogFileNamePrev));
-
 	static_assert(ARRAY_SIZE(theLogFileName) >= ARRAY_SIZE(dirbuf), "Incorrect array size");
-	strcpy(theLogFileName, dirbuf);
-	strlcat(theLogFileName, prefix, ARRAY_SIZE(theLogFileNamePrev));
-	strlcat(theLogFileName, DEBUG_FILE_NAME, ARRAY_SIZE(theLogFileNamePrev));
-	strlcat(theLogFileName, suffix, ARRAY_SIZE(theLogFileNamePrev));
-	strlcat(theLogFileName, ".txt", ARRAY_SIZE(theLogFileNamePrev));
+	buildLogFileNames(dirbuf);
 
 	remove(theLogFileNamePrev);
 	if (rename(theLogFileName, theLogFileNamePrev) != 0)
@@ -447,6 +460,53 @@ void DebugOpenLogFile(const char *prefix, const char *suffix)
 	if (theLogFile != nullptr)
 	{
 		DebugLog("Log %s opened: %s", theLogFileName, getCurrentTimeString());
+	}
+}
+
+/**
+	Reopen the debug log inside the given directory when the initial open failed.
+
+	The log is created beside the executable, which a retail install under Program Files
+	does not let the game write. That failure was silent, so a crash report carried no log
+	at all. The game calls this once the user data directory is known, which is writable.
+*/
+void DebugReopenLogInDirectory(const char *directoryPath)
+{
+	if (theLogFile != nullptr)
+	{
+		return; // the log opened beside the executable, leave it there
+	}
+	if (directoryPath == nullptr || directoryPath[0] == 0)
+	{
+		return;
+	}
+	if ((theDebugFlags & DEBUG_FLAG_LOG_TO_FILE) == 0)
+	{
+		return;
+	}
+
+	char failedPath[_MAX_PATH];
+	strlcpy(failedPath, theLogFileName, ARRAY_SIZE(failedPath));
+
+	char dirBuf[_MAX_PATH];
+	strlcpy(dirBuf, directoryPath, ARRAY_SIZE(dirBuf));
+	const size_t dirLen = strlen(dirBuf);
+	if (dirLen > 0 && !isPathSeparator(dirBuf[dirLen - 1]))
+	{
+		const char separator[] = { getNativePathSeparator(), 0 };
+		strlcat(dirBuf, separator, ARRAY_SIZE(dirBuf));
+	}
+
+	buildLogFileNames(dirBuf);
+
+	remove(theLogFileNamePrev);
+	rename(theLogFileName, theLogFileNamePrev);
+
+	theLogFile = fopen(theLogFileName, "w");
+	if (theLogFile != nullptr)
+	{
+		DebugLog("Log %s opened: %s", theLogFileName, getCurrentTimeString());
+		DebugLog("Note: '%s' could not be opened for writing, so the log was moved here.", failedPath);
 	}
 }
 #endif
