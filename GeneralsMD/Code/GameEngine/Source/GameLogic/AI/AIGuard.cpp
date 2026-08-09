@@ -53,6 +53,28 @@
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/PolygonTrigger.h"
 
+// TheSuperHackers @tweak bobtista 09/08/2026 These states return straight back to the scan that
+// set the nemesis id, so a target that stays unresolvable logs in runs of hundreds of lines and
+// dominated a release log. Report each owner type once per site, and carry the id that failed to
+// resolve, since that is what a diagnosis would actually need.
+#if defined(DEBUG_LOGGING)
+	#define DEBUG_LOG_NULL_NEMESIS_ONCE(stateName)                                            \
+		do {                                                                                  \
+			const ThingTemplate *nemesisOwnerTemplate = getMachineOwner()->getTemplate();      \
+			static const ThingTemplate *nemesisLastReported = NULL;                            \
+			if (nemesisOwnerTemplate != nemesisLastReported)                                   \
+			{                                                                                 \
+				nemesisLastReported = nemesisOwnerTemplate;                                    \
+				DEBUG_LOG(("Unexpected null nemesis in " stateName ". owner=%s nemesisID=%d",  \
+					nemesisOwnerTemplate->getName().str(),                                     \
+					(Int)getGuardMachine()->getNemesisID()));                                  \
+			}                                                                                 \
+		} while (0)
+#else
+	#define DEBUG_LOG_NULL_NEMESIS_ONCE(stateName) ((void)0)
+#endif
+
+
 const Real CLOSE_ENOUGH = (25.0f);
 
 
@@ -400,7 +422,7 @@ StateReturnType AIGuardInnerState::onEnter()
 		Object* nemesis = TheGameLogic->findObjectByID(getGuardMachine()->getNemesisID()) ;
 		if (nemesis == nullptr)
 		{
-			DEBUG_LOG(("Unexpected null nemesis in AIGuardInnerState."));
+			DEBUG_LOG_NULL_NEMESIS_ONCE("AIGuardInnerState");
 			return STATE_SUCCESS;
 		}
 		m_enterState = newInstance(AIEnterState)(getMachine());
@@ -420,7 +442,7 @@ StateReturnType AIGuardInnerState::onEnter()
 		Object* nemesis = TheGameLogic->findObjectByID(getGuardMachine()->getNemesisID()) ;
 		if (nemesis == nullptr)
 		{
-			DEBUG_LOG(("Unexpected null nemesis in AIGuardInnerState."));
+			DEBUG_LOG_NULL_NEMESIS_ONCE("AIGuardInnerState");
 			return STATE_SUCCESS;
 		}
 		m_exitConditions.m_center = pos;
@@ -536,7 +558,7 @@ StateReturnType AIGuardOuterState::onEnter()
 	Object* nemesis = TheGameLogic->findObjectByID(getGuardMachine()->getNemesisID()) ;
 	if (nemesis == nullptr)
 	{
-		DEBUG_LOG(("Unexpected null nemesis in AIGuardInnerState."));
+		DEBUG_LOG_NULL_NEMESIS_ONCE("AIGuardInnerState");
 		return STATE_SUCCESS;
 	}
 	Object *obj = getMachineOwner();
@@ -864,7 +886,7 @@ StateReturnType AIGuardAttackAggressorState::onEnter()
 	Object *nemesis = TheGameLogic->findObjectByID(getGuardMachine()->getNemesisID());
 	if (nemesis == nullptr)
 	{
-		DEBUG_LOG(("Unexpected null nemesis in AIGuardAttackAggressorState."));
+		DEBUG_LOG_NULL_NEMESIS_ONCE("AIGuardAttackAggressorState");
 		return STATE_SUCCESS;
 	}
 
