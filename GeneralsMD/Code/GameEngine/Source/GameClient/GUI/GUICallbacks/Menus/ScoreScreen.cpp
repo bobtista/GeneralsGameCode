@@ -473,7 +473,10 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 #endif
 	}
 
-#if defined(DEBUG_LOGGING)
+// TheSuperHackers @tweak bobtista 09/08/2026 Polling twice a second was a quarter of a release
+// log once these builds started shipping with logging on. The one-shot init, finishInit and
+// selected reports carry the state that matters; keep the poll for INTENSE_DEBUG sessions.
+#if defined(DEBUG_LOGGING) && defined(INTENSE_DEBUG)
 	{
 		const UnsignedInt now = timeGetTime();
 		if( now - s_debugLastReportMsec >= 500 )

@@ -6051,7 +6051,10 @@ void Pathfinder::processPathfindQueue()
 		return;
 	}
 #ifdef DEBUG_QPF
-#ifdef DEBUG_LOGGING
+// TheSuperHackers @tweak bobtista 09/08/2026 Release builds now carry debug logging, so this
+// queue timing ran its counters on every pass and emitted two lines per slow update, which was
+// a third of a release log. Match the other pathfind timers and keep it to INTENSE_DEBUG.
+#ifdef INTENSE_DEBUG
 	Int startTimeMS = ::GetTickCount();
 	__int64 startTime64;
 	double timeToUpdate=0.0f;
@@ -6102,7 +6105,7 @@ void Pathfinder::processPathfindQueue()
 	}
 #ifdef DEBUG_QPF
 	if (pathsFound>0) {
-#ifdef DEBUG_LOGGING
+#ifdef INTENSE_DEBUG
 		QueryPerformanceCounter((LARGE_INTEGER *)&endTime64);
 		timeToUpdate = ((double)(endTime64-startTime64) / (double)(freq64));
 		if (timeToUpdate>0.01f)
