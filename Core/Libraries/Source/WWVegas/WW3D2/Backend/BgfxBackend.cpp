@@ -236,7 +236,10 @@ extern "C" int  GGC_GetCurrentLogicFrame();
 // TheSuperHackers @feature bobtista 23/06/2026 Strongest shadow-casting dynamic light in the live
 // scene. Fills outPosRange={x,y,z,range} and outDiffuseBias={r,g,b,bias}; returns non-zero
 // when a caster light is active. Drives SetupPointShadowView's perspective shadow map.
-extern "C" int  GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias, float * outShadowStrength);
+// outIsTrackingLight distinguishes the persistent particle-cannon beam light from a transient
+// blast light, so the scene dim can scale itself to the blast instead of using the beam's tuning.
+extern "C" int  GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias, float * outShadowStrength,
+                                            int * outIsTrackingLight);
 // TheSuperHackers @feature bobtista 14/07/2026 Second-strongest shadow-casting dynamic light,
 // for the second point-shadow slot (transient lightning-flash lights next to the beam).
 extern "C" int  GGC_GetBgfxPointShadowLight2(float * outPosRange, float * outDiffuseBias, float * outShadowStrength);
@@ -3050,9 +3053,11 @@ static void SetupPointShadowView()
     float diffuseBias[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     float lightStrength = 1.0f;
     int hasLight = 0;
+    int isTrackingLight = 0;
 #ifdef RTS_ZEROHOUR
-    hasLight = GGC_GetBgfxPointShadowLight(posRange, diffuseBias, &lightStrength);
+    hasLight = GGC_GetBgfxPointShadowLight(posRange, diffuseBias, &lightStrength, &isTrackingLight);
 #endif
+    g_draw.pointShadowLightTracking = (isTrackingLight != 0);
     if (hasLight == 0)
     {
         bgfx::setViewFrameBuffer(kBgfxPointShadowView, BGFX_INVALID_HANDLE);
@@ -3256,7 +3261,27 @@ static void UpdateDramaLighting()
         return;
     }
     const bool active = g_draw.pointShadowLightValid && (g_draw.pointShadowParams[0] >= 0.5f);
-    const float target = active ? GGC_GetPCannonDimTarget() : 1.0f;
+    // TheSuperHackers @tweak bobtista 09/08/2026 Scale the dim to the light that caused it. Slot 1
+    // holds whatever shadow-casting dynamic light is strongest, so a nuke-cannon shell or Helix
+    // bomb used to get the same scene dim as a superweapon detonation. The beam keeps its own
+    // hand-tuned pool; every blast light is scaled by its outer range against the superweapon
+    // nuke's, shrinking both the radius and the depth of the dip for smaller strikes.
+    const float kDimReferenceRange = 450.0f;
+    float dimScale = 1.0f;
+    if (active && !g_draw.pointShadowLightTracking)
+    {
+        const float range = g_draw.pointShadowLightPos[3];
+        dimScale = range / kDimReferenceRange;
+        if (dimScale > 1.0f)
+        {
+            dimScale = 1.0f;
+        }
+        else if (dimScale < 0.2f)
+        {
+            dimScale = 0.2f;
+        }
+    }
+    const float target = active ? (1.0f - (1.0f - GGC_GetPCannonDimTarget()) * dimScale) : 1.0f;
     if (active)
     {
         // Electric-pattern clock for object receivers (see fs_uber): 2.0 + seconds, wrapping
@@ -3273,9 +3298,10 @@ static void UpdateDramaLighting()
     static int s_dimLogCounter = 0;
     if (BgfxDiagVerbose() && (++s_dimLogCounter % 120) == 0)
     {
-        std::fprintf(stderr, "[ggc] dramaDim active=%d ease=%.3f params0=%.1f valid=%d\n",
+        std::fprintf(stderr, "[ggc] dramaDim active=%d ease=%.3f params0=%.1f valid=%d tracking=%d range=%.0f scale=%.2f target=%.3f\n",
             active ? 1 : 0, g_draw.dramaAmbientDim, g_draw.pointShadowParams[0],
-            g_draw.pointShadowLightValid ? 1 : 0);
+            g_draw.pointShadowLightValid ? 1 : 0, g_draw.pointShadowLightTracking ? 1 : 0,
+            g_draw.pointShadowLightPos[3], dimScale, target);
     }
     g_draw.dramaAmbientDim += (target - g_draw.dramaAmbientDim) * 0.02f;
     if (g_draw.dramaAmbientDim > 0.999f)
@@ -3293,8 +3319,10 @@ static void UpdateDramaLighting()
         g_draw.dramaDim[1] = g_draw.pointShadowLightPos[1];
     }
     // Falloff width: the dim pool eases from its floor (at the beam) back to normal over this
-    // many world units, so the darkening stays local to the beam area, not the whole map.
-    g_draw.dramaDim[2] = 1.0f / 170.0f;
+    // many world units, so the darkening stays local to the beam area, not the whole map. Every
+    // distance in the shader is expressed as a multiple of this width, so scaling it here shrinks
+    // the whole pool - glow, dim ramp and outer fade together - for a smaller blast.
+    g_draw.dramaDim[2] = 1.0f / (170.0f * dimScale);
     g_draw.dramaDim[3] = g_draw.dramaAmbientDim;
 }
 

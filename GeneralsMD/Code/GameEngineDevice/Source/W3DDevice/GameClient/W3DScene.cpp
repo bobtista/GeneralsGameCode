@@ -2228,8 +2228,16 @@ static W3DDynamicLight * ggcGetPrimaryPointShadowLight(RTS3DScene *scene)
 	return scene->getStrongestShadowCastingDynamicLight();
 }
 
-extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias, float * outShadowStrength)
+// TheSuperHackers @tweak bobtista 09/08/2026 outIsTrackingLight reports whether the light is the
+// persistent particle-cannon tracking light rather than a transient blast light, so the backend can
+// keep the beam's hand-tuned scene dim while scaling a nuke's dim to the size of its own light.
+extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias, float * outShadowStrength,
+	int * outIsTrackingLight)
 {
+	if (outIsTrackingLight != NULL)
+	{
+		*outIsTrackingLight = 0;
+	}
 	RTS3DScene *scene = W3DDisplay::m_3DScene;
 	if (scene == NULL)
 	{
@@ -2239,6 +2247,11 @@ extern "C" int GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffu
 	if (light == NULL)
 	{
 		return 0;
+	}
+	if (outIsTrackingLight != NULL)
+	{
+		W3DDisplay *display = static_cast<W3DDisplay *>(TheDisplay);
+		*outIsTrackingLight = (display != NULL && display->isTrackingLight(light)) ? 1 : 0;
 	}
 
 	const Vector3 pos = light->Get_Position();
