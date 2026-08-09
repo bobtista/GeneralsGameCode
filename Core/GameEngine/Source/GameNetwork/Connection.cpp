@@ -26,6 +26,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameNetwork/Connection.h"
+#include "GameNetwork/NetDiag.h"
 #include "GameNetwork/networkutil.h"
 #include "GameLogic/GameLogic.h"
 
@@ -289,6 +290,12 @@ UnsignedInt Connection::doSend() {
 					if (CommandRequiresAck(msg->getCommand())) {
 						if (timeLastSent != -1) {
 							++m_numRetries;
+							DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG retransmit id=%d type=%s frame=%d ageMs=%d retryTime=%dms totalRetries=%d",
+								msg->getCommand()->getID(), GetNetCommandTypeAsString(msg->getCommand()->getNetCommandType()),
+								msg->getCommand()->getExecutionFrame(), (Int)(curtime - timeLastSent), (Int)m_retryTime, m_numRetries));
+						}
+						if (msg->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
+							NETDIAG_CALL(onFrameInfoSent(msg->getCommand()->getID()));
 						}
 						doRetryMetrics();
 						msg->setTimeLastSent(curtime);

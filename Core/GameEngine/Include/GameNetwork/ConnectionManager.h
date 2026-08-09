@@ -146,7 +146,14 @@ public:
 	Int getPingsSent();
 	Int getPingsReceived();
 
+	// Network stall diagnostics.
+	Int getDiagFrameGrouping() const { return m_frameGroupingDiag; }
+	Int getDiagLastNotReadyPlayer() const { return m_lastNotReadyPlayer; }
+
 private:
+	Int m_frameGroupingDiag;
+	Int m_lastNotReadyPlayer;
+
 	void doRelay();
 	void doKeepAlive();
 	void sendRemoteCommand(NetCommandRef *msg);

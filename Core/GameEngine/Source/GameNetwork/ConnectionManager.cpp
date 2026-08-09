@@ -44,6 +44,7 @@
 #include "GameClient/MessageBox.h"
 #include "GameNetwork/ConnectionManager.h"
 #include "GameNetwork/LANAPICallbacks.h"
+#include "GameNetwork/NetDiag.h"
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/NetCommandWrapperList.h"
 #include "GameNetwork/networkutil.h"
@@ -261,6 +262,8 @@ ConnectionManager::ConnectionManager()
 	m_netCommandWrapperList = nullptr;
 	m_localUser = nullptr;
 	m_localUser = newInstance(User);
+	m_frameGroupingDiag = 0;
+	m_lastNotReadyPlayer = -1;
 }
 
 /**
@@ -996,6 +999,7 @@ void ConnectionManager::processAckStage1(NetCommandMsg *msg) {
 	if (ref != nullptr) {
 		if (ref->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
 			m_frameMetrics.processLatencyResponse(((NetFrameCommandMsg *)(ref->getCommand()))->getExecutionFrame());
+			NETDIAG_CALL(onFrameInfoAcked(ref->getCommand()->getID(), m_frameGroupingDiag, m_frameMetrics.getAverageLatency()));
 		}
 
 		deleteInstance(ref);
@@ -1401,7 +1405,16 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
 			// TheSuperHackers @info if the runahead goes below 3 logic frames it can start to introduce stutter
 			// We also limit the upper range of the runahead to prevent it getting out of hand
-			newRunAhead = clamp<Int>(MIN_RUNAHEAD, newRunAhead, MAX_FRAMES_AHEAD / 2);
+			const Int clampedRunAhead = clamp<Int>(MIN_RUNAHEAD, newRunAhead, MAX_FRAMES_AHEAD / 2);
+			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG runahead rawLatency=%.4fs slackScale=%.2f minFps=%d computed=%d clamped=%d floor=%d realLatencySamples=%d perPlayerLatency=[%.4f %.4f %.4f %.4f] connLatency=[%.1fms %.1fms %.1fms %.1fms]",
+				getMaximumLatency(), runAheadSlackScale, minFps, newRunAhead, clampedRunAhead, MIN_RUNAHEAD,
+				m_frameMetrics.getRealLatencySampleCount(),
+				m_latencyAverages[0], m_latencyAverages[1], m_latencyAverages[2], m_latencyAverages[3],
+				(m_connections[0] != nullptr) ? m_connections[0]->getAverageLatency() : -1.0f,
+				(m_connections[1] != nullptr) ? m_connections[1]->getAverageLatency() : -1.0f,
+				(m_connections[2] != nullptr) ? m_connections[2]->getAverageLatency() : -1.0f,
+				(m_connections[3] != nullptr) ? m_connections[3]->getAverageLatency() : -1.0f));
+			newRunAhead = clampedRunAhead;
 
 			NetRunAheadCommandMsg *msg = newInstance(NetRunAheadCommandMsg);
 			msg->setPlayerID(m_localSlot);
@@ -1563,6 +1576,8 @@ void ConnectionManager::processFrameTick(UnsignedInt frame) {
 
 	m_frameMetrics.doPerFrameMetrics(frame);
 
+	NETDIAG_CALL(onFrameInfoQueued(frame, msg->getID()));
+
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::processFrameTick - sending frame info for frame %d, ID %d, command count %d", frame, msg->getID(), commandCount));
 
 	sendLocalCommand(msg, 0xff & ~(1 << m_localSlot));
@@ -1716,6 +1731,9 @@ Bool ConnectionManager::allCommandsReady(UnsignedInt frame, Bool justTesting /* 
 
 			frameRetVal = m_frameData[i]->allCommandsReady(frame, (frame != commandsReadyDebugSpewage) && (justTesting == FALSE));
 			if (frameRetVal == FRAMEDATA_NOTREADY) {
+				if (justTesting == FALSE) {
+					m_lastNotReadyPlayer = i;
+				}
 				retval = FALSE;
 			} else if (frameRetVal == FRAMEDATA_RESEND) {
 				requestFrameDataResend(i, frame);
@@ -1782,9 +1800,13 @@ void ConnectionManager::setFrameGrouping(time_t frameGrouping) {
 	// may become the latency bottleneck for sending packets from one player to the next.
 	// This is probably ok since the packet router should have the fastest connection of all
 	// the players in the game.
+	const time_t requestedGrouping = frameGrouping;
 	if (m_localSlot == m_packetRouterSlot) {
 		frameGrouping = frameGrouping / 2;
 	}
+	m_frameGroupingDiag = (Int)frameGrouping;
+	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG grouping requested=%dms applied=%dms isPacketRouter=%d localSlot=%d",
+		(Int)requestedGrouping, (Int)frameGrouping, (m_localSlot == m_packetRouterSlot) ? 1 : 0, m_localSlot));
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		if (m_connections[i] != nullptr) {
 			m_connections[i]->setFrameGrouping(frameGrouping);

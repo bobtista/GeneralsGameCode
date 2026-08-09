@@ -179,7 +179,8 @@ int main(int argc, char **argv)
 	// initMemoryManager(); the SDL3 entry point with the null memory manager never does, so a
 	// logging build produced no output. Initialize it here so DEBUG_LOG reaches the log file and
 	// console. Expands to nothing when debug logging is compiled out.
-	DEBUG_INIT(DEBUG_FLAGS_DEFAULT);
+	// Timestamp every log line so stall durations can be read straight off the log.
+	DEBUG_INIT(DEBUG_FLAGS_DEFAULT | DEBUG_FLAG_PREPEND_TIME);
 
 	GGC_TRACE("calling SDL_Init");
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))

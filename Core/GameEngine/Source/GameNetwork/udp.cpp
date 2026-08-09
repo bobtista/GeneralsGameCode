@@ -166,6 +166,18 @@ Int UDP::Bind(UnsignedInt IP,UnsignedShort Port)
   addr.sin_port=Port;
   addr.sin_addr.s_addr=IP;
   fd=socket(AF_INET,SOCK_DGRAM,DEFAULT_PROTOCOL);
+
+#ifndef _WIN32
+  // TheSuperHackers @debug Opt-in port sharing so two clients can run on one host for
+  // local LAN testing. Off by default, so normal play binds exactly as before.
+  if (fd != -1 && getenv("GGC_NET_REUSEPORT") != nullptr)
+  {
+    int reuse = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse));
+    setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, (char *)&reuse, sizeof(reuse));
+  }
+#endif
+
   #ifdef _WIN32
   if (fd==SOCKET_ERROR)
     fd=-1;

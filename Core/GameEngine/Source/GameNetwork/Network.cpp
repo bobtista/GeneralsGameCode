@@ -36,6 +36,9 @@
 #include "Common/MessageStream.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
+#include "Common/FramePacer.h"
+#include "GameClient/Display.h"
+#include "GameNetwork/NetDiag.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/udp.h"
 #include "GameNetwork/Transport.h"
@@ -416,6 +419,8 @@ void Network::parseUserList( const GameInfo *game )
  * Guess what, we're starting a game!
  */
 void Network::startGame() {
+	// Clear counters so a second match in the same process does not inherit state.
+	NETDIAG_CALL(reset());
 }
 
 /**
@@ -652,6 +657,8 @@ void Network::processRunAheadCommand(NetRunAheadCommandMsg *msg) {
 	if (frameGrouping > 500) {
 		frameGrouping = 500; // Max of a half a second.
 	}
+	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG runaheadcmd runAhead=%d frameRate=%d groupingBeforeRouterHalving=%dms runAheadWindowMs=%d",
+		m_runAhead, m_frameRate, (Int)frameGrouping, (m_frameRate > 0) ? (1000 * m_runAhead / m_frameRate) : 0));
 	m_conMgr->setFrameGrouping(frameGrouping);
 }
 
@@ -721,15 +728,34 @@ void Network::update()
 	if (AllCommandsReady(TheGameLogic->getFrame())) { // If all the commands are ready for the next frame...
 		m_conMgr->handleAllCommandsReady();
 //		DEBUG_LOG(("Network::update - frame %d is ready", TheGameLogic->getFrame()));
+		NETDIAG_CALL(onFrameReady(TheGameLogic->getFrame()));
 		if (timeForNewFrame()) { // This needs to come after any other pre-frame execution checks as this changes the timing variables.
 			RelayCommandsToCommandList(TheGameLogic->getFrame());	// Put the commands for the next frame on TheCommandList.
 			m_frameDataReady = TRUE; // Tell the GameEngine to run the commands for the new frame.
+			NETDIAG_CALL(onLogicFrame());
 		}
 	}
 	else {
 		__int64 curTime;
 		QueryPerformanceCounter((LARGE_INTEGER *)&curTime);
 		m_isStalling = curTime >= m_nextFrameTime;
+		if (m_localStatus == NETLOCALSTATUS_INGAME) {
+			NETDIAG_CALL(onFrameNotReady(TheGameLogic->getFrame(), m_conMgr->getDiagLastNotReadyPlayer(),
+				m_runAhead, (Int)m_conMgr->getMinimumCushion()));
+		}
+	}
+
+	// Counted here rather than inferred from runahead command spacing, which is
+	// only valid when the runahead value has not changed between samples.
+	NETDIAG_CALL(onRenderFrame());
+	if (m_localStatus == NETLOCALSTATUS_INGAME) {
+		NETDIAG_CALL(reportRates(
+			TheDisplay != nullptr ? TheDisplay->getAverageFPS() : 0.0f,
+			TheDisplay != nullptr ? TheDisplay->getCurrentFPS() : 0.0f,
+			m_conMgr->getAverageFPS(),
+			m_runAhead, m_frameRate, (Int)m_conMgr->getMinimumCushion(),
+			TheFramePacer != nullptr ? TheFramePacer->isActualFramesPerSecondLimitEnabled() : FALSE,
+			TheFramePacer != nullptr ? TheFramePacer->getActualFramesPerSecondLimit() : 0));
 	}
 }
 
@@ -785,6 +811,14 @@ Bool Network::timeForNewFrame() {
 			frameDelay += oldFrameDelay / 10; // temporarily decrease the frame rate by 20%.
 //			DEBUG_LOG(("Average cushion = %f, run ahead percentage = %f.  Adjusting frameDelay from %I64d to %I64d", cushion, runAheadPercentage, oldFrameDelay, frameDelay));
 			m_didSelfSlug = TRUE;
+			// Rate limited so a sustained slug does not drown the log.
+			static UnsignedInt lastSlugLogMs = 0;
+			const UnsignedInt nowMs = timeGetTime();
+			if (nowMs - lastSlugLogMs > 1000) {
+				lastSlugLogMs = nowMs;
+				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG selfslug cushion=%.1f threshold=%.1f runAhead=%d slack=%d frameDelay %d->%d ticks",
+					cushion, runAheadPercentage, m_runAhead, TheGlobalData->m_networkRunAheadSlack, (Int)oldFrameDelay, (Int)frameDelay));
+			}
 //		} else {
 //			DEBUG_LOG(("Average cushion = %f, run ahead percentage = %f", cushion, runAheadPercentage));
 		}

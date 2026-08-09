@@ -63,6 +63,8 @@ void FrameMetrics::init() {
 	m_averageFps = 30;
 	m_averageLatency = (Real)0.2;
 	m_minimumCushion = -1;
+	m_realLatencySamples = 0;
+	m_realFpsSamples = 0;
 
 	UnsignedInt i = 0;
 	for (; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -94,6 +96,9 @@ void FrameMetrics::doPerFrameMetrics(UnsignedInt frame) {
 		++m_fpsListIndex;
 		m_fpsListIndex %= TheGlobalData->m_networkFPSHistoryLength;
 		m_lastFpsTimeThing = curTime;
+		if (m_realFpsSamples < (Int)TheGlobalData->m_networkFPSHistoryLength) {
+			++m_realFpsSamples;
+		}
 	}
 
 	Int pendingLatenciesIndex = frame % MAX_FRAMES_AHEAD;
@@ -108,8 +113,14 @@ void FrameMetrics::processLatencyResponse(UnsignedInt frame) {
 
 	Int latencyListIndex = frame % TheGlobalData->m_networkLatencyHistoryLength;
 	m_latencyList[latencyListIndex] = (Real)timeDiff / (Real)1000; // convert to seconds from milliseconds.
+	if (m_realLatencySamples < (Int)TheGlobalData->m_networkLatencyHistoryLength) {
+		++m_realLatencySamples;
+	}
 	const Real latencySum = std::accumulate(m_latencyList, m_latencyList + TheGlobalData->m_networkLatencyHistoryLength, 0.0f);
 	m_averageLatency = latencySum / (Real)TheGlobalData->m_networkLatencyHistoryLength;
+
+	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG rawlat frame=%d rttMs=%d smoothedAvg=%.4fs realSamples=%d/%d",
+		frame, (Int)timeDiff, m_averageLatency, m_realLatencySamples, (Int)TheGlobalData->m_networkLatencyHistoryLength));
 
 	if (frame % 16 == 0) {
 //		DEBUG_LOG(("ConnectionManager::processFrameInfoAck - average latency = %f", m_averageLatency));

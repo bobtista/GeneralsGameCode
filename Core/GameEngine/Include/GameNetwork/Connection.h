@@ -57,6 +57,7 @@ public:
 	void doRecv();
 
 	Bool allCommandsReady(UnsignedInt frame);
+	Real getAverageLatency() const { return m_averageLatency; }	///< Diagnostics: measured from actual wire send to ack, unlike FrameMetrics.
 	Bool isQueueEmpty();
 	void attachTransport(Transport *transport);
 	void setUser(User *user);

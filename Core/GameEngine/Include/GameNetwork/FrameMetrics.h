@@ -45,7 +45,15 @@ public:
 	Int getAverageFPS();
 	Int getMinimumCushion();
 
+	// Diagnostics: how many entries of each seeded history have been replaced by
+	// real measurements, so early readings can be discounted as seed artifacts.
+	Int getRealLatencySampleCount() const { return m_realLatencySamples; }
+	Int getRealFpsSampleCount() const { return m_realFpsSamples; }
+
 protected:
+	Int m_realLatencySamples;
+	Int m_realFpsSamples;
+
 	// These are used for keeping track of parameters to the run ahead equation.
 	// frames per second history variables.
 	Real *m_fpsList;								///< A record of how many game logic frames per second there were for the last 60 seconds.
