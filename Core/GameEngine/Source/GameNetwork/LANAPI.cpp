@@ -34,6 +34,7 @@
 #include "GameNetwork/networkutil.h"
 #include "Common/GlobalData.h"
 #include "Common/RandomValue.h"
+#include "GameClient/ClientInstance.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MapUtil.h"
 #include "Common/UserPreferences.h"
@@ -1299,12 +1300,24 @@ Bool LANAPI::SetLocalIP( UnsignedInt localIP )
 #ifdef _WIN32
 	retval = m_transport->init(m_localIP, lobbyPort);
 #else
-	retval = m_transport->init((UnsignedInt)0, lobbyPort);
+	// TheSuperHackers @debug bobtista 09/08/2026 When several clients share one host they all
+	// carry the same wildcard bind, so the kernel hands a datagram to whichever socket it picks
+	// and every packet arrives claiming the host's outbound address. Binding the instance's own
+	// 127.0.0.x makes delivery and source address unambiguous, which is what LookupPlayer needs.
+	// This trades away broadcast reception, so only Direct Connect works in this mode; single
+	// client play keeps the wildcard bind and its lobby discovery.
+	const Bool bindExactAddress = rts::ClientInstance::isMultiInstance() && m_localIP != 0;
+	retval = m_transport->init(bindExactAddress ? m_localIP : (UnsignedInt)0, lobbyPort);
 #endif
 	m_transport->allowBroadcasts(true);
 
-	DEBUG_LOG(("LANAPI::SetLocalIP - identity localIP=%d.%d.%d.%d broadcast=%d.%d.%d.%d (socket bound INADDR_ANY on non-Windows)",
-		PRINTF_IP_AS_4_INTS(m_localIP), PRINTF_IP_AS_4_INTS(m_broadcastAddr)));
+#ifdef _WIN32
+	const char *bindDesc = "bound to localIP";
+#else
+	const char *bindDesc = bindExactAddress ? "bound to localIP (multi instance)" : "bound INADDR_ANY";
+#endif
+	DEBUG_LOG(("LANAPI::SetLocalIP - identity localIP=%d.%d.%d.%d broadcast=%d.%d.%d.%d (socket %s) retval=%d",
+		PRINTF_IP_AS_4_INTS(m_localIP), PRINTF_IP_AS_4_INTS(m_broadcastAddr), bindDesc, retval));
 
 	return retval;
 }
