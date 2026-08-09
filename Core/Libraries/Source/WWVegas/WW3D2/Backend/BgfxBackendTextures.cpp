@@ -18,9 +18,11 @@
 // Release_Cached_Texture, Capture_Shroud_Texture.
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -1345,6 +1347,171 @@ struct TextureUploadPlan
     TextureCacheInfo cacheInfo;
 };
 
+struct ImmutableTextureStagingDiagEntry
+{
+    std::string name;
+    uint64_t cumulativeBytes = 0;
+    uint64_t createCount = 0;
+    unsigned revision = 0;
+    uint16_t width = 0;
+    uint16_t height = 0;
+    uint16_t mipCount = 0;
+    uint16_t uploadVariant = 0;
+    int sourceFormat = 0;
+    int createFormat = 0;
+};
+
+struct ImmutableTextureStagingDiagState
+{
+    std::unordered_map<const TextureClass *, ImmutableTextureStagingDiagEntry> entries;
+    uint64_t cumulativeBytes = 0;
+    uint64_t createCount = 0;
+    std::chrono::steady_clock::time_point lastLog;
+    bool announced = false;
+};
+
+static ImmutableTextureStagingDiagState g_immutableTextureStagingDiag;
+
+static void LogImmutableTextureStagingDiagHeader(unsigned intervalSeconds)
+{
+#ifdef DEBUG_LOGGING
+    WWDEBUG_SAY(("[BgfxTextureLeak] enabled interval=%us; bytes count the per-level staging allocations that are not transferred to bgfx",
+        intervalSeconds));
+#else
+    std::fprintf(stderr,
+        "[BgfxTextureLeak] enabled interval=%us; bytes count the per-level staging allocations that are not transferred to bgfx\n",
+        intervalSeconds);
+    std::fflush(stderr);
+#endif
+}
+
+static void LogImmutableTextureStagingDiagSummary(unsigned intervalSeconds)
+{
+    ImmutableTextureStagingDiagState &state = g_immutableTextureStagingDiag;
+    std::vector<const ImmutableTextureStagingDiagEntry *> ranked;
+    ranked.reserve(state.entries.size());
+    for (const auto &item : state.entries)
+    {
+        ranked.push_back(&item.second);
+    }
+    std::sort(ranked.begin(), ranked.end(),
+        [](const ImmutableTextureStagingDiagEntry *lhs, const ImmutableTextureStagingDiagEntry *rhs) {
+            return lhs->cumulativeBytes > rhs->cumulativeBytes;
+        });
+
+#ifdef DEBUG_LOGGING
+    WWDEBUG_SAY(("[BgfxTextureLeak] frame=%u interval=%us totalBytes=%llu totalCreates=%llu textures=%u",
+        g_stats.frameIndex,
+        intervalSeconds,
+        static_cast<unsigned long long>(state.cumulativeBytes),
+        static_cast<unsigned long long>(state.createCount),
+        static_cast<unsigned>(ranked.size())));
+#else
+    std::fprintf(stderr,
+        "[BgfxTextureLeak] frame=%u interval=%us totalBytes=%llu totalCreates=%llu textures=%u\n",
+        g_stats.frameIndex,
+        intervalSeconds,
+        static_cast<unsigned long long>(state.cumulativeBytes),
+        static_cast<unsigned long long>(state.createCount),
+        static_cast<unsigned>(ranked.size()));
+#endif
+
+    const size_t reportCount = (ranked.size() < 10) ? ranked.size() : 10;
+    for (size_t rank = 0; rank < reportCount; ++rank)
+    {
+        const ImmutableTextureStagingDiagEntry &entry = *ranked[rank];
+#ifdef DEBUG_LOGGING
+        WWDEBUG_SAY(("[BgfxTextureLeak] rank=%u bytes=%llu creates=%llu texture=%s size=%ux%u mips=%u revision=%u sourceFmt=%d createFmt=%d variant=%u",
+            static_cast<unsigned>(rank + 1),
+            static_cast<unsigned long long>(entry.cumulativeBytes),
+            static_cast<unsigned long long>(entry.createCount),
+            entry.name.c_str(),
+            entry.width,
+            entry.height,
+            entry.mipCount,
+            entry.revision,
+            entry.sourceFormat,
+            entry.createFormat,
+            entry.uploadVariant));
+#else
+        std::fprintf(stderr,
+            "[BgfxTextureLeak] rank=%u bytes=%llu creates=%llu texture=%s size=%ux%u mips=%u revision=%u sourceFmt=%d createFmt=%d variant=%u\n",
+            static_cast<unsigned>(rank + 1),
+            static_cast<unsigned long long>(entry.cumulativeBytes),
+            static_cast<unsigned long long>(entry.createCount),
+            entry.name.c_str(),
+            entry.width,
+            entry.height,
+            entry.mipCount,
+            entry.revision,
+            entry.sourceFormat,
+            entry.createFormat,
+            entry.uploadVariant);
+#endif
+    }
+#ifndef DEBUG_LOGGING
+    std::fflush(stderr);
+#endif
+}
+
+static void RecordImmutableTextureStagingAllocation(TextureClass *tex2d,
+    const TextureUploadPlan &plan,
+    unsigned mipCount,
+    uint64_t bytes)
+{
+    if (!GgcFlags::Enabled(GgcFlag_BgfxTextureLeakDiag) || tex2d == nullptr)
+    {
+        return;
+    }
+
+    ImmutableTextureStagingDiagState &state = g_immutableTextureStagingDiag;
+    ImmutableTextureStagingDiagEntry &entry = state.entries[tex2d];
+    if (entry.name.empty())
+    {
+        const char *name = tex2d->Get_Full_Path().str();
+        if (name == nullptr || name[0] == '\0')
+        {
+            name = tex2d->Get_Texture_Name().str();
+        }
+        entry.name = (name != nullptr && name[0] != '\0') ? name : "<procedural>";
+    }
+
+    entry.cumulativeBytes += bytes;
+    entry.createCount++;
+    entry.revision = plan.cacheInfo.revision;
+    entry.width = plan.cacheInfo.w;
+    entry.height = plan.cacheInfo.h;
+    entry.mipCount = static_cast<uint16_t>(mipCount);
+    entry.uploadVariant = plan.cacheInfo.uploadVariant;
+    entry.sourceFormat = plan.cacheInfo.sourceFormat;
+    entry.createFormat = plan.cacheInfo.createFormat;
+    state.cumulativeBytes += bytes;
+    state.createCount++;
+
+    int configuredInterval = GgcFlags::IntValue(GgcFlag_BgfxTextureLeakDiag);
+    if (configuredInterval <= 0)
+    {
+        configuredInterval = 30;
+    }
+    const unsigned intervalSeconds = static_cast<unsigned>(configuredInterval);
+    const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    if (!state.announced)
+    {
+        state.announced = true;
+        state.lastLog = now;
+        LogImmutableTextureStagingDiagHeader(intervalSeconds);
+        return;
+    }
+
+    const std::chrono::seconds elapsed =
+        std::chrono::duration_cast<std::chrono::seconds>(now - state.lastLog);
+    if (elapsed.count() >= static_cast<long long>(intervalSeconds))
+    {
+        state.lastLog = now;
+        LogImmutableTextureStagingDiagSummary(intervalSeconds);
+    }
+}
+
 static bool BuildTextureUploadPlan(unsigned revision,
     TextureClass *tex2d,
     const std::vector<TextureBaseClass::TextureMipSnapshot> &mips,
@@ -1470,6 +1637,8 @@ static bool TryCreateImmutableBaseMip(TextureClass *tex2d,
         }
         totalBytes += levelMem[mip]->size;
     }
+
+    RecordImmutableTextureStagingAllocation(tex2d, plan, useLevels, totalBytes);
 
     const bgfx::Memory *packed = bgfx::alloc(totalBytes);
     uint32_t offset = 0;

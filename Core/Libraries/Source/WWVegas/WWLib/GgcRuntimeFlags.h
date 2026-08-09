@@ -145,6 +145,7 @@ enum GgcFlagType
 	X(GgcFlag_BgfxDebug, "GGC_BGFX_DEBUG", NULL, GgcTier_Diagnostic, GgcFlagType_Presence, 0, 0.0f, "enable bgfx debug/verbose init diagnostics") \
 	X(GgcFlag_BgfxPerfLog, "GGC_BGFX_PERF_LOG", NULL, GgcTier_Diagnostic, GgcFlagType_Presence, 0, 0.0f, "periodic perf-stats logging; numeric value overrides the emit interval") \
 	X(GgcFlag_BgfxPerfDir, "GGC_BGFX_PERF_DIR", NULL, GgcTier_Diagnostic, GgcFlagType_String, 0, 0.0f, "directory for the perf-stats CSV log") \
+	X(GgcFlag_BgfxTextureLeakDiag, "GGC_BGFX_TEXTURE_LEAK_DIAG", NULL, GgcTier_Diagnostic, GgcFlagType_Int, 30, 0.0f, "periodically rank immutable texture staging allocations by cumulative bytes; value is interval seconds") \
 	X(GgcFlag_DrawLogAfter, "GGC_DRAWLOG_AFTER", NULL, GgcTier_Diagnostic, GgcFlagType_Int, -1, 0.0f, "frame number at which to dump a per-draw-call log") \
 	X(GgcFlag_DrawLogInterval, "GGC_DRAWLOG_INTERVAL", NULL, GgcTier_Diagnostic, GgcFlagType_Int, 0, 0.0f, "repeat interval in frames for further draw-call log dumps") \
 	X(GgcFlag_DrawLogPath, "GGC_DRAWLOG_PATH", NULL, GgcTier_Diagnostic, GgcFlagType_String, 0, 0.0f, "base output path for draw-call logs") \
