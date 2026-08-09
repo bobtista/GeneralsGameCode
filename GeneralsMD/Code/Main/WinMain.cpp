@@ -779,6 +779,12 @@ static CriticalSection critSec1, critSec2, critSec3, critSec4, critSec5;
 static LONG WINAPI UnHandledExceptionFilter( struct _EXCEPTION_POINTERS* e_info )
 {
 	DumpExceptionInfo( e_info->ExceptionRecord->ExceptionCode, e_info );
+#ifdef DEBUG_LOGGING
+	// TheSuperHackers @bugfix bobtista 09/08/2026 Normal logging is buffered so it does not cost
+	// frame time, so an access violation would otherwise die with its last lines unwritten. This
+	// is an ordinary callback rather than a signal handler, so flushing here is safe.
+	DebugFlushLog();
+#endif
 #ifdef RTS_ENABLE_CRASHDUMP
 	if (TheMiniDumper && TheMiniDumper->IsInitialized())
 	{
