@@ -62,12 +62,19 @@ public:
 	time_t getTimeLastSent() const;
 	void setTimeLastSent(time_t timeLastSent);
 
+	// A round trip measured across a retransmit is ambiguous, because the ack may answer either
+	// copy. Karn's algorithm discards those samples, so the sender has to remember which commands
+	// went out more than once.
+	Bool getWasRetransmitted() const { return m_wasRetransmitted; }
+	void setWasRetransmitted(Bool wasRetransmitted) { m_wasRetransmitted = wasRetransmitted; }
+
 protected:
 	NetCommandMsg *m_msg;
 	NetCommandRef *m_next;
 	NetCommandRef *m_prev;
 	UnsignedByte m_relay; ///< Need this in the command reference since the relay value will be different depending on where this particular reference is being sent.
 	time_t m_timeLastSent;
+	Bool m_wasRetransmitted;
 
 #ifdef DEBUG_NETCOMMANDREF
 	UnsignedInt m_id;

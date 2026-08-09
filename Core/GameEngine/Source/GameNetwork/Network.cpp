@@ -745,6 +745,13 @@ void Network::update()
 		}
 	}
 
+	// Transport level counters, so a datagram this process dropped itself is not mistaken for
+	// wire loss. Declared here to keep the diagnostics out of the transport header.
+	extern UnsignedInt s_transportSendQueued;
+	extern UnsignedInt s_transportSendFailed;
+	extern UnsignedInt s_transportRecvStored;
+	extern UnsignedInt s_transportRecvDropped;
+
 	// Counted here rather than inferred from runahead command spacing, which is
 	// only valid when the runahead value has not changed between samples.
 	NETDIAG_CALL(onRenderFrame());
@@ -756,6 +763,8 @@ void Network::update()
 			m_runAhead, m_frameRate, (Int)m_conMgr->getMinimumCushion(),
 			TheFramePacer != nullptr ? TheFramePacer->isActualFramesPerSecondLimitEnabled() : FALSE,
 			TheFramePacer != nullptr ? TheFramePacer->getActualFramesPerSecondLimit() : 0));
+		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG transport sendQueued=%u sendFailed=%u recvStored=%u recvDropped=%u",
+			s_transportSendQueued, s_transportSendFailed, s_transportRecvStored, s_transportRecvDropped));
 	}
 }
 

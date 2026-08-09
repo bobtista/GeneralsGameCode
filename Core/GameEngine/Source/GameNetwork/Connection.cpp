@@ -32,9 +32,13 @@
 
 enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to retry things before quitting
 
-// Bounds for the adaptive retry time. The floor keeps a brief latency dip from causing needless
-// retransmits; the ceiling keeps recovery inside a plausible run ahead window on a slow link.
+// Bounds for the adaptive frame info retry time. The floor keeps a brief latency dip from causing
+// needless retransmits; the ceiling stops a bad link from drifting back towards the retail value.
 enum { MinRetryTime = 60, MaxRetryTime = 500 };
+
+// How many commands of one packet can be unstamped if the transport refuses it. Beyond this the
+// remainder simply waits for its retry, which is the old behaviour.
+enum { MaxStagedCommands = 128 };
 
 /**
  * The constructor.
@@ -44,6 +48,11 @@ Connection::Connection() {
 	m_user = nullptr;
 	m_netCommandList = nullptr;
 	m_retryTime = 2000; // set retry time to 2 seconds.
+	// Start at the retail value and shorten it once the round trip has actually been measured.
+	m_frameInfoRetryTime = 2000;
+	m_smoothedRtt = 0.0f;
+	m_rttVariance = 0.0f;
+	m_hasRttSample = FALSE;
 	m_lastTimeSent = 0;
 	m_frameGrouping = 1;
 	m_isQuitting = false;
@@ -86,6 +95,12 @@ void Connection::init() {
 	m_frameGrouping = 1;
 	m_numRetries = 0;
 	m_retryMetricsTime = 0;
+	// Reset the retry state too, otherwise a reused connection inherits the previous game's timing.
+	m_retryTime = 2000;
+	m_frameInfoRetryTime = 2000;
+	m_smoothedRtt = 0.0f;
+	m_rttVariance = 0.0f;
+	m_hasRttSample = FALSE;
 
 	for (Int i = 0; i < CONNECTION_LATENCY_HISTORY_LENGTH; ++i) {
 		m_latencies[i] = 0;
@@ -284,17 +299,18 @@ UnsignedInt Connection::doSend() {
 		return 0;
 	}
 
+	// TheSuperHackers @bugfix bobtista 09/08/2026 Frame info gates the peer's simulation, so holding
+	// it back for the grouping interval spends the run ahead cushion on our own batching. The
+	// grouping interval is itself derived from the run ahead, so a peer can never buffer more than
+	// the delay this creates. When only the grouping timer is holding us back, send the time
+	// critical commands and leave the rest batched.
+	Bool priorityOnly = FALSE;
 	if ((curtime - m_lastTimeSent) < m_frameGrouping) {
 //		DEBUG_LOG(("not sending packet, time = %d, m_lastFrameSent = %d, m_frameGrouping = %d", curtime, m_lastTimeSent, m_frameGrouping));
-
-		// TheSuperHackers @bugfix bobtista 09/08/2026 Frame info gates the peer's simulation, so
-		// holding it back for the grouping interval spends the run ahead cushion on our own
-		// batching. The grouping interval is itself derived from the run ahead, so a peer can
-		// never buffer more than the delay this creates. Let a pending frame info go out at once
-		// and keep batching everything else.
 		if (!hasPendingFrameInfo(curtime)) {
 			return 0;
 		}
+		priorityOnly = TRUE;
 	}
 
 	// iterate through all the messages and put them into a packet(s).
@@ -307,27 +323,52 @@ UnsignedInt Connection::doSend() {
 
 		Bool notDone = TRUE;
 
+		// Commands whose send has to be undone if the transport refuses the packet.
+		NetCommandRef *staged[MaxStagedCommands];
+		time_t stagedPrevTime[MaxStagedCommands];
+		Int numStaged = 0;
+
 		// add the command messages until either we run out of messages or the packet is full.
 		while ((msg != nullptr) && notDone) {
 			NetCommandRef *next = msg->getNext(); // Need this since msg could be deleted
 
 			time_t timeLastSent = msg->getTimeLastSent();
+			const NetCommandType cmdType = msg->getCommand()->getNetCommandType();
 
-			if (((curtime - timeLastSent) > m_retryTime) || (timeLastSent == -1)) {
+			// While the grouping timer is still running, only the commands that unblock a peer are
+			// allowed out. Everything else waits for the interval as before.
+			const Bool isPriority = (cmdType == NETCOMMANDTYPE_FRAMEINFO)
+				|| (cmdType == NETCOMMANDTYPE_ACKSTAGE1)
+				|| (cmdType == NETCOMMANDTYPE_ACKSTAGE2)
+				|| (cmdType == NETCOMMANDTYPE_ACKBOTH);
+
+			if (priorityOnly && !isPriority) {
+				msg = next;
+				continue;
+			}
+
+			if (((curtime - timeLastSent) > getRetryTimeForCommand(msg->getCommand())) || (timeLastSent == -1)) {
 				notDone = packet->addCommand(msg);
 				if (notDone) {
 					// the msg command was added to the packet.
 					if (CommandRequiresAck(msg->getCommand())) {
 						if (timeLastSent != -1) {
 							++m_numRetries;
+							msg->setWasRetransmitted(TRUE);
 							DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG retransmit id=%d type=%s frame=%d ageMs=%d retryTime=%dms totalRetries=%d",
-								msg->getCommand()->getID(), GetNetCommandTypeAsString(msg->getCommand()->getNetCommandType()),
-								msg->getCommand()->getExecutionFrame(), (Int)(curtime - timeLastSent), (Int)m_retryTime, m_numRetries));
+								msg->getCommand()->getID(), GetNetCommandTypeAsString(cmdType),
+								msg->getCommand()->getExecutionFrame(), (Int)(curtime - timeLastSent),
+								(Int)getRetryTimeForCommand(msg->getCommand()), m_numRetries));
 						}
-						if (msg->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
+						if (cmdType == NETCOMMANDTYPE_FRAMEINFO) {
 							NETDIAG_CALL(onFrameInfoSent(msg->getCommand()->getID()));
 						}
 						doRetryMetrics();
+						if (numStaged < MaxStagedCommands) {
+							staged[numStaged] = msg;
+							stagedPrevTime[numStaged] = timeLastSent;
+							++numStaged;
+						}
 						msg->setTimeLastSent(curtime);
 					} else {
 						m_netCommandList->removeMessage(msg);
@@ -349,7 +390,21 @@ UnsignedInt Connection::doSend() {
 			// If the packet actually has any information to give, give it to the transport object
 			// for transmission.
 			couldQueue = m_transport->queueSend(packet->getAddr(), packet->getPort(), packet->getData(), packet->getLength());
-			m_lastTimeSent = curtime;
+			if (couldQueue) {
+				m_lastTimeSent = curtime;
+			} else {
+				// TheSuperHackers @bugfix bobtista 09/08/2026 The commands were stamped as sent
+				// before the transport accepted them, so a refused packet used to look exactly like
+				// a lost one and waited a full retry interval. Undo the stamp so they go out on the
+				// next attempt instead.
+				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG sendfail commands=%d - transport queue full, unstamping", numStaged));
+				for (Int i = 0; i < numStaged; ++i) {
+					staged[i]->setTimeLastSent(stagedPrevTime[i]);
+					if (stagedPrevTime[i] == -1) {
+						staged[i]->setWasRetransmitted(FALSE);
+					}
+				}
+			}
 		}
 
 		deleteInstance(packet); // delete the packet now that we're done with it.
@@ -409,15 +464,7 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 	m_averageLatency += lat / CONNECTION_LATENCY_HISTORY_LENGTH;
 	m_latencies[index] = lat;
 
-	// TheSuperHackers @bugfix bobtista 09/08/2026 Track the retry time to the measured round trip.
-	// A lost frame info stops the peer advancing, which stops the peer producing frame info, so a
-	// single dropped packet deadlocks both players until the retry fires. The retail 2000ms is far
-	// longer than the run ahead can cover, turning any packet loss into a multi second freeze.
-	// Recovery has to fit inside the run ahead window, so this stays well under it.
-	if (getenv("GGC_NET_FIXEDRETRY") == nullptr) {
-		const time_t adaptiveRetry = (time_t)(m_averageLatency * 1.5f);
-		m_retryTime = clamp<time_t>(MinRetryTime, adaptiveRetry, MaxRetryTime);
-	}
+	updateFrameInfoRetryTime(temp, lat);
 
 #if defined(RTS_DEBUG)
 	if (doDebug == TRUE) {
@@ -426,6 +473,52 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 #endif
 	m_netCommandList->removeMessage(temp);
 	return temp;
+}
+
+/**
+ * Maintains the smoothed round trip estimate that drives the frame info retry time.
+ *
+ * Frame info gates the peer's simulation: until it arrives the peer cannot advance, so it stops
+ * producing frame info of its own and the stall spreads. Retail waits a fixed 2000ms before
+ * resending, which is far longer than the run ahead can absorb, so a single lost packet becomes a
+ * multi second freeze for both players. Only frame info uses this shorter time; everything else
+ * keeps the conservative retail value, since resending chat or file commands early would risk
+ * duplicate side effects.
+ */
+void Connection::updateFrameInfoRetryTime(NetCommandRef *ref, Real sampleMs) {
+	// Karn's algorithm. An ack for a command that was sent more than once cannot be attributed to
+	// a particular copy, so the sample would bias the estimate towards the retry interval.
+	if (ref->getWasRetransmitted()) {
+		return;
+	}
+
+	if (!m_hasRttSample) {
+		m_hasRttSample = TRUE;
+		m_smoothedRtt = sampleMs;
+		m_rttVariance = sampleMs / 2.0f;
+	} else {
+		// Jacobson/Karels smoothing, the standard estimator for exactly this problem.
+		const Real error = sampleMs - m_smoothedRtt;
+		m_smoothedRtt += error / 8.0f;
+		m_rttVariance += (fabsf(error) - m_rttVariance) / 4.0f;
+	}
+
+	if (getenv("GGC_NET_FIXEDRETRY") != nullptr) {
+		return;
+	}
+
+	const time_t timeout = (time_t)(m_smoothedRtt + 4.0f * m_rttVariance);
+	m_frameInfoRetryTime = clamp<time_t>(MinRetryTime, timeout, MaxRetryTime);
+}
+
+/**
+ * Frame info gets the adaptive timeout, every other command keeps the retail one.
+ */
+time_t Connection::getRetryTimeForCommand(const NetCommandMsg *msg) const {
+	if (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
+		return m_frameInfoRetryTime;
+	}
+	return m_retryTime;
 }
 
 void Connection::setFrameGrouping(time_t frameGrouping) {

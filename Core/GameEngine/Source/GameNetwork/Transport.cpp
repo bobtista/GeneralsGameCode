@@ -67,6 +67,14 @@ static inline void decryptBuf( unsigned char *buf, Int len )
 
 //--------------------------------------------------------------------------
 
+// Counters that separate a genuinely lost datagram from one this process dropped itself. Without
+// these a full send or receive buffer is indistinguishable from wire loss in the logs.
+UnsignedInt s_transportSendQueued = 0;
+UnsignedInt s_transportSendFailed = 0;
+UnsignedInt s_transportRecvStored = 0;
+UnsignedInt s_transportRecvDropped = 0;
+UnsignedInt s_transportBadPacket = 0;
+
 Transport::Transport()
 {
 	m_winsockInit = false;
@@ -366,11 +374,17 @@ Bool Transport::doRecv()
 		}
 #endif
 
+		if (bufferIndex >= ARRAY_SIZE(m_inBuffer))
+		{
+			// Nowhere to put it, so this valid datagram is discarded here rather than on the wire.
+			++s_transportRecvDropped;
+		}
 		for (; bufferIndex < ARRAY_SIZE(m_inBuffer); ++bufferIndex)
 		{
 			if (m_inBuffer[bufferIndex].length <= 0)
 			{
 				// Empty slot; use it
+				++s_transportRecvStored;
 				m_inBuffer[bufferIndex].length = incomingMessage.length;
 				m_inBuffer[bufferIndex].addr = ntohl(from.sin_addr.s_addr);
 				m_inBuffer[bufferIndex].port = ntohs(from.sin_port);
@@ -396,6 +410,7 @@ Bool Transport::queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedBy
 	if (len < 1 || len > MAX_PACKET_SIZE)
 	{
 		DEBUG_LOG(("Transport::queueSend - Invalid Packet size"));
+		++s_transportSendFailed;
 		return false;
 	}
 
@@ -404,6 +419,7 @@ Bool Transport::queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedBy
 		if (m_outBuffer[i].length <= 0)
 		{
 			// Insert data here
+			++s_transportSendQueued;
 			m_outBuffer[i].length = len;
 			memcpy(m_outBuffer[i].data, buf, len);
 			m_outBuffer[i].addr = addr;
@@ -426,6 +442,7 @@ Bool Transport::queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedBy
 		}
 	}
 	DEBUG_LOG(("Send Queue is getting full, dropping packets"));
+	++s_transportSendFailed;
 	return false;
 }
 
