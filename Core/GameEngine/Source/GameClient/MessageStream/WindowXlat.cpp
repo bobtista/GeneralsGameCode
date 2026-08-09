@@ -172,7 +172,9 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 	Bool forceKeepMessage = FALSE;
 	WinInputReturnCode returnCode = WIN_INPUT_NOT_USED;
 
-#if defined(DEBUG_LOGGING)
+// TheSuperHackers @tweak bobtista 09/08/2026 Reports on every gate change, which is far too
+// chatty for a release build that now ships logging. Keep it for INTENSE_DEBUG sessions.
+#if defined(DEBUG_LOGGING) && defined(INTENSE_DEBUG)
 	// TheSuperHackers @info bobtista 04/08/2026 The mouse lock gate below drops raw input before it
 	// can reach TheWindowManager, so the GUI keeps rendering while ignoring clicks and keys. Report
 	// every change of the gate state so a dead menu can be attributed to it.
