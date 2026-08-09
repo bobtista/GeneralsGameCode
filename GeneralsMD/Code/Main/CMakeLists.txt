@@ -75,6 +75,16 @@ if(MSVC)
     target_link_options(z_generals PRIVATE "/NODEFAULTLIB:libci.lib")
 endif()
 
+# TheSuperHackers @build bobtista 09/08/2026 The staged Linux zip keeps its bundled
+# SDL3/OpenAL/FFmpeg in libs/ beside the executable, but the shipped binary's RUNPATH holds
+# only build-tree paths, so it found them solely through the LD_LIBRARY_PATH that run.sh
+# exports and launching ./generalszh directly failed. BUILD_RPATH appends rather than
+# replaces, so deploy-linux-generalsmd.sh keeps reading those build-tree entries to walk the
+# transitive closure.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set_target_properties(z_generals PROPERTIES BUILD_RPATH "$ORIGIN/libs")
+endif()
+
 target_include_directories(z_generals PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
