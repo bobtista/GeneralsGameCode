@@ -819,7 +819,7 @@ WinInputReturnCode GameWindowManager::winProcessKey( UnsignedByte key,
 
 	}
 
-#if defined(DEBUG_LOGGING)
+#if defined(DEBUG_LOGGING) && defined(INTENSE_DEBUG)
 	// TheSuperHackers @info bobtista 04/08/2026 Report which window consumed a keystroke so a menu
 	// that never sees ESC can be told apart from one whose handler ran and did nothing.
 	if( key == KEY_ESC )
@@ -850,7 +850,7 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 	Int dx, dy;
 	Bool clearGrabWindow = FALSE;
 
-#if defined(DEBUG_LOGGING)
+#if defined(DEBUG_LOGGING) && defined(INTENSE_DEBUG)
 	GameWindow *const debugEntryGrabWindow = m_grabWindow;
 #endif
 
@@ -1187,7 +1187,7 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 
 	}
 
-#if defined(DEBUG_LOGGING)
+#if defined(DEBUG_LOGGING) && defined(INTENSE_DEBUG)
 	// TheSuperHackers @info bobtista 04/08/2026 Report where a click actually landed so an
 	// unresponsive menu can be told apart from input that never arrived at all.
 	if( msg == GWM_LEFT_DOWN || msg == GWM_LEFT_UP )
