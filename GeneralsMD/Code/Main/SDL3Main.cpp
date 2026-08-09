@@ -318,6 +318,15 @@ int main(int argc, char **argv)
 	GGC_TRACE("parseCommandLineForStartup OK headless=%d",
 	          (TheGlobalData != NULL && TheGlobalData->m_headless) ? 1 : 0);
 
+#ifdef DEBUG_LOGGING
+	// TheSuperHackers @bugfix bobtista 09/08/2026 The log is created beside the executable, which
+	// a read-only install directory rejects. Move it to the user data directory when that failed.
+	if (TheGlobalData != NULL)
+	{
+		DebugReopenLogInDirectory(TheGlobalData->getPath_UserData().str());
+	}
+#endif
+
 	// TheSuperHackers @bugfix bobtista 30/04/2026 -headless asks for
 	// engine-only execution (no rendering, no audio); on Apple Silicon
 	// macOS Tahoe even initialising bgfx Metal trips the AGX driver
