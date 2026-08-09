@@ -544,7 +544,13 @@ void FunctionLexicon::init()
 	loadTable( winLayoutUpdateTable,				TABLE_WIN_LAYOUT_UPDATE );
 	loadTable( winLayoutShutdownTable,			TABLE_WIN_LAYOUT_SHUTDOWN );
 
+	// TheSuperHackers @tweak bobtista 09/08/2026 An optimized build folds identical functions onto
+	// one address, so this reports hundreds of false duplicates. That was an eighth of a release
+	// log once these builds started shipping with logging on. Keep it for INTENSE_DEBUG sessions,
+	// where the check is meaningful and the quadratic scan is affordable.
+#ifdef INTENSE_DEBUG
 	validate();
+#endif
 
 }
 
