@@ -154,11 +154,18 @@ Real FrameMetrics::getLatencyPercentile(Real quantile) {
 		return m_averageLatency;
 	}
 
-	std::vector<Real> sorted(m_latencyList, m_latencyList + count);
+	// Only the entries that hold a measurement. The list is seeded with 0.2s, and sorting those
+	// in would report the seed as the percentile until nearly every slot had been replaced.
+	const UnsignedInt realCount = min<UnsignedInt>((UnsignedInt)m_realLatencySamples, count);
+	if (realCount == 0) {
+		return m_averageLatency;
+	}
+
+	std::vector<Real> sorted(m_latencyList, m_latencyList + realCount);
 	std::sort(sorted.begin(), sorted.end());
 
-	Int index = (Int)(quantile * (Real)(count - 1));
-	index = clamp<Int>(0, index, (Int)count - 1);
+	Int index = (Int)(quantile * (Real)(realCount - 1));
+	index = clamp<Int>(0, index, (Int)realCount - 1);
 	return sorted[index];
 }
 

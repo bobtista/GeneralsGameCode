@@ -1415,7 +1415,8 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			// LAN; 4 leaves less buffer than a wireless link's own latency tail. Tunable so the
 			// right value can be measured rather than guessed.
 			static const Int minRunAhead = (getenv("GGC_NET_MIN_RUNAHEAD") != nullptr)
-				? atoi(getenv("GGC_NET_MIN_RUNAHEAD")) : MIN_RUNAHEAD;
+				? clamp<Int>(MIN_RUNAHEAD, atoi(getenv("GGC_NET_MIN_RUNAHEAD")), MAX_FRAMES_AHEAD / 2)
+				: MIN_RUNAHEAD;
 			const Int clampedRunAhead = clamp<Int>(minRunAhead, newRunAhead, MAX_FRAMES_AHEAD / 2);
 			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG runahead p90Latency=%.4fs meanLatency=%.4fs slackScale=%.2f minFps=%d computed=%d clamped=%d floor=%d realLatencySamples=%d perPlayerLatency=[%.4f %.4f %.4f %.4f] connLatency=[%.1fms %.1fms %.1fms %.1fms]",
 				getMaximumLatency(), m_frameMetrics.getAverageLatency(), runAheadSlackScale, minFps, newRunAhead, clampedRunAhead, minRunAhead,

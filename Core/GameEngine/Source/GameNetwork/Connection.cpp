@@ -340,6 +340,12 @@ UnsignedInt Connection::doSend() {
 		NetCommandRef *staged[MaxStagedCommands];
 		time_t stagedPrevTime[MaxStagedCommands];
 		Int numStaged = 0;
+		// Commands with no ack are dropped from the queue once sent. They cannot be recovered by a
+		// retry, so they are only discarded after the transport has taken the packet.
+		NetCommandRef *disposable[MaxStagedCommands];
+		Int numDisposable = 0;
+		Bool stagingOverflowed = FALSE;
+		Bool didBackOffRetry = FALSE;
 
 		// add the command messages until either we run out of messages or the packet is full.
 		while ((msg != nullptr) && notDone) {
@@ -372,8 +378,13 @@ UnsignedInt Connection::doSend() {
 							// the estimator only ever sees fast round trips and would stay biased low
 							// on a link with a long tail. Backing the timer off on each retransmit is
 							// what lets it climb; a clean sample resets it.
-							if (cmdType == NETCOMMANDTYPE_FRAMEINFO) {
+							// Back off once per send attempt, not once per command. Several overdue
+							// frame infos can share a packet and would otherwise multiply the timer
+							// straight to its ceiling.
+							if (cmdType == NETCOMMANDTYPE_FRAMEINFO && !didBackOffRetry
+								&& (getenv("GGC_NET_FIXEDRETRY") == nullptr)) {
 								m_frameInfoRetryTime = min<time_t>(m_frameInfoRetryTime * 2, MaxRetryTime);
+								didBackOffRetry = TRUE;
 							}
 							DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG retransmit id=%d type=%s frame=%d ageMs=%d retryTime=%dms totalRetries=%d",
 								msg->getCommand()->getID(), GetNetCommandTypeAsString(cmdType),
@@ -388,11 +399,15 @@ UnsignedInt Connection::doSend() {
 							staged[numStaged] = msg;
 							stagedPrevTime[numStaged] = timeLastSent;
 							++numStaged;
+						} else {
+							stagingOverflowed = TRUE;
 						}
 						msg->setTimeLastSent(curtime);
+					} else if (numDisposable < MaxStagedCommands) {
+						disposable[numDisposable] = msg;
+						++numDisposable;
 					} else {
-						m_netCommandList->removeMessage(msg);
-						deleteInstance(msg);
+						notDone = FALSE; // close the packet rather than risk losing the command
 					}
 				}
 			}
@@ -411,7 +426,16 @@ UnsignedInt Connection::doSend() {
 			// for transmission.
 			couldQueue = m_transport->queueSend(packet->getAddr(), packet->getPort(), packet->getData(), packet->getLength());
 			if (couldQueue) {
-				m_lastTimeSent = curtime;
+				// A priority only packet must not advance the grouping clock. Frame info and acks
+				// occur more often than the grouping interval, so letting them reset it would keep
+				// the gate permanently shut for game commands and file transfers.
+				if (!priorityOnly) {
+					m_lastTimeSent = curtime;
+				}
+				for (Int i = 0; i < numDisposable; ++i) {
+					m_netCommandList->removeMessage(disposable[i]);
+					deleteInstance(disposable[i]);
+				}
 			} else {
 				// TheSuperHackers @bugfix bobtista 09/08/2026 The commands were stamped as sent
 				// before the transport accepted them, so a refused packet used to look exactly like
@@ -424,6 +448,11 @@ UnsignedInt Connection::doSend() {
 						staged[i]->setWasRetransmitted(FALSE);
 					}
 				}
+				// The retry never happened, so undo its cost to the timer as well.
+				if (didBackOffRetry) {
+					m_frameInfoRetryTime = max<time_t>(m_frameInfoRetryTime / 2, MinRetryTime);
+				}
+				DEBUG_ASSERTCRASH(!stagingOverflowed, ("Connection::doSend - more sent commands than can be rolled back"));
 			}
 		}
 
@@ -484,7 +513,11 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 	m_averageLatency += lat / CONNECTION_LATENCY_HISTORY_LENGTH;
 	m_latencies[index] = lat;
 
-	updateFrameInfoRetryTime(temp, lat);
+	// Only a frame info round trip should steer the frame info timer. A chat or file ack says
+	// nothing about it and would otherwise clear the backoff.
+	if (temp->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
+		updateFrameInfoRetryTime(temp, lat);
+	}
 
 #if defined(RTS_DEBUG)
 	if (doDebug == TRUE) {

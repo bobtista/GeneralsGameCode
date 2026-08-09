@@ -739,7 +739,10 @@ void Network::update()
 		__int64 curTime;
 		QueryPerformanceCounter((LARGE_INTEGER *)&curTime);
 		m_isStalling = curTime >= m_nextFrameTime;
-		if (m_localStatus == NETLOCALSTATUS_INGAME) {
+		// Only a miss of the frame's deadline is a stall. Being ready-but-early is the normal
+		// state between frames, and counting it made a faster rendering client look worse purely
+		// because it polled more often.
+		if ((m_localStatus == NETLOCALSTATUS_INGAME) && m_isStalling) {
 			NETDIAG_CALL(onFrameNotReady(TheGameLogic->getFrame(), m_conMgr->getDiagLastNotReadyPlayer(),
 				m_runAhead, (Int)m_conMgr->getMinimumCushion()));
 		}
