@@ -379,6 +379,14 @@ void W3DDisplayString::setWordWrap( Int wordWrap )
 
 void W3DDisplayString::setUseHotkey( Bool useHotkey, Color hotKeyColor )
 {
+	// TheSuperHackers @bugfix bobtista 09/08/2026 Only dirty the sentence when the
+	// hotkey state actually changes. The static text gadget re-applies hotkey state
+	// on every draw, and the unconditional notify rebuilt every visible static
+	// text's sentence textures every frame.
+	if( m_useHotKey == useHotkey && m_hotKeyColor == hotKeyColor )
+	{
+		return;
+	}
 	m_useHotKey = useHotkey;
 	m_hotKeyColor = hotKeyColor;
 	m_textRenderer.Set_Hot_Key_Parse(useHotkey);
