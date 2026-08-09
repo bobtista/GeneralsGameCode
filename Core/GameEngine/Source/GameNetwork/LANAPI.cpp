@@ -1306,7 +1306,10 @@ Bool LANAPI::SetLocalIP( UnsignedInt localIP )
 	// 127.0.0.x makes delivery and source address unambiguous, which is what LookupPlayer needs.
 	// This trades away broadcast reception, so only Direct Connect works in this mode; single
 	// client play keeps the wildcard bind and its lobby discovery.
-	const Bool bindExactAddress = rts::ClientInstance::isMultiInstance() && m_localIP != 0;
+	// Opt in explicitly. A multi instance build is still the normal way to play, and binding an
+	// exact address there would silently break lobby discovery for everyone.
+	static const Bool allowExactBind = (getenv("GGC_NET_EXACT_BIND") != nullptr);
+	const Bool bindExactAddress = allowExactBind && rts::ClientInstance::isMultiInstance() && m_localIP != 0;
 	retval = m_transport->init(bindExactAddress ? m_localIP : (UnsignedInt)0, lobbyPort);
 #endif
 	m_transport->allowBroadcasts(true);

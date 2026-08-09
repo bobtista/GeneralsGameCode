@@ -32,6 +32,10 @@
 
 enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to retry things before quitting
 
+// Bounds for the adaptive retry time. The floor keeps a brief latency dip from causing needless
+// retransmits; the ceiling keeps recovery inside a plausible run ahead window on a slow link.
+enum { MinRetryTime = 60, MaxRetryTime = 500 };
+
 /**
  * The constructor.
  */
@@ -404,6 +408,16 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 	Real lat = timeGetTime() - temp->getTimeLastSent();
 	m_averageLatency += lat / CONNECTION_LATENCY_HISTORY_LENGTH;
 	m_latencies[index] = lat;
+
+	// TheSuperHackers @bugfix bobtista 09/08/2026 Track the retry time to the measured round trip.
+	// A lost frame info stops the peer advancing, which stops the peer producing frame info, so a
+	// single dropped packet deadlocks both players until the retry fires. The retail 2000ms is far
+	// longer than the run ahead can cover, turning any packet loss into a multi second freeze.
+	// Recovery has to fit inside the run ahead window, so this stays well under it.
+	if (getenv("GGC_NET_FIXEDRETRY") == nullptr) {
+		const time_t adaptiveRetry = (time_t)(m_averageLatency * 1.5f);
+		m_retryTime = clamp<time_t>(MinRetryTime, adaptiveRetry, MaxRetryTime);
+	}
 
 #if defined(RTS_DEBUG)
 	if (doDebug == TRUE) {
