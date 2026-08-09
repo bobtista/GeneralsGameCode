@@ -265,8 +265,12 @@ void Connection::setQuitting()
 }
 
 /**
- * Returns true if an unsent frame info command is waiting. Retries are excluded so this
- * cannot defeat the retry backoff.
+ * Returns true if a time critical command is waiting to go out for the first time.
+ *
+ * Frame info unblocks the peer's simulation, and an ack unblocks the peer's retry timer and its
+ * round trip estimate. Holding either one for the grouping interval adds that delay to every round
+ * trip, which is latency the run ahead then has to cover. Retries are excluded so this cannot
+ * defeat the retry backoff.
  */
 Bool Connection::hasPendingFrameInfo(time_t curtime) {
 	static const Bool flushFrameInfo = (getenv("GGC_NET_NOFLUSH") == nullptr);
@@ -275,8 +279,17 @@ Bool Connection::hasPendingFrameInfo(time_t curtime) {
 	}
 
 	for (NetCommandRef *msg = m_netCommandList->getFirstMessage(); msg != nullptr; msg = msg->getNext()) {
-		if (msg->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO && msg->getTimeLastSent() == -1) {
+		if (msg->getTimeLastSent() != -1) {
+			continue;
+		}
+		switch (msg->getCommand()->getNetCommandType()) {
+		case NETCOMMANDTYPE_FRAMEINFO:
+		case NETCOMMANDTYPE_ACKSTAGE1:
+		case NETCOMMANDTYPE_ACKSTAGE2:
+		case NETCOMMANDTYPE_ACKBOTH:
 			return TRUE;
+		default:
+			break;
 		}
 	}
 	return FALSE;
