@@ -143,25 +143,13 @@ void GameDebugInit(int flags)
 	// TheSuperHackers @feature bobtista 01/08/2026 A crash that never reaches a handled path,
 	// such as a libc abort, dies with the last buffered lines still unwritten. Let a remote
 	// tester trade framerate for a complete log tail without needing a debugger.
-	// TheSuperHackers @tweak bobtista 08/08/2026 A Release build that carries logging exists to
-	// collect crash reports from players, so it defaults to durable. Debug builds keep the
-	// buffered default, where the log is far chattier and the per-line write costs framerate.
-	// GGC_LOG_FLUSH overrides either default in both directions.
-	{
-		const char *logFlushValue = GgcFlags::StringValue(GgcFlag_LogFlush);
-		if (logFlushValue != nullptr)
-		{
-			DebugSetFlushLogEachLine(strcmp(logFlushValue, "0") != 0 && strcmp(logFlushValue, "false") != 0);
-		}
-		else
-		{
-#if defined(RTS_DEBUG)
-			DebugSetFlushLogEachLine(false);
-#else
-			DebugSetFlushLogEachLine(true);
-#endif
-		}
-	}
+	// TheSuperHackers @bugfix bobtista 09/08/2026 This briefly defaulted to on for release
+	// builds carrying logging. A blocking write per line stalls the frame whenever logging
+	// bursts, and on Windows the log often sits in a cloud-synced Documents folder where each
+	// write costs far more. In a lockstep network game one player's stall halts every player,
+	// which showed up as the whole match freezing every few seconds. The crash paths flush
+	// explicitly instead, so durability no longer costs frame time.
+	DebugSetFlushLogEachLine(GgcFlags::Enabled(GgcFlag_LogFlush));
 
 	// TheSuperHackers @info Debug initialization can happen very early.
 	// Determine the client instance id before creating the log file with an instance specific name.
@@ -254,7 +242,7 @@ void ReleaseCrash(const char *reason)
 #ifdef DEBUG_LOGGING
 	// TheSuperHackers @performance bobtista 14/06/2026 Flush the buffered debug log before
 	// the fatal exit so its tail is captured alongside the release crash report.
-	DebugFlushLogFile();
+	DebugFlushLog();
 #endif
 
 	if (TheGlobalData==nullptr) {

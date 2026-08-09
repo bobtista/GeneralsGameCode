@@ -158,7 +158,7 @@
 	DEBUG_EXTERN_C void DebugLogRaw(const char *format, ...);
 	DEBUG_EXTERN_C void DebugOpenLogFile(const char *prefix, const char *suffix);
 	DEBUG_EXTERN_C void DebugReopenLogInDirectory(const char *directoryPath);
-	DEBUG_EXTERN_C void DebugFlushLogFile();
+	DEBUG_EXTERN_C void DebugFlushLog();
 	DEBUG_EXTERN_C void DebugSetFlushLogEachLine(bool flushEachLine);
 	DEBUG_EXTERN_C const char* DebugGetLogFileName();
 	DEBUG_EXTERN_C const char* DebugGetLogFileNamePrev();

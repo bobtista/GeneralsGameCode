@@ -94,8 +94,8 @@ static int theDebugFlags = 0;
 // only flushed on crash/assert/shutdown. Flushing every line turned each DEBUG_LOG into a
 // blocking disk write, which crippled debug-build framerate on log-heavy frames. Set
 // GGC_LOG_FLUSH=1 for per-line durability while chasing a hard crash that bypasses the
-// handled crash paths, such as a libc abort. The startup default is chosen by build config
-// where the log file is opened; GGC_LOG_FLUSH=0 forces buffering back on.
+// handled crash paths, such as a libc abort. It stays off by default in every configuration;
+// the crash paths call DebugFlushLog() so the tail survives without paying a write per line.
 static bool theFlushDebugLogEachLine = false;
 static DWORD theMainThreadID = 0;
 static DebugCrashHandler theCrashHandler = nullptr;
@@ -476,6 +476,12 @@ void DebugReopenLogInDirectory(const char *directoryPath)
 	{
 		return; // the log opened beside the executable, leave it there
 	}
+	if (theLogFileName[0] == 0)
+	{
+		// The open was never attempted, so there is nothing to recover. This happens when startup
+		// bails before the log is created, such as a second instance refusing to run.
+		return;
+	}
 	if (directoryPath == nullptr || directoryPath[0] == 0)
 	{
 		return;
@@ -570,7 +576,7 @@ void DebugLogRaw(const char *format, ...)
 // TheSuperHackers @performance bobtista 14/06/2026 Force the buffered debug log to disk.
 // Called from the crash/assert/shutdown paths so the log tail survives even though normal
 // logging no longer flushes per line.
-void DebugFlushLogFile()
+void DebugFlushLog()
 {
 	if (theLogFile)
 		fflush(theLogFile);
@@ -639,7 +645,7 @@ void DebugCrash(const char *format, ...)
 		doStackDump();
 #endif
 #ifdef DEBUG_LOGGING
-		DebugFlushLogFile();
+		DebugFlushLog();
 #endif
 	}
 
