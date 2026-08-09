@@ -355,6 +355,13 @@ UnsignedInt Connection::doSend() {
 						if (timeLastSent != -1) {
 							++m_numRetries;
 							msg->setWasRetransmitted(TRUE);
+							// The other half of Karn's algorithm. Ambiguous samples are discarded, so
+							// the estimator only ever sees fast round trips and would stay biased low
+							// on a link with a long tail. Backing the timer off on each retransmit is
+							// what lets it climb; a clean sample resets it.
+							if (cmdType == NETCOMMANDTYPE_FRAMEINFO) {
+								m_frameInfoRetryTime = min<time_t>(m_frameInfoRetryTime * 2, MaxRetryTime);
+							}
 							DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG retransmit id=%d type=%s frame=%d ageMs=%d retryTime=%dms totalRetries=%d",
 								msg->getCommand()->getID(), GetNetCommandTypeAsString(cmdType),
 								msg->getCommand()->getExecutionFrame(), (Int)(curtime - timeLastSent),

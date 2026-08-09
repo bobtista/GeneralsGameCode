@@ -1370,7 +1370,11 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 	if ((lasttimesent == 0) || ((curTime - lasttimesent) > TheGlobalData->m_networkRunAheadMetricsTime)) {
 		if (m_localSlot == m_packetRouterSlot) {
 			// We are the packet router, time to compute a new run ahead for this game.
-			m_latencyAverages[m_localSlot] = m_frameMetrics.getAverageLatency();
+			// TheSuperHackers @bugfix bobtista 09/08/2026 Size the run ahead from the tail of the
+			// latency distribution rather than its mean. A wireless link is typically fast with an
+			// occasional long delivery, so the mean suggests a buffer far smaller than the one
+			// needed to ride out the slow packets, and every one of them becomes a visible stall.
+			m_latencyAverages[m_localSlot] = m_frameMetrics.getLatencyPercentile(0.90f);
 
 			// since we are now using the display frame rate rather than the logic frame rate to get our average FPS,
 			// it doesn't make sense to send the desired logic frame rate if we "slugged" ourself.
@@ -1406,8 +1410,8 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			// TheSuperHackers @info if the runahead goes below 3 logic frames it can start to introduce stutter
 			// We also limit the upper range of the runahead to prevent it getting out of hand
 			const Int clampedRunAhead = clamp<Int>(MIN_RUNAHEAD, newRunAhead, MAX_FRAMES_AHEAD / 2);
-			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG runahead rawLatency=%.4fs slackScale=%.2f minFps=%d computed=%d clamped=%d floor=%d realLatencySamples=%d perPlayerLatency=[%.4f %.4f %.4f %.4f] connLatency=[%.1fms %.1fms %.1fms %.1fms]",
-				getMaximumLatency(), runAheadSlackScale, minFps, newRunAhead, clampedRunAhead, MIN_RUNAHEAD,
+			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NETDIAG runahead p90Latency=%.4fs meanLatency=%.4fs slackScale=%.2f minFps=%d computed=%d clamped=%d floor=%d realLatencySamples=%d perPlayerLatency=[%.4f %.4f %.4f %.4f] connLatency=[%.1fms %.1fms %.1fms %.1fms]",
+				getMaximumLatency(), m_frameMetrics.getAverageLatency(), runAheadSlackScale, minFps, newRunAhead, clampedRunAhead, MIN_RUNAHEAD,
 				m_frameMetrics.getRealLatencySampleCount(),
 				m_latencyAverages[0], m_latencyAverages[1], m_latencyAverages[2], m_latencyAverages[3],
 				(m_connections[0] != nullptr) ? m_connections[0]->getAverageLatency() : -1.0f,
@@ -1493,7 +1497,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
 				msg->setID(GenerateNextCommandID());
 			}
-			msg->setAverageLatency(m_frameMetrics.getAverageLatency());
+			msg->setAverageLatency(m_frameMetrics.getLatencyPercentile(0.90f));
 
 			// see above for explanation.
 //			if (didSelfSlug) {

@@ -42,6 +42,9 @@ public:
 	void addCushion(Int cushion);
 
 	Real getAverageLatency();
+	// A mean badly understates what a bursty wireless link needs: a median of 5ms with a tail to
+	// 90ms averages out low, while the run ahead has to cover the tail or the game stalls on it.
+	Real getLatencyPercentile(Real quantile);
 	Int getAverageFPS();
 	Int getMinimumCushion();
 

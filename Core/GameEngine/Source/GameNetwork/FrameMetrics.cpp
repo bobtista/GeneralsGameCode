@@ -27,6 +27,8 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include <numeric>
+#include <vector>
+#include <algorithm>
 
 #include "GameNetwork/FrameMetrics.h"
 #include "GameClient/Display.h"
@@ -144,6 +146,20 @@ Int FrameMetrics::getAverageFPS() {
 
 Real FrameMetrics::getAverageLatency() {
 	return m_averageLatency;
+}
+
+Real FrameMetrics::getLatencyPercentile(Real quantile) {
+	const UnsignedInt count = TheGlobalData->m_networkLatencyHistoryLength;
+	if (count == 0) {
+		return m_averageLatency;
+	}
+
+	std::vector<Real> sorted(m_latencyList, m_latencyList + count);
+	std::sort(sorted.begin(), sorted.end());
+
+	Int index = (Int)(quantile * (Real)(count - 1));
+	index = clamp<Int>(0, index, (Int)count - 1);
+	return sorted[index];
 }
 
 Int FrameMetrics::getMinimumCushion() {
