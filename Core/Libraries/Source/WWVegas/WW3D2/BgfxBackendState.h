@@ -474,6 +474,8 @@ struct BgfxDraw
     float pointShadowLightPos[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
     float pointShadowLightColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     bool  pointShadowLightValid    = false;
+    // True while slot 1 holds the persistent particle-cannon beam light rather than a blast light.
+    bool  pointShadowLightTracking = false;
     // Second point-shadow slot (transient flash lights); same layout as slot 1.
     float pointShadow2Matrix[16] = { 0.0f };
     float pointShadow2Params[4]  = { -1.0f, 0.0f, 0.0f, 0.0f };

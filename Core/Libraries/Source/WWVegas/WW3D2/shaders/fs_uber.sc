@@ -541,19 +541,23 @@ float ggcDramaDimFactor(vec3 worldPos)
 	}
 	// Effect strength eases in/out with u_dramaDim.w (1.0 = inactive -> 0 strength).
 	float effect = 1.0 - u_dramaDim.w;
-	// Bright pool right around the beam: the immediate area glows more, so the beam reads as
-	// powerful against the dimmer surroundings. Concentrated within ~180 world units.
+	// Every distance below is a multiple of the falloff width the engine publishes, so a smaller
+	// light (nuke shell rather than superweapon) shrinks the whole pool instead of only its depth.
+	// s = 1 reproduces the hand-tuned beam geometry: glow 210, dim ramp 150-320, fade 450-700.
 	// abs: a negative falloff scale flags a dim-only view (sorted translucents).
-	float glowT = 1.0 - clamp(d * (1.0 / 210.0), 0.0, 1.0);
+	float s = 1.0 / max(abs(u_dramaDim.z) * 170.0, 0.0001);
+	// Bright pool right around the beam: the immediate area glows more, so the beam reads as
+	// powerful against the dimmer surroundings.
+	float glowT = 1.0 - clamp(d / (210.0 * s), 0.0, 1.0);
 	glowT = glowT * glowT;
 	float glow = effect * glowT * 2.4;
 	// Gentle dim just outside the glow pool, so the beam reads bright against darker ground.
-	float dimT = clamp((d - 150.0) * abs(u_dramaDim.z), 0.0, 1.0);
+	float dimT = clamp((d - 150.0 * s) / (170.0 * s), 0.0, 1.0);
 	dimT = dimT * dimT * (3.0 - 2.0 * dimT);
 	// The dim is a pool around the beam, not a global exposure change: past the hold band it
 	// eases back to full brightness. Without this the falloff clamps at its floor and stays
 	// there for every pixel beyond it, so a cannon firing off screen darkened the whole map.
-	float dimFade = 1.0 - clamp((d - 450.0) * (1.0 / 250.0), 0.0, 1.0);
+	float dimFade = 1.0 - clamp((d - 450.0 * s) / (250.0 * s), 0.0, 1.0);
 	dimFade = dimFade * dimFade * (3.0 - 2.0 * dimFade);
 	float dimBase = 1.0 - effect * dimT * dimFade;
 	return dimBase + glow;
