@@ -873,6 +873,12 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 #endif
 
 		CommandLine::parseCommandLineForStartup();
+#ifdef DEBUG_LOGGING
+		// TheSuperHackers @bugfix bobtista 09/08/2026 A retail install under Program Files is not
+		// writable, so the log created beside the executable silently failed to open. Move it to
+		// the user data directory before anything else reports through it.
+		DebugReopenLogInDirectory(TheGlobalData->getPath_UserData().str());
+#endif
 #ifdef RTS_ENABLE_CRASHDUMP
 		// Initialize minidump facilities - requires TheGlobalData so performed after parseCommandLineForStartup
 		MiniDumper::initMiniDumper(TheGlobalData->getPath_UserData());
