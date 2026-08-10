@@ -30,7 +30,7 @@ namespace {
 NetworkAutoStart::Mode s_mode = NetworkAutoStart::MODE_NONE;
 NetworkAutoStart::Role s_role = NetworkAutoStart::ROLE_NONE;
 Int s_expectedPlayers = 0;
-AsciiString s_hostAddress;
+UnsignedInt s_hostAddress = 0;
 UnsignedInt s_localAddress = 0;
 AsciiString s_playerName;
 AsciiString s_mapName;
@@ -63,6 +63,7 @@ Bool NetworkAutoStart::setMode(AsciiString mode) {
   if (mode.compareNoCase("direct") == 0) {
     s_mode = MODE_DIRECT_CONNECT;
     rts::ClientInstance::setMultiInstance(true);
+    rts::ClientInstance::skipPrimaryInstance();
     return true;
   }
 
@@ -76,18 +77,21 @@ Bool NetworkAutoStart::setHost(Int expectedPlayers) {
 
   s_role = ROLE_HOST;
   s_expectedPlayers = expectedPlayers;
-  rts::ClientInstance::setMultiInstance(true);
   return true;
 }
 
 Bool NetworkAutoStart::setJoin(AsciiString hostAddress) {
   s_hasArguments = true;
+  hostAddress.trim();
   if (s_role == ROLE_HOST || hostAddress.isEmpty())
     return false;
 
+  const UnsignedInt resolvedAddress = ResolveIP(hostAddress);
+  if (resolvedAddress == 0)
+    return false;
+
   s_role = ROLE_JOIN;
-  s_hostAddress = hostAddress;
-  rts::ClientInstance::setMultiInstance(true);
+  s_hostAddress = resolvedAddress;
   return true;
 }
 
@@ -221,16 +225,9 @@ void NetworkAutoStart::updateDirectConnect() {
                s_expectedPlayers));
     TheLAN->RequestGameCreate(UnicodeString::TheEmptyString, true);
   } else {
-    const UnsignedInt hostIP = ResolveIP(s_hostAddress);
-    if (hostIP == 0) {
-      s_actionPending = false;
-      fail("could not resolve Direct Connect host address");
-      return;
-    }
-
-    DEBUG_LOG(("NetworkAutoStart joining Direct Connect host %s",
-               s_hostAddress.str()));
-    TheLAN->RequestGameJoinDirectConnect(hostIP);
+    DEBUG_LOG(("NetworkAutoStart joining Direct Connect host 0x%08X",
+               s_hostAddress));
+    TheLAN->RequestGameJoinDirectConnect(s_hostAddress);
   }
 }
 
