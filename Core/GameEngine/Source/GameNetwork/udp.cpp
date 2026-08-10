@@ -181,10 +181,15 @@ Int UDP::Bind(UnsignedInt IP,UnsignedShort Port)
     retval=-1;
 		m_lastError = WSAGetLastError();
 	}
+  #else
+  if (retval == -1)
+    m_lastError = errno;
   #endif
   if (retval==-1)
   {
     status=GetStatus();
+    closesocket(fd);
+    fd=0;
     //CERR("Bind failure (" << status << ") IP " << IP << " PORT " << Port )
     return(status);
   }
