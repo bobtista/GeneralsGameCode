@@ -146,6 +146,22 @@ Bool CommandRequiresAck(const NetCommandMsg* msg)
 	return DoesCommandRequireACommandID(msg->getNetCommandType());
 }
 
+/**
+ * Identifies commands that should bypass packet grouping on their first send.
+ */
+Bool IsCommandTimeCritical(NetCommandType type)
+{
+	switch (type) {
+	case NETCOMMANDTYPE_FRAMEINFO:
+	case NETCOMMANDTYPE_ACKSTAGE1:
+	case NETCOMMANDTYPE_ACKSTAGE2:
+	case NETCOMMANDTYPE_ACKBOTH:
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
 Bool IsCommandSynchronized(NetCommandType type)
 {
 	switch (type) {

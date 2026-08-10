@@ -249,6 +249,18 @@ void Connection::setQuitting()
 }
 
 /**
+ * Returns true when a time-critical command is waiting for its first send.
+ */
+Bool Connection::hasPendingPriorityCommand() const {
+	for (NetCommandRef *msg = m_netCommandList->getFirstMessage(); msg != nullptr; msg = msg->getNext()) {
+		if (msg->getTimeLastSent() == -1 && IsCommandTimeCritical(msg->getCommand()->getNetCommandType())) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+/**
  * This is the good part. We take all the network commands queued up for this connection,
  * packetize them and put them on the transport's send queue for actual sending.
  */
@@ -265,9 +277,15 @@ UnsignedInt Connection::doSend() {
 		return 0;
 	}
 
+	// TheSuperHackers @bugfix bobtista 09/08/2026 Send new frame info and acknowledgements without
+	// waiting for packet grouping. Leave all other commands batched as before.
+	Bool priorityOnly = FALSE;
 	if ((curtime - m_lastTimeSent) < m_frameGrouping) {
 //		DEBUG_LOG(("not sending packet, time = %d, m_lastFrameSent = %d, m_frameGrouping = %d", curtime, m_lastTimeSent, m_frameGrouping));
-		return 0;
+		if (!hasPendingPriorityCommand()) {
+			return 0;
+		}
+		priorityOnly = TRUE;
 	}
 
 	// iterate through all the messages and put them into a packet(s).
@@ -290,6 +308,11 @@ UnsignedInt Connection::doSend() {
 			NetCommandRef *next = msg->getNext(); // Need this since msg could be deleted
 
 			time_t timeLastSent = msg->getTimeLastSent();
+
+			if (priorityOnly && !IsCommandTimeCritical(msg->getCommand()->getNetCommandType())) {
+				msg = next;
+				continue;
+			}
 
 			if (((curtime - timeLastSent) > m_retryTime) || (timeLastSent == -1)) {
 				notDone = packet->addCommand(msg);
@@ -317,7 +340,10 @@ UnsignedInt Connection::doSend() {
 			// for transmission.
 			couldQueue = m_transport->queueSend(packet->getAddr(), packet->getPort(), packet->getData(), packet->getLength());
 			if (couldQueue) {
-				m_lastTimeSent = curtime;
+				// Do not let frequent priority-only packets starve batched traffic.
+				if (!priorityOnly) {
+					m_lastTimeSent = curtime;
+				}
 				for (Int i = 0; i < numPacketCommands; ++i) {
 					NetCommandRef *sentCommand = packetCommands[i];
 					if (CommandRequiresAck(sentCommand->getCommand())) {

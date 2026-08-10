@@ -81,6 +81,7 @@ public:
 #endif
 
 protected:
+	Bool hasPendingPriorityCommand() const;
 	void doRetryMetrics();
 
 	Bool m_isQuitting;
