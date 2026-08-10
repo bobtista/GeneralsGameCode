@@ -34,6 +34,7 @@ Bool DoesCommandRequireACommandID(NetCommandType type);
 Bool CommandRequiresAck(const NetCommandMsg *msg);
 Bool CommandRequiresDirectSend(const NetCommandMsg *msg);
 Bool IsCommandSynchronized(NetCommandType type);
+Bool IsCommandTimeCritical(NetCommandType type);
 const char* GetNetCommandTypeAsString(NetCommandType type);
 
 #ifdef DEBUG_LOGGING
