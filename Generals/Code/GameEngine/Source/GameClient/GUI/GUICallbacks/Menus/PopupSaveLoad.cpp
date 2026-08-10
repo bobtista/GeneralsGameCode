@@ -405,8 +405,8 @@ static void doLoadGame()
 	// loose these allocated user data pointers attached as listbox item data when the
 	// engine resets
 	//
-	AsciiString filename = selectedGameInfo->filename;
-	SaveCode result = TheGameState->loadGame( *selectedGameInfo );
+	const AsciiString filename = selectedGameInfo->filename;
+	const SaveCode result = TheGameState->loadGame( *selectedGameInfo );
 	presentLoadResult( result, filename );
 	if (result != SC_OK)
 	{

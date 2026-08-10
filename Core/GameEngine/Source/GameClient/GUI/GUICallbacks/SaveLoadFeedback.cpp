@@ -52,7 +52,6 @@ void presentSaveResult( const SaveResult &result )
 		}
 		default:
 		{
-			// SC_NO_FILE_AVAILABLE (and any other early-out) returned no UI in retail
 			break;
 		}
 	}
@@ -60,8 +59,6 @@ void presentSaveResult( const SaveResult &result )
 
 void presentLoadResult( SaveCode result, const AsciiString &filename )
 {
-	// Retail loadGame only surfaced a dialog on the exception path; SC_FILE_NOT_FOUND
-	// and SC_OK presented nothing.
 	if( result == SC_INVALID_DATA )
 	{
 		UnicodeString msg;

@@ -132,7 +132,6 @@ enum SaveCode CPP_11(: Int)
 	SC_ERROR,
 };
 
-// The result of a save, pairing the outcome with the file it resolved to so the two cannot drift.
 struct SaveResult
 {
 	explicit SaveResult( SaveCode code ) : saveCode(code) { }
