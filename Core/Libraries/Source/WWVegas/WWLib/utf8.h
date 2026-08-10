@@ -43,16 +43,15 @@ size_t Utf8_To_Wide_Len(const char* src, size_t srcLen);
 // Converts srcLen wide characters from src to UTF-8. destLen is the destination buffer capacity in
 // bytes. Writes a null terminator if room remains, otherwise not. Wide values that have no UTF-8
 // representation are written as U+FFFD, so the output always decodes back through Utf8_To_Wide.
-// Returns the bytes the whole conversion needs, not counting a null terminator, which is what gets
-// written when it fits. More than destLen means the output was truncated on a codepoint boundary
-// and that is the size to retry with, plus one for the terminator. Pass destLen 0 to measure.
+// Returns the number of bytes the whole conversion needs, not counting a null terminator. A return
+// greater than destLen means the output was truncated on a codepoint boundary; retry with that many
+// bytes plus one for the terminator. Pass destLen 0 to measure without writing.
 size_t Wide_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen);
 
 // Converts srcLen bytes from the UTF-8 string src to wide characters. destLen is the destination
 // buffer capacity in wide characters. Writes a null terminator if room remains, otherwise not.
-// Returns the wide characters the whole conversion needs, not counting a null terminator, which is
-// what gets written when it fits. More than destLen means the output was truncated on a codepoint
-// boundary and that is the size to retry with, plus one for the terminator. Pass destLen 0 to
-// measure. Returns UTF8_INVALID if src is not well-formed UTF-8, setting dest[0] to L'\0' if
-// destLen > 0.
+// Returns the number of wide characters the whole conversion needs, not counting a null terminator.
+// A return greater than destLen means the output was truncated on a codepoint boundary; retry with
+// that many wide characters plus one for the terminator. Pass destLen 0 to measure without writing.
+// Returns UTF8_INVALID if src is not well-formed UTF-8, setting dest[0] to L'\0' if destLen > 0.
 size_t Utf8_To_Wide(wchar_t* dest, size_t destLen, const char* src, size_t srcLen);
