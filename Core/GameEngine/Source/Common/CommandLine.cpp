@@ -1617,6 +1617,13 @@ static CommandLineParam paramsForStartup[] =
 
 #if defined(RTS_DEBUG)
 	{ "-autoNetworkMode", parseAutoNetworkMode },
+#endif
+};
+
+// These Params are parsed during Engine Init before INI data is loaded
+static CommandLineParam paramsForEngineInit[] =
+{
+#if defined(RTS_DEBUG)
 	{ "-autoNetworkHost", parseAutoNetworkHost },
 	{ "-autoNetworkJoin", parseAutoNetworkJoin },
 	{ "-autoNetworkLocalAddress", parseAutoNetworkLocalAddress },
@@ -1624,11 +1631,6 @@ static CommandLineParam paramsForStartup[] =
 	{ "-autoNetworkMap", parseAutoNetworkMap },
 	{ "-autoNetworkTimeout", parseAutoNetworkTimeout },
 #endif
-};
-
-// These Params are parsed during Engine Init before INI data is loaded
-static CommandLineParam paramsForEngineInit[] =
-{
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-bgfxEffects", parseBgfxEffects }, // must be in this (post-INI) table so it overrides Bgfx.ini/GameData.ini
 	{ "-bgfxNoEffects", parseBgfxNoEffects }, // must be post-INI so parity/perf runs can override Bgfx.ini/GameData.ini
