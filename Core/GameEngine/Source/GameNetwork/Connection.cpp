@@ -249,6 +249,19 @@ void Connection::setQuitting()
 }
 
 /**
+ * Returns true when a latency-sensitive command is waiting to go out for the first time. Commands
+ * awaiting a retry are excluded so this cannot shorten the retry interval.
+ */
+Bool Connection::hasPendingPriorityCommand() {
+	for (NetCommandRef *msg = m_netCommandList->getFirstMessage(); msg != nullptr; msg = msg->getNext()) {
+		if (msg->getTimeLastSent() == -1 && IsCommandTimeCritical(msg->getCommand()->getNetCommandType())) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+/**
  * This is the good part. We take all the network commands queued up for this connection,
  * packetize them and put them on the transport's send queue for actual sending.
  */
@@ -265,9 +278,17 @@ UnsignedInt Connection::doSend() {
 		return 0;
 	}
 
+	// TheSuperHackers @bugfix bobtista 09/08/2026 Frame info gates the peer's simulation, while an
+	// ack removes an acknowledged command from the peer's retry queue. Holding either for the
+	// grouping interval adds avoidable latency before it reaches the network. Send those two
+	// without waiting and leave everything else batched as before.
+	Bool priorityOnly = FALSE;
 	if ((curtime - m_lastTimeSent) < m_frameGrouping) {
 //		DEBUG_LOG(("not sending packet, time = %d, m_lastFrameSent = %d, m_frameGrouping = %d", curtime, m_lastTimeSent, m_frameGrouping));
-		return 0;
+		if (!hasPendingPriorityCommand()) {
+			return 0;
+		}
+		priorityOnly = TRUE;
 	}
 
 	// iterate through all the messages and put them into a packet(s).
@@ -291,6 +312,11 @@ UnsignedInt Connection::doSend() {
 			NetCommandRef *next = msg->getNext(); // Need this since msg could be deleted
 
 			time_t timeLastSent = msg->getTimeLastSent();
+
+			if (priorityOnly && !IsCommandTimeCritical(msg->getCommand()->getNetCommandType())) {
+				msg = next;
+				continue;
+			}
 
 			if (((curtime - timeLastSent) > m_retryTime) || (timeLastSent == -1)) {
 				notDone = packet->addCommand(msg);
@@ -320,7 +346,12 @@ UnsignedInt Connection::doSend() {
 			// for transmission.
 			couldQueue = m_transport->queueSend(packet->getAddr(), packet->getPort(), packet->getData(), packet->getLength());
 			if (couldQueue) {
-				m_lastTimeSent = curtime;
+				// A packet carrying only time critical commands must not restart the grouping
+				// interval. Frame info and acks occur more often than that interval, so letting
+				// them restart it would hold the gate shut for game commands and file transfers.
+				if (!priorityOnly) {
+					m_lastTimeSent = curtime;
+				}
 				for (Int i = 0; i < numPacketCommands; ++i) {
 					NetCommandRef *sentCommand = packetCommands[i];
 					if (commandRequiresAck[i]) {
