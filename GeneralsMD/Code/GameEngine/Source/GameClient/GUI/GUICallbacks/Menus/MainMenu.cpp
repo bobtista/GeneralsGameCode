@@ -72,6 +72,7 @@
 
 #include "GameNetwork/DownloadManager.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
+#include "GameNetwork/NetworkAutoStart.h"
 
 #include "GameClient/InGameUI.h"
 
@@ -813,6 +814,15 @@ void ResolutionDialogUpdate()
 void DownloadMenuUpdate( WindowLayout *layout, void *userData );
 void MainMenuUpdate( WindowLayout *layout, void *userData )
 {
+#if defined(RTS_DEBUG)
+	if (NetworkAutoStart::hasArguments() && NetworkAutoStart::shouldOpenDirectConnect())
+	{
+		NetworkAutoStart::markDirectConnectOpened();
+		TheShell->push("Menus/NetworkDirectConnect.wnd");
+		return;
+	}
+#endif
+
 	if( TheGameLogic->isInGame() && !TheGameLogic->isInShellGame() )
 	{
 		return;

@@ -49,6 +49,7 @@
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/LANAPICallbacks.h"
+#include "GameNetwork/NetworkAutoStart.h"
 
 
 // window ids ------------------------------------------------------------------------------
@@ -252,9 +253,17 @@ void NetworkDirectConnectInit( WindowLayout *layout, void *userData )
 	LANbuttonPushed = false;
 	LANisShuttingDown = false;
 
+	UnsignedInt autoLocalIP = 0;
+#if defined(RTS_DEBUG)
+	if (NetworkAutoStart::isEnabled())
+		autoLocalIP = NetworkAutoStart::getLocalAddress();
+#endif
+
 	if (TheLAN == nullptr)
 	{
 		TheLAN = NEW LANAPI();
+		if (autoLocalIP != 0)
+			TheLAN->SetLocalIP(autoLocalIP);
 		TheLAN->init();
 	}
 	TheLAN->reset();
@@ -305,6 +314,8 @@ void NetworkDirectConnectInit( WindowLayout *layout, void *userData )
 
 		OptionPreferences prefs;
 		UnsignedInt IP = prefs.getOnlineIPAddress();
+		if (autoLocalIP != 0)
+			IP = autoLocalIP;
 
 		IPEnumeration IPs;
 
@@ -317,7 +328,7 @@ void NetworkDirectConnectInit( WindowLayout *layout, void *userData )
 				/// @todo: display error and exit lan lobby if no IPs are found
 			}
 
-			Bool foundIP = FALSE;
+			Bool foundIP = autoLocalIP != 0;
 			EnumeratedIP *tempIP = IPlist;
 			while ((tempIP != nullptr) && (foundIP == FALSE)) {
 				if (IP == tempIP->getIP()) {
@@ -333,8 +344,16 @@ void NetworkDirectConnectInit( WindowLayout *layout, void *userData )
 
 //			IP = IPlist->getIP();
 //		}
-		TheLAN->init();
-		TheLAN->SetLocalIP(IP);
+		if (autoLocalIP != 0)
+		{
+			TheLAN->SetLocalIP(autoLocalIP);
+			TheLAN->init();
+		}
+		else
+		{
+			TheLAN->init();
+			TheLAN->SetLocalIP(IP);
+		}
 	}
 
 	UnsignedInt ip = TheLAN->GetLocalIP();
@@ -393,6 +412,14 @@ void NetworkDirectConnectShutdown( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void NetworkDirectConnectUpdate( WindowLayout * layout, void *userData)
 {
+#if defined(RTS_DEBUG)
+	if (NetworkAutoStart::isEnabled() && TheLAN != nullptr)
+	{
+		TheLAN->update();
+		NetworkAutoStart::updateDirectConnect();
+	}
+#endif
+
 	// We'll only be successful if we've requested to
 	if(isShuttingDown && TheShell->isAnimFinished() && TheTransitionHandler->isFinished())
 		shutdownComplete(layout);
