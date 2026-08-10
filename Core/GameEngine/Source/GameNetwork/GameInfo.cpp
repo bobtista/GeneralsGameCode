@@ -894,6 +894,36 @@ Bool GameInfo::isSandbox()
 
 static const char slotListID		= 'S';
 
+static Bool isUtf8ContinuationByte(Char c)
+{
+	return (static_cast<unsigned char>(c) & 0xC0) == 0x80;
+}
+
+// TheSuperHackers @bugfix Truncates the name to at most maxByteCount bytes without splitting
+// a multibyte UTF-8 character. A non-positive budget empties the name; retail spun forever
+// there, because removing the last character of an already empty string is a no-op.
+static void truncatePlayerName(AsciiString& name, Int maxByteCount)
+{
+	if (maxByteCount <= 0)
+	{
+		name.clear();
+		return;
+	}
+
+	if (name.getLength() <= maxByteCount)
+	{
+		return;
+	}
+
+	Int truncatedLength = maxByteCount;
+	while (truncatedLength > 0 && isUtf8ContinuationByte(name.getCharAt(truncatedLength)))
+	{
+		--truncatedLength;
+	}
+
+	name.truncateTo(truncatedLength);
+}
+
 AsciiString GameInfoToAsciiString( const GameInfo *game )
 {
 	if (!game)
@@ -959,8 +989,7 @@ AsciiString GameInfoToAsciiString( const GameInfo *game )
 			int lenRem = m_lanMaxOptionsLength - lenCur;  //length remaining before overflowing
 			int lenMax = lenRem / (MAX_SLOTS-i);  //share lenRem with all remaining slots
 			AsciiString name = WideCharStringToMultiByte(slot->getName().str()).c_str();
-			while( name.getLength() > lenMax )
-				name.removeLastChar();  //what a horrible way to truncate.  I hate AsciiString.
+			truncatePlayerName( name, lenMax );
 
 			str.format( "H%s%s", name.str(), tmp.str() );
 		}
@@ -994,7 +1023,7 @@ AsciiString GameInfoToAsciiString( const GameInfo *game )
 	}
 	optionsString.concat(';');
 
-	DEBUG_ASSERTCRASH(!TheLAN || (optionsString.getLength() < m_lanMaxOptionsLength),
+	DEBUG_ASSERTCRASH(!TheLAN || (optionsString.getLength() <= m_lanMaxOptionsLength),
 		("WARNING: options string is longer than expected!  Length is %d, but max is %d!",
 		optionsString.getLength(), m_lanMaxOptionsLength));
 
