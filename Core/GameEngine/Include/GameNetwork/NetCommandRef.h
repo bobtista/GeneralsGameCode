@@ -62,12 +62,18 @@ public:
 	time_t getTimeLastSent() const;
 	void setTimeLastSent(time_t timeLastSent);
 
+	// TheSuperHackers @bugfix bobtista 10/08/2026 Track retransmitted frame-info commands so their
+	// ambiguous round trips can be excluded from the retry estimator.
+	Bool getWasRetransmitted() const { return m_wasRetransmitted; }
+	void setWasRetransmitted(Bool wasRetransmitted) { m_wasRetransmitted = wasRetransmitted; }
+
 protected:
 	NetCommandMsg *m_msg;
 	NetCommandRef *m_next;
 	NetCommandRef *m_prev;
 	UnsignedByte m_relay; ///< Need this in the command reference since the relay value will be different depending on where this particular reference is being sent.
 	time_t m_timeLastSent;
+	Bool m_wasRetransmitted;
 
 #ifdef DEBUG_NETCOMMANDREF
 	UnsignedInt m_id;
