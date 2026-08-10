@@ -158,8 +158,10 @@ class AsciiString;
 
 	#define DEBUG_LOG(m)						do { { DebugLog m ; } } while (0) // Log message with trailing new line character (LF)
 	#define DEBUG_LOG_RAW(m)				do { { DebugLogRaw m ; } } while (0) // Log message without trailing new line character (LF)
-	#define DEBUG_LOG_LEVEL(l, m)		do { if (l & DebugLevelMask) { DebugLog m ; } } while (0)
-	#define DEBUG_LOG_LEVEL_RAW(l, m)	do { if (l & DebugLevelMask) { DebugLogRaw m ; } } while (0)
+	// TheSuperHackers @bugfix bobtista 10/08/2026 Test debug-level indices as mask bits, matching
+	// how -setDebugLevel stores them in DebugLevelMask.
+	#define DEBUG_LOG_LEVEL(l, m)		do { if ((1u << (l)) & DebugLevelMask) { DebugLog m ; } } while (0)
+	#define DEBUG_LOG_LEVEL_RAW(l, m)	do { if ((1u << (l)) & DebugLevelMask) { DebugLogRaw m ; } } while (0)
 	#define DEBUG_ASSERTLOG(c, m)		do { { if (!(c)) DebugLog m ; } } while (0)
 
 #else
