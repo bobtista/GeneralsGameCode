@@ -117,6 +117,7 @@ AsciiString GetWSAErrorString( Int error )
 UDP::UDP()
 {
   fd=0;
+  m_lastError=0;
 }
 
 UDP::~UDP()
@@ -168,11 +169,20 @@ Int UDP::Bind(UnsignedInt IP,UnsignedShort Port)
 	{
     retval=-1;
 		m_lastError = WSAGetLastError();
-	}
+  }
+  #else
+  if (retval == -1)
+  {
+    m_lastError = errno;
+  }
   #endif
+  // TheSuperHackers @bugfix bobtista 10/08/2026 Preserve POSIX bind errors and release failed
+  // sockets on every platform so Transport can retry without leaking descriptors.
   if (retval==-1)
   {
     status=GetStatus();
+    closesocket(fd);
+    fd=0;
     //CERR("Bind failure (" << status << ") IP " << IP << " PORT " << Port )
     return(status);
   }
@@ -365,6 +375,10 @@ UDP::sockStat UDP::GetStatus()
       return INVAL;
     case EISCONN:
       return ISCONN;
+    case EADDRINUSE:
+      return ADDRINUSE;
+    case EADDRNOTAVAIL:
+      return ADDRNOTAVAIL;
     case ENOTSOCK:
       return NOTSOCK;
     case ETIMEDOUT:
