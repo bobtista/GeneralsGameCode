@@ -83,6 +83,13 @@ public:
 
 protected:
 	void doRetryMetrics();
+	void updateFrameInfoRetryTime(NetCommandRef *ref, Real sampleMs);
+	time_t getRetryTimeForCommand(const NetCommandMsg *msg) const;
+
+	time_t m_frameInfoRetryTime;	///< Retry interval for frame info, tracked to the round trip.
+	Real m_smoothedRtt;						///< Smoothed round trip estimate in milliseconds.
+	Real m_rttVariance;						///< Round trip variation, used to size the retry margin.
+	Bool m_hasRttSample;					///< False until the first unambiguous round trip is measured.
 
 	Bool m_isQuitting;
 	UnsignedInt m_quitTime;
