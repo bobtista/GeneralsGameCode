@@ -45,6 +45,7 @@
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/FileTransfer.h"
 #include "GameNetwork/LANAPICallbacks.h"
+#include "GameNetwork/NetworkAutoStart.h"
 #include "GameNetwork/networkutil.h"
 
 LANAPI *TheLAN = nullptr;
@@ -259,6 +260,10 @@ void LANAPI::OnGameStart()
 		// Set the seeds
 		InitRandom( m_currentGame->getSeed() );
 		DEBUG_LOG(("InitRandom( %d )", m_currentGame->getSeed()));
+
+#if defined(RTS_DEBUG)
+		NetworkAutoStart::onGameStart();
+#endif
 	}
 }
 
@@ -503,6 +508,15 @@ void LANAPI::OnPlayerJoin( Int slot, UnicodeString playerName )
 
 void LANAPI::OnGameJoin( ReturnType ret, LANGameInfo *theGame )
 {
+#if defined(RTS_DEBUG)
+	if (NetworkAutoStart::hasArguments())
+	{
+		NetworkAutoStart::onGameJoin(ret);
+		if (ret != RET_OK)
+			return;
+	}
+#endif
+
 	if (ret == RET_OK)
 	{
 		LANbuttonPushed = true;
@@ -593,6 +607,15 @@ void LANAPI::OnGameList( LANGameInfo *gameList )
 
 void LANAPI::OnGameCreate( ReturnType ret )
 {
+#if defined(RTS_DEBUG)
+	if (NetworkAutoStart::hasArguments())
+	{
+		NetworkAutoStart::onGameCreate(ret);
+		if (ret != RET_OK)
+			return;
+	}
+#endif
+
 	if (ret == RET_OK)
 	{
 

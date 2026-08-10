@@ -38,6 +38,7 @@
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
 #include "GgcRuntimeFlags.h"
+#include "GameNetwork/NetworkAutoStart.h"
 #include "WWLib/trim.h"
 
 
@@ -682,6 +683,76 @@ Int parseYRes(char *args[], int num)
 }
 
 #if defined(RTS_DEBUG)
+Int parseAutoNetworkMode(char *args[], int num)
+{
+	if (num > 1 && NetworkAutoStart::setMode(args[1]))
+		return 2;
+
+	printf("Invalid -autoNetworkMode. Supported value: direct\n");
+	exit(1);
+	return 1;
+}
+
+Int parseAutoNetworkHost(char *args[], int num)
+{
+	if (num > 1 && NetworkAutoStart::setHost(atoi(args[1])))
+		return 2;
+
+	printf("Invalid -autoNetworkHost. Pass an expected player count from 2 to %d and do not combine it with -autoNetworkJoin.\n", MAX_SLOTS);
+	exit(1);
+	return 1;
+}
+
+Int parseAutoNetworkJoin(char *args[], int num)
+{
+	if (num > 1 && NetworkAutoStart::setJoin(args[1]))
+		return 2;
+
+	printf("Invalid -autoNetworkJoin. Pass a host address and do not combine it with -autoNetworkHost.\n");
+	exit(1);
+	return 1;
+}
+
+Int parseAutoNetworkLocalAddress(char *args[], int num)
+{
+	if (num > 1 && NetworkAutoStart::setLocalAddress(args[1]))
+		return 2;
+
+	printf("Invalid -autoNetworkLocalAddress. Pass a resolvable local address.\n");
+	exit(1);
+	return 1;
+}
+
+Int parseAutoNetworkName(char *args[], int num)
+{
+	if (num > 1 && NetworkAutoStart::setPlayerName(args[1]))
+		return 2;
+
+	printf("Invalid -autoNetworkName. Pass a non-empty player name.\n");
+	exit(1);
+	return 1;
+}
+
+Int parseAutoNetworkMap(char *args[], int num)
+{
+	if (num > 1 && NetworkAutoStart::setMapName(args[1]))
+		return 2;
+
+	printf("Invalid -autoNetworkMap. Pass a non-empty map path.\n");
+	exit(1);
+	return 1;
+}
+
+Int parseAutoNetworkTimeout(char *args[], int num)
+{
+	if (num > 1 && NetworkAutoStart::setTimeoutSeconds(atoi(args[1])))
+		return 2;
+
+	printf("Invalid -autoNetworkTimeout. Pass a positive number of seconds.\n");
+	exit(1);
+	return 1;
+}
+
 //=============================================================================
 //=============================================================================
 Int parseLatencyAverage(char *args[], int num)
@@ -1543,6 +1614,16 @@ static CommandLineParam paramsForStartup[] =
 	// (If you have 4 cores, call it with -jobs 4)
 	// If you do not call this, all replays will be simulated in sequence in the same process.
 	{ "-jobs", parseJobs },
+
+#if defined(RTS_DEBUG)
+	{ "-autoNetworkMode", parseAutoNetworkMode },
+	{ "-autoNetworkHost", parseAutoNetworkHost },
+	{ "-autoNetworkJoin", parseAutoNetworkJoin },
+	{ "-autoNetworkLocalAddress", parseAutoNetworkLocalAddress },
+	{ "-autoNetworkName", parseAutoNetworkName },
+	{ "-autoNetworkMap", parseAutoNetworkMap },
+	{ "-autoNetworkTimeout", parseAutoNetworkTimeout },
+#endif
 };
 
 // These Params are parsed during Engine Init before INI data is loaded
