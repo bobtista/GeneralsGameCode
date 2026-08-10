@@ -31,6 +31,10 @@
 
 enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to retry things before quitting
 
+// Every serialized command consumes at least one byte, so a packet cannot contain more command
+// references than its byte capacity. This also covers the one-byte repeated command encoding.
+enum { MaxCommandsPerPacket = MAX_PACKET_SIZE };
+
 /**
  * The constructor.
  */
@@ -275,6 +279,11 @@ UnsignedInt Connection::doSend() {
 		packet->setAddress(m_user->GetIPAddr(), m_user->GetPort());
 
 		Bool notDone = TRUE;
+		// TheSuperHackers @bugfix bobtista 10/08/2026 Build the packet without mutating its commands.
+		// The transport can refuse a full send queue, so timestamps, retry state, and ack-free removals
+		// are committed only after acceptance.
+		NetCommandRef *packetCommands[MaxCommandsPerPacket];
+		Int numPacketCommands = 0;
 
 		// add the command messages until either we run out of messages or the packet is full.
 		while ((msg != nullptr) && notDone) {
@@ -285,16 +294,11 @@ UnsignedInt Connection::doSend() {
 			if (((curtime - timeLastSent) > m_retryTime) || (timeLastSent == -1)) {
 				notDone = packet->addCommand(msg);
 				if (notDone) {
-					// the msg command was added to the packet.
-					if (CommandRequiresAck(msg->getCommand())) {
-						if (timeLastSent != -1) {
-							++m_numRetries;
-						}
-						doRetryMetrics();
-						msg->setTimeLastSent(curtime);
-					} else {
-						m_netCommandList->removeMessage(msg);
-						deleteInstance(msg);
+					DEBUG_ASSERTCRASH(numPacketCommands < MaxCommandsPerPacket,
+						("Connection::doSend - packet command staging overflow"));
+					if (numPacketCommands < MaxCommandsPerPacket) {
+						packetCommands[numPacketCommands] = msg;
+						++numPacketCommands;
 					}
 				}
 			}
@@ -312,7 +316,22 @@ UnsignedInt Connection::doSend() {
 			// If the packet actually has any information to give, give it to the transport object
 			// for transmission.
 			couldQueue = m_transport->queueSend(packet->getAddr(), packet->getPort(), packet->getData(), packet->getLength());
-			m_lastTimeSent = curtime;
+			if (couldQueue) {
+				m_lastTimeSent = curtime;
+				for (Int i = 0; i < numPacketCommands; ++i) {
+					NetCommandRef *sentCommand = packetCommands[i];
+					if (CommandRequiresAck(sentCommand->getCommand())) {
+						if (sentCommand->getTimeLastSent() != -1) {
+							++m_numRetries;
+						}
+						doRetryMetrics();
+						sentCommand->setTimeLastSent(curtime);
+					} else {
+						m_netCommandList->removeMessage(sentCommand);
+						deleteInstance(sentCommand);
+					}
+				}
+			}
 		}
 
 		deleteInstance(packet); // delete the packet now that we're done with it.
