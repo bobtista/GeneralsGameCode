@@ -35,6 +35,20 @@ enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to ret
 // references than its byte capacity. This also covers the one-byte repeated command encoding.
 enum { MaxCommandsPerPacket = MAX_PACKET_SIZE };
 
+// TheSuperHackers @bugfix bobtista 10/08/2026 Derive frame-info retries from measured round trips.
+enum {
+	DefaultRetryTime = 2000,
+	MinFrameInfoRetryTime = 60,
+	MaxFrameInfoRetryTime = 500,
+	FrameInfoRetryBackoffMultiplier = 2,
+};
+
+const Real MaxFrameInfoRttSample = 10000.0f;
+const Real InitialRttVarianceFactor = 0.5f;
+const Real RttSmoothingFactor = 1.0f / 8.0f;
+const Real RttVarianceSmoothingFactor = 1.0f / 4.0f;
+const Real RttVarianceMultiplier = 4.0f;
+
 /**
  * The constructor.
  */
@@ -42,7 +56,11 @@ Connection::Connection() {
 	m_transport = nullptr;
 	m_user = nullptr;
 	m_netCommandList = nullptr;
-	m_retryTime = 2000; // set retry time to 2 seconds.
+	m_retryTime = DefaultRetryTime;
+	m_frameInfoRetryTime = MaxFrameInfoRetryTime;
+	m_smoothedRtt = 0.0f;
+	m_rttVariance = 0.0f;
+	m_hasRttSample = FALSE;
 	m_lastTimeSent = 0;
 	m_frameGrouping = 1;
 	m_isQuitting = false;
@@ -85,6 +103,11 @@ void Connection::init() {
 	m_frameGrouping = 1;
 	m_numRetries = 0;
 	m_retryMetricsTime = 0;
+	m_retryTime = DefaultRetryTime;
+	m_frameInfoRetryTime = MaxFrameInfoRetryTime;
+	m_smoothedRtt = 0.0f;
+	m_rttVariance = 0.0f;
+	m_hasRttSample = FALSE;
 
 	for (Int i = 0; i < CONNECTION_LATENCY_HISTORY_LENGTH; ++i) {
 		m_latencies[i] = 0;
@@ -314,7 +337,7 @@ UnsignedInt Connection::doSend() {
 				continue;
 			}
 
-			if (((curtime - timeLastSent) > m_retryTime) || (timeLastSent == -1)) {
+			if (((curtime - timeLastSent) > getRetryTimeForCommand(msg->getCommand())) || (timeLastSent == -1)) {
 				notDone = packet->addCommand(msg);
 				if (notDone) {
 					DEBUG_ASSERTCRASH(numPacketCommands < MaxCommandsPerPacket,
@@ -344,11 +367,21 @@ UnsignedInt Connection::doSend() {
 				if (!priorityOnly) {
 					m_lastTimeSent = curtime;
 				}
+				Bool didBackOffFrameInfo = FALSE;
 				for (Int i = 0; i < numPacketCommands; ++i) {
 					NetCommandRef *sentCommand = packetCommands[i];
 					if (CommandRequiresAck(sentCommand->getCommand())) {
 						if (sentCommand->getTimeLastSent() != -1) {
 							++m_numRetries;
+							sentCommand->setWasRetransmitted(TRUE);
+							// Back off once per accepted packet. Several overdue frame-info
+							// commands can share a packet and must not multiply the interval.
+							if (sentCommand->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO
+								&& !didBackOffFrameInfo) {
+								m_frameInfoRetryTime = min<time_t>(
+									m_frameInfoRetryTime * FrameInfoRetryBackoffMultiplier, MaxFrameInfoRetryTime);
+								didBackOffFrameInfo = TRUE;
+							}
 						}
 						doRetryMetrics();
 						sentCommand->setTimeLastSent(curtime);
@@ -417,6 +450,12 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 	m_averageLatency += lat / CONNECTION_LATENCY_HISTORY_LENGTH;
 	m_latencies[index] = lat;
 
+	// Only a frame info round trip should steer the frame info interval. An ack for chat or a file
+	// transfer says nothing about it and would otherwise clear the backoff.
+	if (temp->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
+		updateFrameInfoRetryTime(temp, lat);
+	}
+
 #if defined(RTS_DEBUG)
 	if (doDebug == TRUE) {
 		DEBUG_LOG(("Connection::processAck - disconnect frame command %d found, removing from command list.", commandID));
@@ -424,6 +463,41 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 #endif
 	m_netCommandList->removeMessage(temp);
 	return temp;
+}
+
+/**
+ * Updates frame-info retry timing from an unambiguous round-trip sample.
+ */
+void Connection::updateFrameInfoRetryTime(NetCommandRef *ref, Real sampleMs) {
+	// Karn's algorithm. An ack for a command sent more than once cannot be attributed to a
+	// particular copy, so the sample would drag the estimate towards the retry interval.
+	if (ref->getWasRetransmitted()) {
+		return;
+	}
+	// Reject timeGetTime rollover and implausibly large samples.
+	if (sampleMs < 0.0f || sampleMs > MaxFrameInfoRttSample) {
+		return;
+	}
+
+	if (!m_hasRttSample) {
+		m_hasRttSample = TRUE;
+		m_smoothedRtt = sampleMs;
+		m_rttVariance = sampleMs * InitialRttVarianceFactor;
+	} else {
+		const Real error = sampleMs - m_smoothedRtt;
+		m_smoothedRtt += error * RttSmoothingFactor;
+		m_rttVariance += (fabsf(error) - m_rttVariance) * RttVarianceSmoothingFactor;
+	}
+
+	const time_t timeout = (time_t)(m_smoothedRtt + RttVarianceMultiplier * m_rttVariance);
+	m_frameInfoRetryTime = clamp<time_t>(MinFrameInfoRetryTime, timeout, MaxFrameInfoRetryTime);
+}
+
+time_t Connection::getRetryTimeForCommand(const NetCommandMsg *msg) const {
+	if (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
+		return m_frameInfoRetryTime;
+	}
+	return m_retryTime;
 }
 
 void Connection::setFrameGrouping(time_t frameGrouping) {
