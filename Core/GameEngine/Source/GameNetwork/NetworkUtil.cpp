@@ -146,6 +146,23 @@ Bool CommandRequiresAck(const NetCommandMsg* msg)
 	return DoesCommandRequireACommandID(msg->getNetCommandType());
 }
 
+/**
+ * Returns true for latency-sensitive commands. Frame info decides whether another player may run
+ * its next frame, while an ack removes an acknowledged command from that player's retry queue.
+ */
+Bool IsCommandTimeCritical(NetCommandType type)
+{
+	switch (type) {
+	case NETCOMMANDTYPE_FRAMEINFO:
+	case NETCOMMANDTYPE_ACKSTAGE1:
+	case NETCOMMANDTYPE_ACKSTAGE2:
+	case NETCOMMANDTYPE_ACKBOTH:
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
 Bool IsCommandSynchronized(NetCommandType type)
 {
 	switch (type) {
