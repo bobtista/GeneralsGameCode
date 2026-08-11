@@ -44,6 +44,7 @@
 #include "GameNetwork/LANAPI.h"						// for testing packet size
 #include "GameNetwork/LANAPICallbacks.h"	// for testing packet size
 #include "WWLib/strtok_r.h"
+#include "WWLib/utf8.h"
 
 
 
@@ -891,11 +892,6 @@ Bool GameInfo::isSandbox()
 
 static const char slotListID		= 'S';
 
-static Bool isUtf8ContinuationByte(Char c)
-{
-	return (static_cast<unsigned char>(c) & 0xC0) == 0x80;
-}
-
 // TheSuperHackers @bugfix Truncates the name to at most maxByteCount bytes without splitting
 // a multibyte UTF-8 character. A non-positive budget empties the name; retail spun forever
 // there, because removing the last character of an already empty string is a no-op.
@@ -907,18 +903,7 @@ static void truncatePlayerName(AsciiString& name, Int maxByteCount)
 		return;
 	}
 
-	if (name.getLength() <= maxByteCount)
-	{
-		return;
-	}
-
-	Int truncatedLength = maxByteCount;
-	while (truncatedLength > 0 && isUtf8ContinuationByte(name.getCharAt(truncatedLength)))
-	{
-		--truncatedLength;
-	}
-
-	name.truncateTo(truncatedLength);
+	name.truncateTo(static_cast<Int>(Utf8_Truncate_Len(name.str(), name.getLength(), maxByteCount)));
 }
 
 AsciiString GameInfoToAsciiString( const GameInfo *game )
