@@ -23,6 +23,29 @@
 #include "BaseType.h"
 #include <string.h>
 
+inline char getNativePathSeparator()
+{
+#ifdef _WIN32
+	return '\\';
+#else
+	return '/';
+#endif
+}
+
+inline const char* getLastPathSeparator(const char* path)
+{
+	const char* forward = strrchr(path, '/');
+	const char* backward = strrchr(path, '\\');
+	return !forward ? backward : (!backward || forward > backward ? forward : backward);
+}
+
+inline const wchar_t* getLastPathSeparator(const wchar_t* path)
+{
+	const wchar_t* forward = wcsrchr(path, L'/');
+	const wchar_t* backward = wcsrchr(path, L'\\');
+	return !forward ? backward : (!backward || forward > backward ? forward : backward);
+}
+
 inline const char* getExtension(const char* path)
 {
 	const char* lastDot = strrchr(path, '.');
@@ -32,7 +55,7 @@ inline const char* getExtension(const char* path)
 		return nullptr;
 	}
 
-	const char* lastSeparator = maxPtr(strrchr(path, '/'), strrchr(path, '\\'));
+	const char* lastSeparator = getLastPathSeparator(path);
 
 	// Check if the dot is contained in the filename
 	if (lastSeparator && lastDot < lastSeparator)
@@ -52,7 +75,7 @@ inline const wchar_t* getExtension(const wchar_t* path)
 		return nullptr;
 	}
 
-	const wchar_t* lastSeparator = maxPtr(wcsrchr(path, L'/'), wcsrchr(path, L'\\'));
+	const wchar_t* lastSeparator = getLastPathSeparator(path);
 
 	// Check if the dot is contained in the filename
 	if (lastSeparator && lastDot < lastSeparator)
