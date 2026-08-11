@@ -232,6 +232,9 @@ void LANAPI::OnGameStart()
 		if (!filesOk || TheMapCache->findMap(m_currentGame->getMap()) == nullptr)
 		{
 			DEBUG_LOG(("After transfer, we didn't really have the map.  Bailing..."));
+#if defined(RTS_DEBUG)
+			NetworkAutoStart::onGameStartFailure();
+#endif
 			OnPlayerLeave(m_name);
 			removeGame(m_currentGame);
 			m_currentGame = nullptr;
@@ -509,7 +512,7 @@ void LANAPI::OnPlayerJoin( Int slot, UnicodeString playerName )
 void LANAPI::OnGameJoin( ReturnType ret, LANGameInfo *theGame )
 {
 #if defined(RTS_DEBUG)
-	if (NetworkAutoStart::hasArguments())
+	if (NetworkAutoStart::isEnabled())
 	{
 		NetworkAutoStart::onGameJoin(ret);
 		if (ret != RET_OK)
@@ -608,7 +611,7 @@ void LANAPI::OnGameList( LANGameInfo *gameList )
 void LANAPI::OnGameCreate( ReturnType ret )
 {
 #if defined(RTS_DEBUG)
-	if (NetworkAutoStart::hasArguments())
+	if (NetworkAutoStart::isEnabled())
 	{
 		NetworkAutoStart::onGameCreate(ret);
 		if (ret != RET_OK)

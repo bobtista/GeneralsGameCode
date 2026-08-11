@@ -272,10 +272,9 @@ void Connection::setQuitting()
 }
 
 /**
- * Returns true when a latency-sensitive command is waiting to go out for the first time. Commands
- * awaiting a retry are excluded so this cannot shorten the retry interval.
+ * Returns true when a time-critical command is waiting for its first send.
  */
-Bool Connection::hasPendingPriorityCommand() {
+Bool Connection::hasPendingPriorityCommand() const {
 	for (NetCommandRef *msg = m_netCommandList->getFirstMessage(); msg != nullptr; msg = msg->getNext()) {
 		if (msg->getTimeLastSent() == -1 && IsCommandTimeCritical(msg->getCommand()->getNetCommandType())) {
 			return TRUE;
@@ -301,10 +300,8 @@ UnsignedInt Connection::doSend() {
 		return 0;
 	}
 
-	// TheSuperHackers @bugfix bobtista 09/08/2026 Frame info gates the peer's simulation, while an
-	// ack removes an acknowledged command from the peer's retry queue. Holding either for the
-	// grouping interval adds avoidable latency before it reaches the network. Send those two
-	// without waiting and leave everything else batched as before.
+	// TheSuperHackers @bugfix bobtista 09/08/2026 Send new frame info and acknowledgements without
+	// waiting for packet grouping. Leave all other commands batched as before.
 	Bool priorityOnly = FALSE;
 	if ((curtime - m_lastTimeSent) < m_frameGrouping) {
 //		DEBUG_LOG(("not sending packet, time = %d, m_lastFrameSent = %d, m_frameGrouping = %d", curtime, m_lastTimeSent, m_frameGrouping));
@@ -323,11 +320,10 @@ UnsignedInt Connection::doSend() {
 		packet->setAddress(m_user->GetIPAddr(), m_user->GetPort());
 
 		Bool notDone = TRUE;
-		// Build the packet without mutating its commands. The transport can refuse a full send queue,
-		// so timestamps, retry state, and ack-free removals are committed only after acceptance.
+		// TheSuperHackers @bugfix bobtista 10/08/2026 Build the packet without mutating its commands.
+		// The transport can refuse a full send queue, so timestamps, retry state, and ack-free removals
+		// are committed only after acceptance.
 		NetCommandRef *packetCommands[MaxCommandsPerPacket];
-		time_t previousSendTimes[MaxCommandsPerPacket];
-		Bool commandRequiresAck[MaxCommandsPerPacket];
 		Int numPacketCommands = 0;
 
 		// add the command messages until either we run out of messages or the packet is full.
@@ -348,8 +344,6 @@ UnsignedInt Connection::doSend() {
 						("Connection::doSend - packet command staging overflow"));
 					if (numPacketCommands < MaxCommandsPerPacket) {
 						packetCommands[numPacketCommands] = msg;
-						previousSendTimes[numPacketCommands] = timeLastSent;
-						commandRequiresAck[numPacketCommands] = CommandRequiresAck(msg->getCommand());
 						++numPacketCommands;
 					}
 				}
@@ -369,17 +363,15 @@ UnsignedInt Connection::doSend() {
 			// for transmission.
 			couldQueue = m_transport->queueSend(packet->getAddr(), packet->getPort(), packet->getData(), packet->getLength());
 			if (couldQueue) {
-				// A packet carrying only time critical commands must not restart the grouping
-				// interval. Frame info and acks occur more often than that interval, so letting
-				// them restart it would hold the gate shut for game commands and file transfers.
+				// Do not let frequent priority-only packets starve batched traffic.
 				if (!priorityOnly) {
 					m_lastTimeSent = curtime;
 				}
 				Bool didBackOffFrameInfo = FALSE;
 				for (Int i = 0; i < numPacketCommands; ++i) {
 					NetCommandRef *sentCommand = packetCommands[i];
-					if (commandRequiresAck[i]) {
-						if (previousSendTimes[i] != -1) {
+					if (CommandRequiresAck(sentCommand->getCommand())) {
+						if (sentCommand->getTimeLastSent() != -1) {
 							++m_numRetries;
 							sentCommand->setWasRetransmitted(TRUE);
 							// Back off once per accepted packet. Several overdue frame-info
