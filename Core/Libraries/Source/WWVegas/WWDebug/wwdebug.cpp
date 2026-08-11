@@ -475,6 +475,9 @@ void WWDebug_Profile_Stop( const char * title)
  * HISTORY:                                                                                    *
  *   10/30/98    BMG : Created.                                                                *
  *=============================================================================================*/
+// TheSuperHackers @build bobtista 11/08/2026 DBWIN32 is a Windows debugger transport; the whole handler is
+// Win32 only and is not referenced elsewhere on other platforms.
+#ifdef _WIN32
 void WWDebug_DBWin32_Message_Handler( const char * str )
 {
 
@@ -533,4 +536,5 @@ void WWDebug_DBWin32_Message_Handler( const char * str )
     CloseHandle(heventData);
     CloseHandle(heventDBWIN);
 }
+#endif // _WIN32
 #endif // WWDEBUG
