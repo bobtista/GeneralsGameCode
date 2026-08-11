@@ -258,20 +258,25 @@ void NetworkDirectConnectInit( WindowLayout *layout, void *userData )
 	LANbuttonPushed = false;
 	LANisShuttingDown = false;
 
+	Bool automatedStartup = FALSE;
 	UnsignedInt autoLocalIP = 0;
 #if defined(RTS_DEBUG)
 	if (NetworkAutoStart::isEnabled())
+	{
+		automatedStartup = TRUE;
 		autoLocalIP = NetworkAutoStart::getLocalAddress();
+	}
 #endif
 
-	if (TheLAN == nullptr)
+	if (!automatedStartup)
 	{
-		TheLAN = NEW LANAPI();
-		if (autoLocalIP != 0)
-			TheLAN->SetLocalIP(autoLocalIP);
-		TheLAN->init();
+		if (TheLAN == nullptr)
+		{
+			TheLAN = NEW LANAPI();
+			TheLAN->init();
+		}
+		TheLAN->reset();
 	}
-	TheLAN->reset();
 
 	buttonPushed = false;
 	isShuttingDown = false;
@@ -349,10 +354,11 @@ void NetworkDirectConnectInit( WindowLayout *layout, void *userData )
 
 //			IP = IPlist->getIP();
 //		}
-		if (autoLocalIP != 0)
+		if (automatedStartup)
 		{
-			TheLAN->SetLocalIP(autoLocalIP);
-			TheLAN->init();
+#if defined(RTS_DEBUG)
+			NetworkAutoStart::onLocalAddressSet(TheLAN->SetLocalIP(IP));
+#endif
 		}
 		else
 		{

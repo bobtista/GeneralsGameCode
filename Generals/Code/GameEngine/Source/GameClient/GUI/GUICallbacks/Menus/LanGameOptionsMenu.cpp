@@ -212,7 +212,7 @@ static void playerTooltip(GameWindow *window,
 	setLANPlayerTooltip(player);
 }
 
-void StartPressed()
+void StartLANGame()
 {
 	LANGameInfo *myGame = TheLAN->GetMyGame();
 
@@ -1174,7 +1174,7 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 				{
 					if (TheLAN->AmIHost())
 					{
-						StartPressed();
+						StartLANGame();
 						//TheLAN->RequestGameStart();
 					}
 					else
