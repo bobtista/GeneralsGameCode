@@ -60,11 +60,18 @@
 #include "GameLogic/FPUControl.h"
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkDefs.h"
+#include "Lib/PathUtil.h"
 
 
 //-------------------------------------------------------------------------------
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static const char *mapExtension = ".map";
+
+static const char *getPathLeaf( const AsciiString &path )
+{
+	const char *separator = getLastPathSeparator(path.str());
+	return separator ? separator + 1 : path.str();
+}
 
 static Int m_width = 0;						///< Height map width.
 static Int m_height = 0;					///< Height map height (y size of array).
@@ -592,7 +599,7 @@ Bool MapCache::addMap(
 			{
 				// unofficial maps or maps without names
 				AsciiString tempdisplayname;
-				tempdisplayname = fname.reverseFind('\\') + 1;
+				tempdisplayname = getPathLeaf(fname);
 				(*this)[lowerFname].m_displayName.translate(tempdisplayname);
 				if (md.m_numPlayers >= 2)
 				{
@@ -654,7 +661,7 @@ Bool MapCache::addMap(
 	{
 		DEBUG_LOG(("Missing TheKey_mapName!"));
 		AsciiString tempdisplayname;
-		tempdisplayname = fname.reverseFind('\\') + 1;
+		tempdisplayname = getPathLeaf(fname);
 		md.m_displayName.translate(tempdisplayname);
 		if (md.m_numPlayers >= 2)
 		{
