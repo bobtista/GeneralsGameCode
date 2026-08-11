@@ -54,7 +54,7 @@ public:
 	void reset();
 
 	UnsignedInt doSend();
-	Bool hasPendingPriorityCommand();
+	Bool hasPendingPriorityCommand() const;
 	void doRecv();
 
 	Bool allCommandsReady(UnsignedInt frame);
