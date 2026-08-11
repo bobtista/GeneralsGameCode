@@ -147,8 +147,7 @@ Bool CommandRequiresAck(const NetCommandMsg* msg)
 }
 
 /**
- * Returns true for latency-sensitive commands. Frame info decides whether another player may run
- * its next frame, while an ack removes an acknowledged command from that player's retry queue.
+ * Identifies commands that should bypass packet grouping on their first send.
  */
 Bool IsCommandTimeCritical(NetCommandType type)
 {
