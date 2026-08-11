@@ -815,7 +815,7 @@ void DownloadMenuUpdate( WindowLayout *layout, void *userData );
 void MainMenuUpdate( WindowLayout *layout, void *userData )
 {
 #if defined(RTS_DEBUG)
-	if (NetworkAutoStart::hasArguments() && NetworkAutoStart::shouldOpenDirectConnect())
+	if (NetworkAutoStart::shouldOpenDirectConnect())
 	{
 		NetworkAutoStart::markDirectConnectOpened();
 		TheShell->push("Menus/NetworkDirectConnect.wnd");

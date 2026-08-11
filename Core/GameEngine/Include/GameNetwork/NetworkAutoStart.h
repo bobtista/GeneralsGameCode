@@ -21,52 +21,58 @@
 #if defined(RTS_DEBUG)
 
 #include "Common/AsciiString.h"
-#include "Common/GameType.h"
 #include "Common/UnicodeString.h"
 #include "GameNetwork/LANAPI.h"
 
 // TheSuperHackers @feature bobtista 10/08/2026 Automate network match startup
 // for multi-instance testing.
-class NetworkAutoStart {
+class NetworkAutoStart
+{
 public:
-  enum Mode {
-    MODE_NONE,
-    MODE_DIRECT_CONNECT,
-  };
+	enum { MIN_EXPECTED_PLAYERS = 1 };
 
-  enum Role {
-    ROLE_NONE,
-    ROLE_HOST,
-    ROLE_JOIN,
-  };
+	enum Mode
+	{
+		MODE_NONE,
+		MODE_DIRECT_CONNECT,
+	};
 
-  static Bool setMode(AsciiString mode);
-  static Bool setHost(Int expectedPlayers);
-  static Bool setJoin(AsciiString hostAddress);
-  static Bool setLocalAddress(AsciiString localAddress);
-  static Bool setPlayerName(AsciiString playerName);
-  static Bool setMapName(AsciiString mapName);
-  static Bool setTimeoutSeconds(Int seconds);
+	enum Role
+	{
+		ROLE_NONE,
+		ROLE_HOST,
+		ROLE_JOIN,
+	};
 
-  static Bool hasArguments();
-  static Bool isEnabled();
-  static Bool shouldOpenDirectConnect();
-  static void markDirectConnectOpened();
+	static Bool setMode(AsciiString mode);
+	static Bool setHost(Int expectedPlayers);
+	static Bool setJoin(AsciiString hostAddress);
+	static Bool setLocalAddress(AsciiString localAddress);
+	static Bool setPlayerName(AsciiString playerName);
+	static Bool setMapName(AsciiString mapName);
+	static Bool setTimeoutSeconds(Int seconds);
 
-  static AsciiString getMapName();
-  static UnsignedInt getLocalAddress();
-  static UnicodeString getPlayerName();
+	static Bool hasArguments();
+	static Bool isEnabled();
+	static Bool shouldOpenDirectConnect();
+	static void markDirectConnectOpened();
 
-  static void updateDirectConnect();
-  static void updateGameOptions();
-  static void onGameCreate(LANAPIInterface::ReturnType result);
-  static void onGameJoin(LANAPIInterface::ReturnType result);
-  static void onGameStart();
+	static AsciiString getMapName();
+	static UnsignedInt getLocalAddress();
+	static UnicodeString getPlayerName();
+
+	static void updateDirectConnect();
+	static void updateGameOptions();
+	static void onGameCreate(LANAPIInterface::ReturnType result);
+	static void onGameJoin(LANAPIInterface::ReturnType result);
+	static void onLocalAddressSet(Bool result);
+	static void onGameStartFailure();
+	static void onGameStart();
 
 private:
-  static Bool validateConfiguration();
-  static Bool checkTimeout();
-  static void fail(const char *message);
+	static Bool validateConfiguration();
+	static Bool checkTimeout();
+	static void fail(const char *message);
 };
 
 #endif

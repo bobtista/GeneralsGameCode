@@ -35,6 +35,11 @@
 //#define read  _read
 //#define write _write
 
+// TheSuperHackers @build bobtista 11/08/2026 winsock.h does not declare socklen_t, but the
+// socket length arguments must be socklen_t to compile on the platforms that do declare it.
+// ws2tcpip.h declares the same typedef, and repeating an identical typedef is legal.
+typedef int socklen_t;
+
 #else  //UNIX
 #include <netdb.h>
 #include <sys/types.h>
