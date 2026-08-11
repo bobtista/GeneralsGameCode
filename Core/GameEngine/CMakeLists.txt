@@ -541,7 +541,6 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/LANAPICallbacks.h
     Include/GameNetwork/LANGameInfo.h
     Include/GameNetwork/LANPlayer.h
-    Include/GameNetwork/NetworkAutoStart.h
     Include/GameNetwork/NAT.h
     Include/GameNetwork/NetCommandList.h
     Include/GameNetwork/NetCommandMsg.h
@@ -549,6 +548,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/NetCommandWrapperList.h
     Include/GameNetwork/NetPacket.h
     Include/GameNetwork/NetPacketStructs.h
+    Include/GameNetwork/NetworkAutoStart.h
     Include/GameNetwork/NetworkDefs.h
     Include/GameNetwork/NetworkInterface.h
     Include/GameNetwork/networkutil.h
@@ -1134,7 +1134,6 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/LANAPICallbacks.cpp
     Source/GameNetwork/LANAPIhandlers.cpp
     Source/GameNetwork/LANGameInfo.cpp
-    Source/GameNetwork/NetworkAutoStart.cpp
     Source/GameNetwork/NAT.cpp
     Source/GameNetwork/NetCommandList.cpp
     Source/GameNetwork/NetCommandMsg.cpp
@@ -1144,6 +1143,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/NetPacket.cpp
     Source/GameNetwork/NetPacketStructs.cpp
     Source/GameNetwork/Network.cpp
+    Source/GameNetwork/NetworkAutoStart.cpp
     Source/GameNetwork/NetworkUtil.cpp
     Source/GameNetwork/Transport.cpp
     Source/GameNetwork/udp.cpp

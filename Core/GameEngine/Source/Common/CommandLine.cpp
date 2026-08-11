@@ -25,6 +25,8 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include <limits.h>
+
 #include "Common/ArchiveFileSystem.h"
 #include "Common/CommandLine.h"
 #include "Common/CRCDebug.h"
@@ -706,6 +708,28 @@ Int parseMaxCameraHeight(char *args[], int num)
 }
 
 #if defined(RTS_DEBUG)
+static Bool parsePositiveInt(const char *text, Int &result)
+{
+	if (text == nullptr || *text < '0' || *text > '9')
+		return false;
+
+	UnsignedInt value = 0;
+	do
+	{
+		const UnsignedInt digit = *text - '0';
+		if (value > ((UnsignedInt)INT_MAX - digit) / 10u)
+			return false;
+		value = value * 10u + digit;
+		++text;
+	} while (*text >= '0' && *text <= '9');
+
+	if (*text != '\0')
+		return false;
+
+	result = (Int)value;
+	return true;
+}
+
 Int parseAutoNetworkMode(char *args[], int num)
 {
 	if (num > 1 && NetworkAutoStart::setMode(args[1]))
@@ -718,10 +742,12 @@ Int parseAutoNetworkMode(char *args[], int num)
 
 Int parseAutoNetworkHost(char *args[], int num)
 {
-	if (num > 1 && NetworkAutoStart::setHost(atoi(args[1])))
+	Int expectedPlayers = 0;
+	if (num > 1 && parsePositiveInt(args[1], expectedPlayers) && NetworkAutoStart::setHost(expectedPlayers))
 		return 2;
 
-	printf("Invalid -autoNetworkHost. Pass an expected player count from 2 to %d and do not combine it with -autoNetworkJoin.\n", MAX_SLOTS);
+	printf("Invalid -autoNetworkHost. Pass an expected player count from %d to %d and do not combine it with -autoNetworkJoin.\n",
+		NetworkAutoStart::MIN_EXPECTED_PLAYERS, MAX_SLOTS);
 	exit(1);
 	return 1;
 }
@@ -731,7 +757,7 @@ Int parseAutoNetworkJoin(char *args[], int num)
 	if (num > 1 && NetworkAutoStart::setJoin(args[1]))
 		return 2;
 
-	printf("Invalid -autoNetworkJoin. Pass a host address and do not combine it with -autoNetworkHost.\n");
+	printf("Invalid -autoNetworkJoin. Pass a dotted IPv4 host address and do not combine it with -autoNetworkHost.\n");
 	exit(1);
 	return 1;
 }
@@ -741,7 +767,7 @@ Int parseAutoNetworkLocalAddress(char *args[], int num)
 	if (num > 1 && NetworkAutoStart::setLocalAddress(args[1]))
 		return 2;
 
-	printf("Invalid -autoNetworkLocalAddress. Pass a resolvable local address.\n");
+	printf("Invalid -autoNetworkLocalAddress. Pass a dotted IPv4 local address.\n");
 	exit(1);
 	return 1;
 }
@@ -768,7 +794,8 @@ Int parseAutoNetworkMap(char *args[], int num)
 
 Int parseAutoNetworkTimeout(char *args[], int num)
 {
-	if (num > 1 && NetworkAutoStart::setTimeoutSeconds(atoi(args[1])))
+	Int timeoutSeconds = 0;
+	if (num > 1 && parsePositiveInt(args[1], timeoutSeconds) && NetworkAutoStart::setTimeoutSeconds(timeoutSeconds))
 		return 2;
 
 	printf("Invalid -autoNetworkTimeout. Pass a positive number of seconds.\n");
