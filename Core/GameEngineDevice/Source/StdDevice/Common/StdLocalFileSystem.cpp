@@ -29,6 +29,7 @@
 #include "Common/AsciiString.h"
 #include "Common/GameMemory.h"
 #include "Common/PerfTimer.h"
+#include "Lib/PathUtil.h"
 #include "StdDevice/Common/StdLocalFileSystem.h"
 #include "StdDevice/Common/StdLocalFile.h"
 
@@ -172,8 +173,7 @@ static std::filesystem::path fixFilenameFromWindowsPath(const Char *filename, In
 					return std::filesystem::path();
 				}
 
-				// Use the last known good path
-				pathFixed = p;
+				pathFixedPart = p;
 			}
 
 			// Copy of the current path to mirror the current depth
@@ -342,7 +342,7 @@ void StdLocalFileSystem::getFileListInDirectory(const AsciiString& currentDirect
 				AsciiString tempsearchstr;
 				tempsearchstr.concat(currentDirectory);
 				tempsearchstr.concat(filenameStr.c_str());
-				tempsearchstr.concat('\\');
+				tempsearchstr.concat(getNativePathSeparator());
 
 				// recursively add files in subdirectories if required.
 				getFileListInDirectory(tempsearchstr, originalDirectory, searchName, filenameList, searchSubdirectories);

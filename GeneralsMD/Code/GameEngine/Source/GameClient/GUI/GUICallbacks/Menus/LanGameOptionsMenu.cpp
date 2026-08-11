@@ -871,17 +871,17 @@ void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 		if (NetworkAutoStart::isEnabled() && NetworkAutoStart::getMapName().isNotEmpty())
 			mapName = NetworkAutoStart::getMapName();
 #endif
+		const MapMetaData *mapData = TheMapCache->findMap(mapName);
+		if (mapData != nullptr)
+			mapName = mapData->m_fileName;
 		game->setMap(mapName);
     game->setStartingCash( pref.getStartingCash() );
     game->setSuperweaponRestriction( pref.getSuperweaponRestricted() ? 1 : 0 );
-		AsciiString lowerMap = mapName;
-		lowerMap.toLower();
-		std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
-		if (it != TheMapCache->end())
+		if (mapData != nullptr)
 		{
 			TheLAN->GetMyGame()->getSlot(0)->setMapAvailability(true);
-			TheLAN->GetMyGame()->setMapCRC( it->second.m_CRC );
-			TheLAN->GetMyGame()->setMapSize( it->second.m_filesize );
+			TheLAN->GetMyGame()->setMapCRC( mapData->m_CRC );
+			TheLAN->GetMyGame()->setMapSize( mapData->m_filesize );
 
 			TheLAN->GetMyGame()->adjustSlotsForMap(); // BGC- adjust the slots for the selected map.
 		}
