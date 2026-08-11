@@ -35,10 +35,6 @@
 //#include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/udp.h"
 
-#ifdef _WIN32
-typedef int socklen_t;
-#endif
-
 
 //-------------------------------------------------------------------------
 
@@ -129,6 +125,7 @@ AsciiString GetWSAErrorString( Int error )
 UDP::UDP()
 {
   fd=0;
+  m_lastError=0;
 }
 
 UDP::~UDP()
@@ -180,11 +177,15 @@ Int UDP::Bind(UnsignedInt IP,UnsignedShort Port)
 	{
     retval=-1;
 		m_lastError = WSAGetLastError();
-	}
+  }
   #else
   if (retval == -1)
+  {
     m_lastError = errno;
+  }
   #endif
+  // TheSuperHackers @bugfix bobtista 10/08/2026 Preserve POSIX bind errors and release failed
+  // sockets on every platform so Transport can retry without leaking descriptors.
   if (retval==-1)
   {
     status=GetStatus();
@@ -194,8 +195,8 @@ Int UDP::Bind(UnsignedInt IP,UnsignedShort Port)
     return(status);
   }
 
-  int namelen=sizeof(addr);
-  getsockname(fd, (struct sockaddr *)&addr, (socklen_t *)&namelen);
+  socklen_t namelen=sizeof(addr);
+  getsockname(fd, (struct sockaddr *)&addr, &namelen);
 
   myIP=ntohl(addr.sin_addr.s_addr);
   myPort=ntohs(addr.sin_port);
@@ -279,11 +280,11 @@ Int UDP::Write(const unsigned char *msg,UnsignedInt len,UnsignedInt IP,UnsignedS
 Int UDP::Read(unsigned char *msg,UnsignedInt len,sockaddr_in *from)
 {
   Int retval;
-  int    alen=sizeof(sockaddr_in);
+  socklen_t alen=sizeof(sockaddr_in);
 
   if (from!=nullptr)
   {
-    retval=recvfrom(fd,(char *)msg,len,0,(struct sockaddr *)from,(socklen_t *)&alen);
+    retval=recvfrom(fd,(char *)msg,len,0,(struct sockaddr *)from,&alen);
     #ifdef _WIN32
     if (retval == SOCKET_ERROR)
 		{
@@ -382,6 +383,10 @@ UDP::sockStat UDP::GetStatus()
       return INVAL;
     case EISCONN:
       return ISCONN;
+    case EADDRINUSE:
+      return ADDRINUSE;
+    case EADDRNOTAVAIL:
+      return ADDRNOTAVAIL;
     case ENOTSOCK:
       return NOTSOCK;
     case ETIMEDOUT:
@@ -524,20 +529,22 @@ Int UDP::SetOutputBuffer(UnsignedInt bytes)
 
 int UDP::GetInputBuffer()
 {
-   int retval,arg=0,len=sizeof(int);
+   int retval,arg=0;
+   socklen_t len=sizeof(int);
 
    retval=getsockopt(fd,SOL_SOCKET,SO_RCVBUF,
-     (char *)&arg,(socklen_t *)&len);
+     (char *)&arg,&len);
    return(arg);
 }
 
 
 int UDP::GetOutputBuffer()
 {
-   int retval,arg=0,len=sizeof(int);
+   int retval,arg=0;
+   socklen_t len=sizeof(int);
 
    retval=getsockopt(fd,SOL_SOCKET,SO_SNDBUF,
-     (char *)&arg,(socklen_t *)&len);
+     (char *)&arg,&len);
    return(arg);
 }
 
