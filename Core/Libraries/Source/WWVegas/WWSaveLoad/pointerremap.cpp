@@ -118,7 +118,9 @@ void PointerRemapClass::Process_Request_Table(DynamicVectorClass<PtrRemapStruct>
 #ifdef WWDEBUG
 			const char * file = request_table[pointer_index].File;
 			int line = request_table[pointer_index].Line;
-			WWDEBUG_SAY(("Warning! Failed to re-map pointer! old_ptr = 0x%X  file = %s  line = %d",(unsigned int)pointer_to_remap,file,line));
+			// TheSuperHackers @build bobtista 11/08/2026 Print the pointer as a pointer. Casting it to unsigned
+			// int truncates it on 64 bit and does not compile at all on platforms where that is an error.
+			WWDEBUG_SAY(("Warning! Failed to re-map pointer! old_ptr = %p  file = %s  line = %d",(void *)pointer_to_remap,file,line));
 			WWASSERT( 0 );
 #endif
 		}

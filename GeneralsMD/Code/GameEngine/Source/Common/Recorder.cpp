@@ -87,12 +87,22 @@ static void writeAtOffset(File* file, Int offset, const void* data, Int dataSize
 #if defined(RTS_DEBUG)
 static FILE* openStatsLogFile()
 {
+	// TheSuperHackers @build bobtista 11/08/2026 Debug only code, so it was never built away from Windows.
+#ifdef _WIN32
 	unsigned long bufSize = MAX_COMPUTERNAME_LENGTH + 1;
 	char computerName[MAX_COMPUTERNAME_LENGTH + 1];
 	if (!GetComputerName(computerName, &bufSize))
 	{
 		strcpy(computerName, "unknown");
 	}
+#else
+	char computerName[256];
+	if (gethostname(computerName, sizeof(computerName)) != 0)
+	{
+		strcpy(computerName, "unknown");
+	}
+	computerName[sizeof(computerName) - 1] = 0;
+#endif
 	AsciiString statsFile = TheGlobalData->m_baseStatsDir;
 	statsFile.concat(computerName);
 	statsFile.concat(".txt");

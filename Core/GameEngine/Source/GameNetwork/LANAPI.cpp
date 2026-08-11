@@ -125,6 +125,9 @@ void LANAPI::init()
 	m_lastGameopt = "";
 
 #if TELL_COMPUTER_IDENTITY_IN_LAN_LOBBY
+	// TheSuperHackers @build bobtista 11/08/2026 This block only exists in debug builds, so it was never
+	// compiled away from Windows and kept the whole debug configuration from building elsewhere.
+#ifdef _WIN32
 	char userName[UNLEN + 1];
 	DWORD bufSize = ARRAY_SIZE(userName);
 	if (GetUserNameA(userName, &bufSize))
@@ -146,6 +149,28 @@ void LANAPI::init()
 	{
 		m_hostName = "unknown";
 	}
+#else
+	char userName[256];
+	if (getlogin_r(userName, sizeof(userName)) == 0)
+	{
+		m_userName.set(userName);
+	}
+	else
+	{
+		m_userName = "unknown";
+	}
+
+	char computerName[256];
+	if (gethostname(computerName, sizeof(computerName)) == 0)
+	{
+		computerName[sizeof(computerName) - 1] = 0;
+		m_hostName.set(computerName);
+	}
+	else
+	{
+		m_hostName = "unknown";
+	}
+#endif
 #endif
 }
 

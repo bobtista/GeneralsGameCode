@@ -303,6 +303,10 @@ void WWDebug_Assert_Fail(const char * expr,const char * file, int line)
 
 	} else {
 
+		// TheSuperHackers @build bobtista 11/08/2026 This fallback path is only compiled into debug builds and
+		// was written against the Win32 message box, so it kept the debug configuration from building on other
+		// platforms. Elsewhere, report the failure and break rather than prompting.
+#ifdef _WIN32
 		/*
 		// If the exception handler is try to quit the game then don't show an assert.
 		*/
@@ -324,6 +328,11 @@ void WWDebug_Assert_Fail(const char * expr,const char * file, int line)
 			WWDEBUG_BREAK
       	return;
 		}
+#else
+		fprintf(stderr, "Assert failed. File %s Line %d\n", file, line);
+		WWDEBUG_BREAK
+		return;
+#endif
    }
 }
 #endif
