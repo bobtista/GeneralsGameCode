@@ -28,6 +28,10 @@
 // Shutdown_Render_Backend(); never null between those two calls.
 extern IRenderBackend * g_renderBackend;
 
+// Construct the backend selected by the build. Exactly one backend
+// implementation must define this function.
+IRenderBackend *Create_Render_Backend();
+
 // Create the render backend. Called once from WW3D::Init, before any render
 // device exists, and exactly once per Shutdown_Render_Backend().
 void Init_Render_Backend();

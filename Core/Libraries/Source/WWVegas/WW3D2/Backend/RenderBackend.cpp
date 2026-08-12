@@ -21,7 +21,6 @@
 // concrete backend instance.
 
 #include "RenderBackend.h"
-#include "DX8Backend.h"
 
 #include "WWDebug/wwdebug.h"
 
@@ -38,7 +37,7 @@ void Init_Render_Backend()
         return;
     }
 
-    g_renderBackend = new DX8Backend();
+    g_renderBackend = Create_Render_Backend();
 }
 
 void Shutdown_Render_Backend()

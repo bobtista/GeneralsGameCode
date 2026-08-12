@@ -22,6 +22,7 @@
 // should change in DX8Wrapper, not here.
 
 #include "DX8Backend.h"
+#include "RenderBackend.h"
 
 #include "WW3D2/dx8wrapper.h"
 #include "WWMath/vector3.h"
@@ -36,6 +37,11 @@ DX8Backend::DX8Backend()
 
 DX8Backend::~DX8Backend()
 {
+}
+
+IRenderBackend *Create_Render_Backend()
+{
+    return new DX8Backend();
 }
 
 bool DX8Backend::Is_Device_Lost() const
