@@ -5602,9 +5602,24 @@ void TintEnvelope::xfer( Xfer *xfer )
 	// sustain counter
 	if (version <= 1)
 	{
-		UnsignedInt sustainCounter = (UnsignedInt)m_sustainCounter;
+		// TheSuperHackers @bugfix bobtista 13/08/2026 Preserve the indefinite sustain sentinel across the retail
+		// compatible save format. (Real)SUSTAIN_INDEFINITELY rounds up to 4294967296, which is out of range for
+		// UnsignedInt, so converting it back is undefined and yields 0 on MSVC. Assigning that result back also
+		// cleared the sustain on save, which released color envelopes that are meant to hold indefinitely.
+		UnsignedInt sustainCounter;
+		if( m_sustainCounter >= (Real)SUSTAIN_INDEFINITELY )
+		{
+			sustainCounter = SUSTAIN_INDEFINITELY;
+		}
+		else
+		{
+			sustainCounter = (UnsignedInt)m_sustainCounter;
+		}
 		xfer->xferUnsignedInt( &sustainCounter );
-		m_sustainCounter = (Real)sustainCounter;
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_sustainCounter = (Real)sustainCounter;
+		}
 	}
 	else
 	{
