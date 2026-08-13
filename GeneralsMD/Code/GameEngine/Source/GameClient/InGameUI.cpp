@@ -1882,7 +1882,10 @@ void InGameUI::update()
 	// frame
 	//
 	UnsignedInt currLogicFrame = TheGameLogic->getFrame();
-	const int messageTimeout = m_messageDelayMS / LOGICFRAMES_PER_SECOND / 1000;
+	// TheSuperHackers @bugfix bobtista 13/08/2026 Convert the message delay from milliseconds to logic frames
+	// instead of dividing by both, which evaluated to floor(m_messageDelayMS / 30000) and was therefore 0 for
+	// every delay below 30 seconds, making MessageDelayMS have no effect.
+	const int messageTimeout = REAL_TO_INT_CEIL( ConvertDurationFromMsecsToFrames( (Real)m_messageDelayMS ) );
 	UnsignedByte r, g, b, a;
 	Int amount;
 	for( i = MAX_UI_MESSAGES - 1; i >= 0; i-- )
