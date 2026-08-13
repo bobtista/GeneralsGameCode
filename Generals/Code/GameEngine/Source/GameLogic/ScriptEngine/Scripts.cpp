@@ -941,13 +941,14 @@ void Script::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: Added m_frameToEvaluateAt */
 // ------------------------------------------------------------------------------------------------
 void Script::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+	XferVersion currentVersion = 2;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -955,6 +956,12 @@ void Script::xfer( Xfer *xfer )
 	Bool active = isActive();
 	xfer->xferBool( &active );
 	setActive( active );
+
+	// TheSuperHackers @bugfix bobtista 13/08/2026 Save the next evaluation frame of delayed scripts
+	if( version >= 2 )
+	{
+		xfer->xferUnsignedInt( &m_frameToEvaluateAt );
+	}
 
 }
 
