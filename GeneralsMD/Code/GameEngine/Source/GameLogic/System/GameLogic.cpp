@@ -3762,6 +3762,38 @@ void GameLogic::update()
 
 	PROFILER_PLOT("LogicFrame", static_cast<int64_t>(now));
 
+	// TheSuperHackers @feature bobtista 14/08/2026 Write a save at the requested logic frame and quit.
+	// This sits ahead of everything the frame does, because the engine's own save runs from
+	// TheGameClient->UPDATE(), which precedes TheGameLogic->UPDATE(). Saving further down would
+	// capture a mid-frame state that no player save can produce, and reloading it would re-run the
+	// part of the frame that had already executed.
+	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_saveAtFrame && getGameMode() != GAME_SHELL)
+	{
+		// TheSuperHackers @bugfix bobtista 15/08/2026 Only write a save the game itself would let the
+		// player write. The Save button is disabled whenever input is disabled. Wait for the first
+		// frame that allows it instead, which is why the frame test above is >= rather than ==.
+		if (TheInGameUI != nullptr && TheInGameUI->getInputEnabled() == FALSE)
+		{
+			if ((Int)m_frame == TheGlobalData->m_saveAtFrame)
+			{
+				DEBUG_LOG(("Command line save deferred at frame %d: input is disabled, waiting for a frame that allows saving", m_frame));
+			}
+		}
+		else
+		{
+			AsciiString saveName = TheGlobalData->m_saveToFile;
+			if (saveName.isEmpty())
+			{
+				saveName = "commandline.sav";
+			}
+			MAYBE_UNUSED const SaveCode saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"), SAVE_FILE_TYPE_NORMAL);
+			(void)saveResult;
+			DEBUG_LOG(("Command line save to '%s' at frame %d returned %d", saveName.str(), m_frame, (Int)saveResult));
+			TheWritableGlobalData->m_saveAtFrame = 0;
+			TheGameEngine->setQuitting(TRUE);
+		}
+	}
+
 	// update (execute) scripts
 	{
 		TheScriptEngine->UPDATE();
