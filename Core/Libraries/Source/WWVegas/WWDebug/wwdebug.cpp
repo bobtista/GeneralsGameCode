@@ -302,6 +302,7 @@ void WWDebug_Assert_Fail(const char * expr,const char * file, int line)
 
 	} else {
 
+#ifdef _WIN32
 		/*
 		// If the exception handler is try to quit the game then don't show an assert.
 		*/
@@ -323,6 +324,13 @@ void WWDebug_Assert_Fail(const char * expr,const char * file, int line)
 			WWDEBUG_BREAK
       	return;
 		}
+#else
+		// TheSuperHackers @build bobtista 14/08/2026 There is no modal assert dialog off Windows,
+		// and Is_Trying_To_Exit() belongs to the Windows only exception handler, so report the
+		// failure and carry on, which is the Ignore choice the dialog offers.
+		fprintf(stderr, "Assert failed: %s (%d) %s\n", file, line, expr);
+		fflush(stderr);
+#endif
    }
 }
 #endif
@@ -467,6 +475,11 @@ void WWDebug_Profile_Stop( const char * title)
  *=============================================================================================*/
 void WWDebug_DBWin32_Message_Handler( const char * str )
 {
+#ifndef _WIN32
+	// TheSuperHackers @build bobtista 14/08/2026 DBWIN32 is a Windows debugger IPC channel with
+	// no counterpart elsewhere, so there is nothing to hand the message to off Windows.
+	(void)str;
+#else
 
     HANDLE heventDBWIN;  /* DBWIN32 synchronization object */
     HANDLE heventData;   /* data passing synch object */
@@ -522,5 +535,6 @@ void WWDebug_DBWin32_Message_Handler( const char * str )
     CloseHandle(hSharedFile);
     CloseHandle(heventData);
     CloseHandle(heventDBWIN);
+#endif // _WIN32
 }
 #endif // WWDEBUG
