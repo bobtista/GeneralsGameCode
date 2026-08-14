@@ -1053,6 +1053,15 @@ Int parseSaveTo(char *args[], int num)
 	return 2;
 }
 
+// Harness only. Take a free instance slot instead of refusing to start while another client holds
+// the lock, so an automated run can sit alongside a game that is already open.
+Int parseBesideClient(char *args[], int num)
+{
+	rts::ClientInstance::setMultiInstance(TRUE);
+	rts::ClientInstance::skipPrimaryInstance();
+	return 1;
+}
+
 Int parseFile(char *args[], int num)
 {
 	if (num > 1)
@@ -1829,6 +1838,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-file", parseFile },
 	{ "-saveatframe", parseSaveAtFrame },
 	{ "-saveto", parseSaveTo },
+	{ "-besideclient", parseBesideClient },
 
 //	{ "-preload", parsePreload },
 

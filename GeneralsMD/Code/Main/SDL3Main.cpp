@@ -200,6 +200,13 @@ int main(int argc, char **argv)
 		{
 			wantWindowed = true;
 		}
+		else if (strcmp(argv[argi], "-besideclient") == 0)
+		{
+			// Read here rather than in CommandLine, because ClientInstance::initialize() runs
+			// before the command line is parsed.
+			rts::ClientInstance::setMultiInstance(TRUE);
+			rts::ClientInstance::skipPrimaryInstance();
+		}
 		else if (strcmp(argv[argi], "-xres") == 0 && argi + 1 < argc)
 		{
 			requestedW = atoi(argv[argi + 1]);
