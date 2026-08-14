@@ -69,13 +69,9 @@ static const char *mapExtension = ".map";
 
 static void appendPathSeparator( AsciiString &path )
 {
-	if (path.isNotEmpty())
+	if (path.isNotEmpty() && !isPathSeparator(path.getCharAt(path.getLength() - 1)))
 	{
-		const char last = path.getCharAt(path.getLength() - 1);
-		if (last != '/' && last != '\\')
-		{
-			path.concat(getNativePathSeparator());
-		}
+		path.concat(getNativePathSeparator());
 	}
 }
 
@@ -85,12 +81,6 @@ static AsciiString getPathInDirectory( const AsciiString &directory, const char 
 	appendPathSeparator(path);
 	path.concat(filename);
 	return path;
-}
-
-static const char *getPathLeaf( const AsciiString &path )
-{
-	const char *separator = getLastPathSeparator(path.str());
-	return separator ? separator + 1 : path.str();
 }
 
 static Int m_width = 0;						///< Height map width.
@@ -570,6 +560,7 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 			continue;
 		}
 
+		// Match against the separator this listing actually used, which is not necessarily the platform one
 		AsciiString endingStr;
 		endingStr.format("%s%c%s%s", filenameLower.str(), *szFilenameLower, filenameLower.str(), mapExtension);
 
@@ -616,7 +607,7 @@ Bool MapCache::addMap(
 			{
 				// unofficial maps or maps without names
 				AsciiString tempdisplayname;
-				tempdisplayname = getPathLeaf(fname);
+				tempdisplayname = getFileName(fname.str());
 				(*this)[lowerFname].m_displayName.translate(tempdisplayname);
 				if (md.m_numPlayers >= 2)
 				{
@@ -678,7 +669,7 @@ Bool MapCache::addMap(
 	{
 		DEBUG_LOG(("Missing TheKey_mapName!"));
 		AsciiString tempdisplayname;
-		tempdisplayname = getPathLeaf(fname);
+		tempdisplayname = getFileName(fname.str());
 		md.m_displayName.translate(tempdisplayname);
 		if (md.m_numPlayers >= 2)
 		{
