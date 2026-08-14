@@ -1557,6 +1557,8 @@ GlobalData::GlobalData()
 
 	m_buildMapCache = FALSE;
 	m_initialFile.clear();
+	m_saveAtFrame = 0;
+	m_saveToFile.clear();
 	m_pendingFile.clear();
 	m_loadSaveGame.clear();
 	m_loadReplayGame.clear();

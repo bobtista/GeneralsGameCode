@@ -3220,6 +3220,21 @@ void GameLogic::update()
 
 	// force CRC calculation, so we can keep a cache of the last N CRCs.  We do this right where the recorder
 	// would be getting the CRC anyway, so replays can get the CRCs from the exact instant in time as the original.
+	// TheSuperHackers @feature bobtista 14/08/2026 Write a save at the requested logic frame and quit
+	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame == TheGlobalData->m_saveAtFrame && getGameMode() != GAME_SHELL)
+	{
+		AsciiString saveName = TheGlobalData->m_saveToFile;
+		if (saveName.isEmpty())
+		{
+			saveName = "commandline.sav";
+		}
+		MAYBE_UNUSED const SaveCode saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"), SAVE_FILE_TYPE_NORMAL);
+		(void)saveResult;
+		DEBUG_LOG(("Command line save to '%s' at frame %d returned %d", saveName.str(), m_frame, (Int)saveResult));
+		TheWritableGlobalData->m_saveAtFrame = 0;
+		TheGameEngine->setQuitting(TRUE);
+	}
+
 	Bool isMPGameOrReplay = (TheRecorder && TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
 	Bool isSoloGameOrReplay = (TheRecorder && !TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
 	Bool generateForMP = (isMPGameOrReplay && (m_frame % TheGameInfo->getCRCInterval()) == 0);
