@@ -27,6 +27,8 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include <numeric>
+#include <vector>
+#include <algorithm>
 
 #include "GameNetwork/FrameMetrics.h"
 #include "GameClient/Display.h"
@@ -63,6 +65,7 @@ void FrameMetrics::init() {
 	m_averageFps = 30;
 	m_averageLatency = (Real)0.2;
 	m_minimumCushion = -1;
+	m_realLatencySamples = 0;
 
 	UnsignedInt i = 0;
 	for (; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -108,6 +111,9 @@ void FrameMetrics::processLatencyResponse(UnsignedInt frame) {
 
 	Int latencyListIndex = frame % TheGlobalData->m_networkLatencyHistoryLength;
 	m_latencyList[latencyListIndex] = (Real)timeDiff / (Real)1000; // convert to seconds from milliseconds.
+	if (m_realLatencySamples < (Int)TheGlobalData->m_networkLatencyHistoryLength) {
+		++m_realLatencySamples;
+	}
 	const Real latencySum = std::accumulate(m_latencyList, m_latencyList + TheGlobalData->m_networkLatencyHistoryLength, 0.0f);
 	m_averageLatency = latencySum / (Real)TheGlobalData->m_networkLatencyHistoryLength;
 
@@ -133,6 +139,27 @@ Int FrameMetrics::getAverageFPS() {
 
 Real FrameMetrics::getAverageLatency() {
 	return m_averageLatency;
+}
+
+Real FrameMetrics::getLatencyPercentile(Real quantile) {
+	const UnsignedInt count = TheGlobalData->m_networkLatencyHistoryLength;
+	if (count == 0) {
+		return m_averageLatency;
+	}
+
+	// Only the entries that hold a measurement. The list is seeded with 0.2s, and sorting those
+	// in would report the seed as the percentile until nearly every slot had been replaced.
+	const UnsignedInt realCount = min<UnsignedInt>((UnsignedInt)m_realLatencySamples, count);
+	if (realCount == 0) {
+		return m_averageLatency;
+	}
+
+	std::vector<Real> sorted(m_latencyList, m_latencyList + realCount);
+	std::sort(sorted.begin(), sorted.end());
+
+	Int index = (Int)(quantile * (Real)(realCount - 1));
+	index = clamp<Int>(0, index, (Int)realCount - 1);
+	return sorted[index];
 }
 
 Int FrameMetrics::getMinimumCushion() {
