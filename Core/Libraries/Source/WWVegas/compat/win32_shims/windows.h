@@ -1068,6 +1068,57 @@ static inline BOOL AdjustWindowRect(LPRECT, DWORD, BOOL)
     return TRUE;
 }
 
+// TheSuperHackers @build bobtista 14/08/2026 Machine and user identity, backed by gethostname
+// and getlogin_r. The size is reported back the way each Win32 call documents it: excluding the
+// terminator for GetComputerName, including it for GetUserName. Callers pass either DWORD* or
+// unsigned long*, which are the same type on Win32 but not here, so both are accepted.
+#define MAX_COMPUTERNAME_LENGTH 31
+#define UNLEN 256
+
+template <typename SizeType>
+static inline BOOL GetComputerNameA(char *buffer, SizeType *size)
+{
+    if (buffer == nullptr || size == nullptr || *size == 0) {
+        return FALSE;
+    }
+
+    if (gethostname(buffer, (size_t)*size) != 0) {
+        return FALSE;
+    }
+
+    buffer[*size - 1] = '\0';
+    *size = (SizeType)strlen(buffer);
+    return TRUE;
+}
+
+template <typename SizeType>
+static inline BOOL GetComputerName(char *buffer, SizeType *size)
+{
+    return GetComputerNameA(buffer, size);
+}
+
+template <typename SizeType>
+static inline BOOL GetUserNameA(char *buffer, SizeType *size)
+{
+    if (buffer == nullptr || size == nullptr || *size == 0) {
+        return FALSE;
+    }
+
+    if (getlogin_r(buffer, (size_t)*size) != 0) {
+        return FALSE;
+    }
+
+    buffer[*size - 1] = '\0';
+    *size = (SizeType)strlen(buffer) + 1;
+    return TRUE;
+}
+
+template <typename SizeType>
+static inline BOOL GetUserName(char *buffer, SizeType *size)
+{
+    return GetUserNameA(buffer, size);
+}
+
 static inline BOOL SetWindowPos(HWND, HWND, int, int, int, int, unsigned int)
 {
     return TRUE;
