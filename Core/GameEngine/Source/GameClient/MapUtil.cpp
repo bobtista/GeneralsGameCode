@@ -552,6 +552,7 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 			continue;
 		}
 
+		// Match against the separator this listing actually used, which is not necessarily the platform one
 		AsciiString endingStr;
 		endingStr.format("%s%c%s%s", filenameLower.str(), *szFilenameLower, filenameLower.str(), mapExtension);
 
