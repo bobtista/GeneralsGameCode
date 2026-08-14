@@ -69,7 +69,7 @@ friend class FFmpegVideoStream;
 friend class OpenALAudioFileCache;
 
 public:
-#if defined(_DEBUG) || defined(_INTERNAL)
+#if defined(RTS_DEBUG)
 	virtual void audioDebugDisplay(DebugDisplayInterface *dd, void *, FILE *fp = NULL);
 	virtual AudioHandle addAudioEvent(const AudioEventRTS *eventToAdd); ///< Add an audio event (event must be declared in an INI file)
 #endif
@@ -264,7 +264,7 @@ protected:
 	AsciiString m_currentMusicTrackName;
 	Int m_currentMusicCompletionCount = 0;
 
-#if defined(_DEBUG) || defined(_INTERNAL)
+#if defined(RTS_DEBUG)
 	typedef std::set<AsciiString> SetAsciiString;
 	typedef SetAsciiString::iterator SetAsciiStringIt;
 	SetAsciiString m_allEventsLoaded;
