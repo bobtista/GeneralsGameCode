@@ -42,10 +42,18 @@ public:
 	void addCushion(Int cushion);
 
 	Real getAverageLatency();
+	// TheSuperHackers @bugfix bobtista 14/08/2026 A mean badly understates what a bursty wireless
+	// link needs: a median of 5ms with a tail to 90ms averages out low, while the run ahead has to
+	// cover the tail or the game stalls on every slow packet.
+	Real getLatencyPercentile(Real quantile);
 	Int getAverageFPS();
 	Int getMinimumCushion();
 
 protected:
+	// How many entries of the seeded latency history have been replaced by real measurements, so
+	// the percentile ignores the seed values.
+	Int m_realLatencySamples;
+
 	// These are used for keeping track of parameters to the run ahead equation.
 	// frames per second history variables.
 	Real *m_fpsList;								///< A record of how many game logic frames per second there were for the last 60 seconds.
