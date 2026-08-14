@@ -132,7 +132,7 @@ OpenALAudioManager::~OpenALAudioManager()
 }
 
 //-------------------------------------------------------------------------------------------------
-#if defined(_DEBUG) || defined(_INTERNAL)
+#if defined(RTS_DEBUG)
 AudioHandle OpenALAudioManager::addAudioEvent(const AudioEventRTS* eventToAdd)
 {
 	if (TheGlobalData->m_preloadReport) {
@@ -145,7 +145,7 @@ AudioHandle OpenALAudioManager::addAudioEvent(const AudioEventRTS* eventToAdd)
 }
 #endif
 
-#if defined(_DEBUG) || defined(_INTERNAL)
+#if defined(RTS_DEBUG)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FILE* fp)
 {
@@ -567,7 +567,7 @@ void OpenALAudioManager::postProcessLoad()
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::reset()
 {
-#if defined(_DEBUG) || defined(_INTERNAL)
+#if defined(RTS_DEBUG)
 	dumpAllAssetsUsed();
 	m_allEventsLoaded.clear();
 #endif
@@ -3890,7 +3890,7 @@ void OpenALAudioManager::friend_forcePlayAudioEventRTS(const AudioEventRTS* even
 	playAudioEvent(event);
 }
 
-#if defined(_DEBUG) || defined(_INTERNAL)
+#if defined(RTS_DEBUG)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::dumpAllAssetsUsed()
 {
