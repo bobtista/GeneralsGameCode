@@ -1767,9 +1767,7 @@ void Drawable::calcPhysicsXformTreads( const Locomotor *locomotor, PhysicsXformI
 		// if we had an overlap last frame, and we're now in the air, give a
 		// kick to the pitch for effect
 		if (physics->getPreviousOverlap() != INVALID_ID && m_locoInfo->m_overlapZ > 0.0f)
-		{
 			m_locoInfo->m_pitchRate += LEAVE_OVERLAP_PITCH_KICK;
-		}
 	}
 
 
@@ -1787,9 +1785,7 @@ void Drawable::calcPhysicsXformTreads( const Locomotor *locomotor, PhysicsXformI
 	{
 		m_locoInfo->m_pitchRate += ((-PITCH_STIFFNESS * (m_locoInfo->m_pitch - groundPitch)) + (-PITCH_DAMPING * m_locoInfo->m_pitchRate));		// spring/damper
 		if (m_locoInfo->m_pitchRate > 0.0f)
-		{
 			m_locoInfo->m_pitchRate *= 0.5f;
-		}
 
 		m_locoInfo->m_rollRate += ((-ROLL_STIFFNESS * (m_locoInfo->m_roll - groundRoll)) + (-ROLL_DAMPING * m_locoInfo->m_rollRate));		// spring/damper
 	}
@@ -1984,25 +1980,24 @@ void Drawable::calcPhysicsXformWheels( const Locomotor *locomotor, PhysicsXformI
 		Real factor = curSpeed/maxSpeed;
 		if (fabs(m_locoInfo->m_pitchRate)<factor*BOUNCE_ANGLE_KICK/4 && fabs(m_locoInfo->m_rollRate)<factor*BOUNCE_ANGLE_KICK/8)
 		{
-			const Real scaledBounceKick = BOUNCE_ANGLE_KICK * factor;
 			// do the bouncy.
 			switch (GameClientRandomValue(0,3))
 			{
 			case 0:
-				m_locoInfo->m_pitchRate -= scaledBounceKick;
-				m_locoInfo->m_rollRate -= scaledBounceKick/2;
+				m_locoInfo->m_pitchRate -= BOUNCE_ANGLE_KICK*factor;
+				m_locoInfo->m_rollRate -= BOUNCE_ANGLE_KICK*factor/2;
 				break;
 			case 1:
-				m_locoInfo->m_pitchRate += scaledBounceKick;
-				m_locoInfo->m_rollRate -= scaledBounceKick/2;
+				m_locoInfo->m_pitchRate += BOUNCE_ANGLE_KICK*factor;
+				m_locoInfo->m_rollRate -= BOUNCE_ANGLE_KICK*factor/2;
 				break;
 			case 2:
-				m_locoInfo->m_pitchRate -= scaledBounceKick;
-				m_locoInfo->m_rollRate += scaledBounceKick/2;
+				m_locoInfo->m_pitchRate -= BOUNCE_ANGLE_KICK*factor;
+				m_locoInfo->m_rollRate += BOUNCE_ANGLE_KICK*factor/2;
 				break;
 			case 3:
-				m_locoInfo->m_pitchRate += scaledBounceKick;
-				m_locoInfo->m_rollRate += scaledBounceKick/2;
+				m_locoInfo->m_pitchRate += BOUNCE_ANGLE_KICK*factor;
+				m_locoInfo->m_rollRate += BOUNCE_ANGLE_KICK*factor/2;
 				break;
 			}
 		}
@@ -2017,9 +2012,7 @@ void Drawable::calcPhysicsXformWheels( const Locomotor *locomotor, PhysicsXformI
 	{
 		m_locoInfo->m_pitchRate += ((-PITCH_STIFFNESS * (m_locoInfo->m_pitch - groundPitch)) + (-PITCH_DAMPING * m_locoInfo->m_pitchRate));		// spring/damper
 		if (m_locoInfo->m_pitchRate > 0.0f)
-		{
 			m_locoInfo->m_pitchRate *= 0.5f;
-		}
 
 		m_locoInfo->m_rollRate += ((-ROLL_STIFFNESS * (m_locoInfo->m_roll - groundRoll)) + (-ROLL_DAMPING * m_locoInfo->m_rollRate));		// spring/damper
 	}
@@ -2282,25 +2275,24 @@ void Drawable::calcPhysicsXformMotorcycle( const Locomotor *locomotor, PhysicsXf
 		Real factor = curSpeed/maxSpeed;
 		if (fabs(m_locoInfo->m_pitchRate)<factor*BOUNCE_ANGLE_KICK/4 && fabs(m_locoInfo->m_rollRate)<factor*BOUNCE_ANGLE_KICK/8)
 		{
-			const Real scaledBounceKick = BOUNCE_ANGLE_KICK * factor;
 			// do the bouncy.
 			switch (GameClientRandomValue(0,3))
 			{
 			case 0:
-				m_locoInfo->m_pitchRate -= scaledBounceKick;
-				m_locoInfo->m_rollRate -= scaledBounceKick/2;
+				m_locoInfo->m_pitchRate -= BOUNCE_ANGLE_KICK*factor;
+				m_locoInfo->m_rollRate -= BOUNCE_ANGLE_KICK*factor/2;
 				break;
 			case 1:
-				m_locoInfo->m_pitchRate += scaledBounceKick;
-				m_locoInfo->m_rollRate -= scaledBounceKick/2;
+				m_locoInfo->m_pitchRate += BOUNCE_ANGLE_KICK*factor;
+				m_locoInfo->m_rollRate -= BOUNCE_ANGLE_KICK*factor/2;
 				break;
 			case 2:
-				m_locoInfo->m_pitchRate -= scaledBounceKick;
-				m_locoInfo->m_rollRate += scaledBounceKick/2;
+				m_locoInfo->m_pitchRate -= BOUNCE_ANGLE_KICK*factor;
+				m_locoInfo->m_rollRate += BOUNCE_ANGLE_KICK*factor/2;
 				break;
 			case 3:
-				m_locoInfo->m_pitchRate += scaledBounceKick;
-				m_locoInfo->m_rollRate += scaledBounceKick/2;
+				m_locoInfo->m_pitchRate += BOUNCE_ANGLE_KICK*factor;
+				m_locoInfo->m_rollRate += BOUNCE_ANGLE_KICK*factor/2;
 				break;
 			}
 		}
@@ -5063,7 +5055,6 @@ void Drawable::xfer( Xfer *xfer )
 	xfer->xferUser( &m_fadeMode, sizeof( FadingMode ) );
 
 	// time elapsed fade
-	// TheSuperHackers @tweak Changed from UnsignedInt to Real for frame-rate independent fading.
 	if (version >= 9)
 	{
 		xfer->xferReal( &m_timeElapsedFade );

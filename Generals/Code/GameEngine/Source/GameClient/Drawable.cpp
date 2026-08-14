@@ -5050,7 +5050,6 @@ void Drawable::xfer( Xfer *xfer )
 	xfer->xferUser( &m_fadeMode, sizeof( FadingMode ) );
 
 	// time elapsed fade
-	// TheSuperHackers @tweak Changed from UnsignedInt to Real for frame-rate independent fading.
 	if (version >= 9)
 	{
 		xfer->xferReal( &m_timeElapsedFade );
