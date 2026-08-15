@@ -2834,7 +2834,13 @@ void PartitionManager::update()
 #endif
 		TheContactList = nullptr;
 
-		processPendingUndoShroudRevealQueue();
+		// TheSuperHackers @bugfix bobtista 15/08/2026 Leave the restored queue alone while a save is
+		// loading. The post process load runs one extra update that the save side never ran, and
+		// draining here retires shroud reveals a frame earlier than the saved game would have.
+		if( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE )
+		{
+			processPendingUndoShroudRevealQueue();
+		}
 	}
 
 #if defined(RTS_DEBUG)

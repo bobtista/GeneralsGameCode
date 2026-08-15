@@ -31,6 +31,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameAudio.h"
+#include "Common/GameState.h"
 #include "Common/GameUtility.h"
 #include "Common/GlobalData.h"
 #include "Common/INI.h"
@@ -137,7 +138,11 @@ SpecialPowerModule::SpecialPowerModule( Thing *thing, const ModuleData *moduleDa
 	// but there is already a science granted for our shared superweapon,
 	// lets make sure TheIngameUI knows about our public timer
 	// add this weapon to the UI if it has a public timer for all to see
+	// TheSuperHackers @bugfix bobtista 15/08/2026 Leave this registration to loadPostProcess while a
+	// save is loading, because the object is still on the neutral player with a temporary id here and
+	// would register an entry that nothing can ever find or remove.
 	if( m_pausedCount == 0 &&
+			( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE ) &&
 			getSpecialPowerTemplate()->isSharedNSync() == TRUE &&
 			getSpecialPowerTemplate()->hasPublicTimer() == TRUE &&
 			getObject()->getControllingPlayer() &&
