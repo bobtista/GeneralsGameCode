@@ -1478,6 +1478,7 @@ DozerAIUpdate::DozerAIUpdate( Thing *thing, const ModuleData* moduleData ) :
 	}
 	m_currentTask = DOZER_TASK_INVALID;
 	m_previousTask = DOZER_TASK_INVALID;
+	m_isRebuild = FALSE;
 
 	m_buildSubTask = DOZER_SELECT_BUILD_DOCK_LOCATION;  // irrelevant, but I want non-garbage value
 
@@ -2557,6 +2558,8 @@ void DozerAIUpdate::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version
 	* 2: TheSuperHackers @tweak Stubbjax 17/11/2025 Save the dozer's previous task
+	* 3: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize m_isRebuild, so a structure that
+	*    finishes rebuilding after a load is not scored a second time as a newly built structure
 	*/
 // ------------------------------------------------------------------------------------------------
 void DozerAIUpdate::xfer( Xfer *xfer )
@@ -2565,7 +2568,7 @@ void DozerAIUpdate::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
 #else
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 #endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
@@ -2606,6 +2609,11 @@ void DozerAIUpdate::xfer( Xfer *xfer )
 		}
 	}
 	xfer->xferUser(&m_buildSubTask, sizeof(m_buildSubTask));
+
+	if (version >= 3)
+	{
+		xfer->xferBool(&m_isRebuild);
+	}
 
 }
 
