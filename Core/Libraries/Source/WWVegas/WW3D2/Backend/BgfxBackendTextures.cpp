@@ -2122,9 +2122,9 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
 // TheSuperHackers @performance bobtista 08/07/2026 Persistent texture pages for
 // the sorted texture-array merge path. Adjacent sorted runs that differ only by
 // their stage-0 texture can render as one draw when every texture lives in the
-// same texture2DArray page; the layer index rides in the vertex stream. Pages
-// are keyed by (width, height, mip count) and filled once per texture from the
-// CPU mip snapshots, so there is no per-frame array churn.
+// same texture2DArray page; the layer index rides in the vertex stream. Each
+// texture's base level is filled once from its CPU snapshot, so there is no
+// per-frame array churn.
 
 namespace
 {
@@ -2135,7 +2135,6 @@ constexpr uint16_t kSortedArrayPageCapacity = 64;
 // occupies the top-left (w, h) region of its layer; the sorted merge path
 // pre-scales the vertex UVs by (w, h) / kSortedArrayPageDim.
 constexpr unsigned kSortedArrayPageDim = 256;
-constexpr unsigned kSortedArrayPageMips = 9; // 256..1 full chain
 
 struct SortedTexturePage
 {
@@ -2269,81 +2268,33 @@ void DecodeSortedArrayMip(std::vector<uint8_t> & out, const TextureBaseClass::Te
     }
 }
 
-// Box-downsample one BGRA8 level to the next (used to extend a texture's mip
-// chain down to the page's 1x1 so no page level is left undefined).
-void DownsampleSortedArrayMip(std::vector<uint8_t> & out, const std::vector<uint8_t> & src,
-                              unsigned srcW, unsigned srcH)
-{
-    const unsigned dstW = srcW > 1 ? srcW / 2 : 1;
-    const unsigned dstH = srcH > 1 ? srcH / 2 : 1;
-    out.resize(static_cast<size_t>(dstW) * dstH * 4);
-    for (unsigned y = 0; y < dstH; ++y)
-    {
-        for (unsigned x = 0; x < dstW; ++x)
-        {
-            const unsigned sx0 = x * 2;
-            const unsigned sy0 = y * 2;
-            const unsigned sx1 = (sx0 + 1 < srcW) ? sx0 + 1 : sx0;
-            const unsigned sy1 = (sy0 + 1 < srcH) ? sy0 + 1 : sy0;
-            for (unsigned c = 0; c < 4; ++c)
-            {
-                const unsigned sum =
-                    src[(static_cast<size_t>(sy0) * srcW + sx0) * 4 + c] + src[(static_cast<size_t>(sy0) * srcW + sx1) * 4 + c]
-                    + src[(static_cast<size_t>(sy1) * srcW + sx0) * 4 + c] + src[(static_cast<size_t>(sy1) * srcW + sx1) * 4 + c];
-                out[(static_cast<size_t>(y) * dstW + x) * 4 + c] = static_cast<uint8_t>(sum / 4);
-            }
-        }
-    }
-}
-
 void UploadSortedArrayLayer(const SortedTexturePage & page,
                             uint16_t layer,
                             const std::vector<TextureBaseClass::TextureMipSnapshot> & mips)
 {
-    // Every page level is uploaded at FULL page dimensions with the texture's
-    // region at the top left and transparent black elsewhere, so no texel of
-    // the layer is ever left undefined (region-edge filtering and deep-mip
-    // minification would otherwise read uninitialized GPU memory). Levels
-    // below the texture's own chain keep box-downsampling to the page's 1x1.
+    // Sorted point-group particles intentionally bind the existing one-mip
+    // compatibility texture in the classic path (see
+    // ShouldBindSortedParticleBaseMip). Authored lower effect mips can erase
+    // thin smoke and contrail sprites at normal gameplay zoom. Keep the array
+    // path equivalent: upload only level 0 into a one-mip array page. Upload
+    // the full canonical layer so filtering at the packed region edge reads
+    // defined transparent texels.
     std::vector<uint8_t> region;
-    std::vector<uint8_t> next;
-    unsigned levelW = 0;
-    unsigned levelH = 0;
-    for (unsigned m = 0; m < kSortedArrayPageMips; ++m)
+    DecodeSortedArrayMip(region, mips[0]);
+    const bgfx::Memory * mem = bgfx::alloc(kSortedArrayPageDim * kSortedArrayPageDim * 4);
+    std::memset(mem->data, 0, mem->size);
+    for (unsigned row = 0; row < mips[0].Height; ++row)
     {
-        if (m < mips.size())
-        {
-            DecodeSortedArrayMip(region, mips[m]);
-            levelW = mips[m].Width;
-            levelH = mips[m].Height;
-        }
-        else if (levelW > 1 || levelH > 1)
-        {
-            DownsampleSortedArrayMip(next, region, levelW, levelH);
-            region.swap(next);
-            levelW = levelW > 1 ? levelW / 2 : 1;
-            levelH = levelH > 1 ? levelH / 2 : 1;
-        }
-        // else: 1x1 content is replicated into the remaining deeper page mips.
-
-        const unsigned pageW = kSortedArrayPageDim >> m > 1 ? kSortedArrayPageDim >> m : 1;
-        const unsigned pageH = pageW;
-        const bgfx::Memory * mem = bgfx::alloc(pageW * pageH * 4);
-        std::memset(mem->data, 0, mem->size);
-        for (unsigned row = 0; row < levelH && row < pageH; ++row)
-        {
-            const unsigned copyW = levelW < pageW ? levelW : pageW;
-            std::memcpy(mem->data + static_cast<size_t>(row) * pageW * 4,
-                        region.data() + static_cast<size_t>(row) * levelW * 4,
-                        static_cast<size_t>(copyW) * 4);
-        }
-        bgfx::updateTexture2D(page.handle, layer, static_cast<uint8_t>(m),
-                              0, 0,
-                              static_cast<uint16_t>(pageW),
-                              static_cast<uint16_t>(pageH),
-                              mem,
-                              static_cast<uint16_t>(pageW * 4));
+        std::memcpy(mem->data + static_cast<size_t>(row) * kSortedArrayPageDim * 4,
+                    region.data() + static_cast<size_t>(row) * mips[0].Width * 4,
+                    static_cast<size_t>(mips[0].Width) * 4);
     }
+    bgfx::updateTexture2D(page.handle, layer, 0,
+                          0, 0,
+                          static_cast<uint16_t>(kSortedArrayPageDim),
+                          static_cast<uint16_t>(kSortedArrayPageDim),
+                          mem,
+                          static_cast<uint16_t>(kSortedArrayPageDim * 4));
 }
 
 } // namespace
@@ -2386,7 +2337,7 @@ int BgfxSortedTextureArrayGetSlot(TextureBaseClass * texture, int * outLayer, fl
             fresh.handle = bgfx::createTexture2D(
                 static_cast<uint16_t>(kSortedArrayPageDim),
                 static_cast<uint16_t>(kSortedArrayPageDim),
-                true,
+                false,
                 kSortedArrayPageCapacity,
                 bgfx::TextureFormat::BGRA8,
                 BGFX_TEXTURE_NONE);
