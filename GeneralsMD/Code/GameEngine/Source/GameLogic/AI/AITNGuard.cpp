@@ -272,7 +272,11 @@ void AITNGuardMachine::crc( Xfer *xfer )
 void AITNGuardMachine::xfer( Xfer *xfer )
 {
   // version
+#if RETAIL_COMPATIBLE_XFER_SAVE
   XferVersion currentVersion = 2;
+#else
+  XferVersion currentVersion = 3;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -282,6 +286,10 @@ void AITNGuardMachine::xfer( Xfer *xfer )
 
 	xfer->xferObjectID(&m_nemesisToAttack);
 	xfer->xferCoord3D(&m_positionToGuard);
+
+	if (version>=3) {
+		xfer->xferUser(&m_guardMode, sizeof(m_guardMode));
+	}
 
 }
 
