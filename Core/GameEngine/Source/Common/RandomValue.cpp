@@ -76,6 +76,22 @@ UnsignedInt GetGameLogicRandomSeedCRC()
 	return c.get();
 }
 
+void GetGameLogicRandomState( UnsignedInt (&state)[GAMELOGIC_RANDOM_STATE_SIZE] )
+{
+	for( Int i = 0; i < GAMELOGIC_RANDOM_STATE_SIZE; ++i )
+	{
+		state[i] = theGameLogicSeed[i];
+	}
+}
+
+void SetGameLogicRandomState( const UnsignedInt (&state)[GAMELOGIC_RANDOM_STATE_SIZE] )
+{
+	for( Int i = 0; i < GAMELOGIC_RANDOM_STATE_SIZE; ++i )
+	{
+		theGameLogicSeed[i] = state[i];
+	}
+}
+
 static void seedRandom(UnsignedInt SEED, UnsignedInt (&seed)[6])
 {
 	UnsignedInt ax;

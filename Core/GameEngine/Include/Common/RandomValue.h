@@ -35,6 +35,12 @@ extern void InitRandom( UnsignedInt seed );
 extern UnsignedInt GetGameLogicRandomSeed();   ///< Get the seed (used for replays)
 extern UnsignedInt GetGameLogicRandomSeedCRC();///< Get the seed (used for CRCs)
 
+// TheSuperHackers @bugfix bobtista 15/08/2026 Expose the live generator state so a save can carry
+// it. The base seed above only identifies the start of a game, and cannot resume one part way in.
+enum { GAMELOGIC_RANDOM_STATE_SIZE = 6 };
+extern void GetGameLogicRandomState( UnsignedInt (&state)[GAMELOGIC_RANDOM_STATE_SIZE] );
+extern void SetGameLogicRandomState( const UnsignedInt (&state)[GAMELOGIC_RANDOM_STATE_SIZE] );
+
 struct RandomValueClass
 {
 	virtual Int GetRandomValueInt( Int lo, Int hi, const char *file, Int line ) const = 0;

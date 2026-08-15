@@ -4994,6 +4994,8 @@ void GameLogic::prepareLogicForObjectLoad()
 	* 9: Added m_rankPointsToAddAtGameStart, or else on a load game, your RestartGame button will forget your exp
   * 10: xfer m_superweaponRestriction
   * 11: TheSuperHackers @fix Save objects in reverse order so they load in correct order
+	* 12: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize the logic random generator state, so
+	*     a loaded game continues the same random sequence instead of starting a divergent one
 	*/
 // ------------------------------------------------------------------------------------------------
 void GameLogic::xfer( Xfer *xfer )
@@ -5003,7 +5005,7 @@ void GameLogic::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 10;
 #else
-	const XferVersion currentVersion = 11;
+	const XferVersion currentVersion = 12;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -5353,6 +5355,24 @@ void GameLogic::xfer( Xfer *xfer )
   {
     m_superweaponRestriction = 0;
   }
+
+	//
+	// the logic random generator state goes last, so that the random values consumed while
+	// re-creating objects above are discarded rather than left as the state play resumes from
+	//
+	if( version >= 12 )
+	{
+		UnsignedInt randomState[GAMELOGIC_RANDOM_STATE_SIZE];
+		GetGameLogicRandomState( randomState );
+		for( Int i = 0; i < GAMELOGIC_RANDOM_STATE_SIZE; ++i )
+		{
+			xfer->xferUnsignedInt( &randomState[i] );
+		}
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			SetGameLogicRandomState( randomState );
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
