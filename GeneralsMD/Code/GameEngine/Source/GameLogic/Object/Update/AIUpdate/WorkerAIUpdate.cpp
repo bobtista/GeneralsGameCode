@@ -1441,6 +1441,8 @@ void WorkerAIUpdate::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version
 	* 2: TheSuperHackers @tweak Stubbjax 17/11/2025 Save the worker's previous task
+	* 3: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize m_isRebuild, so a structure that
+	*    finishes rebuilding after a load is not scored a second time as a newly built structure
 	*/
 // ------------------------------------------------------------------------------------------------
 void WorkerAIUpdate::xfer( Xfer *xfer )
@@ -1448,7 +1450,7 @@ void WorkerAIUpdate::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
 #else
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 #endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
@@ -1473,7 +1475,9 @@ void WorkerAIUpdate::xfer( Xfer *xfer )
 	xfer->xferSnapshot(m_dozerMachine);
 	xfer->xferUser(&m_currentTask, sizeof(m_currentTask));
 
-	if (currentVersion >= 2)
+	// TheSuperHackers @bugfix bobtista 15/08/2026 Gate on the version that was read, not on the
+	// version this build writes, so that an older save is not read past its end.
+	if (version >= 2)
 	{
 		xfer->xferUser(&m_previousTask, sizeof(m_previousTask));
 		xfer->xferUser(&m_previousTaskInfo, sizeof(m_previousTaskInfo));
@@ -1502,6 +1506,11 @@ void WorkerAIUpdate::xfer( Xfer *xfer )
 
 	//-------------------------- xfer Worker info
 	xfer->xferSnapshot(m_workerMachine);
+
+	if (version >= 3)
+	{
+		xfer->xferBool(&m_isRebuild);
+	}
 
 }
 
