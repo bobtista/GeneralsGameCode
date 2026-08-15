@@ -4211,18 +4211,35 @@ void GameLogic::update()
 	// force CRC calculation, so we can keep a cache of the last N CRCs.  We do this right where the recorder
 	// would be getting the CRC anyway, so replays can get the CRCs from the exact instant in time as the original.
 	// TheSuperHackers @feature bobtista 14/08/2026 Write a save at the requested logic frame and quit
-	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame == TheGlobalData->m_saveAtFrame && getGameMode() != GAME_SHELL)
+	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_saveAtFrame && getGameMode() != GAME_SHELL)
 	{
-		AsciiString saveName = TheGlobalData->m_saveToFile;
-		if (saveName.isEmpty())
+		//
+		// TheSuperHackers @bugfix bobtista 15/08/2026 Only write a save the game itself would let the
+		// player write. The Save button is disabled whenever input is disabled, which is how a
+		// cinematic is detected, and a save taken then loses the letterbox state it was made in
+		// because m_inputEnabled is deliberately not serialized. Wait for the first frame that
+		// allows it instead, which is why the frame test above is >= rather than ==.
+		//
+		if (TheInGameUI != nullptr && TheInGameUI->getInputEnabled() == FALSE)
 		{
-			saveName = "commandline.sav";
+			if ((Int)m_frame == TheGlobalData->m_saveAtFrame)
+			{
+				DEBUG_LOG(("Command line save deferred at frame %d: input is disabled, waiting for a frame that allows saving", m_frame));
+			}
 		}
-		MAYBE_UNUSED const SaveCode saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"), SAVE_FILE_TYPE_NORMAL);
-		(void)saveResult;
-		DEBUG_LOG(("Command line save to '%s' at frame %d returned %d", saveName.str(), m_frame, (Int)saveResult));
-		TheWritableGlobalData->m_saveAtFrame = 0;
-		TheGameEngine->setQuitting(TRUE);
+		else
+		{
+			AsciiString saveName = TheGlobalData->m_saveToFile;
+			if (saveName.isEmpty())
+			{
+				saveName = "commandline.sav";
+			}
+			MAYBE_UNUSED const SaveCode saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"), SAVE_FILE_TYPE_NORMAL);
+			(void)saveResult;
+			DEBUG_LOG(("Command line save to '%s' at frame %d returned %d", saveName.str(), m_frame, (Int)saveResult));
+			TheWritableGlobalData->m_saveAtFrame = 0;
+			TheGameEngine->setQuitting(TRUE);
+		}
 	}
 
 	Bool isMPGameOrReplay = (TheRecorder && TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);

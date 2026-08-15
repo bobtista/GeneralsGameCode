@@ -1034,7 +1034,12 @@ void GameEngine::execute()
 		AsciiString fullPath = TheGameState->getFilePathInSaveDirectory(gameInfo.filename);
 		TheGameState->getSaveGameInfoFromFile(fullPath, &gameInfo.saveGameInfo);
 
-		TheGameLogic->prepareNewGame(GAME_SINGLE_PLAYER, DIFFICULTY_NORMAL, 0);
+		// TheSuperHackers @bugfix bobtista 15/08/2026 Prepare the mode the save was actually made in.
+		// A save written outside a campaign carries an empty campaign side. Forcing single player
+		// made every skirmish save fail to load, which reads as a corrupt save rather than as the
+		// wrong mode being prepared.
+		const GameMode savedGameMode = gameInfo.saveGameInfo.campaignSide.isEmpty() ? GAME_SKIRMISH : GAME_SINGLE_PLAYER;
+		TheGameLogic->prepareNewGame(savedGameMode, DIFFICULTY_NORMAL, 0);
 
 		if (TheGameState->loadGame(gameInfo) == SC_OK)
 		{
