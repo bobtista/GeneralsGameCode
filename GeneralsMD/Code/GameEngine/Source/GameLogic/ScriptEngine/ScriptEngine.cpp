@@ -9346,7 +9346,7 @@ void ScriptEngine::xfer( Xfer *xfer )
 		{
 
 			// number of entries for this player
-			UnsignedShort objectCountSize = m_objectCounts[ i ].size();
+			UnsignedShort objectCountSize = (UnsignedShort)m_objectCounts[ i ].size();
 			xfer->xferUnsignedShort( &objectCountSize );
 
 			if( xfer->getXferMode() == XFER_SAVE )
