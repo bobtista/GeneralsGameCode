@@ -257,6 +257,17 @@ int main(int argc, char **argv)
 		SDL_SetWindowFullscreen(TheSDL3Window, true);
 		SDL_SyncWindow(TheSDL3Window);
 	}
+	else
+	{
+		// TheSuperHackers @bugfix bobtista 15/08/2026 Raise the window so it becomes the key window.
+		// A window created by a process that is not already frontmost does not reliably become key on
+		// macOS. When it loses that race no SDL_EVENT_WINDOW_FOCUS_GAINED ever arrives, so the engine
+		// stays inactive, no keyboard events are delivered (Escape cannot skip the intro), and macOS
+		// swallows most clicks as activation attempts, which reads as menu buttons needing to be
+		// clicked repeatedly. The fullscreen path above already raises the window and is unaffected.
+		SDL_ShowWindow(TheSDL3Window);
+		SDL_RaiseWindow(TheSDL3Window);
+	}
 #endif
 
 	// TheSuperHackers @build bobtista 30/04/2026 Mirror the early-init the
