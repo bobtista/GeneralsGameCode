@@ -5080,6 +5080,10 @@ void AIUpdateInterface::crc( Xfer *x )
 	* 3: Removed lastFrameMoved and repulsorCountdown; removed surrender and demoralize variables
 	* 4: Read m_curLocomotorSet from ini
 	* 5: TheSuperHackers @fix Fixed out-of-bounds xfer of m_guardTargetType
+	* 6: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize m_isMoving in the slot that
+	*    repeated m_isSafePath, so a unit that is moving without a live locomotor goal keeps
+	*    its pathfind reservation on load, and serialize m_allowedToChase, so assault transport
+	*    passengers may still close on the target they were sent to attack
 	*/
 // ------------------------------------------------------------------------------------------------
 void AIUpdateInterface::xfer( Xfer *xfer )
@@ -5088,7 +5092,7 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 4;
 #else
-	const XferVersion currentVersion = 5;
+	const XferVersion currentVersion = 6;
 #endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
@@ -5208,8 +5212,19 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 	xfer->xferBool(&m_isApproachPath);
 	xfer->xferBool(&m_isSafePath);
 	xfer->xferBool(&m_movementComplete);
-	xfer->xferBool(&m_isSafePath);
+	if (version >= 6)
+	{
+		xfer->xferBool(&m_isMoving);
+	}
+	else
+	{
+		xfer->xferBool(&m_isSafePath);
+	}
 	xfer->xferBool(&m_upgradedLocomotors);
+	if (version >= 6)
+	{
+		xfer->xferBool(&m_allowedToChase);
+	}
 	xfer->xferBool(&m_canPathThroughUnits);
 	xfer->xferBool(&m_randomlyOffsetMoodCheck);
 	xfer->xferObjectID(&m_repulsor1);
