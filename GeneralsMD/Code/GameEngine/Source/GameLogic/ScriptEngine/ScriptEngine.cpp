@@ -8837,6 +8837,9 @@ void ScriptEngine::setGlobalDifficulty( GameDifficulty difficulty )
 	* 3: Added m_objectsShouldReceiveDifficultyBonus (JKMCD)
 	* 4: current music track info
 	* 5: add ChooseVictimAlwaysUsesNormal
+	* 6: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize m_objectCounts, so the first
+	*    PLAYER_LOST_OBJECT_TYPE evaluation after a load still compares against the baseline
+	*    that was current when the game was saved
 	*/
 // ------------------------------------------------------------------------------------------------
 void ScriptEngine::xfer( Xfer *xfer )
@@ -8844,7 +8847,11 @@ void ScriptEngine::xfer( Xfer *xfer )
 	Int i;
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 5;
+#else
+	const XferVersion currentVersion = 6;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -9301,6 +9308,56 @@ void ScriptEngine::xfer( Xfer *xfer )
 	else
 	{
 		m_ChooseVictimAlwaysUsesNormal = false;
+	}
+
+	// object counts
+	if( version >= 6 )
+	{
+
+		for( i = 0; i < MAX_PLAYER_COUNT; ++i )
+		{
+
+			// number of entries for this player
+			UnsignedShort objectCountSize = m_objectCounts[ i ].size();
+			xfer->xferUnsignedShort( &objectCountSize );
+
+			if( xfer->getXferMode() == XFER_SAVE )
+			{
+
+				// write each object type name and its count
+				ObjectTypeCount::const_iterator it;
+				for( it = m_objectCounts[ i ].begin(); it != m_objectCounts[ i ].end(); ++it )
+				{
+
+					AsciiString objectTypeName = it->first;
+					Int count = it->second;
+					xfer->xferAsciiString( &objectTypeName );
+					xfer->xferInt( &count );
+
+				}
+
+			}
+			else
+			{
+
+				m_objectCounts[ i ].clear();
+
+				// read each object type name and its count
+				for( UnsignedShort j = 0; j < objectCountSize; ++j )
+				{
+
+					AsciiString objectTypeName;
+					Int count = 0;
+					xfer->xferAsciiString( &objectTypeName );
+					xfer->xferInt( &count );
+					m_objectCounts[ i ][ objectTypeName ] = count;
+
+				}
+
+			}
+
+		}
+
 	}
 
 	if( xfer->getXferMode() == XFER_LOAD ) {

@@ -320,12 +320,21 @@ void AIGuardMachine::crc( Xfer *xfer )
 }
 
 // ------------------------------------------------------------------------------------------------
-/** Xfer Method */
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: Added the base StateMachine xfer
+	* 3: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize m_guardMode, so a unit set to guard
+	*    without pursuit, or to guard flying units only, keeps that mode on load */
 // ------------------------------------------------------------------------------------------------
 void AIGuardMachine::xfer( Xfer *xfer )
 {
   // version
+#if RETAIL_COMPATIBLE_XFER_SAVE
   XferVersion currentVersion = 2;
+#else
+  XferVersion currentVersion = 3;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -336,6 +345,10 @@ void AIGuardMachine::xfer( Xfer *xfer )
 	xfer->xferObjectID(&m_targetToGuard);
 	xfer->xferObjectID(&m_nemesisToAttack);
 	xfer->xferCoord3D(&m_positionToGuard);
+
+	if (version>=3) {
+		xfer->xferUser(&m_guardMode, sizeof(m_guardMode));
+	}
 
 	AsciiString triggerName;
 	if (m_areaToGuard) triggerName = m_areaToGuard->getTriggerName();
