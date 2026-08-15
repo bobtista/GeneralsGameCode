@@ -30,6 +30,7 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "Common/GameState.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "Common/ResourceGatheringManager.h"
@@ -56,6 +57,14 @@ void SupplyWarehouseCreate::onCreate()
 	// Warehouses are never Built.
 	if( ThePlayerList == nullptr )
 		return;
+
+	// TheSuperHackers @bugfix bobtista 15/08/2026 Skip this while a save is loading. The object holds
+	// a temporary id until its own data is read, so registering here appends a second entry that no
+	// warehouse ever matches, on top of the list the players already restored.
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
 
 	for( Int playerIndex = ThePlayerList->getPlayerCount() - 1; playerIndex >= 0; playerIndex-- )
 	{
