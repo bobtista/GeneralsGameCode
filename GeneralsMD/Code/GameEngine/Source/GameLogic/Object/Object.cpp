@@ -5108,7 +5108,13 @@ void Object::look()
 				}
 
 				Coord3D pos = *getPosition();
-				ThePartitionManager->doShroudReveal( pos.x, pos.y, shroudClearingRange, lookingMask );
+				// TheSuperHackers @bugfix bobtista 15/08/2026 Do not touch the cells while a save is
+				// loading. The saved cells already carry this object's reveal, and its look record is
+				// restored with them, so revealing again here counts the same looker twice.
+				if( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE )
+				{
+					ThePartitionManager->doShroudReveal( pos.x, pos.y, shroudClearingRange, lookingMask );
+				}
 
 				m_partitionLastLook->m_where = pos;
 				m_partitionLastLook->m_forWhom = lookingMask;
@@ -5138,7 +5144,10 @@ void Object::look()
 				{
 					Coord3D pos = *getPosition();
 					PlayerMaskType thePlayersMask = ThePlayerList->getPlayersWithRelationship( getControllingPlayer()->getPlayerIndex(), ALLOW_ENEMIES | ALLOW_NEUTRAL );
-					ThePartitionManager->doShroudReveal( pos.x, pos.y, shroudRevealToAllRange, thePlayersMask );
+					if( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE )
+					{
+						ThePartitionManager->doShroudReveal( pos.x, pos.y, shroudRevealToAllRange, thePlayersMask );
+					}
 					m_partitionRevealAllLastLook->m_where = pos;
 					m_partitionRevealAllLastLook->m_forWhom = thePlayersMask;
 					m_partitionRevealAllLastLook->m_howFar = shroudRevealToAllRange;
