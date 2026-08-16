@@ -282,6 +282,40 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			continue;
 		}
 
+		// TheSuperHackers @perf 16/08/2026 Mauller Test if particle system has any visible particles that can be drawn
+		// Earlier visibility testing prevents the particle texture lookup which can cause a batch flush
+		Bool hasVisibleParticle = FALSE;
+		for (Particle *vp = sys->getFirstParticle(); vp; vp = vp->m_systemNext)
+		{
+			const Coord3D *vpos = vp->getPosition();
+			Real vpsize = vp->getSize();
+
+			//Test if particle is at the screen or terrain edges.
+			if (WWMath::Fabsf_Legacy(vpos->x - bcX) > (beX + vpsize))
+			{
+				continue;
+			}
+
+			if (WWMath::Fabsf_Legacy(vpos->y - bcY) > (beY + vpsize))
+			{
+				continue;
+			}
+
+			if (WWMath::Fabsf_Legacy(vpos->z - bcZ) > (beZ + vpsize))
+			{
+				continue;
+			}
+
+			hasVisibleParticle = TRUE;
+			break;
+		}
+
+		// Particle system has no particles on screen
+		if (!hasVisibleParticle)
+		{
+			continue;
+		}
+
 		/// @todo lorenzen sez: declare these outside the sys loop, and put some in registers
 		// initialize them here still, of course
 		// build W3D particle buffer
