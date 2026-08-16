@@ -57,6 +57,8 @@ Bool g_crcModuleDataFromClient = FALSE;
 Bool g_verifyClientCRC = FALSE; // verify that GameLogic CRC doesn't change from client
 Bool g_clientDeepCRC = FALSE;
 Bool g_logObjectCRCs = FALSE;
+Bool g_logCRCGenLines = FALSE;
+Bool g_logCRCDebugLines = FALSE;
 #endif
 
 #if defined(RTS_DEBUG)
@@ -309,6 +311,26 @@ Int parseLogObjectCRCs(char *args[], int argc)
 {
 #ifdef DEBUG_CRC
 	g_logObjectCRCs = TRUE;
+#endif
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
+Int parseLogCRCGenLines(char *args[], int argc)
+{
+#ifdef DEBUG_CRC
+	g_logCRCGenLines = TRUE;
+#endif
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
+Int parseLogCRCDebugLines(char *args[], int argc)
+{
+#ifdef DEBUG_CRC
+	g_logCRCDebugLines = TRUE;
 #endif
 	return 1;
 }
@@ -1421,6 +1443,8 @@ static CommandLineParam paramsForEngineInit[] =
 
 	// Log CRC of Objects and Weapons (See Object::crc and Weapon::crc)
 	{ "-LogObjectCRCs", parseLogObjectCRCs },
+	{ "-LogCRCGenLines", parseLogCRCGenLines },
+	{ "-LogCRCDebugLines", parseLogCRCDebugLines },
 
 	// Number of frames between each CRC check between all players in multiplayer games
 	// (if not all crcs are equal, mismatch occurs).

@@ -100,6 +100,8 @@
 	extern AsciiString g_saveDebugCRCPerFrameDir;
 
 	extern Bool g_logObjectCRCs;
+	extern Bool g_logCRCGenLines;
+	extern Bool g_logCRCDebugLines;
 
 #else // DEBUG_CRC
 

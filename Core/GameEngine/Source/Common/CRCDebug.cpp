@@ -233,7 +233,16 @@ static void addCRCDebugLineInternal(bool count, const char *fmt, va_list args)
 		++tmp;
 	}
 
-	//DEBUG_LOG(("%s", DebugStrings[nextDebugString]));
+	//
+	// TheSuperHackers @feature bobtista 16/08/2026 -LogCRCDebugLines writes the per-field detail to
+	// the debug log. Far more verbose than -LogCRCGenLines, so it is bounded by the
+	// -DebugCRCFromFrame / -DebugCRCUntilFrame window and meant for localising a divergence that
+	// the subsystem checkpoints have already narrowed down.
+	//
+	if (g_logCRCDebugLines)
+	{
+		DEBUG_LOG(("%s", DebugStrings[nextDebugString]));
+	}
 
 	++nextDebugString;
 	++numDebugStrings;
@@ -289,7 +298,17 @@ void addCRCGenLine(const char *fmt, ...)
 	va_end( va );
 	addCRCDebugLine("%s", buf);
 
-	//DEBUG_LOG(("%s", buf));
+	//
+	// TheSuperHackers @feature bobtista 16/08/2026 The buffered lines are only flushed when the
+	// network reports a CRC mismatch, so a single player run never emits them however many CRC
+	// options are passed. -LogCRCGenLines writes them to the debug log instead, which is what makes
+	// a save/load round trip comparable frame by frame.
+	//
+	// -LogCRCDebugLines already writes every buffered line, so do not emit these a second time
+	if (g_logCRCGenLines && !g_logCRCDebugLines)
+	{
+		DEBUG_LOG(("%s", buf));
+	}
 }
 
 void addCRCDumpLine(const char *fmt, ...)
