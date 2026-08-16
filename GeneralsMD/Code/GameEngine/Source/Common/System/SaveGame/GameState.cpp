@@ -310,6 +310,15 @@ void GameState::init()
 	addSnapshotBlock( "CHUNK_TeamFactory",						TheTeamFactory,						SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_Players",								ThePlayerList,						SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_GameLogic",							TheGameLogic,							SNAPSHOT_SAVELOAD );
+#if !RETAIL_COMPATIBLE_XFER_SAVE
+	//
+	// TheSuperHackers @bugfix bobtista 16/08/2026 The AI was never written to a save at all, so the
+	// pathfind request queue and the group list came back empty or rebuilt rather than restored.
+	// It follows CHUNK_GameLogic because both hold object ids that only resolve once objects exist.
+	// A save written without this block simply never presents the token, and the load skips it.
+	//
+	addSnapshotBlock( "CHUNK_AI",										TheAI,										SNAPSHOT_SAVELOAD );
+#endif
 	addSnapshotBlock( "CHUNK_Radar",									TheRadar,									SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_ScriptEngine",						TheScriptEngine,					SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_SidesList",							TheSidesList,							SNAPSHOT_SAVELOAD );

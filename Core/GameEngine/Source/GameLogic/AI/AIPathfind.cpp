@@ -4104,6 +4104,7 @@ void Pathfinder::reset()
 	}
 	m_queuePRHead = 0;
 	m_queuePRTail = 0;
+	m_queueRestoredFromSave = false;
 
 	m_numWallPieces = 0;
 	for (i=0; i<MAX_WALL_PIECES; ++i)
@@ -11382,13 +11383,50 @@ void Pathfinder::crc( Xfer *xfer )
 }
 
 //-----------------------------------------------------------------------------
+/** Load/Save the pathfinder
+	*	Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize the pending pathfind request queue,
+	*    so units that were waiting on a path come back queued in the same slots and the same order,
+	*    along with the two scalars beside it that the frame CRC covers and a load cannot rebuild:
+	*    the ignored obstacle and the pathfind cell budget
+	*/
+//-----------------------------------------------------------------------------
 void Pathfinder::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+	XferVersion currentVersion = 2;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
+
+	if( version >= 2 )
+	{
+		xfer->xferObjectID( &m_ignoreObstacleID );
+
+		//
+		// the queue is a ring buffer, so the whole array travels with its head and tail rather than
+		// just the live entries - the slot each request sits in is part of the state being restored
+		//
+		for( Int i = 0; i < PATHFIND_QUEUE_LEN; ++i )
+		{
+			xfer->xferObjectID( &m_queuedPathfindRequests[i] );
+		}
+		xfer->xferInt( &m_queuePRHead );
+		xfer->xferInt( &m_queuePRTail );
+
+		//
+		// despite the name this is a per frame budget, zeroed at the top of processPathfindQueue.
+		// The frame CRC reads it before that reset, so it still carries the previous frame's cell
+		// count and has to travel with the save or the first loaded frame disagrees.
+		//
+		xfer->xferInt( &m_cumulativeCellsAllocated );
+
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_queueRestoredFromSave = true;
+		}
+	}
 
 }
 

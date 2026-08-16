@@ -5370,12 +5370,13 @@ void AIUpdateInterface::loadPostProcess()
 	}
 
 	//
-	// TheSuperHackers @bugfix bobtista 15/08/2026 Ask for the path again. The pathfinder holds its
-	// pending requests in a queue that no save contains, so a unit saved while it was waiting comes
-	// back with the waiting flag set, no path, and nothing left to service it. doLocomotor then parks
-	// it on UPDATE_SLEEP_FOREVER and it never moves again until it is given a new order.
+	// TheSuperHackers @bugfix bobtista 15/08/2026 Ask for the path again. A save that does not carry
+	// the pathfind queue brings a waiting unit back with the waiting flag set, no path, and nothing
+	// left to service it. doLocomotor then parks it on UPDATE_SLEEP_FOREVER and it never moves again
+	// until it is given a new order. Saves that do carry the queue restore the original requests in
+	// their original order, so re-queueing here would only disturb that order.
 	//
-	if (m_waitingForPath && getPath() == nullptr)
+	if (m_waitingForPath && getPath() == nullptr && !TheAI->pathfinder()->wasQueueRestoredFromSave())
 	{
 		TheAI->pathfinder()->queueForPath(getObject()->getID());
 	}
