@@ -520,6 +520,29 @@ Int parseYRes(char *args[], int num)
 	return 1;
 }
 
+// TheSuperHackers @feature bobtista 16/08/2026 Override the camera height limits without editing GameData.ini, which keeps the INI CRC unchanged.
+#if PRESERVE_RETAIL_SCRIPTED_CAMERA
+Int parseCameraHeight(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_cameraHeight = (Real)atof(args[1]);
+		return 2;
+	}
+	return 1;
+}
+#endif
+
+Int parseMaxCameraHeight(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_maxCameraHeight = (Real)atof(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
 #if defined(RTS_DEBUG)
 //=============================================================================
 //=============================================================================
@@ -1367,6 +1390,10 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noShellAnim", parseNoWindowAnimation }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-xres", parseXRes },
 	{ "-yres", parseYRes },
+#if PRESERVE_RETAIL_SCRIPTED_CAMERA
+	{ "-cameraHeight", parseCameraHeight },
+#endif
+	{ "-maxCameraHeight", parseMaxCameraHeight },
 	{ "-fullVersion", parseFullVersion },
 	{ "-mathCrcCheck", parseMathCrcCheck },
 	{ "-particleEdit", parseParticleEdit },
