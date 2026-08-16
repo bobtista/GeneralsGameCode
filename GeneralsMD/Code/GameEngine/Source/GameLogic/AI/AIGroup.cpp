@@ -3347,18 +3347,79 @@ void AIGroup::crc( Xfer *xfer )
 }
 
 //-----------------------------------------------------------------------------
+/** Load/Save an AI group
+	*	Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize the group identity, its members and
+	*    the recomputation state, so a loaded game keeps the groups units were ordered around in
+	*/
+//-----------------------------------------------------------------------------
 void AIGroup::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+	XferVersion currentVersion = 2;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
+
+	if( version >= 2 )
+	{
+		xfer->xferUnsignedInt( &m_id );
+		xfer->xferReal( &m_speed );
+		xfer->xferBool( &m_dirty );
+
+		//
+		// members travel as ids rather than pointers and are relinked in loadPostProcess, because
+		// an object is only safe to look up once every block has been read
+		//
+		UnsignedInt memberCount = (UnsignedInt)m_memberList.size();
+		xfer->xferUnsignedInt( &memberCount );
+
+		if( xfer->getXferMode() == XFER_SAVE )
+		{
+			for( ListObjectPtrIt it = m_memberList.begin(); it != m_memberList.end(); ++it )
+			{
+				ObjectID id = (*it) ? (*it)->getID() : INVALID_ID;
+				xfer->xferObjectID( &id );
+			}
+		}
+		else
+		{
+			m_loadedMemberIDs.clear();
+			for( UnsignedInt i = 0; i < memberCount; ++i )
+			{
+				ObjectID id = INVALID_ID;
+				xfer->xferObjectID( &id );
+				m_loadedMemberIDs.push_back( id );
+			}
+		}
+	}
 
 }
 
 //-----------------------------------------------------------------------------
 void AIGroup::loadPostProcess()
 {
+
+	//
+	// enterGroup leaves whatever group the object was in first, so the object side and the group
+	// side agree once this is done. m_memberListSize is recounted rather than restored, so it can
+	// never disagree with the list it describes.
+	//
+	for( VecObjectID::const_iterator it = m_loadedMemberIDs.begin(); it != m_loadedMemberIDs.end(); ++it )
+	{
+		Object *obj = TheGameLogic->findObjectByID( *it );
+		if( obj == nullptr )
+		{
+			DEBUG_CRASH(( "AIGroup::loadPostProcess - member %d of group %d is not in the game",
+										(Int)(*it), m_id ));
+			continue;
+		}
+		m_memberList.push_back( obj );
+		obj->enterGroup( this );
+	}
+
+	m_memberListSize = (UnsignedInt)m_memberList.size();
+	m_loadedMemberIDs.clear();
 
 }

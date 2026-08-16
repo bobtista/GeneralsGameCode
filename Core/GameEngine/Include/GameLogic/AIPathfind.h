@@ -679,6 +679,7 @@ public:
 
 	Bool queueForPath(ObjectID id);	 ///< The object wants to request a pathfind, so put it on the list to process.
 	void processPathfindQueue(); ///< Process some or all of the queued pathfinds.
+	Bool wasQueueRestoredFromSave() const { return m_queueRestoredFromSave; }	///< True when the save carried the pathfind queue, so it does not need rebuilding.
 	void forceMapRecalculation();	///< Force pathfind map recomputation. If region is given, only that area is recomputed
 
 	/** Returns an aircraft path to the goal.  */
@@ -917,6 +918,7 @@ private:
 	Int						m_queuePRHead;
 	Int						m_queuePRTail;
 	Int						m_cumulativeCellsAllocated;
+	Bool					m_queueRestoredFromSave;
 
 #if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
 public:

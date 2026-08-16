@@ -1050,4 +1050,5 @@ private:
 	Path *m_groundPath;											///< Group ground path.
 
 	mutable VecObjectID	m_lastRequestedIDList;			///< this is used so we can return by reference, saving a copy
+	VecObjectID	m_loadedMemberIDs;							///< members read from a save game, relinked in loadPostProcess
 };
