@@ -1036,13 +1036,68 @@ void AI::crc( Xfer *xfer )
 }
 
 //-----------------------------------------------------------------------------
+/** Load/Save the AI
+	*	Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize the pathfinder and the AI group list.
+	*    Neither was ever written, so a loaded game resumed with an empty pathfind queue and with
+	*    only the groups the load path happened to recreate, both of which the frame CRC covers
+	*/
+//-----------------------------------------------------------------------------
 void AI::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+	XferVersion currentVersion = 2;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
+
+	if( version >= 2 )
+	{
+		xfer->xferSnapshot( m_pathfinder );
+
+		UnsignedInt groupCount = (UnsignedInt)m_groupList.size();
+		xfer->xferUnsignedInt( &groupCount );
+
+		if( xfer->getXferMode() == XFER_SAVE )
+		{
+			for( std::list<AIGroup *>::iterator it = m_groupList.begin(); it != m_groupList.end(); ++it )
+			{
+				xfer->xferSnapshot( *it );
+			}
+		}
+		else
+		{
+			//
+			// anything already in the list was built by the load path rather than restored, and the
+			// saved groups replace it wholesale. Destroying first keeps object membership consistent,
+			// because the group destructor takes its members back out.
+			//
+			while( m_groupList.empty() == FALSE )
+			{
+				AIGroup *groupToRemove = m_groupList.front();
+				if( groupToRemove != nullptr )
+				{
+					destroyGroup( groupToRemove );
+				}
+				else
+				{
+					m_groupList.pop_front();
+				}
+			}
+
+			for( UnsignedInt i = 0; i < groupCount; ++i )
+			{
+				AIGroupPtr group = createGroup();
+				xfer->xferSnapshot( group );
+			}
+		}
+
+		//
+		// the id counter goes after the groups, because creating them above consumed ids from it
+		//
+		xfer->xferUnsignedInt( &m_nextGroupID );
+	}
 
 }
 
