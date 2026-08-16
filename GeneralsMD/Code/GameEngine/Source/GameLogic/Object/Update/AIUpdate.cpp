@@ -5084,6 +5084,9 @@ void AIUpdateInterface::crc( Xfer *x )
 	*    repeated m_isSafePath, so a unit that is moving without a live locomotor goal keeps
 	*    its pathfind reservation on load, and serialize m_allowedToChase, so assault transport
 	*    passengers may still close on the target they were sent to attack
+	* 7: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize m_pathTimestamp. It gates the
+	*    "repathing in less than 3 frames" throttle, so leaving it at zero let every unit that had
+	*    just pathed request another one on the first loaded frame, which no continuous run does
 	*/
 // ------------------------------------------------------------------------------------------------
 void AIUpdateInterface::xfer( Xfer *xfer )
@@ -5092,7 +5095,7 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 4;
 #else
-	const XferVersion currentVersion = 6;
+	const XferVersion currentVersion = 7;
 #endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
@@ -5187,8 +5190,10 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 	xfer->xferCoord3D(&m_requestedDestination);
 	xfer->xferCoord3D(&m_requestedDestination2);
 
-	// Not needed - we will recompute paths on load.
-	//xfer->xferUnsignedInt(&m_pathTimestamp);
+	if (version >= 7)
+	{
+		xfer->xferUnsignedInt(&m_pathTimestamp);
+	}
 
 	xfer->xferObjectID(&m_ignoreObstacleID);
 	xfer->xferReal(&m_pathExtraDistance);
