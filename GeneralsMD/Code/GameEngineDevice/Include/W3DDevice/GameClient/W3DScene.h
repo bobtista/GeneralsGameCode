@@ -85,8 +85,6 @@ public:
 	/// Lighting methods
 	void addDynamicLight(W3DDynamicLight * obj);
 	void removeDynamicLight(W3DDynamicLight * obj);
-	RefRenderObjListIterator *createLightsIterator();
-	void destroyLightsIterator(RefRenderObjListIterator * it);
 	RefRenderObjListClass *getDynamicLights() {return &m_dynamicLightList;};
 	W3DDynamicLight *getADynamicLight();
 	// TheSuperHackers @feature bobtista 23/06/2026 Returns the brightest enabled CastsShadows
@@ -96,6 +94,7 @@ public:
 	W3DDynamicLight *getStrongestShadowCastingDynamicLight(const W3DDynamicLight *exclude = NULL);
 	void setGlobalLight(LightClass *pLight,Int lightIndex=0);
 	LightEnvironmentClass &getDefaultLightEnv() {return m_defaultLightEnv;}
+	RefRenderObjListClass* getLightList() { return &LightList; }
 
 	virtual void init() override {}
 	virtual void update() override {}
