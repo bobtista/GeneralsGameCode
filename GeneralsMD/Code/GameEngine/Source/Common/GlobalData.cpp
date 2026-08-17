@@ -1575,6 +1575,9 @@ GlobalData::GlobalData()
 	m_rejoinSlot = -1;
 	m_saveAtFrameNormal = FALSE;
 	m_loadReplayGame.clear();
+	m_skirmishMap.clear();
+	m_skirmishAICount = 1;
+	m_skirmishSeed = 1;
 
 	m_simulateReplays.clear();
 	m_simulateReplayJobs = SIMULATE_REPLAYS_SEQUENTIAL;

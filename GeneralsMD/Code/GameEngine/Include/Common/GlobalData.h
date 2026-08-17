@@ -429,6 +429,9 @@ public:
 	Int m_rejoinSlot;						///< Lobby slot this instance held before it disconnected
 	Bool m_saveAtFrameNormal;				///< -saveatframe writes a normal user save instead of a checkpoint
 	AsciiString m_loadReplayGame;			///< If this is specified, load a replay file from the command-line
+	AsciiString m_skirmishMap;				///< If this is specified, start a skirmish on this map from the command-line
+	Int m_skirmishAICount;					///< Number of computer opponents for a command-line skirmish
+	Int m_skirmishSeed;						///< Fixed seed for a command-line skirmish, so the run is reproducible
 
 	std::vector<AsciiString> m_simulateReplays; ///< If not empty, simulate this list of replays and exit.
 	Int m_simulateReplayJobs; ///< Maximum number of processes to use for simulation, or SIMULATE_REPLAYS_SEQUENTIAL for sequential simulation

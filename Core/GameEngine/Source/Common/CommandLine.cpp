@@ -1206,6 +1206,36 @@ Int parseSaveTo(char *args[], int num)
 	return 2;
 }
 
+// TheSuperHackers @feature bobtista 17/08/2026 Start a skirmish against the computer from the
+// command line, so a save can be minted on any multiplayer map without a person at the keyboard.
+// The map is resolved through the map cache, so a short name such as "Alpine Assault" is enough.
+Int parseSkirmish(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_skirmishMap = args[1];
+	}
+	return 2;
+}
+
+Int parseSkirmishAICount(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_skirmishAICount = atoi(args[1]);
+	}
+	return 2;
+}
+
+Int parseSkirmishSeed(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_skirmishSeed = atoi(args[1]);
+	}
+	return 2;
+}
+
 #if defined(RTS_DEBUG)
 Int parseDisplayDebug(char *args[], int)
 {
@@ -2066,6 +2096,9 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-munkee", parseMunkee },
 	{ "-displayDebug", parseDisplayDebug },
 	{ "-file", parseFile },
+	{ "-skirmish", parseSkirmish },
+	{ "-skirmishaicount", parseSkirmishAICount },
+	{ "-skirmishseed", parseSkirmishSeed },
 
 //	{ "-preload", parsePreload },
 

@@ -101,6 +101,7 @@
 #include "GameClient/Drawable.h"
 #include "GameClient/GUICallbacks.h"
 
+#include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/NetworkAutoStart.h"
 #include "GameNetwork/GameInfo.h"
@@ -354,6 +355,102 @@ Bool GameEngine::isGameHalted()
 	}
 
 	return false;
+}
+
+/** -----------------------------------------------------------------------------------------------
+ * Configure TheSkirmishGameInfo and post the new game message, mirroring what the skirmish game
+ * options menu does when the start button is pressed. Harness only.
+ */
+static void startCommandLineSkirmish()
+{
+	if (TheMapCache == nullptr)
+	{
+		DEBUG_LOG(("Command line skirmish: no map cache"));
+		return;
+	}
+
+	AsciiString requestedMap = TheGlobalData->m_skirmishMap;
+	const MapMetaData *mapData = TheMapCache->findMap(requestedMap);
+	if (mapData == nullptr)
+	{
+		// A bare map name is friendlier on a command line than the full relative path the cache is
+		// keyed on, so build the conventional layout and try again.
+		AsciiString candidate;
+		candidate.format("Maps/%s/%s.map", requestedMap.str(), requestedMap.str());
+		mapData = TheMapCache->findMap(candidate);
+	}
+
+	if (mapData == nullptr)
+	{
+		DEBUG_LOG(("Command line skirmish: map '%s' is not in the map cache", requestedMap.str()));
+		return;
+	}
+
+	if (mapData->m_numPlayers < 2)
+	{
+		DEBUG_LOG(("Command line skirmish: map '%s' has %d start positions, need at least 2",
+			mapData->m_fileName.str(), mapData->m_numPlayers));
+		return;
+	}
+
+	if (TheSkirmishGameInfo == nullptr)
+	{
+		TheSkirmishGameInfo = NEW SkirmishGameInfo;
+	}
+	else if (TheSkirmishGameInfo->isInGame())
+	{
+		TheSkirmishGameInfo->endGame();
+	}
+
+	TheSkirmishGameInfo->init();
+	TheSkirmishGameInfo->clearSlotList();
+	TheSkirmishGameInfo->reset();
+	TheSkirmishGameInfo->setLocalIP(0);
+	TheSkirmishGameInfo->enterGame();
+
+	// The local slot is found by matching this IP, and on Windows the local player is matched by
+	// name, so the human needs a name no computer slot will also carry.
+	GameSlot humanSlot;
+	humanSlot.setState(SLOT_PLAYER, UnicodeString(L"Harness"), 0);
+	TheSkirmishGameInfo->setSlot(0, humanSlot);
+
+	Int aiCount = TheGlobalData->m_skirmishAICount;
+	if (aiCount < 1)
+	{
+		aiCount = 1;
+	}
+	if (aiCount > mapData->m_numPlayers - 1)
+	{
+		aiCount = mapData->m_numPlayers - 1;
+	}
+
+	for (Int slotIndex = 1; slotIndex <= aiCount; ++slotIndex)
+	{
+		GameSlot aiSlot;
+		aiSlot.setState(SLOT_MED_AI);
+		TheSkirmishGameInfo->setSlot(slotIndex, aiSlot);
+	}
+
+	// Colors, factions and start positions stay at -1 so the engine resolves them from the seed.
+	TheSkirmishGameInfo->setSeed(TheGlobalData->m_skirmishSeed);
+	TheSkirmishGameInfo->setMap(mapData->m_fileName);
+	TheSkirmishGameInfo->setMapCRC(mapData->m_CRC);
+	TheSkirmishGameInfo->setMapSize(mapData->m_filesize);
+
+	TheWritableGlobalData->m_shellMapOn = FALSE;
+	TheWritableGlobalData->m_playIntro = FALSE;
+	TheWritableGlobalData->m_mapName = TheSkirmishGameInfo->getMap();
+
+	TheSkirmishGameInfo->startGame(0);
+	InitRandom(TheGlobalData->m_skirmishSeed);
+
+	GameMessage *msg = TheMessageStream->appendMessage( GameMessage::MSG_NEW_GAME );
+	msg->appendIntegerArgument(GAME_SKIRMISH);
+	msg->appendIntegerArgument(DIFFICULTY_NORMAL);
+	msg->appendIntegerArgument(0);
+
+	DEBUG_LOG(("Command line skirmish on '%s' with %d computer opponents, seed %d",
+		mapData->m_fileName.str(), aiCount, TheGlobalData->m_skirmishSeed));
 }
 
 /** -----------------------------------------------------------------------------------------------
@@ -752,6 +849,14 @@ void GameEngine::init()
 			}
 		}
 
+		// TheSuperHackers @feature bobtista 17/08/2026 Start a skirmish against the computer from the
+		// command line, so a save can be minted on any multiplayer map without a person at the
+		// keyboard. The seed is fixed rather than taken from the clock, so the seed game is
+		// reproducible.
+		if (TheGlobalData->m_skirmishMap.isEmpty() == FALSE)
+		{
+			startCommandLineSkirmish();
+		}
 		//
 		if (TheMapCache && TheGlobalData->m_shellMapOn)
 		{
