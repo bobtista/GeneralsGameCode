@@ -392,13 +392,18 @@ void HordeUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix Serialize horde membership history */
 // ------------------------------------------------------------------------------------------------
 void HordeUpdate::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -407,6 +412,11 @@ void HordeUpdate::xfer( Xfer *xfer )
 
 	xfer->xferBool( &m_inHorde );
 	xfer->xferBool( &m_hasFlag );
+	if( version >= 2 )
+	{
+		xfer->xferUnsignedInt( &m_lastHordeRefreshFrame );
+		xfer->xferBool( &m_trueHordeMember );
+	}
 
 }
 
