@@ -5087,6 +5087,8 @@ void AIUpdateInterface::crc( Xfer *x )
 	* 7: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize m_pathTimestamp. It gates the
 	*    "repathing in less than 3 frames" throttle, so leaving it at zero let every unit that had
 	*    just pathed request another one on the first loaded frame, which no continuous run does
+	* 8: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize the blocked-movement history. Its
+	*    bump speed cap recovers over later frames, so resetting it changes locomotor drive forces
 	*/
 // ------------------------------------------------------------------------------------------------
 void AIUpdateInterface::xfer( Xfer *xfer )
@@ -5095,7 +5097,7 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 4;
 #else
-	const XferVersion currentVersion = 7;
+	const XferVersion currentVersion = 8;
 #endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
@@ -5200,11 +5202,16 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 	xfer->xferICoord2D(&m_pathfindGoalCell);
 	xfer->xferICoord2D(&m_pathfindCurCell);
 
+	if (version >= 8)
+	{
+		xfer->xferInt(&m_blockedFrames);
+		xfer->xferReal(&m_curMaxBlockedSpeed);
+		xfer->xferReal(&m_bumpSpeedLimit);
+		xfer->xferBool(&m_isBlocked);
+		xfer->xferBool(&m_isBlockedAndStuck);
+	}
+
 	// Not needed - jba.
-	//Int					m_blockedFrames;						///< Number of frames we've been blocked.
-	//Real				m_curMaxBlockedSpeed;				///< Max speed we can have and not run into blocking things.
-	//Bool				m_isBlocked;
-	//Bool				m_isBlockedAndStuck;				///< True if we are stuck & need to recompute path.
 	//Bool				m_isInUpdate;
 	//Bool				m_fixLocoInPostProcess;
 
