@@ -536,6 +536,7 @@ public:
 
 	Bool getInteractsWithBridge() const {return m_interactsWithBridge;}
 	void setInteractsWithBridge(Bool interacts) {m_interactsWithBridge = interacts;}
+	void xfer(Xfer *xfer);
 
 protected:
 	void allocateZones();
@@ -600,6 +601,8 @@ public:
 
 	void setBridge(Int cellX, Int cellY, Bool bridge);
 	Bool interactsWithBridge(Int cellX, Int cellY) const;
+	void xfer(Xfer *xfer);
+	void swap(PathfindZoneManager &other);
 
 private:
 	void allocateZones();
@@ -700,6 +703,7 @@ public:
 	Bool queueForPath(ObjectID id);	 ///< The object wants to request a pathfind, so put it on the list to process.
 	void processPathfindQueue(); ///< Process some or all of the queued pathfinds.
 	Bool wasQueueRestoredFromSave() const { return m_queueRestoredFromSave; }	///< True when the save carried the pathfind queue, so it does not need rebuilding.
+	Bool hasCheckpointCellSnapshot() const { return m_checkpointCells != nullptr; }	///< True while exact cell state is staged for post-load restoration.
 	void finishLoadPostProcess() { m_queueRestoredFromSave = false; }
 	void forceMapRecalculation();	///< Force pathfind map recomputation. If region is given, only that area is recomputed
 
@@ -942,6 +946,9 @@ private:
 	Bool					m_queueRestoredFromSave;
 	PathfindCell::CheckpointState *m_checkpointCells;
 	UnsignedInt		m_checkpointCellCount;
+	PathfindZoneManager *m_checkpointZoneManager;
+	Int						m_checkpointLayerZones[LAYER_LAST+1];
+	Bool					m_checkpointIncludesZones;
 
 #if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
 public:
