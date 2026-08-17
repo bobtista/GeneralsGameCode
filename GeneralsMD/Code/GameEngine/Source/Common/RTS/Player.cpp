@@ -4048,6 +4048,9 @@ void Player::crc( Xfer *xfer )
 	* 8: Save m_disabledSciences & m_hiddenSciences. jba.
 	* 9: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize m_attackedFrame alongside
 	*    m_attackedBy, so the AI still sees a supply source as recently attacked after a load
+	* 10: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize
+	*     m_logicalRetaliationModeEnabled. If it resets on load, Player::update queues
+	*     MSG_ENABLE_RETALIATION_MODE and changes both command processing and AI-group allocation
 	*/
 // ------------------------------------------------------------------------------------------------
 void Player::xfer( Xfer *xfer )
@@ -4057,7 +4060,7 @@ void Player::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 8;
 #else
-	const XferVersion currentVersion = 9;
+	const XferVersion currentVersion = 10;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -4137,6 +4140,10 @@ void Player::xfer( Xfer *xfer )
 	// radar info
 	xfer->xferInt( &m_radarCount );
 	xfer->xferBool( & m_isPlayerDead );
+	if (version >= 10)
+	{
+		xfer->xferBool( &m_logicalRetaliationModeEnabled );
+	}
 	xfer->xferInt( &m_disableProofRadarCount );
 	xfer->xferBool( & m_radarDisabled );
 
