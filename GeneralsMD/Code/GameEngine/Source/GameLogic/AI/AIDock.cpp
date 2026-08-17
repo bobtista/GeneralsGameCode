@@ -606,6 +606,31 @@ StateReturnType AIDockProcessDockState::onEnter()
 }
 
 //----------------------------------------------------------------------------------------------
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize the frame the next dock action is due
+	*    on. It gates update(), so a load that left it at the constructor default ran the action on
+	*    the first loaded frame instead of finishing the remaining delay, which finished the dock a
+	*    frame early and put the unit on the pathfind queue a frame before the continuous game did */
+//----------------------------------------------------------------------------------------------
+void AIDockProcessDockState::xfer( Xfer *xfer )
+{
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	XferVersion currentVersion = 1;
+#else
+	XferVersion currentVersion = 2;
+#endif
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
+
+	if( version >= 2 )
+	{
+		xfer->xferUnsignedInt( &m_nextDockActionFrame );
+	}
+}
+
+//----------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------
 /**
  * We are now docked. Invoke the dock's action() method until it returns false.
