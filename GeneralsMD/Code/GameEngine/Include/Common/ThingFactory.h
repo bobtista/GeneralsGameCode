@@ -66,19 +66,26 @@ public:
 	/// create a new template with name 'name' and add to template list
 	ThingTemplate *newTemplate( const AsciiString& name );
 
-	// get the first template in our list
+	// TheSuperHackers @info bobtista 17/08/2026 Return the first database entry without resolving its
+	// override chain.
 	const ThingTemplate *firstTemplate() { return m_firstTemplate; }
 
 	/**
 		get a template given template database name. return null if not found.
 		note, this is now substantially faster (does a hash-table lookup)
 	*/
+	// TheSuperHackers @info bobtista 17/08/2026 findTemplate returns the stored database entry without
+	// following its override chain. Call getFinalOverride() when the active map or mission override is
+	// required. Override nodes are deleted by ThingFactory::reset(), so do not cache a resolved override
+	// across matches.
 	const ThingTemplate *findTemplate( const AsciiString& name, Bool check = TRUE ) { return findTemplateInternal( name, check ); }
 
 	/**
 		get a template given ID. return null if not found.
 		note, this is not particularly fast (does a linear search).
 	*/
+	// TheSuperHackers @info bobtista 17/08/2026 Like findTemplate(), this returns the stored database
+	// entry rather than its final override.
 	const ThingTemplate *findByTemplateID( UnsignedShort id );
 
 	/** request a new object using the given template.
