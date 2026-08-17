@@ -153,6 +153,11 @@ protected:
 
 	virtual void reactToTransformChange(const Matrix3D* oldMtx, const Coord3D* oldPos, Real oldAngle) = 0;
 
+	// TheSuperHackers @bugfix bobtista 17/08/2026 A checkpoint must restore the cached angle
+	// atomically with its matrix. Recomputing it can differ from the history-dependent value by
+	// one ULP even when the matrix itself is bit-identical.
+	void restoreCachedAngleForLoad(Real angle) { m_cachedAngle = angle; }
+
 private:
 
 	// note that it is declared 'const' -- the assumption being that
