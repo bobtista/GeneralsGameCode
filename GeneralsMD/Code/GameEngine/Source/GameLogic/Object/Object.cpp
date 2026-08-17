@@ -4121,13 +4121,19 @@ void Object::crc( Xfer *xfer )
 	* 7: save full mtx, not pos+orient.
 	* 8: Kris: Conversion of object status bits from UnsignedInt to BitFlags<>
 	* 9: Extra sighting for reveal to all with different range units
+	* 10: TheSuperHackers @bugfix bobtista 17/08/2026 Preserve the history-dependent cached
+	*     orientation in non-retail checkpoints
 	*/
 //-------------------------------------------------------------------------------------------------
 void Object::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 9;
+#else
+	const XferVersion currentVersion = 10;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -4141,8 +4147,24 @@ void Object::xfer( Xfer *xfer )
 	if (version >= 7)
 	{
 		Matrix3D mtx = *getTransformMatrix();
+#if !RETAIL_COMPATIBLE_XFER_SAVE
+		Real cachedAngle = getOrientation();
+#endif
 		xfer->xferMatrix3D(&mtx);
+
+#if RETAIL_COMPATIBLE_XFER_SAVE
 		setTransformMatrix(&mtx);
+#else
+		if (version >= 10)
+			xfer->xferReal(&cachedAngle);
+
+		if (xfer->getXferMode() == XFER_LOAD)
+		{
+			setTransformMatrix(&mtx);
+			if (version >= 10)
+				restoreCachedAngleForLoad(cachedAngle);
+		}
+#endif
 	}
 	else
 	{
