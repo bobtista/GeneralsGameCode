@@ -95,8 +95,7 @@ public:
 
 	Thing( const ThingTemplate *thingTemplate );
 
-	// TheSuperHackers @info bobtista 17/08/2026 m_template is an OVERRIDE, so getTemplate() dynamically
-	// returns the final override rather than the database entry originally stored by this Thing.
+	/** Return the final override of this thing's template. */
 	const ThingTemplate *getTemplate() const;
 
 	// convenience method for patching isKindOf thru to template.
