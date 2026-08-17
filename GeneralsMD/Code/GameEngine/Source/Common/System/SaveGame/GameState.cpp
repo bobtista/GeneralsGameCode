@@ -52,6 +52,8 @@
 #include "GameClient/InGameUI.h"
 #include "GameClient/ParticleSys.h"
 #include "GameClient/TerrainVisual.h"
+#include "GameLogic/AI.h"
+#include "GameLogic/AIPathfind.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/GhostObject.h"
 #include "GameLogic/PartitionManager.h"
@@ -1605,6 +1607,10 @@ void GameState::gameStatePostProcessLoad()
 
 	// clear the snapshot post process list as we are now done with it
 	m_snapshotPostProcessList.clear();
+
+	// The restored pathfind ring remains authoritative while later blocks rebuild their state.
+	// Normal gameplay requests may resume only after every load post-process callback has run.
+	TheAI->pathfinder()->finishLoadPostProcess();
 
 	// evil... must ensure this is updated prior to the script engine running the first time.
 	ThePartitionManager->update();
