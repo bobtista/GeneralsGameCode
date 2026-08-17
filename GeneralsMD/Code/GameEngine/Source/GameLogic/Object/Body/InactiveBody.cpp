@@ -49,6 +49,7 @@ InactiveBody::InactiveBody( Thing *thing, const ModuleData* moduleData )
 	getObject()->setEffectivelyDead(true);
 }
 
+
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 InactiveBody::~InactiveBody()
@@ -176,18 +177,29 @@ void InactiveBody::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize m_dieCalled, so an inactive body
+	*    does not invoke its death modules a second time after loading */
 // ------------------------------------------------------------------------------------------------
 void InactiveBody::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
 	// base class
 	BodyModule::xfer( xfer );
+
+	if( version >= 2 )
+	{
+		xfer->xferBool( &m_dieCalled );
+	}
 
 }
 
@@ -201,5 +213,4 @@ void InactiveBody::loadPostProcess()
 	BodyModule::loadPostProcess();
 
 }
-
 
