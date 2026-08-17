@@ -268,6 +268,13 @@ void WeaponSet::xfer( Xfer *xfer )
 	{
 		Bool hasWeaponInSlot = (m_weapons[i] != nullptr);
 		xfer->xferBool(&hasWeaponInSlot);
+		if (xfer->getXferMode() == XFER_LOAD && !hasWeaponInSlot && m_weapons[i] != nullptr)
+		{
+			// TheSuperHackers @bugfix bobtista 17/08/2026 The constructor can populate a weapon
+			// slot that was empty in the saved state. Remove it before restoring the remaining slots.
+			deleteInstance(m_weapons[i]);
+			m_weapons[i] = nullptr;
+		}
 		if (hasWeaponInSlot)
 		{
 			if (xfer->getXferMode() == XFER_LOAD && m_weapons[i] == nullptr)
@@ -1159,4 +1166,3 @@ Bool WeaponSet::isSharedReloadTime() const
 		return m_curWeaponTemplateSet->isSharedReloadTime();
 	return false;
 }
-
