@@ -424,6 +424,13 @@ private:
 	// (for an excellent discussion of priority queues, please see:
 	// http://dogma.net/markn/articles/pq_stl/priority.htm)
 	std::vector<UpdateModulePtr> m_sleepyUpdates;
+	struct SleepyUpdateIdentity
+	{
+		ObjectID objectID;
+		UnsignedInt behaviorIndex;
+	};
+	std::vector<SleepyUpdateIdentity> m_checkpointSleepyUpdateOrder;
+	Bool m_hasCheckpointSleepyUpdateOrder;
 
 #ifdef ALLOW_NONSLEEPY_UPDATES
 	// this is a plain old list, not a pq.
