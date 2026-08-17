@@ -5837,6 +5837,13 @@ Bool Pathfinder::adjustToPossibleDestination(Object *obj, const LocomotorSet& lo
  */
 Bool Pathfinder::queueForPath(ObjectID id)
 {
+	// A restored queue is authoritative until every later save block and load callback has finished.
+	// State reconstruction may request the same paths again while loading; do not append duplicates.
+	if( m_queueRestoredFromSave )
+	{
+		return true;
+	}
+
 #ifdef DEBUG_LOGGING
 	{
 		Object *tmpObj = TheGameLogic->findObjectByID(id);
