@@ -1614,6 +1614,7 @@ void GameState::gameStatePostProcessLoad()
 
 	// evil... must ensure this is updated prior to the script engine running the first time.
 	ThePartitionManager->update();
+	ThePartitionManager->finishLoadPostProcess();
 
 }
 
