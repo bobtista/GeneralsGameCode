@@ -349,6 +349,7 @@ public:
 	void getCellCenterPos(Real& x, Real& y);
 
 	CellAndObjectIntersection *getFirstCoiInCell() { return m_firstCoiInCell; }
+	void restoreObjectOrder(const std::vector<ObjectID> &objectOrder);
 
 	#ifdef RTS_DEBUG
 	void validateCoiList();
@@ -1252,6 +1253,7 @@ private:
 	Bool						m_updatedSinceLastReset;	///< Used to force a return of OBJECTSHROUD_INVALID before update has been called.
 
 	std::queue<SightingInfo *> m_pendingUndoShroudReveals;	///< Anything can queue up an Undo to happen later. This is a queue, because "later" is a constant
+	std::vector<std::vector<ObjectID> > m_checkpointCellObjectOrder;
 
 #ifdef FASTER_GCO
 	Int							m_maxGcoRadius;
@@ -1325,6 +1327,7 @@ public:
 	virtual void crc( Xfer *xfer ) override;
 	virtual void xfer( Xfer *xfer ) override;
 	virtual void loadPostProcess() override;
+	void finishLoadPostProcess();	///< Restore exact checkpoint ordering after the forced post-load partition update.
 
 	Bool getUpdatedSinceLastReset() const { return m_updatedSinceLastReset; }
 
