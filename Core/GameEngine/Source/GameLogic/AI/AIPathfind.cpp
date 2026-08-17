@@ -27,11 +27,15 @@
 // Author: Michael S. Booth, October 2001
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include <cstdlib>
+#include <utility>
+
 #include "GameLogic/AIPathfind.h"
 
 #include "Common/PerfTimer.h"
 #include "Common/Player.h"
 #include "Common/CRCDebug.h"
+#include "Common/GameState.h"
 #include "Common/GlobalData.h"
 #include "Common/LatchRestore.h"
 #include "Common/ThingTemplate.h"
@@ -2647,6 +2651,51 @@ void ZoneBlock::allocateZones()
 	m_crusherZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
 }
 
+void ZoneBlock::xfer(Xfer *xfer)
+{
+	XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion(&version, currentVersion);
+
+	xfer->xferICoord2D(&m_cellOrigin);
+	xfer->xferUnsignedShort(&m_firstZone);
+	xfer->xferUnsignedShort(&m_numZones);
+
+	UnsignedShort zonesAllocated = m_zonesAllocated;
+	xfer->xferUnsignedShort(&zonesAllocated);
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		freeZones();
+		m_zonesAllocated = zonesAllocated;
+		if (m_numZones > 1 && m_numZones > m_zonesAllocated)
+		{
+			DEBUG_CRASH(("ZoneBlock checkpoint has invalid zone capacity."));
+			throw SC_INVALID_DATA;
+		}
+		if (m_numZones > 1)
+		{
+			m_groundCliffZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_groundWaterZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_groundRubbleZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_crusherZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+		}
+	}
+
+	if (m_numZones > 1)
+	{
+		for (UnsignedShort i = 0; i < m_numZones; ++i)
+		{
+			xfer->xferUnsignedShort(&m_groundCliffZones[i]);
+			xfer->xferUnsignedShort(&m_groundWaterZones[i]);
+			xfer->xferUnsignedShort(&m_groundRubbleZones[i]);
+			xfer->xferUnsignedShort(&m_crusherZones[i]);
+		}
+	}
+
+	xfer->xferBool(&m_interactsWithBridge);
+	xfer->xferBool(&m_markedPassable);
+}
+
 
 //------------------------  PathfindZoneManager  -------------------------------
 PathfindZoneManager::PathfindZoneManager() : m_maxZone(0),
@@ -2745,6 +2794,95 @@ void PathfindZoneManager::allocateBlocks(const IRegion2D &globalBounds)
 	for (i=0; i<m_zoneBlockExtent.x; i++) {
 		m_zoneBlocks[i] = &m_blockOfZoneBlocks[i*(m_zoneBlockExtent.y)];
 	}
+}
+
+void PathfindZoneManager::xfer(Xfer *xfer)
+{
+	XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion(&version, currentVersion);
+
+	xfer->xferUnsignedShort(&m_maxZone);
+	xfer->xferUnsignedInt(&m_nextFrameToCalculateZones);
+
+	UnsignedShort zonesAllocated = m_zonesAllocated;
+	xfer->xferUnsignedShort(&zonesAllocated);
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		freeZones();
+		m_zonesAllocated = zonesAllocated;
+		if (m_maxZone > m_zonesAllocated)
+		{
+			DEBUG_CRASH(("PathfindZoneManager checkpoint has invalid zone capacity."));
+			throw SC_INVALID_DATA;
+		}
+		if (m_zonesAllocated > 0)
+		{
+			m_groundCliffZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_groundWaterZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_groundRubbleZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_terrainZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_crusherZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_hierarchicalZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+		}
+	}
+
+	for (UnsignedShort i = 0; i < m_maxZone; ++i)
+	{
+		xfer->xferUnsignedShort(&m_groundCliffZones[i]);
+		xfer->xferUnsignedShort(&m_groundWaterZones[i]);
+		xfer->xferUnsignedShort(&m_groundRubbleZones[i]);
+		xfer->xferUnsignedShort(&m_terrainZones[i]);
+		xfer->xferUnsignedShort(&m_crusherZones[i]);
+		xfer->xferUnsignedShort(&m_hierarchicalZones[i]);
+	}
+
+	ICoord2D zoneBlockExtent = m_zoneBlockExtent;
+	xfer->xferICoord2D(&zoneBlockExtent);
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		freeBlocks();
+		m_zoneBlockExtent = zoneBlockExtent;
+		if (m_zoneBlockExtent.x < 0 || m_zoneBlockExtent.y < 0)
+		{
+			DEBUG_CRASH(("PathfindZoneManager checkpoint has invalid block extent."));
+			throw SC_INVALID_DATA;
+		}
+		Int blockCount = m_zoneBlockExtent.x * m_zoneBlockExtent.y;
+		if (blockCount > 0)
+		{
+			m_blockOfZoneBlocks = MSGNEW("PathfindZoneBlocks") ZoneBlock[blockCount];
+			m_zoneBlocks = MSGNEW("PathfindZoneBlocks") ZoneBlockP[m_zoneBlockExtent.x];
+			for (Int i = 0; i < m_zoneBlockExtent.x; ++i)
+			{
+				m_zoneBlocks[i] = &m_blockOfZoneBlocks[i * m_zoneBlockExtent.y];
+			}
+		}
+	}
+
+	for (Int x = 0; x < m_zoneBlockExtent.x; ++x)
+	{
+		for (Int y = 0; y < m_zoneBlockExtent.y; ++y)
+		{
+			m_zoneBlocks[x][y].xfer(xfer);
+		}
+	}
+}
+
+void PathfindZoneManager::swap(PathfindZoneManager &other)
+{
+	std::swap(m_blockOfZoneBlocks, other.m_blockOfZoneBlocks);
+	std::swap(m_zoneBlocks, other.m_zoneBlocks);
+	std::swap(m_zoneBlockExtent, other.m_zoneBlockExtent);
+	std::swap(m_maxZone, other.m_maxZone);
+	std::swap(m_nextFrameToCalculateZones, other.m_nextFrameToCalculateZones);
+	std::swap(m_zonesAllocated, other.m_zonesAllocated);
+	std::swap(m_groundCliffZones, other.m_groundCliffZones);
+	std::swap(m_groundWaterZones, other.m_groundWaterZones);
+	std::swap(m_groundRubbleZones, other.m_groundRubbleZones);
+	std::swap(m_terrainZones, other.m_terrainZones);
+	std::swap(m_crusherZones, other.m_crusherZones);
+	std::swap(m_hierarchicalZones, other.m_hierarchicalZones);
 }
 
 void PathfindZoneManager::reset()  ///< Called when the map is reset.
@@ -4131,7 +4269,8 @@ void PathfindLayer::classifyWallMapCell( Int i, Int j , PathfindCell *cell, Obje
 
 //----------------------- Pathfinder ---------------------------------------
 
-Pathfinder::Pathfinder() :m_map(nullptr), m_checkpointCells(nullptr), m_checkpointCellCount(0)
+Pathfinder::Pathfinder() :m_map(nullptr), m_checkpointCells(nullptr), m_checkpointCellCount(0),
+	m_checkpointZoneManager(nullptr), m_checkpointIncludesZones(false)
 {
 	debugPath = nullptr;
 	PathfindCellInfo::allocateCellInfos();
@@ -4140,6 +4279,7 @@ Pathfinder::Pathfinder() :m_map(nullptr), m_checkpointCells(nullptr), m_checkpoi
 
 Pathfinder::~Pathfinder()
 {
+	delete m_checkpointZoneManager;
 	PathfindCellInfo::releaseCellInfos();
 }
 
@@ -4157,6 +4297,13 @@ void Pathfinder::reset()
 	delete [] m_checkpointCells;
 	m_checkpointCells = nullptr;
 	m_checkpointCellCount = 0;
+	delete m_checkpointZoneManager;
+	m_checkpointZoneManager = nullptr;
+	m_checkpointIncludesZones = false;
+	for (Int layer = 0; layer <= LAYER_LAST; ++layer)
+	{
+		m_checkpointLayerZones[layer] = 0;
+	}
 
 	Int i;
 	for (i=0; i<=LAYER_LAST; i++) {
@@ -11491,13 +11638,21 @@ void Pathfinder::crc( Xfer *xfer )
 	* 4: TheSuperHackers @feature bobtista 16/08/2026 Omit the per cell zone numbers. loadPostProcess
 	*    always rebuilds them from the restored grid, so saving the discarded numbering only made the
 	*    checkpoint non idempotent
+	* 5: TheSuperHackers @feature bobtista 17/08/2026 Restore cell zone numbers together with the
+	*    matching zone equivalency tables, hierarchical blocks, layer zones, and recalculation frame.
+	*    Rebuilding those tables is topologically valid but can assign different history-dependent zone
+	*    identities and change line-of-fire and path decisions immediately after load.
 	*/
 //-----------------------------------------------------------------------------
 void Pathfinder::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 4;
+#else
+	XferVersion currentVersion = 5;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -11557,7 +11712,7 @@ void Pathfinder::xfer( Xfer *xfer )
 						m_map[i][j].captureCheckpointState( &state );
 					}
 
-					xferPathfindCellCheckpointState( xfer, &state, version <= 3 );
+					xferPathfindCellCheckpointState( xfer, &state, version <= 3 || version >= 5 );
 
 					if( xfer->getXferMode() == XFER_LOAD && index < m_checkpointCellCount )
 					{
@@ -11567,6 +11722,34 @@ void Pathfinder::xfer( Xfer *xfer )
 			}
 		}
 
+	}
+
+	if( version >= 5 )
+	{
+		Bool hasZoneSnapshot = m_map != nullptr && m_isMapReady;
+		xfer->xferBool( &hasZoneSnapshot );
+		if( hasZoneSnapshot )
+		{
+			PathfindZoneManager *zoneManager = &m_zoneManager;
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				delete m_checkpointZoneManager;
+				m_checkpointZoneManager = new PathfindZoneManager;
+				zoneManager = m_checkpointZoneManager;
+				m_checkpointIncludesZones = true;
+			}
+
+			zoneManager->xfer( xfer );
+			for( Int i = 0; i <= LAYER_LAST; ++i )
+			{
+				Int layerZone = xfer->getXferMode() == XFER_SAVE ? m_layers[i].getZone() : 0;
+				xfer->xferInt( &layerZone );
+				if( xfer->getXferMode() == XFER_LOAD )
+				{
+					m_checkpointLayerZones[i] = layerZone;
+				}
+			}
+		}
 	}
 
 }
@@ -11599,11 +11782,27 @@ void Pathfinder::loadPostProcess()
 		}
 	}
 
-	// Rebuild all zone equivalency and block lookup tables from the exact restored cell types.
-	m_zoneManager.calculateZones( m_map, m_layers, m_extent );
+	if( m_checkpointIncludesZones && m_checkpointZoneManager != nullptr )
+	{
+		// Cell zone IDs and every lookup table that interprets them form one atomic state unit.
+		m_zoneManager.swap( *m_checkpointZoneManager );
+		delete m_checkpointZoneManager;
+		m_checkpointZoneManager = nullptr;
+		for( Int i = 0; i <= LAYER_LAST; ++i )
+		{
+			m_layers[i].setZone( m_checkpointLayerZones[i] );
+			m_layers[i].applyZone();
+		}
+	}
+	else
+	{
+		// Older checkpoints carry cell classifications but not the corresponding zone namespace.
+		m_zoneManager.calculateZones( m_map, m_layers, m_extent );
+	}
 
 	delete [] m_checkpointCells;
 	m_checkpointCells = nullptr;
 	m_checkpointCellCount = 0;
+	m_checkpointIncludesZones = false;
 
 }

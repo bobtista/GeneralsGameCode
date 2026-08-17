@@ -5363,21 +5363,26 @@ void AIUpdateInterface::loadPostProcess()
 		chooseLocomotorSet(lst);
 	}
 
-	if (!isMoving()) {
-		m_pathfindGoalCell.x = -1;
-		m_pathfindGoalCell.y = -1;
-		TheAI->pathfinder()->updateGoal(getObject(), getObject()->getPosition(), getObject()->getLayer());
-		m_pathfindCurCell.x = -1;
-		m_pathfindCurCell.y = -1;
-		TheAI->pathfinder()->updatePos(getObject(), getObject()->getPosition());
-	}	else {
-		if (m_pathfindGoalCell.x >= 0 && m_pathfindGoalCell.y >= 0) {
-			Coord3D goalPos;
-			goalPos.x = m_pathfindGoalCell.x * PATHFIND_CELL_SIZE_F + PATHFIND_CELL_SIZE_F*0.5f;
-			goalPos.y = m_pathfindGoalCell.y * PATHFIND_CELL_SIZE_F + PATHFIND_CELL_SIZE_F*0.5f;
+	// TheSuperHackers @bugfix bobtista 17/08/2026 Keep serialized per-unit cell coordinates paired with
+	// the exact staged grid. Previously this rebuild mutated the coordinates before the grid restore.
+	if (!TheAI->pathfinder()->hasCheckpointCellSnapshot())
+	{
+		if (!isMoving()) {
 			m_pathfindGoalCell.x = -1;
 			m_pathfindGoalCell.y = -1;
-			TheAI->pathfinder()->updateGoal(getObject(), &goalPos, getObject()->getLayer());
+			TheAI->pathfinder()->updateGoal(getObject(), getObject()->getPosition(), getObject()->getLayer());
+			m_pathfindCurCell.x = -1;
+			m_pathfindCurCell.y = -1;
+			TheAI->pathfinder()->updatePos(getObject(), getObject()->getPosition());
+		}	else {
+			if (m_pathfindGoalCell.x >= 0 && m_pathfindGoalCell.y >= 0) {
+				Coord3D goalPos;
+				goalPos.x = m_pathfindGoalCell.x * PATHFIND_CELL_SIZE_F + PATHFIND_CELL_SIZE_F*0.5f;
+				goalPos.y = m_pathfindGoalCell.y * PATHFIND_CELL_SIZE_F + PATHFIND_CELL_SIZE_F*0.5f;
+				m_pathfindGoalCell.x = -1;
+				m_pathfindGoalCell.y = -1;
+				TheAI->pathfinder()->updateGoal(getObject(), &goalPos, getObject()->getLayer());
+			}
 		}
 	}
 
