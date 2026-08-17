@@ -552,8 +552,7 @@ fclose( fp );
 // ------------------------------------------------------------------------
 void TeamFactory::loadPostProcess()
 {
-
-	// set the next unique team and prototype ID to just over the highest one in use
+	// rebuild the unique team and prototype ID allocators from the restored instances
 	m_uniqueTeamID = 0;
 	m_uniqueTeamPrototypeID = 0;
 	TeamPrototypeMap::iterator prototypeIt;
@@ -574,9 +573,16 @@ void TeamFactory::loadPostProcess()
 		{
 
 			team = iter.cur();
+#if RETAIL_COMPATIBLE_XFER_SAVE
 			if( team->getID() >= m_uniqueTeamID )
 				m_uniqueTeamID = team->getID() + 1;
-
+#else
+			// TheSuperHackers @bugfix bobtista 17/08/2026 Team allocation pre-increments this
+			// counter, so checkpoints restore the highest ID itself. Previously using highest + 1
+			// made the next runtime-created team skip an ID after load.
+			if( team->getID() > m_uniqueTeamID )
+				m_uniqueTeamID = team->getID();
+#endif
 		}
 
 	}
@@ -2752,4 +2758,3 @@ void Team::loadPostProcess()
 // ------------------------------------------------------------------------
 // ------------------------------------------------------------------------
 // ------------------------------------------------------------------------
-
