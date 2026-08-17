@@ -66,8 +66,11 @@ void SupplyCenterProductionExitUpdate::exitObjectViaDoor( Object *newObj, ExitDo
 	{
 		const SupplyCenterProductionExitUpdateModuleData* md = getSupplyCenterProductionExitUpdateModuleData();
 
-		Real exitAngle = creationObject->getOrientation();
+		// TheSuperHackers @bugfix bobtista 16/08/2026 Take the exit heading from the transform the
+		// frame CRC covers rather than the cached orientation angle. The two can disagree by one ULP,
+		// which puts a history dependent heading on the produced object.
 		const Matrix3D *transform = creationObject->getTransformMatrix();
+		Real exitAngle = transform->Get_Z_Rotation();
 		Vector3 loc;
 		Coord3D createPoint;
 
