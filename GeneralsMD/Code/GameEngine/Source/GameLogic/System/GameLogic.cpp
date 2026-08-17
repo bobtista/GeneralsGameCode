@@ -267,6 +267,7 @@ GameLogic::GameLogic()
 	m_height = 0;
 	m_objList = nullptr;
 	m_curUpdateModule = nullptr;
+	m_hasCheckpointSleepyUpdateOrder = FALSE;
 	m_nextObjID = INVALID_ID;
 	m_startNewGame = FALSE;
 	m_gameMode = GAME_NONE;
@@ -477,6 +478,8 @@ void GameLogic::reset()
 		(*it)->friend_setIndexInLogic(-1);
 	}
 	m_sleepyUpdates.clear();
+	m_checkpointSleepyUpdateOrder.clear();
+	m_hasCheckpointSleepyUpdateOrder = FALSE;
 	m_curUpdateModule = nullptr;
 
 	m_isScoringEnabled = TRUE;
@@ -5009,6 +5012,10 @@ void GameLogic::prepareLogicForObjectLoad()
   * 11: TheSuperHackers @fix Save objects in reverse order so they load in correct order
 	* 12: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize the logic random generator state, so
 	*     a loaded game continues the same random sequence instead of starting a divergent one
+	* 13: TheSuperHackers @feature bobtista 16/08/2026 Serialize the sleepy update heap's exact array
+	*     order. Rebuilding it by pushing modules in object list order reproduces the same contents
+	*     and priorities but not the same layout among equal priorities, which decides whether a
+	*     module runs in its creation frame or the next one
 	*/
 // ------------------------------------------------------------------------------------------------
 void GameLogic::xfer( Xfer *xfer )
@@ -5018,7 +5025,7 @@ void GameLogic::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 10;
 #else
-	const XferVersion currentVersion = 12;
+	const XferVersion currentVersion = 13;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -5386,6 +5393,49 @@ void GameLogic::xfer( Xfer *xfer )
 			SetGameLogicRandomState( randomState );
 		}
 	}
+
+	if( version >= 13 )
+	{
+		UnsignedInt sleepyCount = m_sleepyUpdates.size();
+		xfer->xferUnsignedInt( &sleepyCount );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointSleepyUpdateOrder.clear();
+			m_checkpointSleepyUpdateOrder.resize( sleepyCount );
+			m_hasCheckpointSleepyUpdateOrder = TRUE;
+		}
+
+		for( UnsignedInt i = 0; i < sleepyCount; ++i )
+		{
+			SleepyUpdateIdentity identity;
+			if( xfer->getXferMode() == XFER_SAVE )
+			{
+				UpdateModulePtr module = m_sleepyUpdates[i];
+				const Object *moduleObject = module->friend_getObject();
+				identity.objectID = moduleObject ? moduleObject->getID() : INVALID_ID;
+				identity.behaviorIndex = static_cast<UnsignedInt>( -1 );
+				if( moduleObject )
+				{
+					UnsignedInt behaviorIndex = 0;
+					for( BehaviorModule **behavior = moduleObject->getBehaviorModules(); *behavior; ++behavior, ++behaviorIndex )
+					{
+						if( (*behavior)->getUpdate() == module )
+						{
+							identity.behaviorIndex = behaviorIndex;
+							break;
+						}
+					}
+				}
+			}
+
+			xfer->xferObjectID( &identity.objectID );
+			xfer->xferUnsignedInt( &identity.behaviorIndex );
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				m_checkpointSleepyUpdateOrder[i] = identity;
+			}
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -5463,7 +5513,61 @@ void GameLogic::loadPostProcess()
 
 	}
 
-	// re-sort the priority queue all at once now that all modules are on it
-	remakeSleepyUpdate();
+	if( m_hasCheckpointSleepyUpdateOrder )
+	{
+		DEBUG_LOG(("GameLogic::loadPostProcess - restoring %u sleepy entries over %u rebuilt entries\n",
+			(UnsignedInt)m_checkpointSleepyUpdateOrder.size(), (UnsignedInt)m_sleepyUpdates.size()));
+		if( m_checkpointSleepyUpdateOrder.size() != m_sleepyUpdates.size() )
+		{
+			DEBUG_LOG(("GameLogic::loadPostProcess - sleepy update count mismatch: saved=%u rebuilt=%u\n",
+				(UnsignedInt)m_checkpointSleepyUpdateOrder.size(), (UnsignedInt)m_sleepyUpdates.size()));
+			DEBUG_CRASH(("GameLogic::loadPostProcess - sleepy update count mismatch"));
+			throw SC_INVALID_DATA;
+		}
+
+		std::vector<UpdateModulePtr> restoredOrder;
+		restoredOrder.reserve( m_checkpointSleepyUpdateOrder.size() );
+		for( std::vector<SleepyUpdateIdentity>::const_iterator it = m_checkpointSleepyUpdateOrder.begin();
+			it != m_checkpointSleepyUpdateOrder.end(); ++it )
+		{
+			Object *moduleObject = findObjectByID( it->objectID );
+			UpdateModulePtr module = nullptr;
+			if( moduleObject )
+			{
+				UnsignedInt behaviorIndex = 0;
+				for( BehaviorModule **behavior = moduleObject->getBehaviorModules(); *behavior; ++behavior, ++behaviorIndex )
+				{
+					if( behaviorIndex == it->behaviorIndex )
+					{
+						module = static_cast<UpdateModule *>( (*behavior)->getUpdate() );
+						break;
+					}
+				}
+			}
+			if( module == nullptr )
+			{
+				DEBUG_LOG(("GameLogic::loadPostProcess - unable to restore sleepy module object=%u behavior=%u\n",
+					(UnsignedInt)it->objectID, it->behaviorIndex));
+				DEBUG_CRASH(("GameLogic::loadPostProcess - unable to restore sleepy module %u/%u",
+					(UnsignedInt)it->objectID, it->behaviorIndex));
+				throw SC_INVALID_DATA;
+			}
+			restoredOrder.push_back( module );
+		}
+
+		m_sleepyUpdates.swap( restoredOrder );
+		for( size_t i = 0; i < m_sleepyUpdates.size(); ++i )
+		{
+			m_sleepyUpdates[i]->friend_setIndexInLogic( i );
+		}
+		m_checkpointSleepyUpdateOrder.clear();
+		m_hasCheckpointSleepyUpdateOrder = FALSE;
+		validateSleepyUpdate();
+	}
+	else
+	{
+		// Legacy saves do not carry heap layout, so rebuild a valid priority queue.
+		remakeSleepyUpdate();
+	}
 
 }
