@@ -3785,6 +3785,11 @@ void Player::getCurrentSelectionAsAIGroup(AIGroup *group) {
 }
 
 //-------------------------------------------------------------------------------------------------
+Bool Player::isObjectInCurrentSelection(const Object *obj) const {
+	return m_currentSelection != nullptr && m_currentSelection->isOnSquad(obj);
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Select a hotkey team based on this GameMessage */
 //-------------------------------------------------------------------------------------------------
 void Player::setCurrentlySelectedAIGroup(AIGroup *group) {

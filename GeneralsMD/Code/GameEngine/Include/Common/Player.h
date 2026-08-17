@@ -638,6 +638,7 @@ public:
 
 	// fills an AIGroup object that is the currently selected group.
 	void getCurrentSelectionAsAIGroup(AIGroup *group);
+	Bool isObjectInCurrentSelection(const Object *obj) const;
 
 	// sets the currently selected group to be the given AIGroup
 	void setCurrentlySelectedAIGroup(AIGroup *group);
