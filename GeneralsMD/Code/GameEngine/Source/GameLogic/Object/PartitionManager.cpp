@@ -1480,6 +1480,64 @@ void PartitionCell::friend_removeFromCellList(CellAndObjectIntersection *coi)
 }
 
 //-----------------------------------------------------------------------------
+void PartitionCell::restoreObjectOrder(const std::vector<ObjectID> &objectOrder)
+{
+	UnsignedInt liveObjectCount = 0;
+	for (CellAndObjectIntersection *coi = m_firstCoiInCell; coi; coi = coi->getNextCoi())
+	{
+		if (coi->getModule()->getObject() != nullptr)
+		{
+			++liveObjectCount;
+		}
+	}
+
+	if (liveObjectCount != objectOrder.size())
+	{
+		DEBUG_CRASH(("PartitionCell::restoreObjectOrder - Object count mismatch in cell (%d,%d): %u should be %u",
+			m_cellX, m_cellY, liveObjectCount, (UnsignedInt)objectOrder.size()));
+		return;
+	}
+
+	for (std::vector<ObjectID>::const_iterator id = objectOrder.begin(); id != objectOrder.end(); ++id)
+	{
+		CellAndObjectIntersection *match = nullptr;
+		for (CellAndObjectIntersection *coi = m_firstCoiInCell; coi; coi = coi->getNextCoi())
+		{
+			Object *obj = coi->getModule()->getObject();
+			if (obj != nullptr && obj->getID() == *id)
+			{
+				match = coi;
+				break;
+			}
+		}
+
+		if (match == nullptr)
+		{
+			DEBUG_CRASH(("PartitionCell::restoreObjectOrder - Object %u is missing from cell (%d,%d)",
+				(UnsignedInt)*id, m_cellX, m_cellY));
+			return;
+		}
+	}
+
+	for (Int i = (Int)objectOrder.size() - 1; i >= 0; --i)
+	{
+		CellAndObjectIntersection *match = nullptr;
+		for (CellAndObjectIntersection *coi = m_firstCoiInCell; coi; coi = coi->getNextCoi())
+		{
+			Object *obj = coi->getModule()->getObject();
+			if (obj != nullptr && obj->getID() == objectOrder[i])
+			{
+				match = coi;
+				break;
+			}
+		}
+
+		match->friend_removeFromCellList(&m_firstCoiInCell);
+		match->friend_addToCellList(&m_firstCoiInCell);
+	}
+}
+
+//-----------------------------------------------------------------------------
 void PartitionCell::getCellCenterPos(Real& x, Real& y)
 {
 	ThePartitionManager->getCellCenterPos(m_cellX, m_cellY, x, y);
@@ -2751,6 +2809,7 @@ void PartitionManager::reset()
 void PartitionManager::shutdown()
 {
 	m_updatedSinceLastReset = false;
+	m_checkpointCellObjectOrder.clear();
 	removeAllDirtyModules();
 
 #ifdef RTS_DEBUG
@@ -4668,13 +4727,20 @@ void PartitionManager::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version
 	* 2: m_pendingUndoShroudReveals stores Unlooks waiting to happen.
+	* 3: TheSuperHackers @feature bobtista 17/08/2026 Serialize each cell's live-object order.
+	*    Equal-distance closest-object queries are first-wins, so rebuilding identical membership in
+	*    a different order leaves behaviorally observable history outside the checkpoint.
 	*/
 // ------------------------------------------------------------------------------------------------
 void PartitionManager::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 2;
+#else
+	XferVersion currentVersion = 3;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -4775,6 +4841,65 @@ void PartitionManager::xfer( Xfer *xfer )
 		// Version 1 save games will just not have any SightingInfos in the queue to be undone.
 	}
 
+	if (version >= 3)
+	{
+		UnsignedInt checkpointCellCount = m_totalCellCount;
+		xfer->xferUnsignedInt(&checkpointCellCount);
+		if (checkpointCellCount != (UnsignedInt)m_totalCellCount)
+		{
+			DEBUG_CRASH(("PartitionManager::xfer - Checkpoint cell count mismatch %u, should be %d",
+				checkpointCellCount, m_totalCellCount));
+			throw SC_INVALID_DATA;
+		}
+
+		if (xfer->getXferMode() == XFER_LOAD)
+		{
+			m_checkpointCellObjectOrder.clear();
+			m_checkpointCellObjectOrder.resize(checkpointCellCount);
+		}
+
+		for (UnsignedInt cellIndex = 0; cellIndex < checkpointCellCount; ++cellIndex)
+		{
+			UnsignedShort objectCount = 0;
+			if (xfer->getXferMode() == XFER_SAVE)
+			{
+				for (CellAndObjectIntersection *coi = m_cells[cellIndex].getFirstCoiInCell(); coi; coi = coi->getNextCoi())
+				{
+					if (coi->getModule()->getObject() != nullptr)
+					{
+						++objectCount;
+					}
+				}
+			}
+			xfer->xferUnsignedShort(&objectCount);
+
+			if (xfer->getXferMode() == XFER_LOAD)
+			{
+				m_checkpointCellObjectOrder[cellIndex].resize(objectCount);
+				for (UnsignedShort objectIndex = 0; objectIndex < objectCount; ++objectIndex)
+				{
+					xfer->xferObjectID(&m_checkpointCellObjectOrder[cellIndex][objectIndex]);
+				}
+			}
+			else
+			{
+				for (CellAndObjectIntersection *coi = m_cells[cellIndex].getFirstCoiInCell(); coi; coi = coi->getNextCoi())
+				{
+					Object *obj = coi->getModule()->getObject();
+					if (obj != nullptr)
+					{
+						ObjectID id = obj->getID();
+						xfer->xferObjectID(&id);
+					}
+				}
+			}
+		}
+	}
+	else if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_checkpointCellObjectOrder.clear();
+	}
+
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -4783,6 +4908,29 @@ void PartitionManager::xfer( Xfer *xfer )
 void PartitionManager::loadPostProcess()
 {
 
+}
+
+// ------------------------------------------------------------------------------------------------
+void PartitionManager::finishLoadPostProcess()
+{
+	if (m_checkpointCellObjectOrder.empty())
+	{
+		return;
+	}
+
+	if (m_checkpointCellObjectOrder.size() != (UnsignedInt)m_totalCellCount)
+	{
+		DEBUG_CRASH(("PartitionManager::finishLoadPostProcess - Checkpoint cell count mismatch %u, should be %d",
+			(UnsignedInt)m_checkpointCellObjectOrder.size(), m_totalCellCount));
+		m_checkpointCellObjectOrder.clear();
+		return;
+	}
+
+	for (Int i = 0; i < m_totalCellCount; ++i)
+	{
+		m_cells[i].restoreObjectOrder(m_checkpointCellObjectOrder[i]);
+	}
+	m_checkpointCellObjectOrder.clear();
 }
 
 //-----------------------------------------------------------------------------
