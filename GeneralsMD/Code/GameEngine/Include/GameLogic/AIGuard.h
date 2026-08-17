@@ -140,6 +140,7 @@ public:
 	{
 		m_attackState = nullptr;
 		m_enterState = nullptr;
+		m_nestedStateRestoredFromCheckpoint = false;
 	}
 	virtual Bool isAttack() const override { return m_attackState ? m_attackState->isAttack() : FALSE; }
 	virtual StateReturnType onEnter() override;
@@ -156,6 +157,7 @@ private:
 	ExitConditions m_exitConditions;
 	AIAttackState *m_attackState;
 	AIEnterState *m_enterState;
+	Bool m_nestedStateRestoredFromCheckpoint;
 };
 
 //--------------------------------------------------------------------------------------
@@ -190,6 +192,7 @@ public:
 	AIGuardOuterState( StateMachine *machine ) : State( machine, "AIGuardOuter" )
 	{
 		m_attackState = nullptr;
+		m_nestedStateRestoredFromCheckpoint = false;
 	}
 	virtual Bool isAttack() const override { return m_attackState ? m_attackState->isAttack() : FALSE; }
 	virtual StateReturnType onEnter() override;
@@ -205,6 +208,7 @@ private:
 
 	ExitConditions m_exitConditions;
 	AIAttackState *m_attackState;
+	Bool m_nestedStateRestoredFromCheckpoint;
 };
 
 //--------------------------------------------------------------------------------------
@@ -265,6 +269,7 @@ private:
 	AIGuardMachine* getGuardMachine() { return (AIGuardMachine*)getMachine(); }
 	ExitConditions m_exitConditions;
 	AIAttackState *m_attackState;
+	Bool m_nestedStateRestoredFromCheckpoint;
 };
 
 //--------------------------------------------------------------------------------------
