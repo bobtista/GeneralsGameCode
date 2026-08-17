@@ -282,6 +282,24 @@ private:
 class PathfindCell
 {
 public:
+	struct CheckpointState
+	{
+		ObjectID obstacleID;
+		ObjectID goalUnitID;
+		ObjectID posUnitID;
+		ObjectID goalAircraftID;
+		zoneStorageType zone;
+		UnsignedByte type;
+		UnsignedByte flags;
+		UnsignedByte connectsToLayer;
+		UnsignedByte layer;
+		UnsignedByte blockedByAlly;
+		UnsignedByte obstacleIsFence;
+		UnsignedByte obstacleIsTransparent;
+		UnsignedByte aircraftGoal;
+		UnsignedByte pinched;
+	};
+
 
 	enum CellType
 	{
@@ -312,6 +330,8 @@ public:
 	Bool setTypeAsObstacle( Object *obstacle, Bool isFence, const ICoord2D &pos );				///< flag this cell as an obstacle, from the given one
 	Bool removeObstacle( Object *obstacle );				///< unflag this cell as an obstacle, from the given one
 	void setType( CellType type );	///< set the cell type
+	void captureCheckpointState( CheckpointState *state ) const;
+	void restoreCheckpointState( const CheckpointState &state, const ICoord2D &pos );
 	CellType getType() const { return (CellType)m_type; }				///< get the cell type
 	CellFlags getFlags() const { return (CellFlags)m_flags; }				///< get the cell type
 	Bool isAircraftGoal() const {return m_aircraftGoal != 0;}
@@ -920,6 +940,8 @@ private:
 	Int						m_queuePRTail;
 	Int						m_cumulativeCellsAllocated;
 	Bool					m_queueRestoredFromSave;
+	PathfindCell::CheckpointState *m_checkpointCells;
+	UnsignedInt		m_checkpointCellCount;
 
 #if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
 public:
