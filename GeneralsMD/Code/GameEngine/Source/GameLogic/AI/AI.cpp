@@ -303,6 +303,7 @@ AI::AI()
 {
 	m_aiData = NEW TAiData;
 	m_pathfinder = NEW Pathfinder;
+	m_nextGroupID = 0;
 	m_nextFormationID = NO_FORMATION_ID;
 }
 
@@ -1042,13 +1043,15 @@ void AI::crc( Xfer *xfer )
 	* 2: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize the pathfinder and the AI group list.
 	*    Neither was ever written, so a loaded game resumed with an empty pathfind queue and with
 	*    only the groups the load path happened to recreate, both of which the frame CRC covers
+	* 3: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize the next formation id alongside the
+	*    next group id, so formation allocation continues from the saved sequence after loading
 	*/
 //-----------------------------------------------------------------------------
 void AI::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1097,6 +1100,11 @@ void AI::xfer( Xfer *xfer )
 		// the id counter goes after the groups, because creating them above consumed ids from it
 		//
 		xfer->xferUnsignedInt( &m_nextGroupID );
+	}
+
+	if( version >= 3 )
+	{
+		xfer->xferUser( &m_nextFormationID, sizeof( m_nextFormationID ) );
 	}
 
 }
