@@ -721,14 +721,32 @@ void AIGuardReturnState::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer Method */
 // ------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 17/08/2026 Extend the base class. This is the one guard
+	*    state that derives from AIInternalMoveToState and its update() runs that base update, but
+	*    the base was never transferred, so a loaded guard resumed its return move with no goal */
+// ------------------------------------------------------------------------------------------------
 void AIGuardReturnState::xfer( Xfer *xfer )
 {
   // version
+#if RETAIL_COMPATIBLE_XFER_SAVE
   XferVersion currentVersion = 1;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
 	xfer->xferUnsignedInt(&m_nextReturnScanTime);
+
+	if( version >= 2 )
+	{
+		// extend base class
+		AIInternalMoveToState::xfer( xfer );
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
