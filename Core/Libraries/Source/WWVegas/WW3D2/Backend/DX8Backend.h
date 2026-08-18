@@ -30,7 +30,7 @@ public:
     DX8Backend();
     virtual ~DX8Backend() override;
 
-    virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) override;
+    virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate) override;
 
     virtual void Begin_Scene() override;
     virtual void End_Scene(bool flip_frame) override;

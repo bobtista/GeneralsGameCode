@@ -41,9 +41,9 @@ IRenderBackend *Create_Render_Backend()
     return new DX8Backend();
 }
 
-void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit)
+void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate)
 {
-    DX8Wrapper::Set_Gamma(gamma, bright, contrast, calibrate, uselimit);
+    DX8Wrapper::Set_Gamma(gamma, bright, contrast, calibrate, true);
 }
 
 void DX8Backend::Begin_Scene()
