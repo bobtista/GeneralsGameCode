@@ -5150,9 +5150,13 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 	xfer->xferAsciiString(&attackName);
 	if (xfer->getXferMode() == XFER_LOAD)
 	{
-		if (attackName.isNotEmpty()) {
-			m_attackInfo = TheScriptEngine->getAttackInfo(attackName);
-		}
+		//
+		// TheSuperHackers @bugfix bobtista 17/08/2026 Resolve this in loadPostProcess rather than
+		// here. The objects are read before CHUNK_ScriptEngine, so the attack priority table is
+		// still empty at this point and getAttackInfo() quietly hands back the default set. Every
+		// unit then lost its priorities and picked targets by plain distance instead.
+		//
+		m_attackInfoNameToResolve = attackName;
 	}
 
 	xfer->xferInt(&m_waypointCount);
@@ -5352,6 +5356,12 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 void AIUpdateInterface::loadPostProcess()
 {
 	UpdateModule::loadPostProcess();
+
+	if (m_attackInfoNameToResolve.isNotEmpty())
+	{
+		m_attackInfo = TheScriptEngine->getAttackInfo(m_attackInfoNameToResolve);
+		m_attackInfoNameToResolve.clear();
+	}
 
 	if (m_fixLocoInPostProcess && m_curLocomotorSet!=LOCOMOTORSET_INVALID)
 	{
