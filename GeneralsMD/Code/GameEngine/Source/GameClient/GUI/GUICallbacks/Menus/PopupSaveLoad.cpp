@@ -391,32 +391,37 @@ static void doLoadGame()
 	//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
 	DEBUG_ASSERTCRASH( listboxGames, ("doLoadGame: Unable to find game listbox") );
 
-	// get selected game info
-	AvailableGameInfo *selectedGameInfo = getSelectedSaveFileInfo( listboxGames );
-	DEBUG_ASSERTCRASH( selectedGameInfo, ("doLoadGame: No selected game info found") );
-
-	// when loading a game we also close the quit/esc menu for the user when in-game
-	if( TheShell->isShellActive() == FALSE )
+	AsciiString filename;
+	SaveCode result = SC_INVALID;
 	{
-		destroyQuitMenu();
+		// get selected game info
+		AvailableGameInfo *selectedGameInfo = getSelectedSaveFileInfo( listboxGames );
+		DEBUG_ASSERTCRASH( selectedGameInfo, ("doLoadGame: No selected game info found") );
+
+		// when loading a game we also close the quit/esc menu for the user when in-game
+		if( TheShell->isShellActive() == FALSE )
+		{
+			destroyQuitMenu();
 //		ToggleQuitMenu();
 //		TheTransitionHandler->remove("QuitNoSave");
 //		TheTransitionHandler->remove("QuitFull");
-	}
-	else
-	{
-		TheTransitionHandler->remove("MainMenuLoadReplayMenu");
-		TheTransitionHandler->remove("MainMenuLoadReplayMenuBack");
-		TheGameLogic->prepareNewGame( GAME_SINGLE_PLAYER, DIFFICULTY_NORMAL, 0 );
+		}
+		else
+		{
+			TheTransitionHandler->remove("MainMenuLoadReplayMenu");
+			TheTransitionHandler->remove("MainMenuLoadReplayMenuBack");
+			TheGameLogic->prepareNewGame( GAME_SINGLE_PLAYER, DIFFICULTY_NORMAL, 0 );
+		}
+
+		//
+		// load game, note the *copy* of the selected game info is passed here because we will
+		// loose these allocated user data pointers attached as listbox item data when the
+		// engine resets
+		//
+		filename = selectedGameInfo->filename;
+		result = TheGameState->loadGame( *selectedGameInfo );
 	}
 
-	//
-	// load game, note the *copy* of the selected game info is passed here because we will
-	// loose these allocated user data pointers attached as listbox item data when the
-	// engine resets
-	//
-	const AsciiString filename = selectedGameInfo->filename;
-	const SaveCode result = TheGameState->loadGame( *selectedGameInfo );
 	presentLoadResult( result, filename );
 	if (result != SC_OK)
 	{
