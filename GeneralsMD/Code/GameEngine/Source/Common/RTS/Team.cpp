@@ -2745,8 +2745,31 @@ void Team::loadPostProcess()
 
 	}
 
-	// since we prepended the object member pointers, reverse that list so it's just like before
-//	reverse_TeamMemberList();
+	//
+	// TheSuperHackers @bugfix bobtista 18/08/2026 Put the member list back into the order it was
+	// saved in. Objects join their team from their own xfer, which prepends, so the list ends up in
+	// object load order rather than the order members actually joined. Those agree for most teams,
+	// which is why this hid for so long, but they differ whenever a member joined out of id
+	// sequence. Team order is not cosmetic: getTeamAsAIGroup() walks it, and AIGroup::crc() hashes
+	// the resulting member list in order, so a reordered team moves the frame CRC.
+	//
+	// The ids were written in list order, so prepending them in reverse rebuilds that exact order.
+	// Only the list links are touched here; each object's team pointer is already correct.
+	//
+	for( std::list< ObjectID >::reverse_iterator rIt = m_xferMemberIDList.rbegin();
+			 rIt != m_xferMemberIDList.rend(); ++rIt )
+	{
+		Object *member = TheGameLogic->findObjectByID( *rIt );
+		if( member == nullptr )
+		{
+			continue;
+		}
+		if( isInList_TeamMemberList( member ) )
+		{
+			removeFrom_TeamMemberList( member );
+		}
+		prependTo_TeamMemberList( member );
+	}
 
 	// we're done with the xfer list now
 	m_xferMemberIDList.clear();
