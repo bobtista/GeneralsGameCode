@@ -228,11 +228,19 @@ void UnicodeString::translate(const AsciiString& stringSrc)
 	const char* src = stringSrc.str();
 	const size_t srcLen = strlen(src);
 	const size_t dstLen = Utf8_To_Wide_Len(src, srcLen);
-	if (srcLen == 0)
+	if (dstLen != UTF8_INVALID)
 	{
-		clear();
+		if (dstLen == 0)
+		{
+			clear();
+		}
+		else
+		{
+			ensureUniqueBufferOfSize((Int)dstLen + 1, false, nullptr, nullptr);
+			Utf8_To_Wide(peek(), dstLen + 1, src, srcLen);
+		}
 	}
-	else if (dstLen == UTF8_INVALID)
+	else
 	{
 		ensureUniqueBufferOfSize((Int)srcLen + 1, false, nullptr, nullptr);
 		WideChar* buf = peek();
@@ -241,11 +249,6 @@ void UnicodeString::translate(const AsciiString& stringSrc)
 			buf[i] = (WideChar)(unsigned char)src[i];
 		}
 		buf[srcLen] = 0;
-	}
-	else
-	{
-		ensureUniqueBufferOfSize((Int)dstLen + 1, false, nullptr, nullptr);
-		Utf8_To_Wide(peek(), dstLen + 1, src, srcLen);
 	}
 	validate();
 }
