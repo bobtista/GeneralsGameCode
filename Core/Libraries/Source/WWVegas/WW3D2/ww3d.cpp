@@ -866,22 +866,22 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 
 	// If we want to clear the screen, we need to set the viewport to include the entire screen:
 	if (clear || clearz) {
-		D3DVIEWPORT8 vp;
+		RenderBackendViewport vp;
 		int width, height, bits;
 		bool windowed;
 		WW3D::Get_Render_Target_Resolution(width, height, bits, windowed);
-		vp.X = 0;
-		vp.Y = 0;
-		vp.Width = width;
-		vp.Height = height;
-		vp.MinZ = 0.0f;
-		vp.MaxZ = 1.0f;
-		DX8Wrapper::Set_Viewport(&vp);
-		DX8Wrapper::Clear(clear, clearz, color, dest_alpha);
+		vp.x = 0;
+		vp.y = 0;
+		vp.width = width;
+		vp.height = height;
+		vp.min_z = 0.0f;
+		vp.max_z = 1.0f;
+		Get_Render_Backend()->Set_Viewport(vp);
+		Get_Render_Backend()->Clear(clear, clearz, color, dest_alpha, 1.0f, 0);
 	}
 
 	// Notify D3D that we are beginning to render the frame
-	DX8Wrapper::Begin_Scene();
+	Get_Render_Backend()->Begin_Scene();
 
 	return WW3D_ERROR_OK;
 }
@@ -978,7 +978,7 @@ WW3DErrorType WW3D::Render(SceneClass * scene,CameraClass * cam,bool clear,bool 
 
 	// Clear the viewport
 	if (clear || clearz) {
-		DX8Wrapper::Clear(clear, clearz, color);
+		Get_Render_Backend()->Clear(clear, clearz, color, 0.0f, 1.0f, 0);
 	}
 
 	// set the rendering mode
@@ -996,7 +996,7 @@ WW3DErrorType WW3D::Render(SceneClass * scene,CameraClass * cam,bool clear,bool 
 
 	// Set the global ambient light value here.  If the scene is using the LightEnvironment system
 	// this setting will get overridden.
-	DX8Wrapper::Set_Ambient(scene->Get_Ambient_Light());
+	Get_Render_Backend()->Set_Ambient(scene->Get_Ambient_Light());
 
 	// render the scene
 
@@ -1048,7 +1048,7 @@ WW3DErrorType WW3D::Render(
 
 	// Install the lighting environment if one is supplied
 	if (rinfo.light_environment != nullptr) {
-		DX8Wrapper::Set_Light_Environment(rinfo.light_environment);
+		Get_Render_Backend()->Set_Light_Environment(rinfo.light_environment);
 	}
 
 	// Render the object
@@ -1123,8 +1123,8 @@ WW3DErrorType WW3D::End_Render(bool flip_frame)
 	IsRendering = false;
 
 	{
-		WWPROFILE("DX8Wrapper::End_Scene");
-		DX8Wrapper::End_Scene(flip_frame);
+		WWPROFILE("IRenderBackend::End_Scene");
+		Get_Render_Backend()->End_Scene(flip_frame);
 	}
 
 	FrameCount++;
@@ -1143,7 +1143,7 @@ WW3DErrorType WW3D::End_Render(bool flip_frame)
 	// (gth) I've found some cases where its not safe to rely on our "shadow" copy (of
 	// matrices for example) across multiple frames.  So even though this is slightly
 	// less "optimal", lets just reset the caches each frame.
-	DX8Wrapper::Invalidate_Cached_Render_States();
+	Get_Render_Backend()->Invalidate_Cached_Render_States();
 
 	return WW3D_ERROR_OK;
 }
@@ -1163,7 +1163,7 @@ WW3DErrorType WW3D::End_Render(bool flip_frame)
  *=============================================================================================*/
 void WW3D::Flip_To_Primary()
 {
-	DX8Wrapper::Flip_To_Primary();
+	Get_Render_Backend()->Flip_To_Primary();
 }
 
 
@@ -2133,5 +2133,5 @@ void WW3D::Reset_Current_Static_Sort_Lists_To_Default()
 
 void WW3D::Set_Gamma(float gamma,float bright,float contrast,bool calibrate)
 {
-	DX8Wrapper::Set_Gamma(gamma,bright,contrast,calibrate);
+	Get_Render_Backend()->Set_Gamma(gamma,bright,contrast,calibrate,true);
 }
