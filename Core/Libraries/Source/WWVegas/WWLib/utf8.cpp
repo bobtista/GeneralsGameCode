@@ -196,20 +196,20 @@ static size_t Wide_Write(wchar_t* dest, unsigned int cp)
 
 size_t Wide_To_Utf8_Len(const wchar_t* src, size_t srcLen)
 {
-	size_t bytes = 0;
+	size_t needed = 0;
 	size_t i = 0;
 	while (i < srcLen)
 	{
 		unsigned int cp;
 		i += Wide_Read(src + i, srcLen - i, cp);
-		bytes += Utf8_Encoded_Length(cp);
+		needed += Utf8_Encoded_Length(cp);
 	}
-	return bytes;
+	return needed;
 }
 
 size_t Utf8_To_Wide_Len(const char* src, size_t srcLen)
 {
-	size_t units = 0;
+	size_t needed = 0;
 	size_t i = 0;
 	while (i < srcLen)
 	{
@@ -220,9 +220,9 @@ size_t Utf8_To_Wide_Len(const char* src, size_t srcLen)
 			return UTF8_INVALID;
 		}
 		i += consumed;
-		units += Wide_Encoded_Length(cp);
+		needed += Wide_Encoded_Length(cp);
 	}
-	return units;
+	return needed;
 }
 
 size_t Wide_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen)
