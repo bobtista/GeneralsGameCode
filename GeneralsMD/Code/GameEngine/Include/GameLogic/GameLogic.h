@@ -210,7 +210,7 @@ public:
 
 	Bool isIntroMoviePlaying();
 
-	void updateObjectsChangedTriggerAreas() {m_frameObjectsChangedTriggerAreas = m_frame;}
+	void updateObjectsChangedTriggerAreas();
 	UnsignedInt getFrameObjectsChangedTriggerAreas() {return m_frameObjectsChangedTriggerAreas;}
 
 	void exitGame();
@@ -431,6 +431,8 @@ private:
 	};
 	std::vector<SleepyUpdateIdentity> m_checkpointSleepyUpdateOrder;
 	Bool m_hasCheckpointSleepyUpdateOrder;
+	UnsignedInt m_checkpointFrameObjectsChangedTriggerAreas;
+	Bool m_hasCheckpointTriggerAreaFrame;
 
 #ifdef ALLOW_NONSLEEPY_UPDATES
 	// this is a plain old list, not a pq.

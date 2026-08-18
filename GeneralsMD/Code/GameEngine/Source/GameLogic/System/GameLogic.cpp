@@ -268,6 +268,7 @@ GameLogic::GameLogic()
 	m_objList = nullptr;
 	m_curUpdateModule = nullptr;
 	m_hasCheckpointSleepyUpdateOrder = FALSE;
+	m_hasCheckpointTriggerAreaFrame = FALSE;
 	m_nextObjID = INVALID_ID;
 	m_startNewGame = FALSE;
 	m_gameMode = GAME_NONE;
@@ -480,6 +481,7 @@ void GameLogic::reset()
 	m_sleepyUpdates.clear();
 	m_checkpointSleepyUpdateOrder.clear();
 	m_hasCheckpointSleepyUpdateOrder = FALSE;
+	m_hasCheckpointTriggerAreaFrame = FALSE;
 	m_curUpdateModule = nullptr;
 
 	m_isScoringEnabled = TRUE;
@@ -5012,6 +5014,10 @@ void GameLogic::prepareLogicForObjectLoad()
   * 11: TheSuperHackers @fix Save objects in reverse order so they load in correct order
 	* 12: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize the logic random generator state, so
 	*     a loaded game continues the same random sequence instead of starting a divergent one
+	* 14: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize the frame objects last changed trigger
+	*     areas on. Creating the objects during a load stamps it with the load frame, which told every
+	*     guarding unit inside a trigger area that the area had just changed and made it rescan for
+	*     targets on the first resumed frame
 	* 13: TheSuperHackers @feature bobtista 16/08/2026 Serialize the sleepy update heap's exact array
 	*     order. Rebuilding it by pushing modules in object list order reproduces the same contents
 	*     and priorities but not the same layout among equal priorities, which decides whether a
@@ -5025,7 +5031,7 @@ void GameLogic::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 10;
 #else
-	const XferVersion currentVersion = 13;
+	const XferVersion currentVersion = 14;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -5436,11 +5442,32 @@ void GameLogic::xfer( Xfer *xfer )
 			}
 		}
 	}
+
+	if( version >= 14 )
+	{
+		//
+		// Staged rather than assigned here. Loading the objects calls
+		// updateObjectsChangedTriggerAreas(), which would immediately overwrite it with the load
+		// frame, so the saved value is put back once every object exists.
+		//
+		UnsignedInt triggerAreaFrame = m_frameObjectsChangedTriggerAreas;
+		xfer->xferUnsignedInt( &triggerAreaFrame );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointFrameObjectsChangedTriggerAreas = triggerAreaFrame;
+			m_hasCheckpointTriggerAreaFrame = TRUE;
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Load post process entry point */
 // ------------------------------------------------------------------------------------------------
+void GameLogic::updateObjectsChangedTriggerAreas()
+{
+	m_frameObjectsChangedTriggerAreas = m_frame;
+}
+
 void GameLogic::loadPostProcess()
 {
 
@@ -5568,6 +5595,12 @@ void GameLogic::loadPostProcess()
 	{
 		// Legacy saves do not carry heap layout, so rebuild a valid priority queue.
 		remakeSleepyUpdate();
+	}
+
+	if( m_hasCheckpointTriggerAreaFrame )
+	{
+		m_frameObjectsChangedTriggerAreas = m_checkpointFrameObjectsChangedTriggerAreas;
+		m_hasCheckpointTriggerAreaFrame = FALSE;
 	}
 
 }
