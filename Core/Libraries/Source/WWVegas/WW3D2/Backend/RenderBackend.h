@@ -16,26 +16,15 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 10/04/2026 Backend-agnostic access point
-// for the global IRenderBackend instance. Engine-side code should include this
-// header (not IRenderBackend.h or DX8Backend.h directly) to use the backend.
+// TheSuperHackers @refactor bobtista 10/04/2026 Backend selection seam. The
+// build links exactly one backend implementation, and that implementation
+// defines Create_Render_Backend. WW3D owns the instance it returns; use
+// WW3D::Get_Render_Backend() to reach the active backend.
 
 #pragma once
 
-#include "WW3D2/IRenderBackend.h"
-
-// The active rendering backend. Set by Init_Render_Backend() and cleared by
-// Shutdown_Render_Backend(); never null between those two calls.
-extern IRenderBackend * g_renderBackend;
+class IRenderBackend;
 
 // Construct the backend selected by the build. Exactly one backend
 // implementation must define this function.
 IRenderBackend *Create_Render_Backend();
-
-// Create the render backend. Called once from WW3D::Init, before any render
-// device exists, and exactly once per Shutdown_Render_Backend().
-void Init_Render_Backend();
-
-// Destroy the render backend. Called from WW3D::Shutdown, after the render
-// device has been released.
-void Shutdown_Render_Backend();

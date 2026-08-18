@@ -105,6 +105,7 @@
 #include "meshmdl.h"
 #include "dx8renderer.h"
 #include "Backend/RenderBackend.h"
+#include "IRenderBackend.h"
 #include "render2d.h"
 #include "WWLib/bound.h"
 #include "rddesc.h"
@@ -172,6 +173,8 @@ bool														WW3D::IsSortingEnabled = true;
 float														WW3D::PixelCenterX = 0.0f;
 float														WW3D::PixelCenterY = 0.0f;
 
+
+IRenderBackend *									WW3D::RenderBackend = nullptr;
 
 bool														WW3D::IsInitted = false;
 bool														WW3D::IsRendering = false;
@@ -283,7 +286,11 @@ WW3DErrorType WW3D::Init(void *hwnd, char *defaultpal, bool lite)
 	// TheSuperHackers @refactor bobtista 07/08/2026 The backend object is created
 	// once here and destroyed in WW3D::Shutdown, so it survives the device
 	// release and create cycles that drive its Initialize and Shutdown calls.
-	Init_Render_Backend();
+	WWASSERT(RenderBackend == nullptr);
+	if (RenderBackend == nullptr)
+	{
+		RenderBackend = Create_Render_Backend();
+	}
 
 	WWDEBUG_SAY(("Allocate Debug Resources"));
 	Allocate_Debug_Resources();
@@ -375,7 +382,8 @@ WW3DErrorType WW3D::Shutdown()
 		DX8Wrapper::Shutdown();
 	}
 
-	Shutdown_Render_Backend();
+	delete RenderBackend;
+	RenderBackend = nullptr;
 
 	/*
 	** Clear the default static sort lists

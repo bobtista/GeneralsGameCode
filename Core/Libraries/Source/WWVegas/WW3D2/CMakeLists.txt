@@ -15,7 +15,6 @@ set(WW3D2_SRC
     assetstatus.h
     Backend/DX8Backend.cpp
     Backend/DX8Backend.h
-    Backend/RenderBackend.cpp
     Backend/RenderBackend.h
     bitmaphandler.cpp
     bitmaphandler.h
