@@ -704,6 +704,7 @@ private:
 
 	// Attack Info --------------------------------------------------------------------------------------------
 	const AttackPriorityInfo*	m_attackInfo;
+	AsciiString				m_attackInfoNameToResolve;	///< Staged during load; resolved once the script engine exists
 
 	// "Planning Mode" -----------------------------------------------------------------------------------------
 	enum { MAX_WAYPOINTS = 16 };
