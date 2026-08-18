@@ -2796,9 +2796,12 @@ void GameLogic::deselectObject(Object *obj, PlayerMaskType playerMask, Bool affe
 			return;
 		}
 
+#if !RETAIL_COMPATIBLE_AIGROUP
 		// TheSuperHackers @bugfix bobtista 16/08/2026 Skip the temporary group when the object is not
 		// in this player's selection. A PLAYERMASK_ALL deselect otherwise burned one group id per
 		// player on a no-op, which moved the allocator away from the sequence the save recorded.
+		// Retail replays were recorded against the allocator advancing, so this stays behind the
+		// AIGroup compatibility macro.
 		if (player->isObjectInCurrentSelection(obj) == FALSE) {
 			if (affectClient) {
 				Drawable *draw = obj->getDrawable();
@@ -2808,6 +2811,7 @@ void GameLogic::deselectObject(Object *obj, PlayerMaskType playerMask, Bool affe
 			}
 			continue;
 		}
+#endif
 
 		CRCGEN_LOG(( "Removing a unit from a selected group in GameLogic::deselectObject()" ));
 		AIGroupPtr group = TheAI->createGroup();
