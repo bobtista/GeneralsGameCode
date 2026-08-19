@@ -2316,6 +2316,20 @@ theObjName = obj->getTemplate()->getName();
 }
 
 //-----------------------------------------------------------------------------
+void PartitionData::friend_restoreDirty(UnsignedByte status)
+{
+	if ((DirtyStatus)status == NOT_DIRTY)
+	{
+		return;
+	}
+	if (!ThePartitionManager->isInListDirtyModules(this))
+	{
+		ThePartitionManager->prependToDirtyModules(this);
+	}
+	m_dirtyStatus = (DirtyStatus)status;
+}
+
+//-----------------------------------------------------------------------------
 void PartitionData::makeDirty(Bool needToUpdateCells)
 {
 	//DEBUG_LOG(("makeDirty for pd %08lx obj %08lx",this,m_object));
@@ -4739,7 +4753,7 @@ void PartitionManager::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 2;
 #else
-	XferVersion currentVersion = 3;
+	XferVersion currentVersion = 4;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -4900,6 +4914,64 @@ void PartitionManager::xfer( Xfer *xfer )
 		m_checkpointCellObjectOrder.clear();
 	}
 
+	if (version >= 4)
+	{
+		//
+		// TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the pending dirty list. It holds the
+		// objects that have moved since the last collision sweep, and it spans the frame boundary --
+		// anything dirtied after a frame's sweep is still waiting at the start of the next one. A
+		// load cannot rebuild that from the world state, so the first resumed frame sweeps a
+		// different set in a different order, and since processContactList hands the first object of
+		// each pair its onCollide() first and collisions re-dirty both participants, the difference
+		// never washes out.
+		//
+		UnsignedInt dirtyCount = 0;
+		if (xfer->getXferMode() == XFER_SAVE)
+		{
+			for (PartitionData *d = m_dirtyModules; d; d = d->friend_getNextDirty())
+			{
+				if (d->getObject() != nullptr)
+				{
+					++dirtyCount;
+				}
+			}
+		}
+		xfer->xferUnsignedInt(&dirtyCount);
+
+		if (xfer->getXferMode() == XFER_SAVE)
+		{
+			for (PartitionData *d = m_dirtyModules; d; d = d->friend_getNextDirty())
+			{
+				Object *obj = d->getObject();
+				if (obj == nullptr)
+				{
+					continue;
+				}
+				ObjectID id = obj->getID();
+				UnsignedByte status = d->friend_getDirtyStatus();
+				xfer->xferObjectID(&id);
+				xfer->xferUnsignedByte(&status);
+			}
+		}
+		else
+		{
+			m_checkpointDirtyOrder.clear();
+			m_checkpointDirtyOrder.reserve(dirtyCount);
+			for (UnsignedInt i = 0; i < dirtyCount; ++i)
+			{
+				ObjectID id = INVALID_ID;
+				UnsignedByte status = 0;
+				xfer->xferObjectID(&id);
+				xfer->xferUnsignedByte(&status);
+				m_checkpointDirtyOrder.push_back(std::make_pair(id, status));
+			}
+		}
+	}
+	else if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_checkpointDirtyOrder.clear();
+	}
+
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -4931,6 +5003,29 @@ void PartitionManager::finishLoadPostProcess()
 		m_cells[i].restoreObjectOrder(m_checkpointCellObjectOrder[i]);
 	}
 	m_checkpointCellObjectOrder.clear();
+
+	//
+	// The registrations done during the load left every object on the dirty list in load order.
+	// Replace that with exactly the list the save carried. Entries are prepended, so walking the
+	// saved order backwards reproduces it.
+	//
+	removeAllDirtyModules();
+	for (std::vector< std::pair<ObjectID, UnsignedByte> >::reverse_iterator rIt = m_checkpointDirtyOrder.rbegin();
+			 rIt != m_checkpointDirtyOrder.rend(); ++rIt)
+	{
+		Object *obj = TheGameLogic->findObjectByID(rIt->first);
+		if (obj == nullptr)
+		{
+			continue;
+		}
+		PartitionData *data = obj->friend_getPartitionData();
+		if (data == nullptr)
+		{
+			continue;
+		}
+		data->friend_restoreDirty(rIt->second);
+	}
+	m_checkpointDirtyOrder.clear();
 }
 
 //-----------------------------------------------------------------------------

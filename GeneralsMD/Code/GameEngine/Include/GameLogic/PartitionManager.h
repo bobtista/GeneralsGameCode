@@ -510,6 +510,9 @@ public:
 	void makeDirty(Bool needToUpdateCells);
 
 	Bool isInNeedOfUpdatingCells() const { return m_dirtyStatus == NEED_CELL_UPDATE_AND_COLLISION_CHECK; }
+	PartitionData* friend_getNextDirty() const { return m_nextDirty; }
+	UnsignedByte friend_getDirtyStatus() const { return (UnsignedByte)m_dirtyStatus; }
+	void friend_restoreDirty(UnsignedByte status);
 	Bool isInNeedOfCollisionCheck() const { return m_dirtyStatus != NOT_DIRTY; }
 
 	void invalidateShroudedStatusForPlayer(Int playerIndex);
@@ -1254,6 +1257,7 @@ private:
 
 	std::queue<SightingInfo *> m_pendingUndoShroudReveals;	///< Anything can queue up an Undo to happen later. This is a queue, because "later" is a constant
 	std::vector<std::vector<ObjectID> > m_checkpointCellObjectOrder;
+	std::vector<std::pair<ObjectID, UnsignedByte> > m_checkpointDirtyOrder;
 
 #ifdef FASTER_GCO
 	Int							m_maxGcoRadius;
