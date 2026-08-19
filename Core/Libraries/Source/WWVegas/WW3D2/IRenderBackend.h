@@ -59,7 +59,7 @@ public:
     virtual void Initialize(void * window, int width, int height) {}
     virtual void Shutdown() {}
 
-    virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate) = 0;
+    virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) = 0;
 
     virtual void Begin_Scene() = 0;
     virtual void End_Scene(bool flip_frame) = 0;
