@@ -3767,6 +3767,13 @@ void GameLogic::update()
 	// TheGameClient->UPDATE(), which precedes TheGameLogic->UPDATE(). Saving further down would
 	// capture a mid-frame state that no player save can produce, and reloading it would re-run the
 	// part of the frame that had already executed.
+	//
+	if (TheGlobalData->m_quitAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_quitAtFrame && getGameMode() != GAME_SHELL)
+	{
+		DEBUG_LOG(("Command line quit at frame %d", m_frame));
+		TheGameEngine->setQuitting(TRUE);
+	}
+
 	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_saveAtFrame && getGameMode() != GAME_SHELL)
 	{
 		// TheSuperHackers @bugfix bobtista 15/08/2026 Only write a save the game itself would let the

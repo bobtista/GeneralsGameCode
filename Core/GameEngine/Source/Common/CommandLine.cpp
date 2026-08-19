@@ -788,6 +788,17 @@ Int parseSaveAtFrame(char *args[], int num)
 	return 2;
 }
 
+// TheSuperHackers @feature bobtista 19/08/2026 Quit at a chosen logic frame so an unattended
+// measurement run ends as soon as it has produced its data instead of idling until it is killed.
+Int parseQuitAtFrame(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_quitAtFrame = atoi(args[1]);
+	}
+	return 2;
+}
+
 Int parseSaveTo(char *args[], int num)
 {
 	if (num > 1)
@@ -1400,6 +1411,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-displayDebug", parseDisplayDebug },
 	{ "-file", parseFile },
 	{ "-saveatframe", parseSaveAtFrame },
+	{ "-quitatframe", parseQuitAtFrame },
 	{ "-saveto", parseSaveTo },
 
 //	{ "-preload", parsePreload },
