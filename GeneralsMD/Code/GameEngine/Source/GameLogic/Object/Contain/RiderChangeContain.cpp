@@ -460,13 +460,20 @@ void RiderChangeContain::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize m_scuttledOnFrame. update() only
+	*    runs the scuttle countdown while it is non-zero, so a bike scuttled before the save came
+	*    back with the countdown cleared and was never killed. */
 // ------------------------------------------------------------------------------------------------
 void RiderChangeContain::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -481,6 +488,12 @@ void RiderChangeContain::xfer( Xfer *xfer )
 
 	// frame exit not busy
 	xfer->xferUnsignedInt( &m_frameExitNotBusy );
+
+	if( version >= 2 )
+	{
+		// frame the scuttle began on
+		xfer->xferUnsignedInt( &m_scuttledOnFrame );
+	}
 
 }
 
