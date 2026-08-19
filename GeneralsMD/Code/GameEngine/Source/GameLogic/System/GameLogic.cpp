@@ -5517,8 +5517,16 @@ void GameLogic::loadPostProcess()
 	m_nextObjID = INVALID_ID;
 	Object *obj;
 	for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
+	{
 		if( obj->getID() >= m_nextObjID )
 			m_nextObjID = (ObjectID)((UnsignedInt)obj->getID() + 1);
+
+		//
+		// The terrain layers are in place by now, so any altitude cached earlier in the load was
+		// measured against the wrong surface for anything standing on a bridge.
+		//
+		obj->invalidateAltitudeCache();
+	}
 
 	//
 	// TheSuperHackers @bugfix bobtista 19/08/2026 Prefer the saved counter. The rebuild above only
