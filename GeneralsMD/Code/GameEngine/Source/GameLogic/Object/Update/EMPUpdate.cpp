@@ -382,13 +382,37 @@ void EMPUpdate::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version */
 // ------------------------------------------------------------------------------------------------
+/** Xfer
+	*	Version Info:
+	* 1: Initial version -- a stub that saved nothing at all, not even the base class
+	* 2: TheSuperHackers @bugfix bobtista 19/08/2026 Actually serialize the module. Version 1 wrote
+	*    only the version tag: it never chained to UpdateModule, so the sleepy scheduler state was
+	*    lost, and it never saved m_dieFrame, which update() compares against to kill the effect.
+	*    A restored EMP effect therefore never expired and lingered as a live object.
+	*/
 void EMPUpdate::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
+
+	if( version >= 2 )
+	{
+		// extend base class
+		UpdateModule::xfer( xfer );
+
+		xfer->xferUnsignedInt( &m_dieFrame );
+		xfer->xferUnsignedInt( &m_tintEnvFadeFrames );
+		xfer->xferUnsignedInt( &m_tintEnvPlayFrame );
+		xfer->xferReal( &m_targetScale );
+		xfer->xferReal( &m_currentScale );
+	}
 
 }
 
