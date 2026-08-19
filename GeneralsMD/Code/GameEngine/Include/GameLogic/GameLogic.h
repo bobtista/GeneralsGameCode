@@ -433,6 +433,8 @@ private:
 	Bool m_hasCheckpointSleepyUpdateOrder;
 	UnsignedInt m_checkpointFrameObjectsChangedTriggerAreas;
 	Bool m_hasCheckpointTriggerAreaFrame;
+	ObjectID m_checkpointNextObjID;
+	Bool m_hasCheckpointNextObjID;
 
 #ifdef ALLOW_NONSLEEPY_UPDATES
 	// this is a plain old list, not a pq.

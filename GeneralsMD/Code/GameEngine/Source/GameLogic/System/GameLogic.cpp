@@ -269,6 +269,8 @@ GameLogic::GameLogic()
 	m_curUpdateModule = nullptr;
 	m_hasCheckpointSleepyUpdateOrder = FALSE;
 	m_hasCheckpointTriggerAreaFrame = FALSE;
+	m_checkpointNextObjID = INVALID_ID;
+	m_hasCheckpointNextObjID = FALSE;
 	m_nextObjID = INVALID_ID;
 	m_startNewGame = FALSE;
 	m_gameMode = GAME_NONE;
@@ -482,6 +484,8 @@ void GameLogic::reset()
 	m_checkpointSleepyUpdateOrder.clear();
 	m_hasCheckpointSleepyUpdateOrder = FALSE;
 	m_hasCheckpointTriggerAreaFrame = FALSE;
+	m_checkpointNextObjID = INVALID_ID;
+	m_hasCheckpointNextObjID = FALSE;
 	m_curUpdateModule = nullptr;
 
 	m_isScoringEnabled = TRUE;
@@ -5029,6 +5033,10 @@ void GameLogic::prepareLogicForObjectLoad()
 	* 15: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the weapon store's pending delayed
 	*     damage. A shot whose damage lands a few frames later is held only in that runtime list, so
 	*     saving between the shot and its landing frame cancelled the shot outright
+	* 16: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the next object id counter. Load
+	*     rebuilt it from the highest live id, which hands out again every id belonging to an object
+	*     that died before the save, so objects created after a load carry different ids than the
+	*     same objects in the continuous simulation
 	*/
 // ------------------------------------------------------------------------------------------------
 void GameLogic::xfer( Xfer *xfer )
@@ -5038,7 +5046,7 @@ void GameLogic::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 10;
 #else
-	const XferVersion currentVersion = 15;
+	const XferVersion currentVersion = 16;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -5470,6 +5478,21 @@ void GameLogic::xfer( Xfer *xfer )
 	{
 		TheWeaponStore->xferDelayedDamage( xfer );
 	}
+
+	if( version >= 16 )
+	{
+		//
+		// Staged rather than assigned here, because loadPostProcess rebuilds this counter from the
+		// objects that ended up in the world and would overwrite it.
+		//
+		ObjectID nextObjID = m_nextObjID;
+		xfer->xferObjectID( &nextObjID );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointNextObjID = nextObjID;
+			m_hasCheckpointNextObjID = TRUE;
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -5496,6 +5519,21 @@ void GameLogic::loadPostProcess()
 	for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
 		if( obj->getID() >= m_nextObjID )
 			m_nextObjID = (ObjectID)((UnsignedInt)obj->getID() + 1);
+
+	//
+	// TheSuperHackers @bugfix bobtista 19/08/2026 Prefer the saved counter. The rebuild above only
+	// sees objects that are still alive, so every id belonging to an object that died before the
+	// save gets handed out a second time, and the object ids are part of the frame CRC. The max
+	// keeps the rebuild as a floor for saves written before the counter was serialized.
+	//
+	if( m_hasCheckpointNextObjID )
+	{
+		if( (UnsignedInt)m_checkpointNextObjID > (UnsignedInt)m_nextObjID )
+		{
+			m_nextObjID = m_checkpointNextObjID;
+		}
+		m_hasCheckpointNextObjID = FALSE;
+	}
 
 	// blow away the sleepy update and normal update module lists
 	for (std::vector<UpdateModulePtr>::iterator it = m_sleepyUpdates.begin(); it != m_sleepyUpdates.end(); ++it)
