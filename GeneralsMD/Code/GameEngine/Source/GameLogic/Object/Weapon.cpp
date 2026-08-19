@@ -1718,6 +1718,71 @@ void WeaponStore::deleteAllDelayedDamage()
 	m_weaponDDI.clear();
 }
 
+//-------------------------------------------------------------------------------------------------
+/** Xfer the pending delayed damage
+	*	Version Info:
+	* 1: Initial version
+	*/
+//-------------------------------------------------------------------------------------------------
+void WeaponStore::xferDelayedDamage( Xfer *xfer )
+{
+	const XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
+
+	UnsignedShort count = (UnsignedShort)m_weaponDDI.size();
+	xfer->xferUnsignedShort( &count );
+
+	if( xfer->getXferMode() == XFER_SAVE )
+	{
+		std::list< WeaponDelayedDamageInfo >::iterator it;
+		for( it = m_weaponDDI.begin(); it != m_weaponDDI.end(); ++it )
+		{
+			AsciiString weaponName = it->m_delayedWeapon ? it->m_delayedWeapon->getName() : AsciiString::TheEmptyString;
+			xfer->xferAsciiString( &weaponName );
+			xfer->xferCoord3D( &it->m_delayDamagePos );
+			xfer->xferUnsignedInt( &it->m_delayDamageFrame );
+			xfer->xferObjectID( &it->m_delaySourceID );
+			xfer->xferObjectID( &it->m_delayIntendedVictimID );
+			for( Int f = 0; f < WeaponBonus::FIELD_COUNT; ++f )
+			{
+				Real bonusField = it->m_bonus.getField( (WeaponBonus::Field)f );
+				xfer->xferReal( &bonusField );
+			}
+		}
+	}
+	else
+	{
+		m_weaponDDI.clear();
+
+		for( UnsignedShort i = 0; i < count; ++i )
+		{
+			AsciiString weaponName;
+			WeaponDelayedDamageInfo wi;
+
+			xfer->xferAsciiString( &weaponName );
+			xfer->xferCoord3D( &wi.m_delayDamagePos );
+			xfer->xferUnsignedInt( &wi.m_delayDamageFrame );
+			xfer->xferObjectID( &wi.m_delaySourceID );
+			xfer->xferObjectID( &wi.m_delayIntendedVictimID );
+			for( Int f = 0; f < WeaponBonus::FIELD_COUNT; ++f )
+			{
+				Real bonusField = 1.0f;
+				xfer->xferReal( &bonusField );
+				wi.m_bonus.setField( (WeaponBonus::Field)f, bonusField );
+			}
+
+			wi.m_delayedWeapon = findWeaponTemplate( weaponName );
+			if( wi.m_delayedWeapon == nullptr )
+			{
+				continue;
+			}
+
+			m_weaponDDI.push_back( wi );
+		}
+	}
+}
+
 // ------------------------------------------------------------------------------------------------
 void WeaponStore::resetWeaponTemplates()
 {
