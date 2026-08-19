@@ -758,7 +758,7 @@ void DumbProjectileBehavior::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
 #else
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -813,6 +813,17 @@ void DumbProjectileBehavior::xfer( Xfer *xfer )
 	if( version >= 2 )
 	{
 		xfer->xferInt( &m_currentFlightPathStep );
+	}
+
+	if( version >= 3 )
+	{
+		//
+		// TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the launcher's weapon bonus. It is
+		// captured when the projectile is fired and read again when it detonates, so a shell that is
+		// in the air across a save lands for unbonused damage -- a China tank shell fired with the
+		// horde bonus up did 60 instead of 72.
+		//
+		xfer->xferUnsignedInt( &m_extraBonusFlags );
 	}
 
 }
