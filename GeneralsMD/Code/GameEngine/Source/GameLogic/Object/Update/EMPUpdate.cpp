@@ -569,17 +569,32 @@ void LeafletDropBehavior::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 19/08/2026 Chain UpdateModule and serialize m_fxFired.
+	*    Version 1 skipped the base class, losing the sleep schedule, and let m_fxFired reset to
+	*    FALSE so the leaflet particle effect was spawned again every time a save was loaded. */
 // ------------------------------------------------------------------------------------------------
 void LeafletDropBehavior::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
   xfer->xferUnsignedInt( &m_startFrame );
+
+	if( version >= 2 )
+	{
+		// extend base class
+		UpdateModule::xfer( xfer );
+
+		xfer->xferBool( &m_fxFired );
+	}
 
 }
 
