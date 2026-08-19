@@ -352,6 +352,7 @@ public:
 	AsciiString m_initialFile;				///< If this is specified, load a specific map from the command-line
 	Int m_saveAtFrame;						///< If greater than zero, write a save when this logic frame is reached
 	AsciiString m_saveToFile;				///< Filename used by m_saveAtFrame
+	Int m_quitAtFrame;						///< If greater than zero, quit when this logic frame is reached
 	AsciiString m_pendingFile;				///< If this is specified, use this map at the next game start
 	AsciiString m_loadSaveGame;				///< If this is specified, load a save game file from the command-line
 
