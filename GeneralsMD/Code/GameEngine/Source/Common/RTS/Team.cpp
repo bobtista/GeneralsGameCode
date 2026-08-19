@@ -819,7 +819,9 @@ TeamPrototype::TeamPrototype( TeamFactory *tf,
 	m_flags(isSingleton ? TeamPrototype::TEAM_SINGLETON : 0),
 	m_teamTemplate(d),
 	m_productionConditionAlwaysFalse(false),
-	m_productionConditionScript(nullptr)
+	m_productionConditionScript(nullptr),
+	m_checkpointProductionConditionFrame(0),
+	m_hasCheckpointProductionConditionFrame(FALSE)
 {
 	DEBUG_ASSERTCRASH(!(m_owningPlayer == nullptr), ("bad args to TeamPrototype ctor"));
 	if (m_factory)
@@ -857,6 +859,8 @@ TeamPrototype::~TeamPrototype()
 
 	deleteInstance(m_productionConditionScript);
 	m_productionConditionScript = nullptr;
+	m_checkpointProductionConditionFrame = 0;
+	m_hasCheckpointProductionConditionFrame = FALSE;
 
 	for (Int i = 0; i < MAX_GENERIC_SCRIPTS; ++i)
 	{
@@ -1175,6 +1179,15 @@ Bool TeamPrototype::evaluateProductionCondition()
 		// Make a copy of the script locally, just for paranoia's sake.  We can't be sure
 		// exactly what order the teams & scripts will get reset, so be safe.
 		m_productionConditionScript = pScript->duplicate();
+		if( m_hasCheckpointProductionConditionFrame )
+		{
+			m_productionConditionScript->setFrameToEvaluate( m_checkpointProductionConditionFrame );
+			m_hasCheckpointProductionConditionFrame = FALSE;
+			if( TheGameLogic->getFrame() < m_productionConditionScript->getFrameToEvaluate() )
+			{
+				return false;
+			}
+		}
 		return TheScriptEngine->evaluateConditions(m_productionConditionScript, nullptr, getControllingPlayer());
 	}
 	// Couldn't find a script.
@@ -1195,11 +1208,23 @@ void TeamPrototype::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version */
 // ------------------------------------------------------------------------
+/** Xfer
+	*	Version Info:
+	* 1: Initial version
+	* 2: Attack priority name
+	* 3: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the production condition script's
+	*    evaluation frame. The script is a private duplicate owned by the prototype, so it is not
+	*    covered by the script engine's own chunk, and a load rebuilt it with the frame cleared
+	*/
 void TeamPrototype::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 2;
+#else
+	XferVersion currentVersion = 3;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1216,6 +1241,22 @@ void TeamPrototype::xfer( Xfer *xfer )
 
 	// production condition
 	xfer->xferBool( &m_productionConditionAlwaysFalse );
+
+	if( version >= 3 )
+	{
+		//
+		// The script itself is duplicated lazily on the first evaluation, so on load the value is
+		// staged here and applied by evaluateProductionCondition once that duplicate exists.
+		//
+		UnsignedInt productionConditionFrame = m_productionConditionScript
+			? m_productionConditionScript->getFrameToEvaluate() : 0;
+		xfer->xferUnsignedInt( &productionConditionFrame );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointProductionConditionFrame = productionConditionFrame;
+			m_hasCheckpointProductionConditionFrame = TRUE;
+		}
+	}
 
 	// team template information
 	xfer->xferSnapshot( &m_teamTemplate );

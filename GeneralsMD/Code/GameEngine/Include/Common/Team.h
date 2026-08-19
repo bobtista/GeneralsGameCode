@@ -660,6 +660,8 @@ private:
 
 	Bool									m_productionConditionAlwaysFalse; ///< Flag set to true if we don't have a production condition.
 	Script								*m_productionConditionScript; ///< Script to evaluate for production condition.
+	UnsignedInt						m_checkpointProductionConditionFrame; ///< Staged evaluation frame for the production condition script.
+	Bool									m_hasCheckpointProductionConditionFrame;
 
 	Bool									m_retrievedGenericScripts;
 	Script								*m_genericScriptsToRun[MAX_GENERIC_SCRIPTS];
