@@ -836,9 +836,18 @@ void StateMachine::xfer( Xfer *xfer )
 		m_currentState = internalGetState( curStateID );
 	}
 
+	//
+	// TheSuperHackers @bugfix bobtista 19/08/2026 Snapshot every state, not just the current one.
+	// A state machine's non-current states keep data that outlives the state they were set in --
+	// AIInternalMoveToState::m_adjustDestinations is set when the order is issued and read the next
+	// time the state runs -- so restoring only the current state brings the rest back at their
+	// constructor defaults. The flag is written into the stream, so a save describes which layout
+	// it used and old saves still load.
+	//
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	Bool snapshotAllStates = false;
-#ifdef RTS_DEBUG
-	//snapshotAllStates = true;
+#else
+	Bool snapshotAllStates = true;
 #endif
 	xfer->xferBool(&snapshotAllStates);
 	if (snapshotAllStates) {
