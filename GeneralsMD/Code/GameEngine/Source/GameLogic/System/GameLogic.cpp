@@ -5026,6 +5026,9 @@ void GameLogic::prepareLogicForObjectLoad()
 	*     order. Rebuilding it by pushing modules in object list order reproduces the same contents
 	*     and priorities but not the same layout among equal priorities, which decides whether a
 	*     module runs in its creation frame or the next one
+	* 15: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the weapon store's pending delayed
+	*     damage. A shot whose damage lands a few frames later is held only in that runtime list, so
+	*     saving between the shot and its landing frame cancelled the shot outright
 	*/
 // ------------------------------------------------------------------------------------------------
 void GameLogic::xfer( Xfer *xfer )
@@ -5035,7 +5038,7 @@ void GameLogic::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 10;
 #else
-	const XferVersion currentVersion = 14;
+	const XferVersion currentVersion = 15;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -5461,6 +5464,11 @@ void GameLogic::xfer( Xfer *xfer )
 			m_checkpointFrameObjectsChangedTriggerAreas = triggerAreaFrame;
 			m_hasCheckpointTriggerAreaFrame = TRUE;
 		}
+	}
+
+	if( version >= 15 )
+	{
+		TheWeaponStore->xferDelayedDamage( xfer );
 	}
 }
 

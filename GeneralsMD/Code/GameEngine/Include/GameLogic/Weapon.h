@@ -854,6 +854,13 @@ public:
 
 	void handleProjectileDetonation( const WeaponTemplate* w, const Object *source, const Coord3D* pos, WeaponBonusConditionFlags extraBonusFlags, Bool inflictDamage = TRUE );
 
+	//
+	// TheSuperHackers @bugfix bobtista 19/08/2026 Damage that has been fired but has not landed yet
+	// lives only here, so a save taken between the shot and its landing frame used to cancel the shot
+	// outright. Serialized by GameLogic::xfer.
+	//
+	void xferDelayedDamage( Xfer *xfer );
+
 	static void parseWeaponTemplateDefinition(INI* ini);
 
 protected:
