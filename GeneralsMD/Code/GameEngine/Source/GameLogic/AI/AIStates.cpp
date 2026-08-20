@@ -3542,12 +3542,25 @@ void AIAttackMoveToState::crc( Xfer *xfer )
 }
 
 // ------------------------------------------------------------------------------------------------
-/** Xfer Method */
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: Sleep frame and retry count
+	* 3: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize m_commandSrc. onEnter captures the
+	*    originating command source and update() writes it back into the AI once the attack-move
+	*    machine goes idle. Leaving it unsaved meant a loaded unit wrote CMD_FROM_PLAYER back over
+	*    a command that came from the AI, and every consumer that tests for CMD_FROM_AI then took
+	*    the other branch -- CommandButtonHuntUpdate, for one, stops hunting and sleeps forever.
+	*/
 // ------------------------------------------------------------------------------------------------
 void AIAttackMoveToState::xfer( Xfer *xfer )
 {
   // version
+#if RETAIL_COMPATIBLE_XFER_SAVE
   XferVersion currentVersion = 2;
+#else
+  XferVersion currentVersion = 3;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -3559,6 +3572,10 @@ void AIAttackMoveToState::xfer( Xfer *xfer )
 		xfer->xferInt(&m_retryCount);
 	}
 	xfer->xferSnapshot(m_attackMoveMachine);
+
+	if (version>=3) {
+		xfer->xferUser(&m_commandSrc, sizeof(m_commandSrc));
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
