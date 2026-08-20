@@ -1253,6 +1253,7 @@ private:
 	Int							m_totalCellCount;	///< x * y
 	PartitionCell*	m_cells;					///< array of cells
 	PartitionData*	m_dirtyModules;
+	Bool                m_suppressCollisionsThisUpdate;
 	Bool						m_updatedSinceLastReset;	///< Used to force a return of OBJECTSHROUD_INVALID before update has been called.
 
 	std::queue<SightingInfo *> m_pendingUndoShroudReveals;	///< Anything can queue up an Undo to happen later. This is a queue, because "later" is a constant
@@ -1325,6 +1326,14 @@ public:
 	virtual void init() override;			///< initialize
 	virtual void reset() override;			///< system reset
 	virtual void update() override;		///< system update
+
+	//
+	// TheSuperHackers @bugfix bobtista 20/08/2026 Sweep the dirty list without running collisions.
+	// The load path needs the cells refreshed before the script engine runs, but processing
+	// collisions there replays contacts whose impulses are already baked into the saved
+	// acceleration, so every one of them lands twice on the first resumed frame.
+	//
+	void updateCellsOnlyForLoad();
 	// ----------------------------------------------------------------
 
 	// --------------- inherited from Snapshot interface --------------
