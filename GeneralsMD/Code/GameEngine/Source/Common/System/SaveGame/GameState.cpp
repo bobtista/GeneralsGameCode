@@ -1613,7 +1613,7 @@ void GameState::gameStatePostProcessLoad()
 	TheAI->pathfinder()->finishLoadPostProcess();
 
 	// evil... must ensure this is updated prior to the script engine running the first time.
-	ThePartitionManager->update();
+	ThePartitionManager->updateCellsOnlyForLoad();
 	ThePartitionManager->finishLoadPostProcess();
 
 }

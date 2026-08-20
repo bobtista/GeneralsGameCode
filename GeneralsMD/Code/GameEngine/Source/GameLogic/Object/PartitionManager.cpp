@@ -2684,6 +2684,7 @@ void PartitionContactList::processContactList()
 //-----------------------------------------------------------------------------
 PartitionManager::PartitionManager()
 {
+	m_suppressCollisionsThisUpdate = FALSE;
 	m_moduleList = nullptr;
 	m_cellSize = m_cellSizeInv = 0.0f;
 	m_cellCountX = 0;
@@ -2857,6 +2858,13 @@ void PartitionManager::shutdown()
 
 //-----------------------------------------------------------------------------
 //DECLARE_PERF_TIMER(PartitionManager_update)
+void PartitionManager::updateCellsOnlyForLoad()
+{
+	m_suppressCollisionsThisUpdate = TRUE;
+	update();
+	m_suppressCollisionsThisUpdate = FALSE;
+}
+
 void PartitionManager::update()
 {
 	//USE_PERF_TIMER(PartitionManager_update)
@@ -2886,6 +2894,10 @@ void PartitionManager::update()
 			// flag in question.
 			Bool updateEm = dirty->isInNeedOfUpdatingCells();
 			Bool collideEm = dirty->isInNeedOfCollisionCheck() && dirty->getObject();	//only update collisions if we have object
+			if (m_suppressCollisionsThisUpdate)
+			{
+				collideEm = FALSE;
+			}
 
 			// detach it from the dirty list.
 			removeFromDirtyModules(dirty);
