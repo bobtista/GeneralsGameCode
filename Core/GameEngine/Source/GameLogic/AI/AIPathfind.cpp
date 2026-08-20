@@ -285,10 +285,21 @@ void Path::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer Method */
 // ------------------------------------------------------------------------------------------------
+/** Xfer
+	*	Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the cached closest-point-on-path.
+	*    Discarding it on load moves the frame the goal point is next recomputed on, so a loaded
+	*    unit steers to a different path point than the same unit in a continuous run
+	*/
 void Path::xfer( Xfer *xfer )
 {
   // version
+#if RETAIL_COMPATIBLE_XFER_SAVE
   XferVersion currentVersion = 1;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -363,6 +374,38 @@ void Path::xfer( Xfer *xfer )
 	UnsignedInt obsolete2;
 	xfer->xferUnsignedInt(&obsolete2);
 	xfer->xferBool(&m_blockedByAlly);
+
+	//
+	// The node ids used here are stamped by the save loop above, so this has to stay after it.
+	//
+	if( version >= 2 )
+	{
+		xfer->xferBool( &m_cpopValid );
+		xfer->xferInt( &m_cpopCountdown );
+		xfer->xferCoord3D( &m_cpopIn );
+		xfer->xferReal( &m_cpopOut.distAlongPath );
+		xfer->xferCoord3D( &m_cpopOut.posOnPath );
+		xfer->xferUser( &m_cpopOut.layer, sizeof( m_cpopOut.layer ) );
+
+		Int recentStartID = -1;
+		if( xfer->getXferMode() == XFER_SAVE && m_cpopRecentStart != nullptr )
+		{
+			recentStartID = m_cpopRecentStart->m_id;
+		}
+		xfer->xferInt( &recentStartID );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_cpopRecentStart = nullptr;
+			for( const PathNode *node = m_path; node != nullptr; node = node->getNext() )
+			{
+				if( node->m_id == recentStartID )
+				{
+					m_cpopRecentStart = node;
+					break;
+				}
+			}
+		}
+	}
 
 
 #if defined(RTS_DEBUG)
