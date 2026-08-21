@@ -284,8 +284,7 @@ WW3DErrorType WW3D::Init(void *hwnd, char *defaultpal, bool lite)
 	}
 
 	// TheSuperHackers @refactor bobtista 07/08/2026 The backend object is created
-	// once here and destroyed in WW3D::Shutdown, so it survives the device
-	// release and create cycles that drive its Initialize and Shutdown calls.
+	// once here and destroyed in WW3D::Shutdown.
 	WWASSERT(RenderBackend == nullptr);
 	if (RenderBackend == nullptr)
 	{

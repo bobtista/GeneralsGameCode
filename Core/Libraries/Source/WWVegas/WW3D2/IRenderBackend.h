@@ -39,7 +39,7 @@ struct RenderBackendViewport
 };
 
 // A method appears here once a caller routes through it, not in anticipation of
-// one. The set below is what WW3D and DX8Wrapper currently call; the rest of the
+// one. The set below is what current callers route through; the rest of the
 // DX8Wrapper API stays reachable through DX8Wrapper's static methods until a
 // caller migrates, at which point the method it needs moves here.
 //
@@ -51,13 +51,6 @@ class IRenderBackend
 {
 public:
     virtual ~IRenderBackend() {}
-
-    // Optional device lifecycle. DX8Wrapper owns the render device and calls
-    // these after the backend is constructed and before it is destroyed. A
-    // backend that drives its own device creates it in Initialize and releases
-    // it in Shutdown; the DX8 reference backend leaves them as no-ops.
-    virtual void Initialize(void * window, int width, int height) {}
-    virtual void Shutdown() {}
 
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) = 0;
 
