@@ -377,12 +377,13 @@ WW3DErrorType WW3D::Shutdown()
 	}
 
 	DX8TextureManagerClass::Shutdown();
-	if (!Lite) {
-		DX8Wrapper::Shutdown();
-	}
 
 	delete RenderBackend;
 	RenderBackend = nullptr;
+
+	if (!Lite) {
+		DX8Wrapper::Shutdown();
+	}
 
 	/*
 	** Clear the default static sort lists
