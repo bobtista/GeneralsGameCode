@@ -8152,13 +8152,20 @@ void SequentialScript::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer Method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 21/08/2026 Serialize the queued sequential scripts hanging
+	*    off m_nextScriptInSequence. Only the head of each chain is held in m_sequentialScripts, so
+	*    without this every script a team had queued behind the running one was dropped on load. */
 // ------------------------------------------------------------------------------------------------
 void SequentialScript::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -8225,6 +8232,21 @@ void SequentialScript::xfer( Xfer *xfer )
 
 	// don't advance instruction
 	xfer->xferBool( &m_dontAdvanceInstruction );
+
+	// the rest of the scripts queued behind this one
+	if( version >= 2 )
+	{
+		Bool hasNextInSequence = m_nextScriptInSequence != nullptr;
+		xfer->xferBool( &hasNextInSequence );
+		if( hasNextInSequence )
+		{
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				m_nextScriptInSequence = newInstance( SequentialScript );
+			}
+			xfer->xferSnapshot( m_nextScriptInSequence );
+		}
+	}
 
 }
 
