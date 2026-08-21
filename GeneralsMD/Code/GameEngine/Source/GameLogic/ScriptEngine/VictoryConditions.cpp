@@ -86,6 +86,7 @@ public:
 	virtual Bool hasSinglePlayerBeenDefeated(Player *player) override;	///< has a specific player lost?
 
 	virtual void cachePlayerPtrs() override;											///< players have been created - cache the ones of interest
+	virtual void resyncDefeatStateAfterLoad() override;						///< re-derive defeat flags after a save game load
 
 	virtual Bool isLocalAlliedVictory() override;								///< convenience function
 	virtual Bool isLocalAlliedDefeat() override;									///< convenience function
@@ -322,6 +323,30 @@ Bool VictoryConditions::hasBeenDefeated(Player *player)
 }
 
 //-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 21/08/2026 Re-derive the defeat flags after a save game load.
+// This subsystem is not serialized, so a loaded game forgot who had already been defeated and the
+// first update re-ran the whole defeat sequence: the permanent map reveal double-added a looker to
+// every partition cell and killPlayer destroyed the defeated player's leftover objects, both
+// diverging from a game that played through the same frames continuously.
+//-------------------------------------------------------------------------------------------------
+void VictoryConditions::resyncDefeatStateAfterLoad()
+{
+	if (!TheRecorder->isMultiplayer() || (m_localSlotNum < 0 && !m_isObserver))
+	{
+		return;
+	}
+
+	for (Int i = 0; i < MAX_PLAYER_COUNT; ++i)
+	{
+		Player *p = m_players[i];
+		if (p && !m_isDefeated[i] && hasSinglePlayerBeenDefeated(p))
+		{
+			m_isDefeated[i] = true;
+		}
+	}
+}
+
 Bool VictoryConditions::hasSinglePlayerBeenDefeated(Player *player)
 {
 	if (!player)

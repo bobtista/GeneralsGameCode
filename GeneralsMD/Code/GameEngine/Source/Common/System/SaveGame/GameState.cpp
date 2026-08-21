@@ -56,6 +56,7 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/GhostObject.h"
 #include "GameLogic/PartitionManager.h"
+#include "GameLogic/VictoryConditions.h"
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/SidesList.h"
 #include "GameLogic/TerrainLogic.h"
@@ -1534,6 +1535,8 @@ void GameState::gameStatePostProcessLoad()
 	// evil... must ensure this is updated prior to the script engine running the first time.
 	ThePartitionManager->updateCellsOnlyForLoad();
 	ThePartitionManager->finishLoadPostProcess();
+
+	TheVictoryConditions->resyncDefeatStateAfterLoad();
 
 }
 

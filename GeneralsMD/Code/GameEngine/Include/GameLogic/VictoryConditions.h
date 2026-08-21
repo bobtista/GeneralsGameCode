@@ -63,6 +63,7 @@ public:
 	virtual Bool hasSinglePlayerBeenDefeated(Player *player) = 0;	///< has a specific player lost?
 
 	virtual void cachePlayerPtrs() = 0;											///< players have been created - cache the ones of interest
+	virtual void resyncDefeatStateAfterLoad() = 0;					///< re-derive defeat flags after a save game load
 
 	virtual Bool isLocalAlliedVictory() = 0;								///< convenience function
 	virtual Bool isLocalAlliedDefeat() = 0;									///< convenience function
