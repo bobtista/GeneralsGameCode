@@ -780,8 +780,7 @@ WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
 					// save the game
 					AsciiString filename;
 					filename = selectedGameInfo->filename;
-					presentSaveResult( TheGameState->saveGame( filename,
-						selectedGameInfo->saveGameInfo.description, fileType ) );
+					presentSaveResult( TheGameState->saveGame( filename, selectedGameInfo->saveGameInfo.description, fileType ) );
 
 /*
 					// set the description text entry field to default value
