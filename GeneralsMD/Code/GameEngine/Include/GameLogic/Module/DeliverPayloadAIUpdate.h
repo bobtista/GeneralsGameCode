@@ -143,9 +143,27 @@ public:
 	virtual StateReturnType update() override;
 	virtual StateReturnType onEnter() override;
 protected:
-	// snapshot interface	STUBBED - no member vars to save. jba.
+	// snapshot interface
 	virtual void crc( Xfer *xfer ) override {};
-	virtual void xfer( Xfer *xfer ) override {XferVersion cv = 1;	XferVersion v = cv; xfer->xferVersion( &v, cv );}
+	//
+	// TheSuperHackers @bugfix bobtista 21/08/2026 Serialize the facing captured when the plane
+	// heads off map. The update self-destructs the plane when its facing drifts from this vector,
+	// so the zeroed value after a load made every turning payload plane kill itself.
+	//
+	virtual void xfer( Xfer *xfer ) override
+	{
+#if RETAIL_COMPATIBLE_XFER_SAVE
+		XferVersion cv = 1;
+#else
+		XferVersion cv = 2;
+#endif
+		XferVersion v = cv;
+		xfer->xferVersion( &v, cv );
+		if( v >= 2 )
+		{
+			xfer->xferCoord3D( &facingDirectionUponDelivery );
+		}
+	}
 	virtual void loadPostProcess() override {};
 
   Coord3D facingDirectionUponDelivery;
