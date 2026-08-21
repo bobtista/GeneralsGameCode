@@ -716,6 +716,25 @@ private:
 public:
 	JetTakeoffOrLandingState( StateMachine *machine, Bool landing ) : m_landing(landing), AIFollowPathState( machine, "JetTakeoffOrLandingState" ) { }
 
+protected:
+	//
+	// TheSuperHackers @bugfix bobtista 21/08/2026 Serialize the lift and speed captured on state
+	// enter. The takeoff update rescales the locomotor's lift from m_maxLift every frame, so a jet
+	// loaded mid takeoff or landing ramped its lift from zero and sank instead of climbing.
+	//
+	virtual void xfer( Xfer *xfer ) override
+	{
+		// extend base class
+		AIFollowPathState::xfer( xfer );
+
+#if !RETAIL_COMPATIBLE_XFER_SAVE
+		xfer->xferReal( &m_maxLift );
+		xfer->xferReal( &m_maxSpeed );
+		xfer->xferBool( &m_landingSoundPlayed );
+#endif
+	}
+
+public:
 	virtual StateReturnType onEnter() override
 	{
 		Object* jet = getMachineOwner();
