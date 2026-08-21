@@ -950,7 +950,11 @@ void Script::crc( Xfer *xfer )
 /** Xfer method
 	* Version Info:
 	* 1: Initial version
-	* 2: TheSuperHackers @bugfix Preserve the delayed evaluation deadline */
+	* 2: TheSuperHackers @bugfix Preserve the delayed evaluation deadline
+	* 3: TheSuperHackers @bugfix bobtista 21/08/2026 Preserve the re-check deadline that a skirmish
+	*    special power ready condition caches in its own parameter. The scripts are rebuilt from the
+	*    map on load, so it reset to zero and the condition then evaluated on a different cadence
+	*    than the run that saved it, firing the power on a different frame or not at all. */
 // ------------------------------------------------------------------------------------------------
 void Script::xfer( Xfer *xfer )
 {
@@ -959,7 +963,7 @@ void Script::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
 #else
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -971,6 +975,29 @@ void Script::xfer( Xfer *xfer )
 	if( version >= 2 )
 	{
 		xfer->xferUnsignedInt( &m_frameToEvaluateAt );
+	}
+
+	// the re-check deadline cached inside a skirmish special power ready condition
+	if( version >= 3 )
+	{
+		for( OrCondition *orCondition = m_condition; orCondition; orCondition = orCondition->getNextOrCondition() )
+		{
+			for( Condition *condition = orCondition->getFirstAndCondition(); condition; condition = condition->getNext() )
+			{
+				if( condition->getConditionType() != Condition::SKIRMISH_SPECIAL_POWER_READY )
+				{
+					continue;
+				}
+				if( condition->getNumParameters() < 2 )
+				{
+					continue;
+				}
+				Parameter *parameter = condition->getParameter( 1 );
+				Int nextEvaluationFrame = parameter->getInt();
+				xfer->xferInt( &nextEvaluationFrame );
+				parameter->friend_setInt( nextEvaluationFrame );
+			}
+		}
 	}
 
 }
