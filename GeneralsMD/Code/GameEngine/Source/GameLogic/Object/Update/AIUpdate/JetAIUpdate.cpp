@@ -1273,8 +1273,18 @@ protected:
 		// empty. jba.
 	}
 
+	//
+	// TheSuperHackers @bugfix bobtista 22/08/2026 Chain the base class snapshot. This override
+	// dropped AIFaceState's xfer, losing the turn-in-place flag captured on state enter, so a
+	// jet loaded while pausing before takeoff drove toward the runway end instead of turning.
+	//
 	virtual void xfer( Xfer *xfer ) override
 	{
+#if !RETAIL_COMPATIBLE_XFER_SAVE
+		// extend base class
+		AIFaceState::xfer( xfer );
+#endif
+
 		// version
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 		XferVersion currentVersion = 1;
