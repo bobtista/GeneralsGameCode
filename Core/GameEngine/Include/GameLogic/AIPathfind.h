@@ -472,6 +472,12 @@ public:
 	Bool isUnused(); // True if it doesn't contain a bridge.
 	Bool isDestroyed() {return m_destroyed;} // True if it has been destroyed.
 	PathfindCell *getCell(Int x, Int y);
+	Bool hasCells() const {return m_layerCells != nullptr;}
+	Int getCellWidth() const {return m_width;}
+	Int getCellHeight() const {return m_height;}
+	Int getCellXOrigin() const {return m_xOrigin;}
+	Int getCellYOrigin() const {return m_yOrigin;}
+	PathfindCell *getCellRaw(Int i, Int j) {return &m_layerCells[i][j];}
 	Int getZone() {return m_zone;}
 	void setZone(Int zone) {m_zone = zone;}
 	void applyZone(); // Propagates m_zone to all cells.
@@ -948,6 +954,9 @@ private:
 	UnsignedInt		m_checkpointCellCount;
 	PathfindZoneManager *m_checkpointZoneManager;
 	Int						m_checkpointLayerZones[LAYER_LAST+1];
+	PathfindCell::CheckpointState *m_checkpointLayerCells[LAYER_LAST+1];
+	ICoord2D			m_checkpointLayerCellOrigin[LAYER_LAST+1];
+	ICoord2D			m_checkpointLayerCellSize[LAYER_LAST+1];
 	Bool					m_checkpointIncludesZones;
 
 #if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
