@@ -116,7 +116,6 @@
 #include "WWLib/thread.h"
 #include "WWLib/cpudetect.h"
 #include "dx8texman.h"
-#include "formconv.h"
 #include "animatedsoundmgr.h"
 #include "static_sort_list.h"
 #include "shdlib.h"
@@ -274,21 +273,16 @@ WW3DErrorType WW3D::Init(void *hwnd, char *defaultpal, bool lite)
 	_Hwnd = (HWND)hwnd;
 	Lite = lite;
 
-	/*
-	** Initialize d3d, this also enumerates the available devices and resolutions.
-	*/
-	Init_D3D_To_WW3_Conversion();
-	WWDEBUG_SAY(("Init DX8Wrapper"));
-	if (!DX8Wrapper::Init(_Hwnd, lite)) {
-		return(WW3D_ERROR_INITIALIZATION_FAILED);
-	}
-
 	// TheSuperHackers @refactor bobtista 07/08/2026 The backend object is created
-	// once here and destroyed in WW3D::Shutdown.
+	// and initialized once here and destroyed in WW3D::Shutdown.
 	WWASSERT(RenderBackend == nullptr);
 	if (RenderBackend == nullptr)
 	{
-		RenderBackend = Create_Render_Backend();
+		RenderBackend = Create_Render_Backend(_Hwnd, lite);
+	}
+	if (RenderBackend == nullptr)
+	{
+		return(WW3D_ERROR_INITIALIZATION_FAILED);
 	}
 
 	WWDEBUG_SAY(("Allocate Debug Resources"));
@@ -380,10 +374,6 @@ WW3DErrorType WW3D::Shutdown()
 
 	delete RenderBackend;
 	RenderBackend = nullptr;
-
-	if (!Lite) {
-		DX8Wrapper::Shutdown();
-	}
 
 	/*
 	** Clear the default static sort lists

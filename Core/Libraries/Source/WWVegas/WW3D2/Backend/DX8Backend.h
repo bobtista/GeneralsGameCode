@@ -17,8 +17,8 @@
 */
 
 // TheSuperHackers @refactor bobtista 10/04/2026 DX8Backend is the reference
-// implementation of IRenderBackend that forwards every virtual method to the
-// existing DX8Wrapper static facade. Pure adaptation, no new rendering logic.
+// implementation of IRenderBackend that owns the DX8Wrapper lifecycle and
+// forwards rendering methods to the existing DX8Wrapper static facade.
 
 #pragma once
 
@@ -27,7 +27,7 @@
 class DX8Backend : public IRenderBackend
 {
 public:
-    DX8Backend();
+    explicit DX8Backend(bool lite);
     virtual ~DX8Backend() override;
 
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) override;
@@ -43,4 +43,7 @@ public:
 
     virtual void Set_Ambient(const Vector3 & color) override;
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) override;
+
+private:
+    bool Lite;
 };

@@ -16,29 +16,42 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 10/04/2026 DX8Backend forwarding adapter.
-// Every method in this file is a one-line trampoline to the existing
-// DX8Wrapper static API. Keep it that way — if behavior needs to change it
-// should change in DX8Wrapper, not here.
+// TheSuperHackers @refactor bobtista 10/04/2026 DX8Backend adapter and lifecycle owner.
+// Rendering methods in this file are one-line trampolines to the existing
+// DX8Wrapper static API. Backend construction and destruction own the
+// DX8Wrapper lifecycle.
 
 #include "DX8Backend.h"
 #include "RenderBackend.h"
 
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/formconv.h"
 #include "WWMath/vector3.h"
 #include "WW3D2/lightenvironment.h"
+#include "WWDebug/wwdebug.h"
 
-DX8Backend::DX8Backend()
+DX8Backend::DX8Backend(bool lite) : Lite(lite)
 {
 }
 
 DX8Backend::~DX8Backend()
 {
+    if (!Lite)
+    {
+        DX8Wrapper::Shutdown();
+    }
 }
 
-IRenderBackend *Create_Render_Backend()
+IRenderBackend *Create_Render_Backend(void * window, bool lite)
 {
-    return new DX8Backend();
+    Init_D3D_To_WW3_Conversion();
+    WWDEBUG_SAY(("Init DX8Wrapper"));
+    if (!DX8Wrapper::Init(window, lite))
+    {
+        return nullptr;
+    }
+
+    return new DX8Backend(lite);
 }
 
 void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit)

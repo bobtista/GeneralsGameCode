@@ -56,7 +56,6 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8renderer.h"
-#include "IRenderBackend.h"
 #include "ww3d.h"
 #include "camera.h"
 #include "WWLib/wwstring.h"

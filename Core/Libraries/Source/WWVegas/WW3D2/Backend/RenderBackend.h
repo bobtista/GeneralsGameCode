@@ -25,6 +25,6 @@
 
 class IRenderBackend;
 
-// Construct the backend selected by the build. Exactly one backend
-// implementation must define this function.
-IRenderBackend *Create_Render_Backend();
+// Construct and initialize the backend selected by the build. Exactly one
+// backend implementation must define this function. Returns null on failure.
+IRenderBackend *Create_Render_Backend(void * window, bool lite);
