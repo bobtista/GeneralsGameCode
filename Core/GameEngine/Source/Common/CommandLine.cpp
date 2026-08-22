@@ -593,6 +593,19 @@ Int parseAutoNetworkMap(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoNetworkAI(char *args[], int num)
+{
+	Int aiPlayers = 0;
+	if (num > 1 && parsePositiveInt(args[1], aiPlayers) && NetworkAutoStart::setAICount(aiPlayers))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoNetworkAI. Pass a hard AI player count from 1 to %d and do not combine it with -autoNetworkJoin.\n", MAX_SLOTS - 1);
+	exit(1);
+	return 1;
+}
+
 Int parseAutoNetworkTimeout(char *args[], int num)
 {
 	Int timeoutSeconds = 0;
@@ -1362,6 +1375,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoNetworkLocalAddress", parseAutoNetworkLocalAddress },
 	{ "-autoNetworkName", parseAutoNetworkName },
 	{ "-autoNetworkMap", parseAutoNetworkMap },
+	{ "-autoNetworkAI", parseAutoNetworkAI },
 	{ "-autoNetworkTimeout", parseAutoNetworkTimeout },
 #endif
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.

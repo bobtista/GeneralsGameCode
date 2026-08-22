@@ -46,6 +46,7 @@ public:
 
 	static Bool setMode(AsciiString mode);
 	static Bool setHost(Int expectedPlayers);
+	static Bool setAICount(Int aiPlayers);
 	static Bool setJoin(AsciiString hostAddress);
 	static Bool setLocalAddress(AsciiString localAddress);
 	static Bool setPlayerName(AsciiString playerName);
