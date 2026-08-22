@@ -1311,6 +1311,8 @@ void TeamPrototype::xfer( Xfer *xfer )
 		//
 
 		// read each block
+		std::vector< Team* > loadedTeamInstances;
+		loadedTeamInstances.reserve( teamInstanceCount );
 		for( UnsignedShort i = 0; i < teamInstanceCount; ++i )
 		{
 
@@ -1338,6 +1340,25 @@ void TeamPrototype::xfer( Xfer *xfer )
 			// xfer team data
 			xfer->xferSnapshot( teamInstance );
 
+			loadedTeamInstances.push_back( teamInstance );
+
+		}
+
+		//
+		// TheSuperHackers @bugfix bobtista 22/08/2026 Put the instance list back into the order it
+		// was saved in. Teams created here are prepended to the instance list, so reading the saved
+		// sequence front to back leaves the list reversed relative to the run that saved it. The
+		// instance order is not cosmetic: per-team AI processes instances in list order, so a
+		// reversed list reorders pathfind requests and forks the frame CRC after load.
+		//
+		// The instances were written in list order, so prepending them in reverse rebuilds that
+		// exact order.
+		//
+		for( std::vector< Team* >::reverse_iterator rIt = loadedTeamInstances.rbegin();
+				 rIt != loadedTeamInstances.rend(); ++rIt )
+		{
+			removeFrom_TeamInstanceList( *rIt );
+			prependTo_TeamInstanceList( *rIt );
 		}
 
 	}
