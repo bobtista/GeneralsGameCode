@@ -112,7 +112,7 @@ public:
 	static WW3DErrorType		Shutdown();
 	static bool					Is_Initted()								{ return IsInitted; }
 
-	// TheSuperHackers @refactor bobtista 18/08/2026 The active rendering backend.
+	// The active rendering backend.
 	// Created in Init and destroyed in Shutdown, so it is never null in between.
 	static IRenderBackend *	Get_Render_Backend()						{ return RenderBackend; }
 

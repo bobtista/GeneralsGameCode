@@ -27,7 +27,8 @@
 class DX8Backend : public IRenderBackend
 {
 public:
-    explicit DX8Backend(bool lite);
+    static DX8Backend *Create(void * window, bool lite);
+
     virtual ~DX8Backend() override;
 
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) override;
@@ -45,5 +46,7 @@ public:
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) override;
 
 private:
+    explicit DX8Backend(bool lite);
+
     bool Lite;
 };

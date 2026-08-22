@@ -42,7 +42,7 @@ DX8Backend::~DX8Backend()
     }
 }
 
-IRenderBackend *Create_Render_Backend(void * window, bool lite)
+DX8Backend *DX8Backend::Create(void * window, bool lite)
 {
     Init_D3D_To_WW3_Conversion();
     WWDEBUG_SAY(("Init DX8Wrapper"));
@@ -52,6 +52,11 @@ IRenderBackend *Create_Render_Backend(void * window, bool lite)
     }
 
     return new DX8Backend(lite);
+}
+
+IRenderBackend *Create_Render_Backend(void * window, bool lite)
+{
+    return DX8Backend::Create(window, lite);
 }
 
 void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit)
