@@ -43,6 +43,7 @@ const UnsignedInt IPv4BroadcastAddress = UINT_MAX;
 NetworkAutoStart::Mode s_mode = NetworkAutoStart::MODE_NONE;
 NetworkAutoStart::Role s_role = NetworkAutoStart::ROLE_NONE;
 Int s_expectedPlayers = 0;
+Int s_aiPlayers = 0;
 UnsignedInt s_hostAddress = 0;
 UnsignedInt s_localAddress = 0;
 AsciiString s_playerName;
@@ -138,6 +139,18 @@ Bool NetworkAutoStart::setHost(Int expectedPlayers)
 
 	s_role = ROLE_HOST;
 	s_expectedPlayers = expectedPlayers;
+	return true;
+}
+
+Bool NetworkAutoStart::setAICount(Int aiPlayers)
+{
+	s_hasArguments = true;
+	if (aiPlayers < 1 || aiPlayers >= MAX_SLOTS)
+	{
+		return false;
+	}
+
+	s_aiPlayers = aiPlayers;
 	return true;
 }
 
@@ -237,6 +250,12 @@ Bool NetworkAutoStart::validateConfiguration()
 	if (s_role == ROLE_NONE)
 	{
 		fail("either -autoNetworkHost or -autoNetworkJoin is required");
+		return false;
+	}
+
+	if (s_role == ROLE_JOIN && s_aiPlayers > 0)
+	{
+		fail("-autoNetworkAI is only valid with -autoNetworkHost");
 		return false;
 	}
 
@@ -391,19 +410,24 @@ void NetworkAutoStart::updateGameOptions()
 		fail("selected map was not found");
 		return;
 	}
-	if (mapData->m_numPlayers < s_expectedPlayers)
+	if (mapData->m_numPlayers < s_expectedPlayers + s_aiPlayers)
 	{
-		fail("selected map has fewer slots than -autoNetworkHost requires");
+		fail("selected map has fewer slots than -autoNetworkHost and -autoNetworkAI require");
 		return;
 	}
 
 	Int humanPlayers = 0;
+	Int aiPlayers = 0;
 	for (Int humanIndex = 0; humanIndex < MAX_SLOTS; ++humanIndex)
 	{
 		LANGameSlot *slot = game->getLANSlot(humanIndex);
 		if (slot != nullptr && slot->isHuman())
 		{
 			++humanPlayers;
+		}
+		if (slot != nullptr && slot->isAI())
+		{
+			++aiPlayers;
 		}
 	}
 
@@ -414,6 +438,30 @@ void NetworkAutoStart::updateGameOptions()
 	}
 	if (humanPlayers != s_expectedPlayers)
 	{
+		return;
+	}
+
+	if (aiPlayers < s_aiPlayers)
+	{
+		const UnsignedInt aiNow = timeGetTime();
+		if (s_lastActionTime == 0 || aiNow - s_lastActionTime >= ActionRetryMilliseconds)
+		{
+			Int aiToAdd = s_aiPlayers - aiPlayers;
+			for (Int aiIndex = 0; aiIndex < MAX_SLOTS && aiToAdd > 0; ++aiIndex)
+			{
+				LANGameSlot *slot = game->getLANSlot(aiIndex);
+				if (slot != nullptr && slot->getState() == SLOT_OPEN)
+				{
+					slot->setState(SLOT_BRUTAL_AI);
+					--aiToAdd;
+				}
+			}
+			DEBUG_LOG(("NetworkAutoStart filling %d slots with hard AI", s_aiPlayers - aiPlayers));
+			game->resetAccepted();
+			TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
+			lanUpdateSlotList();
+			s_lastActionTime = aiNow;
+		}
 		return;
 	}
 
