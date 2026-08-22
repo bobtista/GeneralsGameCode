@@ -11691,9 +11691,11 @@ void Pathfinder::crc( Xfer *xfer )
 	*    matching zone equivalency tables, hierarchical blocks, layer zones, and recalculation frame.
 	*    Rebuilding those tables is topologically valid but can assign different history-dependent zone
 	*    identities and change line-of-fire and path decisions immediately after load.
-	* 6: TheSuperHackers @bugfix bobtista 21/08/2026 Checkpoint the bridge and wall layer cells.
-	*    Only the ground grid was captured, so unit position and goal marks on layer cells vanished
-	*    on load and the A* costed routes near bridges differently than the run that saved.
+	* 6: TheSuperHackers @bugfix bobtista 21/08/2026 Checkpoint the bridge and wall layer cells,
+	*    plus the cross-search tunneling flag and ignored obstacle id. Only the ground grid was
+	*    captured, so unit position and goal marks on layer cells vanished on load and the A*
+	*    costed routes near bridges differently than the run that saved; the two transients are
+	*    hashed by crc() and made the load frame disagree until the next search rewrote them.
 	*/
 //-----------------------------------------------------------------------------
 void Pathfinder::xfer( Xfer *xfer )
@@ -11806,6 +11808,13 @@ void Pathfinder::xfer( Xfer *xfer )
 
 	if( version >= 6 )
 	{
+		//
+		// Both fields are in crc() and persist across searches, so the load frame's checkpoint
+		// disagrees with the continuous run until the next search overwrites them.
+		//
+		xfer->xferBool( &m_isTunneling );
+		xfer->xferUser( &m_ignoreObstacleID, sizeof( m_ignoreObstacleID ) );
+
 		for( Int layer = LAYER_GROUND + 1; layer <= LAYER_LAST; ++layer )
 		{
 			Bool hasCells = m_layers[layer].hasCells();
