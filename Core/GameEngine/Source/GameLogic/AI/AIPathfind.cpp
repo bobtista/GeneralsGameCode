@@ -4315,6 +4315,10 @@ void PathfindLayer::classifyWallMapCell( Int i, Int j , PathfindCell *cell, Obje
 Pathfinder::Pathfinder() :m_map(nullptr), m_checkpointCells(nullptr), m_checkpointCellCount(0),
 	m_checkpointZoneManager(nullptr), m_checkpointIncludesZones(false)
 {
+	for (Int layer = 0; layer <= LAYER_LAST; ++layer)
+	{
+		m_checkpointLayerCells[layer] = nullptr;
+	}
 	debugPath = nullptr;
 	PathfindCellInfo::allocateCellInfos();
 	reset();
@@ -4346,6 +4350,8 @@ void Pathfinder::reset()
 	for (Int layer = 0; layer <= LAYER_LAST; ++layer)
 	{
 		m_checkpointLayerZones[layer] = 0;
+		delete [] m_checkpointLayerCells[layer];
+		m_checkpointLayerCells[layer] = nullptr;
 	}
 
 	Int i;
@@ -11685,6 +11691,9 @@ void Pathfinder::crc( Xfer *xfer )
 	*    matching zone equivalency tables, hierarchical blocks, layer zones, and recalculation frame.
 	*    Rebuilding those tables is topologically valid but can assign different history-dependent zone
 	*    identities and change line-of-fire and path decisions immediately after load.
+	* 6: TheSuperHackers @bugfix bobtista 21/08/2026 Checkpoint the bridge and wall layer cells.
+	*    Only the ground grid was captured, so unit position and goal marks on layer cells vanished
+	*    on load and the A* costed routes near bridges differently than the run that saved.
 	*/
 //-----------------------------------------------------------------------------
 void Pathfinder::xfer( Xfer *xfer )
@@ -11694,7 +11703,7 @@ void Pathfinder::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 4;
 #else
-	XferVersion currentVersion = 5;
+	XferVersion currentVersion = 6;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -11795,6 +11804,63 @@ void Pathfinder::xfer( Xfer *xfer )
 		}
 	}
 
+	if( version >= 6 )
+	{
+		for( Int layer = LAYER_GROUND + 1; layer <= LAYER_LAST; ++layer )
+		{
+			Bool hasCells = m_layers[layer].hasCells();
+			xfer->xferBool( &hasCells );
+			if( !hasCells )
+			{
+				continue;
+			}
+
+			Int width = m_layers[layer].getCellWidth();
+			Int height = m_layers[layer].getCellHeight();
+			Int xOrigin = m_layers[layer].getCellXOrigin();
+			Int yOrigin = m_layers[layer].getCellYOrigin();
+			xfer->xferInt( &width );
+			xfer->xferInt( &height );
+			xfer->xferInt( &xOrigin );
+			xfer->xferInt( &yOrigin );
+
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				if( width <= 0 || height <= 0 )
+				{
+					DEBUG_CRASH(("Pathfinder layer checkpoint has invalid extents."));
+					throw SC_INVALID_DATA;
+				}
+				delete [] m_checkpointLayerCells[layer];
+				m_checkpointLayerCells[layer] = MSGNEW("PathfindCheckpointCells") PathfindCell::CheckpointState[width * height];
+				m_checkpointLayerCellOrigin[layer].x = xOrigin;
+				m_checkpointLayerCellOrigin[layer].y = yOrigin;
+				m_checkpointLayerCellSize[layer].x = width;
+				m_checkpointLayerCellSize[layer].y = height;
+			}
+
+			Int index = 0;
+			for( Int i = 0; i < width; ++i )
+			{
+				for( Int j = 0; j < height; ++j, ++index )
+				{
+					PathfindCell::CheckpointState state;
+					if( xfer->getXferMode() == XFER_SAVE )
+					{
+						m_layers[layer].getCellRaw(i, j)->captureCheckpointState( &state );
+					}
+
+					xferPathfindCellCheckpointState( xfer, &state, true );
+
+					if( xfer->getXferMode() == XFER_LOAD )
+					{
+						m_checkpointLayerCells[layer][index] = state;
+					}
+				}
+			}
+		}
+	}
+
 }
 
 //-----------------------------------------------------------------------------
@@ -11841,6 +11907,40 @@ void Pathfinder::loadPostProcess()
 	{
 		// Older checkpoints carry cell classifications but not the corresponding zone namespace.
 		m_zoneManager.calculateZones( m_map, m_layers, m_extent );
+	}
+
+	for( Int layer = LAYER_GROUND + 1; layer <= LAYER_LAST; ++layer )
+	{
+		if( m_checkpointLayerCells[layer] == nullptr )
+		{
+			continue;
+		}
+
+		//
+		// The rebuilt layer must have the same footprint the save captured; a bridge or wall set
+		// that no longer matches means the map data changed and the snapshot does not apply.
+		//
+		if( m_layers[layer].hasCells() &&
+			m_layers[layer].getCellWidth() == m_checkpointLayerCellSize[layer].x &&
+			m_layers[layer].getCellHeight() == m_checkpointLayerCellSize[layer].y &&
+			m_layers[layer].getCellXOrigin() == m_checkpointLayerCellOrigin[layer].x &&
+			m_layers[layer].getCellYOrigin() == m_checkpointLayerCellOrigin[layer].y )
+		{
+			Int index = 0;
+			for( Int i = 0; i < m_checkpointLayerCellSize[layer].x; ++i )
+			{
+				for( Int j = 0; j < m_checkpointLayerCellSize[layer].y; ++j, ++index )
+				{
+					ICoord2D pos;
+					pos.x = m_checkpointLayerCellOrigin[layer].x + i;
+					pos.y = m_checkpointLayerCellOrigin[layer].y + j;
+					m_layers[layer].getCellRaw(i, j)->restoreCheckpointState( m_checkpointLayerCells[layer][index], pos );
+				}
+			}
+		}
+
+		delete [] m_checkpointLayerCells[layer];
+		m_checkpointLayerCells[layer] = nullptr;
 	}
 
 	delete [] m_checkpointCells;
