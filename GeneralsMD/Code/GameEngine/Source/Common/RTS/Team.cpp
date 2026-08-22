@@ -1187,6 +1187,18 @@ Bool TeamPrototype::evaluateProductionCondition()
 			{
 				return false;
 			}
+
+			//
+			// TheSuperHackers @bugfix bobtista 22/08/2026 Arm the periodic evaluation delay exactly
+			// like the steady-state path does. The run that saved evaluated through that path and
+			// pushed its next evaluation out by the delay; skipping it here let a loaded game
+			// re-evaluate every call until the first steady-state pass, changing AI team builds.
+			//
+			Int delaySeconds = m_productionConditionScript->getDelayEvalSeconds();
+			if( delaySeconds > 0 )
+			{
+				m_productionConditionScript->setFrameToEvaluate( TheGameLogic->getFrame() + delaySeconds*LOGICFRAMES_PER_SECOND );
+			}
 		}
 		return TheScriptEngine->evaluateConditions(m_productionConditionScript, nullptr, getControllingPlayer());
 	}
