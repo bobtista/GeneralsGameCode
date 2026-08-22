@@ -30,6 +30,11 @@
 #include "WW3D2/lightenvironment.h"
 #include "WWDebug/wwdebug.h"
 
+IRenderBackend *Create_Render_Backend(void * window, bool lite)
+{
+    return DX8Backend::Create(window, lite);
+}
+
 DX8Backend::DX8Backend(bool lite) : Lite(lite)
 {
 }
@@ -52,11 +57,6 @@ DX8Backend *DX8Backend::Create(void * window, bool lite)
     }
 
     return new DX8Backend(lite);
-}
-
-IRenderBackend *Create_Render_Backend(void * window, bool lite)
-{
-    return DX8Backend::Create(window, lite);
 }
 
 void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit)

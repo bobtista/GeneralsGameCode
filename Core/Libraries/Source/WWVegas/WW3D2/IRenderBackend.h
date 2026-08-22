@@ -59,7 +59,7 @@ public:
     virtual void Flip_To_Primary() = 0;
     virtual void Clear(bool clear_color, bool clear_z_stencil,
                        const Vector3 & color,
-                       float dest_alpha, float z, unsigned int stencil) = 0;
+                       float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) = 0;
     virtual void Set_Viewport(const RenderBackendViewport & viewport) = 0;
     virtual void Invalidate_Cached_Render_States() = 0;
 

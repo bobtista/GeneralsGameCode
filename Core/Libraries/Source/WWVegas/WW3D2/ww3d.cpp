@@ -867,7 +867,7 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 		vp.min_z = 0.0f;
 		vp.max_z = 1.0f;
 		Get_Render_Backend()->Set_Viewport(vp);
-		Get_Render_Backend()->Clear(clear, clearz, color, dest_alpha, 1.0f, 0);
+		Get_Render_Backend()->Clear(clear, clearz, color, dest_alpha);
 	}
 
 	// Notify D3D that we are beginning to render the frame
@@ -968,7 +968,7 @@ WW3DErrorType WW3D::Render(SceneClass * scene,CameraClass * cam,bool clear,bool 
 
 	// Clear the viewport
 	if (clear || clearz) {
-		Get_Render_Backend()->Clear(clear, clearz, color, 0.0f, 1.0f, 0);
+		Get_Render_Backend()->Clear(clear, clearz, color);
 	}
 
 	// set the rendering mode
