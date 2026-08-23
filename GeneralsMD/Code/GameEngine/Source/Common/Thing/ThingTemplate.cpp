@@ -1246,6 +1246,19 @@ void ThingTemplate::copyFrom(const ThingTemplate* that)
 	this->m_nextThingTemplate = next;
 	this->m_templateID = id;
 	this->m_nameString = name;
+
+	//
+	// TheSuperHackers @bugfix bobtista 23/08/2026 Re-point the copied weapon template sets at this
+	// template. The assignment above copies them still pointing at the source template, and that
+	// back reference is what the weapon set save path records: a save then names the source
+	// template, the load resolves the set on the wrong template instance, and the next weapon set
+	// condition change rebuilds weapons the run that saved kept.
+	//
+	for( WeaponTemplateSetVector::iterator it = this->m_weaponTemplateSets.begin();
+			 it != this->m_weaponTemplateSets.end(); ++it )
+	{
+		it->friend_setThingTemplate( this );
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
