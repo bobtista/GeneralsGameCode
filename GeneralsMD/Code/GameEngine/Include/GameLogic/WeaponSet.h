@@ -142,6 +142,7 @@ public:
 	}
 
 	const ThingTemplate* friend_getThingTemplate() const { return m_thingTemplate; }	// only for WeaponSet::xfer
+	void friend_setThingTemplate( const ThingTemplate *tt ) { m_thingTemplate = tt; }	// only for ThingTemplate::copyFrom
 	const WeaponSetFlags& friend_getWeaponSetFlags() const { return m_types; }	// only for WeaponSet::xfer
 
 	void clear();
