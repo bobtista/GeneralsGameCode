@@ -1615,6 +1615,7 @@ PartitionData::PartitionData()
 	m_doneFlag = 0;
 	m_dirtyStatus = NOT_DIRTY;
 	m_lastCell = nullptr;
+	m_skipCellChangeCheckOnce = FALSE;
 	for (int i = 0; i < MAX_PLAYER_COUNT; ++i)
 	{
 		m_everSeenByPlayer[i] = false;
@@ -2201,7 +2202,15 @@ void PartitionData::updateCellsTouched()
 	Int currentCellIndexX, currentCellIndexY;
 	ThePartitionManager->worldToCell( pos.x, pos.y, &currentCellIndexX, &currentCellIndexY );
 	const PartitionCell *currentCell = ThePartitionManager->getCellAt( currentCellIndexX, currentCellIndexY );
-	if(obj && currentCell != m_lastCell )
+	if( m_skipCellChangeCheckOnce )
+	{
+		// This is the cell update the load restore queued. The anchor was restored from the save
+		// on purpose; comparing against it here would fire the owed cell-change refresh frames
+		// before the run that saved does. Leave the anchor alone and let the next genuine cell
+		// update perform the comparison.
+		m_skipCellChangeCheckOnce = FALSE;
+	}
+	else if(obj && currentCell != m_lastCell )
 	{
 		// To not expose PartitionCells, he will think in terms of points.  He will
 		// unlook at a point and look at the new point.  We do the rounding and the
@@ -2327,6 +2336,39 @@ void PartitionData::friend_restoreDirty(UnsignedByte status)
 		ThePartitionManager->prependToDirtyModules(this);
 	}
 	m_dirtyStatus = (DirtyStatus)status;
+}
+
+//-----------------------------------------------------------------------------
+void PartitionData::friend_restoreLastCellFromLook()
+{
+	Object *obj = getObject();
+	if( obj == nullptr )
+	{
+		return;
+	}
+
+	const Coord3D *anchor = obj->getPosition();
+	const SightingInfo *lastLook = obj->friend_getPartitionLastLook();
+	if( lastLook != nullptr && !lastLook->isInvalid() )
+	{
+		anchor = &lastLook->m_where;
+	}
+
+	Int cellX, cellY;
+	ThePartitionManager->worldToCell( anchor->x, anchor->y, &cellX, &cellY );
+	m_lastCell = ThePartitionManager->getCellAt( cellX, cellY );
+}
+
+//-----------------------------------------------------------------------------
+void PartitionData::friend_setSkipCellChangeCheckOnce()
+{
+	m_skipCellChangeCheckOnce = TRUE;
+}
+
+//-----------------------------------------------------------------------------
+Bool PartitionData::friend_isInNeedOfCellUpdate() const
+{
+	return m_dirtyStatus == NEED_CELL_UPDATE_AND_COLLISION_CHECK;
 }
 
 //-----------------------------------------------------------------------------
@@ -4991,6 +5033,39 @@ void PartitionManager::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void PartitionManager::loadPostProcess()
 {
+
+	//
+	// TheSuperHackers @bugfix bobtista 23/08/2026 Re-anchor every object's last-cell record and
+	// drop the dirty entries the load itself produced. Rebuilding the partition sets each object's
+	// last cell to its current cell and queues a cell update for the restored transform, but the
+	// run that saved may still owe a cell-change refresh: its last cell dates from an older
+	// position, and the refresh only fires when the next cell update notices the mismatch. Keeping
+	// the load-time anchor and dirty entries either loses that refresh or fires it frames early,
+	// forking the shroud from the run that saved. The saved look record carries the position the
+	// anchor was made at, so restore the anchor from it and let the refresh fire on its own frame.
+	//
+	for( Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject() )
+	{
+		PartitionData *pd = obj->friend_getPartitionData();
+		if( pd != nullptr )
+		{
+			pd->friend_restoreLastCellFromLook();
+		}
+	}
+
+	//
+	// The load-time dirty entries must still run their cell update on the first frame -- it
+	// rebuilds the touched cells and invalidates every object's cached shrouded status -- but
+	// that pass must not perform the cell-change comparison, or the owed refresh fires frames
+	// before the run that saved does. Flag those entries to skip the comparison once.
+	//
+	for( PartitionData *dirty = m_dirtyModules; dirty != nullptr; dirty = dirty->friend_getNextDirty() )
+	{
+		if( dirty->friend_isInNeedOfCellUpdate() )
+		{
+			dirty->friend_setSkipCellChangeCheckOnce();
+		}
+	}
 
 }
 
