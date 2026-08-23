@@ -34,6 +34,8 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+
+#include "Common/GameState.h"
 #include "Common/Player.h"
 #include "Common/Xfer.h"
 #include "Common/ThingTemplate.h"
@@ -106,6 +108,16 @@ OverlordContain::~OverlordContain()
 
 void OverlordContain::onObjectCreated()
 {
+	//
+	// TheSuperHackers @bugfix bobtista 23/08/2026 Do not create the initial payload while a save is
+	// loading. The saved payload objects are restored from the save stream and re-registered by the
+	// contain xfer, so creating them here as well duplicated every payload on load.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
+
   OverlordContain::createPayload();
 }
 
