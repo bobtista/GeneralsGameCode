@@ -903,7 +903,8 @@ static void truncatePlayerName(AsciiString& name, Int maxByteCount)
 		return;
 	}
 
-	name.truncateTo(static_cast<Int>(Utf8_Truncate_Len(name.str(), name.getLength(), maxByteCount)));
+	const size_t truncatedLength = Utf8_Truncate_Len(name.str(), name.getLength(), maxByteCount);
+	name.truncateTo(static_cast<Int>(truncatedLength));
 }
 
 AsciiString GameInfoToAsciiString( const GameInfo *game )
