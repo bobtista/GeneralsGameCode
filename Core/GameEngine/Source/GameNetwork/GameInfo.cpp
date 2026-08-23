@@ -925,8 +925,9 @@ static Bool truncatePlayerNames(const GameInfo *game, AsciiString playerNames[MA
 	Int minimumLengths[MAX_SLOTS] = { 0 };
 	Int minimumTotalLength = 0;
 	Int playerCount = 0;
+	Int i;
 
-	for (Int i = 0; i < MAX_SLOTS; ++i)
+	for (i = 0; i < MAX_SLOTS; ++i)
 	{
 		const GameSlot *slot = game->getConstSlot(i);
 		if (slot && slot->isHuman())
@@ -947,7 +948,7 @@ static Bool truncatePlayerNames(const GameInfo *game, AsciiString playerNames[MA
 	}
 
 	Int remainingLength = maxTotalLength;
-	for (Int i = 0; i < MAX_SLOTS; ++i)
+	for (i = 0; i < MAX_SLOTS; ++i)
 	{
 		const GameSlot *slot = game->getConstSlot(i);
 		if (slot && slot->isHuman())
@@ -1748,5 +1749,4 @@ void SkirmishGameInfo::xfer( Xfer *xfer )
 void SkirmishGameInfo::loadPostProcess()
 {
 }
-
 
