@@ -769,6 +769,49 @@ Int parsePreload( char *args[], int num )
 #endif
 
 
+// TheSuperHackers @feature bobtista 30/04/2026 Load a replay visually from the command line
+Int parseLoadReplay(char *args[], int num)
+{
+	if (num > 1)
+	{
+		AsciiString filename = args[1];
+		if (!filename.endsWithNoCase(RecorderClass::getReplayExtention()))
+		{
+			printf("Invalid replay name \"%s\"\n", filename.str());
+			exit(1);
+		}
+
+		TheWritableGlobalData->m_loadReplayGame = filename;
+		TheWritableGlobalData->m_playIntro = FALSE;
+		TheWritableGlobalData->m_playSizzle = FALSE;
+		TheWritableGlobalData->m_shellMapOn = FALSE;
+		// TheSuperHackers @feature bobtista 30/04/2026 Command-line visual
+		// replay loads are used as rendering/performance harnesses across
+		// patched builds, so keep CRC mismatch banners from covering the view.
+		TheDebugIgnoreSyncErrors = true;
+
+		return 2;
+	}
+
+	return 1;
+}
+
+Int parseResumeReplay(char *args[], int num)
+{
+	if (num > 1)
+	{
+		AsciiString filename = args[1];
+		if (!filename.endsWithNoCase(RecorderClass::getReplayExtention()))
+		{
+			printf("Invalid replay name \"%s\"\n", filename.str());
+			exit(1);
+		}
+		TheWritableGlobalData->m_resumeReplayName = filename;
+		return 2;
+	}
+	return 1;
+}
+
 #if defined(RTS_DEBUG)
 Int parseDisplayDebug(char *args[], int)
 {
@@ -1315,6 +1358,8 @@ static CommandLineParam paramsForEngineInit[] =
 
 	// TheSuperHackers @feature bobtista 22/07/2026 Load a save game file from the command line.
 	{ "-loadsave", parseLoadSave },
+	{ "-loadreplay", parseLoadReplay },
+	{ "-resumereplay", parseResumeReplay },
 
 	// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 	{ "-forcefullviewport", parseFullViewport },

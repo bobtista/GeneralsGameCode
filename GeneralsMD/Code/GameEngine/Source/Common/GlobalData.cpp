@@ -996,6 +996,8 @@ GlobalData::GlobalData()
 	m_quitAtFrame = 0;
 	m_saveToFile.clear();
 	m_pendingFile.clear();
+	m_resumeReplayName.clear();
+	m_loadReplayGame.clear();
 
 	m_simulateReplays.clear();
 	m_simulateReplayJobs = SIMULATE_REPLAYS_SEQUENTIAL;

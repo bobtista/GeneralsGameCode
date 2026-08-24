@@ -795,6 +795,17 @@ void GameState::loadQueuedSaveGame()
 			TheGameLogic->clearGameData( FALSE );
 		TheGameEngine->reset();
 		TheGameEngine->setQuitting( TRUE );
+		return;
+	}
+
+	// TheSuperHackers @feature bobtista 25/08/2026 Resume replay playback from the loaded
+	// checkpoint: skip the recorded commands the checkpoint already contains and continue
+	// feeding the rest, exactly where an uninterrupted playback would be at this frame.
+	if( TheGlobalData->m_resumeReplayName.isNotEmpty() && TheRecorder != nullptr )
+	{
+		Bool resumed = TheRecorder->resumePlayback( TheGlobalData->m_resumeReplayName, TheGameLogic->getFrame() );
+		DEBUG_LOG(("Resume replay '%s' at frame %d: %s",
+			TheGlobalData->m_resumeReplayName.str(), TheGameLogic->getFrame(), resumed ? "OK" : "FAILED"));
 	}
 }
 

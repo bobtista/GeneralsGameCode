@@ -345,6 +345,7 @@ RecorderClass::RecorderClass()
 	m_doingAnalysis = FALSE;
 	m_archiveReplays = FALSE;
 	m_nextFrame = 0;
+	m_resumeSkipCommands = FALSE;
 	m_wasDesync = FALSE;
 	init(); // just for the heck of it.
 }
@@ -1212,6 +1213,61 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 }
 
 /**
+ * TheSuperHackers @feature bobtista 24/08/2026 Re-enter playback of a replay from a checkpoint.
+ * The caller has already loaded a save minted during playback of this replay; the logic frame
+ * counter holds the checkpoint frame. Commands at or before that frame were already applied by
+ * the game that the checkpoint captured, so they are read and discarded; playback then continues
+ * from the first later command exactly where the uninterrupted playback would be.
+ */
+Bool RecorderClass::resumePlayback( AsciiString filename, UnsignedInt frame )
+{
+	ReplayHeader header;
+	header.forPlayback = TRUE;
+	header.filename = filename;
+	if (!readReplayHeader( header ))
+	{
+		return FALSE;
+	}
+
+	Bool isMultiplayer = m_gameInfo.getSlot(header.localPlayerIndex)->getIP() != 0;
+	m_crcInfo = CRCInfo(header.localPlayerIndex, isMultiplayer);
+
+	Int difficulty = 0;
+	m_file->read(&difficulty, sizeof(difficulty));
+	m_file->read(&m_originalGameMode, sizeof(m_originalGameMode));
+	Int rankPoints = 0;
+	m_file->read(&rankPoints, sizeof(rankPoints));
+	Int maxFPS = 0;
+	m_file->read(&maxFPS, sizeof(maxFPS));
+
+	readNextFrame();
+	if (m_file == nullptr)
+	{
+		return FALSE;
+	}
+
+	m_resumeSkipCommands = TRUE;
+	while (m_nextFrame != (UnsignedInt)-1 && m_nextFrame <= frame)
+	{
+		appendNextCommand();
+		readNextFrame();
+		if (m_file == nullptr)
+		{
+			m_resumeSkipCommands = FALSE;
+			return FALSE;
+		}
+	}
+	m_resumeSkipCommands = FALSE;
+
+	m_mode = RECORDERMODETYPE_PLAYBACK;
+	m_currentReplayFilename = filename;
+	m_playbackFrameCount = header.frameCount;
+	DEBUG_LOG(("RecorderClass::resumePlayback - resumed '%s' at frame %u, next command frame %u",
+		filename.str(), frame, m_nextFrame));
+	return TRUE;
+}
+
+/**
  * Read a unicode string from the current file position. The string is assumed to be 0-terminated.
  */
 UnicodeString RecorderClass::readUnicodeString() {
@@ -1363,7 +1419,7 @@ void RecorderClass::appendNextCommand() {
 		}
 	}
 
-	if (type != GameMessage::MSG_BEGIN_NETWORK_MESSAGES && type != GameMessage::MSG_CLEAR_GAME_DATA && !m_doingAnalysis)
+	if (type != GameMessage::MSG_BEGIN_NETWORK_MESSAGES && type != GameMessage::MSG_CLEAR_GAME_DATA && !m_doingAnalysis && !m_resumeSkipCommands)
 	{
 		TheCommandList->appendMessage(msg);
 	}
