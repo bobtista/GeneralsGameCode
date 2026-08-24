@@ -310,13 +310,42 @@ void AITNGuardInnerState::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer Method */
 // ------------------------------------------------------------------------------------------------
+//
+// TheSuperHackers @bugfix bobtista 24/08/2026 Serialize the attack sub-states instead of
+// re-entering on load. loadPostProcess previously reconstructed them by calling onEnter, which
+// re-chose the weapon, reset its shot budget, restarted the inner attack machine at its default
+// state and stamped a fresh give-up deadline -- all diverging from the run that saved.
+//
 void AITNGuardInnerState::xfer( Xfer *xfer )
 {
   // version
+#if RETAIL_COMPATIBLE_XFER_SAVE
   XferVersion currentVersion = 1;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
+	if( version >= 2 )
+	{
+		Bool hasAttackState = m_attackState != nullptr;
+		xfer->xferBool( &hasAttackState );
+		xfer->xferUnsignedInt( &m_exitConditions.m_attackGiveUpFrame );
+
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_subStatesRestored = TRUE;
+			if( hasAttackState && m_attackState == nullptr )
+			{
+				m_attackState = newInstance(AIAttackState)( getMachine(), false, true, false, &m_exitConditions );
+			}
+		}
+		if( hasAttackState )
+		{
+			xfer->xferSnapshot( m_attackState );
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -324,6 +353,11 @@ void AITNGuardInnerState::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void AITNGuardInnerState::loadPostProcess()
 {
+	if( m_subStatesRestored )
+	{
+		m_subStatesRestored = FALSE;
+		return;
+	}
 	onEnter();
 }
 
@@ -457,17 +491,45 @@ void AITNGuardOuterState::crc( Xfer *xfer )
 void AITNGuardOuterState::xfer( Xfer *xfer )
 {
   // version
+#if RETAIL_COMPATIBLE_XFER_SAVE
   XferVersion currentVersion = 1;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
+	if( version >= 2 )
+	{
+		Bool hasAttackState = m_attackState != nullptr;
+		xfer->xferBool( &hasAttackState );
+		xfer->xferUnsignedInt( &m_exitConditions.m_attackGiveUpFrame );
+
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_subStatesRestored = TRUE;
+			if( hasAttackState && m_attackState == nullptr )
+			{
+				m_attackState = newInstance(AIAttackState)( getMachine(), false, true, false, &m_exitConditions );
+			}
+		}
+		if( hasAttackState )
+		{
+			xfer->xferSnapshot( m_attackState );
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
 void AITNGuardOuterState::loadPostProcess()
-{						 AITNGuardOuterState
+{
+	if( m_subStatesRestored )
+	{
+		m_subStatesRestored = FALSE;
+		return;
+	}
 	onEnter();
 }
 
@@ -796,6 +858,7 @@ AITNGuardAttackAggressorState::AITNGuardAttackAggressorState( StateMachine *mach
 	State( machine, "AITNGuardAttackAggressorState" )
 {
 	m_attackState = nullptr;
+	m_subStatesRestored = FALSE;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -885,15 +948,43 @@ void AITNGuardAttackAggressorState::crc( Xfer *xfer )
 void AITNGuardAttackAggressorState::xfer( Xfer *xfer )
 {
   // version
+#if RETAIL_COMPATIBLE_XFER_SAVE
   XferVersion currentVersion = 1;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
+	if( version >= 2 )
+	{
+		Bool hasAttackState = m_attackState != nullptr;
+		xfer->xferBool( &hasAttackState );
+		xfer->xferUnsignedInt( &m_exitConditions.m_attackGiveUpFrame );
+
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_subStatesRestored = TRUE;
+			if( hasAttackState && m_attackState == nullptr )
+			{
+				m_attackState = newInstance(AIAttackState)( getMachine(), true, true, false, &m_exitConditions );
+			}
+		}
+		if( hasAttackState )
+		{
+			xfer->xferSnapshot( m_attackState );
+		}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
 void AITNGuardAttackAggressorState::loadPostProcess()
 {
+	if( m_subStatesRestored )
+	{
+		m_subStatesRestored = FALSE;
+		return;
+	}
 	onEnter();
 }
 
