@@ -272,7 +272,7 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 
 			// Calculate Sample volume
 			volume = 100.0f;
-			volume *= getEffectiveVolume(playing->m_audioEventRTS);
+			volume *= getEffectiveVolume(playing->m_audioEventRTS.Peek());
 
 			dd->printf("%2d: %-20s - (%s) Volume: %d (2D)\n", i, playing->m_audioEventRTS->getEventName().str(), filenameNoSlashes.str(), REAL_TO_INT(volume));
 			playingArray[i] = NULL;
@@ -295,7 +295,7 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 
 			// Calculate Sample volume
 			volume = 100.0f;
-			volume *= getEffectiveVolume(playing->m_audioEventRTS);
+			volume *= getEffectiveVolume(playing->m_audioEventRTS.Peek());
 
 			fprintf(fp, "%2d: %-20s - (%s) Volume: %d (2D)\n", channel++, playing->m_audioEventRTS->getEventName().str(), filenameNoSlashes.str(), REAL_TO_INT(volume));
 		}
@@ -342,7 +342,7 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 
 			// Calculate Sample volume
 			volume = 100.0f;
-			volume *= getEffectiveVolume(playing->m_audioEventRTS);
+			volume *= getEffectiveVolume(playing->m_audioEventRTS.Peek());
 			Real dist = -1.0f;
 			const Coord3D* pos = playing->m_audioEventRTS->getPosition();
 			char distStr[32];
@@ -397,7 +397,7 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 
 			// Calculate Sample volume
 			volume = 100.0f;
-			volume *= getEffectiveVolume(playing->m_audioEventRTS);
+			volume *= getEffectiveVolume(playing->m_audioEventRTS.Peek());
 			fprintf(fp, "%2d: %-24s - (%s) Volume: %d \n", channel++, playing->m_audioEventRTS->getEventName().str(), filenameNoSlashes.str(), REAL_TO_INT(volume));
 		}
 
@@ -424,7 +424,7 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 
 			// Calculate Sample volume
 			volume = 100.0f;
-			volume *= getEffectiveVolume(playing->m_audioEventRTS);
+			volume *= getEffectiveVolume(playing->m_audioEventRTS.Peek());
 
 			dd->printf("%2d: %-24s - (%s)  Volume: %d (Stream)\n", channel++, playing->m_audioEventRTS->getEventName().str(), filenameNoSlashes.str(), REAL_TO_INT(volume));
 		}
@@ -451,7 +451,7 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 
 			// Calculate Sample volume
 			volume = 100.0f;
-			volume *= getEffectiveVolume(playing->m_audioEventRTS);
+			volume *= getEffectiveVolume(playing->m_audioEventRTS.Peek());
 
 			fprintf(fp, "%2d: %-24s - (%s)  Volume: %d (Stream)\n", channel++, playing->m_audioEventRTS->getEventName().str(), filenameNoSlashes.str(), REAL_TO_INT(volume));
 		}
@@ -814,8 +814,9 @@ void OpenALAudioManager::pauseAmbient(Bool shouldPause)
 }
 
 //-------------------------------------------------------------------------------------------------
-void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
+void OpenALAudioManager::playAudioEvent(const RefCountPtr<DynamicAudioEventRTS>& eventPtr, AudioRequest* req)
 {
+	AudioEventRTS* event = eventPtr.Peek();
 #ifdef INTENSIVE_AUDIO_DEBUG
 	DEBUG_LOG(("OPENAL (%d) - Processing play request: %d (%s)", TheGameLogic->getFrame(), event->getPlayingHandle(), event->getEventName().str()));
 #endif
@@ -951,10 +952,7 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 		}
 
 		// Put this on here, so that the audio event RTS will be cleaned up regardless.
-		audio->m_audioEventRTS = event;
-		// TheSuperHackers @bugfix bobtista 04/06/2026 Take ownership of the request's pending
-		// event so ~AudioRequest does not also delete it (double-free after upstream #2731).
-		if (req != NULL) { req->releasePendingEvent(); }
+		audio->m_audioEventRTS = eventPtr;
 		audio->m_stream = stream;
 		audio->m_type = PAT_Stream;
 
@@ -1017,10 +1015,7 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 
 			}
 			// Push it onto the list of playing things
-			audio->m_audioEventRTS = event;
-			// TheSuperHackers @bugfix bobtista 04/06/2026 Take ownership of the request's pending
-			// event so ~AudioRequest does not also delete it (double-free after upstream #2731).
-			if (req != NULL) { req->releasePendingEvent(); }
+			audio->m_audioEventRTS = eventPtr;
 			audio->m_source = source;
 			audio->m_bufferHandle = 0;
 			audio->m_type = PAT_3DSample;
@@ -1077,10 +1072,7 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event, AudioRequest* req)
 			}
 
 			// Push it onto the list of playing things
-			audio->m_audioEventRTS = event;
-			// TheSuperHackers @bugfix bobtista 04/06/2026 Take ownership of the request's pending
-			// event so ~AudioRequest does not also delete it (double-free after upstream #2731).
-			if (req != NULL) { req->releasePendingEvent(); }
+			audio->m_audioEventRTS = eventPtr;
 			audio->m_source = source;
 			audio->m_bufferHandle = 0;
 			audio->m_type = PAT_Sample;
@@ -1330,9 +1322,6 @@ void OpenALAudioManager::releasePlayingAudio(PlayingAudio* release)
 	}
 	releaseOpenALHandles(release);	// forces stop of this audio
 	closeBuffer(release->m_bufferHandle);
-	if (release->m_cleanupAudioEventRTS) {
-		releaseAudioEventRTS(release->m_audioEventRTS);
-	}
 	delete release;
 	release = NULL;
 }
@@ -1625,7 +1614,7 @@ AsciiString OpenALAudioManager::getMusicTrackName(void) const
 			continue;
 		}
 
-		if (!(*ait)->m_usePendingEvent) {
+		if ((*ait)->m_pendingEvent == NULL) {
 			continue;
 		}
 
@@ -1908,7 +1897,7 @@ Bool OpenALAudioManager::isCurrentlyPlaying(AudioHandle handle)
 	AudioRequest* req = NULL;
 	for (ait = m_audioRequests.begin(); ait != m_audioRequests.end(); ++ait) {
 		req = *ait;
-		if (req && req->m_usePendingEvent && req->m_pendingEvent->getPlayingHandle() == handle) {
+		if (req && req->m_pendingEvent && req->m_pendingEvent->getPlayingHandle() == handle) {
 			return true;
 		}
 	}
@@ -1959,7 +1948,7 @@ void OpenALAudioManager::notifyOfAudioCompletion(UnsignedInt audioCompleted, Uns
 			// actually delete it (alDeleteBuffers fails on a buffer still attached to a source).
 			alSourcei(playing->m_source, AL_BUFFER, 0);
 			closeBuffer(playing->m_bufferHandle);	// close it so as not to leak it.
-			playing->m_bufferHandle = playSample(playing->m_audioEventRTS, playing);
+			playing->m_bufferHandle = playSample(playing->m_audioEventRTS.Peek(), playing);
 
 			// If we don't have a file now, then we should drop to the stopped status so that
 			// We correctly close this handle.
@@ -1973,7 +1962,7 @@ void OpenALAudioManager::notifyOfAudioCompletion(UnsignedInt audioCompleted, Uns
 			// actually delete it (alDeleteBuffers fails on a buffer still attached to a source).
 			alSourcei(playing->m_source, AL_BUFFER, 0);
 			closeBuffer(playing->m_bufferHandle);	// close it so as not to leak it.
-			playing->m_bufferHandle = playSample3D(playing->m_audioEventRTS, playing);
+			playing->m_bufferHandle = playSample3D(playing->m_audioEventRTS.Peek(), playing);
 
 			// If we don't have a file now, then we should drop to the stopped status so that
 			// We correctly close this handle.
@@ -1987,7 +1976,7 @@ void OpenALAudioManager::notifyOfAudioCompletion(UnsignedInt audioCompleted, Uns
 		// GeneralsX @bugfix BenderAI 11/03/2026 - guard against null audioEventRTS/info
 		const AudioEventInfo* info = (playing->m_audioEventRTS ? playing->m_audioEventRTS->getAudioEventInfo() : nullptr);
 		if (info && info->m_soundType == AT_Music) {
-			playStream(playing->m_audioEventRTS, playing->m_stream);
+			playStream(playing->m_audioEventRTS.Peek(), playing->m_stream);
 
 			return;
 		}
@@ -2287,7 +2276,7 @@ Bool OpenALAudioManager::doesViolateLimit(AudioEventRTS* event) const
 		if (req == NULL) {
 			continue;
 		}
-		if (req->m_usePendingEvent)
+		if (req->m_pendingEvent)
 		{
 			if (req->m_pendingEvent->getEventName() == event->getEventName())
 			{
@@ -2409,7 +2398,7 @@ AudioEventRTS* OpenALAudioManager::findLowestPrioritySound(AudioEventRTS* event)
 		{
 			PlayingAudio* playing = *it;
 			if (!playing) continue;
-			AudioEventRTS* itEvent = playing->m_audioEventRTS;
+			AudioEventRTS* itEvent = playing->m_audioEventRTS.Peek();
 			if (!itEvent) continue; // GeneralsX @bugfix BenderAI 11/03/2026
 			const AudioEventInfo* itInfo = itEvent->getAudioEventInfo();
 			if (!itInfo) continue;
@@ -2435,7 +2424,7 @@ AudioEventRTS* OpenALAudioManager::findLowestPrioritySound(AudioEventRTS* event)
 		{
 			PlayingAudio* playing = *it;
 			if (!playing) continue;
-			AudioEventRTS* itEvent = playing->m_audioEventRTS;
+			AudioEventRTS* itEvent = playing->m_audioEventRTS.Peek();
 			if (!itEvent) continue; // GeneralsX @bugfix BenderAI 11/03/2026
 			const AudioEventInfo* itInfo = itEvent->getAudioEventInfo();
 			if (!itInfo) continue;
@@ -2517,7 +2506,7 @@ Bool OpenALAudioManager::killLowestPrioritySoundImmediately(AudioEventRTS* event
 					continue;
 				}
 
-				if (playing->m_audioEventRTS && playing->m_audioEventRTS == lowestPriorityEvent)
+				if (playing->m_audioEventRTS.Peek() && playing->m_audioEventRTS.Peek() == lowestPriorityEvent)
 				{
 					//Release this 3D sound channel immediately because we are going to play another sound in its place.
 					releasePlayingAudio(playing);
@@ -2536,7 +2525,7 @@ Bool OpenALAudioManager::killLowestPrioritySoundImmediately(AudioEventRTS* event
 					continue;
 				}
 
-				if (playing->m_audioEventRTS && playing->m_audioEventRTS == lowestPriorityEvent)
+				if (playing->m_audioEventRTS.Peek() && playing->m_audioEventRTS.Peek() == lowestPriorityEvent)
 				{
 					//Release this 2D sound channel immediately because we are going to play another sound in its place.
 					releasePlayingAudio(playing);
@@ -2562,7 +2551,7 @@ void OpenALAudioManager::adjustVolumeOfPlayingAudio(AsciiString eventName, Real 
 			// Adjust it
 			playing->m_audioEventRTS->setVolume(newVolume);
 			// TheSuperHackers @bugfix bobtista 01/07/2026 Use getEffectiveVolume so overrides honor the master volume, matching the Miles path.
-			alSourcef(playing->m_source, AL_GAIN, getEffectiveVolume(playing->m_audioEventRTS));
+			alSourcef(playing->m_source, AL_GAIN, getEffectiveVolume(playing->m_audioEventRTS.Peek()));
 		}
 	}
 
@@ -2571,7 +2560,7 @@ void OpenALAudioManager::adjustVolumeOfPlayingAudio(AsciiString eventName, Real 
 		if (playing && playing->m_audioEventRTS && playing->m_audioEventRTS->getEventName() == eventName) {
 			// Adjust it
 			playing->m_audioEventRTS->setVolume(newVolume);
-			alSourcef(playing->m_source, AL_GAIN, getEffectiveVolume(playing->m_audioEventRTS));
+			alSourcef(playing->m_source, AL_GAIN, getEffectiveVolume(playing->m_audioEventRTS.Peek()));
 		}
 	}
 
@@ -2580,7 +2569,7 @@ void OpenALAudioManager::adjustVolumeOfPlayingAudio(AsciiString eventName, Real 
 		if (playing && playing->m_audioEventRTS && playing->m_stream && playing->m_audioEventRTS->getEventName() == eventName) {
 			// Adjust it
 			playing->m_audioEventRTS->setVolume(newVolume);
-			alSourcef(playing->m_stream->getSource(), AL_GAIN, getEffectiveVolume(playing->m_audioEventRTS));
+			alSourcef(playing->m_stream->getSource(), AL_GAIN, getEffectiveVolume(playing->m_audioEventRTS.Peek()));
 		}
 	}
 }
@@ -2862,7 +2851,7 @@ void OpenALAudioManager::processPlayingList(void)
 				adjustPlayingVolume(playing);
 			}
 
-			const Coord3D* pos = getCurrentPositionFromEvent(playing->m_audioEventRTS);
+			const Coord3D* pos = getCurrentPositionFromEvent(playing->m_audioEventRTS.Peek());
 			if (pos)
 			{
 				if (playing->m_audioEventRTS->isDead())
@@ -2873,7 +2862,7 @@ void OpenALAudioManager::processPlayingList(void)
 				}
 				else
 				{
-					Real volForConsideration = getEffectiveVolume(playing->m_audioEventRTS);
+					Real volForConsideration = getEffectiveVolume(playing->m_audioEventRTS.Peek());
 					// TheSuperHackers @bugfix bobtista 28/05/2026 Normalize against the same 3D volume that getEffectiveVolume already multiplied in; the previous mismatch divided by m_soundVolume.
 					volForConsideration /= (m_sound3DVolume > 0.0f ? m_sound3DVolume : 1.0f);
 					// GeneralsX @bugfix BenderAI 11/03/2026 - guard against null getAudioEventInfo()
@@ -2971,9 +2960,7 @@ void OpenALAudioManager::processPlayingList(void)
 					++m_currentMusicCompletionCount;
 				}
 
-				playing->m_cleanupAudioEventRTS = false;
-
-				AudioRequest* req = allocateAudioRequest(true);
+				AudioRequest* req = allocateAudioRequest();
 				req->m_pendingEvent = playing->m_audioEventRTS;
 				req->m_requiresCheckForSample = true;
 				appendAudioRequest(req);
@@ -3068,7 +3055,7 @@ void OpenALAudioManager::processFadingList(void)
 		}
 
 		++playing->m_framesFaded;
-		Real volume = getEffectiveVolume(playing->m_audioEventRTS);
+		Real volume = getEffectiveVolume(playing->m_audioEventRTS.Peek());
 		volume *= (1.0f - 1.0f * playing->m_framesFaded / getAudioSettings()->m_fadeAudioFrames);
 
 		switch (playing->m_type)
@@ -3119,7 +3106,7 @@ void OpenALAudioManager::processStoppedList(void)
 //-------------------------------------------------------------------------------------------------
 Bool OpenALAudioManager::shouldProcessRequestThisFrame(AudioRequest* req) const
 {
-	if (!req->m_usePendingEvent) {
+	if (req->m_pendingEvent == NULL) {
 		return true;
 	}
 
@@ -3133,7 +3120,7 @@ Bool OpenALAudioManager::shouldProcessRequestThisFrame(AudioRequest* req) const
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::adjustRequest(AudioRequest* req)
 {
-	if (!req->m_usePendingEvent) {
+	if (req->m_pendingEvent == NULL) {
 		return;
 	}
 
@@ -3144,14 +3131,14 @@ void OpenALAudioManager::adjustRequest(AudioRequest* req)
 //-------------------------------------------------------------------------------------------------
 Bool OpenALAudioManager::checkForSample(AudioRequest* req)
 {
-	if (!req->m_usePendingEvent) {
+	if (req->m_pendingEvent == NULL) {
 		return true;
 	}
 
 	if (req->m_pendingEvent->getAudioEventInfo() == NULL)
 	{
 		// Fill in event info
-		getInfoForAudioEvent(req->m_pendingEvent);
+		getInfoForAudioEvent(req->m_pendingEvent.Peek());
 	}
 
 	if (req->m_pendingEvent->getAudioEventInfo()->m_type != AT_SoundEffect)
@@ -3159,7 +3146,7 @@ Bool OpenALAudioManager::checkForSample(AudioRequest* req)
 		return true;
 	}
 
-	return m_sound->canPlayNow(req->m_pendingEvent);
+	return m_sound->canPlayNow(req->m_pendingEvent.Peek());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3359,12 +3346,10 @@ Bool OpenALAudioManager::startNextLoop(PlayingAudio* looping)
 		looping->m_audioEventRTS->generateFilename();
 
 		if (looping->m_audioEventRTS->getDelay() > MSEC_PER_LOGICFRAME_REAL) {
-			// fake it out so that this sound appears done, but also so that it will not
-			// delete the sound on completion (which would suck)
-			looping->m_cleanupAudioEventRTS = false;
+			// fake it out so that this sound appears done
 			looping->m_requestStop = true;
 
-			AudioRequest* req = allocateAudioRequest(true);
+			AudioRequest* req = allocateAudioRequest();
 			req->m_pendingEvent = looping->m_audioEventRTS;
 			req->m_requiresCheckForSample = true;
 			appendAudioRequest(req);
@@ -3372,10 +3357,10 @@ Bool OpenALAudioManager::startNextLoop(PlayingAudio* looping)
 		}
 
 		if (looping->m_type == PAT_3DSample) {
-			looping->m_bufferHandle = playSample3D(looping->m_audioEventRTS, looping);
+			looping->m_bufferHandle = playSample3D(looping->m_audioEventRTS.Peek(), looping);
 		}
 		else {
-			looping->m_bufferHandle = playSample(looping->m_audioEventRTS, looping);
+			looping->m_bufferHandle = playSample(looping->m_audioEventRTS.Peek(), looping);
 		}
 
 		return looping->m_bufferHandle != 0;
@@ -3571,7 +3556,7 @@ static UnsignedInt ggcBufferFormatKey(ALuint buffer)
 // there is nothing more to queue.
 Bool OpenALAudioManager::queueOneLoopBuffer(PlayingAudio* playing)
 {
-	AudioEventRTS* ev = playing->m_audioEventRTS;
+	AudioEventRTS* ev = playing->m_audioEventRTS.Peek();
 	if (ev == NULL)
 		return false;
 
@@ -3665,7 +3650,7 @@ ALuint OpenALAudioManager::startQueuedLoop(AudioEventRTS* event, PlayingAudio* a
 void OpenALAudioManager::updateQueuedLoop(PlayingAudio* playing)
 {
 	const ALuint source = playing->m_source;
-	AudioEventRTS* ev = playing->m_audioEventRTS;
+	AudioEventRTS* ev = playing->m_audioEventRTS.Peek();
 
 	// TheSuperHackers @bugfix bobtista 18/07/2026 On the first update after a stop, drop the queued
 	// body lookahead so the loop ends promptly. Without this the already-queued buffers keep playing
@@ -3872,9 +3857,9 @@ void OpenALAudioManager::friend_forcePlayAudioEventRTS(const AudioEventRTS* even
 		break;
 	}
 
-	// GeneralsX @bugfix BenderAI 11/03/2026 - heap-allocate so releasePlayingAudio can safely
-	// delete it via m_cleanupAudioEventRTS. Stack allocation caused SIGSEGV in delete.
-	AudioEventRTS* event = NEW AudioEventRTS(*eventToPlay);
+	RefCountPtr<DynamicAudioEventRTS> eventPtr;
+	eventPtr.Assign_No_Add_Ref(newInstance(DynamicAudioEventRTS)(*eventToPlay));
+	AudioEventRTS* event = eventPtr.Peek();
 
 	event->generateFilename();
 	event->generatePlayInfo();
@@ -3887,7 +3872,7 @@ void OpenALAudioManager::friend_forcePlayAudioEventRTS(const AudioEventRTS* even
 		}
 	}
 
-	playAudioEvent(event);
+	playAudioEvent(eventPtr);
 }
 
 #if defined(RTS_DEBUG)

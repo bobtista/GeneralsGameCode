@@ -37,7 +37,7 @@ struct PlayingAudio
 	FFmpegFile* m_ffmpegFile = nullptr;
 
 	PlayingAudioType m_type;
-	AudioEventRTS* m_audioEventRTS;
+	RefCountPtr<DynamicAudioEventRTS> m_audioEventRTS;
 
 	// The created OpenAL buffer handle for this file
 	ALuint m_bufferHandle = 0;
@@ -50,7 +50,6 @@ struct PlayingAudio
 	// different rate or depth cannot be appended to it (see queueOneLoopBuffer).
 	UnsignedInt m_queuedFormat = 0;
 	Bool m_requestStop;
-	Bool m_cleanupAudioEventRTS;
 	Int m_framesFaded;
 	// TheSuperHackers @bugfix bobtista 02/08/2026 Set by pauseAudio on everything it captured, so the
 	// update loop holds exactly that set. A source that had already stopped never enters AL_PAUSED,
@@ -59,9 +58,7 @@ struct PlayingAudio
 
 	PlayingAudio() :
 		m_type(PAT_INVALID),
-		m_audioEventRTS(NULL),
 		m_requestStop(false),
-		m_cleanupAudioEventRTS(true),
 		m_source(0),
 		m_framesFaded(0),
 		m_heldByPause(false)
