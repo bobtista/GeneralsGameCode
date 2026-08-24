@@ -26,9 +26,12 @@
 
 struct VertexFormatXYZDUV1;
 class TextureClass;
-class DX8IndexBufferClass;
-class DX8VertexBufferClass;
 class WorldHeightMap;
+
+// TheSuperHackers @build bobtista 24/08/2026 RenderVertexBufferClass and
+// RenderIndexBufferClass are type aliases on the dx8 backend; include the
+// shared header so the aliases match the alias the cpp sees.
+#include "WW3D2/renderbufferclasses.h"
 
 class W3DScorchInterface
 {
@@ -80,8 +83,8 @@ private:
 	Bool writeScorchToBuffer(const TScorch& scorch, WorldHeightMap& map, UnsignedInt diffuse,
 	                         VertexFormatXYZDUV1* curVb, UnsignedShort* curIb);
 
-	DX8VertexBufferClass* m_vertexScorch;    ///< Scorch vertex buffer.
-	DX8IndexBufferClass* m_indexScorch;    ///< indices defining a triangles for the scorch drawing.
+	RenderVertexBufferClass* m_vertexScorch;    ///< Scorch vertex buffer.
+	RenderIndexBufferClass* m_indexScorch;    ///< indices defining a triangles for the scorch drawing.
 	TextureClass* m_scorchTexture;    ///< Scorch mark texture
 	Int m_curNumScorchVertices;    ///< number of vertices used in m_vertexScorch.
 	Int m_curNumScorchIndices;    ///< number of indices used in m_indexScorch.
