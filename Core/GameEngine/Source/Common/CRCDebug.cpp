@@ -246,8 +246,24 @@ void addCRCDebugLineNoCounter(const char *fmt, ...)
 
 void addCRCGenLine(const char *fmt, ...)
 {
-	if (!(IS_FRAME_OK_TO_LOG))
+	//
+	// TheSuperHackers @tweak bobtista 24/08/2026 -LogCRCGenLines also works during replay
+	// playback. TheDebugIgnoreSyncErrors silences the network mismatch machinery, and command
+	// line replay loads set it to keep mismatch banners off screen, but the explicitly requested
+	// checkpoint log should not be silenced with it.
+	//
+	Bool frameInWindow = TheGameLogic->isInGame() && !TheGameLogic->isInShellGame() &&
+		TheCRCFirstFrameToLog >= 0 && TheCRCFirstFrameToLog <= TheGameLogic->getFrame() &&
+		TheGameLogic->getFrame() <= TheCRCLastFrameToLog;
+	if (g_logCRCGenLines)
+	{
+		if (!frameInWindow)
+			return;
+	}
+	else if (!frameInWindow || TheDebugIgnoreSyncErrors)
+	{
 		return;
+	}
 
 	static char buf[MaxStringLen];
 	va_list va;
