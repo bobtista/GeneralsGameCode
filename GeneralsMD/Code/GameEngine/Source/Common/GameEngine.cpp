@@ -909,6 +909,27 @@ void GameEngine::update()
 			TheGameClient->UPDATE();
 			TheMessageStream->propagateMessages();
 
+			// TheSuperHackers @feature bobtista 25/08/2026 Deferred command-line replay loading:
+			// start playback from live shell state, after the no-logo shell startup has run.
+			if (TheGlobalData->m_loadReplayGame.isEmpty() == FALSE)
+			{
+				AsciiString replayGame = TheGlobalData->m_loadReplayGame;
+				TheWritableGlobalData->m_loadReplayGame.clear();
+
+				if (TheRecorder->playbackFile(replayGame))
+				{
+					if (TheShell)
+					{
+						TheShell->hideShell();
+					}
+				}
+				else
+				{
+					DEBUG_LOG(("Failed to load replay '%s'", replayGame.str()));
+					m_quitting = TRUE;
+				}
+			}
+
 			if (TheNetwork != nullptr)
 			{
 				TheNetwork->UPDATE();
