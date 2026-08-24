@@ -45,7 +45,14 @@ endif()
 target_link_libraries(core_profile_legacy PRIVATE
     depsi_always # Gives force included headers. Link early.
     core_config
-    core_debug
     deps_utility
     stlport
 )
+
+# TheSuperHackers @build bobtista 24/08/2026 core_debug is Windows-only, so this
+# consumer has to guard the link (see Core/Libraries/Source/debug/CMakeLists.txt).
+if(WIN32)
+    target_link_libraries(core_profile_legacy PRIVATE
+        core_debug
+    )
+endif()
