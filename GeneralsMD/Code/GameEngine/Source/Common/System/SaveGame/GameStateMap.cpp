@@ -41,6 +41,7 @@
 #include "GameClient/MapUtil.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GameInfo.h"
+#include "Common/Recorder.h"
 
 // GLOBALS ////////////////////////////////////////////////////////////////////////////////////////
 GameStateMap *TheGameStateMap = nullptr;
@@ -317,8 +318,17 @@ void GameStateMap::xfer( Xfer *xfer )
 
 		if (currentVersion >= 2)
 		{
-			// save the game mode.
+			//
+			// TheSuperHackers @feature bobtista 24/08/2026 A save minted during replay playback is
+			// a checkpoint OF the recorded game, not of the playback session. Record the original
+			// game mode from the recorder so the checkpoint loads as a normal game with the
+			// original local player instead of a replay observer.
+			//
 			Int gameMode = (Int)TheGameLogic->getGameMode();
+			if( gameMode == GAME_REPLAY && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
+			{
+				gameMode = TheRecorder->getGameMode();
+			}
 			xfer->xferInt( &gameMode);
 		}
 
@@ -419,7 +429,14 @@ void GameStateMap::xfer( Xfer *xfer )
 	TheGameClient->setDrawableIDCounter( highDrawableID );
 
 	// Save the Game Info so the game can be started with the correct players on load
-	if( TheGameLogic->getGameMode()==GAME_SKIRMISH )
+	Int effectiveGameMode = TheGameLogic->getGameMode();
+	if( effectiveGameMode == GAME_REPLAY && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
+	{
+		// A checkpoint of a replayed game carries the recorded game's info (see the game mode
+		// note above).
+		effectiveGameMode = TheRecorder->getGameMode();
+	}
+	if( effectiveGameMode == GAME_SKIRMISH )
 	{
 		if( TheSkirmishGameInfo==nullptr )
 		{
@@ -427,6 +444,25 @@ void GameStateMap::xfer( Xfer *xfer )
 			TheSkirmishGameInfo->init();
 			TheSkirmishGameInfo->clearSlotList();
 			TheSkirmishGameInfo->reset();
+			if( xfer->getXferMode() == XFER_SAVE && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
+			{
+				GameInfo *replayInfo = TheRecorder->getGameInfo();
+				if( replayInfo != nullptr )
+				{
+					TheSkirmishGameInfo->enterGame();
+					for( Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex )
+					{
+						GameSlot *dst = TheSkirmishGameInfo->getSlot( slotIndex );
+						const GameSlot *src = replayInfo->getConstSlot( slotIndex );
+						if( dst != nullptr && src != nullptr )
+						{
+							*dst = *src;
+						}
+					}
+					TheSkirmishGameInfo->setLocalIP( replayInfo->getLocalIP() );
+					TheSkirmishGameInfo->startGame( replayInfo->getGameID() );
+				}
+			}
 		}
 		xfer->xferSnapshot(TheSkirmishGameInfo);
 	}
