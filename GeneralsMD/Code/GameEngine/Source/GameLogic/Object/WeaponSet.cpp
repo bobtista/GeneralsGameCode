@@ -178,6 +178,7 @@ WeaponSet::WeaponSet()
 	m_curWeapon = PRIMARY_WEAPON;
 	m_curWeaponLockedStatus = NOT_LOCKED;
 	m_curWeaponTemplateSet = nullptr;
+	m_xferOwner = nullptr;
 	m_filledWeaponSlotMask = 0;
 	m_totalAntiMask = 0;
 	m_totalDamageTypeMask.clear();
@@ -235,7 +236,22 @@ void WeaponSet::xfer( Xfer *xfer )
 		}
 		else
 		{
-			const ThingTemplate* tt = TheThingFactory->findTemplate(ttName);
+			//
+			// TheSuperHackers @bugfix bobtista 24/08/2026 Resolve the restored set on the owning
+			// object's template. Looking the template up by name can return a different instance
+			// than the one the object carries (map overrides, copied templates), and the set
+			// pointer then never matches the one updateWeaponSet resolves, so the first weapon
+			// set condition change after load rebuilt the weapons the run that saved kept.
+			//
+			const ThingTemplate* tt = nullptr;
+			if (m_xferOwner != nullptr)
+			{
+				tt = m_xferOwner->getTemplate();
+			}
+			if (tt == nullptr)
+			{
+				tt = TheThingFactory->findTemplate(ttName);
+			}
 			if (tt == nullptr)
 				throw INI_INVALID_DATA;
 

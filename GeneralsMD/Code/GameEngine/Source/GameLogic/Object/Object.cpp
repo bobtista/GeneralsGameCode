@@ -4538,7 +4538,9 @@ void Object::xfer( Xfer *xfer )
 		xfer->xferUser(&m_lastWeaponCondition, sizeof(m_lastWeaponCondition));
 
 		// do the weaponSet itself after all the weapon-related stuff, just in case
+		m_weaponSet.friend_setXferOwner(this);
 		xfer->xferSnapshot(&m_weaponSet);
+		m_weaponSet.friend_setXferOwner(nullptr);
 
 		m_specialPowerBits.xfer( xfer );
 
