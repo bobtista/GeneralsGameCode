@@ -25,6 +25,8 @@
 #include "W3DDevice/GameClient/TerrainTex.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/RenderBackend.h"
 
 W3DScorch::W3DScorch(bool deduplicateScorches)
   : m_vertexScorch(nullptr)
@@ -204,7 +206,6 @@ Bool W3DScorch::writeScorchToBuffer(const TScorch& scorch, WorldHeightMap& map, 
 		{
 			if (m_curNumScorchVertices >= MAX_SCORCH_VERTEX)
 				return false;
-			curVb->diffuse = diffuse;
 			Real theZ = amtToFloat + getMapHeight(map, i, j);
 			// The scorchmarks are spaced out by 1.5 in the texture.
 			Real uOffset = (type % SCORCH_PER_ROW) * 1.5f;
@@ -216,6 +217,30 @@ Bool W3DScorch::writeScorchToBuffer(const TScorch& scorch, WorldHeightMap& map, 
 			curVb->x = X;
 			curVb->y = Y;
 			curVb->z = theZ;
+
+			// TheSuperHackers @fix bobtista 20/04/2026 Corner cells of the scorch grid overshoot the
+			// atlas tile and sample the neighboring scorch; zero vertex alpha outside the unit radius
+			// on the shader-pipeline path so those fragments render transparent.
+			const Bool useBgfxAlphaMask = (WW3D::Get_Render_Backend() != nullptr
+				&& WW3D::Get_Render_Backend()->Has_Shader_Pipeline());
+			if (useBgfxAlphaMask)
+			{
+				const Real dx = (X - loc.X) / radius;
+				const Real dy = (Y - loc.Y) / radius;
+				if (dx * dx + dy * dy > 1.0f)
+				{
+					curVb->diffuse = diffuse & 0x00FFFFFF;
+				}
+				else
+				{
+					curVb->diffuse = diffuse;
+				}
+			}
+			else
+			{
+				curVb->diffuse = diffuse;
+			}
+
 			curVb++;
 			m_curNumScorchVertices++;
 		}
