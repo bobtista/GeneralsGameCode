@@ -43,8 +43,8 @@ W3DScorch::~W3DScorch() { freeBuffers(); }
 void W3DScorch::allocateBuffers()
 {
 	freeBuffers();
-	m_vertexScorch = NEW_REF(DX8VertexBufferClass, (DX8_FVF_XYZDUV1, MAX_SCORCH_VERTEX, DX8VertexBufferClass::USAGE_DEFAULT));
-	m_indexScorch = NEW_REF(DX8IndexBufferClass, (MAX_SCORCH_INDEX));
+	m_vertexScorch = NEW_REF(RenderVertexBufferClass, (DX8_FVF_XYZDUV1, MAX_SCORCH_VERTEX, RenderVertexBufferClass::USAGE_DEFAULT));
+	m_indexScorch = NEW_REF(RenderIndexBufferClass, (MAX_SCORCH_INDEX));
 	m_scorchTexture = NEW ScorchTextureClass;
 	invalidateBuffers();
 }
@@ -124,12 +124,12 @@ void W3DScorch::drawScorches(WorldHeightMap& map)
 	{
 		return;
 	}
-	DX8Wrapper::Set_Index_Buffer(m_indexScorch, 0);
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexScorch);
-	DX8Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
+	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexScorch, 0);
+	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexScorch);
+	WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAlphaShader);
 
-	DX8Wrapper::Set_Texture(0, m_scorchTexture);
-	DX8Wrapper::Draw_Triangles(0, m_curNumScorchIndices / 3, 0, m_curNumScorchVertices);
+	WW3D::Get_Render_Backend()->Set_Texture(0, m_scorchTexture);
+	WW3D::Get_Render_Backend()->Draw_Triangles(0, m_curNumScorchIndices / 3, 0, m_curNumScorchVertices);
 }
 
 static Real getMapHeight(WorldHeightMap& map, Int x, Int y)
@@ -150,10 +150,10 @@ void W3DScorch::updateScorches(WorldHeightMap& map)
 	m_curNumScorchVertices = 0;
 	m_curNumScorchIndices = 0;
 
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexScorch);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexScorch);
 	UnsignedShort* ib = lockIdxBuffer.Get_Index_Array();
 
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexScorch);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexScorch);
 	VertexFormatXYZDUV1* vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 
 	Real shadeR = (TheGlobalData->m_terrainAmbient[0].red + TheGlobalData->m_terrainDiffuse[0].red) / 2.0f;
