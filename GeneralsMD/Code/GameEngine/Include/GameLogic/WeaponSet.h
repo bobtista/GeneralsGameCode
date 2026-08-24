@@ -196,6 +196,7 @@ class WeaponSet : public Snapshot
 {
 private:
 	const WeaponTemplateSet*	m_curWeaponTemplateSet;
+	const Object*							m_xferOwner;								///< transient: owner during xfer, never serialized
 	Weapon*										m_weapons[WEAPONSLOT_COUNT];
 	WeaponSlotType						m_curWeapon;
 	WeaponLockType						m_curWeaponLockedStatus;
@@ -214,6 +215,8 @@ protected:
 	virtual void loadPostProcess() override;
 
 public:
+
+	void friend_setXferOwner( const Object *obj ) { m_xferOwner = obj; }	// only for Object::xfer
 
 	WeaponSet();
 	~WeaponSet();
