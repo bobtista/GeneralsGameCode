@@ -2418,7 +2418,8 @@ bool GameLogic::onLogicCrc(MAYBE_UNUSED GameMessage *msg)
 		//DEBUG_LOG(("Saw CRC of %X from player %d.  Our CRC is %X.  Arg count is %d",
 			//newCRC, msgPlayer->getPlayerIndex(), getCRC(), msg->getArgumentCount()));
 
-		TheRecorder->handleCRCMessage(newCRC, msgPlayer->getPlayerIndex(), (msg->getArgument(1)->boolean));
+		Int crcSubjectFrame = (msg->getArgumentCount() > 2) ? msg->getArgument(2)->integer : -1;
+		TheRecorder->handleCRCMessage(newCRC, msgPlayer->getPlayerIndex(), (msg->getArgument(1)->boolean), crcSubjectFrame);
 	}
 
 	return true;
