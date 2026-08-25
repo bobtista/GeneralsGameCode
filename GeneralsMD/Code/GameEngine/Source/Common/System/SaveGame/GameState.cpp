@@ -43,6 +43,7 @@
 #include "Common/WellKnownKeys.h"
 #include "Common/XferLoad.h"
 #include "Common/XferSave.h"
+#include "Common/Recorder.h"
 #include "GameClient/CampaignManager.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GameClient.h"
@@ -803,7 +804,8 @@ void GameState::loadQueuedSaveGame()
 	// feeding the rest, exactly where an uninterrupted playback would be at this frame.
 	if( TheGlobalData->m_resumeReplayName.isNotEmpty() && TheRecorder != nullptr )
 	{
-		Bool resumed = TheRecorder->resumePlayback( TheGlobalData->m_resumeReplayName, TheGameLogic->getFrame() );
+		MAYBE_UNUSED Bool resumed = TheRecorder->resumePlayback( TheGlobalData->m_resumeReplayName, TheGameLogic->getFrame() );
+		(void)resumed;
 		DEBUG_LOG(("Resume replay '%s' at frame %d: %s",
 			TheGlobalData->m_resumeReplayName.str(), TheGameLogic->getFrame(), resumed ? "OK" : "FAILED"));
 	}
