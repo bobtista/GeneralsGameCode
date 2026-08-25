@@ -3838,6 +3838,11 @@ void GameLogic::update()
 		GameMessage *msg = newInstance(GameMessage)(GameMessage::MSG_LOGIC_CRC);
 		msg->appendIntegerArgument(m_CRC);
 		msg->appendBooleanArgument(isPlayback);
+		// TheSuperHackers @feature bobtista 25/08/2026 Carry the frame this CRC describes. Replay
+		// playback resumed from a checkpoint uses it to drop recorded CRCs from before the
+		// checkpoint instead of comparing them against the wrong frame. Older replays without the
+		// argument still parse; readers treat it as optional.
+		msg->appendIntegerArgument((Int)m_frame);
 
 		// TheSuperHackers @info helmutbuhler 13/04/2025
 		// During replay simulation, we bypass TheMessageStream and instead put the CRC message
