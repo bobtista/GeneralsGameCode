@@ -188,8 +188,25 @@ static AsciiString getFname(AsciiString path)
 
 static void addCRCDebugLineInternal(bool count, const char *fmt, va_list args)
 {
-	if (TheGameLogic == nullptr || !(IS_FRAME_OK_TO_LOG))
+	if (TheGameLogic == nullptr)
 		return;
+	//
+	// TheSuperHackers @tweak bobtista 25/08/2026 -LogCRCDebugLines also works during replay
+	// playback, same as the gen-line path: TheDebugIgnoreSyncErrors silences the network mismatch
+	// machinery, not an explicitly requested debug log.
+	//
+	if (g_logCRCDebugLines)
+	{
+		Bool frameInWindow = TheGameLogic->isInGame() && !TheGameLogic->isInShellGame() &&
+			TheCRCFirstFrameToLog >= 0 && TheCRCFirstFrameToLog <= TheGameLogic->getFrame() &&
+			TheGameLogic->getFrame() <= TheCRCLastFrameToLog;
+		if (!frameInWindow)
+			return;
+	}
+	else if (!(IS_FRAME_OK_TO_LOG))
+	{
+		return;
+	}
 
 	if (lastCRCDebugFrame != TheGameLogic->getFrame())
 	{
