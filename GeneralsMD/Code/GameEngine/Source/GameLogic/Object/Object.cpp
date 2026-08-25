@@ -28,7 +28,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"
 #define DEFINE_WEAPONCONDITIONMAP
 #include "Common/BitFlagsIO.h"
 #include "Common/BuildAssistant.h"
@@ -4237,7 +4237,27 @@ void Object::xfer( Xfer *xfer )
 	xfer->xferUnsignedByte( &m_privateStatus );
 
 	// geometry info
-	xfer->xferSnapshot( &m_geometryInfo );
+	{
+		GeometryInfo preXferGeometry = m_geometryInfo;
+		xfer->xferSnapshot( &m_geometryInfo );
+		if( xfer->getXferMode() == XFER_LOAD && m_partitionData != nullptr &&
+			( preXferGeometry.getGeomType() != m_geometryInfo.getGeomType() ||
+			  preXferGeometry.getIsSmall() != m_geometryInfo.getIsSmall() ||
+			  preXferGeometry.getMajorRadius() != m_geometryInfo.getMajorRadius() ||
+			  preXferGeometry.getMinorRadius() != m_geometryInfo.getMinorRadius() ) )
+		{
+			//
+			// TheSuperHackers @bugfix bobtista 25/08/2026 Re-register with the partition manager
+			// when the restored geometry differs from the one registration used. The cell
+			// intersection array is sized at registration, so a runtime geometry override -- a
+			// rebuild hole adopting the dead building's footprint -- restored by this xfer alone
+			// kept the template-sized array, truncated the footprint fill, and the object stopped
+			// colliding on the missing cells.
+			//
+			ThePartitionManager->unRegisterObject( this );
+			ThePartitionManager->registerObject( this );
+		}
+	}
 
 	// sighting info, last look - must be saved cause we save PartitionCell::m_shroudLevel
 	xfer->xferSnapshot( m_partitionLastLook );
