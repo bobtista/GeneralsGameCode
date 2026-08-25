@@ -48,7 +48,6 @@ jobs:
               - 'cmake/**'
               - 'Core/**'
               - 'Dependencies/**'
-              - 'triplets/**'
               - 'vcpkg.json'
 
       - name: Changes Summary
