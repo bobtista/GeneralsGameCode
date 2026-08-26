@@ -3824,13 +3824,6 @@ void GameLogic::update()
 	Bool isSoloGameOrReplay = (TheRecorder && !TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
 	Bool generateForMP = (isMPGameOrReplay && (m_frame % TheGameInfo->getCRCInterval()) == 0);
 #ifdef DEBUG_CRC
-	// TheSuperHackers @tweak bobtista 26/08/2026 Also generate inside the explicit debug frame
-	// window so harness runs can localize multiplayer divergences at frame granularity.
-	generateForMP = generateForMP || (isMPGameOrReplay &&
-		getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog &&
-		(m_frame % REPLAY_CRC_INTERVAL) == 0);
-#endif
-#ifdef DEBUG_CRC
 	Bool generateForSolo = isSoloGameOrReplay && ((m_frame && (m_frame%100 == 0)) ||
 		(getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog && ((m_frame % REPLAY_CRC_INTERVAL) == 0)));
 #else
