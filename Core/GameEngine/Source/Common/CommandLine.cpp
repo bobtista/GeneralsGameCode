@@ -1070,7 +1070,14 @@ Int parseLoadSave(char *args[], int num)
 {
 	if (num > 1)
 	{
-		TheWritableGlobalData->m_loadSaveGame = args[1];
+		AsciiString filename = args[1];
+		if (!filename.endsWithNoCase(".sav"))
+		{
+			printf("Invalid save game name \"%s\"\n", filename.str());
+			exit(1);
+		}
+
+		TheWritableGlobalData->m_loadSaveGame = filename;
 		TheWritableGlobalData->m_shellMapOn = FALSE;
 		TheWritableGlobalData->m_playIntro = FALSE;
 		TheWritableGlobalData->m_playSizzle = FALSE;
@@ -1756,6 +1763,7 @@ static CommandLineParam paramsForEngineInit[] =
 
 	// TheSuperHackers @feature bobtista 22/07/2026 Load a save game file from the command line.
 	{ "-loadsave", parseLoadSave },
+	{ "-loadreplay", parseLoadReplay },
 
 	// TheSuperHackers @feature bobtista 08/08/2026 Play a replay file from the command line.
 	{ "-loadreplay", parseLoadReplay },
