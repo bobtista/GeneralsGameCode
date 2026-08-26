@@ -92,7 +92,7 @@
 #endif
 
 #ifndef RETAIL_COMPATIBLE_CRC
-#define RETAIL_COMPATIBLE_CRC (1) // Game is expected to be CRC compatible with retail Generals 1.08, Zero Hour 1.04
+#define RETAIL_COMPATIBLE_CRC (0) // TheSuperHackers @info Checkpoint fidelity needs the full serialized AI state; games from this branch are not CRC compatible with retail
 #endif
 
 #ifndef RETAIL_COMPATIBLE_XFER_SAVE
