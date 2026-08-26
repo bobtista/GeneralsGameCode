@@ -481,6 +481,7 @@ void GameStateMap::xfer( Xfer *xfer )
 					// resolves as the local player on load.
 					//
 					TheSkirmishGameInfo->setLocalIP( 0 );
+					TheSkirmishGameInfo->setCRCInterval( replayInfo->getCRCInterval() );
 					TheSkirmishGameInfo->startGame( replayInfo->getGameID() );
 				}
 			}
