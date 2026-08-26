@@ -328,6 +328,17 @@ void GameStateMap::xfer( Xfer *xfer )
 			if( gameMode == GAME_REPLAY && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
 			{
 				gameMode = TheRecorder->getGameMode();
+
+				//
+				// TheSuperHackers @feature bobtista 26/08/2026 A checkpoint of a multiplayer
+				// replay must load without live network objects. Write it as a skirmish-shaped
+				// save: the serialized player list carries the real players, and the skirmish
+				// game info constructed below carries the slot layout.
+				//
+				if( gameMode == GAME_LAN || gameMode == GAME_INTERNET )
+				{
+					gameMode = GAME_SKIRMISH;
+				}
 			}
 			xfer->xferInt( &gameMode);
 		}
@@ -433,8 +444,12 @@ void GameStateMap::xfer( Xfer *xfer )
 	if( effectiveGameMode == GAME_REPLAY && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
 	{
 		// A checkpoint of a replayed game carries the recorded game's info (see the game mode
-		// note above).
+		// note above). Multiplayer replays checkpoint as skirmish-shaped saves.
 		effectiveGameMode = TheRecorder->getGameMode();
+		if( effectiveGameMode == GAME_LAN || effectiveGameMode == GAME_INTERNET )
+		{
+			effectiveGameMode = GAME_SKIRMISH;
+		}
 	}
 	if( effectiveGameMode == GAME_SKIRMISH )
 	{
