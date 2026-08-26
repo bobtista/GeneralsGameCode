@@ -45,6 +45,7 @@
 
 
 Bool TheDebugIgnoreSyncErrors = FALSE;
+Bool TheDebugIgnoreReplaySyncErrors = FALSE;
 extern Int DX8Wrapper_PreserveFPU;
 
 #ifdef DEBUG_CRC
@@ -1068,7 +1069,14 @@ Int parseLoadSave(char *args[], int num)
 {
 	if (num > 1)
 	{
-		TheWritableGlobalData->m_loadSaveGame = args[1];
+		AsciiString filename = args[1];
+		if (!filename.endsWithNoCase(".sav"))
+		{
+			printf("Invalid save game name \"%s\"\n", filename.str());
+			exit(1);
+		}
+
+		TheWritableGlobalData->m_loadSaveGame = filename;
 		TheWritableGlobalData->m_shellMapOn = FALSE;
 		TheWritableGlobalData->m_playIntro = FALSE;
 		TheWritableGlobalData->m_playSizzle = FALSE;
@@ -1093,6 +1101,15 @@ Int parseLoadReplay(char *args[], int num)
 
 		return 2;
 	}
+	return 1;
+}
+
+// TheSuperHackers @feature bobtista 08/08/2026 Let diagnostic replay playback continue past a CRC
+// mismatch without the UI report and pause that normal playback uses.
+Int parseIgnoreReplaySyncErrors(char *args[], int)
+{
+	TheDebugIgnoreReplaySyncErrors = true;
+
 	return 1;
 }
 
@@ -1747,6 +1764,8 @@ static CommandLineParam paramsForEngineInit[] =
 
 	// TheSuperHackers @feature bobtista 22/07/2026 Load a save game file from the command line.
 	{ "-loadsave", parseLoadSave },
+	{ "-loadreplay", parseLoadReplay },
+	{ "-ignoreReplaySyncErrors", parseIgnoreReplaySyncErrors },
 
 	// TheSuperHackers @feature bobtista 08/08/2026 Play a replay file from the command line.
 	{ "-loadreplay", parseLoadReplay },
