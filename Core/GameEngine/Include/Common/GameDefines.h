@@ -96,7 +96,7 @@
 #endif
 
 #ifndef RETAIL_COMPATIBLE_XFER_SAVE
-#define RETAIL_COMPATIBLE_XFER_SAVE (1) // Game is expected to be Xfer Save compatible with retail Generals 1.08, Zero Hour 1.04
+#define RETAIL_COMPATIBLE_XFER_SAVE (0) // TheSuperHackers @info Checkpoint saves need the full serialized state; saves from this branch are not retail compatible
 #endif
 
 // This is here to easily toggle between the retail compatible with fixed pathfinding fallback and pure fixed pathfinding mode
