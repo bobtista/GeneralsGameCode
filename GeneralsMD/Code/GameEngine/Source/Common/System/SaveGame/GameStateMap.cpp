@@ -474,7 +474,13 @@ void GameStateMap::xfer( Xfer *xfer )
 							*dst = *src;
 						}
 					}
-					TheSkirmishGameInfo->setLocalIP( replayInfo->getLocalIP() );
+					//
+					// TheSuperHackers @bugfix bobtista 26/08/2026 Slot IPs are not serialized, so a
+					// nonzero local IP can never match a restored slot and the load screen would
+					// dereference a null local slot. Zero means the first occupied player slot
+					// resolves as the local player on load.
+					//
+					TheSkirmishGameInfo->setLocalIP( 0 );
 					TheSkirmishGameInfo->startGame( replayInfo->getGameID() );
 				}
 			}
