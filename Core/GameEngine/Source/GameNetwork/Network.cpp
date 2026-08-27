@@ -485,6 +485,13 @@ void Network::setStartFrame(Int frame)
 	m_startFrame = frame;
 	m_lastExecutionFrame = frame + m_runAhead - 1;
 	m_lastFrameCompleted = frame + m_runAhead - 1;
+	if (m_conMgr != nullptr)
+	{
+		// Pre-mark the initial run-ahead window as zero-command-ready, exactly as a fresh
+		// game's init does for frames 0..runAhead; without this every peer waits forever
+		// for frame data nobody owes yet.
+		m_conMgr->zeroFrames(frame + 1, m_runAhead + 1);
+	}
 }
 
 Int Network::getExecutionFrame() {
