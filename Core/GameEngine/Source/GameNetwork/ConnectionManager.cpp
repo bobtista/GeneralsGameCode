@@ -28,6 +28,7 @@
 #include "Compression.h"
 #include "WWLib/strtok_r.h"
 #include "Common/AudioEventRTS.h"
+#include "Common/GameState.h"
 #include "Common/CRCDebug.h"
 #include "Common/Debug.h"
 #include "Common/file.h"
