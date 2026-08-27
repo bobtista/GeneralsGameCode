@@ -82,6 +82,7 @@ static void embedPristineMap( AsciiString map, Xfer *xfer )
 	{
 
 		DEBUG_CRASH(( "embedPristineMap - Error opening source file '%s'", map.str() ));
+		DEBUG_LOG(("MPREC throw site line 85"));
 		throw SC_INVALID_DATA;
 
 	}
@@ -98,6 +99,7 @@ static void embedPristineMap( AsciiString map, Xfer *xfer )
 	{
 
 		DEBUG_CRASH(( "embedPristineMap - Unable to allocate buffer for file '%s'", map.str() ));
+		DEBUG_LOG(("MPREC throw site line 101"));
 		throw SC_INVALID_DATA;
 
 	}
@@ -109,6 +111,7 @@ static void embedPristineMap( AsciiString map, Xfer *xfer )
 		delete[] buffer;
 
 		DEBUG_CRASH(( "embedPristineMap - Error reading from file '%s'", map.str() ));
+		DEBUG_LOG(("MPREC throw site line 112"));
 		throw SC_INVALID_DATA;
 
 	}
@@ -140,6 +143,7 @@ static void embedInUseMap( AsciiString map, Xfer *xfer )
 	{
 
 		DEBUG_CRASH(( "embedInUseMap - Unable to open file '%s'", map.str() ));
+		DEBUG_LOG(("MPREC throw site line 143"));
 		throw SC_INVALID_DATA;
 
 	}
@@ -157,6 +161,7 @@ static void embedInUseMap( AsciiString map, Xfer *xfer )
 	{
 
 		DEBUG_CRASH(( "embedInUseMap - Unable to allocate buffer for file '%s'", map.str() ));
+		DEBUG_LOG(("MPREC throw site line 160"));
 		throw SC_INVALID_DATA;
 
 	}
@@ -168,6 +173,7 @@ static void embedInUseMap( AsciiString map, Xfer *xfer )
 		delete[] buffer;
 
 		DEBUG_CRASH(( "embedInUseMap - Error reading from file '%s'", map.str() ));
+		DEBUG_LOG(("MPREC throw site line 171"));
 		throw SC_INVALID_DATA;
 
 	}
@@ -198,6 +204,7 @@ static void extractAndSaveMap( AsciiString mapToSave, Xfer *xfer )
 	{
 
 		DEBUG_CRASH(( "extractAndSaveMap - Unable to open file '%s'", mapToSave.str() ));
+		DEBUG_LOG(("MPREC throw site line 201"));
 		throw SC_INVALID_DATA;
 
 	}
@@ -211,6 +218,7 @@ static void extractAndSaveMap( AsciiString mapToSave, Xfer *xfer )
 	{
 
 		DEBUG_CRASH(( "extractAndSaveMap - Unable to allocate buffer for file '%s'", mapToSave.str() ));
+		DEBUG_LOG(("MPREC throw site line 214"));
 		throw SC_INVALID_DATA;
 
 	}
@@ -225,6 +233,7 @@ static void extractAndSaveMap( AsciiString mapToSave, Xfer *xfer )
 		delete[] buffer;
 
 		DEBUG_CRASH(( "extractAndSaveMap - Error writing to file '%s'", mapToSave.str() ));
+		DEBUG_LOG(("MPREC throw site line 228"));
 		throw SC_INVALID_DATA;
 
 	}
@@ -375,6 +384,7 @@ void GameStateMap::xfer( Xfer *xfer )
 		{
 			DEBUG_CRASH(("GameState::xfer - The map filename read from the file '%s' is not in the SAVE directory, but should be",
 												 saveGameInfo->saveGameMapName.str()) );
+			DEBUG_LOG(("MPREC throw site line 378"));
 			throw SC_INVALID_DATA;
 		}
 
