@@ -491,6 +491,7 @@ void GameStateMap::xfer( Xfer *xfer )
 	else
 	{
 		delete TheSkirmishGameInfo;
+		DEBUG_LOG(("MPREC mark2 lan else-branch"));
 		TheSkirmishGameInfo = nullptr;
 	}
 
