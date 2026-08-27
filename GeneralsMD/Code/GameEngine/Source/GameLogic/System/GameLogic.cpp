@@ -2642,6 +2642,73 @@ void GameLogic::processDestroyList()
 //-------------------------------------------------------------------------------------------------
 /** Process the command list passed to the logic from the network */
 //-------------------------------------------------------------------------------------------------
+#if defined(RTS_DEBUG)
+static Bool s_crcRecoveryAttempted = FALSE;
+
+// TheSuperHackers @feature bobtista 27/08/2026 In-game CRC mismatch recovery: every peer sees
+// the same CRC set on the same frame, so each independently elects the same donor (lowest slot
+// holding the majority CRC), writes a synchronized save at this exact frame, and schedules an
+// in-process reload of the donor's save. Ties go to the cohort holding the lowest slot.
+void GameLogic::beginCrcRecovery( void )
+{
+	Int donorSlot = MAX_SLOTS;
+	Int bestCount = 0;
+	for (CachedCRCMap::const_iterator it = m_cachedCRCs.begin(); it != m_cachedCRCs.end(); ++it)
+	{
+		const Int slotIndex = ThePlayerList->getSlotIndex(it->first);
+		if (slotIndex < 0 || !TheNetwork->isPlayerConnected(slotIndex))
+		{
+			continue;
+		}
+		Int count = 0;
+		Int lowSlot = MAX_SLOTS;
+		for (CachedCRCMap::const_iterator jt = m_cachedCRCs.begin(); jt != m_cachedCRCs.end(); ++jt)
+		{
+			const Int slotIndex2 = ThePlayerList->getSlotIndex(jt->first);
+			if (slotIndex2 < 0 || !TheNetwork->isPlayerConnected(slotIndex2))
+			{
+				continue;
+			}
+			if (jt->second == it->second)
+			{
+				++count;
+				if (slotIndex2 < lowSlot)
+				{
+					lowSlot = slotIndex2;
+				}
+			}
+		}
+		if (count > bestCount || (count == bestCount && lowSlot < donorSlot))
+		{
+			bestCount = count;
+			donorSlot = lowSlot;
+		}
+	}
+	if (donorSlot >= MAX_SLOTS)
+	{
+		TheNetwork->setSawCRCMismatch();
+		return;
+	}
+
+	const Int localSlot = (Int)TheNetwork->getLocalPlayerID();
+	AsciiString localSave;
+	localSave.format("recovery_s%d.sav", localSlot);
+	const SaveResult saveResult = TheGameState->saveGame(localSave, UnicodeString(L"CRC recovery"), SAVE_FILE_TYPE_NORMAL);
+	DEBUG_LOG(("CRC recovery: donor slot %d, local slot %d, wrote '%s' at frame %d, code=%d",
+		donorSlot, localSlot, localSave.str(), m_frame, (Int)saveResult.saveCode));
+	if (saveResult.saveCode != SC_OK)
+	{
+		TheNetwork->setSawCRCMismatch();
+		return;
+	}
+
+	AsciiString donorSave;
+	donorSave.format("recovery_s%d.sav", donorSlot);
+	TheWritableGlobalData->m_recoveryResumeSave = donorSave;
+	s_crcRecoveryAttempted = TRUE;
+}
+#endif
+
 void GameLogic::processCommandList( CommandList *list )
 {
 	m_cachedCRCs.clear();
@@ -2717,7 +2784,20 @@ void GameLogic::processCommandList( CommandList *list )
 					player?player->getPlayerDisplayName().str():L"<NONE>", crcIt->second));
 			}
 #endif // DEBUG_LOGGING
-			TheNetwork->setSawCRCMismatch();
+#if defined(RTS_DEBUG)
+			if (TheGlobalData->m_recoveryResumeSave.isNotEmpty())
+			{
+				// A recovery reload is already pending; keep the endgame latch out of the way.
+			}
+			else if (TheGlobalData->m_crcRecovery && !s_crcRecoveryAttempted)
+			{
+				beginCrcRecovery();
+			}
+			else
+#endif
+			{
+				TheNetwork->setSawCRCMismatch();
+			}
 		}
 	}
 
@@ -3840,6 +3920,16 @@ void GameLogic::update()
 	if (generateForSolo || generateForMP)
 	{
 		m_CRC = getCRC( CRC_RECALC );
+#if defined(RTS_DEBUG)
+		// TheSuperHackers @feature bobtista 27/08/2026 Perturb one outgoing CRC to exercise the
+		// mismatch path on demand. Only the advertised value changes; the game state is untouched.
+		if (TheGlobalData->m_desyncAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_desyncAtFrame && generateForMP)
+		{
+			m_CRC ^= 0xDEADBEEF;
+			TheWritableGlobalData->m_desyncAtFrame = 0;
+			DEBUG_LOG(("CRC recovery test: perturbed advertised CRC on frame %d", m_frame));
+		}
+#endif
 		bool isPlayback = (TheRecorder && TheRecorder->isPlaybackMode());
 
 		GameMessage *msg = newInstance(GameMessage)(GameMessage::MSG_LOGIC_CRC);

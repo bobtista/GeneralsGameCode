@@ -936,6 +936,43 @@ void GameEngine::update()
 					TheGameState->loadQueuedSaveGame();
 				}
 			}
+
+			// TheSuperHackers @feature bobtista 27/08/2026 Pending CRC recovery reload: once the
+			// donor's synchronized save exists, tear the diverged game down with the network kept
+			// alive and resume from the donor state, exactly like a cold multiplayer resume.
+			// Peers reload staggered so only one extracts the shared scratch map at a time.
+			if (TheGlobalData->m_recoveryResumeSave.isNotEmpty() && TheNetwork != nullptr &&
+					TheGameLogic->isInGame())
+			{
+				static UnsignedInt s_recoveryEligibleAt = 0;
+				AsciiString donorSave = TheGlobalData->m_recoveryResumeSave;
+				UnsignedInt now = timeGetTime();
+				if (s_recoveryEligibleAt == 0)
+				{
+					s_recoveryEligibleAt = now + (rts::ClientInstance::getInstanceId() - 1u) * 8000u;
+				}
+				if (now >= s_recoveryEligibleAt)
+				{
+					if (TheGameState->doesSaveGameExist(donorSave))
+					{
+						TheWritableGlobalData->m_recoveryResumeSave.clear();
+						if (TheGlobalData->m_resumeAsSlot < 0)
+						{
+							TheWritableGlobalData->m_resumeAsSlot = (Int)TheNetwork->getLocalPlayerID();
+						}
+						DEBUG_LOG(("CRC recovery: reloading donor save '%s' as slot %d", donorSave.str(), TheGlobalData->m_resumeAsSlot));
+						NetworkAutoStart::setResumeSave(donorSave);
+						TheGameLogic->clearGameData(FALSE);
+						TheGameState->loadResumeSaveGame(donorSave);
+					}
+					else if (now >= s_recoveryEligibleAt + 30000u)
+					{
+						DEBUG_LOG(("CRC recovery: donor save '%s' never appeared, ending the game", donorSave.str()));
+						TheWritableGlobalData->m_recoveryResumeSave.clear();
+						TheNetwork->setSawCRCMismatch();
+					}
+				}
+			}
 #endif
 
 			// TheSuperHackers @feature bobtista 25/08/2026 Deferred command-line replay loading:
