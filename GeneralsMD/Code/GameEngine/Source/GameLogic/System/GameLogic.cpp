@@ -3918,6 +3918,22 @@ void GameLogic::update()
 	Bool generateForSolo = isSoloGameOrReplay && ((m_frame % REPLAY_CRC_INTERVAL) == 0);
 #endif // DEBUG_CRC
 
+#if defined(RTS_DEBUG)
+	// TheSuperHackers @feature bobtista 27/08/2026 Truly diverge this instance's simulation:
+	// a one-sided deposit is CRC-covered persistent state, so the mismatch the network sees
+	// reflects a real difference the donor snapshot must overwrite.
+	if (TheGlobalData->m_divergeAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_divergeAtFrame)
+	{
+		Player *divergePlayer = ThePlayerList->getLocalPlayer();
+		if (divergePlayer != nullptr && divergePlayer->getMoney() != nullptr)
+		{
+			divergePlayer->getMoney()->deposit(1000, FALSE, FALSE);
+			DEBUG_LOG(("CRC recovery test: diverged local state (money +1000) on frame %d", m_frame));
+		}
+		TheWritableGlobalData->m_divergeAtFrame = 0;
+	}
+#endif
+
 	if (generateForSolo || generateForMP)
 	{
 		m_CRC = getCRC( CRC_RECALC );
