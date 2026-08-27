@@ -674,12 +674,14 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	// from any previously loaded save game files
 	//
 	TheGameStateMap->clearScratchPadMaps();
+	DEBUG_LOG(("MPREC loadGame: scratch cleared"));
 
 	AsciiString filepath = getSaveGamePathForRead(gameInfo.filename);
 
 	// open the save file
 	XferLoad xferLoad;
 	xferLoad.open( filepath );
+	DEBUG_LOG(("MPREC loadGame: file open ok"));
 
 	// clear out the game engine
 	TheGameEngine->reset();
@@ -698,8 +700,14 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 		xferSaveData( &xferLoad, SNAPSHOT_SAVELOAD );
 
 	}
+	catch( SaveCode thrownCode )
+	{
+		DEBUG_LOG(("MPREC loadGame: xferSaveData threw SaveCode %d", (Int)thrownCode));
+		error = TRUE;
+	}
 	catch( ... )
 	{
+		DEBUG_LOG(("MPREC loadGame: xferSaveData threw unknown exception"));
 		error = TRUE;
 	}
 
