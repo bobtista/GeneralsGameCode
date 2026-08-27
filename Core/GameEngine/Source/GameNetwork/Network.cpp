@@ -41,6 +41,7 @@
 #include "GameNetwork/Transport.h"
 #include "WWLib/strtok_r.h"
 #include "GameClient/Shell.h"
+#include "GameClient/InGameUI.h"
 #include "Common/CRCDebug.h"
 #include "GameLogic/GameLogic.h"
 
@@ -176,6 +177,7 @@ public:
 	virtual void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) override;	///< Report the post-load state so peers can gate the recovery resume.
 	virtual void sendRecoveryFile(AsciiString path) override;						///< Donor pushes its snapshot to every peer.
 	virtual AsciiString getRecoveryReceivedFile() override;						///< Leaf name of the last snapshot received during recovery.
+	virtual Bool isRecoveryInProgress() override;									///< A mismatch recovery currently holds the game.
 	virtual Int  getExecutionFrame() override;																			///< Returns the next valid frame for simultaneous command execution.
 
 	// For disconnect blame assignment
@@ -553,6 +555,11 @@ AsciiString Network::getRecoveryReceivedFile()
 	return AsciiString::TheEmptyString;
 }
 
+Bool Network::isRecoveryInProgress()
+{
+	return (m_recoveryFrozen || m_awaitingRecoveryReady);
+}
+
 Int Network::getExecutionFrame() {
 	Int logicFrame = TheGameLogic->getFrame() + m_runAhead;
 	if (logicFrame > m_lastExecutionFrame) {
@@ -803,6 +810,10 @@ void Network::update()
 			DEBUG_LOG(("Network::update - recovery handshake complete, resuming lockstep"));
 			m_awaitingRecoveryReady = FALSE;
 			m_recoveryFrozen = FALSE;
+			if (TheInGameUI != nullptr)
+			{
+				TheInGameUI->message(UnicodeString(L"Game synchronized - resuming"));
+			}
 		}
 		else if ((readyState == -1) || (timeGetTime() >= m_recoveryReadyDeadline))
 		{
