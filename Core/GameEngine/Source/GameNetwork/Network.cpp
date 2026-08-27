@@ -173,6 +173,7 @@ public:
 
 	virtual void setStartFrame(Int frame) override;								///< Seed frame bookkeeping when resuming a loaded game.
 	virtual void prepareForRecovery() override;										///< Freeze lockstep and flush queued commands ahead of a recovery reload.
+	virtual void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) override;	///< Report the post-load state so peers can gate the recovery resume.
 	virtual Int  getExecutionFrame() override;																			///< Returns the next valid frame for simultaneous command execution.
 
 	// For disconnect blame assignment
@@ -203,6 +204,8 @@ protected:
 	Int m_frameRate;
 	Int m_startFrame;													///< Logic frame the game began on (nonzero when resumed from a save).
 	Bool m_recoveryFrozen;										///< Lockstep is held for a pending recovery reload.
+	Bool m_awaitingRecoveryReady;								///< Waiting for every peer's post-load recovery report.
+	time_t m_recoveryReadyDeadline;							///< Give up on the recovery handshake past this time.
 	Int m_lastExecutionFrame;																	///< The highest frame number that a command could have been executed on.
 	Int m_lastFrameCompleted;
 	Bool m_didSelfSlug;
@@ -335,6 +338,8 @@ void Network::init()
 	m_frameRate = 30;
 	m_startFrame = 0;
 	m_recoveryFrozen = FALSE;
+	m_awaitingRecoveryReady = FALSE;
+	m_recoveryReadyDeadline = 0;
 	m_lastExecutionFrame = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_lastFrameCompleted = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_frameDataReady = FALSE;
@@ -495,7 +500,13 @@ void Network::setStartFrame(Int frame)
 		// for frame data nobody owes yet.
 		m_conMgr->zeroFrames(frame + 1, m_runAhead + 1);
 	}
-	m_recoveryFrozen = FALSE;
+	if (m_recoveryFrozen)
+	{
+		// An in-process recovery reload stays frozen until every peer reports the same
+		// post-load state; sendRecoveryReady starts that exchange and update() releases it.
+		m_awaitingRecoveryReady = TRUE;
+		m_recoveryReadyDeadline = timeGetTime() + 60000;
+	}
 	// Re-enter the pregame state a cold resume naturally starts in: readiness short-circuits
 	// until logic crosses the start frame, which skips the flushed current frame that no peer
 	// will ever declare again.
@@ -512,6 +523,14 @@ void Network::prepareForRecovery()
 	if (m_conMgr != nullptr)
 	{
 		m_conMgr->flushForRecovery();
+	}
+}
+
+void Network::sendRecoveryReady(UnsignedInt frame, UnsignedInt crc)
+{
+	if (m_conMgr != nullptr)
+	{
+		m_conMgr->sendRecoveryReady(frame, crc);
 	}
 }
 
@@ -755,6 +774,25 @@ void Network::update()
 
 	if (m_localStatus == NETLOCALSTATUS_LEFT) {// || (m_localStatus == NETLOCALSTATUS_LEAVING)) {
 		endOfGameCheck();
+	}
+
+	if (m_awaitingRecoveryReady && (m_conMgr != nullptr))
+	{
+		Int readyState = m_conMgr->checkRecoveryReady();
+		if (readyState == 1)
+		{
+			DEBUG_LOG(("Network::update - recovery handshake complete, resuming lockstep"));
+			m_awaitingRecoveryReady = FALSE;
+			m_recoveryFrozen = FALSE;
+		}
+		else if ((readyState == -1) || (timeGetTime() >= m_recoveryReadyDeadline))
+		{
+			DEBUG_LOG(("Network::update - recovery handshake %s, falling back to the mismatch endgame",
+				(readyState == -1) ? "disagreed" : "timed out"));
+			m_awaitingRecoveryReady = FALSE;
+			m_recoveryFrozen = FALSE;
+			setSawCRCMismatch();
+		}
 	}
 
 	if (AllCommandsReady(TheGameLogic->getFrame())) { // If all the commands are ready for the next frame...
