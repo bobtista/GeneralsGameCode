@@ -192,6 +192,7 @@ private:
 	UnsignedInt m_recoveryReadyFrame[MAX_SLOTS];
 	UnsignedInt m_recoveryReadyCRC[MAX_SLOTS];
 	UnsignedInt m_recoveryHoldReleaseFrame;
+	UnsignedInt m_recoveryQuarantineBelowFrame;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];
 	UnsignedInt m_localAddr;
 	UnsignedInt m_localPort;
