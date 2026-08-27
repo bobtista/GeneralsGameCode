@@ -296,6 +296,11 @@ void ConnectionManager::init()
 #endif
 	m_recoveryHold = FALSE;
 	m_recoveryHoldReleaseFrame = 0;
+	for (Int recSlot = 0; recSlot < MAX_SLOTS; ++recSlot) {
+		m_recoveryReadySeen[recSlot] = FALSE;
+		m_recoveryReadyFrame[recSlot] = 0;
+		m_recoveryReadyCRC[recSlot] = 0;
+	}
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
@@ -387,6 +392,11 @@ void ConnectionManager::reset()
 #endif
 	m_recoveryHold = FALSE;
 	m_recoveryHoldReleaseFrame = 0;
+	for (Int recSlot = 0; recSlot < MAX_SLOTS; ++recSlot) {
+		m_recoveryReadySeen[recSlot] = FALSE;
+		m_recoveryReadyFrame[recSlot] = 0;
+		m_recoveryReadyCRC[recSlot] = 0;
+	}
 	m_packetRouterSlot = -1;
 
 	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -459,6 +469,11 @@ void ConnectionManager::zeroFrames(UnsignedInt startingFrame, UnsignedInt numFra
 void ConnectionManager::flushForRecovery() {
 	m_recoveryHold = TRUE;
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		m_recoveryReadySeen[i] = FALSE;
+		m_recoveryReadyFrame[i] = 0;
+		m_recoveryReadyCRC[i] = 0;
+	}
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		if (m_connections[i] != nullptr) {
 			m_connections[i]->clearCommandsExceptFrom(-1);
 		}
@@ -472,6 +487,71 @@ void ConnectionManager::flushForRecovery() {
 	if (m_relayedCommands != nullptr) {
 		m_relayedCommands->reset();
 	}
+}
+
+// TheSuperHackers @feature bobtista 27/08/2026 Post-load recovery handshake: each peer
+// broadcasts the frame and logic CRC it computed after loading the donor snapshot, and
+// nobody resumes until every active peer reports the same pair.
+void ConnectionManager::sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) {
+	NetRecoveryReadyCommandMsg *msg = newInstance(NetRecoveryReadyCommandMsg);
+	msg->setRecoveryFrame(frame);
+	msg->setRecoveryCRC(crc);
+	msg->setPlayerID(m_localSlot);
+	if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
+		msg->setID(GenerateNextCommandID());
+	}
+	sendLocalCommandDirect(msg, 0xff ^ (1 << m_localSlot));
+	msg->detach();
+
+	m_recoveryReadySeen[m_localSlot] = TRUE;
+	m_recoveryReadyFrame[m_localSlot] = frame;
+	m_recoveryReadyCRC[m_localSlot] = crc;
+	DEBUG_LOG(("ConnectionManager::sendRecoveryReady - frame %d crc %8.8X", frame, crc));
+}
+
+void ConnectionManager::processRecoveryReady(NetRecoveryReadyCommandMsg *msg) {
+	const UnsignedInt playerID = msg->getPlayerID();
+	if (playerID >= MAX_SLOTS) {
+		return;
+	}
+	m_recoveryReadySeen[playerID] = TRUE;
+	m_recoveryReadyFrame[playerID] = msg->getRecoveryFrame();
+	m_recoveryReadyCRC[playerID] = msg->getRecoveryCRC();
+	DEBUG_LOG(("ConnectionManager::processRecoveryReady - player %d frame %d crc %8.8X",
+		playerID, msg->getRecoveryFrame(), msg->getRecoveryCRC()));
+}
+
+/**
+ * Returns 1 when every active peer has reported the same post-load frame and CRC,
+ * -1 when reports disagree, and 0 while reports are still outstanding.
+ */
+Int ConnectionManager::checkRecoveryReady() {
+	Bool haveReference = FALSE;
+	UnsignedInt referenceFrame = 0;
+	UnsignedInt referenceCRC = 0;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		Bool active = (i == m_localSlot);
+		if (!active) {
+			active = (m_connections[i] != nullptr) &&
+				(m_frameData[i] != nullptr) && (m_frameData[i]->getIsQuitting() == FALSE);
+		}
+		if (!active) {
+			continue;
+		}
+		if (!m_recoveryReadySeen[i]) {
+			return 0;
+		}
+		if (!haveReference) {
+			haveReference = TRUE;
+			referenceFrame = m_recoveryReadyFrame[i];
+			referenceCRC = m_recoveryReadyCRC[i];
+		} else if ((m_recoveryReadyFrame[i] != referenceFrame) || (m_recoveryReadyCRC[i] != referenceCRC)) {
+			DEBUG_LOG(("ConnectionManager::checkRecoveryReady - player %d reported frame %d crc %8.8X vs frame %d crc %8.8X",
+				i, m_recoveryReadyFrame[i], m_recoveryReadyCRC[i], referenceFrame, referenceCRC));
+			return -1;
+		}
+	}
+	return haveReference ? 1 : 0;
 }
 
 /**
@@ -603,6 +683,10 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 
 	// Process command by type
 	switch (cmdType) {
+
+		case NETCOMMANDTYPE_RECOVERYREADY:
+			processRecoveryReady((NetRecoveryReadyCommandMsg *)msg);
+			return TRUE;
 
 		case NETCOMMANDTYPE_FRAMEINFO: {
 			processFrameInfo((NetFrameCommandMsg *)msg);

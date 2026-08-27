@@ -964,6 +964,11 @@ void GameEngine::update()
 						NetworkAutoStart::setResumeSave(donorSave);
 						TheGameLogic->clearGameData(FALSE);
 						TheGameState->loadResumeSaveGame(donorSave);
+						if (TheNetwork != nullptr && TheGameLogic->isInGame())
+						{
+							UnsignedInt recoveryCRC = TheGameLogic->getCRC(CRC_RECALC);
+							TheNetwork->sendRecoveryReady(TheGameLogic->getFrame(), recoveryCRC);
+						}
 					}
 					else if (now >= s_recoveryEligibleAt + 30000u)
 					{
