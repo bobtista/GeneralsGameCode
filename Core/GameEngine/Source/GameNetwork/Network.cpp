@@ -178,6 +178,7 @@ public:
 	virtual void sendRecoveryFile(AsciiString path) override;						///< Donor pushes its snapshot to every peer.
 	virtual AsciiString getRecoveryReceivedFile() override;						///< Leaf name of the last snapshot received during recovery.
 	virtual Bool isRecoveryInProgress() override;									///< A mismatch recovery currently holds the game.
+	virtual void sendRejoinRequest() override;										///< Ask the held game for its snapshot.
 	virtual Int  getExecutionFrame() override;																			///< Returns the next valid frame for simultaneous command execution.
 
 	// For disconnect blame assignment
@@ -509,7 +510,7 @@ void Network::setStartFrame(Int frame)
 		// An in-process recovery reload stays frozen until every peer reports the same
 		// post-load state; sendRecoveryReady starts that exchange and update() releases it.
 		m_awaitingRecoveryReady = TRUE;
-		m_recoveryReadyDeadline = timeGetTime() + 60000;
+		m_recoveryReadyDeadline = timeGetTime() + 180000;
 	}
 	// Re-enter the pregame state a cold resume naturally starts in: readiness short-circuits
 	// until logic crosses the start frame, which skips the flushed current frame that no peer
@@ -558,6 +559,14 @@ AsciiString Network::getRecoveryReceivedFile()
 Bool Network::isRecoveryInProgress()
 {
 	return (m_recoveryFrozen || m_awaitingRecoveryReady);
+}
+
+void Network::sendRejoinRequest()
+{
+	if (m_conMgr != nullptr)
+	{
+		m_conMgr->sendRejoinRequest();
+	}
 }
 
 Int Network::getExecutionFrame() {

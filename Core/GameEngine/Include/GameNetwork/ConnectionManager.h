@@ -77,6 +77,7 @@ public:
 	void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc);
 	Int checkRecoveryReady();
 	void sendRecoveryFile(AsciiString path);
+	void sendRejoinRequest();
 	AsciiString getRecoveryReceivedFile();
 	void destroyGameMessages();
 //	void createConnections(UnsignedInt numberOfPlayers, UnsignedInt localSlot);
@@ -161,6 +162,7 @@ private:
 	void processAckStage1(NetCommandMsg *msg);
 	void processAckStage2(NetCommandMsg *msg);
 	void processAck(NetCommandMsg *msg);
+	void processRejoinRequest(NetCommandMsg *msg);
 	void processRecoveryReady(NetRecoveryReadyCommandMsg *msg);
 	void processFrameInfo(NetFrameCommandMsg *msg);
 	void processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg);
@@ -196,6 +198,7 @@ private:
 	UnsignedInt m_recoveryHoldReleaseFrame;
 	UnsignedInt m_recoveryQuarantineBelowFrame;
 	AsciiString m_recoveryReceivedFile;
+	UnsignedByte m_rejoinFileSentMask;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];
 	UnsignedInt m_localAddr;
 	UnsignedInt m_localPort;

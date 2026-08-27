@@ -26,6 +26,8 @@
 
 // TheSuperHackers @feature bobtista 10/08/2026 Automate network match startup
 // for multi-instance testing.
+Bool ParseIPv4Address(AsciiString address, UnsignedInt &result);
+
 class NetworkAutoStart
 {
 public:

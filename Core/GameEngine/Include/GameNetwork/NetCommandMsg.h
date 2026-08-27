@@ -629,6 +629,16 @@ protected:
 };
 
 //-----------------------------------------------------------------------------
+class NetRejoinRequestCommandMsg : public NetCommandMsgT<NetPacketRejoinRequestCommand, SmallNetPacketRejoinRequestCommand>
+{
+	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(NetRejoinRequestCommandMsg, "NetRejoinRequestCommandMsg")
+public:
+	NetRejoinRequestCommandMsg();
+
+	virtual Select getSmallNetPacketSelect() const override;
+};
+
+//-----------------------------------------------------------------------------
 class NetRecoveryReadyCommandMsg : public NetCommandMsgT<NetPacketRecoveryReadyCommand, SmallNetPacketRecoveryReadyCommand>
 {
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(NetRecoveryReadyCommandMsg, "NetRecoveryReadyCommandMsg")

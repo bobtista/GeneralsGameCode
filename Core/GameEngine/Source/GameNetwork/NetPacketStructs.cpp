@@ -238,6 +238,9 @@ NetCommandMsg *SmallNetPacketCommandBase::constructNetCommandMsg(const CommandBa
 	case NETCOMMANDTYPE_RECOVERYREADY:
 		msg = newInstance(NetRecoveryReadyCommandMsg);
 		break;
+	case NETCOMMANDTYPE_REJOINREQUEST:
+		msg = newInstance(NetRejoinRequestCommandMsg);
+		break;
 	case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
 		msg = newInstance(NetDisconnectScreenOffCommandMsg);
 		break;
@@ -1352,6 +1355,21 @@ size_t NetPacketDisconnectFrameCommandBase::copyBytes(UnsignedByte *buffer, cons
 	//base.frame.frame = msg->getExecutionFrame();
 	base.playerId.playerId = msg->getPlayerID();
 	base.commandId.commandId = msg->getID();
+
+	return network::writeObject(buffer, base);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// NetPacketRejoinRequestCommand
+////////////////////////////////////////////////////////////////////////////////
+
+size_t NetPacketRejoinRequestCommandBase::copyBytes(UnsignedByte *buffer, const NetCommandRef &ref)
+{
+	const NetCommandMsg *msg = ref.getCommand();
+	CommandBase base;
+	base.commandType.commandType = msg->getNetCommandType();
+	base.relay.relay = ref.getRelay();
+	base.playerId.playerId = msg->getPlayerID();
 
 	return network::writeObject(buffer, base);
 }

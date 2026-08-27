@@ -110,6 +110,17 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 			if (TheNetwork != nullptr && TheNetwork->isRecoveryInProgress()) {
 				sendKeepAlive(conMgr);
 				resetPlayerTimeouts(conMgr);
+				if (m_disconnectState != DISCONNECTSTATETYPE_SCREENOFF) {
+					TheDisconnectMenu->hideScreen();
+					m_disconnectState = DISCONNECTSTATETYPE_SCREENOFF;
+				}
+			} else if (TheGlobalData->m_rejoinWaitMs > 0 &&
+					(curTime - m_lastFrameTime) > (time_t)TheGlobalData->m_rejoinWaitMs) {
+				// TheSuperHackers @feature bobtista 27/08/2026 Hold the stalled game for the
+				// missing peer to rejoin instead of counting down to a kick; the engine update
+				// runs the actual hold, which then parks these clocks via isRecoveryInProgress.
+				TheWritableGlobalData->m_rejoinHoldPending = TRUE;
+				sendKeepAlive(conMgr);
 			} else {
 				if (m_disconnectState == DISCONNECTSTATETYPE_SCREENOFF) {
 					turnOnScreen(conMgr);

@@ -856,6 +856,14 @@ void GameState::loadResumeSaveGame( AsciiString filename )
 	}
 
 	applyResumeAsSlot();
+
+	// TheSuperHackers @feature bobtista 27/08/2026 A recovery or rejoin reload reports its
+	// post-load state so the handshake can gate the resume, whichever path loaded the save.
+	if( TheNetwork != nullptr && TheNetwork->isRecoveryInProgress() )
+	{
+		UnsignedInt recoveryCRC = TheGameLogic->getCRC( CRC_RECALC );
+		TheNetwork->sendRecoveryReady( TheGameLogic->getFrame(), recoveryCRC );
+	}
 }
 
 void GameState::loadQueuedSaveGame()
