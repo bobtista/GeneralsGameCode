@@ -3920,16 +3920,14 @@ void GameLogic::update()
 
 #if defined(RTS_DEBUG)
 	// TheSuperHackers @feature bobtista 27/08/2026 Truly diverge this instance's simulation:
-	// a one-sided deposit is CRC-covered persistent state, so the mismatch the network sees
-	// reflects a real difference the donor snapshot must overwrite.
+	// one extra logic RNG draw shifts the seed, which the frame CRC covers directly, and the
+	// divergence propagates through every later random decision until the donor snapshot
+	// overwrites it. Money and similar fields are save-serialized but outside the frame CRC.
 	if (TheGlobalData->m_divergeAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_divergeAtFrame)
 	{
-		Player *divergePlayer = ThePlayerList->getLocalPlayer();
-		if (divergePlayer != nullptr && divergePlayer->getMoney() != nullptr)
-		{
-			divergePlayer->getMoney()->deposit(1000, FALSE, FALSE);
-			DEBUG_LOG(("CRC recovery test: diverged local state (money +1000) on frame %d", m_frame));
-		}
+		MAYBE_UNUSED Int divergeDraw = GameLogicRandomValue(0, 1);
+		(void)divergeDraw;
+		DEBUG_LOG(("CRC recovery test: diverged logic RNG on frame %d", m_frame));
 		TheWritableGlobalData->m_divergeAtFrame = 0;
 	}
 #endif
