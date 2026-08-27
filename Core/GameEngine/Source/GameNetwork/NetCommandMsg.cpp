@@ -1154,6 +1154,24 @@ NetCommandMsg::Select NetDisconnectFrameCommandMsg::getSmallNetPacketSelect() co
 }
 
 //-------------------------
+// NetRejoinRequestCommandMsg
+//-------------------------
+NetRejoinRequestCommandMsg::NetRejoinRequestCommandMsg() {
+	m_commandType = NETCOMMANDTYPE_REJOINREQUEST;
+}
+
+NetRejoinRequestCommandMsg::~NetRejoinRequestCommandMsg() {
+}
+
+NetCommandMsg::Select NetRejoinRequestCommandMsg::getSmallNetPacketSelect() const {
+	Select select;
+	select.useCommandType = 1;
+	select.useRelay = 1;
+	select.usePlayerId = 1;
+	return select;
+}
+
+//-------------------------
 // NetRecoveryReadyCommandMsg
 //-------------------------
 NetRecoveryReadyCommandMsg::NetRecoveryReadyCommandMsg() {

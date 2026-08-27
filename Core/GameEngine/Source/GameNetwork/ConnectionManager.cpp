@@ -310,6 +310,7 @@ void ConnectionManager::init()
 	}
 	m_recoveryQuarantineBelowFrame = 0;
 	m_recoveryReceivedFile.clear();
+	m_rejoinFileSentMask = 0;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
@@ -408,6 +409,7 @@ void ConnectionManager::reset()
 	}
 	m_recoveryQuarantineBelowFrame = 0;
 	m_recoveryReceivedFile.clear();
+	m_rejoinFileSentMask = 0;
 	m_packetRouterSlot = -1;
 
 	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -483,6 +485,7 @@ void ConnectionManager::zeroFrames(UnsignedInt startingFrame, UnsignedInt numFra
 void ConnectionManager::flushForRecovery() {
 	m_recoveryHold = TRUE;
 	m_recoveryReceivedFile.clear();
+	m_rejoinFileSentMask = 0;
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		m_recoveryReadySeen[i] = FALSE;
 		m_recoveryReadyFrame[i] = 0;
@@ -552,6 +555,31 @@ void ConnectionManager::sendRecoveryFile(AsciiString path) {
 
 AsciiString ConnectionManager::getRecoveryReceivedFile() {
 	return m_recoveryReceivedFile;
+}
+
+void ConnectionManager::sendRejoinRequest() {
+	NetRejoinRequestCommandMsg *msg = newInstance(NetRejoinRequestCommandMsg);
+	msg->setPlayerID(m_localSlot);
+	sendLocalCommandDirect(msg, 0xff ^ (1 << m_localSlot));
+	msg->detach();
+}
+
+// TheSuperHackers @feature bobtista 27/08/2026 A restarted peer asks for the held game's
+// snapshot; answer once per hold with this instance's recovery save.
+void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
+	const UnsignedInt playerID = msg->getPlayerID();
+	if (playerID >= MAX_SLOTS || !m_recoveryHold) {
+		return;
+	}
+	if ((m_rejoinFileSentMask & (1 << playerID)) != 0) {
+		return;
+	}
+	m_rejoinFileSentMask |= (1 << playerID);
+	AsciiString localSave;
+	localSave.format("recovery_s%d.sav", (Int)m_localSlot);
+	DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked for the held snapshot", playerID));
+	UnsignedShort fileID = sendFileAnnounce(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID));
+	sendFile(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID), fileID);
 }
 
 void ConnectionManager::processRecoveryReady(NetRecoveryReadyCommandMsg *msg) {
@@ -739,6 +767,10 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 
 		case NETCOMMANDTYPE_RECOVERYREADY:
 			processRecoveryReady((NetRecoveryReadyCommandMsg *)msg);
+			return TRUE;
+
+		case NETCOMMANDTYPE_REJOINREQUEST:
+			processRejoinRequest(msg);
 			return TRUE;
 
 		case NETCOMMANDTYPE_FRAMEINFO: {
