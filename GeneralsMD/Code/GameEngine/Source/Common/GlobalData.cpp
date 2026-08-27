@@ -997,6 +997,7 @@ GlobalData::GlobalData()
 	m_saveToFile.clear();
 	m_pendingFile.clear();
 	m_resumeReplayName.clear();
+	m_resumeAsSlot = -1;
 	m_loadReplayGame.clear();
 
 	m_simulateReplays.clear();

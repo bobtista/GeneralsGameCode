@@ -44,6 +44,8 @@
 #include "Common/XferLoad.h"
 #include "Common/XferSave.h"
 #include "Common/Recorder.h"
+#include "Common/Player.h"
+#include "Common/PlayerList.h"
 #include "GameClient/CampaignManager.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GameClient.h"
@@ -797,6 +799,38 @@ void GameState::loadQueuedSaveGame()
 		TheGameEngine->reset();
 		TheGameEngine->setQuitting( TRUE );
 		return;
+	}
+
+	// TheSuperHackers @feature bobtista 26/08/2026 Take control of a chosen lobby slot when
+	// playing on from a multiplayer checkpoint. Without this the first occupied slot's player
+	// is the local player. Ignored while resuming playback, which controls every player.
+	if( TheGlobalData->m_resumeAsSlot >= 0 && TheGlobalData->m_resumeReplayName.isEmpty() &&
+		TheSkirmishGameInfo != nullptr )
+	{
+		const GameSlot *slot = TheSkirmishGameInfo->getConstSlot( TheGlobalData->m_resumeAsSlot );
+		Player *resumePlayer = nullptr;
+		if( slot != nullptr )
+		{
+			for( Int pi = 0; pi < ThePlayerList->getPlayerCount(); ++pi )
+			{
+				Player *p = ThePlayerList->getNthPlayer( pi );
+				if( p != nullptr && p->getPlayerDisplayName().compare( slot->getName() ) == 0 )
+				{
+					resumePlayer = p;
+					break;
+				}
+			}
+		}
+		if( resumePlayer != nullptr )
+		{
+			ThePlayerList->setLocalPlayer( resumePlayer );
+			DEBUG_LOG(("Resume as slot %d: local player is now '%ls'",
+				TheGlobalData->m_resumeAsSlot, resumePlayer->getPlayerDisplayName().str()));
+		}
+		else
+		{
+			DEBUG_LOG(("Resume as slot %d: no matching player found", TheGlobalData->m_resumeAsSlot));
+		}
 	}
 
 	// TheSuperHackers @feature bobtista 25/08/2026 Resume replay playback from the loaded

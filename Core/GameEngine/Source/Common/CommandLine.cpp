@@ -831,6 +831,16 @@ Int parseLoadReplay(char *args[], int num)
 	return 1;
 }
 
+Int parseResumeAs(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_resumeAsSlot = atoi(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
 Int parseResumeReplay(char *args[], int num)
 {
 	if (num > 1)
@@ -1396,6 +1406,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-loadsave", parseLoadSave },
 	{ "-loadreplay", parseLoadReplay },
 	{ "-resumereplay", parseResumeReplay },
+	{ "-resumeas", parseResumeAs },
 
 	// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 	{ "-forcefullviewport", parseFullViewport },
