@@ -451,6 +451,11 @@ void TeamFactory::xfer( Xfer *xfer )
 	if( prototypeCount != m_prototypes.size() )
 	{
 
+		DEBUG_LOG(( "MPREC TeamFactory mismatch: save has %d, live has %d", prototypeCount, (Int)m_prototypes.size() ));
+		for( TeamPrototypeMap::const_iterator ggcIt = m_prototypes.begin(); ggcIt != m_prototypes.end(); ++ggcIt )
+		{
+			DEBUG_LOG(( "MPREC live proto: %s", ggcIt->second->getName().str() ));
+		}
 		DEBUG_CRASH(( "TeamFactory::xfer - Prototype count mismatch '%d should be '%d'",
 									prototypeCount, m_prototypes.size() ));
 		throw SC_INVALID_DATA;
