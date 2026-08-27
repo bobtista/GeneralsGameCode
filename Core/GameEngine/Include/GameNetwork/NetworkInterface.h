@@ -112,6 +112,7 @@ public:
 	virtual void notifyOthersOfNewFrame(UnsignedInt frame) = 0;							///< Tells all the other players that we are on a new frame.
 
 	virtual void setStartFrame(Int frame) = 0;								///< Seed frame bookkeeping when resuming a loaded game.
+	virtual void prepareForRecovery() = 0;										///< Freeze lockstep and flush queued commands ahead of a recovery reload.
 	virtual Int  getExecutionFrame() = 0;																			///< Returns the next valid frame for simultaneous command execution.
 
 #if defined(RTS_DEBUG)
