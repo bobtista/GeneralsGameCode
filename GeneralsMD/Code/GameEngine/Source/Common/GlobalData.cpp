@@ -1000,6 +1000,7 @@ GlobalData::GlobalData()
 	m_resumeAsSlot = -1;
 	m_crcRecovery = FALSE;
 	m_desyncAtFrame = 0;
+	m_divergeAtFrame = 0;
 	m_recoveryResumeSave.clear();
 	m_loadReplayGame.clear();
 

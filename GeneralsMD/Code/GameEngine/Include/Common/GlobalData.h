@@ -359,6 +359,7 @@ public:
 	Int m_resumeAsSlot;						///< with m_loadSaveGame: take control of this lobby slot instead of the recording player					///< with m_loadSaveGame: resume playback of this replay from the loaded checkpoint
 	Bool m_crcRecovery;						///< Attempt in-game recovery from a network CRC mismatch instead of ending the game
 	Int m_desyncAtFrame;					///< If greater than zero, perturb this instance's next network CRC at this logic frame
+	Int m_divergeAtFrame;					///< If greater than zero, truly diverge this instance's game state at this logic frame
 	AsciiString m_recoveryResumeSave;		///< Donor save a pending CRC recovery reload should resume from
 	AsciiString m_loadReplayGame;			///< If this is specified, load a replay file from the command-line
 
