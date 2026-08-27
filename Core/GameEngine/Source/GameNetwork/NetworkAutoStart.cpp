@@ -537,6 +537,18 @@ void NetworkAutoStart::onLocalAddressSet(Bool result)
 	}
 }
 
+static AsciiString s_resumeSave;
+
+void NetworkAutoStart::setResumeSave(const AsciiString &name)
+{
+	s_resumeSave = name;
+}
+
+AsciiString NetworkAutoStart::getResumeSave()
+{
+	return s_resumeSave;
+}
+
 void NetworkAutoStart::onGameStartFailure()
 {
 	if (isEnabled())

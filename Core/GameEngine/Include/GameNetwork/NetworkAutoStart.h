@@ -31,6 +31,8 @@ class NetworkAutoStart
 public:
 	enum { MIN_EXPECTED_PLAYERS = 1 };
 
+	static void setResumeSave(const AsciiString &name);
+	static AsciiString getResumeSave();
 	enum Mode
 	{
 		MODE_NONE,

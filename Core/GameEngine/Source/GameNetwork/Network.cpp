@@ -171,6 +171,7 @@ public:
 	virtual void notifyOthersOfCurrentFrame() override;														///< Tells all the other players what frame we are on.
 	virtual void notifyOthersOfNewFrame(UnsignedInt frame) override;								///< Tells all the other players that we are on a new frame.
 
+	virtual void setStartFrame(Int frame) override;								///< Seed frame bookkeeping when resuming a loaded game.
 	virtual Int  getExecutionFrame() override;																			///< Returns the next valid frame for simultaneous command execution.
 
 	// For disconnect blame assignment
@@ -199,6 +200,7 @@ protected:
 
 	Int m_runAhead;																						///< The current run ahead of the game.
 	Int m_frameRate;
+	Int m_startFrame;													///< Logic frame the game began on (nonzero when resumed from a save).
 	Int m_lastExecutionFrame;																	///< The highest frame number that a command could have been executed on.
 	Int m_lastFrameCompleted;
 	Bool m_didSelfSlug;
@@ -329,6 +331,7 @@ void Network::init()
 	m_lastFrame = 0;
 	m_runAhead = min(max(30, MIN_RUNAHEAD), MAX_FRAMES_AHEAD/2); ///< @todo: don't hard-code the run-ahead.
 	m_frameRate = 30;
+	m_startFrame = 0;
 	m_lastExecutionFrame = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_lastFrameCompleted = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_frameDataReady = FALSE;
@@ -474,6 +477,16 @@ void Network::GetCommandsFromCommandList() {
 	}
 }
 
+// TheSuperHackers @feature bobtista 26/08/2026 A game resumed from a synchronized save starts
+// at the saved logic frame, not frame 0. Seed the frame bookkeeping so lockstep engages at
+// startFrame+1 exactly as it would at frame 1 of a fresh game.
+void Network::setStartFrame(Int frame)
+{
+	m_startFrame = frame;
+	m_lastExecutionFrame = frame + m_runAhead - 1;
+	m_lastFrameCompleted = frame + m_runAhead - 1;
+}
+
 Int Network::getExecutionFrame() {
 	Int logicFrame = TheGameLogic->getFrame() + m_runAhead;
 	if (logicFrame > m_lastExecutionFrame) {
@@ -498,9 +511,9 @@ Bool Network::processCommand(GameMessage *msg)
 		if (m_localStatus == NETLOCALSTATUS_PREGAME) {
 			// a sort-of-hack that prevents extraneous frames from being executed before the game actually starts.
 			// Idealy this shouldn't be necessary, but I don't think its hurting anything by being here.
-			if (TheGameLogic->getFrame() == 1) {
+			if (TheGameLogic->getFrame() == (UnsignedInt)(m_startFrame + 1)) {
 				m_localStatus = NETLOCALSTATUS_INGAME;
-				NetCommandList *netcmdlist = m_conMgr->getFrameCommandList(0); // clear out frame 0 since we skipped it
+				NetCommandList *netcmdlist = m_conMgr->getFrameCommandList(m_startFrame); // clear out the start frame since we skipped it
 				deleteInstance(netcmdlist);
 			} else {
 				return FALSE;
