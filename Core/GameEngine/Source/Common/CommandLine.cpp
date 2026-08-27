@@ -898,6 +898,36 @@ Int parseDivergeAtFrame(char *args[], int num)
 	return 1;
 }
 
+Int parseRejoinWait(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_rejoinWaitMs = atoi(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parseAutoNetworkRejoin(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_rejoinHostIP = args[1];
+		return 2;
+	}
+	return 1;
+}
+
+Int parseRejoinSlot(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_rejoinSlot = atoi(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
 Int parseResumeReplay(char *args[], int num)
 {
 	if (num > 1)
@@ -1480,6 +1510,9 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-crcRecovery", parseCrcRecovery },
 	{ "-desyncAtFrame", parseDesyncAtFrame },
 	{ "-divergeAtFrame", parseDivergeAtFrame },
+	{ "-rejoinWait", parseRejoinWait },
+	{ "-autoNetworkRejoin", parseAutoNetworkRejoin },
+	{ "-rejoinSlot", parseRejoinSlot },
 	{ "-noaudio", parseNoAudio },
 	{ "-map", parseMapName },
 	{ "-nomusic", parseNoMusic },
