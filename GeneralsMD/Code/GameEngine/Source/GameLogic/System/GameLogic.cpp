@@ -1241,9 +1241,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	Bool isChallengeCampaign = m_gameMode == GAME_SINGLE_PLAYER && currentCampaign && currentCampaign->m_isChallengeCampaign;
 
 	// Fill in the game color and Factions before we do the Load Screen
-	DEBUG_LOG(("MPREC mark3 startNewGame gameinfo select, mode=%d", (Int)m_gameMode));
 	TheGameInfo = nullptr;
-	DEBUG_LOG(("MPREC mark4 net=%d lan=%d", TheNetwork!=nullptr?1:0, TheLAN!=nullptr?1:0));
 	if (TheNetwork)
 	{
 		if (TheLAN)
@@ -1257,7 +1255,6 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 				// the original match on every peer, regardless of live lobby state.
 				TheGameInfo = TheSkirmishGameInfo;
 			}
-			DEBUG_LOG(("MPREC mark5 mygame=%p", (void*)TheGameInfo));
 		}
 		else
 		{
@@ -1297,7 +1294,6 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
     }
   }
 
-	DEBUG_LOG(("MPREC mark6 pre-dupcolors"));
 	checkForDuplicateColors( TheGameInfo );
 
 	Bool isSkirmishOrSkirmishReplay = FALSE;

@@ -833,13 +833,6 @@ Bool Network::timeForNewFrame() {
  * Returns true if the game commands for the next frame have been put on the command list.
  */
 Bool Network::isFrameDataReady() {
-	static Int s_lastLogged = -1;
-	Int f = (Int)TheGameLogic->getFrame();
-	if (f != s_lastLogged && f >= m_startFrame && f <= m_startFrame + 8)
-	{
-		s_lastLogged = f;
-		DEBUG_LOG(("MPREC net frame=%d status=%d ready=%d start=%d", f, (Int)m_localStatus, (Int)m_frameDataReady, m_startFrame));
-	}
 
 	return (m_frameDataReady || (m_localStatus == NETLOCALSTATUS_LEFT));
 }

@@ -672,7 +672,6 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	// from any previously loaded save game files
 	//
 	TheGameStateMap->clearScratchPadMaps();
-	DEBUG_LOG(("MPREC loadGame: scratch cleared"));
 
 	// construct path to file
 	AsciiString filepath = getFilePathInSaveDirectory(gameInfo.filename);
@@ -680,7 +679,6 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	// open the save file
 	XferLoad xferLoad;
 	xferLoad.open( filepath );
-	DEBUG_LOG(("MPREC loadGame: file open ok"));
 
 	// clear out the game engine
 	TheGameEngine->reset();
@@ -701,12 +699,11 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	}
 	catch( SaveCode thrownCode )
 	{
-		DEBUG_LOG(("MPREC loadGame: xferSaveData threw SaveCode %d", (Int)thrownCode));
+		DEBUG_LOG(("GameState::loadGame - load failed with SaveCode %d", (Int)thrownCode));
 		error = TRUE;
 	}
 	catch( ... )
 	{
-		DEBUG_LOG(("MPREC loadGame: xferSaveData threw unknown exception"));
 		error = TRUE;
 	}
 
@@ -807,7 +804,6 @@ void GameState::loadResumeSaveGame( AsciiString filename )
 	TheGameLogic->prepareNewGame( GAME_LAN, DIFFICULTY_NORMAL, 0 );
 	TheNetwork = resumeNetwork;
 
-	DEBUG_LOG(("MPREC loadResumeSaveGame begins '%s'", gameInfo.filename.str()));
 	SaveCode resumeCode = loadGame( gameInfo );
 	if( resumeCode != SC_OK )
 	{
@@ -1615,7 +1611,6 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 					blockSize = xfer->beginBlock();
 
 					// parse this data
-					DEBUG_LOG(("MPREC load block %s", token.str()));
 					xfer->xferSnapshot( blockInfo->snapshot );
 
 					// read block end
