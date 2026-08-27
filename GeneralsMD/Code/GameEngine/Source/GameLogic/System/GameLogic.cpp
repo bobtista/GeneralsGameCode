@@ -1241,6 +1241,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	Bool isChallengeCampaign = m_gameMode == GAME_SINGLE_PLAYER && currentCampaign && currentCampaign->m_isChallengeCampaign;
 
 	// Fill in the game color and Factions before we do the Load Screen
+	DEBUG_LOG(("MPREC mark3 startNewGame gameinfo select, mode=%d", (Int)m_gameMode));
 	TheGameInfo = nullptr;
 	if (TheNetwork)
 	{
