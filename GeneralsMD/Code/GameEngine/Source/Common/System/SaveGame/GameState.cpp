@@ -1615,6 +1615,7 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 					blockSize = xfer->beginBlock();
 
 					// parse this data
+					DEBUG_LOG(("MPREC load block %s", token.str()));
 					xfer->xferSnapshot( blockInfo->snapshot );
 
 					// read block end
