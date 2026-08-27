@@ -923,7 +923,18 @@ void GameEngine::update()
 			if (TheGlobalData->m_loadSaveGame.isNotEmpty() && TheNetwork != nullptr &&
 					NetworkAutoStart::getResumeSave().isNotEmpty() && !TheGameLogic->isInGame())
 			{
-				TheGameState->loadQueuedSaveGame();
+				// Stagger peers so only one instance extracts and opens the shared scratch map at
+				// a time; the purge skips maps the peer already holds open.
+				static UnsignedInt s_resumeEligibleAt = 0;
+				UnsignedInt now = timeGetTime();
+				if (s_resumeEligibleAt == 0)
+				{
+					s_resumeEligibleAt = now + (rts::ClientInstance::getInstanceId() - 1u) * 8000u;
+				}
+				if (now >= s_resumeEligibleAt)
+				{
+					TheGameState->loadQueuedSaveGame();
+				}
 			}
 #endif
 
