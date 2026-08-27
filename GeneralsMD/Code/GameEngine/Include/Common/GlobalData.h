@@ -355,7 +355,8 @@ public:
 	Int m_quitAtFrame;						///< If greater than zero, quit when this logic frame is reached
 	AsciiString m_pendingFile;				///< If this is specified, use this map at the next game start
 	AsciiString m_loadSaveGame;				///< If this is specified, load a save game file from the command-line
-	AsciiString m_resumeReplayName;					///< with m_loadSaveGame: resume playback of this replay from the loaded checkpoint
+	AsciiString m_resumeReplayName;
+	Int m_resumeAsSlot;						///< with m_loadSaveGame: take control of this lobby slot instead of the recording player					///< with m_loadSaveGame: resume playback of this replay from the loaded checkpoint
 	AsciiString m_loadReplayGame;			///< If this is specified, load a replay file from the command-line
 
 	std::vector<AsciiString> m_simulateReplays; ///< If not empty, simulate this list of replays and exit.
