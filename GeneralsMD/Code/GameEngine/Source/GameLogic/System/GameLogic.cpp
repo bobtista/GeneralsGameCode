@@ -1243,12 +1243,14 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// Fill in the game color and Factions before we do the Load Screen
 	DEBUG_LOG(("MPREC mark3 startNewGame gameinfo select, mode=%d", (Int)m_gameMode));
 	TheGameInfo = nullptr;
+	DEBUG_LOG(("MPREC mark4 net=%d lan=%d", TheNetwork!=nullptr?1:0, TheLAN!=nullptr?1:0));
 	if (TheNetwork)
 	{
 		if (TheLAN)
 		{
 			DEBUG_LOG(("Starting network game"));
 			TheGameInfo = TheLAN->GetMyGame();
+			DEBUG_LOG(("MPREC mark5 mygame=%p", (void*)TheGameInfo));
 		}
 		else
 		{
@@ -1288,6 +1290,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
     }
   }
 
+	DEBUG_LOG(("MPREC mark6 pre-dupcolors"));
 	checkForDuplicateColors( TheGameInfo );
 
 	Bool isSkirmishOrSkirmishReplay = FALSE;
