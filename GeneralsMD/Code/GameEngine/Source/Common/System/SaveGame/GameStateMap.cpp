@@ -363,23 +363,6 @@ void GameStateMap::xfer( Xfer *xfer )
 
 		saveGameInfo->saveGameMapName = TheGameState->portableMapPathToRealMapPath(tmp);
 
-		//
-		// TheSuperHackers @bugfix bobtista 27/08/2026 Give each client instance its own scratch
-		// map file. Concurrent instances on one machine share the save directory; racing on a
-		// single extracted map corrupts a peer's load mid-read.
-		//
-		if (rts::ClientInstance::getInstanceId() >= 1u)
-		{
-			AsciiString instancedName = saveGameInfo->saveGameMapName;
-			if (instancedName.endsWithNoCase(".map"))
-			{
-				instancedName.truncateBy(4);
-				AsciiString suffixed;
-				suffixed.format("%s_i%u.map", instancedName.str(), rts::ClientInstance::getInstanceId());
-				saveGameInfo->saveGameMapName = suffixed;
-			}
-		}
-
 		if (!TheGameState->isInSaveDirectory(saveGameInfo->saveGameMapName))
 		{
 			DEBUG_CRASH(("GameState::xfer - The map filename read from the file '%s' is not in the SAVE directory, but should be",
