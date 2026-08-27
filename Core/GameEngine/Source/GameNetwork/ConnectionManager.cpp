@@ -438,6 +438,26 @@ void ConnectionManager::zeroFrames(UnsignedInt startingFrame, UnsignedInt numFra
 	}
 }
 
+// TheSuperHackers @feature bobtista 27/08/2026 Drop everything the diverged run still holds:
+// queued and retrying commands on every connection, locally pending and relayed commands, and
+// the whole frame-data ring. The recovery reload re-primes its run-ahead window afterwards.
+void ConnectionManager::flushForRecovery() {
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		if (m_connections[i] != nullptr) {
+			m_connections[i]->clearCommandsExceptFrom(-1);
+		}
+		if (m_frameData[i] != nullptr) {
+			m_frameData[i]->reset();
+		}
+	}
+	if (m_pendingCommands != nullptr) {
+		m_pendingCommands->reset();
+	}
+	if (m_relayedCommands != nullptr) {
+		m_relayedCommands->reset();
+	}
+}
+
 /**
  * Destroy any game messages that are left over due to the run ahead.
  */

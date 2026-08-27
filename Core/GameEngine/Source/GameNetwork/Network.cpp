@@ -172,6 +172,7 @@ public:
 	virtual void notifyOthersOfNewFrame(UnsignedInt frame) override;								///< Tells all the other players that we are on a new frame.
 
 	virtual void setStartFrame(Int frame) override;								///< Seed frame bookkeeping when resuming a loaded game.
+	virtual void prepareForRecovery() override;										///< Freeze lockstep and flush queued commands ahead of a recovery reload.
 	virtual Int  getExecutionFrame() override;																			///< Returns the next valid frame for simultaneous command execution.
 
 	// For disconnect blame assignment
@@ -201,6 +202,7 @@ protected:
 	Int m_runAhead;																						///< The current run ahead of the game.
 	Int m_frameRate;
 	Int m_startFrame;													///< Logic frame the game began on (nonzero when resumed from a save).
+	Bool m_recoveryFrozen;										///< Lockstep is held for a pending recovery reload.
 	Int m_lastExecutionFrame;																	///< The highest frame number that a command could have been executed on.
 	Int m_lastFrameCompleted;
 	Bool m_didSelfSlug;
@@ -332,6 +334,7 @@ void Network::init()
 	m_runAhead = min(max(30, MIN_RUNAHEAD), MAX_FRAMES_AHEAD/2); ///< @todo: don't hard-code the run-ahead.
 	m_frameRate = 30;
 	m_startFrame = 0;
+	m_recoveryFrozen = FALSE;
 	m_lastExecutionFrame = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_lastFrameCompleted = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_frameDataReady = FALSE;
@@ -491,6 +494,20 @@ void Network::setStartFrame(Int frame)
 		// game's init does for frames 0..runAhead; without this every peer waits forever
 		// for frame data nobody owes yet.
 		m_conMgr->zeroFrames(frame + 1, m_runAhead + 1);
+	}
+	m_recoveryFrozen = FALSE;
+}
+
+// TheSuperHackers @feature bobtista 27/08/2026 Freeze lockstep at the mismatch decision frame
+// and drop every queued or retrying command from the diverged run. All peers reach this on the
+// same logic frame, so the flush is near-simultaneous and everything a peer could still send
+// afterwards lands inside the window the recovery reload re-primes.
+void Network::prepareForRecovery()
+{
+	m_recoveryFrozen = TRUE;
+	if (m_conMgr != nullptr)
+	{
+		m_conMgr->flushForRecovery();
 	}
 }
 
@@ -834,6 +851,10 @@ Bool Network::timeForNewFrame() {
  */
 Bool Network::isFrameDataReady() {
 
+	if (m_recoveryFrozen)
+	{
+		return FALSE;
+	}
 	return (m_frameDataReady || (m_localStatus == NETLOCALSTATUS_LEFT));
 }
 

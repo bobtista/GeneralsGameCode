@@ -2706,6 +2706,7 @@ void GameLogic::beginCrcRecovery( void )
 	donorSave.format("recovery_s%d.sav", donorSlot);
 	TheWritableGlobalData->m_recoveryResumeSave = donorSave;
 	s_crcRecoveryAttempted = TRUE;
+	TheNetwork->prepareForRecovery();
 }
 #endif
 

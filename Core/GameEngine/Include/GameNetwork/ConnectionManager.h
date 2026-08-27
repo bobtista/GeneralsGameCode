@@ -73,6 +73,7 @@ public:
 //	void AddConnection(User *user, UnsignedInt slot);
 	void determineRouterFallbackPlan();
 	void zeroFrames(UnsignedInt startingFrame, UnsignedInt numFrames);
+	void flushForRecovery();
 	void destroyGameMessages();
 //	void createConnections(UnsignedInt numberOfPlayers, UnsignedInt localSlot);
 	void setLocalAddress(UnsignedInt ip, UnsignedInt port);
