@@ -104,10 +104,18 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 	if (TheGameLogic->getFrame() == m_lastFrame) {
 		time_t curTime = timeGetTime();
 		if ((curTime - m_lastFrameTime) > TheGlobalData->m_networkDisconnectTime) {
-			if (m_disconnectState == DISCONNECTSTATETYPE_SCREENOFF) {
-				turnOnScreen(conMgr);
+			// TheSuperHackers @feature bobtista 27/08/2026 A recovery hold is a coordinated
+			// stall: keep peers alive and their timeout clocks parked, but never raise the
+			// disconnect countdown screen over it.
+			if (TheNetwork != nullptr && TheNetwork->isRecoveryInProgress()) {
+				sendKeepAlive(conMgr);
+				resetPlayerTimeouts(conMgr);
+			} else {
+				if (m_disconnectState == DISCONNECTSTATETYPE_SCREENOFF) {
+					turnOnScreen(conMgr);
+				}
+				sendKeepAlive(conMgr);
 			}
-			sendKeepAlive(conMgr);
 		}
 	} else {
 		nextFrame(TheGameLogic->getFrame(), conMgr);
