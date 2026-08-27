@@ -496,6 +496,10 @@ void Network::setStartFrame(Int frame)
 		m_conMgr->zeroFrames(frame + 1, m_runAhead + 1);
 	}
 	m_recoveryFrozen = FALSE;
+	// Re-enter the pregame state a cold resume naturally starts in: readiness short-circuits
+	// until logic crosses the start frame, which skips the flushed current frame that no peer
+	// will ever declare again.
+	m_localStatus = NETLOCALSTATUS_PREGAME;
 }
 
 // TheSuperHackers @feature bobtista 27/08/2026 Freeze lockstep at the mismatch decision frame
