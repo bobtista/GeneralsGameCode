@@ -294,6 +294,7 @@ void ConnectionManager::init()
 #ifdef MEMORYPOOL_DEBUG
 	TheMemoryPoolFactory->debugSetInitFillerIndex(m_localSlot);
 #endif
+	m_recoveryHold = FALSE;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
@@ -383,6 +384,7 @@ void ConnectionManager::reset()
 #ifdef MEMORYPOOL_DEBUG
 	TheMemoryPoolFactory->debugSetInitFillerIndex(m_localSlot);
 #endif
+	m_recoveryHold = FALSE;
 	m_packetRouterSlot = -1;
 
 	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -433,15 +435,23 @@ void ConnectionManager::zeroFrames(UnsignedInt startingFrame, UnsignedInt numFra
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		if (m_frameData[i] != nullptr) {
 //			DEBUG_LOG(("Calling zeroFrames on player %d, starting frame %d, numFrames %d", i, startingFrame, numFrames));
+			// TheSuperHackers @bugfix bobtista 27/08/2026 Also drop commands that trickled into
+			// the window between a recovery flush and this priming; zeroFrame only clears the
+			// counters, and a leftover command desynchronizes the counts forever.
+			for (UnsignedInt j = 0; j < numFrames; ++j) {
+				m_frameData[i]->resetFrame(startingFrame + j, FALSE);
+			}
 			m_frameData[i]->zeroFrames(startingFrame, numFrames);
 		}
 	}
+	m_recoveryHold = FALSE;
 }
 
 // TheSuperHackers @feature bobtista 27/08/2026 Drop everything the diverged run still holds:
 // queued and retrying commands on every connection, locally pending and relayed commands, and
 // the whole frame-data ring. The recovery reload re-primes its run-ahead window afterwards.
 void ConnectionManager::flushForRecovery() {
+	m_recoveryHold = TRUE;
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		if (m_connections[i] != nullptr) {
 			m_connections[i]->clearCommandsExceptFrom(-1);
@@ -1368,6 +1378,11 @@ void ConnectionManager::update(Bool isInGame) {
 }
 
 void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didSelfSlug, Int nextExecutionFrame) {
+	if (m_recoveryHold) {
+		// No synchronized traffic while a recovery reload is pending; a run-ahead command
+		// scheduled now would land in a window the reload re-primes.
+		return;
+	}
 	static time_t lasttimesent = 0;
 	time_t curTime = timeGetTime();
 
@@ -1606,6 +1621,10 @@ void ConnectionManager::initTransport() {
  * future execution.
  */
 void ConnectionManager::sendLocalGameMessage(GameMessage *msg, UnsignedInt frame) {
+	if (m_recoveryHold) {
+		// Player input issued while the game is held for recovery is dropped on every peer.
+		return;
+	}
 	UnsignedShort currentID = 0;
 	if (DoesCommandRequireACommandID(NETCOMMANDTYPE_GAMECOMMAND)) {
 		currentID = GenerateNextCommandID();
