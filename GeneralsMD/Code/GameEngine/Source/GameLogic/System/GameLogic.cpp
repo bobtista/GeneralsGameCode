@@ -1250,6 +1250,13 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		{
 			DEBUG_LOG(("Starting network game"));
 			TheGameInfo = TheLAN->GetMyGame();
+			if (loadingSaveGame && TheSkirmishGameInfo != nullptr)
+			{
+				// TheSuperHackers @feature bobtista 27/08/2026 A resumed multiplayer save carries
+				// its lobby snapshot; building sides from it keeps team prototypes identical to
+				// the original match on every peer, regardless of live lobby state.
+				TheGameInfo = TheSkirmishGameInfo;
+			}
 			DEBUG_LOG(("MPREC mark5 mygame=%p", (void*)TheGameInfo));
 		}
 		else

@@ -257,6 +257,32 @@ static void extractAndSaveMap( AsciiString mapToSave, Xfer *xfer )
 	*     needs to set up the player list based on it.
 	*/
 // ------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature bobtista 27/08/2026 Snapshot a live game info's slot layout into
+// TheSkirmishGameInfo so a save carries the lobby state it was played with.
+static void buildSnapshotFromGameInfo( GameInfo *sourceInfo )
+{
+	if( sourceInfo == nullptr || TheSkirmishGameInfo == nullptr )
+	{
+		return;
+	}
+	TheSkirmishGameInfo->enterGame();
+	for( Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex )
+	{
+		GameSlot *dst = TheSkirmishGameInfo->getSlot( slotIndex );
+		const GameSlot *src = sourceInfo->getConstSlot( slotIndex );
+		if( dst != nullptr && src != nullptr )
+		{
+			*dst = *src;
+		}
+	}
+	// Slot IPs are not serialized, so a nonzero local IP can never match a restored slot;
+	// zero resolves the first occupied player slot as local on load.
+	TheSkirmishGameInfo->setLocalIP( 0 );
+	TheSkirmishGameInfo->setCRCInterval( sourceInfo->getCRCInterval() );
+	TheSkirmishGameInfo->startGame( sourceInfo->getGameID() );
+}
+
+// ------------------------------------------------------------------------------------------------
 void GameStateMap::xfer( Xfer *xfer )
 {
 	if( xfer->getXferMode() == XFER_LOAD )
@@ -462,6 +488,16 @@ void GameStateMap::xfer( Xfer *xfer )
 			effectiveGameMode = GAME_SKIRMISH;
 		}
 	}
+	//
+	// TheSuperHackers @feature bobtista 27/08/2026 A synchronized multiplayer save carries its
+	// slot layout: side substitution on load must use the saved lobby snapshot, because the
+	// live lobby's slot state is stale by the time a deferred resume load runs, and peers
+	// must build identical sides regardless of reconnection order.
+	//
+	if( effectiveGameMode == GAME_LAN && TheNetwork != nullptr )
+	{
+		effectiveGameMode = GAME_SKIRMISH;
+	}
 	if( effectiveGameMode == GAME_SKIRMISH )
 	{
 		if( TheSkirmishGameInfo==nullptr )
@@ -473,28 +509,11 @@ void GameStateMap::xfer( Xfer *xfer )
 			if( xfer->getXferMode() == XFER_SAVE && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
 			{
 				GameInfo *replayInfo = TheRecorder->getGameInfo();
-				if( replayInfo != nullptr )
-				{
-					TheSkirmishGameInfo->enterGame();
-					for( Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex )
-					{
-						GameSlot *dst = TheSkirmishGameInfo->getSlot( slotIndex );
-						const GameSlot *src = replayInfo->getConstSlot( slotIndex );
-						if( dst != nullptr && src != nullptr )
-						{
-							*dst = *src;
-						}
-					}
-					//
-					// TheSuperHackers @bugfix bobtista 26/08/2026 Slot IPs are not serialized, so a
-					// nonzero local IP can never match a restored slot and the load screen would
-					// dereference a null local slot. Zero means the first occupied player slot
-					// resolves as the local player on load.
-					//
-					TheSkirmishGameInfo->setLocalIP( 0 );
-					TheSkirmishGameInfo->setCRCInterval( replayInfo->getCRCInterval() );
-					TheSkirmishGameInfo->startGame( replayInfo->getGameID() );
-				}
+				buildSnapshotFromGameInfo( replayInfo );
+			}
+			else if( xfer->getXferMode() == XFER_SAVE && TheNetwork != nullptr && TheGameInfo != nullptr )
+			{
+				buildSnapshotFromGameInfo( TheGameInfo );
 			}
 		}
 		xfer->xferSnapshot(TheSkirmishGameInfo);
