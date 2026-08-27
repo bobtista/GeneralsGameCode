@@ -444,7 +444,6 @@ void ConnectionManager::zeroFrames(UnsignedInt startingFrame, UnsignedInt numFra
 			m_frameData[i]->zeroFrames(startingFrame, numFrames);
 		}
 	}
-	m_recoveryHold = FALSE;
 }
 
 // TheSuperHackers @feature bobtista 27/08/2026 Drop everything the diverged run still holds:
@@ -1574,6 +1573,12 @@ void ConnectionManager::processFrameTick(UnsignedInt frame) {
 	if ((m_frameData[m_localSlot] == nullptr) || (m_frameData[m_localSlot]->getIsQuitting() == TRUE)) {
 		// if the local frame data stuff is null, we must be leaving the game.
 		return;
+	}
+	if (m_recoveryHold) {
+		// Lockstep is advancing again, so every peer is back from its recovery reload; a
+		// run-ahead command released any earlier could land in a window a peer has yet to
+		// re-prime.
+		m_recoveryHold = FALSE;
 	}
 	UnsignedShort commandCount = m_frameData[m_localSlot]->getCommandCount(frame);
 	NetFrameCommandMsg *msg = newInstance(NetFrameCommandMsg);
