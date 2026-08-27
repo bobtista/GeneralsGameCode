@@ -1023,9 +1023,16 @@ void GameEngine::update()
 			if (TheGlobalData->m_rejoinHostIP.isNotEmpty() && TheNetwork == nullptr &&
 					TheGlobalData->m_rejoinSlot >= 0 && !TheGameLogic->isInGame())
 			{
+				Int ipA = 0, ipB = 0, ipC = 0, ipD = 0;
 				UnsignedInt hostIP = 0;
 				UnsignedInt localIP = NetworkAutoStart::getLocalAddress();
-				if (ParseIPv4Address(TheGlobalData->m_rejoinHostIP, hostIP) && localIP != 0)
+				Bool hostParsed = FALSE;
+				if (sscanf(TheGlobalData->m_rejoinHostIP.str(), "%d.%d.%d.%d", &ipA, &ipB, &ipC, &ipD) == 4)
+				{
+					hostIP = ((UnsignedInt)ipA << 24) | ((UnsignedInt)ipB << 16) | ((UnsignedInt)ipC << 8) | (UnsignedInt)ipD;
+					hostParsed = TRUE;
+				}
+				if (hostParsed && localIP != 0)
 				{
 					static SkirmishGameInfo *s_rejoinInfo = nullptr;
 					if (s_rejoinInfo == nullptr)
