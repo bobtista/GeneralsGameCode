@@ -359,7 +359,7 @@ void GameStateMap::xfer( Xfer *xfer )
 		// map file. Concurrent instances on one machine share the save directory; racing on a
 		// single extracted map corrupts a peer's load mid-read.
 		//
-		if (rts::ClientInstance::getInstanceId() > 1u)
+		if (rts::ClientInstance::getInstanceId() >= 1u)
 		{
 			AsciiString instancedName = saveGameInfo->saveGameMapName;
 			if (instancedName.endsWithNoCase(".map"))
@@ -575,7 +575,20 @@ void GameStateMap::clearScratchPadMaps()
 			// see if there is a ".map" at end of this filename
 			Char *c = strrchr( item.cFileName, '.' );
 			if( c && stricmp( c, ".map" ) == 0 )
-				fileToDelete.set( item.cFileName );  // we want to delete this one
+			{
+				//
+				// TheSuperHackers @bugfix bobtista 27/08/2026 Concurrent client instances share
+				// this directory; only delete our own instance's scratch maps (suffixed _i<id>)
+				// and legacy unsuffixed ones, never a peer instance's file.
+				//
+				AsciiString ggcOwn;
+				ggcOwn.format("_i%u.map", rts::ClientInstance::getInstanceId());
+				const char *ggcSuffix = strstr( item.cFileName, "_i" );
+				if( ggcSuffix == nullptr || strstr( item.cFileName, ggcOwn.str() ) != nullptr )
+				{
+					fileToDelete.set( item.cFileName );  // we want to delete this one
+				}
+			}
 
 		}
 
