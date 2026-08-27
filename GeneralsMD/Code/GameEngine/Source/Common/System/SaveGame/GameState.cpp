@@ -799,9 +799,11 @@ void GameState::loadResumeSaveGame( AsciiString filename )
 	TheGameLogic->prepareNewGame( GAME_LAN, DIFFICULTY_NORMAL, 0 );
 	TheNetwork = resumeNetwork;
 
-	if( loadGame( gameInfo ) != SC_OK )
+	DEBUG_LOG(("MPREC loadResumeSaveGame begins '%s'", gameInfo.filename.str()));
+	SaveCode resumeCode = loadGame( gameInfo );
+	if( resumeCode != SC_OK )
 	{
-		DEBUG_LOG(("Failed to load resume save '%s'", gameInfo.filename.str()));
+		DEBUG_LOG(("Failed to load resume save '%s' code=%d", gameInfo.filename.str(), (Int)resumeCode));
 		TheGameEngine->setQuitting( TRUE );
 		return;
 	}
