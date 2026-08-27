@@ -301,6 +301,7 @@ void ConnectionManager::init()
 		m_recoveryReadyFrame[recSlot] = 0;
 		m_recoveryReadyCRC[recSlot] = 0;
 	}
+	m_recoveryQuarantineBelowFrame = 0;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
@@ -397,6 +398,7 @@ void ConnectionManager::reset()
 		m_recoveryReadyFrame[recSlot] = 0;
 		m_recoveryReadyCRC[recSlot] = 0;
 	}
+	m_recoveryQuarantineBelowFrame = 0;
 	m_packetRouterSlot = -1;
 
 	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -460,6 +462,9 @@ void ConnectionManager::zeroFrames(UnsignedInt startingFrame, UnsignedInt numFra
 		// The primed window covers startingFrame..startingFrame+numFrames-1; only past it can
 		// lockstep have consumed every peer's real frame info again.
 		m_recoveryHoldReleaseFrame = startingFrame + numFrames;
+		// The re-primed window is authoritative: every legitimate command in it declares zero
+		// commands, so anything else arriving for those frames is old-epoch traffic.
+		m_recoveryQuarantineBelowFrame = startingFrame + numFrames;
 	}
 }
 
@@ -486,6 +491,18 @@ void ConnectionManager::flushForRecovery() {
 	}
 	if (m_relayedCommands != nullptr) {
 		m_relayedCommands->reset();
+	}
+	if (m_netCommandWrapperList != nullptr) {
+		// Partially reassembled wrapped commands are old-epoch data too.
+		m_netCommandWrapperList->reset();
+	}
+	if (m_transport != nullptr) {
+		for (size_t i = 0; i < ARRAY_SIZE(m_transport->m_inBuffer); ++i) {
+			m_transport->m_inBuffer[i].length = 0;
+		}
+		for (size_t i = 0; i < ARRAY_SIZE(m_transport->m_outBuffer); ++i) {
+			m_transport->m_outBuffer[i].length = 0;
+		}
 	}
 }
 
@@ -671,6 +688,14 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 	// FrameData for that frame + 256, and would screw up the command count.
 	if (IsCommandSynchronized(cmdType)) {
 		if (ref->getCommand()->getExecutionFrame() < TheGameLogic->getFrame()) {
+			return TRUE;
+		}
+		// TheSuperHackers @feature bobtista 27/08/2026 Reject synchronized traffic from before
+		// the last recovery reload; late or duplicated packets from the diverged run would
+		// corrupt the re-primed command counts.
+		if (ref->getCommand()->getExecutionFrame() < m_recoveryQuarantineBelowFrame) {
+			DEBUG_LOG(("ConnectionManager::processNetCommand - quarantined old-epoch %s for frame %d from player %d",
+				GetNetCommandTypeAsString(cmdType), ref->getCommand()->getExecutionFrame(), msg->getPlayerID()));
 			return TRUE;
 		}
 	}
