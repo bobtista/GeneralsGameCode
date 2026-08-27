@@ -45,6 +45,7 @@
 #include "Common/XferSave.h"
 #include "Common/Recorder.h"
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/NetworkAutoStart.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "GameClient/CampaignManager.h"
@@ -807,6 +808,18 @@ void GameState::loadResumeSaveGame( AsciiString filename )
 
 void GameState::loadQueuedSaveGame()
 {
+#if defined(RTS_DEBUG)
+	// TheSuperHackers @feature bobtista 26/08/2026 A queued multiplayer resume keeps GAME_LAN
+	// mode and reseeds lockstep instead of taking the single player load path.
+	if( NetworkAutoStart::getResumeSave().isNotEmpty() )
+	{
+		AsciiString resumeName = NetworkAutoStart::getResumeSave();
+		TheWritableGlobalData->m_loadSaveGame.clear();
+		loadResumeSaveGame( resumeName );
+		return;
+	}
+#endif
+
 	AvailableGameInfo gameInfo;
 	gameInfo.filename = TheGlobalData->m_loadSaveGame;
 	gameInfo.next = nullptr;

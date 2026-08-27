@@ -267,7 +267,9 @@ void LANAPI::OnGameStart()
 		if (NetworkAutoStart::getResumeSave().isNotEmpty())
 		{
 			m_currentGame->startGame(0);
-			TheGameState->loadResumeSaveGame(NetworkAutoStart::getResumeSave());
+			// Defer the actual load to GameClient::update like every other command line load;
+			// loading synchronously inside this callback runs against half-updated client state.
+			TheWritableGlobalData->m_loadSaveGame = NetworkAutoStart::getResumeSave();
 			NetworkAutoStart::onGameStart();
 			return;
 		}
