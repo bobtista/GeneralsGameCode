@@ -295,6 +295,7 @@ void ConnectionManager::init()
 	TheMemoryPoolFactory->debugSetInitFillerIndex(m_localSlot);
 #endif
 	m_recoveryHold = FALSE;
+	m_recoveryHoldReleaseFrame = 0;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
@@ -385,6 +386,7 @@ void ConnectionManager::reset()
 	TheMemoryPoolFactory->debugSetInitFillerIndex(m_localSlot);
 #endif
 	m_recoveryHold = FALSE;
+	m_recoveryHoldReleaseFrame = 0;
 	m_packetRouterSlot = -1;
 
 	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -443,6 +445,11 @@ void ConnectionManager::zeroFrames(UnsignedInt startingFrame, UnsignedInt numFra
 			}
 			m_frameData[i]->zeroFrames(startingFrame, numFrames);
 		}
+	}
+	if (m_recoveryHold) {
+		// The primed window covers startingFrame..startingFrame+numFrames-1; only past it can
+		// lockstep have consumed every peer's real frame info again.
+		m_recoveryHoldReleaseFrame = startingFrame + numFrames;
 	}
 }
 
@@ -1574,11 +1581,13 @@ void ConnectionManager::processFrameTick(UnsignedInt frame) {
 		// if the local frame data stuff is null, we must be leaving the game.
 		return;
 	}
-	if (m_recoveryHold) {
-		// Lockstep is advancing again, so every peer is back from its recovery reload; a
-		// run-ahead command released any earlier could land in a window a peer has yet to
-		// re-prime.
+	if (m_recoveryHold && (m_recoveryHoldReleaseFrame != 0) &&
+			(TheGameLogic->getFrame() >= m_recoveryHoldReleaseFrame)) {
+		// Logic has crossed the recovery reload's primed run-ahead window, which requires real
+		// frame info from every peer; a run-ahead command released any earlier could land in a
+		// window a peer has yet to re-prime.
 		m_recoveryHold = FALSE;
+		m_recoveryHoldReleaseFrame = 0;
 	}
 	UnsignedShort commandCount = m_frameData[m_localSlot]->getCommandCount(frame);
 	NetFrameCommandMsg *msg = newInstance(NetFrameCommandMsg);
