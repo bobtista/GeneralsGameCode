@@ -184,6 +184,7 @@ private:
 	Transport *m_transport;
 	UnsignedInt m_localSlot;
 	UnsignedInt m_packetRouterSlot;
+	Bool m_recoveryHold;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];
 	UnsignedInt m_localAddr;
 	UnsignedInt m_localPort;
