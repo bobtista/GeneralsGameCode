@@ -63,7 +63,8 @@ static Bool hasValidTransferFileExtension(const AsciiString& filePath)
 		"str",
 		"wak",
 		"tga",
-		"txt"
+		"txt",
+		"sav"
 	};
 
 	const char* fileExt = strrchr(filePath.str(), '.');
@@ -95,6 +96,7 @@ enum TransferFileType
 	TransferFileType_Txt,
 	TransferFileType_Tga,
 	TransferFileType_Wak,
+	TransferFileType_Sav,
 	TransferFileType_Count
 };
 
@@ -112,6 +114,7 @@ static const TransferFileRule transferFileRules[TransferFileType_Count] =
 	{ ".txt", 1 * 1024 * 1024 },
 	{ ".tga", 2 * 1024 * 1024 },
 	{ ".wak", 128 * 1024 },
+	{ ".sav", 32 * 1024 * 1024 },
 };
 
 static TransferFileType getTransferFileType(const char* extension)
@@ -154,6 +157,10 @@ static Bool hasValidTransferFileContent(const AsciiString& filePath, const Unsig
 	switch (fileType)
 	{
 	case TransferFileType_Map:
+		break;
+
+	case TransferFileType_Sav:
+		// A recovery snapshot; the post-load CRC handshake verifies what actually matters.
 		break;
 
 	case TransferFileType_Ini:
@@ -302,6 +309,7 @@ void ConnectionManager::init()
 		m_recoveryReadyCRC[recSlot] = 0;
 	}
 	m_recoveryQuarantineBelowFrame = 0;
+	m_recoveryReceivedFile.clear();
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
@@ -399,6 +407,7 @@ void ConnectionManager::reset()
 		m_recoveryReadyCRC[recSlot] = 0;
 	}
 	m_recoveryQuarantineBelowFrame = 0;
+	m_recoveryReceivedFile.clear();
 	m_packetRouterSlot = -1;
 
 	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -473,6 +482,7 @@ void ConnectionManager::zeroFrames(UnsignedInt startingFrame, UnsignedInt numFra
 // the whole frame-data ring. The recovery reload re-primes its run-ahead window afterwards.
 void ConnectionManager::flushForRecovery() {
 	m_recoveryHold = TRUE;
+	m_recoveryReceivedFile.clear();
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		m_recoveryReadySeen[i] = FALSE;
 		m_recoveryReadyFrame[i] = 0;
@@ -524,6 +534,24 @@ void ConnectionManager::sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) {
 	m_recoveryReadyFrame[m_localSlot] = frame;
 	m_recoveryReadyCRC[m_localSlot] = crc;
 	DEBUG_LOG(("ConnectionManager::sendRecoveryReady - frame %d crc %8.8X", frame, crc));
+}
+
+// TheSuperHackers @feature bobtista 27/08/2026 The elected donor pushes its snapshot to
+// every peer over the file-transfer channel; receivers gate their reload on its arrival.
+void ConnectionManager::sendRecoveryFile(AsciiString path) {
+	UnsignedByte mask = 0;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		if (m_connections[i] != nullptr) {
+			mask |= (1 << i);
+		}
+	}
+	DEBUG_LOG(("ConnectionManager::sendRecoveryFile - sending '%s' to mask %X", path.str(), mask));
+	UnsignedShort fileID = sendFileAnnounce(path, mask);
+	sendFile(path, mask, fileID);
+}
+
+AsciiString ConnectionManager::getRecoveryReceivedFile() {
+	return m_recoveryReceivedFile;
 }
 
 void ConnectionManager::processRecoveryReady(NetRecoveryReadyCommandMsg *msg) {
@@ -1001,6 +1029,21 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 		fp = nullptr;
 		DEBUG_LOG(("Wrote %d bytes to file %s!", len, realFileName.str()));
 
+		if (m_recoveryHold)
+		{
+			const char *leaf = realFileName.str();
+			const char *slash = strrchr(leaf, '\\');
+			if (slash == nullptr)
+			{
+				slash = strrchr(leaf, '/');
+			}
+			if (slash != nullptr)
+			{
+				leaf = slash + 1;
+			}
+			m_recoveryReceivedFile = leaf;
+			DEBUG_LOG(("ConnectionManager::processFile - recovery transfer file received '%s'", leaf));
+		}
 	}
 	else
 	{

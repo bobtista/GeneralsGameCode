@@ -174,6 +174,8 @@ public:
 	virtual void setStartFrame(Int frame) override;								///< Seed frame bookkeeping when resuming a loaded game.
 	virtual void prepareForRecovery() override;										///< Freeze lockstep and flush queued commands ahead of a recovery reload.
 	virtual void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) override;	///< Report the post-load state so peers can gate the recovery resume.
+	virtual void sendRecoveryFile(AsciiString path) override;						///< Donor pushes its snapshot to every peer.
+	virtual AsciiString getRecoveryReceivedFile() override;						///< Leaf name of the last snapshot received during recovery.
 	virtual Int  getExecutionFrame() override;																			///< Returns the next valid frame for simultaneous command execution.
 
 	// For disconnect blame assignment
@@ -532,6 +534,23 @@ void Network::sendRecoveryReady(UnsignedInt frame, UnsignedInt crc)
 	{
 		m_conMgr->sendRecoveryReady(frame, crc);
 	}
+}
+
+void Network::sendRecoveryFile(AsciiString path)
+{
+	if (m_conMgr != nullptr)
+	{
+		m_conMgr->sendRecoveryFile(path);
+	}
+}
+
+AsciiString Network::getRecoveryReceivedFile()
+{
+	if (m_conMgr != nullptr)
+	{
+		return m_conMgr->getRecoveryReceivedFile();
+	}
+	return AsciiString::TheEmptyString;
 }
 
 Int Network::getExecutionFrame() {
