@@ -102,6 +102,7 @@
 #include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/NetworkAutoStart.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
@@ -908,6 +909,17 @@ void GameEngine::update()
 			TheAudio->UPDATE();
 			TheGameClient->UPDATE();
 			TheMessageStream->propagateMessages();
+
+#if defined(RTS_DEBUG)
+			// TheSuperHackers @feature bobtista 27/08/2026 A queued multiplayer resume load fires
+			// once the lobby handoff has created TheNetwork; the shell-path trigger never runs in
+			// the automated lobby flow.
+			if (TheGlobalData->m_loadSaveGame.isNotEmpty() && TheNetwork != nullptr &&
+					NetworkAutoStart::getResumeSave().isNotEmpty() && !TheGameLogic->isInGame())
+			{
+				TheGameState->loadQueuedSaveGame();
+			}
+#endif
 
 			// TheSuperHackers @feature bobtista 25/08/2026 Deferred command-line replay loading:
 			// start playback from live shell state, after the no-logo shell startup has run.
