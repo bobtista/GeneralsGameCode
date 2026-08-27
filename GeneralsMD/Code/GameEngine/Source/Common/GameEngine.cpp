@@ -786,6 +786,12 @@ void GameEngine::reset()
 	Bool deleteNetwork = false;
 	if (TheGameLogic->isInMultiplayerGame())
 		deleteNetwork = true;
+#if defined(RTS_DEBUG)
+	// TheSuperHackers @feature bobtista 27/08/2026 A pending multiplayer resume load resets the
+	// engine on its way in; the freshly connected network must survive to carry the resumed game.
+	if (NetworkAutoStart::getResumeSave().isNotEmpty())
+		deleteNetwork = false;
+#endif
 
 	resetSubsystems();
 
