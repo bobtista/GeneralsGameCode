@@ -235,6 +235,9 @@ NetCommandMsg *SmallNetPacketCommandBase::constructNetCommandMsg(const CommandBa
 	case NETCOMMANDTYPE_DISCONNECTFRAME:
 		msg = newInstance(NetDisconnectFrameCommandMsg);
 		break;
+	case NETCOMMANDTYPE_RECOVERYREADY:
+		msg = newInstance(NetRecoveryReadyCommandMsg);
+		break;
 	case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
 		msg = newInstance(NetDisconnectScreenOffCommandMsg);
 		break;
@@ -1347,6 +1350,46 @@ size_t NetPacketDisconnectFrameCommandBase::copyBytes(UnsignedByte *buffer, cons
 	base.commandType.commandType = msg->getNetCommandType();
 	base.relay.relay = ref.getRelay();
 	//base.frame.frame = msg->getExecutionFrame();
+	base.playerId.playerId = msg->getPlayerID();
+	base.commandId.commandId = msg->getID();
+
+	return network::writeObject(buffer, base);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// NetPacketRecoveryReadyCommand
+////////////////////////////////////////////////////////////////////////////////
+
+size_t NetPacketRecoveryReadyCommandData::copyBytes(UnsignedByte *buffer, const NetCommandRef &ref)
+{
+	const CommandMsg *cmdMsg = static_cast<const CommandMsg *>(ref.getCommand());
+	FixedData data;
+	data.recoveryFrame = cmdMsg->getRecoveryFrame();
+	data.recoveryCRC = cmdMsg->getRecoveryCRC();
+
+	return network::writeObject(buffer, data);
+}
+
+size_t NetPacketRecoveryReadyCommandData::readMessage(NetCommandRef &ref, NetPacketBuf buf)
+{
+	CommandMsg *cmdMsg = static_cast<CommandMsg *>(ref.getCommand());
+	FixedData data;
+	data.recoveryFrame = 0;
+	data.recoveryCRC = 0;
+
+	size_t size = network::readObject(data, buf);
+	cmdMsg->setRecoveryFrame(data.recoveryFrame);
+	cmdMsg->setRecoveryCRC(data.recoveryCRC);
+
+	return size;
+}
+
+size_t NetPacketRecoveryReadyCommandBase::copyBytes(UnsignedByte *buffer, const NetCommandRef &ref)
+{
+	const NetCommandMsg *msg = ref.getCommand();
+	CommandBase base;
+	base.commandType.commandType = msg->getNetCommandType();
+	base.relay.relay = ref.getRelay();
 	base.playerId.playerId = msg->getPlayerID();
 	base.commandId.commandId = msg->getID();
 

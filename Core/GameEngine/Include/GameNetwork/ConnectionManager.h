@@ -74,6 +74,8 @@ public:
 	void determineRouterFallbackPlan();
 	void zeroFrames(UnsignedInt startingFrame, UnsignedInt numFrames);
 	void flushForRecovery();
+	void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc);
+	Int checkRecoveryReady();
 	void destroyGameMessages();
 //	void createConnections(UnsignedInt numberOfPlayers, UnsignedInt localSlot);
 	void setLocalAddress(UnsignedInt ip, UnsignedInt port);
@@ -157,6 +159,7 @@ private:
 	void processAckStage1(NetCommandMsg *msg);
 	void processAckStage2(NetCommandMsg *msg);
 	void processAck(NetCommandMsg *msg);
+	void processRecoveryReady(NetRecoveryReadyCommandMsg *msg);
 	void processFrameInfo(NetFrameCommandMsg *msg);
 	void processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg);
 	void processDisconnectChat(NetDisconnectChatCommandMsg *msg);
@@ -185,6 +188,9 @@ private:
 	UnsignedInt m_localSlot;
 	UnsignedInt m_packetRouterSlot;
 	Bool m_recoveryHold;
+	Bool m_recoveryReadySeen[MAX_SLOTS];
+	UnsignedInt m_recoveryReadyFrame[MAX_SLOTS];
+	UnsignedInt m_recoveryReadyCRC[MAX_SLOTS];
 	UnsignedInt m_recoveryHoldReleaseFrame;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];
 	UnsignedInt m_localAddr;
