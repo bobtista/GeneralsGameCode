@@ -789,7 +789,15 @@ void GameState::loadResumeSaveGame( AsciiString filename )
 		return;
 	}
 
+	//
+	// Keep the freshly connected network alive across the engine reset: GameEngine::reset
+	// deletes TheNetwork for multiplayer modes, but the resumed game continues on this
+	// exact instance.
+	//
+	NetworkInterface *resumeNetwork = TheNetwork;
+	TheNetwork = nullptr;
 	TheGameLogic->prepareNewGame( GAME_LAN, DIFFICULTY_NORMAL, 0 );
+	TheNetwork = resumeNetwork;
 
 	if( loadGame( gameInfo ) != SC_OK )
 	{
