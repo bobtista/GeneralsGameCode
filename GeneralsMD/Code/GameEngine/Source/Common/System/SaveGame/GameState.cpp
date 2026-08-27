@@ -44,6 +44,7 @@
 #include "Common/XferLoad.h"
 #include "Common/XferSave.h"
 #include "Common/Recorder.h"
+#include "GameNetwork/NetworkInterface.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "GameClient/CampaignManager.h"
@@ -758,6 +759,52 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 // ------------------------------------------------------------------------------------------------
 /** Load the save game requested on startup, after the shell has been initialized */
 // ------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature bobtista 26/08/2026 Load a synchronized multiplayer save while
+// the LAN lobby and TheNetwork are live: the game keeps GAME_LAN mode and lockstep frame
+// bookkeeping is seeded to the loaded frame so the match continues where it stopped.
+void GameState::loadResumeSaveGame( AsciiString filename )
+{
+	AvailableGameInfo gameInfo;
+	gameInfo.filename = filename;
+	gameInfo.next = nullptr;
+	gameInfo.prev = nullptr;
+
+	if( doesSaveGameExist( gameInfo.filename ) == FALSE )
+	{
+		DEBUG_LOG(("Resume save '%s' was not found", gameInfo.filename.str()));
+		TheGameEngine->setQuitting( TRUE );
+		return;
+	}
+
+	try
+	{
+		AsciiString filepath = getFilePathInSaveDirectory( gameInfo.filename );
+		getSaveGameInfoFromFile( filepath, &gameInfo.saveGameInfo );
+	}
+	catch( ... )
+	{
+		DEBUG_LOG(("Resume save '%s' could not be read", gameInfo.filename.str()));
+		TheGameEngine->setQuitting( TRUE );
+		return;
+	}
+
+	TheGameLogic->prepareNewGame( GAME_LAN, DIFFICULTY_NORMAL, 0 );
+
+	if( loadGame( gameInfo ) != SC_OK )
+	{
+		DEBUG_LOG(("Failed to load resume save '%s'", gameInfo.filename.str()));
+		TheGameEngine->setQuitting( TRUE );
+		return;
+	}
+
+	if( TheNetwork != nullptr )
+	{
+		TheNetwork->setStartFrame( (Int)TheGameLogic->getFrame() );
+		DEBUG_LOG(("Resume save loaded at frame %d, network start frame seeded",
+			TheGameLogic->getFrame()));
+	}
+}
+
 void GameState::loadQueuedSaveGame()
 {
 	AvailableGameInfo gameInfo;

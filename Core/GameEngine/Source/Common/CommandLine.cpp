@@ -606,6 +606,18 @@ Int parseAutoNetworkAI(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoNetworkResume(char *args[], int num)
+{
+#if defined(RTS_DEBUG)
+	if (num > 1)
+	{
+		NetworkAutoStart::setResumeSave(AsciiString(args[1]));
+		return 2;
+	}
+#endif
+	return 1;
+}
+
 Int parseAutoNetworkTimeout(char *args[], int num)
 {
 	Int timeoutSeconds = 0;
@@ -1387,6 +1399,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoNetworkMap", parseAutoNetworkMap },
 	{ "-autoNetworkAI", parseAutoNetworkAI },
 	{ "-autoNetworkTimeout", parseAutoNetworkTimeout },
+	{ "-autoNetworkResume", parseAutoNetworkResume },
 #endif
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-noshellmap", parseNoShellMap },
