@@ -119,6 +119,9 @@ public:
 	Int getNumberSleepyUpdates() const {return m_sleepyUpdates.size();} //For profiling, so not in Release.
 #endif
 	void processCommandList( CommandList *list );		///< process the command list
+#if defined(RTS_DEBUG)
+	void beginCrcRecovery( void );					///< elect a donor and schedule an in-process mismatch recovery
+#endif
 
 	void prepareNewGame( GameMode gameMode, GameDifficulty diff, Int rankPoints );						///< prepare for new game
 

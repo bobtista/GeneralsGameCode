@@ -853,6 +853,22 @@ Int parseResumeAs(char *args[], int num)
 	return 1;
 }
 
+Int parseCrcRecovery(char *[], int)
+{
+	TheWritableGlobalData->m_crcRecovery = TRUE;
+	return 1;
+}
+
+Int parseDesyncAtFrame(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_desyncAtFrame = atoi(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
 Int parseResumeReplay(char *args[], int num)
 {
 	if (num > 1)
@@ -1425,6 +1441,8 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-forcefullviewport", parseFullViewport },
 
 #if defined(RTS_DEBUG)
+	{ "-crcRecovery", parseCrcRecovery },
+	{ "-desyncAtFrame", parseDesyncAtFrame },
 	{ "-noaudio", parseNoAudio },
 	{ "-map", parseMapName },
 	{ "-nomusic", parseNoMusic },
