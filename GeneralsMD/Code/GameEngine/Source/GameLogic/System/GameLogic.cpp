@@ -2707,6 +2707,12 @@ void GameLogic::beginCrcRecovery( void )
 	TheWritableGlobalData->m_recoveryResumeSave = donorSave;
 	s_crcRecoveryAttempted = TRUE;
 	TheNetwork->prepareForRecovery();
+
+	if (donorSlot == localSlot)
+	{
+		// The flush above cleared every queue, so the snapshot's chunks survive from here on.
+		TheNetwork->sendRecoveryFile(TheGameState->getFilePathInSaveDirectory(localSave));
+	}
 }
 #endif
 

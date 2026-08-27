@@ -76,6 +76,8 @@ public:
 	void flushForRecovery();
 	void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc);
 	Int checkRecoveryReady();
+	void sendRecoveryFile(AsciiString path);
+	AsciiString getRecoveryReceivedFile();
 	void destroyGameMessages();
 //	void createConnections(UnsignedInt numberOfPlayers, UnsignedInt localSlot);
 	void setLocalAddress(UnsignedInt ip, UnsignedInt port);
@@ -193,6 +195,7 @@ private:
 	UnsignedInt m_recoveryReadyCRC[MAX_SLOTS];
 	UnsignedInt m_recoveryHoldReleaseFrame;
 	UnsignedInt m_recoveryQuarantineBelowFrame;
+	AsciiString m_recoveryReceivedFile;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];
 	UnsignedInt m_localAddr;
 	UnsignedInt m_localPort;
