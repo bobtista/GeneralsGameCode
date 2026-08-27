@@ -972,6 +972,10 @@ void GameEngine::update()
 							TheWritableGlobalData->m_resumeAsSlot = (Int)TheNetwork->getLocalPlayerID();
 						}
 						DEBUG_LOG(("CRC recovery: reloading donor save '%s' as slot %d", donorSave.str(), TheGlobalData->m_resumeAsSlot));
+						if (TheInGameUI != nullptr)
+						{
+							TheInGameUI->message(UnicodeString(L"Loading synchronized game state..."));
+						}
 						NetworkAutoStart::setResumeSave(donorSave);
 						TheGameLogic->clearGameData(FALSE);
 						TheGameState->loadResumeSaveGame(donorSave);

@@ -2702,6 +2702,20 @@ void GameLogic::beginCrcRecovery( void )
 		return;
 	}
 
+	if (TheInGameUI != nullptr)
+	{
+		Player *donorPlayer = ThePlayerList->getPlayerFromSlotIndex(donorSlot);
+		if (donorPlayer != nullptr)
+		{
+			TheInGameUI->message(UnicodeString(L"Game out of sync - restoring from %ls's state..."),
+				donorPlayer->getPlayerDisplayName().str());
+		}
+		else
+		{
+			TheInGameUI->message(UnicodeString(L"Game out of sync - restoring..."));
+		}
+	}
+
 	AsciiString donorSave;
 	donorSave.format("recovery_s%d.sav", donorSlot);
 	TheWritableGlobalData->m_recoveryResumeSave = donorSave;
