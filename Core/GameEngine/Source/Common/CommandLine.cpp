@@ -869,6 +869,16 @@ Int parseDesyncAtFrame(char *args[], int num)
 	return 1;
 }
 
+Int parseDivergeAtFrame(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_divergeAtFrame = atoi(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
 Int parseResumeReplay(char *args[], int num)
 {
 	if (num > 1)
@@ -1445,6 +1455,7 @@ static CommandLineParam paramsForEngineInit[] =
 #if defined(RTS_DEBUG)
 	{ "-crcRecovery", parseCrcRecovery },
 	{ "-desyncAtFrame", parseDesyncAtFrame },
+	{ "-divergeAtFrame", parseDivergeAtFrame },
 	{ "-noaudio", parseNoAudio },
 	{ "-map", parseMapName },
 	{ "-nomusic", parseNoMusic },
