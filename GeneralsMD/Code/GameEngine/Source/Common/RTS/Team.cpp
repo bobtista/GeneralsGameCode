@@ -448,6 +448,14 @@ void TeamFactory::xfer( Xfer *xfer )
 	// prototypes cannot change in number during run time so the count should be the
 	// same as that already loaded into us from a map load
 	//
+	if( xfer->getXferMode() == XFER_SAVE )
+	{
+		for( TeamPrototypeMap::const_iterator ggcIt = m_prototypes.begin(); ggcIt != m_prototypes.end(); ++ggcIt )
+		{
+			DEBUG_LOG(( "MPREC save proto: %s", ggcIt->second->getName().str() ));
+		}
+	}
+
 	if( prototypeCount != m_prototypes.size() )
 	{
 
