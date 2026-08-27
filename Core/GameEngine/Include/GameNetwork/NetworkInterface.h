@@ -114,6 +114,8 @@ public:
 	virtual void setStartFrame(Int frame) = 0;								///< Seed frame bookkeeping when resuming a loaded game.
 	virtual void prepareForRecovery() = 0;										///< Freeze lockstep and flush queued commands ahead of a recovery reload.
 	virtual void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) = 0;		///< Report the post-load state so peers can gate the recovery resume.
+	virtual void sendRecoveryFile(AsciiString path) = 0;						///< Donor pushes its snapshot to every peer.
+	virtual AsciiString getRecoveryReceivedFile() = 0;							///< Leaf name of the last snapshot received during recovery.
 	virtual Int  getExecutionFrame() = 0;																			///< Returns the next valid frame for simultaneous command execution.
 
 #if defined(RTS_DEBUG)

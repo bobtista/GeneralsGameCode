@@ -953,7 +953,18 @@ void GameEngine::update()
 				}
 				if (now >= s_recoveryEligibleAt)
 				{
-					if (TheGameState->doesSaveGameExist(donorSave))
+					AsciiString localRecoverySave;
+					localRecoverySave.format("recovery_s%d.sav", (Int)TheNetwork->getLocalPlayerID());
+					Bool isDonor = (donorSave == localRecoverySave);
+					Bool snapshotArrived = isDonor;
+					if (!snapshotArrived)
+					{
+						// Wait for the donor's snapshot to arrive over the wire, not for the
+						// file to exist: a shared save directory would satisfy existence
+						// before a single chunk was transferred.
+						snapshotArrived = (TheNetwork->getRecoveryReceivedFile() == donorSave);
+					}
+					if (snapshotArrived && TheGameState->doesSaveGameExist(donorSave))
 					{
 						TheWritableGlobalData->m_recoveryResumeSave.clear();
 						if (TheGlobalData->m_resumeAsSlot < 0)
@@ -970,7 +981,7 @@ void GameEngine::update()
 							TheNetwork->sendRecoveryReady(TheGameLogic->getFrame(), recoveryCRC);
 						}
 					}
-					else if (now >= s_recoveryEligibleAt + 30000u)
+					else if (now >= s_recoveryEligibleAt + 90000u)
 					{
 						DEBUG_LOG(("CRC recovery: donor save '%s' never appeared, ending the game", donorSave.str()));
 						TheWritableGlobalData->m_recoveryResumeSave.clear();
