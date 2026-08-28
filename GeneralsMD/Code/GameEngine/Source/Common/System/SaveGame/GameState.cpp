@@ -54,11 +54,13 @@
 #include "GameClient/GameText.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/InGameUI.h"
+#include "GameClient/View.h"
 #include "GameClient/ParticleSys.h"
 #include "GameClient/TerrainVisual.h"
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/Object.h"
 #include "GameLogic/GhostObject.h"
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/VictoryConditions.h"
@@ -797,6 +799,28 @@ static void applyResumeAsSlot( void )
 			ThePlayerList->setLocalPlayer( resumePlayer );
 			DEBUG_LOG(("Resume as slot %d: local player is now '%ls'",
 				TheGlobalData->m_resumeAsSlot, resumePlayer->getPlayerDisplayName().str()));
+
+			// The save carries the donor's camera; put this player back at their own base.
+			Object *anchor = nullptr;
+			for( Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject() )
+			{
+				if( obj->getControllingPlayer() == resumePlayer )
+				{
+					if( obj->isKindOf( KINDOF_COMMANDCENTER ) )
+					{
+						anchor = obj;
+						break;
+					}
+					if( anchor == nullptr )
+					{
+						anchor = obj;
+					}
+				}
+			}
+			if( anchor != nullptr && TheTacticalView != nullptr )
+			{
+				TheTacticalView->lookAt( anchor->getPosition() );
+			}
 		}
 		else
 		{

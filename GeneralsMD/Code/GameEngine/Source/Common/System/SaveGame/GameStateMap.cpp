@@ -507,6 +507,25 @@ void GameStateMap::xfer( Xfer *xfer )
 			}
 		}
 		xfer->xferSnapshot(TheSkirmishGameInfo);
+		//
+		// TheSuperHackers @bugfix bobtista 28/08/2026 The snapshot carries no local identity
+		// (slot addresses are not serialized), so side construction would mark the first
+		// occupied slot as the local player: the camera restores to the donor's base and the
+		// world briefly renders with the donor's vision before the resume switches players.
+		// Stamp the resuming slot before sides are built so this peer is itself from the
+		// first frame. The addresses are matching keys only; the network is already built.
+		//
+		if( xfer->getXferMode() == XFER_LOAD && TheGlobalData->m_resumeAsSlot >= 0 &&
+				TheSkirmishGameInfo != nullptr )
+		{
+			GameSlot *resumeSlot = TheSkirmishGameInfo->getSlot( TheGlobalData->m_resumeAsSlot );
+			if( resumeSlot != nullptr && resumeSlot->isHuman() )
+			{
+				UnsignedInt localKey = 1 + (UnsignedInt)TheGlobalData->m_resumeAsSlot;
+				resumeSlot->setIP( localKey );
+				TheSkirmishGameInfo->setLocalIP( localKey );
+			}
+		}
 	}
 	else
 	{
