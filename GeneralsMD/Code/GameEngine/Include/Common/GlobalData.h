@@ -361,6 +361,7 @@ public:
 	Int m_desyncAtFrame;					///< If greater than zero, perturb this instance's next network CRC at this logic frame
 	Int m_divergeAtFrame;					///< If greater than zero, truly diverge this instance's game state at this logic frame
 	AsciiString m_recoveryResumeSave;		///< Donor save a pending CRC recovery reload should resume from
+	AsciiString m_recoveryDonorSave;		///< Donor snapshot name for the whole current hold; outlives the reload
 	Int m_rejoinWaitMs;						///< If greater than zero, hold a stalled game this long for a peer to rejoin instead of kicking
 	Bool m_rejoinHoldPending;				///< A stalled game should enter the rejoin hold at the next engine update
 	AsciiString m_rejoinHostIP;				///< Rejoin a running game hosted at this address instead of starting normally

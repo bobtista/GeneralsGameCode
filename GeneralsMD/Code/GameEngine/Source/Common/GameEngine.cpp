@@ -1030,6 +1030,7 @@ void GameEngine::update()
 						TheInGameUI->message(UnicodeString(L"Player disconnected - holding the game for a rejoin..."));
 					}
 					TheWritableGlobalData->m_recoveryResumeSave = holdSave;
+					TheWritableGlobalData->m_recoveryDonorSave = holdSave;
 					TheNetwork->prepareForRecovery();
 				}
 			}
@@ -1087,6 +1088,7 @@ void GameEngine::update()
 					TheNetwork->prepareForRecovery();
 
 					AsciiString donorSave("recovery_s0.sav");
+					TheWritableGlobalData->m_recoveryDonorSave = donorSave;
 					NetworkAutoStart::setResumeSave(donorSave);
 					TheWritableGlobalData->m_loadSaveGame = donorSave;
 					TheWritableGlobalData->m_resumeAsSlot = TheGlobalData->m_rejoinSlot;

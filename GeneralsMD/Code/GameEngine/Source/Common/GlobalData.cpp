@@ -1002,6 +1002,7 @@ GlobalData::GlobalData()
 	m_desyncAtFrame = 0;
 	m_divergeAtFrame = 0;
 	m_recoveryResumeSave.clear();
+	m_recoveryDonorSave.clear();
 	m_rejoinWaitMs = 0;
 	m_rejoinHoldPending = FALSE;
 	m_rejoinHostIP.clear();
