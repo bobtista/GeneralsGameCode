@@ -42,6 +42,7 @@
 #include "WWLib/strtok_r.h"
 #include "GameClient/Shell.h"
 #include "GameClient/InGameUI.h"
+#include "GameNetwork/NetworkAutoStart.h"
 #include "Common/CRCDebug.h"
 #include "GameLogic/GameLogic.h"
 
@@ -211,7 +212,8 @@ protected:
 	Int m_startFrame;													///< Logic frame the game began on (nonzero when resumed from a save).
 	Bool m_recoveryFrozen;										///< Lockstep is held for a pending recovery reload.
 	Bool m_awaitingRecoveryReady;								///< Waiting for every peer's post-load recovery report.
-	time_t m_recoveryReadyDeadline;							///< Give up on the recovery handshake past this time.
+	UnsignedInt m_recoveryReadyStart;						///< When the recovery handshake began waiting.
+	UnsignedInt m_lastRecoveryWaitMessage;			///< Last time the waiting message was shown.
 	Int m_lastExecutionFrame;																	///< The highest frame number that a command could have been executed on.
 	Int m_lastFrameCompleted;
 	Bool m_didSelfSlug;
@@ -345,7 +347,8 @@ void Network::init()
 	m_startFrame = 0;
 	m_recoveryFrozen = FALSE;
 	m_awaitingRecoveryReady = FALSE;
-	m_recoveryReadyDeadline = 0;
+	m_recoveryReadyStart = 0;
+	m_lastRecoveryWaitMessage = 0;
 	m_lastExecutionFrame = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_lastFrameCompleted = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_frameDataReady = FALSE;
@@ -517,7 +520,8 @@ void Network::setStartFrame(Int frame)
 		// An in-process recovery reload stays frozen until every peer reports the same
 		// post-load state; sendRecoveryReady starts that exchange and update() releases it.
 		m_awaitingRecoveryReady = TRUE;
-		m_recoveryReadyDeadline = timeGetTime() + 180000;
+		m_recoveryReadyStart = timeGetTime();
+		m_lastRecoveryWaitMessage = 0;
 	}
 	// Re-enter the pregame state a cold resume naturally starts in: readiness short-circuits
 	// until logic crosses the start frame, which skips the flushed current frame that no peer
@@ -829,11 +833,11 @@ void Network::update()
 
 	if (m_awaitingRecoveryReady && (m_conMgr != nullptr))
 	{
-		static time_t s_lastWaitMessage = 0;
-		time_t waitNow = timeGetTime();
-		if (TheInGameUI != nullptr && (s_lastWaitMessage == 0 || (waitNow - s_lastWaitMessage) >= 5000))
+		UnsignedInt waitNow = timeGetTime();
+		if (TheInGameUI != nullptr && (m_lastRecoveryWaitMessage == 0 ||
+				(UnsignedInt)(waitNow - m_lastRecoveryWaitMessage) >= (UnsignedInt)RECOVERY_WAIT_MESSAGE_MS))
 		{
-			s_lastWaitMessage = waitNow;
+			m_lastRecoveryWaitMessage = waitNow;
 			TheInGameUI->message(UnicodeString(L"Waiting for other players to finish loading..."));
 		}
 		Int readyState = m_conMgr->checkRecoveryReady();
@@ -842,17 +846,22 @@ void Network::update()
 			DEBUG_LOG(("Network::update - recovery handshake complete, resuming lockstep"));
 			m_awaitingRecoveryReady = FALSE;
 			m_recoveryFrozen = FALSE;
+			// A completed recovery no longer needs the engine-reset carve-out that kept the
+			// network alive across the reload; leaving it set would leak the network at the
+			// end of the match and block a later recovery from arming cleanly.
+			NetworkAutoStart::setResumeSave(AsciiString::TheEmptyString);
 			if (TheInGameUI != nullptr)
 			{
 				TheInGameUI->message(UnicodeString(L"Game synchronized - resuming"));
 			}
 		}
-		else if ((readyState == -1) || (timeGetTime() >= m_recoveryReadyDeadline))
+		else if ((readyState == -1) || ((UnsignedInt)(waitNow - m_recoveryReadyStart) >= (UnsignedInt)RECOVERY_READY_DEADLINE_MS))
 		{
 			DEBUG_LOG(("Network::update - recovery handshake %s, falling back to the mismatch endgame",
 				(readyState == -1) ? "disagreed" : "timed out"));
 			m_awaitingRecoveryReady = FALSE;
 			m_recoveryFrozen = FALSE;
+			NetworkAutoStart::setResumeSave(AsciiString::TheEmptyString);
 			setSawCRCMismatch();
 		}
 	}

@@ -121,9 +121,10 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 				// runs the actual hold, which then parks these clocks via isRecoveryInProgress.
 				// A cooldown keeps the slow ramp-up right after a completed recovery from
 				// reading as a fresh disconnect.
-				static time_t s_nextRejoinHoldAllowed = 0;
-				if (curTime >= s_nextRejoinHoldAllowed) {
-					s_nextRejoinHoldAllowed = curTime + 120000;
+				static UnsignedInt s_lastRejoinHold = 0;
+				if (s_lastRejoinHold == 0 ||
+						(UnsignedInt)((UnsignedInt)curTime - s_lastRejoinHold) >= (UnsignedInt)REJOIN_HOLD_COOLDOWN_MS) {
+					s_lastRejoinHold = (UnsignedInt)curTime;
 					TheWritableGlobalData->m_rejoinHoldPending = TRUE;
 				}
 				sendKeepAlive(conMgr);
