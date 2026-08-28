@@ -2247,6 +2247,12 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 	while(!isProgressComplete())
 	{
+		// TheSuperHackers @bugfix bobtista 28/08/2026 A recovery reload gates its resume on
+		// the verified post-load handshake instead. Waiting here deadlocks into the 60s
+		// timeout: a peer that reloads first sends LOADCOMPLETE before this peer's reload
+		// reset, so the mark is received, wiped, and never re-sent.
+		if( TheNetwork != nullptr && TheNetwork->isRecoveryInProgress() )
+			break;
 		updateLoadProgress(101); // keep greater then 100
 		testTimeOut();
 		Sleep(100);
