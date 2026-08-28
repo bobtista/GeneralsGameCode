@@ -154,7 +154,7 @@ protected:
 	{
 #if RETAIL_COMPATIBLE_XFER_SAVE
 		// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-		XferVersion cv = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 2 : 1;
+		XferVersion cv = (xfer->getXferMode() == XFER_SAVE && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 		XferVersion cv = 2;
 #endif
