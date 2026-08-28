@@ -495,6 +495,12 @@ void Network::GetCommandsFromCommandList() {
 // startFrame+1 exactly as it would at frame 1 of a fresh game.
 void Network::setStartFrame(Int frame)
 {
+	// TheSuperHackers @bugfix bobtista 27/08/2026 Reseed with the initial run-ahead: a peer
+	// whose run-ahead degraded during the stall would prime a smaller window than a freshly
+	// constructed peer, and then wait forever at its window edge for frame declarations the
+	// other side scheduled thirty frames later.
+	m_runAhead = min(max(30, MIN_RUNAHEAD), MAX_FRAMES_AHEAD/2);
+	m_frameRate = 30;
 	m_startFrame = frame;
 	m_lastExecutionFrame = frame + m_runAhead - 1;
 	m_lastFrameCompleted = frame + m_runAhead - 1;
