@@ -5312,8 +5312,15 @@ void GameLogic::xfer( Xfer *xfer )
 			if( (i & 63) == 0 && objectCount > 0 )
 			{
 				// The object restore dominates a save load's wall time; without these ticks
-				// the load screen sits still through all of it.
-				updateLoadProgress( 50 + (Int)((45 * i) / objectCount) );
+				// the load screen sits still through all of it. Only push changed values:
+				// every call renders a frame.
+				Int objectPercent = 50 + (Int)((45 * i) / objectCount);
+				static Int lastObjectPercent = -1;
+				if( objectPercent != lastObjectPercent )
+				{
+					lastObjectPercent = objectPercent;
+					updateLoadProgress( objectPercent );
+				}
 			}
 
 			// read toc entry identifier

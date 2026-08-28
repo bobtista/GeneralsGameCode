@@ -1732,10 +1732,17 @@ void GameState::gameStatePostProcessLoad()
 		++it;
 
 		// The post-process rebuilds (pathfinder, partition) dominate the tail of a save
-		// load; keep the load bar alive through them.
+		// load; keep the load bar alive through them. Only push changed values: every call
+		// renders a frame, and this loop runs tens of thousands of times.
 		if( postProcessCount > 0 )
 		{
-			TheGameLogic->updateLoadProgress( 95 + (3 * postProcessDone) / postProcessCount );
+			Int postPercent = 95 + (3 * postProcessDone) / postProcessCount;
+			static Int lastPostPercent = -1;
+			if( postPercent != lastPostPercent )
+			{
+				lastPostPercent = postPercent;
+				TheGameLogic->updateLoadProgress( postPercent );
+			}
 		}
 		++postProcessDone;
 
