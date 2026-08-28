@@ -81,6 +81,7 @@ enum SaveFileType CPP_11(: Int)
 {
 	SAVE_FILE_TYPE_NORMAL,		///< a regular save game at any arbitrary point in the game
 	SAVE_FILE_TYPE_MISSION,		///< a save game in between missions (a mission save)
+	SAVE_FILE_TYPE_CHECKPOINT,	///< complete deterministic simulation state, for recovery and replay seeking
 };
 
 // ------------------------------------------------------------------------------------------------
