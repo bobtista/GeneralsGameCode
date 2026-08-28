@@ -177,6 +177,7 @@ public:
 	virtual void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) override;	///< Report the post-load state so peers can gate the recovery resume.
 	virtual void sendRecoveryFile(AsciiString path) override;						///< Donor pushes its snapshot to every peer.
 	virtual AsciiString getRecoveryReceivedFile() override;						///< Leaf name of the last snapshot received during recovery.
+	virtual Int getRecoveryTransferPercent() override;							///< How much of the recovery snapshot has arrived, 0-100.
 	virtual Bool isRecoveryInProgress() override;									///< A mismatch recovery currently holds the game.
 	virtual void sendRejoinRequest() override;										///< Ask the held game for its snapshot.
 	virtual Int  getExecutionFrame() override;																			///< Returns the next valid frame for simultaneous command execution.
@@ -560,6 +561,15 @@ AsciiString Network::getRecoveryReceivedFile()
 		return m_conMgr->getRecoveryReceivedFile();
 	}
 	return AsciiString::TheEmptyString;
+}
+
+Int Network::getRecoveryTransferPercent()
+{
+	if (m_conMgr != nullptr)
+	{
+		return m_conMgr->getRecoveryTransferPercent();
+	}
+	return 0;
 }
 
 Bool Network::isRecoveryInProgress()
