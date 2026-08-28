@@ -691,6 +691,7 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 	// load the save data
 	Bool error = FALSE;
+	UnsignedInt loadPhaseStart = timeGetTime();
 	try
 	{
 
@@ -714,6 +715,8 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	// un-savelock the ghost objects
 	TheGhostObjectManager->saveLockGhostObjects( FALSE );
 
+	DEBUG_LOG(("GameState::loadGame: xferSaveData took %d ms", timeGetTime() - loadPhaseStart));
+	loadPhaseStart = timeGetTime();
 	try
 	{
 		// do the post-process from a save game load
@@ -1790,6 +1793,9 @@ void GameState::gameStatePostProcessLoad()
 	// post process each snapshot that registered with us
 	SnapshotListIterator it;
 	Snapshot *snapshot;
+	Int postProcessCount = (Int)m_snapshotPostProcessList.size();
+	Int postProcessDone = 0;
+	UnsignedInt phaseStart = timeGetTime();
 	for( it = m_snapshotPostProcessList.begin(); it != m_snapshotPostProcessList.end(); /*emtpy*/ )
 	{
 
@@ -1799,21 +1805,36 @@ void GameState::gameStatePostProcessLoad()
 		// increment iterator
 		++it;
 
+		// The post-process rebuilds (pathfinder, partition) dominate the tail of a save
+		// load; keep the load bar alive through them.
+		if( postProcessCount > 0 )
+		{
+			TheGameLogic->updateLoadProgress( 95 + (3 * postProcessDone) / postProcessCount );
+		}
+		++postProcessDone;
+
 		// do processing
 		snapshot->loadPostProcess();
 
 	}
+	DEBUG_LOG(("gameStatePostProcessLoad: %d snapshot callbacks took %d ms", postProcessCount, timeGetTime() - phaseStart));
 
 	// clear the snapshot post process list as we are now done with it
 	m_snapshotPostProcessList.clear();
 
 	// The restored pathfind ring remains authoritative while later blocks rebuild their state.
 	// Normal gameplay requests may resume only after every load post-process callback has run.
+	phaseStart = timeGetTime();
+	TheGameLogic->updateLoadProgress( 98 );
 	TheAI->pathfinder()->finishLoadPostProcess();
+	DEBUG_LOG(("gameStatePostProcessLoad: pathfinder finish took %d ms", timeGetTime() - phaseStart));
 
 	// evil... must ensure this is updated prior to the script engine running the first time.
+	phaseStart = timeGetTime();
+	TheGameLogic->updateLoadProgress( 99 );
 	ThePartitionManager->updateCellsOnlyForLoad();
 	ThePartitionManager->finishLoadPostProcess();
+	DEBUG_LOG(("gameStatePostProcessLoad: partition finish took %d ms", timeGetTime() - phaseStart));
 
 	TheVictoryConditions->resyncDefeatStateAfterLoad();
 
