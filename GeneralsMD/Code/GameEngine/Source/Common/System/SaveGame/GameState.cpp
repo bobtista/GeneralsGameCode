@@ -583,6 +583,10 @@ SaveResult GameState::saveGame( AsciiString filename, UnicodeString desc,
 
 	// open the save file
 	XferSave xferSave;
+	if( saveType == SAVE_FILE_TYPE_CHECKPOINT )
+	{
+		xferSave.setPurpose( XFER_PURPOSE_CHECKPOINT );
+	}
 	try {
 		xferSave.open( filepath );
 	} catch(...) {

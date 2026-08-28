@@ -2715,7 +2715,7 @@ void GameLogic::beginCrcRecovery( void )
 	const Int localSlot = (Int)TheNetwork->getLocalPlayerID();
 	AsciiString localSave;
 	localSave.format("recovery_s%d.sav", localSlot);
-	const SaveResult saveResult = TheGameState->saveGame(localSave, UnicodeString(L"CRC recovery"), SAVE_FILE_TYPE_NORMAL);
+	const SaveResult saveResult = TheGameState->saveGame(localSave, UnicodeString(L"CRC recovery"), SAVE_FILE_TYPE_CHECKPOINT);
 	DEBUG_LOG(("CRC recovery: donor slot %d, local slot %d, wrote '%s' at frame %d, code=%d",
 		donorSlot, localSlot, localSave.str(), m_frame, (Int)saveResult.saveCode));
 	if (saveResult.saveCode != SC_OK)
