@@ -3924,7 +3924,8 @@ void GameLogic::update()
 			{
 				saveName = "commandline.sav";
 			}
-			MAYBE_UNUSED const SaveResult saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"), SAVE_FILE_TYPE_NORMAL);
+			MAYBE_UNUSED const SaveResult saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"),
+				TheGlobalData->m_saveAtFrameNormal ? SAVE_FILE_TYPE_NORMAL : SAVE_FILE_TYPE_CHECKPOINT);
 			(void)saveResult;
 			DEBUG_LOG(("Command line save to '%s' at frame %d returned %d", saveName.str(), m_frame, (Int)saveResult.saveCode));
 			TheWritableGlobalData->m_saveAtFrame = 0;
