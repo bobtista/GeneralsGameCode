@@ -2272,14 +2272,15 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	{
 		TheMouse->setVisibility(TRUE);
 
-/*
 		//
 		// delete load screen only when not loading a save game, for save games we still
 		// have more work to do and the load screen will be deleted elsewhere after
 		// we're all done with the load game progress
 		//
+		// TheSuperHackers @bugfix bobtista 28/08/2026 Reinstate this original guard: with it
+		// commented out the screen object dies here while the whole save-state restore still
+		// runs, so the player stares at a stale frame and progress updates go nowhere.
 		if( loadingSaveGame == FALSE )
-*/
 			deleteLoadScreen();
 
 	}
@@ -5307,6 +5308,13 @@ void GameLogic::xfer( Xfer *xfer )
 		ObjectTOCEntry *tocEntry;
 		for( UnsignedInt i = 0; i < objectCount; ++i )
 		{
+
+			if( (i & 63) == 0 && objectCount > 0 )
+			{
+				// The object restore dominates a save load's wall time; without these ticks
+				// the load screen sits still through all of it.
+				updateLoadProgress( 50 + (Int)((45 * i) / objectCount) );
+			}
 
 			// read toc entry identifier
 			xfer->xferUnsignedShort( &tocID );
