@@ -356,7 +356,7 @@ public:
 	AsciiString m_pendingFile;				///< If this is specified, use this map at the next game start
 	AsciiString m_loadSaveGame;				///< If this is specified, load a save game file from the command-line
 	AsciiString m_resumeReplayName;
-	Int m_resumeAsSlot;						///< with m_loadSaveGame: take control of this lobby slot instead of the recording player					///< with m_loadSaveGame: resume playback of this replay from the loaded checkpoint
+	Int m_resumeAsSlot;						///< with m_loadSaveGame: take control of this lobby slot instead of the recording player
 	Bool m_crcRecovery;						///< Attempt in-game recovery from a network CRC mismatch instead of ending the game
 	Int m_desyncAtFrame;					///< If greater than zero, perturb this instance's next network CRC at this logic frame
 	Int m_divergeAtFrame;					///< If greater than zero, truly diverge this instance's game state at this logic frame

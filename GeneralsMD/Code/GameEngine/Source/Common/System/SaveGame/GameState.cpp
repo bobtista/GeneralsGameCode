@@ -775,7 +775,9 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 // TheSuperHackers @feature bobtista 26/08/2026 Take control of a chosen lobby slot when
 // playing on from a multiplayer checkpoint. Without this the first occupied slot's player
 // is the local player. Ignored while resuming playback, which controls every player.
-static void applyResumeAsSlot( void )
+// Returns FALSE when the requested slot exists but no player could be matched to it, so
+// callers can refuse to report a successful resume under the wrong identity.
+static Bool applyResumeAsSlot( void )
 {
 	if( TheGlobalData->m_resumeAsSlot >= 0 && TheGlobalData->m_resumeReplayName.isEmpty() &&
 		TheSkirmishGameInfo != nullptr )
@@ -784,15 +786,9 @@ static void applyResumeAsSlot( void )
 		Player *resumePlayer = nullptr;
 		if( slot != nullptr )
 		{
-			for( Int pi = 0; pi < ThePlayerList->getPlayerCount(); ++pi )
-			{
-				Player *p = ThePlayerList->getNthPlayer( pi );
-				if( p != nullptr && p->getPlayerDisplayName().compare( slot->getName() ) == 0 )
-				{
-					resumePlayer = p;
-					break;
-				}
-			}
+			// The slot index is the identity everywhere else in the network layer; display
+			// names can be duplicated between players.
+			resumePlayer = ThePlayerList->getPlayerFromSlotIndex( TheGlobalData->m_resumeAsSlot );
 		}
 		if( resumePlayer != nullptr )
 		{
@@ -825,8 +821,10 @@ static void applyResumeAsSlot( void )
 		else
 		{
 			DEBUG_LOG(("Resume as slot %d: no matching player found", TheGlobalData->m_resumeAsSlot));
+			return FALSE;
 		}
 	}
+	return TRUE;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -886,14 +884,23 @@ void GameState::loadResumeSaveGame( AsciiString filename )
 			TheGameLogic->getFrame()));
 	}
 
-	applyResumeAsSlot();
+	Bool resumeIdentityOk = applyResumeAsSlot();
 
 	// TheSuperHackers @feature bobtista 27/08/2026 A recovery or rejoin reload reports its
 	// post-load state so the handshake can gate the resume, whichever path loaded the save.
+	// A peer that could not take its own slot must not report success; the handshake times
+	// out into the endgame instead of resuming under the wrong identity.
 	if( TheNetwork != nullptr && TheNetwork->isRecoveryInProgress() )
 	{
-		UnsignedInt recoveryCRC = TheGameLogic->getCRC( CRC_RECALC );
-		TheNetwork->sendRecoveryReady( TheGameLogic->getFrame(), recoveryCRC );
+		if( resumeIdentityOk )
+		{
+			UnsignedInt recoveryCRC = TheGameLogic->getCRC( CRC_RECALC );
+			TheNetwork->sendRecoveryReady( TheGameLogic->getFrame(), recoveryCRC );
+		}
+		else
+		{
+			DEBUG_LOG(("Resume identity failed, withholding recovery ready"));
+		}
 	}
 }
 

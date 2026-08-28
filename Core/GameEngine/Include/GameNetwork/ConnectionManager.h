@@ -201,6 +201,7 @@ private:
 	AsciiString m_recoveryReceivedFile;
 	UnsignedByte m_rejoinFileSentMask;
 	UnsignedShort m_recoveryTransferFileID;
+	Bool m_recoveryTransferIDValid;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];
 	UnsignedInt m_localAddr;
 	UnsignedInt m_localPort;

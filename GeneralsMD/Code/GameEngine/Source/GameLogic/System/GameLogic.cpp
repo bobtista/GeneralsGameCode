@@ -149,6 +149,11 @@ static void findAndSelectCommandCenter(Object *obj, void* alreadyFound);
 // ------------------------------------------------------------------------------------------------
 /** This enum is for loading screen bar progress */
 // ------------------------------------------------------------------------------------------------
+#if defined(RTS_DEBUG)
+// One in-game CRC recovery attempt is allowed per match; a second mismatch ends the game.
+static Bool s_crcRecoveryAttempted = FALSE;
+#endif
+
 enum
 {
 	LOAD_PROGRESS_START =0,
@@ -1238,6 +1243,14 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 	TheWritableGlobalData->m_loadScreenRender = TRUE;	///< mark it so only a few select things are rendered during load
 	TheWritableGlobalData->m_TiVOFastMode = FALSE;	//always disable the TIVO fast-forward mode at the start of a new game.
+
+#if defined(RTS_DEBUG)
+	if( loadingSaveGame == FALSE )
+	{
+		// A fresh match may attempt its own recovery; the latch is per match, not per process.
+		s_crcRecoveryAttempted = FALSE;
+	}
+#endif
 
 	Campaign* currentCampaign = TheCampaignManager->getCurrentCampaign();
 	Bool isChallengeCampaign = m_gameMode == GAME_SINGLE_PLAYER && currentCampaign && currentCampaign->m_isChallengeCampaign;
@@ -2654,8 +2667,6 @@ void GameLogic::processDestroyList()
 /** Process the command list passed to the logic from the network */
 //-------------------------------------------------------------------------------------------------
 #if defined(RTS_DEBUG)
-static Bool s_crcRecoveryAttempted = FALSE;
-
 // TheSuperHackers @feature bobtista 27/08/2026 In-game CRC mismatch recovery: every peer sees
 // the same CRC set on the same frame, so each independently elects the same donor (lowest slot
 // holding the majority CRC), writes a synchronized save at this exact frame, and schedules an

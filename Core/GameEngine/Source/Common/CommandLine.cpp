@@ -847,7 +847,15 @@ Int parseResumeAs(char *args[], int num)
 {
 	if (num > 1)
 	{
-		TheWritableGlobalData->m_resumeAsSlot = atoi(args[1]);
+		Int slot = atoi(args[1]);
+		if (slot >= 0 && slot < MAX_SLOTS)
+		{
+			TheWritableGlobalData->m_resumeAsSlot = slot;
+		}
+		else
+		{
+			printf("Invalid -resumeas slot \"%s\"\n", args[1]);
+		}
 		return 2;
 	}
 	return 1;
@@ -883,7 +891,15 @@ Int parseRejoinWait(char *args[], int num)
 {
 	if (num > 1)
 	{
-		TheWritableGlobalData->m_rejoinWaitMs = atoi(args[1]);
+		Int waitMs = atoi(args[1]);
+		if (waitMs > 0)
+		{
+			TheWritableGlobalData->m_rejoinWaitMs = waitMs;
+		}
+		else
+		{
+			printf("Invalid -rejoinWait \"%s\"\n", args[1]);
+		}
 		return 2;
 	}
 	return 1;
@@ -903,7 +919,16 @@ Int parseRejoinSlot(char *args[], int num)
 {
 	if (num > 1)
 	{
-		TheWritableGlobalData->m_rejoinSlot = atoi(args[1]);
+		Int slot = atoi(args[1]);
+		if (slot > 0 && slot < MAX_SLOTS)
+		{
+			// Slot 0 hosts the held game; a rejoiner can only hold another slot.
+			TheWritableGlobalData->m_rejoinSlot = slot;
+		}
+		else
+		{
+			printf("Invalid -rejoinSlot \"%s\"\n", args[1]);
+		}
 		return 2;
 	}
 	return 1;
