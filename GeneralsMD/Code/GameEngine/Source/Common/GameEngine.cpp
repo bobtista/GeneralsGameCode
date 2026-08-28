@@ -1021,7 +1021,7 @@ void GameEngine::update()
 				TheWritableGlobalData->m_rejoinHoldPending = FALSE;
 				AsciiString holdSave;
 				holdSave.format("recovery_s%d.sav", (Int)TheNetwork->getLocalPlayerID());
-				const SaveResult holdResult = TheGameState->saveGame(holdSave, UnicodeString(L"Rejoin hold"), SAVE_FILE_TYPE_NORMAL);
+				const SaveResult holdResult = TheGameState->saveGame(holdSave, UnicodeString(L"Rejoin hold"), SAVE_FILE_TYPE_CHECKPOINT);
 				DEBUG_LOG(("Rejoin hold: wrote '%s' at frame %d, code=%d", holdSave.str(), TheGameLogic->getFrame(), (Int)holdResult.saveCode));
 				if (holdResult.saveCode == SC_OK)
 				{
