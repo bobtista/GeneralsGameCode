@@ -934,6 +934,12 @@ Int parseRejoinSlot(char *args[], int num)
 	return 1;
 }
 
+Int parseSaveNormal(char *[], int)
+{
+	TheWritableGlobalData->m_saveAtFrameNormal = TRUE;
+	return 1;
+}
+
 Int parseResumeReplay(char *args[], int num)
 {
 	if (num > 1)
@@ -1512,6 +1518,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-rejoinWait", parseRejoinWait },
 	{ "-autoNetworkRejoin", parseAutoNetworkRejoin },
 	{ "-rejoinSlot", parseRejoinSlot },
+	{ "-savenormal", parseSaveNormal },
 	{ "-noaudio", parseNoAudio },
 	{ "-map", parseMapName },
 	{ "-nomusic", parseNoMusic },

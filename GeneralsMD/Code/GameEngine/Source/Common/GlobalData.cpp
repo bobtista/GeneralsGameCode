@@ -1007,6 +1007,7 @@ GlobalData::GlobalData()
 	m_rejoinHoldPending = FALSE;
 	m_rejoinHostIP.clear();
 	m_rejoinSlot = -1;
+	m_saveAtFrameNormal = FALSE;
 	m_loadReplayGame.clear();
 
 	m_simulateReplays.clear();

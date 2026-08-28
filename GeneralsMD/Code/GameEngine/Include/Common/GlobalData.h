@@ -366,6 +366,7 @@ public:
 	Bool m_rejoinHoldPending;				///< A stalled game should enter the rejoin hold at the next engine update
 	AsciiString m_rejoinHostIP;				///< Rejoin a running game hosted at this address instead of starting normally
 	Int m_rejoinSlot;						///< Lobby slot this instance held before it disconnected
+	Bool m_saveAtFrameNormal;				///< -saveatframe writes a normal user save instead of a checkpoint
 	AsciiString m_loadReplayGame;			///< If this is specified, load a replay file from the command-line
 
 	std::vector<AsciiString> m_simulateReplays; ///< If not empty, simulate this list of replays and exit.
