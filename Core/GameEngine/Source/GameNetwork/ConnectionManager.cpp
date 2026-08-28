@@ -589,7 +589,7 @@ void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
 	}
 	AsciiString localSave;
 	localSave.format("recovery_s%d.sav", (Int)m_localSlot);
-	if (TheGlobalData->m_recoveryResumeSave != localSave) {
+	if (TheGlobalData->m_recoveryDonorSave != localSave) {
 		DEBUG_LOG(("ConnectionManager::processRejoinRequest - not the donor, staying quiet"));
 		return;
 	}
@@ -1093,11 +1093,7 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 			{
 				leaf = slash + 1;
 			}
-			AsciiString expectedFile = TheGlobalData->m_recoveryResumeSave;
-			if (expectedFile.isEmpty())
-			{
-				expectedFile = NetworkAutoStart::getResumeSave();
-			}
+			AsciiString expectedFile = TheGlobalData->m_recoveryDonorSave;
 			if (expectedFile.isNotEmpty() && stricmp(leaf, expectedFile.str()) == 0)
 			{
 				m_recoveryReceivedFile = leaf;
@@ -1146,12 +1142,7 @@ void ConnectionManager::processFileAnnounce(NetFileAnnounceCommandMsg *msg)
 	if (m_recoveryHold) {
 		// Track only the snapshot this peer is actually waiting for; any other announce
 		// during a hold is not the recovery transfer.
-		// In-process recovery names the file in m_recoveryResumeSave; a cold rejoiner
-		// carries it in the queued resume save.
-		AsciiString expectedName = TheGlobalData->m_recoveryResumeSave;
-		if (expectedName.isEmpty()) {
-			expectedName = NetworkAutoStart::getResumeSave();
-		}
+		AsciiString expectedName = TheGlobalData->m_recoveryDonorSave;
 		const char *expected = expectedName.str();
 		const char *announced = msg->getPortableFilename().str();
 		const char *leaf = strrchr(announced, '\\');
