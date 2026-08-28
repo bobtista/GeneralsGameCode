@@ -491,6 +491,13 @@ void GameStateMap::xfer( Xfer *xfer )
 			(TheNetwork != nullptr || xfer->getXferMode() == XFER_LOAD) )
 	{
 		effectiveGameMode = GAME_SKIRMISH;
+		if( xfer->getXferMode() == XFER_LOAD && TheNetwork == nullptr )
+		{
+			// A multiplayer save loaded without a network continues offline: the rest of the
+			// start pipeline has no LAN-without-network path, and replay checkpoints already
+			// take the skirmish shape for the same reason.
+			TheGameLogic->setGameMode( GAME_SKIRMISH );
+		}
 	}
 	if( effectiveGameMode == GAME_SKIRMISH )
 	{
