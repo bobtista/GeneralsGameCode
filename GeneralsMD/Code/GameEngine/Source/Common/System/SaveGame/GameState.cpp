@@ -1644,8 +1644,12 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 					// read block start
 					blockSize = xfer->beginBlock();
 
+					UnsignedInt blockStart = timeGetTime();
+
 					// parse this data
 					xfer->xferSnapshot( blockInfo->snapshot );
+
+					DEBUG_LOG(("xferSaveData: block '%s' took %d ms", token.str(), timeGetTime() - blockStart));
 
 					// read block end
 					xfer->endBlock();
