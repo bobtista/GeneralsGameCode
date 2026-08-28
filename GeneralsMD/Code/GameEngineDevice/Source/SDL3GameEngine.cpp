@@ -290,6 +290,13 @@ void SDL3GameEngine::applyPendingWindowResize()
 {
 	m_resizePending = false;
 
+	// TheSuperHackers @bugfix bobtista 28/08/2026 A headless run has no window to follow and no
+	// 2D renderer to resize, so there is nothing to apply and the resize would crash on it.
+	if (TheGlobalData != NULL && TheGlobalData->m_headless)
+	{
+		return;
+	}
+
 	// Read the actual, current window content size rather than the resize event's payload: macOS
 	// emits several events while a fullscreen transition settles, and we only want the final size.
 	int actualW = 0;
