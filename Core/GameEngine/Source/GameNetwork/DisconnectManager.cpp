@@ -119,7 +119,13 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 				// TheSuperHackers @feature bobtista 27/08/2026 Hold the stalled game for the
 				// missing peer to rejoin instead of counting down to a kick; the engine update
 				// runs the actual hold, which then parks these clocks via isRecoveryInProgress.
-				TheWritableGlobalData->m_rejoinHoldPending = TRUE;
+				// A cooldown keeps the slow ramp-up right after a completed recovery from
+				// reading as a fresh disconnect.
+				static time_t s_nextRejoinHoldAllowed = 0;
+				if (curTime >= s_nextRejoinHoldAllowed) {
+					s_nextRejoinHoldAllowed = curTime + 120000;
+					TheWritableGlobalData->m_rejoinHoldPending = TRUE;
+				}
 				sendKeepAlive(conMgr);
 			} else {
 				if (m_disconnectState == DISCONNECTSTATETYPE_SCREENOFF) {
