@@ -4131,7 +4131,7 @@ void Object::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 10 : 9;
+	const XferVersion currentVersion = (xfer->getXferMode() == XFER_SAVE && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 10;
 #else
 	const XferVersion currentVersion = 10;
 #endif
