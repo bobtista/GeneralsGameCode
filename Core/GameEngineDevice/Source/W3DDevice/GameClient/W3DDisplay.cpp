@@ -757,6 +757,13 @@ void W3DDisplay::setWidth( UnsignedInt width )
 	// extending functionality
 	Display::setWidth( width );
 
+	// TheSuperHackers @bugfix bobtista 28/08/2026 A headless run never creates the 2D renderer,
+	// so guard it the way the shutdown path already does instead of dereferencing it.
+	if( m_2DRender == nullptr )
+	{
+		return;
+	}
+
 	// our 2D renderer will use mapping coords to make (0,0) the upper left
 	// of the screen with (width,height) at the lower right
 	m_2DRender->Set_Coordinate_Range( RectClass( 0, 0, getWidth(), getHeight() ) );
@@ -771,6 +778,13 @@ void W3DDisplay::setHeight( UnsignedInt height )
 
 	// extending functionality
 	Display::setHeight( height );
+
+	// TheSuperHackers @bugfix bobtista 28/08/2026 A headless run never creates the 2D renderer,
+	// so guard it the way the shutdown path already does instead of dereferencing it.
+	if( m_2DRender == nullptr )
+	{
+		return;
+	}
 
 	// our 2D renderer will use mapping coords to make (0,0) the upper left
 	// of the screen with (width,height) at the lower right
