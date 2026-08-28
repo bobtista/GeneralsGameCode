@@ -829,6 +829,13 @@ void Network::update()
 
 	if (m_awaitingRecoveryReady && (m_conMgr != nullptr))
 	{
+		static time_t s_lastWaitMessage = 0;
+		time_t waitNow = timeGetTime();
+		if (TheInGameUI != nullptr && (s_lastWaitMessage == 0 || (waitNow - s_lastWaitMessage) >= 5000))
+		{
+			s_lastWaitMessage = waitNow;
+			TheInGameUI->message(UnicodeString(L"Waiting for other players to finish loading..."));
+		}
 		Int readyState = m_conMgr->checkRecoveryReady();
 		if (readyState == 1)
 		{
