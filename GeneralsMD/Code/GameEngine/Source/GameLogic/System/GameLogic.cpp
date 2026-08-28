@@ -1094,6 +1094,8 @@ static void populateRandomStartPosition( GameInfo *game )
 void GameLogic::updateLoadProgress( Int progress )
 {
 
+	DEBUG_LOG(("updateLoadProgress: %d at %d ms", progress, timeGetTime()));
+
 	if( m_loadScreen )
 		m_loadScreen->update( progress );
 
