@@ -1593,7 +1593,7 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 
 			if( blockCount > 0 && TheGameLogic != nullptr )
 			{
-				TheGameLogic->updateLoadProgress( 60 + (38 * blocksRead) / blockCount );
+				TheGameLogic->updateLoadProgress( 5 + (93 * blocksRead) / blockCount );
 			}
 			++blocksRead;
 
