@@ -484,7 +484,11 @@ void GameStateMap::xfer( Xfer *xfer )
 	// live lobby's slot state is stale by the time a deferred resume load runs, and peers
 	// must build identical sides regardless of reconnection order.
 	//
-	if( effectiveGameMode == GAME_LAN && TheNetwork != nullptr )
+	// On load the file's mode alone decides: every LAN-mode save this branch writes embeds
+	// the lobby snapshot, and a network-less reader (single player -loadsave) must still
+	// consume it or the stream desynchronizes at the next block.
+	if( effectiveGameMode == GAME_LAN &&
+			(TheNetwork != nullptr || xfer->getXferMode() == XFER_LOAD) )
 	{
 		effectiveGameMode = GAME_SKIRMISH;
 	}

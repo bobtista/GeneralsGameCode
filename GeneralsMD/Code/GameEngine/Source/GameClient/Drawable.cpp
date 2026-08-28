@@ -4858,9 +4858,9 @@ void Drawable::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE && RTS_GENERALS
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 8 : 5;
+	const XferVersion currentVersion = (xfer->getXferMode() == XFER_SAVE && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 5 : 8;
 #elif RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 8 : 7;
+	const XferVersion currentVersion = (xfer->getXferMode() == XFER_SAVE && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 7 : 8;
 #else
 	const XferVersion currentVersion = 8;
 #endif
@@ -5582,7 +5582,7 @@ void TintEnvelope::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 2 : 1;
+	XferVersion currentVersion = (xfer->getXferMode() == XFER_SAVE && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 	XferVersion currentVersion = 2;
 #endif
