@@ -850,6 +850,7 @@ void Network::update()
 			// network alive across the reload; leaving it set would leak the network at the
 			// end of the match and block a later recovery from arming cleanly.
 			NetworkAutoStart::setResumeSave(AsciiString::TheEmptyString);
+			TheWritableGlobalData->m_recoveryDonorSave.clear();
 			if (TheInGameUI != nullptr)
 			{
 				TheInGameUI->message(UnicodeString(L"Game synchronized - resuming"));
@@ -862,6 +863,7 @@ void Network::update()
 			m_awaitingRecoveryReady = FALSE;
 			m_recoveryFrozen = FALSE;
 			NetworkAutoStart::setResumeSave(AsciiString::TheEmptyString);
+			TheWritableGlobalData->m_recoveryDonorSave.clear();
 			setSawCRCMismatch();
 		}
 	}

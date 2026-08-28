@@ -2741,6 +2741,7 @@ void GameLogic::beginCrcRecovery( void )
 	AsciiString donorSave;
 	donorSave.format("recovery_s%d.sav", donorSlot);
 	TheWritableGlobalData->m_recoveryResumeSave = donorSave;
+	TheWritableGlobalData->m_recoveryDonorSave = donorSave;
 	s_crcRecoveryAttempted = TRUE;
 	TheNetwork->prepareForRecovery();
 
