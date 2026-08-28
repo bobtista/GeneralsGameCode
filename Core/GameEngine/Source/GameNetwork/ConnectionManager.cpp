@@ -29,6 +29,7 @@
 #include "WWLib/strtok_r.h"
 #include "Common/AudioEventRTS.h"
 #include "Common/GameState.h"
+#include "GameNetwork/NetworkAutoStart.h"
 #include "Common/CRCDebug.h"
 #include "Common/Debug.h"
 #include "Common/file.h"
@@ -313,6 +314,7 @@ void ConnectionManager::init()
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_recoveryTransferFileID = 0;
+	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
@@ -413,6 +415,7 @@ void ConnectionManager::reset()
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_recoveryTransferFileID = 0;
+	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = -1;
 
 	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -490,6 +493,7 @@ void ConnectionManager::flushForRecovery() {
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_recoveryTransferFileID = 0;
+	m_recoveryTransferIDValid = FALSE;
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		m_recoveryReadySeen[i] = FALSE;
 		m_recoveryReadyFrame[i] = 0;
@@ -562,7 +566,7 @@ AsciiString ConnectionManager::getRecoveryReceivedFile() {
 }
 
 Int ConnectionManager::getRecoveryTransferPercent() {
-	if (m_recoveryTransferFileID == 0) {
+	if (!m_recoveryTransferIDValid) {
 		return 0;
 	}
 	return s_fileProgressMap[m_localSlot][m_recoveryTransferFileID];
@@ -576,18 +580,23 @@ void ConnectionManager::sendRejoinRequest() {
 }
 
 // TheSuperHackers @feature bobtista 27/08/2026 A restarted peer asks for the held game's
-// snapshot; answer once per hold with this instance's recovery save.
+// snapshot; the elected donor answers once per hold with its recovery save. Non-donor
+// survivors stay quiet so the rejoiner receives exactly one snapshot.
 void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
 	const UnsignedInt playerID = msg->getPlayerID();
 	if (playerID >= MAX_SLOTS || !m_recoveryHold) {
+		return;
+	}
+	AsciiString localSave;
+	localSave.format("recovery_s%d.sav", (Int)m_localSlot);
+	if (TheGlobalData->m_recoveryResumeSave != localSave) {
+		DEBUG_LOG(("ConnectionManager::processRejoinRequest - not the donor, staying quiet"));
 		return;
 	}
 	if ((m_rejoinFileSentMask & (1 << playerID)) != 0) {
 		return;
 	}
 	m_rejoinFileSentMask |= (1 << playerID);
-	AsciiString localSave;
-	localSave.format("recovery_s%d.sav", (Int)m_localSlot);
 	DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked for the held snapshot", playerID));
 	UnsignedShort fileID = sendFileAnnounce(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID));
 	sendFile(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID), fileID);
@@ -1084,8 +1093,16 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 			{
 				leaf = slash + 1;
 			}
-			m_recoveryReceivedFile = leaf;
-			DEBUG_LOG(("ConnectionManager::processFile - recovery transfer file received '%s'", leaf));
+			AsciiString expectedFile = TheGlobalData->m_recoveryResumeSave;
+			if (expectedFile.isEmpty())
+			{
+				expectedFile = NetworkAutoStart::getResumeSave();
+			}
+			if (expectedFile.isNotEmpty() && stricmp(leaf, expectedFile.str()) == 0)
+			{
+				m_recoveryReceivedFile = leaf;
+				DEBUG_LOG(("ConnectionManager::processFile - recovery transfer file received '%s'", leaf));
+			}
 		}
 	}
 	else
@@ -1127,9 +1144,25 @@ void ConnectionManager::processFileAnnounce(NetFileAnnounceCommandMsg *msg)
 {
 	DEBUG_LOG(("ConnectionManager::processFileAnnounce() - expecting '%s' (%s) in command %d", msg->getPortableFilename().str(), msg->getRealFilename().str(), msg->getFileID()));
 	if (m_recoveryHold) {
-		// The announced file is the recovery snapshot; remember it so the wait can show
-		// how much has arrived.
-		m_recoveryTransferFileID = msg->getFileID();
+		// Track only the snapshot this peer is actually waiting for; any other announce
+		// during a hold is not the recovery transfer.
+		// In-process recovery names the file in m_recoveryResumeSave; a cold rejoiner
+		// carries it in the queued resume save.
+		AsciiString expectedName = TheGlobalData->m_recoveryResumeSave;
+		if (expectedName.isEmpty()) {
+			expectedName = NetworkAutoStart::getResumeSave();
+		}
+		const char *expected = expectedName.str();
+		const char *announced = msg->getPortableFilename().str();
+		const char *leaf = strrchr(announced, '\\');
+		if (leaf == nullptr) {
+			leaf = strrchr(announced, '/');
+		}
+		leaf = (leaf != nullptr) ? leaf + 1 : announced;
+		if (expectedName.isNotEmpty() && stricmp(leaf, expected) == 0) {
+			m_recoveryTransferFileID = msg->getFileID();
+			m_recoveryTransferIDValid = TRUE;
+		}
 	}
 	s_fileCommandMap[msg->getFileID()] = msg->getRealFilename();
 	s_fileRecipientMaskMap[msg->getFileID()] = msg->getPlayerMask();

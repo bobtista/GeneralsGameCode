@@ -947,14 +947,15 @@ void GameEngine::update()
 			if (TheGlobalData->m_recoveryResumeSave.isNotEmpty() && TheNetwork != nullptr &&
 					TheGameLogic->isInGame())
 			{
-				static UnsignedInt s_recoveryEligibleAt = 0;
+				static UnsignedInt s_recoveryWaitStart = 0;
 				AsciiString donorSave = TheGlobalData->m_recoveryResumeSave;
 				UnsignedInt now = timeGetTime();
-				if (s_recoveryEligibleAt == 0)
+				UnsignedInt staggerMs = (rts::ClientInstance::getInstanceId() - 1u) * (UnsignedInt)RECOVERY_RELOAD_STAGGER_MS;
+				if (s_recoveryWaitStart == 0)
 				{
-					s_recoveryEligibleAt = now + (rts::ClientInstance::getInstanceId() - 1u) * 8000u;
+					s_recoveryWaitStart = now;
 				}
-				if (now >= s_recoveryEligibleAt)
+				if ((UnsignedInt)(now - s_recoveryWaitStart) >= staggerMs)
 				{
 					AsciiString localRecoverySave;
 					localRecoverySave.format("recovery_s%d.sav", (Int)TheNetwork->getLocalPlayerID());
@@ -970,7 +971,12 @@ void GameEngine::update()
 						{
 							static Int s_lastShownPercent = -1;
 							Int transferPercent = TheNetwork->getRecoveryTransferPercent();
-							if (transferPercent >= s_lastShownPercent + 20)
+							if (transferPercent < s_lastShownPercent)
+							{
+								// A lower percent means a new transfer began; rearm the throttle.
+								s_lastShownPercent = -1;
+							}
+							if (transferPercent >= s_lastShownPercent + RECOVERY_TRANSFER_MESSAGE_STEP)
 							{
 								s_lastShownPercent = transferPercent;
 								TheInGameUI->message(UnicodeString(L"Receiving game state... %d%%"), transferPercent);
@@ -979,6 +985,7 @@ void GameEngine::update()
 					}
 					if (snapshotArrived && TheGameState->doesSaveGameExist(donorSave))
 					{
+						s_recoveryWaitStart = 0;
 						TheWritableGlobalData->m_recoveryResumeSave.clear();
 						if (TheGlobalData->m_resumeAsSlot < 0)
 						{
@@ -993,9 +1000,10 @@ void GameEngine::update()
 						TheGameLogic->clearGameData(FALSE);
 						TheGameState->loadResumeSaveGame(donorSave);
 					}
-					else if (now >= s_recoveryEligibleAt + 90000u)
+					else if ((UnsignedInt)(now - s_recoveryWaitStart) >= staggerMs + (UnsignedInt)RECOVERY_SNAPSHOT_WAIT_MS)
 					{
 						DEBUG_LOG(("CRC recovery: donor save '%s' never appeared, ending the game", donorSave.str()));
+						s_recoveryWaitStart = 0;
 						TheWritableGlobalData->m_recoveryResumeSave.clear();
 						TheNetwork->setSawCRCMismatch();
 					}
@@ -1037,7 +1045,9 @@ void GameEngine::update()
 				UnsignedInt hostIP = 0;
 				UnsignedInt localIP = NetworkAutoStart::getLocalAddress();
 				Bool hostParsed = FALSE;
-				if (sscanf(TheGlobalData->m_rejoinHostIP.str(), "%d.%d.%d.%d", &ipA, &ipB, &ipC, &ipD) == 4)
+				if (sscanf(TheGlobalData->m_rejoinHostIP.str(), "%d.%d.%d.%d", &ipA, &ipB, &ipC, &ipD) == 4 &&
+						ipA >= 0 && ipA <= 255 && ipB >= 0 && ipB <= 255 &&
+						ipC >= 0 && ipC <= 255 && ipD >= 0 && ipD <= 255)
 				{
 					hostIP = ((UnsignedInt)ipA << 24) | ((UnsignedInt)ipB << 16) | ((UnsignedInt)ipC << 8) | (UnsignedInt)ipD;
 					hostParsed = TRUE;
@@ -1054,18 +1064,24 @@ void GameEngine::update()
 					}
 					s_rejoinInfo->enterGame();
 					GameSlot *hostSlot = s_rejoinInfo->getSlot(0);
+					GameSlot *selfSlot = s_rejoinInfo->getSlot(TheGlobalData->m_rejoinSlot);
+					if (hostSlot == nullptr || selfSlot == nullptr)
+					{
+						DEBUG_LOG(("Rejoin: slot %d unavailable, giving up", TheGlobalData->m_rejoinSlot));
+						TheWritableGlobalData->m_rejoinHostIP.clear();
+						return;
+					}
 					hostSlot->setState(SLOT_PLAYER, UnicodeString(L"Host"));
 					hostSlot->setIP(hostIP);
-					hostSlot->setPort(8088);
-					GameSlot *selfSlot = s_rejoinInfo->getSlot(TheGlobalData->m_rejoinSlot);
+					hostSlot->setPort(NETWORK_BASE_PORT_NUMBER);
 					selfSlot->setState(SLOT_PLAYER, UnicodeString(L"Rejoiner"));
 					selfSlot->setIP(localIP);
-					selfSlot->setPort(8088);
+					selfSlot->setPort(NETWORK_BASE_PORT_NUMBER);
 					s_rejoinInfo->setLocalIP(localIP);
 
 					TheNetwork = NetworkInterface::createNetwork();
 					TheNetwork->init();
-					TheNetwork->setLocalAddress(localIP, 8088);
+					TheNetwork->setLocalAddress(localIP, NETWORK_BASE_PORT_NUMBER);
 					TheNetwork->initTransport();
 					TheNetwork->parseUserList(s_rejoinInfo);
 					TheNetwork->prepareForRecovery();
@@ -1092,7 +1108,7 @@ void GameEngine::update()
 			{
 				static UnsignedInt s_lastRejoinRequest = 0;
 				UnsignedInt requestNow = timeGetTime();
-				if (s_lastRejoinRequest == 0 || (requestNow - s_lastRejoinRequest) >= 3000u)
+				if (s_lastRejoinRequest == 0 || (UnsignedInt)(requestNow - s_lastRejoinRequest) >= (UnsignedInt)REJOIN_REQUEST_INTERVAL_MS)
 				{
 					s_lastRejoinRequest = requestNow;
 					TheNetwork->sendRejoinRequest();
