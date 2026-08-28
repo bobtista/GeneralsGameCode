@@ -116,6 +116,7 @@ public:
 	virtual void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) = 0;		///< Report the post-load state so peers can gate the recovery resume.
 	virtual void sendRecoveryFile(AsciiString path) = 0;						///< Donor pushes its snapshot to every peer.
 	virtual AsciiString getRecoveryReceivedFile() = 0;							///< Leaf name of the last snapshot received during recovery.
+	virtual Int getRecoveryTransferPercent() = 0;								///< How much of the recovery snapshot has arrived, 0-100.
 	virtual Bool isRecoveryInProgress() = 0;									///< A mismatch recovery currently holds the game.
 	virtual void sendRejoinRequest() = 0;										///< Ask the held game for its snapshot.
 	virtual Int  getExecutionFrame() = 0;																			///< Returns the next valid frame for simultaneous command execution.
