@@ -966,6 +966,16 @@ void GameEngine::update()
 						// file to exist: a shared save directory would satisfy existence
 						// before a single chunk was transferred.
 						snapshotArrived = (TheNetwork->getRecoveryReceivedFile() == donorSave);
+						if (!snapshotArrived && TheInGameUI != nullptr)
+						{
+							static Int s_lastShownPercent = -1;
+							Int transferPercent = TheNetwork->getRecoveryTransferPercent();
+							if (transferPercent >= s_lastShownPercent + 20)
+							{
+								s_lastShownPercent = transferPercent;
+								TheInGameUI->message(UnicodeString(L"Receiving game state... %d%%"), transferPercent);
+							}
+						}
 					}
 					if (snapshotArrived && TheGameState->doesSaveGameExist(donorSave))
 					{
@@ -1086,7 +1096,7 @@ void GameEngine::update()
 				{
 					s_lastRejoinRequest = requestNow;
 					TheNetwork->sendRejoinRequest();
-					DEBUG_LOG(("Rejoin: requesting the held snapshot"));
+					DEBUG_LOG(("Rejoin: requesting the held snapshot (%d%% received)", TheNetwork->getRecoveryTransferPercent()));
 				}
 			}
 #endif

@@ -312,6 +312,7 @@ void ConnectionManager::init()
 	m_recoveryQuarantineBelowFrame = 0;
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
+	m_recoveryTransferFileID = 0;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
@@ -411,6 +412,7 @@ void ConnectionManager::reset()
 	m_recoveryQuarantineBelowFrame = 0;
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
+	m_recoveryTransferFileID = 0;
 	m_packetRouterSlot = -1;
 
 	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -487,6 +489,7 @@ void ConnectionManager::flushForRecovery() {
 	m_recoveryHold = TRUE;
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
+	m_recoveryTransferFileID = 0;
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		m_recoveryReadySeen[i] = FALSE;
 		m_recoveryReadyFrame[i] = 0;
@@ -556,6 +559,13 @@ void ConnectionManager::sendRecoveryFile(AsciiString path) {
 
 AsciiString ConnectionManager::getRecoveryReceivedFile() {
 	return m_recoveryReceivedFile;
+}
+
+Int ConnectionManager::getRecoveryTransferPercent() {
+	if (m_recoveryTransferFileID == 0) {
+		return 0;
+	}
+	return s_fileProgressMap[m_localSlot][m_recoveryTransferFileID];
 }
 
 void ConnectionManager::sendRejoinRequest() {
@@ -1116,6 +1126,11 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 void ConnectionManager::processFileAnnounce(NetFileAnnounceCommandMsg *msg)
 {
 	DEBUG_LOG(("ConnectionManager::processFileAnnounce() - expecting '%s' (%s) in command %d", msg->getPortableFilename().str(), msg->getRealFilename().str(), msg->getFileID()));
+	if (m_recoveryHold) {
+		// The announced file is the recovery snapshot; remember it so the wait can show
+		// how much has arrived.
+		m_recoveryTransferFileID = msg->getFileID();
+	}
 	s_fileCommandMap[msg->getFileID()] = msg->getRealFilename();
 	s_fileRecipientMaskMap[msg->getFileID()] = msg->getPlayerMask();
 	for (Int i=0; i<MAX_SLOTS; ++i)

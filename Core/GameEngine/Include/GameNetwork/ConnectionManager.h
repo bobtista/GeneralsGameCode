@@ -79,6 +79,7 @@ public:
 	void sendRecoveryFile(AsciiString path);
 	void sendRejoinRequest();
 	AsciiString getRecoveryReceivedFile();
+	Int getRecoveryTransferPercent();
 	void destroyGameMessages();
 //	void createConnections(UnsignedInt numberOfPlayers, UnsignedInt localSlot);
 	void setLocalAddress(UnsignedInt ip, UnsignedInt port);
@@ -199,6 +200,7 @@ private:
 	UnsignedInt m_recoveryQuarantineBelowFrame;
 	AsciiString m_recoveryReceivedFile;
 	UnsignedByte m_rejoinFileSentMask;
+	UnsignedShort m_recoveryTransferFileID;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];
 	UnsignedInt m_localAddr;
 	UnsignedInt m_localPort;

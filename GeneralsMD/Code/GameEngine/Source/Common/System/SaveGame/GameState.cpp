@@ -1581,10 +1581,21 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 		Int blockSize;
 		Bool done = FALSE;
 		SnapshotBlock *blockInfo;
+		// TheSuperHackers @tweak bobtista 28/08/2026 Walk the load bar across the state
+		// restore; without this every block loads between two engine checkpoints and the
+		// bar sits still through the slowest part of a save load.
+		Int blockCount = (Int)m_snapshotBlockList[which].size();
+		Int blocksRead = 0;
 
 		// read all data blocks in the file
 		while( done == FALSE )
 		{
+
+			if( blockCount > 0 && TheGameLogic != nullptr )
+			{
+				TheGameLogic->updateLoadProgress( 60 + (38 * blocksRead) / blockCount );
+			}
+			++blocksRead;
 
 			// read next token
 			xfer->xferAsciiString( &token );
