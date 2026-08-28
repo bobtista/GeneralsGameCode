@@ -5243,7 +5243,8 @@ void GameLogic::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 10;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 16 : 10;
 #else
 	const XferVersion currentVersion = 16;
 #endif

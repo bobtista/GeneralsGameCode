@@ -4058,7 +4058,8 @@ void Player::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 8;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 10 : 8;
 #else
 	const XferVersion currentVersion = 10;
 #endif

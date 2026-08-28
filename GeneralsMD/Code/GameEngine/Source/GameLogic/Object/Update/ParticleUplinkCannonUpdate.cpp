@@ -1409,7 +1409,8 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 3;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 4 : 3;
 #else
 	const XferVersion currentVersion = 4;
 #endif
