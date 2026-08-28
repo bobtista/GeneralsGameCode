@@ -215,7 +215,8 @@ void WeaponSet::xfer( Xfer *xfer )
 {
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 1;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 2 : 1;
 #else
 	const XferVersion currentVersion = 2;
 #endif

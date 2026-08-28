@@ -845,7 +845,8 @@ void StateMachine::xfer( Xfer *xfer )
 	// it used and old saves still load.
 	//
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	Bool snapshotAllStates = false;
+	// The flag is written into the stream, so each save describes its own layout.
+	Bool snapshotAllStates = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT);
 #else
 	Bool snapshotAllStates = true;
 #endif

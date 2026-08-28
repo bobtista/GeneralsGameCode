@@ -294,7 +294,8 @@ void FlammableUpdate::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	XferVersion currentVersion = 1;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 2 : 1;
 #else
 	XferVersion currentVersion = 2;
 #endif

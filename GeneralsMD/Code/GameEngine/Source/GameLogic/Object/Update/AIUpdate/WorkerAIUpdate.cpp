@@ -1448,7 +1448,8 @@ void WorkerAIUpdate::crc( Xfer *xfer )
 void WorkerAIUpdate::xfer( Xfer *xfer )
 {
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	XferVersion currentVersion = 1;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 3 : 1;
 #else
 	XferVersion currentVersion = 3;
 #endif

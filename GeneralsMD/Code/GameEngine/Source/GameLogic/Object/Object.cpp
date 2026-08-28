@@ -4130,7 +4130,8 @@ void Object::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 9;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 10 : 9;
 #else
 	const XferVersion currentVersion = 10;
 #endif
@@ -4147,14 +4148,11 @@ void Object::xfer( Xfer *xfer )
 	if (version >= 7)
 	{
 		Matrix3D mtx = *getTransformMatrix();
-#if !RETAIL_COMPATIBLE_XFER_SAVE
 		Real cachedAngle = getOrientation();
-#endif
 		xfer->xferMatrix3D(&mtx);
 
-#if RETAIL_COMPATIBLE_XFER_SAVE
-		setTransformMatrix(&mtx);
-#else
+		// The cached orientation travels only in version 10 streams (checkpoints); the
+		// version test makes this correct for every save shape and build setting.
 		if (version >= 10)
 			xfer->xferReal(&cachedAngle);
 
@@ -4164,7 +4162,6 @@ void Object::xfer( Xfer *xfer )
 			if (version >= 10)
 				restoreCachedAngleForLoad(cachedAngle);
 		}
-#endif
 	}
 	else
 	{

@@ -574,6 +574,8 @@ void TeamFactory::loadPostProcess()
 
 			team = iter.cur();
 #if RETAIL_COMPATIBLE_XFER_SAVE
+			// @todo Key this on the surrounding block version instead of the build setting:
+			// a retail-configured build loading a checkpoint would repair IDs the retail way.
 			if( team->getID() >= m_uniqueTeamID )
 				m_uniqueTeamID = team->getID() + 1;
 #else
@@ -1233,7 +1235,8 @@ void TeamPrototype::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	XferVersion currentVersion = 2;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT) ? 3 : 2;
 #else
 	XferVersion currentVersion = 3;
 #endif
