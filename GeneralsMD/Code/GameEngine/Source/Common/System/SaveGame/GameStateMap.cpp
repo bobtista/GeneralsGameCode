@@ -270,6 +270,13 @@ static void buildSnapshotFromGameInfo( GameInfo *sourceInfo )
 	// zero resolves the first occupied player slot as local on load.
 	TheSkirmishGameInfo->setLocalIP( 0 );
 	TheSkirmishGameInfo->setCRCInterval( sourceInfo->getCRCInterval() );
+	// TheSuperHackers @bugfix bobtista 29/08/2026 Carry the recorded map and seed too, or the
+	// checkpoint's game info holds the nomap placeholder and cannot resume.
+	TheSkirmishGameInfo->setMap( sourceInfo->getMap() );
+	TheSkirmishGameInfo->setMapCRC( sourceInfo->getMapCRC() );
+	TheSkirmishGameInfo->setMapSize( sourceInfo->getMapSize() );
+	TheSkirmishGameInfo->setMapContentsMask( sourceInfo->getMapContentsMask() );
+	TheSkirmishGameInfo->setSeed( sourceInfo->getSeed() );
 	TheSkirmishGameInfo->startGame( sourceInfo->getGameID() );
 }
 
