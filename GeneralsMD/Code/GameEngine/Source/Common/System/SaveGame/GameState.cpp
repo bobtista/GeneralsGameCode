@@ -1087,6 +1087,13 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
 		prefix = PORTABLE_USER_MAPS;
 		prefix.concat(getMapLeafAndDirName(in));
 	}
+	else if (in.startsWithNoCase(PORTABLE_SAVE) || in.startsWithNoCase(PORTABLE_MAPS) || in.startsWithNoCase(PORTABLE_USER_MAPS))
+	{
+		// TheSuperHackers @bugfix bobtista 29/08/2026 A replay's original map path is already
+		// portable. Saves minted during replay playback carry it verbatim, so pass it through
+		// instead of asserting on the missing real directory prefix.
+		prefix = in;
+	}
 	else
 	{
 		DEBUG_CRASH(("Map file was not found in any of the expected directories; this is impossible"));
