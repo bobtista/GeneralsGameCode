@@ -1068,9 +1068,26 @@ const char* PORTABLE_SAVE				= "Save\\";
 const char* PORTABLE_MAPS				= "Maps\\";
 const char* PORTABLE_USER_MAPS	= "UserData\\Maps\\";
 
-// ------------------------------------------------------------------------------------------------
-AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
+// TheSuperHackers @bugfix bobtista 29/08/2026 The original game info restored from a save minted
+// during replay playback carries the wire form of the map path, which uses forward slashes.
+// Normalize to backslashes before matching the portable prefixes.
+static AsciiString normalizeMapPathSeparators(const AsciiString& in)
 {
+	AsciiString out;
+	char piece[2];
+	piece[1] = '\0';
+	for (const char *c = in.str(); *c != '\0'; ++c)
+	{
+		piece[0] = (*c == '/') ? '\\' : *c;
+		out.concat(piece);
+	}
+	return out;
+}
+
+// ------------------------------------------------------------------------------------------------
+AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& inPath) const
+{
+	AsciiString in = normalizeMapPathSeparators(inPath);
 	AsciiString prefix;
 	if (in.startsWithNoCase(getSaveDirectory()))
 	{
@@ -1106,8 +1123,9 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
 }
 
 // ------------------------------------------------------------------------------------------------
-AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
+AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& inPath) const
 {
+	AsciiString in = normalizeMapPathSeparators(inPath);
 	AsciiString prefix;
 	// The directory where the real map path should be contained in.
 	AsciiString containingBasePath;
