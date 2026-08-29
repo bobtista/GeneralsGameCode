@@ -805,7 +805,15 @@ AsciiString GameState::getFilePathInSaveDirectory(const AsciiString& leaf) const
 //-------------------------------------------------------------------------------------------------
 Bool GameState::isInSaveDirectory(const AsciiString& path) const
 {
-	return FileSystem::isPathInDirectory(path, getSaveDirectory());
+	// TheSuperHackers @bugfix bobtista 28/08/2026 Compare case insensitively, because
+	// portableMapPathToRealMapPath lowercases the path it returns.
+	AsciiString lowercasePath = path;
+	AsciiString lowercaseSaveDirectory = getSaveDirectory();
+
+	lowercasePath.toLower();
+	lowercaseSaveDirectory.toLower();
+
+	return FileSystem::isPathInDirectory(lowercasePath, lowercaseSaveDirectory);
 }
 
 // ------------------------------------------------------------------------------------------------
