@@ -1087,6 +1087,12 @@ static AsciiString normalizeMapPathSeparators(const AsciiString& in)
 // ------------------------------------------------------------------------------------------------
 AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& inPath) const
 {
+	// TheSuperHackers @bugfix bobtista 29/08/2026 A game info that never had a map set carries the
+	// 'nomap' placeholder. It is not a path, so pass it through instead of asserting.
+	if (inPath.find('\\') == nullptr && inPath.find('/') == nullptr)
+	{
+		return inPath;
+	}
 	AsciiString in = normalizeMapPathSeparators(inPath);
 	AsciiString prefix;
 	if (in.startsWithNoCase(getSaveDirectory()))
@@ -1125,6 +1131,12 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& inPath) c
 // ------------------------------------------------------------------------------------------------
 AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& inPath) const
 {
+	// TheSuperHackers @bugfix bobtista 29/08/2026 A game info that never had a map set carries the
+	// 'nomap' placeholder. It is not a path, so pass it through instead of asserting.
+	if (inPath.find('\\') == nullptr && inPath.find('/') == nullptr)
+	{
+		return inPath;
+	}
 	AsciiString in = normalizeMapPathSeparators(inPath);
 	AsciiString prefix;
 	// The directory where the real map path should be contained in.
