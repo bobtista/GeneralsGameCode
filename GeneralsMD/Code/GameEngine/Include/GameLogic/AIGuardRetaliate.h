@@ -128,7 +128,6 @@ public:
 	AIGuardRetaliateInnerState( StateMachine *machine ) : State( machine, "AIGuardRetaliateInner" )
 	{
 		m_attackState = 0;
-		m_subStatesRestored = FALSE;
 		m_enterState = 0;
 	}
 	virtual StateReturnType onEnter() override;
@@ -144,7 +143,6 @@ private:
 
 	GuardRetaliateExitConditions m_exitConditions;
 	AIAttackState *m_attackState;
-	Bool m_subStatesRestored;
 	AIEnterState *m_enterState;
 };
 
@@ -178,7 +176,6 @@ public:
 	AIGuardRetaliateOuterState( StateMachine *machine ) : State( machine, "AIGuardRetaliateOuter" )
 	{
 		m_attackState = nullptr;
-		m_subStatesRestored = FALSE;
 	}
 	virtual StateReturnType onEnter() override;
 	virtual StateReturnType update() override;
@@ -193,7 +190,6 @@ private:
 
 	GuardRetaliateExitConditions m_exitConditions;
 	AIAttackState *m_attackState;
-	Bool m_subStatesRestored;
 };
 
 //--------------------------------------------------------------------------------------
@@ -254,7 +250,6 @@ private:
 	AIGuardRetaliateMachine* getGuardMachine() { return (AIGuardRetaliateMachine*)getMachine(); }
 	GuardRetaliateExitConditions m_exitConditions;
 	AIAttackState *m_attackState;
-	Bool m_subStatesRestored;
 };
 
 //--------------------------------------------------------------------------------------

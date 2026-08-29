@@ -121,7 +121,6 @@ public:
 	AITNGuardInnerState( StateMachine *machine ) : State( machine, "AITNGuardInner" )
 	{
 		m_attackState = nullptr;
-		m_subStatesRestored = FALSE;
 	}
 	virtual StateReturnType onEnter() override;
 	virtual StateReturnType update() override;
@@ -137,7 +136,6 @@ private:
 	TunnelNetworkExitConditions m_exitConditions;
 	Bool			m_scanForEnemy;
 	AIAttackState *m_attackState;
-	Bool m_subStatesRestored;
 };
 
 //--------------------------------------------------------------------------------------
@@ -170,7 +168,6 @@ public:
 	AITNGuardOuterState( StateMachine *machine ) : State( machine, "AITNGuardOuter" )
 	{
 		m_attackState = nullptr;
-		m_subStatesRestored = FALSE;
 	}
 	virtual StateReturnType onEnter() override;
 	virtual StateReturnType update() override;
@@ -185,7 +182,6 @@ private:
 
 	TunnelNetworkExitConditions m_exitConditions;
 	AIAttackState *m_attackState;
-	Bool m_subStatesRestored;
 };
 
 //--------------------------------------------------------------------------------------
@@ -245,7 +241,6 @@ private:
 	AITNGuardMachine* getGuardMachine() { return (AITNGuardMachine*)getMachine(); }
 	TunnelNetworkExitConditions m_exitConditions;
 	AIAttackState *m_attackState;
-	Bool m_subStatesRestored;
 };
 
 //--------------------------------------------------------------------------------------
