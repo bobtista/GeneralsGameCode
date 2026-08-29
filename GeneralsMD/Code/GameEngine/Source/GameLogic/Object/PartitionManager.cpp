@@ -4806,7 +4806,7 @@ void PartitionManager::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() == XFER_SAVE && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 4;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 4;
 #else
 	XferVersion currentVersion = 4;
 #endif
