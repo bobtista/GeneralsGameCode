@@ -494,12 +494,13 @@ void ConnectionManager::flushForRecovery() {
 	m_rejoinFileSentMask = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
-	for (Int i = 0; i < MAX_SLOTS; ++i) {
+	Int i;
+	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_recoveryReadySeen[i] = FALSE;
 		m_recoveryReadyFrame[i] = 0;
 		m_recoveryReadyCRC[i] = 0;
 	}
-	for (Int i = 0; i < MAX_SLOTS; ++i) {
+	for (i = 0; i < MAX_SLOTS; ++i) {
 		if (m_connections[i] != nullptr) {
 			m_connections[i]->clearCommandsExceptFrom(-1);
 		}
@@ -518,11 +519,12 @@ void ConnectionManager::flushForRecovery() {
 		m_netCommandWrapperList->reset();
 	}
 	if (m_transport != nullptr) {
-		for (size_t i = 0; i < ARRAY_SIZE(m_transport->m_inBuffer); ++i) {
-			m_transport->m_inBuffer[i].length = 0;
+		size_t bufferIndex;
+		for (bufferIndex = 0; bufferIndex < ARRAY_SIZE(m_transport->m_inBuffer); ++bufferIndex) {
+			m_transport->m_inBuffer[bufferIndex].length = 0;
 		}
-		for (size_t i = 0; i < ARRAY_SIZE(m_transport->m_outBuffer); ++i) {
-			m_transport->m_outBuffer[i].length = 0;
+		for (bufferIndex = 0; bufferIndex < ARRAY_SIZE(m_transport->m_outBuffer); ++bufferIndex) {
+			m_transport->m_outBuffer[bufferIndex].length = 0;
 		}
 	}
 }
