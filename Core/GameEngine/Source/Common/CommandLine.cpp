@@ -956,14 +956,6 @@ Int parseResumeReplay(char *args[], int num)
 	return 1;
 }
 
-#if defined(RTS_DEBUG)
-Int parseDisplayDebug(char *args[], int)
-{
-	TheWritableGlobalData->m_displayDebug = TRUE;
-
-	return 1;
-}
-
 // TheSuperHackers @feature bobtista 14/08/2026 Write a save at a chosen logic frame so a save
 // and load round trip can be run without a person at the keyboard.
 Int parseSaveAtFrame(char *args[], int num)
@@ -993,6 +985,14 @@ Int parseSaveTo(char *args[], int num)
 		TheWritableGlobalData->m_saveToFile = args[1];
 	}
 	return 2;
+}
+
+#if defined(RTS_DEBUG)
+Int parseDisplayDebug(char *args[], int)
+{
+	TheWritableGlobalData->m_displayDebug = TRUE;
+
+	return 1;
 }
 
 Int parseFile(char *args[], int num)
@@ -1507,6 +1507,10 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-loadreplay", parseLoadReplay },
 	{ "-resumereplay", parseResumeReplay },
 	{ "-resumeas", parseResumeAs },
+	{ "-saveatframe", parseSaveAtFrame },
+	{ "-quitatframe", parseQuitAtFrame },
+	{ "-saveto", parseSaveTo },
+	{ "-savenormal", parseSaveNormal },
 
 	// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 	{ "-forcefullviewport", parseFullViewport },
@@ -1518,7 +1522,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-rejoinWait", parseRejoinWait },
 	{ "-autoNetworkRejoin", parseAutoNetworkRejoin },
 	{ "-rejoinSlot", parseRejoinSlot },
-	{ "-savenormal", parseSaveNormal },
 	{ "-noaudio", parseNoAudio },
 	{ "-map", parseMapName },
 	{ "-nomusic", parseNoMusic },
@@ -1611,9 +1614,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-munkee", parseMunkee },
 	{ "-displayDebug", parseDisplayDebug },
 	{ "-file", parseFile },
-	{ "-saveatframe", parseSaveAtFrame },
-	{ "-quitatframe", parseQuitAtFrame },
-	{ "-saveto", parseSaveTo },
 
 //	{ "-preload", parsePreload },
 
