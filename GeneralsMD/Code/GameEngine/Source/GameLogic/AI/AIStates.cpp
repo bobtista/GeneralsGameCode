@@ -759,6 +759,13 @@ void AIStateMachine::xfer( Xfer *xfer )
 	Int i;
 	Int count = m_goalPath.size();
 	xfer->xferInt(&count);
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Clear the goal path before loading it.
+		// The loop below only appends, so loading into a machine that already held points
+		// kept them in front of the loaded ones.
+		m_goalPath.clear();
+	}
 	for (i=0; i<count; i++) {
 		Coord3D pos;
 		if (xfer->getXferMode() != XFER_LOAD)
