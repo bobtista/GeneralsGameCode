@@ -4142,6 +4142,30 @@ void Player::xfer( Xfer *xfer )
 
 		}
 
+		//
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Rebuild the upgrade list in its saved order
+		// when loading a checkpoint. addUpgrade prepends, so reading the entries forward reversed
+		// the list on every load.
+		//
+		if( TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
+		{
+			Upgrade *reversedList = nullptr;
+			upgrade = m_upgradeList;
+			while( upgrade != nullptr )
+			{
+				Upgrade *nextUpgrade = upgrade->friend_getNext();
+				upgrade->friend_setNext( reversedList );
+				upgrade->friend_setPrev( nullptr );
+				if( reversedList != nullptr )
+				{
+					reversedList->friend_setPrev( upgrade );
+				}
+				reversedList = upgrade;
+				upgrade = nextUpgrade;
+			}
+			m_upgradeList = reversedList;
+		}
+
 	}
 
 	// radar info
