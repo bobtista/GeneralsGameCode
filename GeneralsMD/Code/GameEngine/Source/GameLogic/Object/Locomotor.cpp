@@ -743,12 +743,7 @@ void Locomotor::crc( Xfer *xfer )
 void Locomotor::xfer( Xfer *xfer )
 {
 	// version
-#if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
-#else
-	const XferVersion currentVersion = 3;
-#endif
+	const XferVersion currentVersion = 2;
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -772,16 +767,6 @@ void Locomotor::xfer( Xfer *xfer )
 	xfer->xferReal(&m_preferredHeightDamping);
 	xfer->xferReal(&m_angleOffset);
 	xfer->xferReal(&m_offsetIncrement);
-
-	if (version >= 3)
-	{
-		//
-		// TheSuperHackers @bugfix bobtista 30/08/2026 Serialize the circling altitude threshold.
-		// It came back as zero, so a restored payload plane skipped its circling behavior and
-		// drifted off the recorded flight path.
-		//
-		xfer->xferReal(&m_circleThresh);
-	}
 
 }
 
