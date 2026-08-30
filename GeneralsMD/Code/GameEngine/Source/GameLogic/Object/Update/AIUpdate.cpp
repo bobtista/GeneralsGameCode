@@ -5095,7 +5095,12 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 4;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Pin the version at runtime by purpose instead
+	// of at compile time. The compile time pin made every checkpoint drop the blocked movement
+	// state, so a vehicle that was crowd blocked at the save resumed unblocked and skipped its
+	// blocked speed scrub.
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 4 : 8;
 #else
 	const XferVersion currentVersion = 8;
 #endif
