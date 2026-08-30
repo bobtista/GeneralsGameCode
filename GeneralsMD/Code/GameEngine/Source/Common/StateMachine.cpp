@@ -833,7 +833,18 @@ void StateMachine::xfer( Xfer *xfer )
 	if (xfer->getXferMode() == XFER_LOAD)	{
 		// We are going to jump into the current state.	We don't call onEnter or onExit, because the
 		// state was already active when we saved.
-		m_currentState = internalGetState( curStateID );
+		// TheSuperHackers @bugfix bobtista 30/08/2026 A machine without a current state saves
+		// INVALID_STATE_ID. Restore that as no current state. Previously the invalid id went
+		// through internalGetState(), which asserts and falls back to the default state, so
+		// the machine resumed running a state it was not in when the game was saved.
+		if( curStateID == INVALID_STATE_ID )
+		{
+			m_currentState = nullptr;
+		}
+		else
+		{
+			m_currentState = internalGetState( curStateID );
+		}
 	}
 
 	//
