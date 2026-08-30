@@ -573,18 +573,25 @@ void TeamFactory::loadPostProcess()
 		{
 
 			team = iter.cur();
-#if RETAIL_COMPATIBLE_XFER_SAVE
-			// @todo Key this on the surrounding block version instead of the build setting:
-			// a retail-configured build loading a checkpoint would repair IDs the retail way.
-			if( team->getID() >= m_uniqueTeamID )
-				m_uniqueTeamID = team->getID() + 1;
-#else
 			// TheSuperHackers @bugfix bobtista 17/08/2026 Team allocation pre-increments this
 			// counter, so checkpoints restore the highest ID itself. Previously using highest + 1
 			// made the next runtime-created team skip an ID after load.
-			if( team->getID() > m_uniqueTeamID )
-				m_uniqueTeamID = team->getID();
-#endif
+			// TheSuperHackers @bugfix bobtista 29/08/2026 Key the repair on the loaded save's type
+			// instead of the build setting, so a retail compatible build loads checkpoints exactly.
+			if( TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
+			{
+				if( team->getID() > m_uniqueTeamID )
+				{
+					m_uniqueTeamID = team->getID();
+				}
+			}
+			else
+			{
+				if( team->getID() >= m_uniqueTeamID )
+				{
+					m_uniqueTeamID = team->getID() + 1;
+				}
+			}
 		}
 
 	}

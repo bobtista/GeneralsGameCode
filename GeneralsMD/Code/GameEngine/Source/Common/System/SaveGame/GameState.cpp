@@ -320,15 +320,15 @@ void GameState::init()
 	addSnapshotBlock( "CHUNK_TeamFactory",						TheTeamFactory,						SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_Players",								ThePlayerList,						SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_GameLogic",							TheGameLogic,							SNAPSHOT_SAVELOAD );
-#if !RETAIL_COMPATIBLE_XFER_SAVE
 	//
 	// TheSuperHackers @bugfix bobtista 16/08/2026 The AI was never written to a save at all, so the
 	// pathfind request queue and the group list came back empty or rebuilt rather than restored.
 	// It follows CHUNK_GameLogic because both hold object ids that only resolve once objects exist.
 	// A save written without this block simply never presents the token, and the load skips it.
+	// TheSuperHackers @bugfix bobtista 29/08/2026 Register the block in every build. Whether it is
+	// written is decided per save: checkpoints carry it, retail shaped saves leave it out.
 	//
 	addSnapshotBlock( "CHUNK_AI",										TheAI,										SNAPSHOT_SAVELOAD );
-#endif
 	addSnapshotBlock( "CHUNK_Radar",									TheRadar,									SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_ScriptEngine",						TheScriptEngine,					SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_SidesList",							TheSidesList,							SNAPSHOT_SAVELOAD );
@@ -1608,6 +1608,15 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 			blockName = blockInfo->blockName;
 
 			DEBUG_LOG(("Looking at block '%s'", blockName.str()));
+
+			//
+			// TheSuperHackers @bugfix bobtista 29/08/2026 The AI block only belongs in checkpoints.
+			// Retail shaped saves must not present the token, and the loader skips it when absent.
+			//
+			if( blockName.compareNoCase( "CHUNK_AI" ) == 0 && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT )
+			{
+				continue;
+			}
 
 			//
 			// for mission save files, we only save the game state block and campaign manager

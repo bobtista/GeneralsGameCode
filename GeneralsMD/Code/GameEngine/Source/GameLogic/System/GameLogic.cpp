@@ -5281,17 +5281,24 @@ void GameLogic::xfer( Xfer *xfer )
 	ObjectTOCEntry *tocEntry;
 	if( xfer->getXferMode() == XFER_SAVE )
 	{
-#if !RETAIL_COMPATIBLE_XFER_SAVE
 		// TheSuperHackers @fix bobtista 07/03/2026 Save objects in reverse order (newest first)
 		// so they load in the correct order (oldest objects at head of list).
-		Object *lastObj = nullptr;
-		for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
-			lastObj = obj;
+		// TheSuperHackers @bugfix bobtista 29/08/2026 Pick the order from the stamped version at
+		// runtime. Checkpoints carry the full version even in a retail compatible save build, so
+		// a compile time choice here wrote forward order that the version 11+ load never reverses.
+		Bool saveNewestLast = ( version >= 11 );
+		Object *startObj = getFirstObject();
+		if( saveNewestLast )
+		{
+			Object *lastObj = nullptr;
+			for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
+			{
+				lastObj = obj;
+			}
+			startObj = lastObj;
+		}
 
-		for( obj = lastObj; obj; obj = obj->getPrevObject() )
-#else
-		for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
-#endif
+		for( obj = startObj; obj; obj = saveNewestLast ? obj->getPrevObject() : obj->getNextObject() )
 		{
 
 			// get the object TOC entry for this template
