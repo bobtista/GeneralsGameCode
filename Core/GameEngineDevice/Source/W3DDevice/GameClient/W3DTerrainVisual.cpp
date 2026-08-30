@@ -1135,11 +1135,14 @@ void W3DTerrainVisual::replaceSkyboxTextures(const AsciiString *oldTexName[5], c
 }
 
 // ------------------------------------------------------------------------------------------------
-/** Terrain visual state is only partially initialized in headless mode, so it is excluded from save game data */
+/** Terrain visual state takes part in save game data in every mode. The logic height map it
+	* carries holds the terrain deformations the simulation reads back through getGroundHeight,
+	* so leaving it out of headless saves forked the terrain from the run that saved.
+	* TheSuperHackers @bugfix bobtista 30/08/2026 The purely visual parts are gated inside xfer. */
 // ------------------------------------------------------------------------------------------------
 Bool W3DTerrainVisual::isXferEnabled() const
 {
-	return TheGlobalData->m_headless == FALSE;
+	return TRUE;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1168,7 +1171,9 @@ void W3DTerrainVisual::xfer( Xfer *xfer )
 #if RTS_GENERALS && RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 2;
 #else
-	XferVersion currentVersion = 3;
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Version 4 gates the terrain render snapshot
+	// behind a written flag, so headless saves can carry the logic height map without it.
+	XferVersion currentVersion = 4;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -1234,14 +1239,21 @@ void W3DTerrainVisual::xfer( Xfer *xfer )
 			}
 		}
 		xfer->xferUser(data, len);
-		if (xfer->getXferMode() == XFER_LOAD)
+		if (xfer->getXferMode() == XFER_LOAD && TheGlobalData->m_headless == FALSE)
     {
 			// Update the display height map.
 			m_terrainRenderObject->staticLightingChanged();
 		}
 	}
 
-	if (version >= 3) {
+	if (version >= 4) {
+		Bool hasRenderSnapshot = (TheGlobalData->m_headless == FALSE && m_terrainRenderObject != nullptr);
+		xfer->xferBool(&hasRenderSnapshot);
+		if (hasRenderSnapshot) {
+			xfer->xferSnapshot(m_terrainRenderObject);
+		}
+	}
+	else if (version >= 3) {
 		xfer->xferSnapshot(m_terrainRenderObject);
 	}
 
