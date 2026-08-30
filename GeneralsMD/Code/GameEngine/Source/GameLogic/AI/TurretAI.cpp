@@ -345,7 +345,16 @@ void TurretAI::crc( Xfer *xfer )
 void TurretAI::xfer( Xfer *xfer )
 {
   // version
-  const XferVersion currentVersion = 2;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the force attacking flag in checkpoints.
+	// It was never serialized, so a turret aiming under a force attack order came back with the
+	// flag cleared, failed the continued attack test on the first frame after a load, and dropped
+	// from aim to hold while the live run kept aiming. Checkpoints pin the new version at runtime
+	// by purpose; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+#else
+	const XferVersion currentVersion = 3;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -376,6 +385,13 @@ void TurretAI::xfer( Xfer *xfer )
 
 	if (version >= 2)
 		xfer->xferUnsignedInt(&m_sleepUntil);
+
+	if (version >= 3)
+	{
+		Bool isForceAttacking = m_isForceAttacking;
+		xfer->xferBool(&isForceAttacking);
+		m_isForceAttacking = isForceAttacking;
+	}
 
 }
 
