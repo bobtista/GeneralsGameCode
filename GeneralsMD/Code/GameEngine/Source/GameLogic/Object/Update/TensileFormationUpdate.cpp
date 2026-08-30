@@ -445,13 +445,21 @@ void TensileFormationUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 30/08/2026 Serialize the formation state. Without it a
+	*    loaded module re-ran initLinks() on its first wake, and its logic random draw for the
+	*    orientation shifted the whole random stream against the run that saved. */
 // ------------------------------------------------------------------------------------------------
 void TensileFormationUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -460,6 +468,20 @@ void TensileFormationUpdate::xfer( Xfer *xfer )
 
 	// enabled
 	xfer->xferBool( &m_enabled );
+
+	if( version >= 2 )
+	{
+		xfer->xferBool( &m_linksInited );
+		for( Int t = 0; t < ARRAY_SIZE( m_links ); ++t )
+		{
+			xfer->xferObjectID( &m_links[ t ].id );
+			xfer->xferCoord3D( &m_links[ t ].tensor );
+		}
+		xfer->xferCoord3D( &m_inertia );
+		xfer->xferUnsignedInt( &m_motionlessCounter );
+		xfer->xferUnsignedInt( &m_life );
+		xfer->xferReal( &m_lowestSlideElevation );
+	}
 
 }
 
