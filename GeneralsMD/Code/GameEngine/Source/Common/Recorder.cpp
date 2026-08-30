@@ -1290,6 +1290,19 @@ Bool RecorderClass::resumePlayback( AsciiString filename, UnsignedInt frame )
 	m_mode = RECORDERMODETYPE_PLAYBACK;
 	m_currentReplayFilename = filename;
 	m_playbackFrameCount = header.frameCount;
+
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Give the resumed playback the recording
+	// player's viewpoint. The loaded checkpoint falls back to the first human slot as the
+	// local player, which can differ from the replay's local player and diverges client
+	// only state such as decals that are visible to the owning player alone.
+	//
+	Player *localPlayer = ThePlayerList->getPlayerFromSlotIndex( header.localPlayerIndex );
+	if( localPlayer != nullptr )
+	{
+		ThePlayerList->setLocalPlayer( localPlayer );
+	}
+
 	DEBUG_LOG(("RecorderClass::resumePlayback - resumed '%s' at frame %u, next command frame %u",
 		filename.str(), frame, m_nextFrame));
 	return TRUE;
