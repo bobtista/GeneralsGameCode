@@ -1277,33 +1277,34 @@ protected:
 	// TheSuperHackers @bugfix bobtista 22/08/2026 Chain the base class snapshot. This override
 	// dropped AIFaceState's xfer, losing the turn-in-place flag captured on state enter, so a
 	// jet loaded while pausing before takeoff drove toward the runway end instead of turning.
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Pin the version at runtime by purpose instead
+	// of at compile time, and chain the base class after the version field so the reader can
+	// decide from the stream. The compile time pin left checkpoints without the base class data.
 	//
 	virtual void xfer( Xfer *xfer ) override
 	{
-#if !RETAIL_COMPATIBLE_XFER_SAVE
-		// extend base class
-		AIFaceState::xfer( xfer );
-#endif
-
 		// version
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-		XferVersion currentVersion = 1;
+		XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 		XferVersion currentVersion = 2;
 #endif
 		XferVersion version = currentVersion;
 		xfer->xferVersion( &version, currentVersion );
 
+		if (version >= 2)
+		{
+			// extend base class
+			AIFaceState::xfer( xfer );
+		}
+
 		// set on create. xfer->xferBool(&m_landing);
 		xfer->xferUnsignedInt(&m_whenTakeoff);
 		xfer->xferUnsignedInt(&m_whenTransfer);
 
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-		if (version <= 1)
-		{
-			xfer->xferBool(&m_afterburners);
-			xfer->xferBool(&m_resetTimer);
-		}
+		xfer->xferBool(&m_afterburners);
+		xfer->xferBool(&m_resetTimer);
 #else
 		if (version <= 1)
 		{
