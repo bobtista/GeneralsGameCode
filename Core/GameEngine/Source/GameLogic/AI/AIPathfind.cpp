@@ -11872,6 +11872,27 @@ void Pathfinder::xfer( Xfer *xfer )
 		}
 	}
 
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Recompute the logical extent on load.
+	// It is derived state that only processPathfindQueue refreshes, and the AI updates of
+	// the first loaded frame run before that refresh. With the reset value of zero every
+	// destination adjustment for a human owned unit failed its logical extent check and
+	// fell back to snapping the raw goal, so the first move order after a load sent units
+	// to different spots than the same order in an uninterrupted run.
+	//
+	if( xfer->getXferMode() == XFER_LOAD )
+	{
+		Region3D terrainExtent;
+		TheTerrainLogic->getExtent( &terrainExtent );
+		IRegion2D bounds;
+		bounds.lo.x = REAL_TO_INT_FLOOR(terrainExtent.lo.x / PATHFIND_CELL_SIZE_F);
+		bounds.hi.x = REAL_TO_INT_FLOOR(terrainExtent.hi.x / PATHFIND_CELL_SIZE_F);
+		bounds.lo.y = REAL_TO_INT_FLOOR(terrainExtent.lo.y / PATHFIND_CELL_SIZE_F);
+		bounds.hi.y = REAL_TO_INT_FLOOR(terrainExtent.hi.y / PATHFIND_CELL_SIZE_F);
+		bounds.hi.x--;
+		bounds.hi.y--;
+		m_logicalExtent = bounds;
+	}
 }
 
 //-----------------------------------------------------------------------------
