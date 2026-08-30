@@ -32,6 +32,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 #define DEFINE_SLOWDEATHPHASE_NAMES
 
+#include "Common/GameState.h"
 #include "Common/GlobalData.h"
 #include "Common/Thing.h"
 #include "Common/ThingFactory.h"
@@ -124,6 +125,16 @@ GenerateMinefieldBehavior::~GenerateMinefieldBehavior()
 //-------------------------------------------------------------------------------------------------
 void GenerateMinefieldBehavior::upgradeImplementation()
 {
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Do not place mines while a save is loading.
+	// Wiring the object's team during load re-evaluates its upgrades and fired this before the
+	// module's own state was restored, so a loaded game gained a duplicate set of mines next
+	// to the restored ones.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
 	placeMines();
 }
 
