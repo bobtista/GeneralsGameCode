@@ -409,7 +409,12 @@ void DeliverPayloadAIUpdate::crc( Xfer *xfer )
 void DeliverPayloadAIUpdate::xfer( Xfer *xfer )
 {
   // version
-  const XferVersion currentVersion = 5;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 5 : 6;
+#else
+	const XferVersion currentVersion = 6;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -485,6 +490,19 @@ void DeliverPayloadAIUpdate::xfer( Xfer *xfer )
 		xfer->xferReal(&m_previousDistanceSqr);
 	}
 
+	if (version >= 6)
+	{
+		//
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Serialize the delivery settings copied out of
+		// the payload data at mission start. They came back as construction defaults, so a restored
+		// plane flew its approach with a zero turnaround distance and drifted off the recorded
+		// flight path.
+		//
+		xfer->xferUnsignedInt(&m_doorDelay);
+		xfer->xferReal(&m_maxDistanceToTarget);
+		xfer->xferInt(&m_maxNumberAttempts);
+		xfer->xferAsciiString(&m_putInContainerName);
+	}
 
 }
 
