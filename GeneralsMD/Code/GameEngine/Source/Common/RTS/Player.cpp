@@ -1037,7 +1037,13 @@ void Player::becomingTeamMember(Object *obj, Bool yes)
 		}
 	}
 
-	if( getNumBattlePlansActive() > 0 && obj->areModulesReady() )
+	//
+	// TheSuperHackers @bugfix bobtista 29/08/2026 Do not touch the battle plan bonuses while a
+	// save is loading. The restored object state already carries them, and the team wiring the
+	// load performs re-fired this hook, stacking the sight bonus onto the restored values.
+	//
+	if( getNumBattlePlansActive() > 0 && obj->areModulesReady() &&
+			( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE ) )
 	{
 		if( yes )
 		{
