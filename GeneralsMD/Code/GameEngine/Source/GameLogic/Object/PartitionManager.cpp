@@ -4886,6 +4886,14 @@ void PartitionManager::xfer( Xfer *xfer )
 			// until loadPostProcess, but I ain't gonna change it now.
 //			DEBUG_ASSERTCRASH(m_pendingUndoShroudReveals.empty(), ("At load, we appear to not be in a reset state.") );
 
+			//
+			// TheSuperHackers @bugfix bobtista 29/08/2026 Drop the unlooks the load itself queued
+			// before restoring the saved queue. The restored cells never re-applied the reveals
+			// those entries would undo, and their later deadlines sit at the front of the FIFO,
+			// blocking every restored unlook behind them past its due frame.
+			//
+			resetPendingUndoShroudRevealQueue();
+
 			// I have to split this up though, since on Load I need to make new instances.
 			for( Int infoIndex = 0; infoIndex < queueSize; infoIndex++ )
 			{
