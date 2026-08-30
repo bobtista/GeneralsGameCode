@@ -4131,9 +4131,9 @@ void Object::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 10;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 11;
 #else
-	const XferVersion currentVersion = 10;
+	const XferVersion currentVersion = 11;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -4572,6 +4572,22 @@ void Object::xfer( Xfer *xfer )
 	}
 	else
 		m_isReceivingDifficultyBonus = FALSE;
+
+	if( version >= 11 )
+	{
+		//
+		// TheSuperHackers @bugfix bobtista 29/08/2026 Record whether the object was registered with
+		// the partition manager. Off map objects such as payload delivery planes are removed from
+		// it until they re-enter, but the load registers every restored object, so they came back
+		// with a phantom partition module that forked the partition state from the run that saved.
+		//
+		Bool partitionRegistered = ( m_partitionData != nullptr );
+		xfer->xferBool( &partitionRegistered );
+		if( xfer->getXferMode() == XFER_LOAD && !partitionRegistered && m_partitionData != nullptr )
+		{
+			ThePartitionManager->unRegisterObject( this );
+		}
+	}
 
 }
 
