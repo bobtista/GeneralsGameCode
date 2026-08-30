@@ -5063,7 +5063,10 @@ void Drawable::xfer( Xfer *xfer )
 	{
 		UnsignedInt timeElapsedFadeFrames = static_cast<UnsignedInt>(m_timeElapsedFade);
 		xfer->xferUnsignedInt( &timeElapsedFadeFrames );
-		m_timeElapsedFade = static_cast<Real>(timeElapsedFadeFrames);
+		if (xfer->getXferMode() == XFER_LOAD)
+		{
+			m_timeElapsedFade = static_cast<Real>(timeElapsedFadeFrames);
+		}
 	}
 
 	// time to fade
