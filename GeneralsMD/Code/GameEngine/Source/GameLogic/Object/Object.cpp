@@ -2676,6 +2676,19 @@ void Object::setTriggerAreaFlagsForChangeInPosition()
 	if (isKindOf(KINDOF_PROJECTILE) || isKindOf(KINDOF_INERT))
 		return;
 
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Do not evaluate trigger areas while a
+	// checkpoint is loading. Restoring the position ran this scan with empty trigger info, so
+	// every object inside an area raised a phantom entered event and set its team's entered or
+	// exited flag, which script conditions then consumed on the first resumed frame. The saved
+	// trigger state is restored by Object::xfer instead.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() &&
+			TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
+	{
+		return;
+	}
+
 	ICoord3D iPos;
 	Coord3D pos = *getPosition();
 	iPos.x = REAL_TO_INT(pos.x);
@@ -4131,9 +4144,9 @@ void Object::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 11;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 12;
 #else
-	const XferVersion currentVersion = 11;
+	const XferVersion currentVersion = 12;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -4586,6 +4599,56 @@ void Object::xfer( Xfer *xfer )
 		if( xfer->getXferMode() == XFER_LOAD && !partitionRegistered && m_partitionData != nullptr )
 		{
 			ThePartitionManager->unRegisterObject( this );
+		}
+	}
+
+	if( version >= 12 )
+	{
+		//
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Serialize the trigger area state. Without
+		// it a loaded object raised phantom entered events for every area it stood in, and the
+		// script conditions that watch those flags fired on the first resumed frame.
+		//
+		xfer->xferUnsignedInt( &m_enteredOrExitedFrame );
+		xfer->xferUser( &m_iPos, sizeof( m_iPos ) );
+		UnsignedByte activeCount = (UnsignedByte)m_numTriggerAreasActive;
+		xfer->xferUnsignedByte( &activeCount );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_numTriggerAreasActive = activeCount;
+		}
+		for( Int t = 0; t < m_numTriggerAreasActive; ++t )
+		{
+			Int triggerIndex = -1;
+			if( xfer->getXferMode() == XFER_SAVE )
+			{
+				Int walkIndex = 0;
+				for( const PolygonTrigger *pTrig = PolygonTrigger::getFirstPolygonTrigger(); pTrig; pTrig = pTrig->getNext(), ++walkIndex )
+				{
+					if( pTrig == m_triggerInfo[ t ].pTrigger )
+					{
+						triggerIndex = walkIndex;
+						break;
+					}
+				}
+			}
+			xfer->xferInt( &triggerIndex );
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				m_triggerInfo[ t ].pTrigger = nullptr;
+				Int walkIndex = 0;
+				for( const PolygonTrigger *pTrig = PolygonTrigger::getFirstPolygonTrigger(); pTrig; pTrig = pTrig->getNext(), ++walkIndex )
+				{
+					if( walkIndex == triggerIndex )
+					{
+						m_triggerInfo[ t ].pTrigger = pTrig;
+						break;
+					}
+				}
+			}
+			xfer->xferByte( &m_triggerInfo[ t ].entered );
+			xfer->xferByte( &m_triggerInfo[ t ].exited );
+			xfer->xferByte( &m_triggerInfo[ t ].isInside );
 		}
 	}
 
