@@ -2331,11 +2331,14 @@ void PartitionData::friend_restoreDirty(UnsignedByte status)
 	{
 		return;
 	}
-	if (!ThePartitionManager->isInListDirtyModules(this))
+	// TheSuperHackers @bugfix bobtista 29/08/2026 Set the status before linking into the dirty
+	// list. Prepending checks the status, so the old order tripped its dirty flag invariant.
+	Bool wasInList = ThePartitionManager->isInListDirtyModules(this);
+	m_dirtyStatus = (DirtyStatus)status;
+	if (!wasInList)
 	{
 		ThePartitionManager->prependToDirtyModules(this);
 	}
-	m_dirtyStatus = (DirtyStatus)status;
 }
 
 //-----------------------------------------------------------------------------
