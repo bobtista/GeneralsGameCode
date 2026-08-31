@@ -629,6 +629,26 @@ void PropagandaTowerBehavior::xfer( Xfer *xfer )
 
 		}
 
+		//
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Restore the inside list in its saved order
+		// for checkpoints. The load loop above prepends, so every load reversed the list and the
+		// tower applied its effect to the same units in the opposite order until the next scan
+		// rebuilt it, which diverged a resumed replay from the uninterrupted run.
+		//
+		if( TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
+		{
+			ObjectTracker *reversedList = nullptr;
+			trackerEntry = m_insideList;
+			while( trackerEntry != nullptr )
+			{
+				ObjectTracker *next = trackerEntry->next;
+				trackerEntry->next = reversedList;
+				reversedList = trackerEntry;
+				trackerEntry = next;
+			}
+			m_insideList = reversedList;
+		}
+
 	}
 
 }
