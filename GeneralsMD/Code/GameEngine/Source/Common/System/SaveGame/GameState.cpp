@@ -684,6 +684,16 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 	// open the save file
 	XferLoad xferLoad;
+
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Mirror the save side purpose on load. A
+	// checkpoint stream can gate fields on the purpose when no version field is available, so the
+	// loader must present the same purpose the writer used.
+	//
+	if( gameInfo.saveGameInfo.saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
+	{
+		xferLoad.setPurpose( XFER_PURPOSE_CHECKPOINT );
+	}
 	xferLoad.open( filepath );
 
 	// clear out the game engine
