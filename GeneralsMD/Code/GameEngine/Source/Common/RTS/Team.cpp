@@ -1269,9 +1269,19 @@ void TeamPrototype::xfer( Xfer *xfer )
 		//
 		// The script itself is duplicated lazily on the first evaluation, so on load the value is
 		// staged here and applied by evaluateProductionCondition once that duplicate exists.
+		// TheSuperHackers @bugfix bobtista 30/08/2026 A save taken before the first evaluation
+		// writes the staged value instead of zero, so a checkpoint of a loaded game no longer
+		// loses the pending evaluation frame.
 		//
-		UnsignedInt productionConditionFrame = m_productionConditionScript
-			? m_productionConditionScript->getFrameToEvaluate() : 0;
+		UnsignedInt productionConditionFrame = 0;
+		if( m_productionConditionScript )
+		{
+			productionConditionFrame = m_productionConditionScript->getFrameToEvaluate();
+		}
+		else if( m_hasCheckpointProductionConditionFrame )
+		{
+			productionConditionFrame = m_checkpointProductionConditionFrame;
+		}
 		xfer->xferUnsignedInt( &productionConditionFrame );
 		if( xfer->getXferMode() == XFER_LOAD )
 		{
