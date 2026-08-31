@@ -31,6 +31,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #define DEFINE_OBJECT_STATUS_NAMES
+#include "Common/GameState.h"
 #include "Common/Player.h"
 #include "Common/Upgrade.h"
 #include "Common/Xfer.h"
@@ -81,6 +82,17 @@ GrantUpgradeCreate::~GrantUpgradeCreate()
 //-------------------------------------------------------------------------------------------------
 void GrantUpgradeCreate::onCreate()
 {
+
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Do not grant during a load. Objects are
+	// re-created before their status bits are restored, so a building that was still under
+	// construction in the live game looked finished here and granted its upgrade early. The
+	// loaded player and object state already carry whatever was truly granted.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
 
 	ObjectStatusMaskType exemptStatus = getGrantUpgradeCreateModuleData()->m_exemptStatus;
 	ObjectStatusMaskType currentStatus = getObject()->getStatusBits();
