@@ -3300,6 +3300,18 @@ static void doPowerDisable( Object *obj, void *userData )
 //-------------------------------------------------------------------------------------------------
 void Player::onPowerBrownOutChange( Bool brownOut )
 {
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Ignore power supply edges while a save is
+	// loading. Energy totals are reconstructed one building at a time during the load, and the
+	// transient shortfalls paused and unpaused every special power, leaving pause bookkeeping
+	// and radar state behind that the uninterrupted game never wrote. The radar restriction,
+	// disabled masks and pause counts are all restored from the save stream directly.
+	//
+	if( TheGameState != NULL && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
+
 	// Everything that changes due to Player's power supply goes in here.
 	if( brownOut )
 		disableRadar();
