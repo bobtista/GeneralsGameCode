@@ -5152,12 +5152,12 @@ void PartitionManager::finishLoadPostProcess()
 	//
 	typedef std::map< ObjectID, std::vector<PartitionCell*> > SavedCoverageMap;
 	SavedCoverageMap savedCoverage;
-	for (Int i = 0; i < m_totalCellCount; ++i)
+	for (Int cellIndex = 0; cellIndex < m_totalCellCount; ++cellIndex)
 	{
-		const std::vector<ObjectID> &order = m_checkpointCellObjectOrder[i];
+		const std::vector<ObjectID> &order = m_checkpointCellObjectOrder[cellIndex];
 		for (std::vector<ObjectID>::const_iterator id = order.begin(); id != order.end(); ++id)
 		{
-			savedCoverage[*id].push_back(&m_cells[i]);
+			savedCoverage[*id].push_back(&m_cells[cellIndex]);
 		}
 	}
 	for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
