@@ -637,7 +637,12 @@ void MinefieldBehavior::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -687,6 +692,26 @@ void MinefieldBehavior::xfer( Xfer *xfer )
 
 	if( xfer->getXferMode() == XFER_LOAD )
 		m_detonators.clear();
+
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the detonator list in checkpoints. It was
+	// cleared on load, so a unit standing on the mine at the save re-triggered a virtual mine
+	// detonation on the first resumed frame, which the uninterrupted run does not do.
+	//
+	if( version >= 2 )
+	{
+		UnsignedShort detonatorCount = (UnsignedShort)m_detonators.size();
+		xfer->xferUnsignedShort( &detonatorCount );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_detonators.resize( detonatorCount );
+		}
+		for( UnsignedShort i = 0; i < detonatorCount; ++i )
+		{
+			xfer->xferObjectID( &m_detonators[ i ].id );
+			xfer->xferCoord3D( &m_detonators[ i ].where );
+		}
+	}
 
 }
 
