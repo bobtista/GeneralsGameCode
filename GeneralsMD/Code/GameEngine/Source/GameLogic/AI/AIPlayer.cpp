@@ -3329,9 +3329,9 @@ void AIPlayer::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 3;
 #else
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -3497,6 +3497,13 @@ void AIPlayer::xfer( Xfer *xfer )
 	{
 		xfer->xferCoord3D( &m_repairDozerOrigin );
 		xfer->xferUnsignedInt( &m_supplySourceAttackCheckFrame );
+	}
+
+	if( version >= 3 )
+	{
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the attacked supply center in
+		// checkpoints so guardSupplyCenter defends the same one after a load.
+		xfer->xferObjectID( &m_attackedSupplyCenter );
 	}
 
 }
