@@ -172,6 +172,7 @@ TeamFactory::TeamFactory()
 
 	m_uniqueTeamPrototypeID = TEAM_PROTOTYPE_ID_INVALID;
 	m_uniqueTeamID = TEAM_ID_INVALID;
+	m_xferUniqueTeamID = TEAM_ID_INVALID;
 
 }
 
@@ -192,6 +193,7 @@ void TeamFactory::reset()
 {
 	m_uniqueTeamPrototypeID = TEAM_PROTOTYPE_ID_INVALID;
 	m_uniqueTeamID = TEAM_ID_INVALID;
+	m_xferUniqueTeamID = TEAM_ID_INVALID;
 	clear();
 }
 
@@ -440,6 +442,16 @@ void TeamFactory::xfer( Xfer *xfer )
 	// unique team ID counter
 	xfer->xferUser( &m_uniqueTeamID, sizeof( TeamID ) );
 
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Remember the serialized allocator value.
+	// Loading the team instances below bumps the live counter for every team it has to
+	// create, so loadPostProcess reapplies this stashed value for checkpoints.
+	//
+	if( xfer->getXferMode() == XFER_LOAD )
+	{
+		m_xferUniqueTeamID = m_uniqueTeamID;
+	}
+
 	// how many team prototypes of data do we have to write
 	UnsignedShort prototypeCount = m_prototypes.size();
 	xfer->xferUnsignedShort( &prototypeCount );
@@ -552,8 +564,23 @@ fclose( fp );
 // ------------------------------------------------------------------------
 void TeamFactory::loadPostProcess()
 {
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Checkpoints reapply the serialized allocator
+	// value instead of rebuilding it from the surviving teams. The counter never goes backwards
+	// in a running game, so when the most recently allocated teams were destroyed before the
+	// save, a rebuild from the survivors handed those IDs out a second time after the load.
+	//
+	const Bool keepSerializedTeamID = TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT;
+	if( keepSerializedTeamID )
+	{
+		m_uniqueTeamID = m_xferUniqueTeamID;
+	}
+	else
+	{
+		m_uniqueTeamID = 0;
+	}
+
 	// rebuild the unique team and prototype ID allocators from the restored instances
-	m_uniqueTeamID = 0;
 	m_uniqueTeamPrototypeID = 0;
 	TeamPrototypeMap::iterator prototypeIt;
 	TeamPrototype *prototype;
@@ -573,19 +600,7 @@ void TeamFactory::loadPostProcess()
 		{
 
 			team = iter.cur();
-			// TheSuperHackers @bugfix bobtista 17/08/2026 Team allocation pre-increments this
-			// counter, so checkpoints restore the highest ID itself. Previously using highest + 1
-			// made the next runtime-created team skip an ID after load.
-			// TheSuperHackers @bugfix bobtista 29/08/2026 Key the repair on the loaded save's type
-			// instead of the build setting, so a retail compatible build loads checkpoints exactly.
-			if( TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
-			{
-				if( team->getID() > m_uniqueTeamID )
-				{
-					m_uniqueTeamID = team->getID();
-				}
-			}
-			else
+			if( !keepSerializedTeamID )
 			{
 				if( team->getID() >= m_uniqueTeamID )
 				{
