@@ -5100,9 +5100,9 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 	// of at compile time. The compile time pin made every checkpoint drop the blocked movement
 	// state, so a vehicle that was crowd blocked at the save resumed unblocked and skipped its
 	// blocked speed scrub.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 4 : 8;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 4 : 9;
 #else
-	const XferVersion currentVersion = 8;
+	const XferVersion currentVersion = 9;
 #endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
@@ -5218,6 +5218,17 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 		xfer->xferReal(&m_bumpSpeedLimit);
 		xfer->xferBool(&m_isBlocked);
 		xfer->xferBool(&m_isBlockedAndStuck);
+	}
+
+	if (version >= 9)
+	{
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the remaining behavior state the xfer
+		// audit flagged: a pending path retry, the guard mode, the goal path progress index, and
+		// the scratch value the column mover assignment consumes from the pathfind queue.
+		xfer->xferBool(&m_retryPath);
+		xfer->xferUser(&m_guardMode, sizeof(m_guardMode));
+		xfer->xferInt(&m_nextGoalPathIndex);
+		xfer->xferInt(&m_tmpInt);
 	}
 
 	// Not needed - jba.

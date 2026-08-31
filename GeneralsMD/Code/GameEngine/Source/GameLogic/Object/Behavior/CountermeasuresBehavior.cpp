@@ -380,7 +380,12 @@ void CountermeasuresBehavior::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 2;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+#else
+	XferVersion currentVersion = 3;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -399,6 +404,13 @@ void CountermeasuresBehavior::xfer( Xfer *xfer )
 		xfer->xferUnsignedInt( &m_incomingMissiles );
 		xfer->xferUnsignedInt( &m_reactionFrame );
 		xfer->xferUnsignedInt( &m_nextVolleyFrame );
+	}
+
+	if( version >= 3 )
+	{
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the auto reload frame in checkpoints,
+		// so a mid reload aircraft resumes its countdown instead of restarting it.
+		xfer->xferUnsignedInt( &m_reloadFrame );
 	}
 
 }
