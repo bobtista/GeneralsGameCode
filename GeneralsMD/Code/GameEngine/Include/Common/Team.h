@@ -740,6 +740,7 @@ private:
 	TeamPrototypeMap m_prototypes;
 	TeamPrototypeID m_uniqueTeamPrototypeID;		///< used to assign unique ids to each team prototype
 	TeamID m_uniqueTeamID;											///< used to assign unique team ids to each team instance
+	TeamID m_xferUniqueTeamID;									///< allocator value read from the save stream, reapplied after load
 
 };
 
