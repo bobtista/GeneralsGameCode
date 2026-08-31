@@ -10358,7 +10358,14 @@ void Pathfinder::removeGoal( Object *obj)
 		return;
 	}
 	ICoord2D cellNdx;
-	ai->setPathfindGoalCell(newCell);
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Keep the serialized pathfind goal cell while a
+	// save is loading, for the same reason removePos keeps the position cell.
+	//
+	if( TheGameState == nullptr || !TheGameState->isInLoadGame() )
+	{
+		ai->setPathfindGoalCell(newCell);
+	}
 	Int i,j;
 	if (goalCell.x>=0 && goalCell.y>=0) {
 		for (i=goalCell.x-radius; i<goalCell.x+numCellsAbove; i++) {
@@ -10522,7 +10529,17 @@ void Pathfinder::removePos( Object *obj)
 
 	ICoord2D newCell;
 	newCell.x = newCell.y = -1;
-	ai->setCurPathfindCell(newCell);
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Keep the serialized pathfind cell while a save
+	// is loading. Restoring a contained unit removes it from the pathfind map, and that wipe also
+	// cleared the cell coordinate the save stream had already restored. The grid itself is healed
+	// afterwards, by the checkpoint cell snapshot or the legacy post load rebuild, so only the
+	// per unit coordinate was lost.
+	//
+	if( TheGameState == nullptr || !TheGameState->isInLoadGame() )
+	{
+		ai->setCurPathfindCell(newCell);
+	}
 
 	Int i,j;
 	ICoord2D cellNdx;
