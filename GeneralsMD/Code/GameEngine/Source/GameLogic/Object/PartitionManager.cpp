@@ -49,6 +49,8 @@
 //-----------------------------------------------------------------------------
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include <map>
+
 #include "Common/ActionManager.h"
 #include "Common/DiscreteCircle.h"
 #include "Common/GameEngine.h"
@@ -1796,6 +1798,48 @@ void PartitionData::removeAllTouchedCells()
 		}
 	}
 	DEBUG_ASSERTCRASH(m_coiInUseCount == 0, ("hmm, coi count mismatch"));
+}
+
+// -----------------------------------------------------------------------------
+void PartitionData::friend_restoreCheckpointCoverage( PartitionCell * const *cells, Int cellCount )
+{
+	if( m_coiInUseCount == cellCount )
+	{
+		Bool same = true;
+		for( Int i = 0; i < cellCount; ++i )
+		{
+			Bool found = false;
+			for( Int j = 0; j < m_coiArrayCount; ++j )
+			{
+				if( m_coiArray[j].getModule() == this && m_coiArray[j].getCell() == cells[i] )
+				{
+					found = true;
+					break;
+				}
+			}
+			if( !found )
+			{
+				same = false;
+				break;
+			}
+		}
+		if( same )
+		{
+			return;
+		}
+	}
+
+	if( cellCount > m_coiArrayCount )
+	{
+		DEBUG_CRASH(("PartitionData::friend_restoreCheckpointCoverage - saved coverage of %d cells exceeds the %d allocated cois", cellCount, m_coiArrayCount));
+		return;
+	}
+
+	removeAllTouchedCells();
+	for( Int i = 0; i < cellCount; ++i )
+	{
+		addSubPixToCoverage( cells[i] );
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -5095,6 +5139,43 @@ void PartitionManager::finishLoadPostProcess()
 			(UnsignedInt)m_checkpointCellObjectOrder.size(), m_totalCellCount));
 		m_checkpointCellObjectOrder.clear();
 		return;
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Rebuild every object's cell coverage from the
+	// saved membership before restoring the per cell order. The load recomputes coverage from
+	// current positions, but an object that moved after the frame's last collision sweep was
+	// saved with the coverage of its older position, and the order restore below cannot repair
+	// a cell whose membership differs. The restored dirty list already owes such an object a
+	// cell update, so the first resumed sweep recomputes the same coverage the uninterrupted
+	// run would.
+	//
+	typedef std::map< ObjectID, std::vector<PartitionCell*> > SavedCoverageMap;
+	SavedCoverageMap savedCoverage;
+	for (Int i = 0; i < m_totalCellCount; ++i)
+	{
+		const std::vector<ObjectID> &order = m_checkpointCellObjectOrder[i];
+		for (std::vector<ObjectID>::const_iterator id = order.begin(); id != order.end(); ++id)
+		{
+			savedCoverage[*id].push_back(&m_cells[i]);
+		}
+	}
+	for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
+	{
+		PartitionData *pd = obj->friend_getPartitionData();
+		if (pd == nullptr)
+		{
+			continue;
+		}
+		SavedCoverageMap::const_iterator it = savedCoverage.find(obj->getID());
+		if (it != savedCoverage.end())
+		{
+			pd->friend_restoreCheckpointCoverage(&it->second[0], (Int)it->second.size());
+		}
+		else
+		{
+			pd->friend_restoreCheckpointCoverage(nullptr, 0);
+		}
 	}
 
 	for (Int i = 0; i < m_totalCellCount; ++i)
