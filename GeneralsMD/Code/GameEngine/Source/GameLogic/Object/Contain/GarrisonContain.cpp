@@ -782,6 +782,17 @@ void GarrisonContain::trackTargets()
 // ------------------------------------------------------------------------------------------------
 void GarrisonContain::redeployOccupants()
 {
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Do not redeploy during a load. The transform and
+	// model condition churn of reconstruction triggers redeploys that reset and re-derive the fire
+	// point cursors and matrices the save already restored, so a garrisoned building resumed with a
+	// different next fire point than the uninterrupted run.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
+
 	GarrisonPointData garrisonPointDataCopy[ MAX_GARRISON_POINTS ];
 	Int i;
 
