@@ -238,13 +238,21 @@ void SpyVisionUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 3: TheSuperHackers @bugfix bobtista 01/09/2026 Carry the upgrade mux state. Losing the
+	*    executed flag let the next player upgrade event re-run the spy vision activation,
+	*    stacking spied vision refcounts and restarting the self powered cycle out of phase. */
 // ------------------------------------------------------------------------------------------------
 void SpyVisionUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 2;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+#else
+	XferVersion currentVersion = 3;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -260,6 +268,11 @@ void SpyVisionUpdate::xfer( Xfer *xfer )
 	{
 		xfer->xferBool( &m_resetTimersNextUpdate );
 		xfer->xferUnsignedInt( &m_disabledUntilFrame );
+	}
+
+	if( version >= 3 )
+	{
+		upgradeMuxXfer( xfer );
 	}
 
 }
