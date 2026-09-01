@@ -1070,6 +1070,7 @@ void SpawnBehavior::crc( Xfer *xfer )
 	* 1: Initial version
 	* 2: Added m_initialBurstTimesInited to the save. jba.
 	* 3: TheSuperHackers @bugfix Stubbjax 16/02/2026 Added m_initialBurstCountdown.
+	* 4: TheSuperHackers @bugfix bobtista 01/09/2026 Added the spawn template cursor.
 */
 // ------------------------------------------------------------------------------------------------
 void SpawnBehavior::xfer( Xfer *xfer )
@@ -1079,9 +1080,9 @@ void SpawnBehavior::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 4;
 #else
-	XferVersion currentVersion = 3;
+	XferVersion currentVersion = 4;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -1149,6 +1150,33 @@ void SpawnBehavior::xfer( Xfer *xfer )
 
 	// self tasking spawn count
 	xfer->xferUnsignedInt( &m_selfTaskingSpawnCount );
+
+	if( version >= 4 )
+	{
+		//
+		// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the round robin cursor over the spawn
+		// template list. It alone decides which template the next spawn uses, because the spawn
+		// path overwrites m_spawnTemplate from it, and it restarted at the first entry after a
+		// load. A mob part way through its list then spawned a duplicate member where the
+		// uninterrupted game spawned the next one.
+		//
+		const SpawnBehaviorModuleData *md = getSpawnBehaviorModuleData();
+		const Int templateCount = (Int)md->m_spawnTemplateNameData.size();
+		Int templateIndex = 0;
+		if( xfer->getXferMode() != XFER_LOAD && templateCount > 0 )
+		{
+			templateIndex = (Int)(m_templateNameIterator - md->m_spawnTemplateNameData.begin());
+		}
+		xfer->xferInt( &templateIndex );
+		if( xfer->getXferMode() == XFER_LOAD && templateCount > 0 )
+		{
+			if( templateIndex < 0 || templateIndex >= templateCount )
+			{
+				templateIndex = 0;
+			}
+			m_templateNameIterator = md->m_spawnTemplateNameData.begin() + templateIndex;
+		}
+	}
 
 }
 
