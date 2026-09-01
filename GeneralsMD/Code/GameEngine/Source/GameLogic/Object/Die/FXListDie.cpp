@@ -116,12 +116,26 @@ void FXListDie::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+	//
+	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the upgrade mux state so the executed
+	// flag survives a checkpoint, matching the other upgrade gated modules.
+	//
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
 	// extend base class
 	DieModule::xfer( xfer );
+
+	if( version >= 2 )
+	{
+		upgradeMuxXfer( xfer );
+	}
 
 }
 
