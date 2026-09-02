@@ -98,6 +98,14 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 					fflush(stdout);
 				}
 				TheGameLogic->UPDATE();
+				// TheSuperHackers @bugfix bobtista 02/09/2026 A simulated game that ends before its
+				// recording does stops feeding the recorder, so the playback never reaches its end and
+				// the loop would spin forever. The recording's own length bounds the simulation.
+				if (TheGameLogic->getFrame() > TheRecorder->getPlaybackFrameCount() + 1000)
+				{
+					printf("Simulation passed the recording's end at frame %d\n", TheGameLogic->getFrame());
+					break;
+				}
 				// TheSuperHackers @feature bobtista 02/09/2026 Diagnostic simulation keeps going past a
 				// recorded CRC mismatch so a build that cannot reproduce retail CRCs can still play the
 				// whole command stream. The mismatch still counts as an error for the exit code.
