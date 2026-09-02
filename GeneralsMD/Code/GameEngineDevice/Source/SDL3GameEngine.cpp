@@ -681,6 +681,12 @@ void SDL3GameEngine::handleTextInputEvent(const SDL_TextInputEvent &event)
 
 void SDL3GameEngine::handleMouseMotionEvent(const SDL_MouseMotionEvent &event)
 {
+	// TheSuperHackers @bugfix bobtista 02/09/2026 A headless run installs MouseDummy, which is
+	// not an SDL3Mouse, so a real mouse event reaching this cast wrote through a bogus buffer.
+	if (TheGlobalData != NULL && TheGlobalData->m_headless)
+	{
+		return;
+	}
 	SDL3Mouse *mouse = static_cast<SDL3Mouse *>(TheMouse);
 	if (mouse != NULL)
 	{
@@ -690,6 +696,12 @@ void SDL3GameEngine::handleMouseMotionEvent(const SDL_MouseMotionEvent &event)
 
 void SDL3GameEngine::handleMouseButtonEvent(const SDL_MouseButtonEvent &event)
 {
+	// TheSuperHackers @bugfix bobtista 02/09/2026 A headless run installs MouseDummy, which is
+	// not an SDL3Mouse, so a real mouse event reaching this cast wrote through a bogus buffer.
+	if (TheGlobalData != NULL && TheGlobalData->m_headless)
+	{
+		return;
+	}
 	SDL3Mouse *mouse = static_cast<SDL3Mouse *>(TheMouse);
 	if (mouse != NULL)
 	{
@@ -699,6 +711,12 @@ void SDL3GameEngine::handleMouseButtonEvent(const SDL_MouseButtonEvent &event)
 
 void SDL3GameEngine::handleMouseWheelEvent(const SDL_MouseWheelEvent &event)
 {
+	// TheSuperHackers @bugfix bobtista 02/09/2026 A headless run installs MouseDummy, which is
+	// not an SDL3Mouse, so a real mouse event reaching this cast wrote through a bogus buffer.
+	if (TheGlobalData != NULL && TheGlobalData->m_headless)
+	{
+		return;
+	}
 	SDL3Mouse *mouse = static_cast<SDL3Mouse *>(TheMouse);
 	if (mouse != NULL)
 	{
