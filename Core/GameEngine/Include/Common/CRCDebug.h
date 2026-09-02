@@ -98,6 +98,7 @@
 	extern Bool g_keepCRCSaves;
 	extern Bool g_saveDebugCRCPerFrame;
 	extern AsciiString g_saveDebugCRCPerFrameDir;
+	extern Bool g_logCRCFrameHash;
 
 	extern Bool g_logObjectCRCs;
 	extern Bool g_logCRCGenLines;

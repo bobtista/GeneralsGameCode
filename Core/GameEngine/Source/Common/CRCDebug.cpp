@@ -141,28 +141,53 @@ void CRCDebugStartNewGame()
 
 static void outputCRCDebugLinesPerFrame()
 {
-	if (!g_saveDebugCRCPerFrame || numDebugStrings == 0)
+	if ((!g_saveDebugCRCPerFrame && !g_logCRCFrameHash) || numDebugStrings == 0)
 		return;
-	AsciiString fname;
-	fname.format("%s/DebugFrame_%06d.txt", g_saveDebugCRCPerFrameDir.str(), lastCRCDebugFrame);
-	FILE *fp = fopen(fname.str(), "wt");
+	FILE *fp = nullptr;
+	if (g_saveDebugCRCPerFrame)
+	{
+		AsciiString fname;
+		fname.format("%s/DebugFrame_%06d.txt", g_saveDebugCRCPerFrameDir.str(), lastCRCDebugFrame);
+		fp = fopen(fname.str(), "wt");
+	}
 	int start = 0;
 	int end = nextDebugString;
 	if (numDebugStrings >= MaxStrings)
 		start = nextDebugString - MaxStrings;
 	nextDebugString = 0;
 	numDebugStrings = 0;
-	if (!fp)
-		return;
 
+	// TheSuperHackers @feature bobtista 02/09/2026 -LogCRCFrameHash folds the frame's CRC debug
+	// lines into one hash line in the debug log, so two runs can be compared frame by frame over a
+	// whole game without writing a file per frame.
+	UnsignedInt hash = 2166136261u;
+	Int lineCount = 0;
 	for (Int i=start; i<end; ++i)
 	{
 		const char *line = DebugStrings[ (i + MaxStrings) % MaxStrings ];
-		//DEBUG_LOG(("%s", line));
-		fprintf(fp, "%s\n", line);
+		if (fp)
+		{
+			fprintf(fp, "%s\n", line);
+		}
+		if (g_logCRCFrameHash)
+		{
+			for (const char *c = line; *c != '\0'; ++c)
+			{
+				hash = (hash ^ (UnsignedInt)(unsigned char)*c) * 16777619u;
+			}
+			hash = (hash ^ 10u) * 16777619u;
+			++lineCount;
+		}
+	}
+	if (g_logCRCFrameHash)
+	{
+		DEBUG_LOG(("CRCFRAMEHASH %d %08X %d", lastCRCDebugFrame, hash, lineCount));
 	}
 
-	fclose(fp);
+	if (fp)
+	{
+		fclose(fp);
+	}
 }
 
 void outputCRCDumpLines()

@@ -55,6 +55,7 @@ UnsignedInt TheCRCLastFrameToLog = 0xffffffff;
 Bool g_keepCRCSaves = FALSE;
 Bool g_saveDebugCRCPerFrame = FALSE;
 AsciiString g_saveDebugCRCPerFrameDir;
+Bool g_logCRCFrameHash = FALSE;
 Bool g_crcModuleDataFromLogic = FALSE;
 Bool g_crcModuleDataFromClient = FALSE;
 Bool g_verifyClientCRC = FALSE; // verify that GameLogic CRC doesn't change from client
@@ -488,6 +489,14 @@ Int parseLogObjectCRCs(char *args[], int argc)
 
 //=============================================================================
 //=============================================================================
+Int parseLogCRCFrameHash(char *[], int)
+{
+#ifdef DEBUG_CRC
+	g_logCRCFrameHash = TRUE;
+#endif
+	return 1;
+}
+
 Int parseLogCRCGenLines(char *args[], int argc)
 {
 #ifdef DEBUG_CRC
@@ -2021,6 +2030,7 @@ static CommandLineParam paramsForEngineInit[] =
 	// Log CRC of Objects and Weapons (See Object::crc and Weapon::crc)
 	{ "-LogObjectCRCs", parseLogObjectCRCs },
 	{ "-LogCRCGenLines", parseLogCRCGenLines },
+	{ "-LogCRCFrameHash", parseLogCRCFrameHash },
 	{ "-LogCRCDebugLines", parseLogCRCDebugLines },
 
 	// Number of frames between each CRC check between all players in multiplayer games
