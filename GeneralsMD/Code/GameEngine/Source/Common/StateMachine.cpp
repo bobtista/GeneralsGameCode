@@ -822,7 +822,14 @@ void StateMachine::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+	// 2: TheSuperHackers @bugfix bobtista 02/09/2026 The all-states flag is part of the stream, so
+	//    it is gated on the version. Version 1 saves carry only the current state.
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	const XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -855,13 +862,13 @@ void StateMachine::xfer( Xfer *xfer )
 	// constructor defaults. The flag is written into the stream, so a save describes which layout
 	// it used and old saves still load.
 	//
-#if RETAIL_COMPATIBLE_XFER_SAVE
-	// The flag is written into the stream, so each save describes its own layout.
-	Bool snapshotAllStates = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT);
-#else
-	Bool snapshotAllStates = true;
-#endif
-	xfer->xferBool(&snapshotAllStates);
+	Bool snapshotAllStates = FALSE;
+	if( version >= 2 )
+	{
+		// The flag is written into the stream, so each save describes its own layout.
+		snapshotAllStates = TRUE;
+		xfer->xferBool(&snapshotAllStates);
+	}
 	if (snapshotAllStates) {
 		std::map<StateID, State *>::iterator i;
 		// count all states in the mapping
