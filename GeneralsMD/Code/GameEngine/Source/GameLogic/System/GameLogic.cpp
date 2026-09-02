@@ -3910,7 +3910,9 @@ void GameLogic::update()
 		// TheSuperHackers @bugfix bobtista 15/08/2026 Only write a save the game itself would let the
 		// player write. The Save button is disabled whenever input is disabled. Wait for the first
 		// frame that allows it instead, which is why the frame test above is >= rather than ==.
-		if (TheInGameUI != nullptr && TheInGameUI->getInputEnabled() == FALSE)
+		// TheSuperHackers @tweak bobtista 02/09/2026 A checkpoint is not a user save, so it may be
+		// written on any frame, including ones where input is disabled.
+		if (TheGlobalData->m_saveAtFrameNormal && TheInGameUI != nullptr && TheInGameUI->getInputEnabled() == FALSE)
 		{
 			if ((Int)m_frame == TheGlobalData->m_saveAtFrame)
 			{
