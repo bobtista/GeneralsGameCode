@@ -689,7 +689,13 @@ void Object::onContainedBy( Object *containedBy )
 	else
 		clearStatus( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_MASKED ) );
 	m_containedBy = containedBy;
-	m_containedByFrame = TheGameLogic->getFrame();
+	// TheSuperHackers @bugfix bobtista 02/09/2026 Re-containing objects while loading a save must not
+	// restamp the frame the save restored; the garrison, tunnel and heal containers time their
+	// full heal from it.
+	if( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE )
+	{
+		m_containedByFrame = TheGameLogic->getFrame();
+	}
 
 #if RETAIL_COMPATIBLE_CRC
 	// TheSuperHackers @info Set INVALID_ID if the container object was destroyed
@@ -754,7 +760,11 @@ void Object::friend_setContainedBy(Object* containedBy)
 	m_containedBy = containedBy;
 
 #if !RETAIL_COMPATIBLE_CRC
-	m_containedByFrame = containedBy ? TheGameLogic->getFrame() : 0;
+	// TheSuperHackers @bugfix bobtista 02/09/2026 See onContainedBy: keep the restored frame while loading.
+	if( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE )
+	{
+		m_containedByFrame = containedBy ? TheGameLogic->getFrame() : 0;
+	}
 #endif
 }
 
