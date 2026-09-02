@@ -232,6 +232,13 @@ Bool W3DBridge::load(BodyDamageType curDamageState)
 	}
 
 	WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
+	// TheSuperHackers @bugfix bobtista 02/09/2026 A headless run has no asset manager and no
+	// render backend, so a map with bridges crashed here while loading. Without the meshes the
+	// bridge cannot be measured, so report it as not loaded.
+	if (pMgr == nullptr)
+	{
+		return false;
+	}
 	char left[_MAX_PATH];
 	char section[_MAX_PATH];
 	char right[_MAX_PATH];
@@ -247,7 +254,7 @@ Bool W3DBridge::load(BodyDamageType curDamageState)
 	strlcat(right, ".BRIDGE_RIGHT", ARRAY_SIZE(right));
 
 	m_bridgeTexture = pMgr->Get_Texture(textureFile,  MIP_LEVELS_3);
-	if (m_bridgeTexture != nullptr && WW3D::Get_Render_Backend()->Has_Shader_Pipeline()) {
+	if (m_bridgeTexture != nullptr && WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Has_Shader_Pipeline()) {
 		// Bridge textures are compact atlases whose lower mips can collapse
 		// black padding into visible deck pixels under bgfx/Metal. Keep the
 		// authored level-0 texels stable; the bgfx backend binds a one-mip
