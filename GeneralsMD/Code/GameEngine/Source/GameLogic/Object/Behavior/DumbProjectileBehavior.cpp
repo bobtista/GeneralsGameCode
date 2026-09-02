@@ -757,9 +757,9 @@ void DumbProjectileBehavior::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 3;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 4;
 #else
-	XferVersion currentVersion = 3;
+	XferVersion currentVersion = 4;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -827,6 +827,15 @@ void DumbProjectileBehavior::xfer( Xfer *xfer )
 		xfer->xferUnsignedInt( &m_extraBonusFlags );
 	}
 
+
+	//
+	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the detonation latch, so a projectile that already went off cannot detonate
+	// a second time after a load.
+	//
+	if( version >= 4 )
+	{
+		xfer->xferBool( &m_hasDetonated );
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
