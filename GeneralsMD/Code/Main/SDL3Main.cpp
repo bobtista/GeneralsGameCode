@@ -220,6 +220,10 @@ int main(int argc, char **argv)
 	if (wantHeadless)
 	{
 		SDL_SetHint(SDL_HINT_MAC_BACKGROUND_APP, "1");
+		// Headless runs are harness runs; let several of them share the machine with each other
+		// and with an open game instead of bailing on the single instance lock.
+		rts::ClientInstance::setMultiInstance(TRUE);
+		rts::ClientInstance::skipPrimaryInstance();
 	}
 
 	GGC_TRACE("calling SDL_Init");
