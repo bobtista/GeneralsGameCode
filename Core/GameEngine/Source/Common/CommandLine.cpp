@@ -1989,6 +1989,9 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-resumereplay", parseResumeReplay },
 	{ "-resumeas", parseResumeAs },
 	{ "-saveatframe", parseSaveAtFrame },
+	{ "-skirmish", parseSkirmish },
+	{ "-skirmishaicount", parseSkirmishAICount },
+	{ "-skirmishseed", parseSkirmishSeed },
 	{ "-quitatframe", parseQuitAtFrame },
 	{ "-saveto", parseSaveTo },
 	{ "-savenormal", parseSaveNormal },
@@ -2096,9 +2099,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-munkee", parseMunkee },
 	{ "-displayDebug", parseDisplayDebug },
 	{ "-file", parseFile },
-	{ "-skirmish", parseSkirmish },
-	{ "-skirmishaicount", parseSkirmishAICount },
-	{ "-skirmishseed", parseSkirmishSeed },
 
 //	{ "-preload", parsePreload },
 
