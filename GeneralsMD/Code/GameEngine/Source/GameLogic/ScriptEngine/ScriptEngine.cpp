@@ -7016,7 +7016,17 @@ void ScriptEngine::executeScript( Script *pScript )
 				}
 
 				if (pScript->isOneShot()) {
-					pScript->setActive(false);
+					{
+										static Int s_probe = -1;
+										if (s_probe == -1) { s_probe = getenv("GGC_LOG_ONESHOT") != NULL ? 1 : 0; }
+										if (s_probe == 1) { DEBUG_LOG(("GGC-ONESHOT frame=%d script='%s'", TheGameLogic->getFrame(), pScript->getName().str())); }
+									}
+					{
+									static Int s_probe = -1;
+									if (s_probe == -1) { s_probe = getenv("GGC_LOG_ONESHOT") != NULL ? 1 : 0; }
+									if (s_probe == 1) { DEBUG_LOG(("GGC-ONESHOT frame=%d script='%s'", TheGameLogic->getFrame(), pScript->getName().str())); }
+								}
+				pScript->setActive(false);
 				}
 			}	else if (pScript->getFalseAction()) {
 
@@ -7039,6 +7049,11 @@ void ScriptEngine::executeScript( Script *pScript )
 			}
 
 			if (pScript->isOneShot()) {
+				{
+									static Int s_probe = -1;
+									if (s_probe == -1) { s_probe = getenv("GGC_LOG_ONESHOT") != NULL ? 1 : 0; }
+									if (s_probe == 1) { DEBUG_LOG(("GGC-ONESHOT frame=%d script='%s'", TheGameLogic->getFrame(), pScript->getName().str())); }
+								}
 				pScript->setActive(false);
 			}
 		}	else if (pScript->getFalseAction()) {
@@ -7049,6 +7064,11 @@ void ScriptEngine::executeScript( Script *pScript )
 			// Only do this if there are actually false actions.
 			executeActions(pScript->getFalseAction());
 			if (pScript->isOneShot()) {
+				{
+									static Int s_probe = -1;
+									if (s_probe == -1) { s_probe = getenv("GGC_LOG_ONESHOT") != NULL ? 1 : 0; }
+									if (s_probe == 1) { DEBUG_LOG(("GGC-ONESHOT frame=%d script='%s'", TheGameLogic->getFrame(), pScript->getName().str())); }
+								}
 				pScript->setActive(false);
 			}
 		}
