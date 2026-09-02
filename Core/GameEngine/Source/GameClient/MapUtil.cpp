@@ -446,6 +446,7 @@ void MapCache::updateCache()
 #else
 		const Bool buildMapCache = TheGlobalData->m_buildMapCache;
 #endif
+		DEBUG_LOG(("MapCache::updateCache - standard cache rebuild %s", buildMapCache ? "requested" : "not requested"));
 		if (buildMapCache)
 		{
 			const Bool isOfficial = TRUE;
@@ -545,6 +546,7 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 	filenamepattern.format("*.%s", getMapExtension().str());
 
 	TheFileSystem->getFileListInDirectory(toplevelPattern, filenamepattern, filepathList, TRUE);
+	DEBUG_LOG(("MapCache::loadMapsFromDisk - '%s' lists %d map files", toplevelPattern.str(), (Int)filepathList.size()));
 
 	filepathIt = filepathList.begin();
 

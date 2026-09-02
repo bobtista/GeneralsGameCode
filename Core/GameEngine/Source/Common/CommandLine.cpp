@@ -1992,6 +1992,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-skirmish", parseSkirmish },
 	{ "-skirmishaicount", parseSkirmishAICount },
 	{ "-skirmishseed", parseSkirmishSeed },
+	{ "-buildmapcache", parseBuildMapCache },
 	{ "-quitatframe", parseQuitAtFrame },
 	{ "-saveto", parseSaveTo },
 	{ "-savenormal", parseSaveNormal },
@@ -2114,7 +2115,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noshroud", parseNoShroud },
 #endif
 	{ "-forceBenchmark", parseForceBenchmark },
-	{ "-buildmapcache", parseBuildMapCache },
 	{ "-noshadowvolumes", parseNoShadows },
 	{ "-nofx", parseNoFX },
 	{ "-ignoresync", parseSync },
