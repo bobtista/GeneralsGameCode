@@ -1254,6 +1254,9 @@ Bool RecorderClass::resumePlayback( AsciiString filename, UnsignedInt frame )
 
 	Bool isMultiplayer = m_gameInfo.getSlot(header.localPlayerIndex)->getIP() != 0;
 	m_crcInfo = CRCInfo(header.localPlayerIndex, isMultiplayer);
+	// TheSuperHackers @bugfix bobtista 02/09/2026 The resumed game must emit its CRCs on the frames
+	// the recording did, so take the interval from the recording like playbackFile does.
+	REPLAY_CRC_INTERVAL = m_gameInfo.getCRCInterval();
 
 	Int difficulty = 0;
 	m_file->read(&difficulty, sizeof(difficulty));
