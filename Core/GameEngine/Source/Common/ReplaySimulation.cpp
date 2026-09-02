@@ -101,6 +101,13 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 				// TheSuperHackers @bugfix bobtista 02/09/2026 A simulated game that ends before its
 				// recording does stops feeding the recorder, so the playback never reaches its end and
 				// the loop would spin forever. The recording's own length bounds the simulation.
+				// TheSuperHackers @feature bobtista 02/09/2026 -quitatframe ends a headless simulation
+				// too, so a run that only needs to mint a checkpoint stops right after it.
+				if (TheGlobalData->m_quitAtFrame > 0 && (Int)TheGameLogic->getFrame() >= TheGlobalData->m_quitAtFrame)
+				{
+					printf("Simulation quit at frame %d\n", TheGameLogic->getFrame());
+					break;
+				}
 				if (TheGameLogic->getFrame() > TheRecorder->getPlaybackFrameCount() + 1000)
 				{
 					printf("Simulation passed the recording's end at frame %d\n", TheGameLogic->getFrame());
