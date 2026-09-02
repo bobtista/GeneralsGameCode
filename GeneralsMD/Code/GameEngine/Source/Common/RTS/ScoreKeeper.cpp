@@ -59,6 +59,10 @@
 #include "Common/KindOf.h"
 #include "Common/Player.h"
 #include "Common/ScoreKeeper.h"
+
+#include <algorithm>
+#include <utility>
+#include <vector>
 #include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
 #include "Common/Xfer.h"
@@ -402,6 +406,13 @@ void ScoreKeeper::crc( Xfer *xfer )
 /** Xfer of an object count map
 	* Version Info:
 	* 1: Initial version */
+
+// ------------------------------------------------------------------------------------------------
+static Bool compareTemplateNameEntries( const std::pair< AsciiString, Int > &a, const std::pair< AsciiString, Int > &b )
+{
+	return strcmp( a.first.str(), b.first.str() ) < 0;
+}
+
 // ------------------------------------------------------------------------------------------------
 void ScoreKeeper::xferObjectCountMap( Xfer *xfer, ObjectCountMap *map )
 {
@@ -430,19 +441,27 @@ void ScoreKeeper::xferObjectCountMap( Xfer *xfer, ObjectCountMap *map )
 	AsciiString thingTemplateName;
 	if( xfer->getXferMode() == XFER_SAVE )
 	{
-		ObjectCountMapIt it;
+		// TheSuperHackers @bugfix bobtista 02/09/2026 The map is keyed by template pointer, so its
+		// iteration order depends on where the templates were allocated. Write the entries in
+		// template name order so two saves of the same state are byte identical on any allocator.
+		std::vector< std::pair< AsciiString, Int > > entries;
+		entries.reserve( map->size() );
+		for( ObjectCountMapIt it = map->begin(); it != map->end(); ++it )
+		{
+			entries.push_back( std::make_pair( it->first->getName(), it->second ) );
+		}
+		std::sort( entries.begin(), entries.end(), compareTemplateNameEntries );
 
 		// save all entries
-		for( it = map->begin(); it != map->end(); ++it )
+		for( size_t i = 0; i < entries.size(); ++i )
 		{
 
 			// thing template
-			thingTemplate = it->first;
-			thingTemplateName = thingTemplate->getName();
+			thingTemplateName = entries[ i ].first;
 			xfer->xferAsciiString( &thingTemplateName );
 
 			// the count
-			count = it->second;
+			count = entries[ i ].second;
 			xfer->xferInt( &count );
 
 		}

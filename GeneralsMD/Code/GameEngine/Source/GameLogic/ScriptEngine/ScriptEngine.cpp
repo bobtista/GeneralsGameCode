@@ -237,6 +237,12 @@ void AttackPriorityInfo::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version */
 // ------------------------------------------------------------------------------------------------
+static Bool compareAttackPriorityEntries( const std::pair< AsciiString, Int > &a, const std::pair< AsciiString, Int > &b )
+{
+	return strcmp( a.first.str(), b.first.str() ) < 0;
+}
+
+// ------------------------------------------------------------------------------------------------
 void AttackPriorityInfo::xfer( Xfer *xfer )
 {
 
@@ -280,24 +286,33 @@ void AttackPriorityInfo::xfer( Xfer *xfer )
 		if( m_priorityMap )
 		{
 
+			// TheSuperHackers @bugfix bobtista 02/09/2026 The map is keyed by template pointer, so
+			// its iteration order depends on where the templates were allocated. Write the entries
+			// in template name order so two saves of the same state are byte identical.
+			std::vector< std::pair< AsciiString, Int > > entries;
+			entries.reserve( m_priorityMap->size() );
+			for( AttackPriorityMap::const_iterator it = m_priorityMap->begin(); it != m_priorityMap->end(); ++it )
+			{
+				entries.push_back( std::make_pair( (*it).first->getName(), (*it).second ) );
+			}
+			std::sort( entries.begin(), entries.end(), compareAttackPriorityEntries );
+
 			// iterate all the entries
-			AttackPriorityMap::const_iterator it;
 			UnsignedShort count = 0;
-			for( it = m_priorityMap->begin(); it != m_priorityMap->end(); ++it )
+			for( size_t entryIndex = 0; entryIndex < entries.size(); ++entryIndex )
 			{
 
 				// keep a count for sanity
 				++count;
 
 				// write thing template name
-				thingTemplate = (*it).first;
-				thingTemplateName = thingTemplate->getName();
+				thingTemplateName = entries[ entryIndex ].first;
 				DEBUG_ASSERTCRASH( thingTemplateName.isEmpty() == FALSE,
 													 ("AttackPriorityInfo::xfer - Writing an empty thing template name") );
 				xfer->xferAsciiString( &thingTemplateName );
 
 				// write priority
-				priority = (*it).second;
+				priority = entries[ entryIndex ].second;
 				xfer->xferInt( &priority );
 
 			}
