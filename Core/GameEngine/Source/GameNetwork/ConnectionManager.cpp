@@ -28,6 +28,8 @@
 #include "Compression.h"
 #include "WWLib/strtok_r.h"
 #include "Common/AudioEventRTS.h"
+#include "Common/GameState.h"
+#include "GameNetwork/NetworkAutoStart.h"
 #include "Common/CRCDebug.h"
 #include "Common/Debug.h"
 #include "Common/file.h"
@@ -63,7 +65,8 @@ static Bool hasValidTransferFileExtension(const AsciiString& filePath)
 		"str",
 		"wak",
 		"tga",
-		"txt"
+		"txt",
+		"sav"
 	};
 
 	const char* fileExt = strrchr(filePath.str(), '.');
@@ -95,6 +98,7 @@ enum TransferFileType
 	TransferFileType_Txt,
 	TransferFileType_Tga,
 	TransferFileType_Wak,
+	TransferFileType_Sav,
 	TransferFileType_Count
 };
 
@@ -112,6 +116,7 @@ static const TransferFileRule transferFileRules[TransferFileType_Count] =
 	{ ".txt", 1 * 1024 * 1024 },
 	{ ".tga", 2 * 1024 * 1024 },
 	{ ".wak", 128 * 1024 },
+	{ ".sav", 32 * 1024 * 1024 },
 };
 
 static TransferFileType getTransferFileType(const char* extension)
@@ -154,6 +159,10 @@ static Bool hasValidTransferFileContent(const AsciiString& filePath, const Unsig
 	switch (fileType)
 	{
 	case TransferFileType_Map:
+		break;
+
+	case TransferFileType_Sav:
+		// A recovery snapshot; the post-load CRC handshake verifies what actually matters.
 		break;
 
 	case TransferFileType_Ini:
@@ -294,6 +303,18 @@ void ConnectionManager::init()
 #ifdef MEMORYPOOL_DEBUG
 	TheMemoryPoolFactory->debugSetInitFillerIndex(m_localSlot);
 #endif
+	m_recoveryHold = FALSE;
+	m_recoveryHoldReleaseFrame = 0;
+	for (Int recSlot = 0; recSlot < MAX_SLOTS; ++recSlot) {
+		m_recoveryReadySeen[recSlot] = FALSE;
+		m_recoveryReadyFrame[recSlot] = 0;
+		m_recoveryReadyCRC[recSlot] = 0;
+	}
+	m_recoveryQuarantineBelowFrame = 0;
+	m_recoveryReceivedFile.clear();
+	m_rejoinFileSentMask = 0;
+	m_recoveryTransferFileID = 0;
+	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_packetRouterFallback[i] = -1;
@@ -383,6 +404,18 @@ void ConnectionManager::reset()
 #ifdef MEMORYPOOL_DEBUG
 	TheMemoryPoolFactory->debugSetInitFillerIndex(m_localSlot);
 #endif
+	m_recoveryHold = FALSE;
+	m_recoveryHoldReleaseFrame = 0;
+	for (Int recSlot = 0; recSlot < MAX_SLOTS; ++recSlot) {
+		m_recoveryReadySeen[recSlot] = FALSE;
+		m_recoveryReadyFrame[recSlot] = 0;
+		m_recoveryReadyCRC[recSlot] = 0;
+	}
+	m_recoveryQuarantineBelowFrame = 0;
+	m_recoveryReceivedFile.clear();
+	m_rejoinFileSentMask = 0;
+	m_recoveryTransferFileID = 0;
+	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = -1;
 
 	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
@@ -433,9 +466,187 @@ void ConnectionManager::zeroFrames(UnsignedInt startingFrame, UnsignedInt numFra
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		if (m_frameData[i] != nullptr) {
 //			DEBUG_LOG(("Calling zeroFrames on player %d, starting frame %d, numFrames %d", i, startingFrame, numFrames));
+			// TheSuperHackers @bugfix bobtista 27/08/2026 Also drop commands that trickled into
+			// the window between a recovery flush and this priming; zeroFrame only clears the
+			// counters, and a leftover command desynchronizes the counts forever.
+			for (UnsignedInt j = 0; j < numFrames; ++j) {
+				m_frameData[i]->resetFrame(startingFrame + j, FALSE);
+			}
 			m_frameData[i]->zeroFrames(startingFrame, numFrames);
 		}
 	}
+	if (m_recoveryHold) {
+		// The primed window covers startingFrame..startingFrame+numFrames-1; only past it can
+		// lockstep have consumed every peer's real frame info again.
+		m_recoveryHoldReleaseFrame = startingFrame + numFrames;
+		// The re-primed window is authoritative: every legitimate command in it declares zero
+		// commands, so anything else arriving for those frames is old-epoch traffic.
+		m_recoveryQuarantineBelowFrame = startingFrame + numFrames;
+	}
+}
+
+// TheSuperHackers @feature bobtista 27/08/2026 Drop everything the diverged run still holds:
+// queued and retrying commands on every connection, locally pending and relayed commands, and
+// the whole frame-data ring. The recovery reload re-primes its run-ahead window afterwards.
+void ConnectionManager::flushForRecovery() {
+	m_recoveryHold = TRUE;
+	m_recoveryReceivedFile.clear();
+	m_rejoinFileSentMask = 0;
+	m_recoveryTransferFileID = 0;
+	m_recoveryTransferIDValid = FALSE;
+	Int i;
+	for (i = 0; i < MAX_SLOTS; ++i) {
+		m_recoveryReadySeen[i] = FALSE;
+		m_recoveryReadyFrame[i] = 0;
+		m_recoveryReadyCRC[i] = 0;
+	}
+	for (i = 0; i < MAX_SLOTS; ++i) {
+		if (m_connections[i] != nullptr) {
+			m_connections[i]->clearCommandsExceptFrom(-1);
+		}
+		if (m_frameData[i] != nullptr) {
+			m_frameData[i]->reset();
+		}
+	}
+	if (m_pendingCommands != nullptr) {
+		m_pendingCommands->reset();
+	}
+	if (m_relayedCommands != nullptr) {
+		m_relayedCommands->reset();
+	}
+	if (m_netCommandWrapperList != nullptr) {
+		// Partially reassembled wrapped commands are old-epoch data too.
+		m_netCommandWrapperList->reset();
+	}
+	if (m_transport != nullptr) {
+		size_t bufferIndex;
+		for (bufferIndex = 0; bufferIndex < ARRAY_SIZE(m_transport->m_inBuffer); ++bufferIndex) {
+			m_transport->m_inBuffer[bufferIndex].length = 0;
+		}
+		for (bufferIndex = 0; bufferIndex < ARRAY_SIZE(m_transport->m_outBuffer); ++bufferIndex) {
+			m_transport->m_outBuffer[bufferIndex].length = 0;
+		}
+	}
+}
+
+// TheSuperHackers @feature bobtista 27/08/2026 Post-load recovery handshake: each peer
+// broadcasts the frame and logic CRC it computed after loading the donor snapshot, and
+// nobody resumes until every active peer reports the same pair.
+void ConnectionManager::sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) {
+	NetRecoveryReadyCommandMsg *msg = newInstance(NetRecoveryReadyCommandMsg);
+	msg->setRecoveryFrame(frame);
+	msg->setRecoveryCRC(crc);
+	msg->setPlayerID(m_localSlot);
+	if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
+		msg->setID(GenerateNextCommandID());
+	}
+	sendLocalCommandDirect(msg, 0xff ^ (1 << m_localSlot));
+	msg->detach();
+
+	m_recoveryReadySeen[m_localSlot] = TRUE;
+	m_recoveryReadyFrame[m_localSlot] = frame;
+	m_recoveryReadyCRC[m_localSlot] = crc;
+	DEBUG_LOG(("ConnectionManager::sendRecoveryReady - frame %d crc %8.8X", frame, crc));
+}
+
+// TheSuperHackers @feature bobtista 27/08/2026 The elected donor pushes its snapshot to
+// every peer over the file-transfer channel; receivers gate their reload on its arrival.
+void ConnectionManager::sendRecoveryFile(AsciiString path) {
+	UnsignedByte mask = 0;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		if (m_connections[i] != nullptr) {
+			mask |= (1 << i);
+		}
+	}
+	DEBUG_LOG(("ConnectionManager::sendRecoveryFile - sending '%s' to mask %X", path.str(), mask));
+	UnsignedShort fileID = sendFileAnnounce(path, mask);
+	sendFile(path, mask, fileID);
+}
+
+AsciiString ConnectionManager::getRecoveryReceivedFile() {
+	return m_recoveryReceivedFile;
+}
+
+Int ConnectionManager::getRecoveryTransferPercent() {
+	if (!m_recoveryTransferIDValid) {
+		return 0;
+	}
+	return s_fileProgressMap[m_localSlot][m_recoveryTransferFileID];
+}
+
+void ConnectionManager::sendRejoinRequest() {
+	NetRejoinRequestCommandMsg *msg = newInstance(NetRejoinRequestCommandMsg);
+	msg->setPlayerID(m_localSlot);
+	sendLocalCommandDirect(msg, 0xff ^ (1 << m_localSlot));
+	msg->detach();
+}
+
+// TheSuperHackers @feature bobtista 27/08/2026 A restarted peer asks for the held game's
+// snapshot; the elected donor answers once per hold with its recovery save. Non-donor
+// survivors stay quiet so the rejoiner receives exactly one snapshot.
+void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
+	const UnsignedInt playerID = msg->getPlayerID();
+	if (playerID >= MAX_SLOTS || !m_recoveryHold) {
+		return;
+	}
+	AsciiString localSave;
+	localSave.format("recovery_s%d.sav", (Int)m_localSlot);
+	if (TheGlobalData->m_recoveryDonorSave != localSave) {
+		DEBUG_LOG(("ConnectionManager::processRejoinRequest - not the donor, staying quiet"));
+		return;
+	}
+	if ((m_rejoinFileSentMask & (1 << playerID)) != 0) {
+		return;
+	}
+	m_rejoinFileSentMask |= (1 << playerID);
+	DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked for the held snapshot", playerID));
+	UnsignedShort fileID = sendFileAnnounce(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID));
+	sendFile(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID), fileID);
+}
+
+void ConnectionManager::processRecoveryReady(NetRecoveryReadyCommandMsg *msg) {
+	const UnsignedInt playerID = msg->getPlayerID();
+	if (playerID >= MAX_SLOTS) {
+		return;
+	}
+	m_recoveryReadySeen[playerID] = TRUE;
+	m_recoveryReadyFrame[playerID] = msg->getRecoveryFrame();
+	m_recoveryReadyCRC[playerID] = msg->getRecoveryCRC();
+	DEBUG_LOG(("ConnectionManager::processRecoveryReady - player %d frame %d crc %8.8X",
+		playerID, msg->getRecoveryFrame(), msg->getRecoveryCRC()));
+}
+
+/**
+ * Returns 1 when every active peer has reported the same post-load frame and CRC,
+ * -1 when reports disagree, and 0 while reports are still outstanding.
+ */
+Int ConnectionManager::checkRecoveryReady() {
+	Bool haveReference = FALSE;
+	UnsignedInt referenceFrame = 0;
+	UnsignedInt referenceCRC = 0;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		Bool active = (i == m_localSlot);
+		if (!active) {
+			active = (m_connections[i] != nullptr) &&
+				(m_frameData[i] != nullptr) && (m_frameData[i]->getIsQuitting() == FALSE);
+		}
+		if (!active) {
+			continue;
+		}
+		if (!m_recoveryReadySeen[i]) {
+			return 0;
+		}
+		if (!haveReference) {
+			haveReference = TRUE;
+			referenceFrame = m_recoveryReadyFrame[i];
+			referenceCRC = m_recoveryReadyCRC[i];
+		} else if ((m_recoveryReadyFrame[i] != referenceFrame) || (m_recoveryReadyCRC[i] != referenceCRC)) {
+			DEBUG_LOG(("ConnectionManager::checkRecoveryReady - player %d reported frame %d crc %8.8X vs frame %d crc %8.8X",
+				i, m_recoveryReadyFrame[i], m_recoveryReadyCRC[i], referenceFrame, referenceCRC));
+			return -1;
+		}
+	}
+	return haveReference ? 1 : 0;
 }
 
 /**
@@ -557,6 +768,14 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 		if (ref->getCommand()->getExecutionFrame() < TheGameLogic->getFrame()) {
 			return TRUE;
 		}
+		// TheSuperHackers @feature bobtista 27/08/2026 Reject synchronized traffic from before
+		// the last recovery reload; late or duplicated packets from the diverged run would
+		// corrupt the re-primed command counts.
+		if (ref->getCommand()->getExecutionFrame() < m_recoveryQuarantineBelowFrame) {
+			DEBUG_LOG(("ConnectionManager::processNetCommand - quarantined old-epoch %s for frame %d from player %d",
+				GetNetCommandTypeAsString(cmdType), ref->getCommand()->getExecutionFrame(), msg->getPlayerID()));
+			return TRUE;
+		}
 	}
 
 	// Handle disconnect commands as a range
@@ -567,6 +786,14 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 
 	// Process command by type
 	switch (cmdType) {
+
+		case NETCOMMANDTYPE_RECOVERYREADY:
+			processRecoveryReady((NetRecoveryReadyCommandMsg *)msg);
+			return TRUE;
+
+		case NETCOMMANDTYPE_REJOINREQUEST:
+			processRejoinRequest(msg);
+			return TRUE;
 
 		case NETCOMMANDTYPE_FRAMEINFO: {
 			processFrameInfo((NetFrameCommandMsg *)msg);
@@ -856,6 +1083,25 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 		fp = nullptr;
 		DEBUG_LOG(("Wrote %d bytes to file %s!", len, realFileName.str()));
 
+		if (m_recoveryHold)
+		{
+			const char *leaf = realFileName.str();
+			const char *slash = strrchr(leaf, '\\');
+			if (slash == nullptr)
+			{
+				slash = strrchr(leaf, '/');
+			}
+			if (slash != nullptr)
+			{
+				leaf = slash + 1;
+			}
+			AsciiString expectedFile = TheGlobalData->m_recoveryDonorSave;
+			if (expectedFile.isNotEmpty() && stricmp(leaf, expectedFile.str()) == 0)
+			{
+				m_recoveryReceivedFile = leaf;
+				DEBUG_LOG(("ConnectionManager::processFile - recovery transfer file received '%s'", leaf));
+			}
+		}
 	}
 	else
 	{
@@ -895,6 +1141,22 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 void ConnectionManager::processFileAnnounce(NetFileAnnounceCommandMsg *msg)
 {
 	DEBUG_LOG(("ConnectionManager::processFileAnnounce() - expecting '%s' (%s) in command %d", msg->getPortableFilename().str(), msg->getRealFilename().str(), msg->getFileID()));
+	if (m_recoveryHold) {
+		// Track only the snapshot this peer is actually waiting for; any other announce
+		// during a hold is not the recovery transfer.
+		AsciiString expectedName = TheGlobalData->m_recoveryDonorSave;
+		const char *expected = expectedName.str();
+		const char *announced = msg->getPortableFilename().str();
+		const char *leaf = strrchr(announced, '\\');
+		if (leaf == nullptr) {
+			leaf = strrchr(announced, '/');
+		}
+		leaf = (leaf != nullptr) ? leaf + 1 : announced;
+		if (expectedName.isNotEmpty() && stricmp(leaf, expected) == 0) {
+			m_recoveryTransferFileID = msg->getFileID();
+			m_recoveryTransferIDValid = TRUE;
+		}
+	}
 	s_fileCommandMap[msg->getFileID()] = msg->getRealFilename();
 	s_fileRecipientMaskMap[msg->getFileID()] = msg->getPlayerMask();
 	for (Int i=0; i<MAX_SLOTS; ++i)
@@ -1348,6 +1610,11 @@ void ConnectionManager::update(Bool isInGame) {
 }
 
 void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didSelfSlug, Int nextExecutionFrame) {
+	if (m_recoveryHold) {
+		// No synchronized traffic while a recovery reload is pending; a run-ahead command
+		// scheduled now would land in a window the reload re-primes.
+		return;
+	}
 	static time_t lasttimesent = 0;
 	time_t curTime = timeGetTime();
 
@@ -1544,6 +1811,14 @@ void ConnectionManager::processFrameTick(UnsignedInt frame) {
 		// if the local frame data stuff is null, we must be leaving the game.
 		return;
 	}
+	if (m_recoveryHold && (m_recoveryHoldReleaseFrame != 0) &&
+			(TheGameLogic->getFrame() >= m_recoveryHoldReleaseFrame)) {
+		// Logic has crossed the recovery reload's primed run-ahead window, which requires real
+		// frame info from every peer; a run-ahead command released any earlier could land in a
+		// window a peer has yet to re-prime.
+		m_recoveryHold = FALSE;
+		m_recoveryHoldReleaseFrame = 0;
+	}
 	UnsignedShort commandCount = m_frameData[m_localSlot]->getCommandCount(frame);
 	NetFrameCommandMsg *msg = newInstance(NetFrameCommandMsg);
 	msg->setExecutionFrame(frame);
@@ -1590,6 +1865,10 @@ void ConnectionManager::initTransport() {
  * future execution.
  */
 void ConnectionManager::sendLocalGameMessage(GameMessage *msg, UnsignedInt frame) {
+	if (m_recoveryHold) {
+		// Player input issued while the game is held for recovery is dropped on every peer.
+		return;
+	}
 	UnsignedShort currentID = 0;
 	if (DoesCommandRequireACommandID(NETCOMMANDTYPE_GAMECOMMAND)) {
 		currentID = GenerateNextCommandID();

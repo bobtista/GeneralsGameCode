@@ -60,6 +60,8 @@ Bool g_crcModuleDataFromClient = FALSE;
 Bool g_verifyClientCRC = FALSE; // verify that GameLogic CRC doesn't change from client
 Bool g_clientDeepCRC = FALSE;
 Bool g_logObjectCRCs = FALSE;
+Bool g_logCRCGenLines = FALSE;
+Bool g_logCRCDebugLines = FALSE;
 #endif
 
 #if defined(RTS_DEBUG)
@@ -486,6 +488,26 @@ Int parseLogObjectCRCs(char *args[], int argc)
 
 //=============================================================================
 //=============================================================================
+Int parseLogCRCGenLines(char *args[], int argc)
+{
+#ifdef DEBUG_CRC
+	g_logCRCGenLines = TRUE;
+#endif
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
+Int parseLogCRCDebugLines(char *args[], int argc)
+{
+#ifdef DEBUG_CRC
+	g_logCRCDebugLines = TRUE;
+#endif
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
 Int parseNetCRCInterval(char *args[], int argc)
 {
 #if defined(DEBUG_CRC) && !RETAIL_COMPATIBLE_NETWORKING
@@ -793,6 +815,31 @@ Int parseAutoNetworkMap(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoNetworkAI(char *args[], int num)
+{
+	Int aiPlayers = 0;
+	if (num > 1 && parsePositiveInt(args[1], aiPlayers) && NetworkAutoStart::setAICount(aiPlayers))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoNetworkAI. Pass a hard AI player count from 1 to %d and do not combine it with -autoNetworkJoin.\n", MAX_SLOTS - 1);
+	exit(1);
+	return 1;
+}
+
+Int parseAutoNetworkResume(char *args[], int num)
+{
+#if defined(RTS_DEBUG)
+	if (num > 1)
+	{
+		NetworkAutoStart::setResumeSave(AsciiString(args[1]));
+		return 2;
+	}
+#endif
+	return 1;
+}
+
 Int parseAutoNetworkTimeout(char *args[], int num)
 {
 	Int timeoutSeconds = 0;
@@ -1006,6 +1053,149 @@ Int parseLoadMap(char *args[], int num)
 	return 1;
 }
 
+Int parseResumeAs(char *args[], int num)
+{
+	if (num > 1)
+	{
+		Int slot = atoi(args[1]);
+		if (slot >= 0 && slot < MAX_SLOTS)
+		{
+			TheWritableGlobalData->m_resumeAsSlot = slot;
+		}
+		else
+		{
+			printf("Invalid -resumeas slot \"%s\"\n", args[1]);
+		}
+		return 2;
+	}
+	return 1;
+}
+
+Int parseCrcRecovery(char *[], int)
+{
+	TheWritableGlobalData->m_crcRecovery = TRUE;
+	return 1;
+}
+
+Int parseDesyncAtFrame(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_desyncAtFrame = atoi(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parseDivergeAtFrame(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_divergeAtFrame = atoi(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parseRejoinWait(char *args[], int num)
+{
+	if (num > 1)
+	{
+		Int waitMs = atoi(args[1]);
+		if (waitMs > 0)
+		{
+			TheWritableGlobalData->m_rejoinWaitMs = waitMs;
+		}
+		else
+		{
+			printf("Invalid -rejoinWait \"%s\"\n", args[1]);
+		}
+		return 2;
+	}
+	return 1;
+}
+
+Int parseAutoNetworkRejoin(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_rejoinHostIP = args[1];
+		return 2;
+	}
+	return 1;
+}
+
+Int parseRejoinSlot(char *args[], int num)
+{
+	if (num > 1)
+	{
+		Int slot = atoi(args[1]);
+		if (slot > 0 && slot < MAX_SLOTS)
+		{
+			// Slot 0 hosts the held game; a rejoiner can only hold another slot.
+			TheWritableGlobalData->m_rejoinSlot = slot;
+		}
+		else
+		{
+			printf("Invalid -rejoinSlot \"%s\"\n", args[1]);
+		}
+		return 2;
+	}
+	return 1;
+}
+
+Int parseSaveNormal(char *[], int)
+{
+	TheWritableGlobalData->m_saveAtFrameNormal = TRUE;
+	return 1;
+}
+
+Int parseResumeReplay(char *args[], int num)
+{
+	if (num > 1)
+	{
+		AsciiString filename = args[1];
+		if (!filename.endsWithNoCase(RecorderClass::getReplayExtention()))
+		{
+			printf("Invalid replay name \"%s\"\n", filename.str());
+			exit(1);
+		}
+		TheWritableGlobalData->m_resumeReplayName = filename;
+		return 2;
+	}
+	return 1;
+}
+
+// TheSuperHackers @feature bobtista 14/08/2026 Write a save at a chosen logic frame so a save
+// and load round trip can be run without a person at the keyboard.
+Int parseSaveAtFrame(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_saveAtFrame = atoi(args[1]);
+	}
+	return 2;
+}
+
+// TheSuperHackers @feature bobtista 19/08/2026 Quit at a chosen logic frame so an unattended
+// measurement run ends as soon as it has produced its data instead of idling until it is killed.
+Int parseQuitAtFrame(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_quitAtFrame = atoi(args[1]);
+	}
+	return 2;
+}
+
+Int parseSaveTo(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_saveToFile = args[1];
+	}
+	return 2;
+}
 
 #if defined(RTS_DEBUG)
 Int parseDisplayDebug(char *args[], int)
@@ -1691,7 +1881,9 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoNetworkLocalAddress", parseAutoNetworkLocalAddress },
 	{ "-autoNetworkName", parseAutoNetworkName },
 	{ "-autoNetworkMap", parseAutoNetworkMap },
+	{ "-autoNetworkAI", parseAutoNetworkAI },
 	{ "-autoNetworkTimeout", parseAutoNetworkTimeout },
+	{ "-autoNetworkResume", parseAutoNetworkResume },
 #endif
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-bgfxEffects", parseBgfxEffects }, // must be in this (post-INI) table so it overrides Bgfx.ini/GameData.ini
@@ -1755,10 +1947,23 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-loadreplay", parseLoadReplay },
 	{ "-ignoreReplaySyncErrors", parseIgnoreReplaySyncErrors },
 
+	{ "-resumereplay", parseResumeReplay },
+	{ "-resumeas", parseResumeAs },
+	{ "-saveatframe", parseSaveAtFrame },
+	{ "-quitatframe", parseQuitAtFrame },
+	{ "-saveto", parseSaveTo },
+	{ "-savenormal", parseSaveNormal },
+
 	// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 	{ "-forcefullviewport", parseFullViewport },
 
 #if defined(RTS_DEBUG)
+	{ "-crcRecovery", parseCrcRecovery },
+	{ "-desyncAtFrame", parseDesyncAtFrame },
+	{ "-divergeAtFrame", parseDivergeAtFrame },
+	{ "-rejoinWait", parseRejoinWait },
+	{ "-autoNetworkRejoin", parseAutoNetworkRejoin },
+	{ "-rejoinSlot", parseRejoinSlot },
 	{ "-noaudio", parseNoAudio },
 	{ "-map", parseMapName },
 	{ "-nomusic", parseNoMusic },
@@ -1815,6 +2020,8 @@ static CommandLineParam paramsForEngineInit[] =
 
 	// Log CRC of Objects and Weapons (See Object::crc and Weapon::crc)
 	{ "-LogObjectCRCs", parseLogObjectCRCs },
+	{ "-LogCRCGenLines", parseLogCRCGenLines },
+	{ "-LogCRCDebugLines", parseLogCRCDebugLines },
 
 	// Number of frames between each CRC check between all players in multiplayer games
 	// (if not all crcs are equal, mismatch occurs).

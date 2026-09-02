@@ -44,6 +44,11 @@
 #include "Common/WellKnownKeys.h"
 #include "Common/XferLoad.h"
 #include "Common/XferSave.h"
+#include "Common/Recorder.h"
+#include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/NetworkAutoStart.h"
+#include "Common/Player.h"
+#include "Common/PlayerList.h"
 #include "GameClient/CampaignManager.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GameClient.h"
@@ -51,13 +56,17 @@
 #include "GameClient/MapUtil.h"
 #include "GameClient/Drawable.h"
 #include "GameClient/InGameUI.h"
+#include "GameClient/View.h"
 #include "GameClient/ParticleSys.h"
 #include "GameClient/TerrainVisual.h"
+#include "GameLogic/AI.h"
+#include "GameLogic/AIPathfind.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
 #include "GgcRuntimeFlags.h"
 #include "GameLogic/GhostObject.h"
 #include "GameLogic/PartitionManager.h"
+#include "GameLogic/VictoryConditions.h"
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/SidesList.h"
 #include "GameLogic/TerrainLogic.h"
@@ -348,6 +357,15 @@ void GameState::init()
 	addSnapshotBlock( "CHUNK_TeamFactory",						TheTeamFactory,						SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_Players",								ThePlayerList,						SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_GameLogic",							TheGameLogic,							SNAPSHOT_SAVELOAD );
+	//
+	// TheSuperHackers @bugfix bobtista 16/08/2026 The AI was never written to a save at all, so the
+	// pathfind request queue and the group list came back empty or rebuilt rather than restored.
+	// It follows CHUNK_GameLogic because both hold object ids that only resolve once objects exist.
+	// A save written without this block simply never presents the token, and the load skips it.
+	// TheSuperHackers @bugfix bobtista 29/08/2026 Register the block in every build. Whether it is
+	// written is decided per save: checkpoints carry it, retail shaped saves leave it out.
+	//
+	addSnapshotBlock( "CHUNK_AI",										TheAI,										SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_Radar",									TheRadar,									SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_ScriptEngine",						TheScriptEngine,					SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_SidesList",							TheSidesList,							SNAPSHOT_SAVELOAD );
@@ -602,6 +620,10 @@ SaveResult GameState::saveGame( AsciiString filename, UnicodeString desc,
 
 	// open the save file
 	XferSave xferSave;
+	if( saveType == SAVE_FILE_TYPE_CHECKPOINT )
+	{
+		xferSave.setPurpose( XFER_PURPOSE_CHECKPOINT );
+	}
 	try {
 		xferSave.open( filepath );
 	} catch(...) {
@@ -700,6 +722,16 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 	// open the save file
 	XferLoad xferLoad;
+
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Mirror the save side purpose on load. A
+	// checkpoint stream can gate fields on the purpose when no version field is available, so the
+	// loader must present the same purpose the writer used.
+	//
+	if( gameInfo.saveGameInfo.saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
+	{
+		xferLoad.setPurpose( XFER_PURPOSE_CHECKPOINT );
+	}
 	xferLoad.open( filepath );
 
 	// clear out the game engine
@@ -712,12 +744,18 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 	// load the save data
 	Bool error = FALSE;
+	UnsignedInt loadPhaseStart = timeGetTime();
 	try
 	{
 
 		// load file
 		xferSaveData( &xferLoad, SNAPSHOT_SAVELOAD );
 
+	}
+	catch( SaveCode thrownCode )
+	{
+		DEBUG_LOG(("GameState::loadGame - load failed with SaveCode %d", (Int)thrownCode));
+		error = TRUE;
 	}
 	catch( ... )
 	{
@@ -730,6 +768,8 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	// un-savelock the ghost objects
 	TheGhostObjectManager->saveLockGhostObjects( FALSE );
 
+	DEBUG_LOG(("GameState::loadGame: xferSaveData took %d ms", timeGetTime() - loadPhaseStart));
+	loadPhaseStart = timeGetTime();
 	try
 	{
 		// do the post-process from a save game load
@@ -739,6 +779,10 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	{
 		error = TRUE;
 	}
+
+	// the load screen survives startNewGame during a save load; the restore is done now
+	TheGameLogic->updateLoadProgress( 100 );
+	TheGameLogic->deleteLoadScreen();
 
 	// check for error
 	if( error == TRUE )
@@ -820,10 +864,152 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 }
 
 // ------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature bobtista 26/08/2026 Take control of a chosen lobby slot when
+// playing on from a multiplayer checkpoint. Without this the first occupied slot's player
+// is the local player. Ignored while resuming playback, which controls every player.
+// Returns FALSE when the requested slot exists but no player could be matched to it, so
+// callers can refuse to report a successful resume under the wrong identity.
+static Bool applyResumeAsSlot( void )
+{
+	if( TheGlobalData->m_resumeAsSlot >= 0 && TheGlobalData->m_resumeReplayName.isEmpty() &&
+		TheSkirmishGameInfo != nullptr )
+	{
+		const GameSlot *slot = TheSkirmishGameInfo->getConstSlot( TheGlobalData->m_resumeAsSlot );
+		Player *resumePlayer = nullptr;
+		if( slot != nullptr )
+		{
+			// The slot index is the identity everywhere else in the network layer; display
+			// names can be duplicated between players.
+			resumePlayer = ThePlayerList->getPlayerFromSlotIndex( TheGlobalData->m_resumeAsSlot );
+		}
+		if( resumePlayer != nullptr )
+		{
+			ThePlayerList->setLocalPlayer( resumePlayer );
+			DEBUG_LOG(("Resume as slot %d: local player is now '%ls'",
+				TheGlobalData->m_resumeAsSlot, resumePlayer->getPlayerDisplayName().str()));
+
+			// The save carries the donor's camera; put this player back at their own base.
+			Object *anchor = nullptr;
+			for( Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject() )
+			{
+				if( obj->getControllingPlayer() == resumePlayer )
+				{
+					if( obj->isKindOf( KINDOF_COMMANDCENTER ) )
+					{
+						anchor = obj;
+						break;
+					}
+					if( anchor == nullptr )
+					{
+						anchor = obj;
+					}
+				}
+			}
+			if( anchor != nullptr && TheTacticalView != nullptr )
+			{
+				TheTacticalView->lookAt( anchor->getPosition() );
+			}
+		}
+		else
+		{
+			DEBUG_LOG(("Resume as slot %d: no matching player found", TheGlobalData->m_resumeAsSlot));
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+// ------------------------------------------------------------------------------------------------
 /** Load the save game requested on startup, after the shell has been initialized */
 // ------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature bobtista 26/08/2026 Load a synchronized multiplayer save while
+// the LAN lobby and TheNetwork are live: the game keeps GAME_LAN mode and lockstep frame
+// bookkeeping is seeded to the loaded frame so the match continues where it stopped.
+void GameState::loadResumeSaveGame( AsciiString filename )
+{
+	AvailableGameInfo gameInfo;
+	gameInfo.filename = filename;
+	gameInfo.next = nullptr;
+	gameInfo.prev = nullptr;
+
+	if( doesSaveGameExist( gameInfo.filename ) == FALSE )
+	{
+		DEBUG_LOG(("Resume save '%s' was not found", gameInfo.filename.str()));
+		TheGameEngine->setQuitting( TRUE );
+		return;
+	}
+
+	try
+	{
+		AsciiString filepath = getFilePathInSaveDirectory( gameInfo.filename );
+		getSaveGameInfoFromFile( filepath, &gameInfo.saveGameInfo );
+	}
+	catch( ... )
+	{
+		DEBUG_LOG(("Resume save '%s' could not be read", gameInfo.filename.str()));
+		TheGameEngine->setQuitting( TRUE );
+		return;
+	}
+
+	//
+	// Keep the freshly connected network alive across the engine reset: GameEngine::reset
+	// deletes TheNetwork for multiplayer modes, but the resumed game continues on this
+	// exact instance.
+	//
+	NetworkInterface *resumeNetwork = TheNetwork;
+	TheNetwork = nullptr;
+	TheGameLogic->prepareNewGame( GAME_LAN, DIFFICULTY_NORMAL, 0 );
+	TheNetwork = resumeNetwork;
+
+	SaveCode resumeCode = loadGame( gameInfo );
+	if( resumeCode != SC_OK )
+	{
+		DEBUG_LOG(("Failed to load resume save '%s' code=%d", gameInfo.filename.str(), (Int)resumeCode));
+		TheGameEngine->setQuitting( TRUE );
+		return;
+	}
+
+	if( TheNetwork != nullptr )
+	{
+		TheNetwork->setStartFrame( (Int)TheGameLogic->getFrame() );
+		DEBUG_LOG(("Resume save loaded at frame %d, network start frame seeded",
+			TheGameLogic->getFrame()));
+	}
+
+	Bool resumeIdentityOk = applyResumeAsSlot();
+
+	// TheSuperHackers @feature bobtista 27/08/2026 A recovery or rejoin reload reports its
+	// post-load state so the handshake can gate the resume, whichever path loaded the save.
+	// A peer that could not take its own slot must not report success; the handshake times
+	// out into the endgame instead of resuming under the wrong identity.
+	if( TheNetwork != nullptr && TheNetwork->isRecoveryInProgress() )
+	{
+		if( resumeIdentityOk )
+		{
+			UnsignedInt recoveryCRC = TheGameLogic->getCRC( CRC_RECALC );
+			TheNetwork->sendRecoveryReady( TheGameLogic->getFrame(), recoveryCRC );
+		}
+		else
+		{
+			DEBUG_LOG(("Resume identity failed, withholding recovery ready"));
+		}
+	}
+}
+
 void GameState::loadQueuedSaveGame()
 {
+#if defined(RTS_DEBUG)
+	// TheSuperHackers @feature bobtista 26/08/2026 A queued multiplayer resume keeps GAME_LAN
+	// mode and reseeds lockstep instead of taking the single player load path.
+	if( NetworkAutoStart::getResumeSave().isNotEmpty() )
+	{
+		AsciiString resumeName = NetworkAutoStart::getResumeSave();
+		TheWritableGlobalData->m_loadSaveGame.clear();
+		loadResumeSaveGame( resumeName );
+		return;
+	}
+#endif
+
 	AvailableGameInfo gameInfo;
 	gameInfo.filename = TheGlobalData->m_loadSaveGame;
 	gameInfo.next = nullptr;
@@ -861,6 +1047,20 @@ void GameState::loadQueuedSaveGame()
 			TheGameLogic->clearGameData( FALSE );
 		TheGameEngine->reset();
 		TheGameEngine->setQuitting( TRUE );
+		return;
+	}
+
+	applyResumeAsSlot();
+
+	// TheSuperHackers @feature bobtista 25/08/2026 Resume replay playback from the loaded
+	// checkpoint: skip the recorded commands the checkpoint already contains and continue
+	// feeding the rest, exactly where an uninterrupted playback would be at this frame.
+	if( TheGlobalData->m_resumeReplayName.isNotEmpty() && TheRecorder != nullptr )
+	{
+		MAYBE_UNUSED Bool resumed = TheRecorder->resumePlayback( TheGlobalData->m_resumeReplayName, TheGameLogic->getFrame() );
+		(void)resumed;
+		DEBUG_LOG(("Resume replay '%s' at frame %d: %s",
+			TheGlobalData->m_resumeReplayName.str(), TheGameLogic->getFrame(), resumed ? "OK" : "FAILED"));
 	}
 }
 
@@ -983,9 +1183,32 @@ const char* PORTABLE_SAVE				= "Save\\";
 const char* PORTABLE_MAPS				= "Maps\\";
 const char* PORTABLE_USER_MAPS	= "UserData\\Maps\\";
 
-// ------------------------------------------------------------------------------------------------
-AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
+// TheSuperHackers @bugfix bobtista 29/08/2026 The original game info restored from a save minted
+// during replay playback carries the wire form of the map path, which uses forward slashes.
+// Normalize to backslashes before matching the portable prefixes.
+static AsciiString normalizeMapPathSeparators(const AsciiString& in)
 {
+	AsciiString out;
+	char piece[2];
+	piece[1] = '\0';
+	for (const char *c = in.str(); *c != '\0'; ++c)
+	{
+		piece[0] = (*c == '/') ? '\\' : *c;
+		out.concat(piece);
+	}
+	return out;
+}
+
+// ------------------------------------------------------------------------------------------------
+AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& inPath) const
+{
+	// TheSuperHackers @bugfix bobtista 29/08/2026 A game info that never had a map set carries the
+	// 'nomap' placeholder. It is not a path, so pass it through instead of asserting.
+	if (inPath.find('\\') == nullptr && inPath.find('/') == nullptr)
+	{
+		return inPath;
+	}
+	AsciiString in = normalizeMapPathSeparators(inPath);
 	AsciiString prefix;
 	if (in.startsWithNoCase(getSaveDirectory()))
 	{
@@ -1001,6 +1224,13 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
 	{
 		prefix = PORTABLE_USER_MAPS;
 		prefix.concat(getMapLeafAndDirName(in));
+	}
+	else if (in.startsWithNoCase(PORTABLE_SAVE) || in.startsWithNoCase(PORTABLE_MAPS) || in.startsWithNoCase(PORTABLE_USER_MAPS))
+	{
+		// TheSuperHackers @bugfix bobtista 29/08/2026 A replay's original map path is already
+		// portable. Saves minted during replay playback carry it verbatim, so pass it through
+		// instead of asserting on the missing real directory prefix.
+		prefix = in;
 	}
 	else
 	{
@@ -1024,33 +1254,26 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
 }
 
 // ------------------------------------------------------------------------------------------------
-AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
+AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& inPath) const
 {
-	// TheSuperHackers @bugfix bobtista 11/07/2026 Normalize the portable input
-	// to the portable '\\' separator form before parsing. Saves written before
-	// the 09/06/2026 portable-path normalization carry '/' or mixed separators;
-	// on Windows the '\\'-only separator scan then mis-splits a mixed name
-	// ("maps\\dir/leaf.map" keeps its "maps\\" prefix and double-prefixes the
-	// real path to "maps\\maps\\..."), and an all-'/' name fails the portable
-	// prefix match outright on both platforms.
-	AsciiString portableIn = in;
+	// TheSuperHackers @bugfix bobtista 29/08/2026 A game info that never had a map set carries the
+	// 'nomap' placeholder. It is not a path, so pass it through instead of asserting.
+	if (inPath.find('\\') == nullptr && inPath.find('/') == nullptr)
 	{
-		std::string normalized(portableIn.str());
-		std::replace(normalized.begin(), normalized.end(), '/', '\\');
-		portableIn.set(normalized.c_str());
+		return inPath;
 	}
-
+	AsciiString in = normalizeMapPathSeparators(inPath);
 	AsciiString prefix;
 	// The directory where the real map path should be contained in.
 	AsciiString containingBasePath;
-	if (portableIn.startsWithNoCase(PORTABLE_SAVE))
+	if (in.startsWithNoCase(PORTABLE_SAVE))
 	{
 		// the save dir ends with "\\"
 		prefix = getSaveDirectory();
 		containingBasePath = prefix;
-		prefix.concat(getMapLeafName(portableIn));
+		prefix.concat(getMapLeafName(in));
 	}
-	else if (portableIn.startsWithNoCase(PORTABLE_MAPS))
+	else if (in.startsWithNoCase(PORTABLE_MAPS))
 	{
 		// the map dir DOES NOT end with "\\", must add it
 		prefix = TheMapCache->getMapDir();
@@ -1060,9 +1283,9 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 		prefix.concat("/");
 #endif
 		containingBasePath = prefix;
-		prefix.concat(getMapLeafAndDirName(portableIn));
+		prefix.concat(getMapLeafAndDirName(in));
 	}
-	else if (portableIn.startsWithNoCase(PORTABLE_USER_MAPS))
+	else if (in.startsWithNoCase(PORTABLE_USER_MAPS))
 	{
 		// the map dir DOES NOT end with "\\", must add it
 		prefix = TheMapCache->getUserMapDir();
@@ -1072,7 +1295,7 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 		prefix.concat("/");
 #endif
 		containingBasePath = prefix;
-		prefix.concat(getMapLeafAndDirName(portableIn));
+		prefix.concat(getMapLeafAndDirName(in));
 	}
 	else
 	{
@@ -1532,6 +1755,15 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 			DEBUG_LOG(("Looking at block '%s'", blockName.str()));
 
 			//
+			// TheSuperHackers @bugfix bobtista 29/08/2026 The AI block only belongs in checkpoints.
+			// Retail shaped saves must not present the token, and the loader skips it when absent.
+			//
+			if( blockName.compareNoCase( "CHUNK_AI" ) == 0 && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT )
+			{
+				continue;
+			}
+
+			//
 			// for mission save files, we only save the game state block and campaign manager
 			// because anything else is not needed.
 			//
@@ -1582,10 +1814,21 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 		Int blockSize;
 		Bool done = FALSE;
 		SnapshotBlock *blockInfo;
+		// TheSuperHackers @tweak bobtista 28/08/2026 Walk the load bar across the state
+		// restore; without this every block loads between two engine checkpoints and the
+		// bar sits still through the slowest part of a save load.
+		Int blockCount = (Int)m_snapshotBlockList[which].size();
+		Int blocksRead = 0;
 
 		// read all data blocks in the file
 		while( done == FALSE )
 		{
+
+			if( blockCount > 0 && TheGameLogic != nullptr )
+			{
+				TheGameLogic->updateLoadProgress( 5 + (93 * blocksRead) / blockCount );
+			}
+			++blocksRead;
 
 			// read next token
 			xfer->xferAsciiString( &token );
@@ -1627,8 +1870,12 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 					// read block start
 					blockSize = xfer->beginBlock();
 
+					UnsignedInt blockStart = timeGetTime();
+
 					// parse this data
 					xfer->xferSnapshot( blockInfo->snapshot );
+
+					DEBUG_LOG(("xferSaveData: block '%s' took %d ms", token.str(), timeGetTime() - blockStart));
 
 					// read block end
 					xfer->endBlock();
@@ -1702,6 +1949,9 @@ void GameState::gameStatePostProcessLoad()
 	// post process each snapshot that registered with us
 	SnapshotListIterator it;
 	Snapshot *snapshot;
+	Int postProcessCount = (Int)m_snapshotPostProcessList.size();
+	Int postProcessDone = 0;
+	UnsignedInt phaseStart = timeGetTime();
 	for( it = m_snapshotPostProcessList.begin(); it != m_snapshotPostProcessList.end(); /*emtpy*/ )
 	{
 
@@ -1711,16 +1961,45 @@ void GameState::gameStatePostProcessLoad()
 		// increment iterator
 		++it;
 
+		// The post-process rebuilds (pathfinder, partition) dominate the tail of a save
+		// load; keep the load bar alive through them. Only push changed values: every call
+		// renders a frame, and this loop runs tens of thousands of times.
+		if( postProcessCount > 0 )
+		{
+			Int postPercent = 95 + (3 * postProcessDone) / postProcessCount;
+			static Int lastPostPercent = -1;
+			if( postPercent != lastPostPercent )
+			{
+				lastPostPercent = postPercent;
+				TheGameLogic->updateLoadProgress( postPercent );
+			}
+		}
+		++postProcessDone;
+
 		// do processing
 		snapshot->loadPostProcess();
 
 	}
+	DEBUG_LOG(("gameStatePostProcessLoad: %d snapshot callbacks took %d ms", postProcessCount, timeGetTime() - phaseStart));
 
 	// clear the snapshot post process list as we are now done with it
 	m_snapshotPostProcessList.clear();
 
+	// The restored pathfind ring remains authoritative while later blocks rebuild their state.
+	// Normal gameplay requests may resume only after every load post-process callback has run.
+	phaseStart = timeGetTime();
+	TheGameLogic->updateLoadProgress( 98 );
+	TheAI->pathfinder()->finishLoadPostProcess();
+	DEBUG_LOG(("gameStatePostProcessLoad: pathfinder finish took %d ms", timeGetTime() - phaseStart));
+
 	// evil... must ensure this is updated prior to the script engine running the first time.
-	ThePartitionManager->update();
+	phaseStart = timeGetTime();
+	TheGameLogic->updateLoadProgress( 99 );
+	ThePartitionManager->updateCellsOnlyForLoad();
+	ThePartitionManager->finishLoadPostProcess();
+	DEBUG_LOG(("gameStatePostProcessLoad: partition finish took %d ms", timeGetTime() - phaseStart));
+
+	TheVictoryConditions->resyncDefeatStateAfterLoad();
 
 }
 

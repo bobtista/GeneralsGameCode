@@ -33,6 +33,8 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+
+#include "Common/GameState.h"
 #include "Common/Player.h"
 #include "Common/Xfer.h"
 #include "Common/ThingTemplate.h"
@@ -107,6 +109,16 @@ HelixContain::~HelixContain()
 
 void HelixContain::onObjectCreated()
 {
+	//
+	// TheSuperHackers @bugfix bobtista 23/08/2026 Do not create the initial payload while a save is
+	// loading. The saved payload objects are restored from the save stream and re-registered by the
+	// contain xfer, so creating them here as well duplicated every payload on load.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
+
   HelixContain::createPayload();
 }
 
@@ -130,6 +142,17 @@ UpdateSleepTime HelixContain::update()
 
 void HelixContain::redeployOccupants()
 {
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Do not redeploy during a load. The transform and
+	// model condition churn of reconstruction triggers redeploys that reset and re-derive the fire
+	// point cursors and matrices the save already restored, so a garrisoned building resumed with a
+	// different next fire point than the uninterrupted run.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
+
   Coord3D firePos = *getObject()->getPosition();
   firePos.z += 8;
 

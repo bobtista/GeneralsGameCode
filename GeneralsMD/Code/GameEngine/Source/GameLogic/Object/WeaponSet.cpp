@@ -178,6 +178,7 @@ WeaponSet::WeaponSet()
 	m_curWeapon = PRIMARY_WEAPON;
 	m_curWeaponLockedStatus = NOT_LOCKED;
 	m_curWeaponTemplateSet = nullptr;
+	m_xferOwner = nullptr;
 	m_filledWeaponSlotMask = 0;
 	m_totalAntiMask = 0;
 	m_totalDamageTypeMask.clear();
@@ -214,7 +215,8 @@ void WeaponSet::xfer( Xfer *xfer )
 {
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 1;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 	const XferVersion currentVersion = 2;
 #endif
@@ -235,7 +237,22 @@ void WeaponSet::xfer( Xfer *xfer )
 		}
 		else
 		{
-			const ThingTemplate* tt = TheThingFactory->findTemplate(ttName);
+			//
+			// TheSuperHackers @bugfix bobtista 24/08/2026 Resolve the restored set on the owning
+			// object's template. Looking the template up by name can return a different instance
+			// than the one the object carries (map overrides, copied templates), and the set
+			// pointer then never matches the one updateWeaponSet resolves, so the first weapon
+			// set condition change after load rebuilt the weapons the run that saved kept.
+			//
+			const ThingTemplate* tt = nullptr;
+			if (m_xferOwner != nullptr)
+			{
+				tt = m_xferOwner->getTemplate();
+			}
+			if (tt == nullptr)
+			{
+				tt = TheThingFactory->findTemplate(ttName);
+			}
 			if (tt == nullptr)
 				throw INI_INVALID_DATA;
 
@@ -268,6 +285,13 @@ void WeaponSet::xfer( Xfer *xfer )
 	{
 		Bool hasWeaponInSlot = (m_weapons[i] != nullptr);
 		xfer->xferBool(&hasWeaponInSlot);
+		if (xfer->getXferMode() == XFER_LOAD && !hasWeaponInSlot && m_weapons[i] != nullptr)
+		{
+			// TheSuperHackers @bugfix bobtista 17/08/2026 The constructor can populate a weapon
+			// slot that was empty in the saved state. Remove it before restoring the remaining slots.
+			deleteInstance(m_weapons[i]);
+			m_weapons[i] = nullptr;
+		}
 		if (hasWeaponInSlot)
 		{
 			if (xfer->getXferMode() == XFER_LOAD && m_weapons[i] == nullptr)
@@ -1162,4 +1186,3 @@ Bool WeaponSet::isSharedReloadTime() const
 		return m_curWeaponTemplateSet->isSharedReloadTime();
 	return false;
 }
-

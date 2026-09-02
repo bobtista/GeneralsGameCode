@@ -349,6 +349,7 @@ public:
 	void getCellCenterPos(Real& x, Real& y);
 
 	CellAndObjectIntersection *getFirstCoiInCell() { return m_firstCoiInCell; }
+	void restoreObjectOrder(const std::vector<ObjectID> &objectOrder);
 
 	#ifdef RTS_DEBUG
 	void validateCoiList();
@@ -396,6 +397,7 @@ private:
 	ObjectShroudStatus					m_shroudednessPrevious[MAX_PLAYER_COUNT];	///<previous frames value of m_shroudedness
 	Bool												m_everSeenByPlayer[MAX_PLAYER_COUNT];		///<whether this object has ever been seen by a given player.
 	const PartitionCell					*m_lastCell;							///< The last cell I thought my center was in.
+	Bool												m_skipCellChangeCheckOnce;	///< Skip the next cell-change comparison, preserving the anchor restored from the save.
 
 	/**
 		Given a shape's geometry and size parameters, calculate the maximum number of COIs
@@ -491,6 +493,10 @@ private:
 
 public:
 
+	void friend_restoreLastCellFromLook();
+	void friend_setSkipCellChangeCheckOnce();
+	Bool friend_isInNeedOfCellUpdate() const;
+
 	PartitionData();
 
 	void attachToObject( Object* object );
@@ -509,6 +515,9 @@ public:
 	void makeDirty(Bool needToUpdateCells);
 
 	Bool isInNeedOfUpdatingCells() const { return m_dirtyStatus == NEED_CELL_UPDATE_AND_COLLISION_CHECK; }
+	PartitionData* friend_getNextDirty() const { return m_nextDirty; }
+	UnsignedByte friend_getDirtyStatus() const { return (UnsignedByte)m_dirtyStatus; }
+	void friend_restoreDirty(UnsignedByte status);
 	Bool isInNeedOfCollisionCheck() const { return m_dirtyStatus != NOT_DIRTY; }
 
 	void invalidateShroudedStatusForPlayer(Int playerIndex);
@@ -547,6 +556,7 @@ public:
 
 	void friend_removeAllTouchedCells() { removeAllTouchedCells(); }	///< this is only for use by PartitionManager
 	void friend_updateCellsTouched()	{ updateCellsTouched(); } ///< this is only for use by PartitionManager
+	void friend_restoreCheckpointCoverage( PartitionCell * const *cells, Int cellCount );	///< this is only for use by PartitionManager
 	Int friend_getCoiInUseCount() { return m_coiInUseCount; } ///< this is only for use by PartitionManager
 	Bool friend_collidesWith(const PartitionData *that, CollideLocAndNormal *cinfo) const { return collidesWith(that, cinfo); }	///< this is only for use by PartitionContactList
 
@@ -1249,9 +1259,12 @@ private:
 	Int							m_totalCellCount;	///< x * y
 	PartitionCell*	m_cells;					///< array of cells
 	PartitionData*	m_dirtyModules;
+	Bool                m_suppressCollisionsThisUpdate;
 	Bool						m_updatedSinceLastReset;	///< Used to force a return of OBJECTSHROUD_INVALID before update has been called.
 
 	std::queue<SightingInfo *> m_pendingUndoShroudReveals;	///< Anything can queue up an Undo to happen later. This is a queue, because "later" is a constant
+	std::vector<std::vector<ObjectID> > m_checkpointCellObjectOrder;
+	std::vector<std::pair<ObjectID, UnsignedByte> > m_checkpointDirtyOrder;
 
 #ifdef FASTER_GCO
 	Int							m_maxGcoRadius;
@@ -1319,12 +1332,21 @@ public:
 	virtual void init() override;			///< initialize
 	virtual void reset() override;			///< system reset
 	virtual void update() override;		///< system update
+
+	//
+	// TheSuperHackers @bugfix bobtista 20/08/2026 Sweep the dirty list without running collisions.
+	// The load path needs the cells refreshed before the script engine runs, but processing
+	// collisions there replays contacts whose impulses are already baked into the saved
+	// acceleration, so every one of them lands twice on the first resumed frame.
+	//
+	void updateCellsOnlyForLoad();
 	// ----------------------------------------------------------------
 
 	// --------------- inherited from Snapshot interface --------------
 	virtual void crc( Xfer *xfer ) override;
 	virtual void xfer( Xfer *xfer ) override;
 	virtual void loadPostProcess() override;
+	void finishLoadPostProcess();	///< Restore exact checkpoint ordering after the forced post-load partition update.
 
 	Bool getUpdatedSinceLastReset() const { return m_updatedSinceLastReset; }
 

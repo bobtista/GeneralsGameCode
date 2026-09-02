@@ -130,13 +130,27 @@ void SmartBombTargetHomingUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
 	// extend base class
 	UpdateModule::xfer( xfer );
 
+
+	//
+	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the homing target, otherwise a bomb in flight loses where it was aimed.
+	//
+	if( version >= 2 )
+	{
+		xfer->xferBool( &m_targetReceived );
+		xfer->xferCoord3D( &m_target );
+	}
 
 }
 

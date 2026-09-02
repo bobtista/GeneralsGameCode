@@ -102,6 +102,8 @@
 #include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/NetworkAutoStart.h"
+#include "GameNetwork/GameInfo.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
@@ -807,6 +809,12 @@ void GameEngine::reset()
 	Bool deleteNetwork = false;
 	if (TheGameLogic->isInMultiplayerGame())
 		deleteNetwork = true;
+#if defined(RTS_DEBUG)
+	// TheSuperHackers @feature bobtista 27/08/2026 A pending multiplayer resume load resets the
+	// engine on its way in; the freshly connected network must survive to carry the resumed game.
+	if (NetworkAutoStart::getResumeSave().isNotEmpty())
+		deleteNetwork = false;
+#endif
 
 	resetSubsystems();
 
@@ -931,6 +939,208 @@ void GameEngine::update()
 			TheAudio->UPDATE();
 			TheGameClient->UPDATE();
 			TheMessageStream->propagateMessages();
+
+#if defined(RTS_DEBUG)
+			// TheSuperHackers @feature bobtista 27/08/2026 A queued multiplayer resume load fires
+			// once the lobby handoff has created TheNetwork; the shell-path trigger never runs in
+			// the automated lobby flow.
+			if (TheGlobalData->m_loadSaveGame.isNotEmpty() && TheNetwork != nullptr &&
+					NetworkAutoStart::getResumeSave().isNotEmpty() && !TheGameLogic->isInGame() &&
+					(TheGlobalData->m_rejoinHostIP.isEmpty() ||
+					 TheNetwork->getRecoveryReceivedFile() == NetworkAutoStart::getResumeSave()))
+			{
+				// Stagger peers so only one instance extracts and opens the shared scratch map at
+				// a time; the purge skips maps the peer already holds open.
+				static UnsignedInt s_resumeEligibleAt = 0;
+				UnsignedInt now = timeGetTime();
+				if (s_resumeEligibleAt == 0)
+				{
+					s_resumeEligibleAt = now + (rts::ClientInstance::getInstanceId() - 1u) * 8000u;
+				}
+				if (now >= s_resumeEligibleAt)
+				{
+					TheGameState->loadQueuedSaveGame();
+				}
+			}
+
+			// TheSuperHackers @feature bobtista 27/08/2026 Pending CRC recovery reload: once the
+			// donor's synchronized save exists, tear the diverged game down with the network kept
+			// alive and resume from the donor state, exactly like a cold multiplayer resume.
+			// Peers reload staggered so only one extracts the shared scratch map at a time.
+			if (TheGlobalData->m_recoveryResumeSave.isNotEmpty() && TheNetwork != nullptr &&
+					TheGameLogic->isInGame())
+			{
+				static UnsignedInt s_recoveryWaitStart = 0;
+				AsciiString donorSave = TheGlobalData->m_recoveryResumeSave;
+				UnsignedInt now = timeGetTime();
+				UnsignedInt staggerMs = (rts::ClientInstance::getInstanceId() - 1u) * (UnsignedInt)RECOVERY_RELOAD_STAGGER_MS;
+				if (s_recoveryWaitStart == 0)
+				{
+					s_recoveryWaitStart = now;
+				}
+				if ((UnsignedInt)(now - s_recoveryWaitStart) >= staggerMs)
+				{
+					AsciiString localRecoverySave;
+					localRecoverySave.format("recovery_s%d.sav", (Int)TheNetwork->getLocalPlayerID());
+					Bool isDonor = (donorSave == localRecoverySave);
+					Bool snapshotArrived = isDonor;
+					if (!snapshotArrived)
+					{
+						// Wait for the donor's snapshot to arrive over the wire, not for the
+						// file to exist: a shared save directory would satisfy existence
+						// before a single chunk was transferred.
+						snapshotArrived = (TheNetwork->getRecoveryReceivedFile() == donorSave);
+						if (!snapshotArrived && TheInGameUI != nullptr)
+						{
+							static Int s_lastShownPercent = -1;
+							Int transferPercent = TheNetwork->getRecoveryTransferPercent();
+							if (transferPercent < s_lastShownPercent)
+							{
+								// A lower percent means a new transfer began; rearm the throttle.
+								s_lastShownPercent = -1;
+							}
+							if (transferPercent >= s_lastShownPercent + RECOVERY_TRANSFER_MESSAGE_STEP)
+							{
+								s_lastShownPercent = transferPercent;
+								TheInGameUI->message(UnicodeString(L"Receiving game state... %d%%"), transferPercent);
+							}
+						}
+					}
+					if (snapshotArrived && TheGameState->doesSaveGameExist(donorSave))
+					{
+						s_recoveryWaitStart = 0;
+						TheWritableGlobalData->m_recoveryResumeSave.clear();
+						if (TheGlobalData->m_resumeAsSlot < 0)
+						{
+							TheWritableGlobalData->m_resumeAsSlot = (Int)TheNetwork->getLocalPlayerID();
+						}
+						DEBUG_LOG(("CRC recovery: reloading donor save '%s' as slot %d", donorSave.str(), TheGlobalData->m_resumeAsSlot));
+						if (TheInGameUI != nullptr)
+						{
+							TheInGameUI->message(UnicodeString(L"Loading synchronized game state..."));
+						}
+						NetworkAutoStart::setResumeSave(donorSave);
+						TheGameLogic->clearGameData(FALSE);
+						TheGameState->loadResumeSaveGame(donorSave);
+					}
+					else if ((UnsignedInt)(now - s_recoveryWaitStart) >= staggerMs + (UnsignedInt)RECOVERY_SNAPSHOT_WAIT_MS)
+					{
+						DEBUG_LOG(("CRC recovery: donor save '%s' never appeared, ending the game", donorSave.str()));
+						s_recoveryWaitStart = 0;
+						TheWritableGlobalData->m_recoveryResumeSave.clear();
+						TheNetwork->setSawCRCMismatch();
+					}
+				}
+			}
+
+			// TheSuperHackers @feature bobtista 27/08/2026 A peer stopped answering: hold the
+			// game for it to rejoin. This instance snapshots the stall frame, reloads its own
+			// snapshot through the certified recovery path, and waits in the handshake; the
+			// missing peer's slot, connection and address all stay valid because nothing kicks.
+			if (TheGlobalData->m_rejoinHoldPending && TheGameLogic->isInGame() &&
+					TheNetwork != nullptr && !TheNetwork->isRecoveryInProgress() &&
+					TheGlobalData->m_recoveryResumeSave.isEmpty())
+			{
+				TheWritableGlobalData->m_rejoinHoldPending = FALSE;
+				AsciiString holdSave;
+				holdSave.format("recovery_s%d.sav", (Int)TheNetwork->getLocalPlayerID());
+				const SaveResult holdResult = TheGameState->saveGame(holdSave, UnicodeString(L"Rejoin hold"), SAVE_FILE_TYPE_CHECKPOINT);
+				DEBUG_LOG(("Rejoin hold: wrote '%s' at frame %d, code=%d", holdSave.str(), TheGameLogic->getFrame(), (Int)holdResult.saveCode));
+				if (holdResult.saveCode == SC_OK)
+				{
+					if (TheInGameUI != nullptr)
+					{
+						TheInGameUI->message(UnicodeString(L"Player disconnected - holding the game for a rejoin..."));
+					}
+					TheWritableGlobalData->m_recoveryResumeSave = holdSave;
+					TheWritableGlobalData->m_recoveryDonorSave = holdSave;
+					TheNetwork->prepareForRecovery();
+				}
+			}
+
+			// TheSuperHackers @feature bobtista 27/08/2026 Rejoin a running game: rebuild the
+			// network with the original slot layout (the survivors never tore this peer's
+			// connection down, so the same address simply starts answering again), then ask
+			// for the held snapshot and resume through the certified recovery path.
+			if (TheGlobalData->m_rejoinHostIP.isNotEmpty() && TheNetwork == nullptr &&
+					TheGlobalData->m_rejoinSlot >= 0 && !TheGameLogic->isInGame())
+			{
+				Int ipA = 0, ipB = 0, ipC = 0, ipD = 0;
+				UnsignedInt hostIP = 0;
+				UnsignedInt localIP = NetworkAutoStart::getLocalAddress();
+				Bool hostParsed = FALSE;
+				if (sscanf(TheGlobalData->m_rejoinHostIP.str(), "%d.%d.%d.%d", &ipA, &ipB, &ipC, &ipD) == 4 &&
+						ipA >= 0 && ipA <= 255 && ipB >= 0 && ipB <= 255 &&
+						ipC >= 0 && ipC <= 255 && ipD >= 0 && ipD <= 255)
+				{
+					hostIP = ((UnsignedInt)ipA << 24) | ((UnsignedInt)ipB << 16) | ((UnsignedInt)ipC << 8) | (UnsignedInt)ipD;
+					hostParsed = TRUE;
+				}
+				if (hostParsed && localIP != 0)
+				{
+					static SkirmishGameInfo *s_rejoinInfo = nullptr;
+					if (s_rejoinInfo == nullptr)
+					{
+						s_rejoinInfo = NEW SkirmishGameInfo;
+						s_rejoinInfo->init();
+						s_rejoinInfo->clearSlotList();
+						s_rejoinInfo->reset();
+					}
+					s_rejoinInfo->enterGame();
+					GameSlot *hostSlot = s_rejoinInfo->getSlot(0);
+					GameSlot *selfSlot = s_rejoinInfo->getSlot(TheGlobalData->m_rejoinSlot);
+					if (hostSlot == nullptr || selfSlot == nullptr)
+					{
+						DEBUG_LOG(("Rejoin: slot %d unavailable, giving up", TheGlobalData->m_rejoinSlot));
+						TheWritableGlobalData->m_rejoinHostIP.clear();
+						return;
+					}
+					hostSlot->setState(SLOT_PLAYER, UnicodeString(L"Host"));
+					hostSlot->setIP(hostIP);
+					hostSlot->setPort(NETWORK_BASE_PORT_NUMBER);
+					selfSlot->setState(SLOT_PLAYER, UnicodeString(L"Rejoiner"));
+					selfSlot->setIP(localIP);
+					selfSlot->setPort(NETWORK_BASE_PORT_NUMBER);
+					s_rejoinInfo->setLocalIP(localIP);
+
+					TheNetwork = NetworkInterface::createNetwork();
+					TheNetwork->init();
+					TheNetwork->setLocalAddress(localIP, NETWORK_BASE_PORT_NUMBER);
+					TheNetwork->initTransport();
+					TheNetwork->parseUserList(s_rejoinInfo);
+					TheNetwork->prepareForRecovery();
+
+					AsciiString donorSave("recovery_s0.sav");
+					TheWritableGlobalData->m_recoveryDonorSave = donorSave;
+					NetworkAutoStart::setResumeSave(donorSave);
+					TheWritableGlobalData->m_loadSaveGame = donorSave;
+					TheWritableGlobalData->m_resumeAsSlot = TheGlobalData->m_rejoinSlot;
+					DEBUG_LOG(("Rejoin: network rebuilt for slot %d, requesting snapshot from %s",
+						TheGlobalData->m_rejoinSlot, TheGlobalData->m_rejoinHostIP.str()));
+				}
+				else
+				{
+					DEBUG_LOG(("Rejoin: bad host or local address, giving up"));
+					TheWritableGlobalData->m_rejoinHostIP.clear();
+				}
+			}
+
+			// Keep asking for the held snapshot until it arrives, then let the queued resume
+			// trigger load it.
+			if (TheGlobalData->m_rejoinHostIP.isNotEmpty() && TheNetwork != nullptr &&
+					!TheGameLogic->isInGame() && TheNetwork->isRecoveryInProgress() &&
+					TheNetwork->getRecoveryReceivedFile().isEmpty())
+			{
+				static UnsignedInt s_lastRejoinRequest = 0;
+				UnsignedInt requestNow = timeGetTime();
+				if (s_lastRejoinRequest == 0 || (UnsignedInt)(requestNow - s_lastRejoinRequest) >= (UnsignedInt)REJOIN_REQUEST_INTERVAL_MS)
+				{
+					s_lastRejoinRequest = requestNow;
+					TheNetwork->sendRejoinRequest();
+					DEBUG_LOG(("Rejoin: requesting the held snapshot (%d%% received)", TheNetwork->getRecoveryTransferPercent()));
+				}
+			}
+#endif
 
 			if (TheNetwork != nullptr)
 			{

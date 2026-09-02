@@ -312,10 +312,25 @@ class JetOrHeliCirclingDeadAirfieldState : public State
 {
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(JetOrHeliCirclingDeadAirfieldState, "JetOrHeliCirclingDeadAirfieldState")
 protected:
-	// snapshot interface	 STUBBED.
-	// The state will check immediately after a load game, but I think that's ok.  jba.
+	// snapshot interface
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the recheck countdown in checkpoints.
+	// The stub made every load recheck for a new airfield immediately, shifting the check cadence
+	// against the uninterrupted run.
 	virtual void crc( Xfer *xfer ) override {};
-	virtual void xfer( Xfer *xfer ) override {XferVersion cv = 1;	XferVersion v = cv; xfer->xferVersion( &v, cv );}
+	virtual void xfer( Xfer *xfer ) override
+	{
+#if RETAIL_COMPATIBLE_XFER_SAVE
+		XferVersion cv = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+		XferVersion cv = 2;
+#endif
+		XferVersion v = cv;
+		xfer->xferVersion( &v, cv );
+		if( v >= 2 )
+		{
+			xfer->xferInt( &m_checkAirfield );
+		}
+	}
 	virtual void loadPostProcess() override {};
 
 private:
@@ -716,6 +731,37 @@ private:
 public:
 	JetTakeoffOrLandingState( StateMachine *machine, Bool landing ) : m_landing(landing), AIFollowPathState( machine, "JetTakeoffOrLandingState" ) { }
 
+protected:
+	//
+	// TheSuperHackers @bugfix bobtista 21/08/2026 Serialize the lift and speed captured on state
+	// enter. The takeoff update rescales the locomotor's lift from m_maxLift every frame, so a jet
+	// loaded mid takeoff or landing ramped its lift from zero and sank instead of climbing.
+	//
+	virtual void xfer( Xfer *xfer ) override
+	{
+		// extend base class
+		AIFollowPathState::xfer( xfer );
+
+		//
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Carry these in checkpoints too. This stream
+		// has no version field and adding one would change the retail save layout, so the fields
+		// are gated on the save purpose, which the save file type reproduces on load.
+		//
+#if RETAIL_COMPATIBLE_XFER_SAVE
+		if( xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT )
+		{
+			xfer->xferReal( &m_maxLift );
+			xfer->xferReal( &m_maxSpeed );
+			xfer->xferBool( &m_landingSoundPlayed );
+		}
+#else
+		xfer->xferReal( &m_maxLift );
+		xfer->xferReal( &m_maxSpeed );
+		xfer->xferBool( &m_landingSoundPlayed );
+#endif
+	}
+
+public:
 	virtual StateReturnType onEnter() override
 	{
 		Object* jet = getMachineOwner();
@@ -1254,27 +1300,38 @@ protected:
 		// empty. jba.
 	}
 
+	//
+	// TheSuperHackers @bugfix bobtista 22/08/2026 Chain the base class snapshot. This override
+	// dropped AIFaceState's xfer, losing the turn-in-place flag captured on state enter, so a
+	// jet loaded while pausing before takeoff drove toward the runway end instead of turning.
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Pin the version at runtime by purpose instead
+	// of at compile time, and chain the base class after the version field so the reader can
+	// decide from the stream. The compile time pin left checkpoints without the base class data.
+	//
 	virtual void xfer( Xfer *xfer ) override
 	{
 		// version
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-		XferVersion currentVersion = 1;
+		XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 		XferVersion currentVersion = 2;
 #endif
 		XferVersion version = currentVersion;
 		xfer->xferVersion( &version, currentVersion );
 
+		if (version >= 2)
+		{
+			// extend base class
+			AIFaceState::xfer( xfer );
+		}
+
 		// set on create. xfer->xferBool(&m_landing);
 		xfer->xferUnsignedInt(&m_whenTakeoff);
 		xfer->xferUnsignedInt(&m_whenTransfer);
 
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-		if (version <= 1)
-		{
-			xfer->xferBool(&m_afterburners);
-			xfer->xferBool(&m_resetTimer);
-		}
+		xfer->xferBool(&m_afterburners);
+		xfer->xferBool(&m_resetTimer);
 #else
 		if (version <= 1)
 		{
@@ -2750,7 +2807,8 @@ void JetAIUpdate::xfer( Xfer *xfer )
 
   // version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	XferVersion currentVersion = 2;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
 #else
 	XferVersion currentVersion = 3;
 #endif

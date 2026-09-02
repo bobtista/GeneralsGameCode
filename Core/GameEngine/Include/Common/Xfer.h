@@ -111,6 +111,17 @@ typedef Int XferBlockSize;
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature bobtista 28/08/2026 What a serialization pass is for. A
+// checkpoint captures the complete deterministic simulation state so lockstep can continue
+// from it; a save game carries only what a loadable user save needs. Version selection at
+// individual xfer sites keys on this at save time; loading is driven by the versions found
+// in the file.
+enum XferPurpose CPP_11(: Int)
+{
+	XFER_PURPOSE_SAVEGAME = 0,
+	XFER_PURPOSE_CHECKPOINT,
+};
+
 class Xfer
 {
 
@@ -120,6 +131,8 @@ public:
 	virtual ~Xfer();
 
 	virtual XferMode getXferMode() { return m_xferMode; }
+	XferPurpose getPurpose() const { return m_purpose; }
+	void setPurpose( XferPurpose purpose ) { m_purpose = purpose; }
 	AsciiString getIdentifier() { return m_identifier; }
 
 	// xfer management
@@ -185,6 +198,7 @@ protected:
 
 	UnsignedInt m_options;					///< xfer options
 	XferMode m_xferMode;						///< the current xfer mode
+	XferPurpose m_purpose;					///< what this pass is for; checkpoint passes serialize the full deterministic state
 	AsciiString m_identifier;				///< the string identifier
 
 };

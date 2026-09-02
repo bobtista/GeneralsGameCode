@@ -41,6 +41,7 @@
 //-------------------------------------------------------------------------------------------------
 Xfer::Xfer()
 {
+	m_purpose = XFER_PURPOSE_SAVEGAME;
 
 	m_options = XO_NONE;
 	m_xferMode = XFER_INVALID;

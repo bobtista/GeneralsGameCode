@@ -660,6 +660,8 @@ private:
 
 	Bool									m_productionConditionAlwaysFalse; ///< Flag set to true if we don't have a production condition.
 	Script								*m_productionConditionScript; ///< Script to evaluate for production condition.
+	UnsignedInt						m_checkpointProductionConditionFrame; ///< Staged evaluation frame for the production condition script.
+	Bool									m_hasCheckpointProductionConditionFrame;
 
 	Bool									m_retrievedGenericScripts;
 	Script								*m_genericScriptsToRun[MAX_GENERIC_SCRIPTS];
@@ -738,6 +740,7 @@ private:
 	TeamPrototypeMap m_prototypes;
 	TeamPrototypeID m_uniqueTeamPrototypeID;		///< used to assign unique ids to each team prototype
 	TeamID m_uniqueTeamID;											///< used to assign unique team ids to each team instance
+	TeamID m_xferUniqueTeamID;									///< allocator value read from the save stream, reapplied after load
 
 };
 

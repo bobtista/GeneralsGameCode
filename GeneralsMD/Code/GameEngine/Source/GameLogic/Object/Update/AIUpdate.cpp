@@ -5084,15 +5084,25 @@ void AIUpdateInterface::crc( Xfer *x )
 	*    repeated m_isSafePath, so a unit that is moving without a live locomotor goal keeps
 	*    its pathfind reservation on load, and serialize m_allowedToChase, so assault transport
 	*    passengers may still close on the target they were sent to attack
+	* 7: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize m_pathTimestamp. It gates the
+	*    "repathing in less than 3 frames" throttle, so leaving it at zero let every unit that had
+	*    just pathed request another one on the first loaded frame, which no continuous run does
+	* 8: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize the blocked-movement history. Its
+	*    bump speed cap recovers over later frames, so resetting it changes locomotor drive forces
 	*/
 // ------------------------------------------------------------------------------------------------
 void AIUpdateInterface::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 4;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Pin the version at runtime by purpose instead
+	// of at compile time. The compile time pin made every checkpoint drop the blocked movement
+	// state, so a vehicle that was crowd blocked at the save resumed unblocked and skipped its
+	// blocked speed scrub.
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 4 : 9;
 #else
-	const XferVersion currentVersion = 6;
+	const XferVersion currentVersion = 9;
 #endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
@@ -5145,9 +5155,13 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 	xfer->xferAsciiString(&attackName);
 	if (xfer->getXferMode() == XFER_LOAD)
 	{
-		if (attackName.isNotEmpty()) {
-			m_attackInfo = TheScriptEngine->getAttackInfo(attackName);
-		}
+		//
+		// TheSuperHackers @bugfix bobtista 17/08/2026 Resolve this in loadPostProcess rather than
+		// here. The objects are read before CHUNK_ScriptEngine, so the attack priority table is
+		// still empty at this point and getAttackInfo() quietly hands back the default set. Every
+		// unit then lost its priorities and picked targets by plain distance instead.
+		//
+		m_attackInfoNameToResolve = attackName;
 	}
 
 	xfer->xferInt(&m_waypointCount);
@@ -5187,19 +5201,37 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 	xfer->xferCoord3D(&m_requestedDestination);
 	xfer->xferCoord3D(&m_requestedDestination2);
 
-	// Not needed - we will recompute paths on load.
-	//xfer->xferUnsignedInt(&m_pathTimestamp);
+	if (version >= 7)
+	{
+		xfer->xferUnsignedInt(&m_pathTimestamp);
+	}
 
 	xfer->xferObjectID(&m_ignoreObstacleID);
 	xfer->xferReal(&m_pathExtraDistance);
 	xfer->xferICoord2D(&m_pathfindGoalCell);
 	xfer->xferICoord2D(&m_pathfindCurCell);
 
+	if (version >= 8)
+	{
+		xfer->xferInt(&m_blockedFrames);
+		xfer->xferReal(&m_curMaxBlockedSpeed);
+		xfer->xferReal(&m_bumpSpeedLimit);
+		xfer->xferBool(&m_isBlocked);
+		xfer->xferBool(&m_isBlockedAndStuck);
+	}
+
+	if (version >= 9)
+	{
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the remaining behavior state the xfer
+		// audit flagged: a pending path retry, the guard mode, the goal path progress index, and
+		// the scratch value the column mover assignment consumes from the pathfind queue.
+		xfer->xferBool(&m_retryPath);
+		xfer->xferUser(&m_guardMode, sizeof(m_guardMode));
+		xfer->xferInt(&m_nextGoalPathIndex);
+		xfer->xferInt(&m_tmpInt);
+	}
+
 	// Not needed - jba.
-	//Int					m_blockedFrames;						///< Number of frames we've been blocked.
-	//Real				m_curMaxBlockedSpeed;				///< Max speed we can have and not run into blocking things.
-	//Bool				m_isBlocked;
-	//Bool				m_isBlockedAndStuck;				///< True if we are stuck & need to recompute path.
 	//Bool				m_isInUpdate;
 	//Bool				m_fixLocoInPostProcess;
 
@@ -5341,6 +5373,12 @@ void AIUpdateInterface::loadPostProcess()
 {
 	UpdateModule::loadPostProcess();
 
+	if (m_attackInfoNameToResolve.isNotEmpty())
+	{
+		m_attackInfo = TheScriptEngine->getAttackInfo(m_attackInfoNameToResolve);
+		m_attackInfoNameToResolve.clear();
+	}
+
 	if (m_fixLocoInPostProcess && m_curLocomotorSet!=LOCOMOTORSET_INVALID)
 	{
 		m_fixLocoInPostProcess = FALSE;
@@ -5351,31 +5389,37 @@ void AIUpdateInterface::loadPostProcess()
 		chooseLocomotorSet(lst);
 	}
 
-	if (!isMoving()) {
-		m_pathfindGoalCell.x = -1;
-		m_pathfindGoalCell.y = -1;
-		TheAI->pathfinder()->updateGoal(getObject(), getObject()->getPosition(), getObject()->getLayer());
-		m_pathfindCurCell.x = -1;
-		m_pathfindCurCell.y = -1;
-		TheAI->pathfinder()->updatePos(getObject(), getObject()->getPosition());
-	}	else {
-		if (m_pathfindGoalCell.x >= 0 && m_pathfindGoalCell.y >= 0) {
-			Coord3D goalPos;
-			goalPos.x = m_pathfindGoalCell.x * PATHFIND_CELL_SIZE_F + PATHFIND_CELL_SIZE_F*0.5f;
-			goalPos.y = m_pathfindGoalCell.y * PATHFIND_CELL_SIZE_F + PATHFIND_CELL_SIZE_F*0.5f;
+	// TheSuperHackers @bugfix bobtista 17/08/2026 Keep serialized per-unit cell coordinates paired with
+	// the exact staged grid. Previously this rebuild mutated the coordinates before the grid restore.
+	if (!TheAI->pathfinder()->hasCheckpointCellSnapshot())
+	{
+		if (!isMoving()) {
 			m_pathfindGoalCell.x = -1;
 			m_pathfindGoalCell.y = -1;
-			TheAI->pathfinder()->updateGoal(getObject(), &goalPos, getObject()->getLayer());
+			TheAI->pathfinder()->updateGoal(getObject(), getObject()->getPosition(), getObject()->getLayer());
+			m_pathfindCurCell.x = -1;
+			m_pathfindCurCell.y = -1;
+			TheAI->pathfinder()->updatePos(getObject(), getObject()->getPosition());
+		}	else {
+			if (m_pathfindGoalCell.x >= 0 && m_pathfindGoalCell.y >= 0) {
+				Coord3D goalPos;
+				goalPos.x = m_pathfindGoalCell.x * PATHFIND_CELL_SIZE_F + PATHFIND_CELL_SIZE_F*0.5f;
+				goalPos.y = m_pathfindGoalCell.y * PATHFIND_CELL_SIZE_F + PATHFIND_CELL_SIZE_F*0.5f;
+				m_pathfindGoalCell.x = -1;
+				m_pathfindGoalCell.y = -1;
+				TheAI->pathfinder()->updateGoal(getObject(), &goalPos, getObject()->getLayer());
+			}
 		}
 	}
 
 	//
-	// TheSuperHackers @bugfix bobtista 15/08/2026 Ask for the path again. The pathfinder holds its
-	// pending requests in a queue that no save contains, so a unit saved while it was waiting comes
-	// back with the waiting flag set, no path, and nothing left to service it. doLocomotor then parks
-	// it on UPDATE_SLEEP_FOREVER and it never moves again until it is given a new order.
+	// TheSuperHackers @bugfix bobtista 15/08/2026 Ask for the path again. A save that does not carry
+	// the pathfind queue brings a waiting unit back with the waiting flag set, no path, and nothing
+	// left to service it. doLocomotor then parks it on UPDATE_SLEEP_FOREVER and it never moves again
+	// until it is given a new order. Saves that do carry the queue restore the original requests in
+	// their original order, so re-queueing here would only disturb that order.
 	//
-	if (m_waitingForPath && getPath() == nullptr)
+	if (m_waitingForPath && getPath() == nullptr && !TheAI->pathfinder()->wasQueueRestoredFromSave())
 	{
 		TheAI->pathfinder()->queueForPath(getObject()->getID());
 	}

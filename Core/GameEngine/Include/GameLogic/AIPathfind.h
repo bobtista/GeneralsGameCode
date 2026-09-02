@@ -282,6 +282,24 @@ private:
 class PathfindCell
 {
 public:
+	struct CheckpointState
+	{
+		ObjectID obstacleID;
+		ObjectID goalUnitID;
+		ObjectID posUnitID;
+		ObjectID goalAircraftID;
+		zoneStorageType zone;
+		UnsignedByte type;
+		UnsignedByte flags;
+		UnsignedByte connectsToLayer;
+		UnsignedByte layer;
+		UnsignedByte blockedByAlly;
+		UnsignedByte obstacleIsFence;
+		UnsignedByte obstacleIsTransparent;
+		UnsignedByte aircraftGoal;
+		UnsignedByte pinched;
+	};
+
 
 	enum CellType
 	{
@@ -312,6 +330,8 @@ public:
 	Bool setTypeAsObstacle( Object *obstacle, Bool isFence, const ICoord2D &pos );				///< flag this cell as an obstacle, from the given one
 	Bool removeObstacle( Object *obstacle );				///< unflag this cell as an obstacle, from the given one
 	void setType( CellType type );	///< set the cell type
+	void captureCheckpointState( CheckpointState *state ) const;
+	void restoreCheckpointState( const CheckpointState &state, const ICoord2D &pos );
 	CellType getType() const { return (CellType)m_type; }				///< get the cell type
 	CellFlags getFlags() const { return (CellFlags)m_flags; }				///< get the cell type
 	Bool isAircraftGoal() const {return m_aircraftGoal != 0;}
@@ -452,6 +472,12 @@ public:
 	Bool isUnused(); // True if it doesn't contain a bridge.
 	Bool isDestroyed() {return m_destroyed;} // True if it has been destroyed.
 	PathfindCell *getCell(Int x, Int y);
+	Bool hasCells() const {return m_layerCells != nullptr;}
+	Int getCellWidth() const {return m_width;}
+	Int getCellHeight() const {return m_height;}
+	Int getCellXOrigin() const {return m_xOrigin;}
+	Int getCellYOrigin() const {return m_yOrigin;}
+	PathfindCell *getCellRaw(Int i, Int j) {return &m_layerCells[i][j];}
 	Int getZone() {return m_zone;}
 	void setZone(Int zone) {m_zone = zone;}
 	void applyZone(); // Propagates m_zone to all cells.
@@ -516,6 +542,7 @@ public:
 
 	Bool getInteractsWithBridge() const {return m_interactsWithBridge;}
 	void setInteractsWithBridge(Bool interacts) {m_interactsWithBridge = interacts;}
+	void xfer(Xfer *xfer);
 
 protected:
 	void allocateZones();
@@ -580,6 +607,8 @@ public:
 
 	void setBridge(Int cellX, Int cellY, Bool bridge);
 	Bool interactsWithBridge(Int cellX, Int cellY) const;
+	void xfer(Xfer *xfer);
+	void swap(PathfindZoneManager &other);
 
 private:
 	void allocateZones();
@@ -679,6 +708,9 @@ public:
 
 	Bool queueForPath(ObjectID id);	 ///< The object wants to request a pathfind, so put it on the list to process.
 	void processPathfindQueue(); ///< Process some or all of the queued pathfinds.
+	Bool wasQueueRestoredFromSave() const { return m_queueRestoredFromSave; }	///< True when the save carried the pathfind queue, so it does not need rebuilding.
+	Bool hasCheckpointCellSnapshot() const { return m_checkpointCells != nullptr; }	///< True while exact cell state is staged for post-load restoration.
+	void finishLoadPostProcess() { m_queueRestoredFromSave = false; }
 	void forceMapRecalculation();	///< Force pathfind map recomputation. If region is given, only that area is recomputed
 
 	/** Returns an aircraft path to the goal.  */
@@ -917,6 +949,15 @@ private:
 	Int						m_queuePRHead;
 	Int						m_queuePRTail;
 	Int						m_cumulativeCellsAllocated;
+	Bool					m_queueRestoredFromSave;
+	PathfindCell::CheckpointState *m_checkpointCells;
+	UnsignedInt		m_checkpointCellCount;
+	PathfindZoneManager *m_checkpointZoneManager;
+	Int						m_checkpointLayerZones[LAYER_LAST+1];
+	PathfindCell::CheckpointState *m_checkpointLayerCells[LAYER_LAST+1];
+	ICoord2D			m_checkpointLayerCellOrigin[LAYER_LAST+1];
+	ICoord2D			m_checkpointLayerCellSize[LAYER_LAST+1];
+	Bool					m_checkpointIncludesZones;
 
 #if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
 public:

@@ -346,6 +346,8 @@ RecorderClass::RecorderClass()
 	m_doingAnalysis = FALSE;
 	m_archiveReplays = FALSE;
 	m_nextFrame = 0;
+	m_resumeSkipCommands = FALSE;
+	m_resumeMinCRCFrame = 0;
 	m_wasDesync = FALSE;
 	init(); // just for the heck of it.
 }
@@ -997,12 +999,34 @@ Bool RecorderClass::sawCRCMismatch() const
 	return m_crcInfo.sawCRCMismatch();
 }
 
-void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool fromPlayback)
+void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool fromPlayback, Int subjectFrame)
 {
 	if (fromPlayback)
 	{
 		//DEBUG_LOG(("RecorderClass::handleCRCMessage() - Adding CRC of %X from %d to m_crcInfo", newCRC, playerIndex));
 		m_crcInfo.addCRC(newCRC);
+		return;
+	}
+
+	//
+	// TheSuperHackers @feature bobtista 25/08/2026 After a checkpoint resume, recorded CRC
+	// messages still in flight describe frames from before the checkpoint. The resumed game never
+	// computed those frames, so drop them without consuming the live queue; comparison re-aligns
+	// at the first recorded CRC describing the checkpoint frame or later.
+	//
+	if (m_resumeMinCRCFrame > 0 && subjectFrame >= 0 && (UnsignedInt)subjectFrame < m_resumeMinCRCFrame)
+	{
+		return;
+	}
+
+	//
+	// With no live CRC queued there is nothing meaningful to compare against -- the recorded
+	// message describes a frame this session did not compute (a CRC logging window edge, or a
+	// checkpoint resume without subject frames). Comparing anyway reads garbage and reports a
+	// false desync.
+	//
+	if (!fromPlayback && m_crcInfo.GetQueueSize() == 0)
+	{
 		return;
 	}
 
@@ -1280,6 +1304,79 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 }
 
 /**
+ * TheSuperHackers @feature bobtista 24/08/2026 Re-enter playback of a replay from a checkpoint.
+ * The caller has already loaded a save minted during playback of this replay; the logic frame
+ * counter holds the checkpoint frame. Commands at or before that frame were already applied by
+ * the game that the checkpoint captured, so they are read and discarded; playback then continues
+ * from the first later command exactly where the uninterrupted playback would be.
+ */
+Bool RecorderClass::resumePlayback( AsciiString filename, UnsignedInt frame )
+{
+	ReplayHeader header;
+	header.forPlayback = TRUE;
+	header.filename = filename;
+	if (!readReplayHeader( header ))
+	{
+		return FALSE;
+	}
+
+	Bool isMultiplayer = m_gameInfo.getSlot(header.localPlayerIndex)->getIP() != 0;
+	m_crcInfo = CRCInfo(header.localPlayerIndex, isMultiplayer);
+
+	Int difficulty = 0;
+	m_file->read(&difficulty, sizeof(difficulty));
+	m_file->read(&m_originalGameMode, sizeof(m_originalGameMode));
+	Int rankPoints = 0;
+	m_file->read(&rankPoints, sizeof(rankPoints));
+	Int maxFPS = 0;
+	m_file->read(&maxFPS, sizeof(maxFPS));
+
+	readNextFrame();
+	if (m_file == nullptr)
+	{
+		return FALSE;
+	}
+
+	//
+	// The checkpoint is written before the frame's logic runs, so commands scheduled ON the
+	// checkpoint frame are not yet part of the saved state and must be replayed, not skipped.
+	//
+	m_resumeSkipCommands = TRUE;
+	while (m_nextFrame != (UnsignedInt)-1 && m_nextFrame < frame)
+	{
+		appendNextCommand();
+		readNextFrame();
+		if (m_file == nullptr)
+		{
+			m_resumeSkipCommands = FALSE;
+			return FALSE;
+		}
+	}
+	m_resumeSkipCommands = FALSE;
+
+	m_resumeMinCRCFrame = frame;
+	m_mode = RECORDERMODETYPE_PLAYBACK;
+	m_currentReplayFilename = filename;
+	m_playbackFrameCount = header.frameCount;
+
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Give the resumed playback the recording
+	// player's viewpoint. The loaded checkpoint falls back to the first human slot as the
+	// local player, which can differ from the replay's local player and diverges client
+	// only state such as decals that are visible to the owning player alone.
+	//
+	Player *localPlayer = ThePlayerList->getPlayerFromSlotIndex( header.localPlayerIndex );
+	if( localPlayer != nullptr )
+	{
+		ThePlayerList->setLocalPlayer( localPlayer );
+	}
+
+	DEBUG_LOG(("RecorderClass::resumePlayback - resumed '%s' at frame %u, next command frame %u",
+		filename.str(), frame, m_nextFrame));
+	return TRUE;
+}
+
+/**
  * Read a unicode string from the current file position. The string is assumed to be 0-terminated.
  */
 UnicodeString RecorderClass::readUnicodeString() {
@@ -1435,7 +1532,7 @@ void RecorderClass::appendNextCommand() {
 		}
 	}
 
-	if (type != GameMessage::MSG_BEGIN_NETWORK_MESSAGES && type != GameMessage::MSG_CLEAR_GAME_DATA && !m_doingAnalysis)
+	if (type != GameMessage::MSG_BEGIN_NETWORK_MESSAGES && type != GameMessage::MSG_CLEAR_GAME_DATA && !m_doingAnalysis && !m_resumeSkipCommands)
 	{
 		TheCommandList->appendMessage(msg);
 	}

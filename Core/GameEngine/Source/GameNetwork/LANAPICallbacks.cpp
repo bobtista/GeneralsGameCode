@@ -46,6 +46,7 @@
 #include "GameNetwork/FileTransfer.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/NetworkAutoStart.h"
+#include "Common/GameState.h"
 #include "GameNetwork/networkutil.h"
 
 LANAPI *TheLAN = nullptr;
@@ -258,6 +259,21 @@ void LANAPI::OnGameStart()
 			OnChat(UnicodeString::TheEmptyString, 0, TheGameText->fetch("GUI:CouldNotTransferMap"), LANCHAT_SYSTEM);
 			return;
 		}
+
+#if defined(RTS_DEBUG)
+		// TheSuperHackers @feature bobtista 26/08/2026 Resume a synchronized save instead of
+		// starting a fresh game: every peer loads its local copy of the same logic frame and
+		// lockstep re-engages at the loaded frame.
+		if (NetworkAutoStart::getResumeSave().isNotEmpty())
+		{
+			m_currentGame->startGame(0);
+			// Defer the actual load to GameClient::update like every other command line load;
+			// loading synchronously inside this callback runs against half-updated client state.
+			TheWritableGlobalData->m_loadSaveGame = NetworkAutoStart::getResumeSave();
+			NetworkAutoStart::onGameStart();
+			return;
+		}
+#endif
 
 		m_currentGame->startGame(0);
 

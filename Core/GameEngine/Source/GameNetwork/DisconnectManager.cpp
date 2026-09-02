@@ -104,10 +104,36 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 	if (TheGameLogic->getFrame() == m_lastFrame) {
 		time_t curTime = timeGetTime();
 		if ((curTime - m_lastFrameTime) > TheGlobalData->m_networkDisconnectTime) {
-			if (m_disconnectState == DISCONNECTSTATETYPE_SCREENOFF) {
-				turnOnScreen(conMgr);
+			// TheSuperHackers @feature bobtista 27/08/2026 A recovery hold is a coordinated
+			// stall: keep peers alive and their timeout clocks parked, but never raise the
+			// disconnect countdown screen over it.
+			if (TheNetwork != nullptr && TheNetwork->isRecoveryInProgress()) {
+				sendKeepAlive(conMgr);
+				resetPlayerTimeouts(conMgr);
+				if (m_disconnectState != DISCONNECTSTATETYPE_SCREENOFF) {
+					TheDisconnectMenu->hideScreen();
+					m_disconnectState = DISCONNECTSTATETYPE_SCREENOFF;
+				}
+			} else if (TheGlobalData->m_rejoinWaitMs > 0 &&
+					(curTime - m_lastFrameTime) > (time_t)TheGlobalData->m_rejoinWaitMs) {
+				// TheSuperHackers @feature bobtista 27/08/2026 Hold the stalled game for the
+				// missing peer to rejoin instead of counting down to a kick; the engine update
+				// runs the actual hold, which then parks these clocks via isRecoveryInProgress.
+				// A cooldown keeps the slow ramp-up right after a completed recovery from
+				// reading as a fresh disconnect.
+				static UnsignedInt s_lastRejoinHold = 0;
+				if (s_lastRejoinHold == 0 ||
+						(UnsignedInt)((UnsignedInt)curTime - s_lastRejoinHold) >= (UnsignedInt)REJOIN_HOLD_COOLDOWN_MS) {
+					s_lastRejoinHold = (UnsignedInt)curTime;
+					TheWritableGlobalData->m_rejoinHoldPending = TRUE;
+				}
+				sendKeepAlive(conMgr);
+			} else {
+				if (m_disconnectState == DISCONNECTSTATETYPE_SCREENOFF) {
+					turnOnScreen(conMgr);
+				}
+				sendKeepAlive(conMgr);
 			}
-			sendKeepAlive(conMgr);
 		}
 	} else {
 		nextFrame(TheGameLogic->getFrame(), conMgr);

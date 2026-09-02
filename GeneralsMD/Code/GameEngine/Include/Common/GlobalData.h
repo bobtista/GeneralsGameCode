@@ -411,9 +411,24 @@ public:
 	Bool m_enforceMaxCameraHeight;		///< Enforce max camera height while scrolling?
 	Bool m_buildMapCache;
 	AsciiString m_initialFile;				///< If this is specified, load a specific map from the command-line
+	Int m_saveAtFrame;						///< If greater than zero, write a save when this logic frame is reached
+	AsciiString m_saveToFile;				///< Filename used by m_saveAtFrame
+	Int m_quitAtFrame;						///< If greater than zero, quit when this logic frame is reached
 	AsciiString m_pendingFile;				///< If this is specified, use this map at the next game start
 	AsciiString m_loadSaveGame;				///< If this is specified, load a save game file from the command-line
-	AsciiString m_loadReplayGame;			///< If this is specified, play a replay file from the command-line
+	AsciiString m_resumeReplayName;
+	Int m_resumeAsSlot;						///< with m_loadSaveGame: take control of this lobby slot instead of the recording player
+	Bool m_crcRecovery;						///< Attempt in-game recovery from a network CRC mismatch instead of ending the game
+	Int m_desyncAtFrame;					///< If greater than zero, perturb this instance's next network CRC at this logic frame
+	Int m_divergeAtFrame;					///< If greater than zero, truly diverge this instance's game state at this logic frame
+	AsciiString m_recoveryResumeSave;		///< Donor save a pending CRC recovery reload should resume from
+	AsciiString m_recoveryDonorSave;		///< Donor snapshot name for the whole current hold; outlives the reload
+	Int m_rejoinWaitMs;						///< If greater than zero, hold a stalled game this long for a peer to rejoin instead of kicking
+	Bool m_rejoinHoldPending;				///< A stalled game should enter the rejoin hold at the next engine update
+	AsciiString m_rejoinHostIP;				///< Rejoin a running game hosted at this address instead of starting normally
+	Int m_rejoinSlot;						///< Lobby slot this instance held before it disconnected
+	Bool m_saveAtFrameNormal;				///< -saveatframe writes a normal user save instead of a checkpoint
+	AsciiString m_loadReplayGame;			///< If this is specified, load a replay file from the command-line
 
 	std::vector<AsciiString> m_simulateReplays; ///< If not empty, simulate this list of replays and exit.
 	Int m_simulateReplayJobs; ///< Maximum number of processes to use for simulation, or SIMULATE_REPLAYS_SEQUENTIAL for sequential simulation

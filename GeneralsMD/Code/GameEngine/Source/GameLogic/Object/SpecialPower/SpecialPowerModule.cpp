@@ -213,6 +213,16 @@ void SpecialPowerModule::resolveSpecialPower()
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerModule::onSpecialPowerCreation()
 {
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Do not restart the power during a load. Restoring
+	// purchased sciences fires this hook again, which re-stamped the ready frame and the player's
+	// shared ready frame over the values the save carries.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
+
 	// THIS gets called by addScience(), that is, when the General has purchased a new special power,
 	// and this module is thus activated.
 

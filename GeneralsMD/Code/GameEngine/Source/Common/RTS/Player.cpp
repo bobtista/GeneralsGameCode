@@ -1051,7 +1051,13 @@ void Player::becomingTeamMember(Object *obj, Bool yes)
 		}
 	}
 
-	if( getNumBattlePlansActive() > 0 && obj->areModulesReady() )
+	//
+	// TheSuperHackers @bugfix bobtista 29/08/2026 Do not touch the battle plan bonuses while a
+	// save is loading. The restored object state already carries them, and the team wiring the
+	// load performs re-fired this hook, stacking the sight bonus onto the restored values.
+	//
+	if( getNumBattlePlansActive() > 0 && obj->areModulesReady() &&
+			( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE ) )
 	{
 		if( yes )
 		{
@@ -3329,6 +3335,18 @@ static void doPowerDisable( Object *obj, void *userData )
 //-------------------------------------------------------------------------------------------------
 void Player::onPowerBrownOutChange( Bool brownOut )
 {
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Ignore power supply edges while a save is
+	// loading. Energy totals are reconstructed one building at a time during the load, and the
+	// transient shortfalls paused and unpaused every special power, leaving pause bookkeeping
+	// and radar state behind that the uninterrupted game never wrote. The radar restriction,
+	// disabled masks and pause counts are all restored from the save stream directly.
+	//
+	if( TheGameState != NULL && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
+
 	// Everything that changes due to Player's power supply goes in here.
 	if( brownOut )
 		disableRadar();
@@ -3820,6 +3838,11 @@ void Player::getCurrentSelectionAsAIGroup(AIGroup *group) {
 }
 
 //-------------------------------------------------------------------------------------------------
+Bool Player::isObjectInCurrentSelection(const Object *obj) const {
+	return m_currentSelection != nullptr && m_currentSelection->isOnSquad(obj);
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Select a hotkey team based on this GameMessage */
 //-------------------------------------------------------------------------------------------------
 void Player::setCurrentlySelectedAIGroup(AIGroup *group) {
@@ -4078,6 +4101,9 @@ void Player::crc( Xfer *xfer )
 	* 8: Save m_disabledSciences & m_hiddenSciences. jba.
 	* 9: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize m_attackedFrame alongside
 	*    m_attackedBy, so the AI still sees a supply source as recently attacked after a load
+	* 10: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize
+	*     m_logicalRetaliationModeEnabled. If it resets on load, Player::update queues
+	*     MSG_ENABLE_RETALIATION_MODE and changes both command processing and AI-group allocation
 	*/
 // ------------------------------------------------------------------------------------------------
 void Player::xfer( Xfer *xfer )
@@ -4085,9 +4111,10 @@ void Player::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 8;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 8 : 10;
 #else
-	const XferVersion currentVersion = 9;
+	const XferVersion currentVersion = 10;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -4162,11 +4189,39 @@ void Player::xfer( Xfer *xfer )
 
 		}
 
+		//
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Rebuild the upgrade list in its saved order
+		// when loading a checkpoint. addUpgrade prepends, so reading the entries forward reversed
+		// the list on every load.
+		//
+		if( TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
+		{
+			Upgrade *reversedList = nullptr;
+			upgrade = m_upgradeList;
+			while( upgrade != nullptr )
+			{
+				Upgrade *nextUpgrade = upgrade->friend_getNext();
+				upgrade->friend_setNext( reversedList );
+				upgrade->friend_setPrev( nullptr );
+				if( reversedList != nullptr )
+				{
+					reversedList->friend_setPrev( upgrade );
+				}
+				reversedList = upgrade;
+				upgrade = nextUpgrade;
+			}
+			m_upgradeList = reversedList;
+		}
+
 	}
 
 	// radar info
 	xfer->xferInt( &m_radarCount );
 	xfer->xferBool( & m_isPlayerDead );
+	if (version >= 10)
+	{
+		xfer->xferBool( &m_logicalRetaliationModeEnabled );
+	}
 	xfer->xferInt( &m_disableProofRadarCount );
 	xfer->xferBool( & m_radarDisabled );
 

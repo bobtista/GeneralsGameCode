@@ -782,6 +782,17 @@ void GarrisonContain::trackTargets()
 // ------------------------------------------------------------------------------------------------
 void GarrisonContain::redeployOccupants()
 {
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Do not redeploy during a load. The transform and
+	// model condition churn of reconstruction triggers redeploys that reset and re-derive the fire
+	// point cursors and matrices the save already restored, so a garrisoned building resumed with a
+	// different next fire point than the uninterrupted run.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
+
 	GarrisonPointData garrisonPointDataCopy[ MAX_GARRISON_POINTS ];
 	Int i;
 
@@ -1203,12 +1214,6 @@ const Player* GarrisonContain::getApparentControllingPlayer( const Player* obser
 //-------------------------------------------------------------------------------------------------
 void GarrisonContain::recalcApparentControllingPlayer()
 {
-	//Record original team first time through.
-	if( m_originalTeam == nullptr )
-	{
-		m_originalTeam = getObject()->getTeam();
-	}
-
 	// (hokey trick: if our team is null, nuke originalTeam -- this
 	// usually means we are being called during game-teardown and
 	// the teams are no longer valid...)
@@ -1217,6 +1222,18 @@ void GarrisonContain::recalcApparentControllingPlayer()
 	// Check to see if we have any units contained in our object
 	if( getContainCount() > 0 )
 	{
+		//
+		// TheSuperHackers @bugfix bobtista 31/08/2026 Record the original team only while the
+		// building is occupied. Recording it on an empty building left a stale team behind that
+		// a later empty-building recalc, for example the local player switch when resuming a
+		// replay from a checkpoint, wrote into the save stream where the uninterrupted game
+		// kept none.
+		//
+		if( m_originalTeam == nullptr )
+		{
+			m_originalTeam = getObject()->getTeam();
+		}
+
 		ContainedItemsList::const_iterator it = getContainList().begin();
 		Object *rider = *it;
 
@@ -1235,7 +1252,10 @@ void GarrisonContain::recalcApparentControllingPlayer()
 	else
 	{
 		//Nothing in object, so set team to original team.
-		getObject()->setTeam( m_originalTeam );
+		if( m_originalTeam != nullptr )
+		{
+			getObject()->setTeam( m_originalTeam );
+		}
 		m_hideGarrisonedStateFromNonallies = false;
 	}
 
@@ -1758,6 +1778,16 @@ void GarrisonContain::onBodyDamageStateChange( const DamageInfo* , BodyDamageTyp
 // ------------------------------------------------------------------------------------------------
 void GarrisonContain::onObjectCreated()
 {
+	//
+	// TheSuperHackers @bugfix bobtista 23/08/2026 Do not create the initial payload while a save is
+	// loading. The saved payload objects are restored from the save stream and re-registered by the
+	// contain xfer, so creating them here as well duplicated every payload on load.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
+	{
+		return;
+	}
+
 	GarrisonContainModuleData* self = (GarrisonContainModuleData*)getGarrisonContainModuleData();
 
 	Int count = self->m_initialRoster.count;

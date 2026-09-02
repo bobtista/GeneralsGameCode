@@ -629,6 +629,36 @@ protected:
 };
 
 //-----------------------------------------------------------------------------
+class NetRejoinRequestCommandMsg : public NetCommandMsgT<NetPacketRejoinRequestCommand, SmallNetPacketRejoinRequestCommand>
+{
+	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(NetRejoinRequestCommandMsg, "NetRejoinRequestCommandMsg")
+public:
+	NetRejoinRequestCommandMsg();
+
+	virtual Select getSmallNetPacketSelect() const override;
+};
+
+//-----------------------------------------------------------------------------
+class NetRecoveryReadyCommandMsg : public NetCommandMsgT<NetPacketRecoveryReadyCommand, SmallNetPacketRecoveryReadyCommand>
+{
+	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(NetRecoveryReadyCommandMsg, "NetRecoveryReadyCommandMsg")
+public:
+	NetRecoveryReadyCommandMsg();
+
+	UnsignedInt getRecoveryFrame() const;
+	void setRecoveryFrame(UnsignedInt frame);
+
+	UnsignedInt getRecoveryCRC() const;
+	void setRecoveryCRC(UnsignedInt crc);
+
+	virtual Select getSmallNetPacketSelect() const override;
+
+protected:
+	UnsignedInt m_recoveryFrame;
+	UnsignedInt m_recoveryCRC;
+};
+
+//-----------------------------------------------------------------------------
 class NetDisconnectScreenOffCommandMsg : public NetCommandMsgT<NetPacketDisconnectScreenOffCommand, SmallNetPacketDisconnectScreenOffCommand>
 {
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(NetDisconnectScreenOffCommandMsg, "NetDisconnectScreenOffCommandMsg")

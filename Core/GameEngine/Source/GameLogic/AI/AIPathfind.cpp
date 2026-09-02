@@ -27,11 +27,15 @@
 // Author: Michael S. Booth, October 2001
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include <cstdlib>
+#include <utility>
+
 #include "GameLogic/AIPathfind.h"
 
 #include "Common/PerfTimer.h"
 #include "Common/Player.h"
 #include "Common/CRCDebug.h"
+#include "Common/GameState.h"
 #include "Common/GlobalData.h"
 #include "Common/LatchRestore.h"
 #include "Common/ThingTemplate.h"
@@ -281,10 +285,22 @@ void Path::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer Method */
 // ------------------------------------------------------------------------------------------------
+/** Xfer
+	*	Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the cached closest-point-on-path.
+	*    Discarding it on load moves the frame the goal point is next recomputed on, so a loaded
+	*    unit steers to a different path point than the same unit in a continuous run
+	*/
 void Path::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -359,6 +375,38 @@ void Path::xfer( Xfer *xfer )
 	UnsignedInt obsolete2;
 	xfer->xferUnsignedInt(&obsolete2);
 	xfer->xferBool(&m_blockedByAlly);
+
+	//
+	// The node ids used here are stamped by the save loop above, so this has to stay after it.
+	//
+	if( version >= 2 )
+	{
+		xfer->xferBool( &m_cpopValid );
+		xfer->xferInt( &m_cpopCountdown );
+		xfer->xferCoord3D( &m_cpopIn );
+		xfer->xferReal( &m_cpopOut.distAlongPath );
+		xfer->xferCoord3D( &m_cpopOut.posOnPath );
+		xfer->xferUser( &m_cpopOut.layer, sizeof( m_cpopOut.layer ) );
+
+		Int recentStartID = -1;
+		if( xfer->getXferMode() == XFER_SAVE && m_cpopRecentStart != nullptr )
+		{
+			recentStartID = m_cpopRecentStart->m_id;
+		}
+		xfer->xferInt( &recentStartID );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_cpopRecentStart = nullptr;
+			for( const PathNode *node = m_path; node != nullptr; node = node->getNext() )
+			{
+				if( node->m_id == recentStartID )
+				{
+					m_cpopRecentStart = node;
+					break;
+				}
+			}
+		}
+	}
 
 
 #if defined(RTS_DEBUG)
@@ -1295,6 +1343,90 @@ void PathfindCell::reset()
 	m_connectsToLayer = LAYER_INVALID;
 	m_layer = LAYER_GROUND;
 
+}
+
+void PathfindCell::captureCheckpointState( CheckpointState *state ) const
+{
+	state->obstacleID = getObstacleID();
+	state->goalUnitID = getGoalUnit();
+	state->posUnitID = getPosUnit();
+	state->goalAircraftID = getGoalAircraft();
+	state->zone = m_zone;
+	state->type = m_type;
+	state->flags = m_flags;
+	state->connectsToLayer = m_connectsToLayer;
+	state->layer = m_layer;
+#if RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION
+	state->blockedByAlly = s_useFixedPathfinding ? m_blockedByAlly :
+		(m_info ? m_info->m_blockedByAlly : false);
+#else
+	state->blockedByAlly = m_blockedByAlly;
+#endif
+	state->obstacleIsFence = isObstacleFence();
+	state->obstacleIsTransparent = isObstacleTransparent();
+	state->aircraftGoal = m_aircraftGoal;
+	state->pinched = m_pinched;
+}
+
+void PathfindCell::restoreCheckpointState( const CheckpointState &state, const ICoord2D &pos )
+{
+	reset();
+	m_obstacleID = state.obstacleID;
+	m_zone = state.zone;
+	m_type = state.type;
+	m_flags = state.flags;
+	m_connectsToLayer = state.connectsToLayer;
+	m_layer = state.layer;
+	m_blockedByAlly = state.blockedByAlly != 0;
+	m_obstacleIsFence = state.obstacleIsFence != 0;
+	m_obstacleIsTransparent = state.obstacleIsTransparent != 0;
+	m_aircraftGoal = state.aircraftGoal != 0;
+	m_pinched = state.pinched != 0;
+
+	if (state.obstacleID != INVALID_ID || state.goalUnitID != INVALID_ID ||
+		state.posUnitID != INVALID_ID || state.goalAircraftID != INVALID_ID)
+	{
+		allocateInfo(pos);
+		if (m_info)
+		{
+			m_info->m_obstacleID = state.obstacleID;
+			m_info->m_goalUnitID = state.goalUnitID;
+			m_info->m_posUnitID = state.posUnitID;
+			m_info->m_goalAircraftID = state.goalAircraftID;
+			m_info->m_blockedByAlly = state.blockedByAlly != 0;
+			m_info->m_obstacleIsFence = state.obstacleIsFence != 0;
+			m_info->m_obstacleIsTransparent = state.obstacleIsTransparent != 0;
+		}
+	}
+}
+
+static void xferPathfindCellCheckpointState( Xfer *xfer, PathfindCell::CheckpointState *state,
+	Bool includeZone )
+{
+	xfer->xferObjectID( &state->obstacleID );
+	xfer->xferObjectID( &state->goalUnitID );
+	xfer->xferObjectID( &state->posUnitID );
+	xfer->xferObjectID( &state->goalAircraftID );
+	if( includeZone )
+	{
+		xfer->xferUnsignedShort( &state->zone );
+	}
+	else if( xfer->getXferMode() == XFER_LOAD )
+	{
+		// Version 4+ rebuilds zones after restoring every cell. Keep the staged value defined until
+		// calculateZones() replaces it rather than serializing a history-dependent numbering that
+		// cannot round-trip byte-for-byte.
+		state->zone = 0;
+	}
+	xfer->xferUnsignedByte( &state->type );
+	xfer->xferUnsignedByte( &state->flags );
+	xfer->xferUnsignedByte( &state->connectsToLayer );
+	xfer->xferUnsignedByte( &state->layer );
+	xfer->xferUnsignedByte( &state->blockedByAlly );
+	xfer->xferUnsignedByte( &state->obstacleIsFence );
+	xfer->xferUnsignedByte( &state->obstacleIsTransparent );
+	xfer->xferUnsignedByte( &state->aircraftGoal );
+	xfer->xferUnsignedByte( &state->pinched );
 }
 
 /**
@@ -2566,6 +2698,51 @@ void ZoneBlock::allocateZones()
 	m_crusherZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
 }
 
+void ZoneBlock::xfer(Xfer *xfer)
+{
+	XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion(&version, currentVersion);
+
+	xfer->xferICoord2D(&m_cellOrigin);
+	xfer->xferUnsignedShort(&m_firstZone);
+	xfer->xferUnsignedShort(&m_numZones);
+
+	UnsignedShort zonesAllocated = m_zonesAllocated;
+	xfer->xferUnsignedShort(&zonesAllocated);
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		freeZones();
+		m_zonesAllocated = zonesAllocated;
+		if (m_numZones > 1 && m_numZones > m_zonesAllocated)
+		{
+			DEBUG_CRASH(("ZoneBlock checkpoint has invalid zone capacity."));
+			throw SC_INVALID_DATA;
+		}
+		if (m_numZones > 1)
+		{
+			m_groundCliffZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_groundWaterZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_groundRubbleZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_crusherZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+		}
+	}
+
+	if (m_numZones > 1)
+	{
+		for (UnsignedShort i = 0; i < m_numZones; ++i)
+		{
+			xfer->xferUnsignedShort(&m_groundCliffZones[i]);
+			xfer->xferUnsignedShort(&m_groundWaterZones[i]);
+			xfer->xferUnsignedShort(&m_groundRubbleZones[i]);
+			xfer->xferUnsignedShort(&m_crusherZones[i]);
+		}
+	}
+
+	xfer->xferBool(&m_interactsWithBridge);
+	xfer->xferBool(&m_markedPassable);
+}
+
 
 //------------------------  PathfindZoneManager  -------------------------------
 PathfindZoneManager::PathfindZoneManager() : m_maxZone(0),
@@ -2664,6 +2841,95 @@ void PathfindZoneManager::allocateBlocks(const IRegion2D &globalBounds)
 	for (i=0; i<m_zoneBlockExtent.x; i++) {
 		m_zoneBlocks[i] = &m_blockOfZoneBlocks[i*(m_zoneBlockExtent.y)];
 	}
+}
+
+void PathfindZoneManager::xfer(Xfer *xfer)
+{
+	XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion(&version, currentVersion);
+
+	xfer->xferUnsignedShort(&m_maxZone);
+	xfer->xferUnsignedInt(&m_nextFrameToCalculateZones);
+
+	UnsignedShort zonesAllocated = m_zonesAllocated;
+	xfer->xferUnsignedShort(&zonesAllocated);
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		freeZones();
+		m_zonesAllocated = zonesAllocated;
+		if (m_maxZone > m_zonesAllocated)
+		{
+			DEBUG_CRASH(("PathfindZoneManager checkpoint has invalid zone capacity."));
+			throw SC_INVALID_DATA;
+		}
+		if (m_zonesAllocated > 0)
+		{
+			m_groundCliffZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_groundWaterZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_groundRubbleZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_terrainZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_crusherZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+			m_hierarchicalZones = MSGNEW("PathfindZoneInfo") zoneStorageType[m_zonesAllocated];
+		}
+	}
+
+	for (UnsignedShort i = 0; i < m_maxZone; ++i)
+	{
+		xfer->xferUnsignedShort(&m_groundCliffZones[i]);
+		xfer->xferUnsignedShort(&m_groundWaterZones[i]);
+		xfer->xferUnsignedShort(&m_groundRubbleZones[i]);
+		xfer->xferUnsignedShort(&m_terrainZones[i]);
+		xfer->xferUnsignedShort(&m_crusherZones[i]);
+		xfer->xferUnsignedShort(&m_hierarchicalZones[i]);
+	}
+
+	ICoord2D zoneBlockExtent = m_zoneBlockExtent;
+	xfer->xferICoord2D(&zoneBlockExtent);
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		freeBlocks();
+		m_zoneBlockExtent = zoneBlockExtent;
+		if (m_zoneBlockExtent.x < 0 || m_zoneBlockExtent.y < 0)
+		{
+			DEBUG_CRASH(("PathfindZoneManager checkpoint has invalid block extent."));
+			throw SC_INVALID_DATA;
+		}
+		Int blockCount = m_zoneBlockExtent.x * m_zoneBlockExtent.y;
+		if (blockCount > 0)
+		{
+			m_blockOfZoneBlocks = MSGNEW("PathfindZoneBlocks") ZoneBlock[blockCount];
+			m_zoneBlocks = MSGNEW("PathfindZoneBlocks") ZoneBlockP[m_zoneBlockExtent.x];
+			for (Int i = 0; i < m_zoneBlockExtent.x; ++i)
+			{
+				m_zoneBlocks[i] = &m_blockOfZoneBlocks[i * m_zoneBlockExtent.y];
+			}
+		}
+	}
+
+	for (Int x = 0; x < m_zoneBlockExtent.x; ++x)
+	{
+		for (Int y = 0; y < m_zoneBlockExtent.y; ++y)
+		{
+			m_zoneBlocks[x][y].xfer(xfer);
+		}
+	}
+}
+
+void PathfindZoneManager::swap(PathfindZoneManager &other)
+{
+	std::swap(m_blockOfZoneBlocks, other.m_blockOfZoneBlocks);
+	std::swap(m_zoneBlocks, other.m_zoneBlocks);
+	std::swap(m_zoneBlockExtent, other.m_zoneBlockExtent);
+	std::swap(m_maxZone, other.m_maxZone);
+	std::swap(m_nextFrameToCalculateZones, other.m_nextFrameToCalculateZones);
+	std::swap(m_zonesAllocated, other.m_zonesAllocated);
+	std::swap(m_groundCliffZones, other.m_groundCliffZones);
+	std::swap(m_groundWaterZones, other.m_groundWaterZones);
+	std::swap(m_groundRubbleZones, other.m_groundRubbleZones);
+	std::swap(m_terrainZones, other.m_terrainZones);
+	std::swap(m_crusherZones, other.m_crusherZones);
+	std::swap(m_hierarchicalZones, other.m_hierarchicalZones);
 }
 
 void PathfindZoneManager::reset()  ///< Called when the map is reset.
@@ -4050,8 +4316,13 @@ void PathfindLayer::classifyWallMapCell( Int i, Int j , PathfindCell *cell, Obje
 
 //----------------------- Pathfinder ---------------------------------------
 
-Pathfinder::Pathfinder() :m_map(nullptr)
+Pathfinder::Pathfinder() :m_map(nullptr), m_checkpointCells(nullptr), m_checkpointCellCount(0),
+	m_checkpointZoneManager(nullptr), m_checkpointIncludesZones(false)
 {
+	for (Int layer = 0; layer <= LAYER_LAST; ++layer)
+	{
+		m_checkpointLayerCells[layer] = nullptr;
+	}
 	debugPath = nullptr;
 	PathfindCellInfo::allocateCellInfos();
 	reset();
@@ -4059,6 +4330,7 @@ Pathfinder::Pathfinder() :m_map(nullptr)
 
 Pathfinder::~Pathfinder()
 {
+	delete m_checkpointZoneManager;
 	PathfindCellInfo::releaseCellInfos();
 }
 
@@ -4072,6 +4344,19 @@ void Pathfinder::reset()
 
 	delete [] m_map;
 	m_map = nullptr;
+
+	delete [] m_checkpointCells;
+	m_checkpointCells = nullptr;
+	m_checkpointCellCount = 0;
+	delete m_checkpointZoneManager;
+	m_checkpointZoneManager = nullptr;
+	m_checkpointIncludesZones = false;
+	for (Int layer = 0; layer <= LAYER_LAST; ++layer)
+	{
+		m_checkpointLayerZones[layer] = 0;
+		delete [] m_checkpointLayerCells[layer];
+		m_checkpointLayerCells[layer] = nullptr;
+	}
 
 	Int i;
 	for (i=0; i<=LAYER_LAST; i++) {
@@ -4107,6 +4392,7 @@ void Pathfinder::reset()
 	}
 	m_queuePRHead = 0;
 	m_queuePRTail = 0;
+	m_queueRestoredFromSave = false;
 
 	m_numWallPieces = 0;
 	for (i=0; i<MAX_WALL_PIECES; ++i)
@@ -5839,6 +6125,13 @@ Bool Pathfinder::adjustToPossibleDestination(Object *obj, const LocomotorSet& lo
  */
 Bool Pathfinder::queueForPath(ObjectID id)
 {
+	// A restored queue is authoritative until every later save block and load callback has finished.
+	// State reconstruction may request the same paths again while loading; do not append duplicates.
+	if( m_queueRestoredFromSave )
+	{
+		return true;
+	}
+
 #ifdef DEBUG_LOGGING
 	{
 		Object *tmpObj = TheGameLogic->findObjectByID(id);
@@ -10078,7 +10371,14 @@ void Pathfinder::removeGoal( Object *obj)
 		return;
 	}
 	ICoord2D cellNdx;
-	ai->setPathfindGoalCell(newCell);
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Keep the serialized pathfind goal cell while a
+	// save is loading, for the same reason removePos keeps the position cell.
+	//
+	if( TheGameState == nullptr || !TheGameState->isInLoadGame() )
+	{
+		ai->setPathfindGoalCell(newCell);
+	}
 	Int i,j;
 	if (goalCell.x>=0 && goalCell.y>=0) {
 		for (i=goalCell.x-radius; i<goalCell.x+numCellsAbove; i++) {
@@ -10242,7 +10542,17 @@ void Pathfinder::removePos( Object *obj)
 
 	ICoord2D newCell;
 	newCell.x = newCell.y = -1;
-	ai->setCurPathfindCell(newCell);
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Keep the serialized pathfind cell while a save
+	// is loading. Restoring a contained unit removes it from the pathfind map, and that wipe also
+	// cleared the cell coordinate the save stream had already restored. The grid itself is healed
+	// afterwards, by the checkpoint cell snapshot or the legacy post load rebuild, so only the
+	// per unit coordinate was lost.
+	//
+	if( TheGameState == nullptr || !TheGameState->isInLoadGame() )
+	{
+		ai->setCurPathfindCell(newCell);
+	}
 
 	Int i,j;
 	ICoord2D cellNdx;
@@ -11399,18 +11709,309 @@ void Pathfinder::crc( Xfer *xfer )
 }
 
 //-----------------------------------------------------------------------------
+/** Load/Save the pathfinder
+	*	Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize the pending pathfind request queue,
+	*    so units that were waiting on a path come back queued in the same slots and the same order,
+	*    along with the two scalars beside it that the frame CRC covers and a load cannot rebuild:
+	*    the ignored obstacle and the pathfind cell budget
+	* 3: TheSuperHackers @feature bobtista 16/08/2026 Snapshot the mutable ground cell state. A cell
+	*    carries classification history that no rebuild from the object graph reproduces, so the cell
+	*    and its obstacle/unit metadata are restored atomically after object post processing
+	* 4: TheSuperHackers @feature bobtista 16/08/2026 Omit the per cell zone numbers. loadPostProcess
+	*    always rebuilds them from the restored grid, so saving the discarded numbering only made the
+	*    checkpoint non idempotent
+	* 5: TheSuperHackers @feature bobtista 17/08/2026 Restore cell zone numbers together with the
+	*    matching zone equivalency tables, hierarchical blocks, layer zones, and recalculation frame.
+	*    Rebuilding those tables is topologically valid but can assign different history-dependent zone
+	*    identities and change line-of-fire and path decisions immediately after load.
+	* 6: TheSuperHackers @bugfix bobtista 21/08/2026 Checkpoint the bridge and wall layer cells,
+	*    plus the cross-search tunneling flag and ignored obstacle id. Only the ground grid was
+	*    captured, so unit position and goal marks on layer cells vanished on load and the A*
+	*    costed routes near bridges differently than the run that saved; the two transients are
+	*    hashed by crc() and made the load frame disagree until the next search rewrote them.
+	*/
+//-----------------------------------------------------------------------------
 void Pathfinder::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 4 : 6;
+#else
+	XferVersion currentVersion = 6;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
+	if( version >= 2 )
+	{
+		xfer->xferObjectID( &m_ignoreObstacleID );
+
+		//
+		// the queue is a ring buffer, so the whole array travels with its head and tail rather than
+		// just the live entries - the slot each request sits in is part of the state being restored
+		//
+		for( Int i = 0; i < PATHFIND_QUEUE_LEN; ++i )
+		{
+			xfer->xferObjectID( &m_queuedPathfindRequests[i] );
+		}
+		xfer->xferInt( &m_queuePRHead );
+		xfer->xferInt( &m_queuePRTail );
+
+		//
+		// despite the name this is a per frame budget, zeroed at the top of processPathfindQueue.
+		// The frame CRC reads it before that reset, so it still carries the previous frame's cell
+		// count and has to travel with the save or the first loaded frame disagrees.
+		//
+		xfer->xferInt( &m_cumulativeCellsAllocated );
+
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_queueRestoredFromSave = true;
+		}
+	}
+
+	if( version >= 3 )
+	{
+		Bool hasCellSnapshot = m_map != nullptr && m_isMapReady;
+		xfer->xferBool( &hasCellSnapshot );
+		if( hasCellSnapshot )
+		{
+			UnsignedInt cellCount = (m_extent.hi.x - m_extent.lo.x + 1) *
+				(m_extent.hi.y - m_extent.lo.y + 1);
+			xfer->xferUnsignedInt( &cellCount );
+
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				delete [] m_checkpointCells;
+				m_checkpointCells = MSGNEW("PathfindCheckpointCells") PathfindCell::CheckpointState[cellCount];
+				m_checkpointCellCount = cellCount;
+			}
+
+			UnsignedInt index = 0;
+			for( Int j = m_extent.lo.y; j <= m_extent.hi.y; ++j )
+			{
+				for( Int i = m_extent.lo.x; i <= m_extent.hi.x; ++i, ++index )
+				{
+					PathfindCell::CheckpointState state;
+					if( xfer->getXferMode() == XFER_SAVE )
+					{
+						m_map[i][j].captureCheckpointState( &state );
+					}
+
+					xferPathfindCellCheckpointState( xfer, &state, version <= 3 || version >= 5 );
+
+					if( xfer->getXferMode() == XFER_LOAD && index < m_checkpointCellCount )
+					{
+						m_checkpointCells[index] = state;
+					}
+				}
+			}
+		}
+
+	}
+
+	if( version >= 5 )
+	{
+		Bool hasZoneSnapshot = m_map != nullptr && m_isMapReady;
+		xfer->xferBool( &hasZoneSnapshot );
+		if( hasZoneSnapshot )
+		{
+			PathfindZoneManager *zoneManager = &m_zoneManager;
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				delete m_checkpointZoneManager;
+				m_checkpointZoneManager = new PathfindZoneManager;
+				zoneManager = m_checkpointZoneManager;
+				m_checkpointIncludesZones = true;
+			}
+
+			zoneManager->xfer( xfer );
+			for( Int i = 0; i <= LAYER_LAST; ++i )
+			{
+				Int layerZone = xfer->getXferMode() == XFER_SAVE ? m_layers[i].getZone() : 0;
+				xfer->xferInt( &layerZone );
+				if( xfer->getXferMode() == XFER_LOAD )
+				{
+					m_checkpointLayerZones[i] = layerZone;
+				}
+			}
+		}
+	}
+
+	if( version >= 6 )
+	{
+		//
+		// Both fields are in crc() and persist across searches, so the load frame's checkpoint
+		// disagrees with the continuous run until the next search overwrites them.
+		//
+		xfer->xferBool( &m_isTunneling );
+		xfer->xferUser( &m_ignoreObstacleID, sizeof( m_ignoreObstacleID ) );
+
+		for( Int layer = LAYER_GROUND + 1; layer <= LAYER_LAST; ++layer )
+		{
+			Bool hasCells = m_layers[layer].hasCells();
+			xfer->xferBool( &hasCells );
+			if( !hasCells )
+			{
+				continue;
+			}
+
+			Int width = m_layers[layer].getCellWidth();
+			Int height = m_layers[layer].getCellHeight();
+			Int xOrigin = m_layers[layer].getCellXOrigin();
+			Int yOrigin = m_layers[layer].getCellYOrigin();
+			xfer->xferInt( &width );
+			xfer->xferInt( &height );
+			xfer->xferInt( &xOrigin );
+			xfer->xferInt( &yOrigin );
+
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				if( width <= 0 || height <= 0 )
+				{
+					DEBUG_CRASH(("Pathfinder layer checkpoint has invalid extents."));
+					throw SC_INVALID_DATA;
+				}
+				delete [] m_checkpointLayerCells[layer];
+				m_checkpointLayerCells[layer] = MSGNEW("PathfindCheckpointCells") PathfindCell::CheckpointState[width * height];
+				m_checkpointLayerCellOrigin[layer].x = xOrigin;
+				m_checkpointLayerCellOrigin[layer].y = yOrigin;
+				m_checkpointLayerCellSize[layer].x = width;
+				m_checkpointLayerCellSize[layer].y = height;
+			}
+
+			Int index = 0;
+			for( Int i = 0; i < width; ++i )
+			{
+				for( Int j = 0; j < height; ++j, ++index )
+				{
+					PathfindCell::CheckpointState state;
+					if( xfer->getXferMode() == XFER_SAVE )
+					{
+						m_layers[layer].getCellRaw(i, j)->captureCheckpointState( &state );
+					}
+
+					xferPathfindCellCheckpointState( xfer, &state, true );
+
+					if( xfer->getXferMode() == XFER_LOAD )
+					{
+						m_checkpointLayerCells[layer][index] = state;
+					}
+				}
+			}
+		}
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Recompute the logical extent on load.
+	// It is derived state that only processPathfindQueue refreshes, and the AI updates of
+	// the first loaded frame run before that refresh. With the reset value of zero every
+	// destination adjustment for a human owned unit failed its logical extent check and
+	// fell back to snapping the raw goal, so the first move order after a load sent units
+	// to different spots than the same order in an uninterrupted run.
+	//
+	if( xfer->getXferMode() == XFER_LOAD )
+	{
+		Region3D terrainExtent;
+		TheTerrainLogic->getExtent( &terrainExtent );
+		IRegion2D bounds;
+		bounds.lo.x = REAL_TO_INT_FLOOR(terrainExtent.lo.x / PATHFIND_CELL_SIZE_F);
+		bounds.hi.x = REAL_TO_INT_FLOOR(terrainExtent.hi.x / PATHFIND_CELL_SIZE_F);
+		bounds.lo.y = REAL_TO_INT_FLOOR(terrainExtent.lo.y / PATHFIND_CELL_SIZE_F);
+		bounds.hi.y = REAL_TO_INT_FLOOR(terrainExtent.hi.y / PATHFIND_CELL_SIZE_F);
+		bounds.hi.x--;
+		bounds.hi.y--;
+		m_logicalExtent = bounds;
+	}
 }
 
 //-----------------------------------------------------------------------------
 void Pathfinder::loadPostProcess()
 {
+	if( m_checkpointCells == nullptr || m_map == nullptr || !m_isMapReady )
+	{
+		return;
+	}
+
+	UnsignedInt expectedCellCount = (m_extent.hi.x - m_extent.lo.x + 1) *
+		(m_extent.hi.y - m_extent.lo.y + 1);
+	if( m_checkpointCellCount != expectedCellCount )
+	{
+		DEBUG_CRASH(("Pathfinder checkpoint grid extent mismatch."));
+		return;
+	}
+
+	UnsignedInt index = 0;
+	for( Int j = m_extent.lo.y; j <= m_extent.hi.y; ++j )
+	{
+		for( Int i = m_extent.lo.x; i <= m_extent.hi.x; ++i, ++index )
+		{
+			ICoord2D pos;
+			pos.x = i;
+			pos.y = j;
+			m_map[i][j].restoreCheckpointState( m_checkpointCells[index], pos );
+		}
+	}
+
+	if( m_checkpointIncludesZones && m_checkpointZoneManager != nullptr )
+	{
+		// Cell zone IDs and every lookup table that interprets them form one atomic state unit.
+		m_zoneManager.swap( *m_checkpointZoneManager );
+		delete m_checkpointZoneManager;
+		m_checkpointZoneManager = nullptr;
+		for( Int i = 0; i <= LAYER_LAST; ++i )
+		{
+			m_layers[i].setZone( m_checkpointLayerZones[i] );
+			m_layers[i].applyZone();
+		}
+	}
+	else
+	{
+		// Older checkpoints carry cell classifications but not the corresponding zone namespace.
+		m_zoneManager.calculateZones( m_map, m_layers, m_extent );
+	}
+
+	for( Int layer = LAYER_GROUND + 1; layer <= LAYER_LAST; ++layer )
+	{
+		if( m_checkpointLayerCells[layer] == nullptr )
+		{
+			continue;
+		}
+
+		//
+		// The rebuilt layer must have the same footprint the save captured; a bridge or wall set
+		// that no longer matches means the map data changed and the snapshot does not apply.
+		//
+		if( m_layers[layer].hasCells() &&
+			m_layers[layer].getCellWidth() == m_checkpointLayerCellSize[layer].x &&
+			m_layers[layer].getCellHeight() == m_checkpointLayerCellSize[layer].y &&
+			m_layers[layer].getCellXOrigin() == m_checkpointLayerCellOrigin[layer].x &&
+			m_layers[layer].getCellYOrigin() == m_checkpointLayerCellOrigin[layer].y )
+		{
+			Int index = 0;
+			for( Int i = 0; i < m_checkpointLayerCellSize[layer].x; ++i )
+			{
+				for( Int j = 0; j < m_checkpointLayerCellSize[layer].y; ++j, ++index )
+				{
+					ICoord2D pos;
+					pos.x = m_checkpointLayerCellOrigin[layer].x + i;
+					pos.y = m_checkpointLayerCellOrigin[layer].y + j;
+					m_layers[layer].getCellRaw(i, j)->restoreCheckpointState( m_checkpointLayerCells[layer][index], pos );
+				}
+			}
+		}
+
+		delete [] m_checkpointLayerCells[layer];
+		m_checkpointLayerCells[layer] = nullptr;
+	}
+
+	delete [] m_checkpointCells;
+	m_checkpointCells = nullptr;
+	m_checkpointCellCount = 0;
+	m_checkpointIncludesZones = false;
 
 }

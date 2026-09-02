@@ -81,6 +81,7 @@ enum SaveFileType CPP_11(: Int)
 {
 	SAVE_FILE_TYPE_NORMAL,		///< a regular save game at any arbitrary point in the game
 	SAVE_FILE_TYPE_MISSION,		///< a save game in between missions (a mission save)
+	SAVE_FILE_TYPE_CHECKPOINT,	///< complete deterministic simulation state, for recovery and replay seeking
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -171,7 +172,8 @@ public:
 										 SnapshotType which = SNAPSHOT_SAVELOAD );  ///< save a game
 	SaveResult missionSave();																 ///< do a in between mission save
 	SaveCode loadGame( AvailableGameInfo gameInfo );							 ///< load a save file
-	void loadQueuedSaveGame();																 ///< load the save file requested on startup
+	void loadQueuedSaveGame();															 ///< load the save file requested on startup
+	void loadResumeSaveGame( AsciiString filename );		///< load a synchronized multiplayer save with the network live
 	SaveGameInfo *getSaveGameInfo() { return &m_gameInfo; }
 
 	// snapshot interaction

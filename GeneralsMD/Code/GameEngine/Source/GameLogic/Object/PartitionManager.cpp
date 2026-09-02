@@ -49,6 +49,8 @@
 //-----------------------------------------------------------------------------
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include <map>
+
 #include "Common/ActionManager.h"
 #include "Common/DiscreteCircle.h"
 #include "Common/GameEngine.h"
@@ -1485,6 +1487,64 @@ void PartitionCell::friend_removeFromCellList(CellAndObjectIntersection *coi)
 }
 
 //-----------------------------------------------------------------------------
+void PartitionCell::restoreObjectOrder(const std::vector<ObjectID> &objectOrder)
+{
+	UnsignedInt liveObjectCount = 0;
+	for (CellAndObjectIntersection *coi = m_firstCoiInCell; coi; coi = coi->getNextCoi())
+	{
+		if (coi->getModule()->getObject() != nullptr)
+		{
+			++liveObjectCount;
+		}
+	}
+
+	if (liveObjectCount != objectOrder.size())
+	{
+		DEBUG_CRASH(("PartitionCell::restoreObjectOrder - Object count mismatch in cell (%d,%d): %u should be %u",
+			m_cellX, m_cellY, liveObjectCount, (UnsignedInt)objectOrder.size()));
+		return;
+	}
+
+	for (std::vector<ObjectID>::const_iterator id = objectOrder.begin(); id != objectOrder.end(); ++id)
+	{
+		CellAndObjectIntersection *match = nullptr;
+		for (CellAndObjectIntersection *coi = m_firstCoiInCell; coi; coi = coi->getNextCoi())
+		{
+			Object *obj = coi->getModule()->getObject();
+			if (obj != nullptr && obj->getID() == *id)
+			{
+				match = coi;
+				break;
+			}
+		}
+
+		if (match == nullptr)
+		{
+			DEBUG_CRASH(("PartitionCell::restoreObjectOrder - Object %u is missing from cell (%d,%d)",
+				(UnsignedInt)*id, m_cellX, m_cellY));
+			return;
+		}
+	}
+
+	for (Int i = (Int)objectOrder.size() - 1; i >= 0; --i)
+	{
+		CellAndObjectIntersection *match = nullptr;
+		for (CellAndObjectIntersection *coi = m_firstCoiInCell; coi; coi = coi->getNextCoi())
+		{
+			Object *obj = coi->getModule()->getObject();
+			if (obj != nullptr && obj->getID() == objectOrder[i])
+			{
+				match = coi;
+				break;
+			}
+		}
+
+		match->friend_removeFromCellList(&m_firstCoiInCell);
+		match->friend_addToCellList(&m_firstCoiInCell);
+	}
+}
+
+//-----------------------------------------------------------------------------
 void PartitionCell::getCellCenterPos(Real& x, Real& y)
 {
 	ThePartitionManager->getCellCenterPos(m_cellX, m_cellY, x, y);
@@ -1562,6 +1622,7 @@ PartitionData::PartitionData()
 	m_doneFlag = 0;
 	m_dirtyStatus = NOT_DIRTY;
 	m_lastCell = nullptr;
+	m_skipCellChangeCheckOnce = FALSE;
 	for (int i = 0; i < MAX_PLAYER_COUNT; ++i)
 	{
 		m_everSeenByPlayer[i] = false;
@@ -1742,6 +1803,48 @@ void PartitionData::removeAllTouchedCells()
 		}
 	}
 	DEBUG_ASSERTCRASH(m_coiInUseCount == 0, ("hmm, coi count mismatch"));
+}
+
+// -----------------------------------------------------------------------------
+void PartitionData::friend_restoreCheckpointCoverage( PartitionCell * const *cells, Int cellCount )
+{
+	if( m_coiInUseCount == cellCount )
+	{
+		Bool same = true;
+		for( Int i = 0; i < cellCount; ++i )
+		{
+			Bool found = false;
+			for( Int j = 0; j < m_coiArrayCount; ++j )
+			{
+				if( m_coiArray[j].getModule() == this && m_coiArray[j].getCell() == cells[i] )
+				{
+					found = true;
+					break;
+				}
+			}
+			if( !found )
+			{
+				same = false;
+				break;
+			}
+		}
+		if( same )
+		{
+			return;
+		}
+	}
+
+	if( cellCount > m_coiArrayCount )
+	{
+		DEBUG_CRASH(("PartitionData::friend_restoreCheckpointCoverage - saved coverage of %d cells exceeds the %d allocated cois", cellCount, m_coiArrayCount));
+		return;
+	}
+
+	removeAllTouchedCells();
+	for( Int i = 0; i < cellCount; ++i )
+	{
+		addSubPixToCoverage( cells[i] );
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -2148,7 +2251,15 @@ void PartitionData::updateCellsTouched()
 	Int currentCellIndexX, currentCellIndexY;
 	ThePartitionManager->worldToCell( pos.x, pos.y, &currentCellIndexX, &currentCellIndexY );
 	const PartitionCell *currentCell = ThePartitionManager->getCellAt( currentCellIndexX, currentCellIndexY );
-	if(obj && currentCell != m_lastCell )
+	if( m_skipCellChangeCheckOnce )
+	{
+		// This is the cell update the load restore queued. The anchor was restored from the save
+		// on purpose; comparing against it here would fire the owed cell-change refresh frames
+		// before the run that saved does. Leave the anchor alone and let the next genuine cell
+		// update perform the comparison.
+		m_skipCellChangeCheckOnce = FALSE;
+	}
+	else if(obj && currentCell != m_lastCell )
 	{
 		// To not expose PartitionCells, he will think in terms of points.  He will
 		// unlook at a point and look at the new point.  We do the rounding and the
@@ -2260,6 +2371,56 @@ Int PartitionData::calcMaxCoiForObject()
 theObjName = obj->getTemplate()->getName();
 #endif
 	return calcMaxCoiForShape(geom, majorRadius, minorRadius, isSmall);
+}
+
+//-----------------------------------------------------------------------------
+void PartitionData::friend_restoreDirty(UnsignedByte status)
+{
+	if ((DirtyStatus)status == NOT_DIRTY)
+	{
+		return;
+	}
+	// TheSuperHackers @bugfix bobtista 29/08/2026 Set the status before linking into the dirty
+	// list. Prepending checks the status, so the old order tripped its dirty flag invariant.
+	Bool wasInList = ThePartitionManager->isInListDirtyModules(this);
+	m_dirtyStatus = (DirtyStatus)status;
+	if (!wasInList)
+	{
+		ThePartitionManager->prependToDirtyModules(this);
+	}
+}
+
+//-----------------------------------------------------------------------------
+void PartitionData::friend_restoreLastCellFromLook()
+{
+	Object *obj = getObject();
+	if( obj == nullptr )
+	{
+		return;
+	}
+
+	const Coord3D *anchor = obj->getPosition();
+	const SightingInfo *lastLook = obj->friend_getPartitionLastLook();
+	if( lastLook != nullptr && !lastLook->isInvalid() )
+	{
+		anchor = &lastLook->m_where;
+	}
+
+	Int cellX, cellY;
+	ThePartitionManager->worldToCell( anchor->x, anchor->y, &cellX, &cellY );
+	m_lastCell = ThePartitionManager->getCellAt( cellX, cellY );
+}
+
+//-----------------------------------------------------------------------------
+void PartitionData::friend_setSkipCellChangeCheckOnce()
+{
+	m_skipCellChangeCheckOnce = TRUE;
+}
+
+//-----------------------------------------------------------------------------
+Bool PartitionData::friend_isInNeedOfCellUpdate() const
+{
+	return m_dirtyStatus == NEED_CELL_UPDATE_AND_COLLISION_CHECK;
 }
 
 //-----------------------------------------------------------------------------
@@ -2617,6 +2778,7 @@ void PartitionContactList::processContactList()
 //-----------------------------------------------------------------------------
 PartitionManager::PartitionManager()
 {
+	m_suppressCollisionsThisUpdate = FALSE;
 	m_moduleList = nullptr;
 	m_cellSize = m_cellSizeInv = 0.0f;
 	m_cellCountX = 0;
@@ -2756,6 +2918,7 @@ void PartitionManager::reset()
 void PartitionManager::shutdown()
 {
 	m_updatedSinceLastReset = false;
+	m_checkpointCellObjectOrder.clear();
 	removeAllDirtyModules();
 
 #ifdef RTS_DEBUG
@@ -2789,6 +2952,13 @@ void PartitionManager::shutdown()
 
 //-----------------------------------------------------------------------------
 //DECLARE_PERF_TIMER(PartitionManager_update)
+void PartitionManager::updateCellsOnlyForLoad()
+{
+	m_suppressCollisionsThisUpdate = TRUE;
+	update();
+	m_suppressCollisionsThisUpdate = FALSE;
+}
+
 void PartitionManager::update()
 {
 	//USE_PERF_TIMER(PartitionManager_update)
@@ -2818,6 +2988,10 @@ void PartitionManager::update()
 			// flag in question.
 			Bool updateEm = dirty->isInNeedOfUpdatingCells();
 			Bool collideEm = dirty->isInNeedOfCollisionCheck() && dirty->getObject();	//only update collisions if we have object
+			if (m_suppressCollisionsThisUpdate)
+			{
+				collideEm = FALSE;
+			}
 
 			// detach it from the dirty list.
 			removeFromDirtyModules(dirty);
@@ -4682,13 +4856,21 @@ void PartitionManager::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version
 	* 2: m_pendingUndoShroudReveals stores Unlooks waiting to happen.
+	* 3: TheSuperHackers @feature bobtista 17/08/2026 Serialize each cell's live-object order.
+	*    Equal-distance closest-object queries are first-wins, so rebuilding identical membership in
+	*    a different order leaves behaviorally observable history outside the checkpoint.
 	*/
 // ------------------------------------------------------------------------------------------------
 void PartitionManager::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 2;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 4;
+#else
+	XferVersion currentVersion = 4;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -4774,6 +4956,14 @@ void PartitionManager::xfer( Xfer *xfer )
 				m_pendingUndoShroudReveals.pop();
 			}
 
+			//
+			// TheSuperHackers @bugfix bobtista 29/08/2026 Drop the unlooks the load itself queued
+			// before restoring the saved queue. The restored cells never re-applied the reveals
+			// those entries would undo, and their later deadlines sit at the front of the FIFO,
+			// blocking every restored unlook behind them past its due frame.
+			//
+			resetPendingUndoShroudRevealQueue();
+
 			// I have to split this up though, since on Load I need to make new instances.
 			for( Int infoIndex = 0; infoIndex < queueSize; infoIndex++ )
 			{
@@ -4821,6 +5011,123 @@ void PartitionManager::xfer( Xfer *xfer )
 		// Version 1 save games will just not have any SightingInfos in the queue to be undone.
 	}
 
+	if (version >= 3)
+	{
+		UnsignedInt checkpointCellCount = m_totalCellCount;
+		xfer->xferUnsignedInt(&checkpointCellCount);
+		if (checkpointCellCount != (UnsignedInt)m_totalCellCount)
+		{
+			DEBUG_CRASH(("PartitionManager::xfer - Checkpoint cell count mismatch %u, should be %d",
+				checkpointCellCount, m_totalCellCount));
+			throw SC_INVALID_DATA;
+		}
+
+		if (xfer->getXferMode() == XFER_LOAD)
+		{
+			m_checkpointCellObjectOrder.clear();
+			m_checkpointCellObjectOrder.resize(checkpointCellCount);
+		}
+
+		for (UnsignedInt cellIndex = 0; cellIndex < checkpointCellCount; ++cellIndex)
+		{
+			UnsignedShort objectCount = 0;
+			if (xfer->getXferMode() == XFER_SAVE)
+			{
+				for (CellAndObjectIntersection *coi = m_cells[cellIndex].getFirstCoiInCell(); coi; coi = coi->getNextCoi())
+				{
+					if (coi->getModule()->getObject() != nullptr)
+					{
+						++objectCount;
+					}
+				}
+			}
+			xfer->xferUnsignedShort(&objectCount);
+
+			if (xfer->getXferMode() == XFER_LOAD)
+			{
+				m_checkpointCellObjectOrder[cellIndex].resize(objectCount);
+				for (UnsignedShort objectIndex = 0; objectIndex < objectCount; ++objectIndex)
+				{
+					xfer->xferObjectID(&m_checkpointCellObjectOrder[cellIndex][objectIndex]);
+				}
+			}
+			else
+			{
+				for (CellAndObjectIntersection *coi = m_cells[cellIndex].getFirstCoiInCell(); coi; coi = coi->getNextCoi())
+				{
+					Object *obj = coi->getModule()->getObject();
+					if (obj != nullptr)
+					{
+						ObjectID id = obj->getID();
+						xfer->xferObjectID(&id);
+					}
+				}
+			}
+		}
+	}
+	else if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_checkpointCellObjectOrder.clear();
+	}
+
+	if (version >= 4)
+	{
+		//
+		// TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the pending dirty list. It holds the
+		// objects that have moved since the last collision sweep, and it spans the frame boundary --
+		// anything dirtied after a frame's sweep is still waiting at the start of the next one. A
+		// load cannot rebuild that from the world state, so the first resumed frame sweeps a
+		// different set in a different order, and since processContactList hands the first object of
+		// each pair its onCollide() first and collisions re-dirty both participants, the difference
+		// never washes out.
+		//
+		UnsignedInt dirtyCount = 0;
+		if (xfer->getXferMode() == XFER_SAVE)
+		{
+			for (PartitionData *d = m_dirtyModules; d; d = d->friend_getNextDirty())
+			{
+				if (d->getObject() != nullptr)
+				{
+					++dirtyCount;
+				}
+			}
+		}
+		xfer->xferUnsignedInt(&dirtyCount);
+
+		if (xfer->getXferMode() == XFER_SAVE)
+		{
+			for (PartitionData *d = m_dirtyModules; d; d = d->friend_getNextDirty())
+			{
+				Object *obj = d->getObject();
+				if (obj == nullptr)
+				{
+					continue;
+				}
+				ObjectID id = obj->getID();
+				UnsignedByte status = d->friend_getDirtyStatus();
+				xfer->xferObjectID(&id);
+				xfer->xferUnsignedByte(&status);
+			}
+		}
+		else
+		{
+			m_checkpointDirtyOrder.clear();
+			m_checkpointDirtyOrder.reserve(dirtyCount);
+			for (UnsignedInt i = 0; i < dirtyCount; ++i)
+			{
+				ObjectID id = INVALID_ID;
+				UnsignedByte status = 0;
+				xfer->xferObjectID(&id);
+				xfer->xferUnsignedByte(&status);
+				m_checkpointDirtyOrder.push_back(std::make_pair(id, status));
+			}
+		}
+	}
+	else if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_checkpointDirtyOrder.clear();
+	}
+
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -4829,6 +5136,122 @@ void PartitionManager::xfer( Xfer *xfer )
 void PartitionManager::loadPostProcess()
 {
 
+	//
+	// TheSuperHackers @bugfix bobtista 23/08/2026 Re-anchor every object's last-cell record and
+	// drop the dirty entries the load itself produced. Rebuilding the partition sets each object's
+	// last cell to its current cell and queues a cell update for the restored transform, but the
+	// run that saved may still owe a cell-change refresh: its last cell dates from an older
+	// position, and the refresh only fires when the next cell update notices the mismatch. Keeping
+	// the load-time anchor and dirty entries either loses that refresh or fires it frames early,
+	// forking the shroud from the run that saved. The saved look record carries the position the
+	// anchor was made at, so restore the anchor from it and let the refresh fire on its own frame.
+	//
+	for( Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject() )
+	{
+		PartitionData *pd = obj->friend_getPartitionData();
+		if( pd != nullptr )
+		{
+			pd->friend_restoreLastCellFromLook();
+		}
+	}
+
+	//
+	// The load-time dirty entries must still run their cell update on the first frame -- it
+	// rebuilds the touched cells and invalidates every object's cached shrouded status -- but
+	// that pass must not perform the cell-change comparison, or the owed refresh fires frames
+	// before the run that saved does. Flag those entries to skip the comparison once.
+	//
+	for( PartitionData *dirty = m_dirtyModules; dirty != nullptr; dirty = dirty->friend_getNextDirty() )
+	{
+		if( dirty->friend_isInNeedOfCellUpdate() )
+		{
+			dirty->friend_setSkipCellChangeCheckOnce();
+		}
+	}
+
+}
+
+// ------------------------------------------------------------------------------------------------
+void PartitionManager::finishLoadPostProcess()
+{
+	if (m_checkpointCellObjectOrder.empty())
+	{
+		return;
+	}
+
+	if (m_checkpointCellObjectOrder.size() != (UnsignedInt)m_totalCellCount)
+	{
+		DEBUG_CRASH(("PartitionManager::finishLoadPostProcess - Checkpoint cell count mismatch %u, should be %d",
+			(UnsignedInt)m_checkpointCellObjectOrder.size(), m_totalCellCount));
+		m_checkpointCellObjectOrder.clear();
+		return;
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Rebuild every object's cell coverage from the
+	// saved membership before restoring the per cell order. The load recomputes coverage from
+	// current positions, but an object that moved after the frame's last collision sweep was
+	// saved with the coverage of its older position, and the order restore below cannot repair
+	// a cell whose membership differs. The restored dirty list already owes such an object a
+	// cell update, so the first resumed sweep recomputes the same coverage the uninterrupted
+	// run would.
+	//
+	typedef std::map< ObjectID, std::vector<PartitionCell*> > SavedCoverageMap;
+	SavedCoverageMap savedCoverage;
+	for (Int cellIndex = 0; cellIndex < m_totalCellCount; ++cellIndex)
+	{
+		const std::vector<ObjectID> &order = m_checkpointCellObjectOrder[cellIndex];
+		for (std::vector<ObjectID>::const_iterator id = order.begin(); id != order.end(); ++id)
+		{
+			savedCoverage[*id].push_back(&m_cells[cellIndex]);
+		}
+	}
+	for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
+	{
+		PartitionData *pd = obj->friend_getPartitionData();
+		if (pd == nullptr)
+		{
+			continue;
+		}
+		SavedCoverageMap::const_iterator it = savedCoverage.find(obj->getID());
+		if (it != savedCoverage.end())
+		{
+			pd->friend_restoreCheckpointCoverage(&it->second[0], (Int)it->second.size());
+		}
+		else
+		{
+			pd->friend_restoreCheckpointCoverage(nullptr, 0);
+		}
+	}
+
+	for (Int i = 0; i < m_totalCellCount; ++i)
+	{
+		m_cells[i].restoreObjectOrder(m_checkpointCellObjectOrder[i]);
+	}
+	m_checkpointCellObjectOrder.clear();
+
+	//
+	// The registrations done during the load left every object on the dirty list in load order.
+	// Replace that with exactly the list the save carried. Entries are prepended, so walking the
+	// saved order backwards reproduces it.
+	//
+	removeAllDirtyModules();
+	for (std::vector< std::pair<ObjectID, UnsignedByte> >::reverse_iterator rIt = m_checkpointDirtyOrder.rbegin();
+			 rIt != m_checkpointDirtyOrder.rend(); ++rIt)
+	{
+		Object *obj = TheGameLogic->findObjectByID(rIt->first);
+		if (obj == nullptr)
+		{
+			continue;
+		}
+		PartitionData *data = obj->friend_getPartitionData();
+		if (data == nullptr)
+		{
+			continue;
+		}
+		data->friend_restoreDirty(rIt->second);
+	}
+	m_checkpointDirtyOrder.clear();
 }
 
 //-----------------------------------------------------------------------------

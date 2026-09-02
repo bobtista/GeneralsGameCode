@@ -417,6 +417,7 @@ public:
 	/// cache the partition module (should be called only by PartitionData)
 	void friend_setPartitionData(PartitionData *pd) { m_partitionData = pd; }
 	PartitionData *friend_getPartitionData() const { return m_partitionData; }
+	const SightingInfo *friend_getPartitionLastLook() const { return m_partitionLastLook; }
 	const PartitionData *friend_getConstPartitionData() const { return m_partitionData; }
 	Bool hasGhostObject() const; ///< This object has a ghost object. This does not imply that a ghost snapshot is taken or active.
 

@@ -31,6 +31,7 @@
 #include "PreRTS.h"
 
 #include "Common/file.h"
+#include "GameClient/ClientInstance.h"
 #include "Common/FileSystem.h"
 #include "Common/GameState.h"
 #include "Common/GameStateMap.h"
@@ -41,6 +42,7 @@
 #include "GameClient/MapUtil.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GameInfo.h"
+#include "Common/Recorder.h"
 
 // GLOBALS ////////////////////////////////////////////////////////////////////////////////////////
 GameStateMap *TheGameStateMap = nullptr;
@@ -287,6 +289,39 @@ static void extractAndSaveMap( AsciiString mapToSave, Xfer *xfer )
 	*     needs to set up the player list based on it.
 	*/
 // ------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature bobtista 27/08/2026 Snapshot a live game info's slot layout into
+// TheSkirmishGameInfo so a save carries the lobby state it was played with.
+static void buildSnapshotFromGameInfo( GameInfo *sourceInfo )
+{
+	if( sourceInfo == nullptr || TheSkirmishGameInfo == nullptr )
+	{
+		return;
+	}
+	TheSkirmishGameInfo->enterGame();
+	for( Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex )
+	{
+		GameSlot *dst = TheSkirmishGameInfo->getSlot( slotIndex );
+		const GameSlot *src = sourceInfo->getConstSlot( slotIndex );
+		if( dst != nullptr && src != nullptr )
+		{
+			*dst = *src;
+		}
+	}
+	// Slot IPs are not serialized, so a nonzero local IP can never match a restored slot;
+	// zero resolves the first occupied player slot as local on load.
+	TheSkirmishGameInfo->setLocalIP( 0 );
+	TheSkirmishGameInfo->setCRCInterval( sourceInfo->getCRCInterval() );
+	// TheSuperHackers @bugfix bobtista 29/08/2026 Carry the recorded map and seed too, or the
+	// checkpoint's game info holds the nomap placeholder and cannot resume.
+	TheSkirmishGameInfo->setMap( sourceInfo->getMap() );
+	TheSkirmishGameInfo->setMapCRC( sourceInfo->getMapCRC() );
+	TheSkirmishGameInfo->setMapSize( sourceInfo->getMapSize() );
+	TheSkirmishGameInfo->setMapContentsMask( sourceInfo->getMapContentsMask() );
+	TheSkirmishGameInfo->setSeed( sourceInfo->getSeed() );
+	TheSkirmishGameInfo->startGame( sourceInfo->getGameID() );
+}
+
+// ------------------------------------------------------------------------------------------------
 void GameStateMap::xfer( Xfer *xfer )
 {
 	const LoadingSaveLatch loadingSaveLatch( xfer->getXferMode() == XFER_LOAD );
@@ -355,8 +390,28 @@ void GameStateMap::xfer( Xfer *xfer )
 
 		if (currentVersion >= 2)
 		{
-			// save the game mode.
+			//
+			// TheSuperHackers @feature bobtista 24/08/2026 A save minted during replay playback is
+			// a checkpoint OF the recorded game, not of the playback session. Record the original
+			// game mode from the recorder so the checkpoint loads as a normal game with the
+			// original local player instead of a replay observer.
+			//
 			Int gameMode = (Int)TheGameLogic->getGameMode();
+			if( gameMode == GAME_REPLAY && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
+			{
+				gameMode = TheRecorder->getGameMode();
+
+				//
+				// TheSuperHackers @feature bobtista 26/08/2026 A checkpoint of a multiplayer
+				// replay must load without live network objects. Write it as a skirmish-shaped
+				// save: the serialized player list carries the real players, and the skirmish
+				// game info constructed below carries the slot layout.
+				//
+				if( gameMode == GAME_LAN || gameMode == GAME_INTERNET )
+				{
+					gameMode = GAME_SKIRMISH;
+				}
+			}
 			xfer->xferInt( &gameMode);
 		}
 
@@ -457,7 +512,39 @@ void GameStateMap::xfer( Xfer *xfer )
 	TheGameClient->setDrawableIDCounter( highDrawableID );
 
 	// Save the Game Info so the game can be started with the correct players on load
-	if( TheGameLogic->getGameMode()==GAME_SKIRMISH )
+	Int effectiveGameMode = TheGameLogic->getGameMode();
+	if( effectiveGameMode == GAME_REPLAY && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
+	{
+		// A checkpoint of a replayed game carries the recorded game's info (see the game mode
+		// note above). Multiplayer replays checkpoint as skirmish-shaped saves.
+		effectiveGameMode = TheRecorder->getGameMode();
+		if( effectiveGameMode == GAME_LAN || effectiveGameMode == GAME_INTERNET )
+		{
+			effectiveGameMode = GAME_SKIRMISH;
+		}
+	}
+	//
+	// TheSuperHackers @feature bobtista 27/08/2026 A synchronized multiplayer save carries its
+	// slot layout: side substitution on load must use the saved lobby snapshot, because the
+	// live lobby's slot state is stale by the time a deferred resume load runs, and peers
+	// must build identical sides regardless of reconnection order.
+	//
+	// On load the file's mode alone decides: every LAN-mode save this branch writes embeds
+	// the lobby snapshot, and a network-less reader (single player -loadsave) must still
+	// consume it or the stream desynchronizes at the next block.
+	if( effectiveGameMode == GAME_LAN &&
+			(TheNetwork != nullptr || xfer->getXferMode() == XFER_LOAD) )
+	{
+		effectiveGameMode = GAME_SKIRMISH;
+		if( xfer->getXferMode() == XFER_LOAD && TheNetwork == nullptr )
+		{
+			// A multiplayer save loaded without a network continues offline: the rest of the
+			// start pipeline has no LAN-without-network path, and replay checkpoints already
+			// take the skirmish shape for the same reason.
+			TheGameLogic->setGameMode( GAME_SKIRMISH );
+		}
+	}
+	if( effectiveGameMode == GAME_SKIRMISH )
 	{
 		if( TheSkirmishGameInfo==nullptr )
 		{
@@ -465,8 +552,36 @@ void GameStateMap::xfer( Xfer *xfer )
 			TheSkirmishGameInfo->init();
 			TheSkirmishGameInfo->clearSlotList();
 			TheSkirmishGameInfo->reset();
+			if( xfer->getXferMode() == XFER_SAVE && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
+			{
+				GameInfo *replayInfo = TheRecorder->getGameInfo();
+				buildSnapshotFromGameInfo( replayInfo );
+			}
+			else if( xfer->getXferMode() == XFER_SAVE && TheNetwork != nullptr && TheGameInfo != nullptr )
+			{
+				buildSnapshotFromGameInfo( TheGameInfo );
+			}
 		}
 		xfer->xferSnapshot(TheSkirmishGameInfo);
+		//
+		// TheSuperHackers @bugfix bobtista 28/08/2026 The snapshot carries no local identity
+		// (slot addresses are not serialized), so side construction would mark the first
+		// occupied slot as the local player: the camera restores to the donor's base and the
+		// world briefly renders with the donor's vision before the resume switches players.
+		// Stamp the resuming slot before sides are built so this peer is itself from the
+		// first frame. The addresses are matching keys only; the network is already built.
+		//
+		if( xfer->getXferMode() == XFER_LOAD && TheGlobalData->m_resumeAsSlot >= 0 &&
+				TheSkirmishGameInfo != nullptr )
+		{
+			GameSlot *resumeSlot = TheSkirmishGameInfo->getSlot( TheGlobalData->m_resumeAsSlot );
+			if( resumeSlot != nullptr && resumeSlot->isHuman() )
+			{
+				UnsignedInt localKey = 1 + (UnsignedInt)TheGlobalData->m_resumeAsSlot;
+				resumeSlot->setIP( localKey );
+				TheSkirmishGameInfo->setLocalIP( localKey );
+			}
+		}
 	}
 	else
 	{
@@ -535,7 +650,20 @@ void GameStateMap::clearScratchPadMaps()
 			// see if there is a ".map" at end of this filename
 			Char *c = strrchr( item.cFileName, '.' );
 			if( c && stricmp( c, ".map" ) == 0 )
-				fileToDelete.set( item.cFileName );  // we want to delete this one
+			{
+				//
+				// TheSuperHackers @bugfix bobtista 27/08/2026 Concurrent client instances share
+				// this directory; only delete our own instance's scratch maps (suffixed _i<id>)
+				// and legacy unsuffixed ones, never a peer instance's file.
+				//
+				AsciiString ggcOwn;
+				ggcOwn.format("_i%u.map", rts::ClientInstance::getInstanceId());
+				const char *ggcSuffix = strstr( item.cFileName, "_i" );
+				if( ggcSuffix == nullptr || strstr( item.cFileName, ggcOwn.str() ) != nullptr )
+				{
+					fileToDelete.set( item.cFileName );  // we want to delete this one
+				}
+			}
 
 		}
 

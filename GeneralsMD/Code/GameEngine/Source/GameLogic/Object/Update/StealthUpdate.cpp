@@ -186,6 +186,7 @@ void isBlackMarket( Object *obj, void *userData )
 		}
 		*(Bool*)userData = TRUE;
 	}
+
 }
 
 //---------------------------------------------------------------------------------------~-_-~-_-~-
@@ -433,6 +434,7 @@ void StealthUpdate::hintDetectableWhileUnstealthed()
 				selfDraw->setSecondMaterialPassOpacity( 1.0f );
 		}
 	}
+
 }
 
 
@@ -540,6 +542,7 @@ StealthLookType StealthUpdate::calcStealthedStatusForPlayer(const Object* obj, c
 	{
 		return STEALTHLOOK_NONE;
 	}
+
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -858,6 +861,7 @@ void setWakeupIfInRange( Object *obj, void *userData)
 //			draw->setEmoticon( "Emoticon_Alarm", 5000 );
 //		}
 //	}
+
 }
 
 
@@ -928,6 +932,7 @@ void StealthUpdate::markAsDetected(UnsignedInt numFrames)
 			player->iterateObjects(setWakeupIfInRange, self);
 		}
 	}
+
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1137,7 +1142,12 @@ void StealthUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 2;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+#else
+	XferVersion currentVersion = 3;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1200,6 +1210,16 @@ void StealthUpdate::xfer( Xfer *xfer )
 	if( version >= 2 )
 	{
 		xfer->xferUnsignedInt( &m_framesGranted );
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the black market check timer. It gates a stealth test that draws from the
+	// logic random, so a reset to zero fires the draw on the first resumed frame and
+	// keeps firing until it catches up, shifting the shared random sequence for everyone.
+	//
+	if( version >= 3 )
+	{
+		xfer->xferUnsignedInt( &m_nextBlackMarketCheckFrame );
 	}
 
 }

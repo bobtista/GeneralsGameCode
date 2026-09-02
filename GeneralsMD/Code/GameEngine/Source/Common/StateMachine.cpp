@@ -833,12 +833,33 @@ void StateMachine::xfer( Xfer *xfer )
 	if (xfer->getXferMode() == XFER_LOAD)	{
 		// We are going to jump into the current state.	We don't call onEnter or onExit, because the
 		// state was already active when we saved.
-		m_currentState = internalGetState( curStateID );
+		// TheSuperHackers @bugfix bobtista 30/08/2026 A machine without a current state saves
+		// INVALID_STATE_ID. Restore that as no current state. Previously the invalid id went
+		// through internalGetState(), which asserts and falls back to the default state, so
+		// the machine resumed running a state it was not in when the game was saved.
+		if( curStateID == INVALID_STATE_ID )
+		{
+			m_currentState = nullptr;
+		}
+		else
+		{
+			m_currentState = internalGetState( curStateID );
+		}
 	}
 
-	Bool snapshotAllStates = false;
-#ifdef RTS_DEBUG
-	//snapshotAllStates = true;
+	//
+	// TheSuperHackers @bugfix bobtista 19/08/2026 Snapshot every state, not just the current one.
+	// A state machine's non-current states keep data that outlives the state they were set in --
+	// AIInternalMoveToState::m_adjustDestinations is set when the order is issued and read the next
+	// time the state runs -- so restoring only the current state brings the rest back at their
+	// constructor defaults. The flag is written into the stream, so a save describes which layout
+	// it used and old saves still load.
+	//
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// The flag is written into the stream, so each save describes its own layout.
+	Bool snapshotAllStates = (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT);
+#else
+	Bool snapshotAllStates = true;
 #endif
 	xfer->xferBool(&snapshotAllStates);
 	if (snapshotAllStates) {

@@ -28,7 +28,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"
 #define DEFINE_WEAPONCONDITIONMAP
 #include "Common/BitFlagsIO.h"
 #include "Common/BuildAssistant.h"
@@ -2649,6 +2649,19 @@ void Object::setTriggerAreaFlagsForChangeInPosition()
 	if (isKindOf(KINDOF_PROJECTILE) || isKindOf(KINDOF_INERT))
 		return;
 
+	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Do not evaluate trigger areas while a
+	// checkpoint is loading. Restoring the position ran this scan with empty trigger info, so
+	// every object inside an area raised a phantom entered event and set its team's entered or
+	// exited flag, which script conditions then consumed on the first resumed frame. The saved
+	// trigger state is restored by Object::xfer instead.
+	//
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() &&
+			TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
+	{
+		return;
+	}
+
 	ICoord3D iPos;
 	Coord3D pos = *getPosition();
 	iPos.x = REAL_TO_INT(pos.x);
@@ -4094,13 +4107,20 @@ void Object::crc( Xfer *xfer )
 	* 7: save full mtx, not pos+orient.
 	* 8: Kris: Conversion of object status bits from UnsignedInt to BitFlags<>
 	* 9: Extra sighting for reveal to all with different range units
+	* 10: TheSuperHackers @bugfix bobtista 17/08/2026 Preserve the history-dependent cached
+	*     orientation in non-retail checkpoints
 	*/
 //-------------------------------------------------------------------------------------------------
 void Object::xfer( Xfer *xfer )
 {
 
 	// version
-	const XferVersion currentVersion = 9;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 12;
+#else
+	const XferVersion currentVersion = 12;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -4119,8 +4139,20 @@ void Object::xfer( Xfer *xfer )
 	if (version >= 7)
 	{
 		Matrix3D mtx = *getTransformMatrix();
+		Real cachedAngle = getOrientation();
 		xfer->xferMatrix3D(&mtx);
-		setTransformMatrix(&mtx);
+
+		// The cached orientation travels only in version 10 streams (checkpoints); the
+		// version test makes this correct for every save shape and build setting.
+		if (version >= 10)
+			xfer->xferReal(&cachedAngle);
+
+		if (xfer->getXferMode() == XFER_LOAD)
+		{
+			setTransformMatrix(&mtx);
+			if (version >= 10)
+				restoreCachedAngleForLoad(cachedAngle);
+		}
 	}
 	else
 	{
@@ -4193,7 +4225,27 @@ void Object::xfer( Xfer *xfer )
 	xfer->xferUnsignedByte( &m_privateStatus );
 
 	// geometry info
-	xfer->xferSnapshot( &m_geometryInfo );
+	{
+		GeometryInfo preXferGeometry = m_geometryInfo;
+		xfer->xferSnapshot( &m_geometryInfo );
+		if( xfer->getXferMode() == XFER_LOAD && m_partitionData != nullptr &&
+			( preXferGeometry.getGeomType() != m_geometryInfo.getGeomType() ||
+			  preXferGeometry.getIsSmall() != m_geometryInfo.getIsSmall() ||
+			  preXferGeometry.getMajorRadius() != m_geometryInfo.getMajorRadius() ||
+			  preXferGeometry.getMinorRadius() != m_geometryInfo.getMinorRadius() ) )
+		{
+			//
+			// TheSuperHackers @bugfix bobtista 25/08/2026 Re-register with the partition manager
+			// when the restored geometry differs from the one registration used. The cell
+			// intersection array is sized at registration, so a runtime geometry override -- a
+			// rebuild hole adopting the dead building's footprint -- restored by this xfer alone
+			// kept the template-sized array, truncated the footprint fill, and the object stopped
+			// colliding on the missing cells.
+			//
+			ThePartitionManager->unRegisterObject( this );
+			ThePartitionManager->registerObject( this );
+		}
+	}
 
 	// sighting info, last look - must be saved cause we save PartitionCell::m_shroudLevel
 	xfer->xferSnapshot( m_partitionLastLook );
@@ -4491,7 +4543,9 @@ void Object::xfer( Xfer *xfer )
 		xfer->xferUser(&m_lastWeaponCondition, sizeof(m_lastWeaponCondition));
 
 		// do the weaponSet itself after all the weapon-related stuff, just in case
+		m_weaponSet.friend_setXferOwner(this);
 		xfer->xferSnapshot(&m_weaponSet);
+		m_weaponSet.friend_setXferOwner(nullptr);
 
 		m_specialPowerBits.xfer( xfer );
 
@@ -4506,6 +4560,72 @@ void Object::xfer( Xfer *xfer )
 	}
 	else
 		m_isReceivingDifficultyBonus = FALSE;
+
+	if( version >= 11 )
+	{
+		//
+		// TheSuperHackers @bugfix bobtista 29/08/2026 Record whether the object was registered with
+		// the partition manager. Off map objects such as payload delivery planes are removed from
+		// it until they re-enter, but the load registers every restored object, so they came back
+		// with a phantom partition module that forked the partition state from the run that saved.
+		//
+		Bool partitionRegistered = ( m_partitionData != nullptr );
+		xfer->xferBool( &partitionRegistered );
+		if( xfer->getXferMode() == XFER_LOAD && !partitionRegistered && m_partitionData != nullptr )
+		{
+			ThePartitionManager->unRegisterObject( this );
+		}
+	}
+
+	if( version >= 12 )
+	{
+		//
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Serialize the trigger area state. Without
+		// it a loaded object raised phantom entered events for every area it stood in, and the
+		// script conditions that watch those flags fired on the first resumed frame.
+		//
+		xfer->xferUnsignedInt( &m_enteredOrExitedFrame );
+		xfer->xferUser( &m_iPos, sizeof( m_iPos ) );
+		UnsignedByte activeCount = (UnsignedByte)m_numTriggerAreasActive;
+		xfer->xferUnsignedByte( &activeCount );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_numTriggerAreasActive = activeCount;
+		}
+		for( Int t = 0; t < m_numTriggerAreasActive; ++t )
+		{
+			Int triggerIndex = -1;
+			if( xfer->getXferMode() == XFER_SAVE )
+			{
+				Int walkIndex = 0;
+				for( const PolygonTrigger *pTrig = PolygonTrigger::getFirstPolygonTrigger(); pTrig; pTrig = pTrig->getNext(), ++walkIndex )
+				{
+					if( pTrig == m_triggerInfo[ t ].pTrigger )
+					{
+						triggerIndex = walkIndex;
+						break;
+					}
+				}
+			}
+			xfer->xferInt( &triggerIndex );
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				m_triggerInfo[ t ].pTrigger = nullptr;
+				Int walkIndex = 0;
+				for( const PolygonTrigger *pTrig = PolygonTrigger::getFirstPolygonTrigger(); pTrig; pTrig = pTrig->getNext(), ++walkIndex )
+				{
+					if( walkIndex == triggerIndex )
+					{
+						m_triggerInfo[ t ].pTrigger = pTrig;
+						break;
+					}
+				}
+			}
+			xfer->xferByte( &m_triggerInfo[ t ].entered );
+			xfer->xferByte( &m_triggerInfo[ t ].exited );
+			xfer->xferByte( &m_triggerInfo[ t ].isInside );
+		}
+	}
 
 }
 

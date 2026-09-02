@@ -392,13 +392,19 @@ void HordeUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix Serialize horde membership history */
 // ------------------------------------------------------------------------------------------------
 void HordeUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -407,6 +413,11 @@ void HordeUpdate::xfer( Xfer *xfer )
 
 	xfer->xferBool( &m_inHorde );
 	xfer->xferBool( &m_hasFlag );
+	if( version >= 2 )
+	{
+		xfer->xferUnsignedInt( &m_lastHordeRefreshFrame );
+		xfer->xferBool( &m_trueHordeMember );
+	}
 
 }
 

@@ -66,6 +66,16 @@ void RadiusDecalTemplate::createRadiusDecal(const Coord3D& pos, Real radius, con
 	// it is now considered nonEmpty, regardless of the state of m_decal, etc
 	result.m_empty = false;
 
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Headless mode never creates the projected
+	// shadow manager, so no visual can be created. The emptiness above is still set, because
+	// sim logic reads isEmpty() and it must not depend on what is visible on this machine.
+	// Previously this crashed when a replay resumed from a checkpoint created a decal
+	// visible to the local player.
+	if (TheProjectedShadowManager == nullptr)
+	{
+		return;
+	}
+
 	if (!m_onlyVisibleToOwningPlayer ||
 			owningPlayer->getPlayerIndex() == ThePlayerList->getLocalPlayer()->getPlayerIndex())
 	{

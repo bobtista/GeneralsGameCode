@@ -159,6 +159,11 @@ static void findAndSelectCommandCenter(Object *obj, void* alreadyFound);
 // ------------------------------------------------------------------------------------------------
 /** This enum is for loading screen bar progress */
 // ------------------------------------------------------------------------------------------------
+#if defined(RTS_DEBUG)
+// One in-game CRC recovery attempt is allowed per match; a second mismatch ends the game.
+static Bool s_crcRecoveryAttempted = FALSE;
+#endif
+
 enum
 {
 	LOAD_PROGRESS_START =0,
@@ -546,6 +551,10 @@ GameLogic::GameLogic()
 	m_height = 0;
 	m_objList = nullptr;
 	m_curUpdateModule = nullptr;
+	m_hasCheckpointSleepyUpdateOrder = FALSE;
+	m_hasCheckpointTriggerAreaFrame = FALSE;
+	m_checkpointNextObjID = INVALID_ID;
+	m_hasCheckpointNextObjID = FALSE;
 	m_nextObjID = INVALID_ID;
 	m_startNewGame = FALSE;
 	m_gameMode = GAME_NONE;
@@ -756,6 +765,11 @@ void GameLogic::reset()
 		(*it)->friend_setIndexInLogic(-1);
 	}
 	m_sleepyUpdates.clear();
+	m_checkpointSleepyUpdateOrder.clear();
+	m_hasCheckpointSleepyUpdateOrder = FALSE;
+	m_hasCheckpointTriggerAreaFrame = FALSE;
+	m_checkpointNextObjID = INVALID_ID;
+	m_hasCheckpointNextObjID = FALSE;
 	m_curUpdateModule = nullptr;
 
 	m_isScoringEnabled = TRUE;
@@ -1434,6 +1448,8 @@ static void populateRandomStartPosition( GameInfo *game )
 void GameLogic::updateLoadProgress( Int progress )
 {
 
+	DEBUG_LOG(("updateLoadProgress: %d at %d ms", progress, timeGetTime()));
+
 	if( m_loadScreen )
 		m_loadScreen->update( progress );
 
@@ -1577,6 +1593,14 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	TheWritableGlobalData->m_loadScreenRender = TRUE;	///< mark it so only a few select things are rendered during load
 	TheWritableGlobalData->m_TiVOFastMode = FALSE;	//always disable the TIVO fast-forward mode at the start of a new game.
 
+#if defined(RTS_DEBUG)
+	if( loadingSaveGame == FALSE )
+	{
+		// A fresh match may attempt its own recovery; the latch is per match, not per process.
+		s_crcRecoveryAttempted = FALSE;
+	}
+#endif
+
 	Campaign* currentCampaign = TheCampaignManager->getCurrentCampaign();
 	Bool isChallengeCampaign = m_gameMode == GAME_SINGLE_PLAYER && currentCampaign && currentCampaign->m_isChallengeCampaign;
 
@@ -1584,7 +1608,16 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	TheGameInfo = nullptr;
 	if (TheNetwork)
 	{
-		if (TheLAN)
+		if (loadingSaveGame && TheSkirmishGameInfo != nullptr)
+		{
+			// TheSuperHackers @feature bobtista 27/08/2026 A resumed multiplayer save carries
+			// its lobby snapshot; building sides from it keeps team prototypes identical to
+			// the original match on every peer, regardless of live lobby state. A rejoining
+			// peer has no lobby at all, so this must not depend on TheLAN.
+			DEBUG_LOG(("Starting network game from a resumed snapshot"));
+			TheGameInfo = TheSkirmishGameInfo;
+		}
+		else if (TheLAN)
 		{
 			DEBUG_LOG(("Starting network game"));
 			TheGameInfo = TheLAN->GetMyGame();
@@ -2621,6 +2654,12 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 	while(!isProgressComplete())
 	{
+		// TheSuperHackers @bugfix bobtista 28/08/2026 A recovery reload gates its resume on
+		// the verified post-load handshake instead. Waiting here deadlocks into the 60s
+		// timeout: a peer that reloads first sends LOADCOMPLETE before this peer's reload
+		// reset, so the mark is received, wiped, and never re-sent.
+		if( TheNetwork != nullptr && TheNetwork->isRecoveryInProgress() )
+			break;
 		updateLoadProgress(101); // keep greater then 100
 		testTimeOut();
 		Sleep(100);
@@ -2655,14 +2694,15 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	{
 		TheMouse->setVisibility(TRUE);
 
-/*
 		//
 		// delete load screen only when not loading a save game, for save games we still
 		// have more work to do and the load screen will be deleted elsewhere after
 		// we're all done with the load game progress
 		//
+		// TheSuperHackers @bugfix bobtista 28/08/2026 Reinstate this original guard: with it
+		// commented out the screen object dies here while the whole save-state restore still
+		// runs, so the player stares at a stale frame and progress updates go nowhere.
 		if( loadingSaveGame == FALSE )
-*/
 			deleteLoadScreen();
 
 	}
@@ -3034,6 +3074,93 @@ void GameLogic::processDestroyList()
 //-------------------------------------------------------------------------------------------------
 /** Process the command list passed to the logic from the network */
 //-------------------------------------------------------------------------------------------------
+#if defined(RTS_DEBUG)
+// TheSuperHackers @feature bobtista 27/08/2026 In-game CRC mismatch recovery: every peer sees
+// the same CRC set on the same frame, so each independently elects the same donor (lowest slot
+// holding the majority CRC), writes a synchronized save at this exact frame, and schedules an
+// in-process reload of the donor's save. Ties go to the cohort holding the lowest slot.
+void GameLogic::beginCrcRecovery( void )
+{
+	Int donorSlot = MAX_SLOTS;
+	Int bestCount = 0;
+	for (CachedCRCMap::const_iterator it = m_cachedCRCs.begin(); it != m_cachedCRCs.end(); ++it)
+	{
+		const Int slotIndex = ThePlayerList->getSlotIndex(it->first);
+		if (slotIndex < 0 || !TheNetwork->isPlayerConnected(slotIndex))
+		{
+			continue;
+		}
+		Int count = 0;
+		Int lowSlot = MAX_SLOTS;
+		for (CachedCRCMap::const_iterator jt = m_cachedCRCs.begin(); jt != m_cachedCRCs.end(); ++jt)
+		{
+			const Int slotIndex2 = ThePlayerList->getSlotIndex(jt->first);
+			if (slotIndex2 < 0 || !TheNetwork->isPlayerConnected(slotIndex2))
+			{
+				continue;
+			}
+			if (jt->second == it->second)
+			{
+				++count;
+				if (slotIndex2 < lowSlot)
+				{
+					lowSlot = slotIndex2;
+				}
+			}
+		}
+		if (count > bestCount || (count == bestCount && lowSlot < donorSlot))
+		{
+			bestCount = count;
+			donorSlot = lowSlot;
+		}
+	}
+	if (donorSlot >= MAX_SLOTS)
+	{
+		TheNetwork->setSawCRCMismatch();
+		return;
+	}
+
+	const Int localSlot = (Int)TheNetwork->getLocalPlayerID();
+	AsciiString localSave;
+	localSave.format("recovery_s%d.sav", localSlot);
+	const SaveResult saveResult = TheGameState->saveGame(localSave, UnicodeString(L"CRC recovery"), SAVE_FILE_TYPE_CHECKPOINT);
+	DEBUG_LOG(("CRC recovery: donor slot %d, local slot %d, wrote '%s' at frame %d, code=%d",
+		donorSlot, localSlot, localSave.str(), m_frame, (Int)saveResult.saveCode));
+	if (saveResult.saveCode != SC_OK)
+	{
+		TheNetwork->setSawCRCMismatch();
+		return;
+	}
+
+	if (TheInGameUI != nullptr)
+	{
+		Player *donorPlayer = ThePlayerList->getPlayerFromSlotIndex(donorSlot);
+		if (donorPlayer != nullptr)
+		{
+			TheInGameUI->message(UnicodeString(L"Game out of sync - restoring from %ls's state..."),
+				donorPlayer->getPlayerDisplayName().str());
+		}
+		else
+		{
+			TheInGameUI->message(UnicodeString(L"Game out of sync - restoring..."));
+		}
+	}
+
+	AsciiString donorSave;
+	donorSave.format("recovery_s%d.sav", donorSlot);
+	TheWritableGlobalData->m_recoveryResumeSave = donorSave;
+	TheWritableGlobalData->m_recoveryDonorSave = donorSave;
+	s_crcRecoveryAttempted = TRUE;
+	TheNetwork->prepareForRecovery();
+
+	if (donorSlot == localSlot)
+	{
+		// The flush above cleared every queue, so the snapshot's chunks survive from here on.
+		TheNetwork->sendRecoveryFile(TheGameState->getFilePathInSaveDirectory(localSave));
+	}
+}
+#endif
+
 void GameLogic::processCommandList( CommandList *list )
 {
 	m_cachedCRCs.clear();
@@ -3109,7 +3236,20 @@ void GameLogic::processCommandList( CommandList *list )
 					player?player->getPlayerDisplayName().str():L"<NONE>", crcIt->second));
 			}
 #endif // DEBUG_LOGGING
-			TheNetwork->setSawCRCMismatch();
+#if defined(RTS_DEBUG)
+			if (TheGlobalData->m_recoveryResumeSave.isNotEmpty())
+			{
+				// A recovery reload is already pending; keep the endgame latch out of the way.
+			}
+			else if (TheGlobalData->m_crcRecovery && !s_crcRecoveryAttempted)
+			{
+				beginCrcRecovery();
+			}
+			else
+#endif
+			{
+				TheNetwork->setSawCRCMismatch();
+			}
 		}
 	}
 
@@ -3198,6 +3338,23 @@ void GameLogic::deselectObject(Object *obj, PlayerMaskType playerMask, Bool affe
 		if (!player) {
 			return;
 		}
+
+#if !RETAIL_COMPATIBLE_AIGROUP
+		// TheSuperHackers @bugfix bobtista 16/08/2026 Skip the temporary group when the object is not
+		// in this player's selection. A PLAYERMASK_ALL deselect otherwise burned one group id per
+		// player on a no-op, which moved the allocator away from the sequence the save recorded.
+		// Retail replays were recorded against the allocator advancing, so this stays behind the
+		// AIGroup compatibility macro.
+		if (player->isObjectInCurrentSelection(obj) == FALSE) {
+			if (affectClient) {
+				Drawable *draw = obj->getDrawable();
+				if (draw) {
+					TheInGameUI->deselectDrawable(draw);
+				}
+			}
+			continue;
+		}
+#endif
 
 		CRCGEN_LOG(( "Removing a unit from a selected group in GameLogic::deselectObject()" ));
 		AIGroupPtr group = TheAI->createGroup();
@@ -4144,6 +4301,46 @@ void GameLogic::update()
 
 	PROFILER_PLOT("LogicFrame", static_cast<int64_t>(now));
 
+	// TheSuperHackers @feature bobtista 14/08/2026 Write a save at the requested logic frame and quit.
+	// This sits ahead of everything the frame does, because the engine's own save runs from
+	// TheGameClient->UPDATE(), which precedes TheGameLogic->UPDATE(). Saving further down would
+	// capture a mid-frame state that no player save can produce, and reloading it would re-run the
+	// part of the frame that had already executed.
+	//
+	if (TheGlobalData->m_quitAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_quitAtFrame && getGameMode() != GAME_SHELL)
+	{
+		DEBUG_LOG(("Command line quit at frame %d", m_frame));
+		TheGameEngine->setQuitting(TRUE);
+	}
+
+	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_saveAtFrame && getGameMode() != GAME_SHELL)
+	{
+		// TheSuperHackers @bugfix bobtista 15/08/2026 Only write a save the game itself would let the
+		// player write. The Save button is disabled whenever input is disabled. Wait for the first
+		// frame that allows it instead, which is why the frame test above is >= rather than ==.
+		if (TheInGameUI != nullptr && TheInGameUI->getInputEnabled() == FALSE)
+		{
+			if ((Int)m_frame == TheGlobalData->m_saveAtFrame)
+			{
+				DEBUG_LOG(("Command line save deferred at frame %d: input is disabled, waiting for a frame that allows saving", m_frame));
+			}
+		}
+		else
+		{
+			AsciiString saveName = TheGlobalData->m_saveToFile;
+			if (saveName.isEmpty())
+			{
+				saveName = "commandline.sav";
+			}
+			MAYBE_UNUSED const SaveResult saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"),
+				TheGlobalData->m_saveAtFrameNormal ? SAVE_FILE_TYPE_NORMAL : SAVE_FILE_TYPE_CHECKPOINT);
+			(void)saveResult;
+			DEBUG_LOG(("Command line save to '%s' at frame %d returned %d", saveName.str(), m_frame, (Int)saveResult.saveCode));
+			TheWritableGlobalData->m_saveAtFrame = 0;
+			TheGameEngine->setQuitting(TRUE);
+		}
+	}
+
 	// update (execute) scripts
 	{
 		TheScriptEngine->UPDATE();
@@ -4216,14 +4413,43 @@ void GameLogic::update()
 	Bool generateForSolo = isSoloGameOrReplay && ((m_frame % REPLAY_CRC_INTERVAL) == 0);
 #endif // DEBUG_CRC
 
+#if defined(RTS_DEBUG)
+	// TheSuperHackers @feature bobtista 27/08/2026 Truly diverge this instance's simulation:
+	// one extra logic RNG draw shifts the seed, which the frame CRC covers directly, and the
+	// divergence propagates through every later random decision until the donor snapshot
+	// overwrites it. Money and similar fields are save-serialized but outside the frame CRC.
+	if (TheGlobalData->m_divergeAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_divergeAtFrame)
+	{
+		MAYBE_UNUSED Int divergeDraw = GameLogicRandomValue(0, 1);
+		(void)divergeDraw;
+		DEBUG_LOG(("CRC recovery test: diverged logic RNG on frame %d", m_frame));
+		TheWritableGlobalData->m_divergeAtFrame = 0;
+	}
+#endif
+
 	if (generateForSolo || generateForMP)
 	{
 		m_CRC = getCRC( CRC_RECALC );
+#if defined(RTS_DEBUG)
+		// TheSuperHackers @feature bobtista 27/08/2026 Perturb one outgoing CRC to exercise the
+		// mismatch path on demand. Only the advertised value changes; the game state is untouched.
+		if (TheGlobalData->m_desyncAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_desyncAtFrame && generateForMP)
+		{
+			m_CRC ^= 0xDEADBEEF;
+			TheWritableGlobalData->m_desyncAtFrame = 0;
+			DEBUG_LOG(("CRC recovery test: perturbed advertised CRC on frame %d", m_frame));
+		}
+#endif
 		bool isPlayback = (TheRecorder && TheRecorder->isPlaybackMode());
 
 		GameMessage *msg = newInstance(GameMessage)(GameMessage::MSG_LOGIC_CRC);
 		msg->appendIntegerArgument(m_CRC);
 		msg->appendBooleanArgument(isPlayback);
+		// TheSuperHackers @feature bobtista 25/08/2026 Carry the frame this CRC describes. Replay
+		// playback resumed from a checkpoint uses it to drop recorded CRCs from before the
+		// checkpoint instead of comparing them against the wrong frame. Older replays without the
+		// argument still parse; readers treat it as optional.
+		msg->appendIntegerArgument((Int)m_frame);
 
 		// TheSuperHackers @info helmutbuhler 13/04/2025
 		// During replay simulation, we bypass TheMessageStream and instead put the CRC message
@@ -5451,6 +5677,21 @@ void GameLogic::prepareLogicForObjectLoad()
   * 11: TheSuperHackers @fix Save objects in reverse order so they load in correct order
 	* 12: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize the logic random generator state, so
 	*     a loaded game continues the same random sequence instead of starting a divergent one
+	* 14: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize the frame objects last changed trigger
+	*     areas on. Creating the objects during a load stamps it with the load frame, which told every
+	*     guarding unit inside a trigger area that the area had just changed and made it rescan for
+	*     targets on the first resumed frame
+	* 13: TheSuperHackers @feature bobtista 16/08/2026 Serialize the sleepy update heap's exact array
+	*     order. Rebuilding it by pushing modules in object list order reproduces the same contents
+	*     and priorities but not the same layout among equal priorities, which decides whether a
+	*     module runs in its creation frame or the next one
+	* 15: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the weapon store's pending delayed
+	*     damage. A shot whose damage lands a few frames later is held only in that runtime list, so
+	*     saving between the shot and its landing frame cancelled the shot outright
+	* 16: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the next object id counter. Load
+	*     rebuilt it from the highest live id, which hands out again every id belonging to an object
+	*     that died before the save, so objects created after a load carry different ids than the
+	*     same objects in the continuous simulation
 	*/
 // ------------------------------------------------------------------------------------------------
 void GameLogic::xfer( Xfer *xfer )
@@ -5458,9 +5699,10 @@ void GameLogic::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = 10;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 10 : 16;
 #else
-	const XferVersion currentVersion = 12;
+	const XferVersion currentVersion = 16;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -5494,17 +5736,24 @@ void GameLogic::xfer( Xfer *xfer )
 	ObjectTOCEntry *tocEntry;
 	if( xfer->getXferMode() == XFER_SAVE )
 	{
-#if !RETAIL_COMPATIBLE_XFER_SAVE
 		// TheSuperHackers @fix bobtista 07/03/2026 Save objects in reverse order (newest first)
 		// so they load in the correct order (oldest objects at head of list).
-		Object *lastObj = nullptr;
-		for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
-			lastObj = obj;
+		// TheSuperHackers @bugfix bobtista 29/08/2026 Pick the order from the stamped version at
+		// runtime. Checkpoints carry the full version even in a retail compatible save build, so
+		// a compile time choice here wrote forward order that the version 11+ load never reverses.
+		Bool saveNewestLast = ( version >= 11 );
+		Object *startObj = getFirstObject();
+		if( saveNewestLast )
+		{
+			Object *lastObj = nullptr;
+			for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
+			{
+				lastObj = obj;
+			}
+			startObj = lastObj;
+		}
 
-		for( obj = lastObj; obj; obj = obj->getPrevObject() )
-#else
-		for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
-#endif
+		for( obj = startObj; obj; obj = saveNewestLast ? obj->getPrevObject() : obj->getNextObject() )
 		{
 
 			// get the object TOC entry for this template
@@ -5543,6 +5792,20 @@ void GameLogic::xfer( Xfer *xfer )
 		ObjectTOCEntry *tocEntry;
 		for( UnsignedInt i = 0; i < objectCount; ++i )
 		{
+
+			if( (i & 63) == 0 && objectCount > 0 )
+			{
+				// The object restore dominates a save load's wall time; without these ticks
+				// the load screen sits still through all of it. Only push changed values:
+				// every call renders a frame.
+				Int objectPercent = 50 + (Int)((45 * i) / objectCount);
+				static Int lastObjectPercent = -1;
+				if( objectPercent != lastObjectPercent )
+				{
+					lastObjectPercent = objectPercent;
+					updateLoadProgress( objectPercent );
+				}
+			}
 
 			// read toc entry identifier
 			xfer->xferUnsignedShort( &tocID );
@@ -5828,11 +6091,95 @@ void GameLogic::xfer( Xfer *xfer )
 			SetGameLogicRandomState( randomState );
 		}
 	}
+
+	if( version >= 13 )
+	{
+		UnsignedInt sleepyCount = m_sleepyUpdates.size();
+		xfer->xferUnsignedInt( &sleepyCount );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointSleepyUpdateOrder.clear();
+			m_checkpointSleepyUpdateOrder.resize( sleepyCount );
+			m_hasCheckpointSleepyUpdateOrder = TRUE;
+		}
+
+		for( UnsignedInt i = 0; i < sleepyCount; ++i )
+		{
+			SleepyUpdateIdentity identity;
+			if( xfer->getXferMode() == XFER_SAVE )
+			{
+				UpdateModulePtr module = m_sleepyUpdates[i];
+				const Object *moduleObject = module->friend_getObject();
+				identity.objectID = moduleObject ? moduleObject->getID() : INVALID_ID;
+				identity.behaviorIndex = static_cast<UnsignedInt>( -1 );
+				if( moduleObject )
+				{
+					UnsignedInt behaviorIndex = 0;
+					for( BehaviorModule **behavior = moduleObject->getBehaviorModules(); *behavior; ++behavior, ++behaviorIndex )
+					{
+						if( (*behavior)->getUpdate() == module )
+						{
+							identity.behaviorIndex = behaviorIndex;
+							break;
+						}
+					}
+				}
+			}
+
+			xfer->xferObjectID( &identity.objectID );
+			xfer->xferUnsignedInt( &identity.behaviorIndex );
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				m_checkpointSleepyUpdateOrder[i] = identity;
+			}
+		}
+	}
+
+	if( version >= 14 )
+	{
+		//
+		// Staged rather than assigned here. Loading the objects calls
+		// updateObjectsChangedTriggerAreas(), which would immediately overwrite it with the load
+		// frame, so the saved value is put back once every object exists.
+		//
+		UnsignedInt triggerAreaFrame = m_frameObjectsChangedTriggerAreas;
+		xfer->xferUnsignedInt( &triggerAreaFrame );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointFrameObjectsChangedTriggerAreas = triggerAreaFrame;
+			m_hasCheckpointTriggerAreaFrame = TRUE;
+		}
+	}
+
+	if( version >= 15 )
+	{
+		TheWeaponStore->xferDelayedDamage( xfer );
+	}
+
+	if( version >= 16 )
+	{
+		//
+		// Staged rather than assigned here, because loadPostProcess rebuilds this counter from the
+		// objects that ended up in the world and would overwrite it.
+		//
+		ObjectID nextObjID = m_nextObjID;
+		xfer->xferObjectID( &nextObjID );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointNextObjID = nextObjID;
+			m_hasCheckpointNextObjID = TRUE;
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Load post process entry point */
 // ------------------------------------------------------------------------------------------------
+void GameLogic::updateObjectsChangedTriggerAreas()
+{
+	m_frameObjectsChangedTriggerAreas = m_frame;
+}
+
 void GameLogic::loadPostProcess()
 {
 
@@ -5847,8 +6194,31 @@ void GameLogic::loadPostProcess()
 	m_nextObjID = INVALID_ID;
 	Object *obj;
 	for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
+	{
 		if( obj->getID() >= m_nextObjID )
 			m_nextObjID = (ObjectID)((UnsignedInt)obj->getID() + 1);
+
+		//
+		// The terrain layers are in place by now, so any altitude cached earlier in the load was
+		// measured against the wrong surface for anything standing on a bridge.
+		//
+		obj->invalidateAltitudeCache();
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 19/08/2026 Prefer the saved counter. The rebuild above only
+	// sees objects that are still alive, so every id belonging to an object that died before the
+	// save gets handed out a second time, and the object ids are part of the frame CRC. The max
+	// keeps the rebuild as a floor for saves written before the counter was serialized.
+	//
+	if( m_hasCheckpointNextObjID )
+	{
+		if( (UnsignedInt)m_checkpointNextObjID > (UnsignedInt)m_nextObjID )
+		{
+			m_nextObjID = m_checkpointNextObjID;
+		}
+		m_hasCheckpointNextObjID = FALSE;
+	}
 
 	// blow away the sleepy update and normal update module lists
 	for (std::vector<UpdateModulePtr>::iterator it = m_sleepyUpdates.begin(); it != m_sleepyUpdates.end(); ++it)
@@ -5905,7 +6275,67 @@ void GameLogic::loadPostProcess()
 
 	}
 
-	// re-sort the priority queue all at once now that all modules are on it
-	remakeSleepyUpdate();
+	if( m_hasCheckpointSleepyUpdateOrder )
+	{
+		DEBUG_LOG(("GameLogic::loadPostProcess - restoring %u sleepy entries over %u rebuilt entries\n",
+			(UnsignedInt)m_checkpointSleepyUpdateOrder.size(), (UnsignedInt)m_sleepyUpdates.size()));
+		if( m_checkpointSleepyUpdateOrder.size() != m_sleepyUpdates.size() )
+		{
+			DEBUG_LOG(("GameLogic::loadPostProcess - sleepy update count mismatch: saved=%u rebuilt=%u\n",
+				(UnsignedInt)m_checkpointSleepyUpdateOrder.size(), (UnsignedInt)m_sleepyUpdates.size()));
+			DEBUG_CRASH(("GameLogic::loadPostProcess - sleepy update count mismatch"));
+			throw SC_INVALID_DATA;
+		}
+
+		std::vector<UpdateModulePtr> restoredOrder;
+		restoredOrder.reserve( m_checkpointSleepyUpdateOrder.size() );
+		for( std::vector<SleepyUpdateIdentity>::const_iterator it = m_checkpointSleepyUpdateOrder.begin();
+			it != m_checkpointSleepyUpdateOrder.end(); ++it )
+		{
+			Object *moduleObject = findObjectByID( it->objectID );
+			UpdateModulePtr module = nullptr;
+			if( moduleObject )
+			{
+				UnsignedInt behaviorIndex = 0;
+				for( BehaviorModule **behavior = moduleObject->getBehaviorModules(); *behavior; ++behavior, ++behaviorIndex )
+				{
+					if( behaviorIndex == it->behaviorIndex )
+					{
+						module = static_cast<UpdateModule *>( (*behavior)->getUpdate() );
+						break;
+					}
+				}
+			}
+			if( module == nullptr )
+			{
+				DEBUG_LOG(("GameLogic::loadPostProcess - unable to restore sleepy module object=%u behavior=%u\n",
+					(UnsignedInt)it->objectID, it->behaviorIndex));
+				DEBUG_CRASH(("GameLogic::loadPostProcess - unable to restore sleepy module %u/%u",
+					(UnsignedInt)it->objectID, it->behaviorIndex));
+				throw SC_INVALID_DATA;
+			}
+			restoredOrder.push_back( module );
+		}
+
+		m_sleepyUpdates.swap( restoredOrder );
+		for( size_t i = 0; i < m_sleepyUpdates.size(); ++i )
+		{
+			m_sleepyUpdates[i]->friend_setIndexInLogic( i );
+		}
+		m_checkpointSleepyUpdateOrder.clear();
+		m_hasCheckpointSleepyUpdateOrder = FALSE;
+		validateSleepyUpdate();
+	}
+	else
+	{
+		// Legacy saves do not carry heap layout, so rebuild a valid priority queue.
+		remakeSleepyUpdate();
+	}
+
+	if( m_hasCheckpointTriggerAreaFrame )
+	{
+		m_frameObjectsChangedTriggerAreas = m_checkpointFrameObjectsChangedTriggerAreas;
+		m_hasCheckpointTriggerAreaFrame = FALSE;
+	}
 
 }

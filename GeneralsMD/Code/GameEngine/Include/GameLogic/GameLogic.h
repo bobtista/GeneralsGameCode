@@ -119,6 +119,9 @@ public:
 	Int getNumberSleepyUpdates() const {return m_sleepyUpdates.size();} //For profiling, so not in Release.
 #endif
 	void processCommandList( CommandList *list );		///< process the command list
+#if defined(RTS_DEBUG)
+	void beginCrcRecovery( void );					///< elect a donor and schedule an in-process mismatch recovery
+#endif
 
 	void prepareNewGame( GameMode gameMode, GameDifficulty diff, Int rankPoints );						///< prepare for new game
 
@@ -210,7 +213,7 @@ public:
 
 	Bool isIntroMoviePlaying();
 
-	void updateObjectsChangedTriggerAreas() {m_frameObjectsChangedTriggerAreas = m_frame;}
+	void updateObjectsChangedTriggerAreas();
 	UnsignedInt getFrameObjectsChangedTriggerAreas() {return m_frameObjectsChangedTriggerAreas;}
 
 	void exitGame();
@@ -424,6 +427,17 @@ private:
 	// (for an excellent discussion of priority queues, please see:
 	// http://dogma.net/markn/articles/pq_stl/priority.htm)
 	std::vector<UpdateModulePtr> m_sleepyUpdates;
+	struct SleepyUpdateIdentity
+	{
+		ObjectID objectID;
+		UnsignedInt behaviorIndex;
+	};
+	std::vector<SleepyUpdateIdentity> m_checkpointSleepyUpdateOrder;
+	Bool m_hasCheckpointSleepyUpdateOrder;
+	UnsignedInt m_checkpointFrameObjectsChangedTriggerAreas;
+	Bool m_hasCheckpointTriggerAreaFrame;
+	ObjectID m_checkpointNextObjID;
+	Bool m_hasCheckpointNextObjID;
 
 #ifdef ALLOW_NONSLEEPY_UPDATES
 	// this is a plain old list, not a pq.

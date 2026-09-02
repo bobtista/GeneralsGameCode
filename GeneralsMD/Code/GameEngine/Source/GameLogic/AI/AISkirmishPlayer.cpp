@@ -1190,11 +1190,24 @@ void AISkirmishPlayer::crc( Xfer *xfer )
 	* Version Info;
 	* 1: Initial version */
 // ------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 18/08/2026 Serialize the current enemy and the frame its
+	*    reselection is due on. Neither was written, so a loaded skirmish AI picked a different
+	*    enemy, and every build condition that tests the current enemy answered differently */
+//-------------------------------------------------------------------------------------------------
 void AISkirmishPlayer::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1224,6 +1237,18 @@ void AISkirmishPlayer::xfer( Xfer *xfer )
 
 	// right flank right defense angle
 	xfer->xferReal( &m_curRightFlankRightDefenseAngle );
+
+	if( version >= 2 )
+	{
+		Int enemyIndex = m_currentEnemy ? m_currentEnemy->getPlayerIndex() : -1;
+		xfer->xferInt( &enemyIndex );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_currentEnemy = (enemyIndex >= 0) ? ThePlayerList->getNthPlayer( enemyIndex ) : nullptr;
+		}
+
+		xfer->xferUnsignedInt( &m_frameToCheckEnemy );
+	}
 
 }
 

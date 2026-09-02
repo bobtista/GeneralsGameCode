@@ -40,6 +40,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/PerfTimer.h"
+#include "Common/GameState.h"
 #include "Common/Team.h"
 #include "Common/Xfer.h"
 #include "Common/ThingTemplate.h"
@@ -175,6 +176,15 @@ Bool ExitConditions::shouldExit(const StateMachine* machine) const
 	}
 
 	return false;
+}
+
+//--------------------------------------------------------------------------------------
+static void xferExitConditions(Xfer *xfer, ExitConditions *conditions)
+{
+	xfer->xferInt(&conditions->m_conditionsToConsider);
+	xfer->xferCoord3D(&conditions->m_center);
+	xfer->xferReal(&conditions->m_radiusSqr);
+	xfer->xferUnsignedInt(&conditions->m_attackGiveUpFrame);
 }
 
 
@@ -353,7 +363,8 @@ void AIGuardMachine::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-  XferVersion currentVersion = 2;
+  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
 #else
   XferVersion currentVersion = 3;
 #endif
@@ -400,15 +411,56 @@ void AIGuardInnerState::crc( Xfer *xfer )
 }
 
 // ------------------------------------------------------------------------------------------------
-/** Xfer Method */
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 17/08/2026 Restore nested guard state without
+	*    recreating it through onEnter during load
+	*/
 // ------------------------------------------------------------------------------------------------
 void AIGuardInnerState::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
+	if (version >= 2)
+	{
+		xferExitConditions(xfer, &m_exitConditions);
+
+		Bool hasAttackState = m_attackState != nullptr;
+		Bool hasEnterState = m_enterState != nullptr;
+		xfer->xferBool(&hasAttackState);
+		xfer->xferBool(&hasEnterState);
+		if (hasAttackState && hasEnterState)
+		{
+			throw SC_INVALID_DATA;
+		}
+
+		if (xfer->getXferMode() == XFER_LOAD)
+		{
+			m_attackState = hasAttackState
+				? newInstance(AIAttackState)(getMachine(), false, true, false, &m_exitConditions)
+				: nullptr;
+			m_enterState = hasEnterState ? newInstance(AIEnterState)(getMachine()) : nullptr;
+			m_nestedStateRestoredFromCheckpoint = true;
+		}
+
+		if (hasAttackState)
+		{
+			xfer->xferSnapshot(m_attackState);
+		}
+		if (hasEnterState)
+		{
+			xfer->xferSnapshot(m_enterState);
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -416,6 +468,11 @@ void AIGuardInnerState::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void AIGuardInnerState::loadPostProcess()
 {
+	if (m_nestedStateRestoredFromCheckpoint)
+	{
+		m_nestedStateRestoredFromCheckpoint = false;
+		return;
+	}
 	onEnter();
 }
 
@@ -531,23 +588,56 @@ void AIGuardOuterState::crc( Xfer *xfer )
 }
 
 // ------------------------------------------------------------------------------------------------
-/** Xfer Method */
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 17/08/2026 Restore nested guard state without
+	*    recreating it through onEnter during load
+	*/
 // ------------------------------------------------------------------------------------------------
 void AIGuardOuterState::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
+	if (version >= 2)
+	{
+		xferExitConditions(xfer, &m_exitConditions);
+
+		Bool hasAttackState = m_attackState != nullptr;
+		xfer->xferBool(&hasAttackState);
+		if (xfer->getXferMode() == XFER_LOAD)
+		{
+			m_attackState = hasAttackState
+				? newInstance(AIAttackState)(getMachine(), false, true, false, &m_exitConditions)
+				: nullptr;
+			m_nestedStateRestoredFromCheckpoint = true;
+		}
+		if (hasAttackState)
+		{
+			xfer->xferSnapshot(m_attackState);
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
 void AIGuardOuterState::loadPostProcess()
-{						 AIGuardOuterState
-	onEnter();
+{
+	if (m_nestedStateRestoredFromCheckpoint)
+	{
+		m_nestedStateRestoredFromCheckpoint = false;
+		return;
+	}
+	// Version 1 historically did not re-enter this state during load.
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -656,14 +746,33 @@ void AIGuardReturnState::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer Method */
 // ------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 17/08/2026 Extend the base class. This is the one guard
+	*    state that derives from AIInternalMoveToState and its update() runs that base update, but
+	*    the base was never transferred, so a loaded guard resumed its return move with no goal */
+// ------------------------------------------------------------------------------------------------
 void AIGuardReturnState::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
 	xfer->xferUnsignedInt(&m_nextReturnScanTime);
+
+	if( version >= 2 )
+	{
+		// extend base class
+		AIInternalMoveToState::xfer( xfer );
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -877,6 +986,7 @@ AIGuardAttackAggressorState::AIGuardAttackAggressorState( StateMachine *machine 
 	State( machine, "AIGuardAttackAggressorState" )
 {
 	m_attackState = nullptr;
+	m_nestedStateRestoredFromCheckpoint = false;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -963,18 +1073,52 @@ void AIGuardAttackAggressorState::crc( Xfer *xfer )
 }
 
 //-------------------------------------------------------------------------------------------------
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 17/08/2026 Restore nested guard state without
+	*    recreating it through onEnter during load
+	*/
 void AIGuardAttackAggressorState::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
+	if (version >= 2)
+	{
+		xferExitConditions(xfer, &m_exitConditions);
+
+		Bool hasAttackState = m_attackState != nullptr;
+		xfer->xferBool(&hasAttackState);
+		if (xfer->getXferMode() == XFER_LOAD)
+		{
+			m_attackState = hasAttackState
+				? newInstance(AIAttackState)(getMachine(), true, true, false, &m_exitConditions)
+				: nullptr;
+			m_nestedStateRestoredFromCheckpoint = true;
+		}
+		if (hasAttackState)
+		{
+			xfer->xferSnapshot(m_attackState);
+		}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
 void AIGuardAttackAggressorState::loadPostProcess()
 {
+	if (m_nestedStateRestoredFromCheckpoint)
+	{
+		m_nestedStateRestoredFromCheckpoint = false;
+		return;
+	}
 	onEnter();
 }
 

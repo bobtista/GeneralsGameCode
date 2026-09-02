@@ -112,7 +112,7 @@ public:
 	Bool isPlaybackInProgress() const;
 
 public:
-	void handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool fromPlayback);
+	void handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool fromPlayback, Int subjectFrame = -1);
 
 	// read in info relating to a replay, conditionally setting up m_file for playback
 	struct ReplayHeader
@@ -139,6 +139,7 @@ public:
 
 	RecorderModeType getMode();												///< Returns the current operating mode.
 	Bool isPlaybackMode() const { return m_mode == RECORDERMODETYPE_PLAYBACK || m_mode == RECORDERMODETYPE_SIMULATION_PLAYBACK; }
+	Bool resumePlayback( AsciiString filename, UnsignedInt frame );	///< Re-enter playback of a replay from a checkpoint frame: skip commands at or before it.
 	void initControls();															///< Show or Hide the Replay controls
 
 	static AsciiString getReplayDir();								///< Returns the directory that holds the replay files.
@@ -199,6 +200,8 @@ protected:
 	Int m_originalGameMode; // valid in replays
 
 	UnsignedInt m_nextFrame;												///< The Frame that the next message is to be executed on.  This can be -1.
+	Bool m_resumeSkipCommands;
+	UnsignedInt m_resumeMinCRCFrame;								///< Recorded CRCs describing frames before this are stale after a checkpoint resume.											///< True while resumePlayback discards commands up to the checkpoint frame.
 };
 
 extern RecorderClass *TheRecorder;

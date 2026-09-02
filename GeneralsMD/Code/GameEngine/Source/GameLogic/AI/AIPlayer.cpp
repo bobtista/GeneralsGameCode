@@ -3319,13 +3319,20 @@ void AIPlayer::crc( Xfer *xfer )
 	* 2: added m_teamSeconds delay.
 	* 3: Added m_curWarehouseID.
 	* 1: Reset back to 1 with major save file changes.
+	* 2: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize the bridge-repair return origin and
+	*    supply-attack scan deadline so active skirmish AI work resumes without resetting history.
 */
 // ------------------------------------------------------------------------------------------------
 void AIPlayer::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 3;
+#else
+	XferVersion currentVersion = 3;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -3485,6 +3492,19 @@ void AIPlayer::xfer( Xfer *xfer )
 	xfer->xferBool( &m_dozerQueuedForRepair );
 	xfer->xferBool( &m_dozerIsRepairing );
 	xfer->xferInt( &m_bridgeTimer );
+
+	if( version >= 2 )
+	{
+		xfer->xferCoord3D( &m_repairDozerOrigin );
+		xfer->xferUnsignedInt( &m_supplySourceAttackCheckFrame );
+	}
+
+	if( version >= 3 )
+	{
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the attacked supply center in
+		// checkpoints so guardSupplyCenter defends the same one after a load.
+		xfer->xferObjectID( &m_attackedSupplyCenter );
+	}
 
 }
 

@@ -497,7 +497,12 @@ void AssaultTransportAIUpdate::crc( Xfer *xfer )
 void AssaultTransportAIUpdate::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -522,6 +527,17 @@ void AssaultTransportAIUpdate::xfer( Xfer *xfer )
 	xfer->xferUnsignedInt( &m_framesRemaining );
 	xfer->xferBool( &m_isAttackMove );
 	xfer->xferBool( &m_isAttackObject );
+
+	if( version >= 2 )
+	{
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the new member flags, which ride
+		// alongside the member ids and healing flags that were already saved.
+		for( int i = 0; i < m_currentMembers; i++ )
+		{
+			xfer->xferBool( &(m_newMember[ i ]) );
+		}
+		xfer->xferBool( &m_newOccupantsAreNewMembers );
+	}
 
 }
 

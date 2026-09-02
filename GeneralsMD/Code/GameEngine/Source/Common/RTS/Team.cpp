@@ -172,6 +172,7 @@ TeamFactory::TeamFactory()
 
 	m_uniqueTeamPrototypeID = TEAM_PROTOTYPE_ID_INVALID;
 	m_uniqueTeamID = TEAM_ID_INVALID;
+	m_xferUniqueTeamID = TEAM_ID_INVALID;
 
 }
 
@@ -192,6 +193,7 @@ void TeamFactory::reset()
 {
 	m_uniqueTeamPrototypeID = TEAM_PROTOTYPE_ID_INVALID;
 	m_uniqueTeamID = TEAM_ID_INVALID;
+	m_xferUniqueTeamID = TEAM_ID_INVALID;
 	clear();
 }
 
@@ -440,6 +442,16 @@ void TeamFactory::xfer( Xfer *xfer )
 	// unique team ID counter
 	xfer->xferUser( &m_uniqueTeamID, sizeof( TeamID ) );
 
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Remember the serialized allocator value.
+	// Loading the team instances below bumps the live counter for every team it has to
+	// create, so loadPostProcess reapplies this stashed value for checkpoints.
+	//
+	if( xfer->getXferMode() == XFER_LOAD )
+	{
+		m_xferUniqueTeamID = m_uniqueTeamID;
+	}
+
 	// how many team prototypes of data do we have to write
 	UnsignedShort prototypeCount = m_prototypes.size();
 	xfer->xferUnsignedShort( &prototypeCount );
@@ -552,9 +564,23 @@ fclose( fp );
 // ------------------------------------------------------------------------
 void TeamFactory::loadPostProcess()
 {
+	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Checkpoints reapply the serialized allocator
+	// value instead of rebuilding it from the surviving teams. The counter never goes backwards
+	// in a running game, so when the most recently allocated teams were destroyed before the
+	// save, a rebuild from the survivors handed those IDs out a second time after the load.
+	//
+	const Bool keepSerializedTeamID = TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT;
+	if( keepSerializedTeamID )
+	{
+		m_uniqueTeamID = m_xferUniqueTeamID;
+	}
+	else
+	{
+		m_uniqueTeamID = 0;
+	}
 
-	// set the next unique team and prototype ID to just over the highest one in use
-	m_uniqueTeamID = 0;
+	// rebuild the unique team and prototype ID allocators from the restored instances
 	m_uniqueTeamPrototypeID = 0;
 	TeamPrototypeMap::iterator prototypeIt;
 	TeamPrototype *prototype;
@@ -574,9 +600,13 @@ void TeamFactory::loadPostProcess()
 		{
 
 			team = iter.cur();
-			if( team->getID() >= m_uniqueTeamID )
-				m_uniqueTeamID = team->getID() + 1;
-
+			if( !keepSerializedTeamID )
+			{
+				if( team->getID() >= m_uniqueTeamID )
+				{
+					m_uniqueTeamID = team->getID() + 1;
+				}
+			}
 		}
 
 	}
@@ -813,7 +843,9 @@ TeamPrototype::TeamPrototype( TeamFactory *tf,
 	m_flags(isSingleton ? TeamPrototype::TEAM_SINGLETON : 0),
 	m_teamTemplate(d),
 	m_productionConditionAlwaysFalse(false),
-	m_productionConditionScript(nullptr)
+	m_productionConditionScript(nullptr),
+	m_checkpointProductionConditionFrame(0),
+	m_hasCheckpointProductionConditionFrame(FALSE)
 {
 	DEBUG_ASSERTCRASH(!(m_owningPlayer == nullptr), ("bad args to TeamPrototype ctor"));
 	if (m_factory)
@@ -851,6 +883,8 @@ TeamPrototype::~TeamPrototype()
 
 	deleteInstance(m_productionConditionScript);
 	m_productionConditionScript = nullptr;
+	m_checkpointProductionConditionFrame = 0;
+	m_hasCheckpointProductionConditionFrame = FALSE;
 
 	for (Int i = 0; i < MAX_GENERIC_SCRIPTS; ++i)
 	{
@@ -1169,6 +1203,27 @@ Bool TeamPrototype::evaluateProductionCondition()
 		// Make a copy of the script locally, just for paranoia's sake.  We can't be sure
 		// exactly what order the teams & scripts will get reset, so be safe.
 		m_productionConditionScript = pScript->duplicate();
+		if( m_hasCheckpointProductionConditionFrame )
+		{
+			m_productionConditionScript->setFrameToEvaluate( m_checkpointProductionConditionFrame );
+			m_hasCheckpointProductionConditionFrame = FALSE;
+			if( TheGameLogic->getFrame() < m_productionConditionScript->getFrameToEvaluate() )
+			{
+				return false;
+			}
+
+			//
+			// TheSuperHackers @bugfix bobtista 22/08/2026 Arm the periodic evaluation delay exactly
+			// like the steady-state path does. The run that saved evaluated through that path and
+			// pushed its next evaluation out by the delay; skipping it here let a loaded game
+			// re-evaluate every call until the first steady-state pass, changing AI team builds.
+			//
+			Int delaySeconds = m_productionConditionScript->getDelayEvalSeconds();
+			if( delaySeconds > 0 )
+			{
+				m_productionConditionScript->setFrameToEvaluate( TheGameLogic->getFrame() + delaySeconds*LOGICFRAMES_PER_SECOND );
+			}
+		}
 		return TheScriptEngine->evaluateConditions(m_productionConditionScript, nullptr, getControllingPlayer());
 	}
 	// Couldn't find a script.
@@ -1189,11 +1244,24 @@ void TeamPrototype::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version */
 // ------------------------------------------------------------------------
+/** Xfer
+	*	Version Info:
+	* 1: Initial version
+	* 2: Attack priority name
+	* 3: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the production condition script's
+	*    evaluation frame. The script is a private duplicate owned by the prototype, so it is not
+	*    covered by the script engine's own chunk, and a load rebuilt it with the frame cleared
+	*/
 void TeamPrototype::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 2;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+#else
+	XferVersion currentVersion = 3;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1210,6 +1278,32 @@ void TeamPrototype::xfer( Xfer *xfer )
 
 	// production condition
 	xfer->xferBool( &m_productionConditionAlwaysFalse );
+
+	if( version >= 3 )
+	{
+		//
+		// The script itself is duplicated lazily on the first evaluation, so on load the value is
+		// staged here and applied by evaluateProductionCondition once that duplicate exists.
+		// TheSuperHackers @bugfix bobtista 30/08/2026 A save taken before the first evaluation
+		// writes the staged value instead of zero, so a checkpoint of a loaded game no longer
+		// loses the pending evaluation frame.
+		//
+		UnsignedInt productionConditionFrame = 0;
+		if( m_productionConditionScript )
+		{
+			productionConditionFrame = m_productionConditionScript->getFrameToEvaluate();
+		}
+		else if( m_hasCheckpointProductionConditionFrame )
+		{
+			productionConditionFrame = m_checkpointProductionConditionFrame;
+		}
+		xfer->xferUnsignedInt( &productionConditionFrame );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointProductionConditionFrame = productionConditionFrame;
+			m_hasCheckpointProductionConditionFrame = TRUE;
+		}
+	}
 
 	// team template information
 	xfer->xferSnapshot( &m_teamTemplate );
@@ -1252,6 +1346,8 @@ void TeamPrototype::xfer( Xfer *xfer )
 		//
 
 		// read each block
+		std::vector< Team* > loadedTeamInstances;
+		loadedTeamInstances.reserve( teamInstanceCount );
 		for( UnsignedShort i = 0; i < teamInstanceCount; ++i )
 		{
 
@@ -1279,6 +1375,25 @@ void TeamPrototype::xfer( Xfer *xfer )
 			// xfer team data
 			xfer->xferSnapshot( teamInstance );
 
+			loadedTeamInstances.push_back( teamInstance );
+
+		}
+
+		//
+		// TheSuperHackers @bugfix bobtista 22/08/2026 Put the instance list back into the order it
+		// was saved in. Teams created here are prepended to the instance list, so reading the saved
+		// sequence front to back leaves the list reversed relative to the run that saved it. The
+		// instance order is not cosmetic: per-team AI processes instances in list order, so a
+		// reversed list reorders pathfind requests and forks the frame CRC after load.
+		//
+		// The instances were written in list order, so prepending them in reverse rebuilds that
+		// exact order.
+		//
+		for( std::vector< Team* >::reverse_iterator rIt = loadedTeamInstances.rbegin();
+				 rIt != loadedTeamInstances.rend(); ++rIt )
+		{
+			removeFrom_TeamInstanceList( *rIt );
+			prependTo_TeamInstanceList( *rIt );
 		}
 
 	}
@@ -2772,8 +2887,31 @@ void Team::loadPostProcess()
 
 	}
 
-	// since we prepended the object member pointers, reverse that list so it's just like before
-//	reverse_TeamMemberList();
+	//
+	// TheSuperHackers @bugfix bobtista 18/08/2026 Put the member list back into the order it was
+	// saved in. Objects join their team from their own xfer, which prepends, so the list ends up in
+	// object load order rather than the order members actually joined. Those agree for most teams,
+	// which is why this hid for so long, but they differ whenever a member joined out of id
+	// sequence. Team order is not cosmetic: getTeamAsAIGroup() walks it, and AIGroup::crc() hashes
+	// the resulting member list in order, so a reordered team moves the frame CRC.
+	//
+	// The ids were written in list order, so prepending them in reverse rebuilds that exact order.
+	// Only the list links are touched here; each object's team pointer is already correct.
+	//
+	for( std::list< ObjectID >::reverse_iterator rIt = m_xferMemberIDList.rbegin();
+			 rIt != m_xferMemberIDList.rend(); ++rIt )
+	{
+		Object *member = TheGameLogic->findObjectByID( *rIt );
+		if( member == nullptr )
+		{
+			continue;
+		}
+		if( isInList_TeamMemberList( member ) )
+		{
+			removeFrom_TeamMemberList( member );
+		}
+		prependTo_TeamMemberList( member );
+	}
 
 	// we're done with the xfer list now
 	m_xferMemberIDList.clear();
@@ -2785,4 +2923,3 @@ void Team::loadPostProcess()
 // ------------------------------------------------------------------------
 // ------------------------------------------------------------------------
 // ------------------------------------------------------------------------
-

@@ -558,13 +558,22 @@ void DockUpdate::crc( Xfer *xfer )
 }
 
 // ------------------------------------------------------------------------------------------------
-/** Xfer Method */
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix bobtista 14/08/2026 Serialize the approach position bone count, so
+	*    a dock with no waiting bones keeps biasing approach positions toward the caller on load */
 // ------------------------------------------------------------------------------------------------
 void DockUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -582,6 +591,12 @@ void DockUpdate::xfer( Xfer *xfer )
 
 	// # approach positions
 	xfer->xferInt( &m_numberApproachPositions );
+
+	// # approach position bones
+	if( version >= 2 )
+	{
+		xfer->xferInt( &m_numberApproachPositionBones );
+	}
 
 	// positions loaded
 	xfer->xferBool( &m_positionsLoaded );
@@ -615,8 +630,10 @@ void DockUpdate::xfer( Xfer *xfer )
 	for( vectorIndex = 0; vectorIndex < vectorSize; ++vectorIndex )
 	{
 		// Vector of Bool gets packed as bitfield internally
+		// TheSuperHackers @bugfix bobtista 12/08/2026 Write the unpacked value back on load
 		Bool unpack = m_approachPositionReached[vectorIndex];
 		xfer->xferBool( &unpack );
+		m_approachPositionReached[vectorIndex] = unpack;
 	}
 
 	// active docker

@@ -759,6 +759,13 @@ void AIStateMachine::xfer( Xfer *xfer )
 	Int i;
 	Int count = m_goalPath.size();
 	xfer->xferInt(&count);
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Clear the goal path before loading it.
+		// The loop below only appends, so loading into a machine that already held points
+		// kept them in front of the loaded ones.
+		m_goalPath.clear();
+	}
 	for (i=0; i<count; i++) {
 		Coord3D pos;
 		if (xfer->getXferMode() != XFER_LOAD)
@@ -3542,12 +3549,26 @@ void AIAttackMoveToState::crc( Xfer *xfer )
 }
 
 // ------------------------------------------------------------------------------------------------
-/** Xfer Method */
+/** Xfer Method
+	* Version Info:
+	* 1: Initial version
+	* 2: Sleep frame and retry count
+	* 3: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize m_commandSrc. onEnter captures the
+	*    originating command source and update() writes it back into the AI once the attack-move
+	*    machine goes idle. Leaving it unsaved meant a loaded unit wrote CMD_FROM_PLAYER back over
+	*    a command that came from the AI, and every consumer that tests for CMD_FROM_AI then took
+	*    the other branch -- CommandButtonHuntUpdate, for one, stops hunting and sleeps forever.
+	*/
 // ------------------------------------------------------------------------------------------------
 void AIAttackMoveToState::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 2;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+#else
+  XferVersion currentVersion = 3;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -3559,6 +3580,10 @@ void AIAttackMoveToState::xfer( Xfer *xfer )
 		xfer->xferInt(&m_retryCount);
 	}
 	xfer->xferSnapshot(m_attackMoveMachine);
+
+	if (version>=3) {
+		xfer->xferUser(&m_commandSrc, sizeof(m_commandSrc));
+	}
 }
 
 // ------------------------------------------------------------------------------------------------

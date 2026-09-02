@@ -1154,6 +1154,61 @@ NetCommandMsg::Select NetDisconnectFrameCommandMsg::getSmallNetPacketSelect() co
 }
 
 //-------------------------
+// NetRejoinRequestCommandMsg
+//-------------------------
+NetRejoinRequestCommandMsg::NetRejoinRequestCommandMsg() {
+	m_commandType = NETCOMMANDTYPE_REJOINREQUEST;
+}
+
+NetRejoinRequestCommandMsg::~NetRejoinRequestCommandMsg() {
+}
+
+NetCommandMsg::Select NetRejoinRequestCommandMsg::getSmallNetPacketSelect() const {
+	Select select;
+	select.useCommandType = 1;
+	select.useRelay = 1;
+	select.usePlayerId = 1;
+	return select;
+}
+
+//-------------------------
+// NetRecoveryReadyCommandMsg
+//-------------------------
+NetRecoveryReadyCommandMsg::NetRecoveryReadyCommandMsg() {
+	m_commandType = NETCOMMANDTYPE_RECOVERYREADY;
+	m_recoveryFrame = 0;
+	m_recoveryCRC = 0;
+}
+
+NetRecoveryReadyCommandMsg::~NetRecoveryReadyCommandMsg() {
+}
+
+UnsignedInt NetRecoveryReadyCommandMsg::getRecoveryFrame() const {
+	return m_recoveryFrame;
+}
+
+void NetRecoveryReadyCommandMsg::setRecoveryFrame(UnsignedInt frame) {
+	m_recoveryFrame = frame;
+}
+
+UnsignedInt NetRecoveryReadyCommandMsg::getRecoveryCRC() const {
+	return m_recoveryCRC;
+}
+
+void NetRecoveryReadyCommandMsg::setRecoveryCRC(UnsignedInt crc) {
+	m_recoveryCRC = crc;
+}
+
+NetCommandMsg::Select NetRecoveryReadyCommandMsg::getSmallNetPacketSelect() const {
+	Select select;
+	select.useCommandType = 1;
+	select.useRelay = 1;
+	select.usePlayerId = 1;
+	select.useCommandId = 1;
+	return select;
+}
+
+//-------------------------
 // NetDisconnectScreenOffCommandMsg
 //-------------------------
 NetDisconnectScreenOffCommandMsg::NetDisconnectScreenOffCommandMsg() {

@@ -111,6 +111,14 @@ public:
 	virtual void notifyOthersOfCurrentFrame() = 0;					///< Tells all the other players what frame we are on.
 	virtual void notifyOthersOfNewFrame(UnsignedInt frame) = 0;							///< Tells all the other players that we are on a new frame.
 
+	virtual void setStartFrame(Int frame) = 0;								///< Seed frame bookkeeping when resuming a loaded game.
+	virtual void prepareForRecovery() = 0;										///< Freeze lockstep and flush queued commands ahead of a recovery reload.
+	virtual void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) = 0;		///< Report the post-load state so peers can gate the recovery resume.
+	virtual void sendRecoveryFile(AsciiString path) = 0;						///< Donor pushes its snapshot to every peer.
+	virtual AsciiString getRecoveryReceivedFile() = 0;							///< Leaf name of the last snapshot received during recovery.
+	virtual Int getRecoveryTransferPercent() = 0;								///< How much of the recovery snapshot has arrived, 0-100.
+	virtual Bool isRecoveryInProgress() = 0;									///< A mismatch recovery currently holds the game.
+	virtual void sendRejoinRequest() = 0;										///< Ask the held game for its snapshot.
 	virtual Int  getExecutionFrame() = 0;																			///< Returns the next valid frame for simultaneous command execution.
 
 #if defined(RTS_DEBUG)
