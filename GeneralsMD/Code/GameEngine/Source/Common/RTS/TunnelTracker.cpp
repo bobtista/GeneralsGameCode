@@ -104,6 +104,7 @@ void TunnelTracker::iterateContained( ContainIterateFunc func, void *userData, B
 			(*func)( obj, userData );
 		}
 	}
+
 }
 
 // ------------------------------------------------------------------------
@@ -133,6 +134,7 @@ void TunnelTracker::updateNemesis(const Object *target)
 	} else if (getCurNemesis()==target) {
 		m_nemesisTimestamp = TheGameLogic->getFrame();
 	}
+
 }
 
 // ------------------------------------------------------------------------
@@ -195,6 +197,7 @@ void TunnelTracker::addToContainList( Object *obj )
 	{
 		++m_heroUnitsContained;
 	}
+
 }
 
 // ------------------------------------------------------------------------
@@ -392,6 +395,7 @@ void TunnelTracker::healObject( Object *obj, void *frames)
 		body->attemptHealing( &healInfo );
 
 	}
+
 }
 
 void TunnelTracker::updateFullHealTime()
@@ -439,7 +443,8 @@ void TunnelTracker::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	XferVersion currentVersion = 1;
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 	XferVersion currentVersion = 2;
 #endif
@@ -500,6 +505,16 @@ void TunnelTracker::xfer( Xfer *xfer )
 		xfer->xferUnsignedInt(&tunnelCount);
 	}
 #endif
+
+	//
+	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the current nemesis and the frame it was chosen, so a tunnel network keeps
+	// aiming at what it had picked before the save.
+	//
+	if( version >= 2 )
+	{
+		xfer->xferObjectID( &m_curNemesisID );
+		xfer->xferUnsignedInt( &m_nemesisTimestamp );
+	}
 
 }
 
