@@ -213,6 +213,7 @@ void SupplyTruckAIUpdate::privateDock( Object *dock, CommandSourceType cmdSource
 		// practical realization has been made that you do not want separate memory.
 		m_preferredDock = dock->getID();
 	}
+
 }
 
 //----------------------------------------------------------------------------------------
@@ -260,7 +261,12 @@ void SupplyTruckAIUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void SupplyTruckAIUpdate::xfer( Xfer *xfer )
 {
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -271,6 +277,16 @@ void SupplyTruckAIUpdate::xfer( Xfer *xfer )
 	xfer->xferObjectID(&m_preferredDock);
 	xfer->xferInt(&m_numberBoxes);
 	xfer->xferBool(&m_forcePending);
+
+	//
+	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the forced busy latch. Its neighbour m_forcePending was already saved, but
+	// this one was not, so a truck forced busy at the save resumed idle and took a
+	// different state machine branch.
+	//
+	if( version >= 2 )
+	{
+		xfer->xferBool( &m_forcedBusyPending );
+	}
 
 }
 
