@@ -23,6 +23,7 @@
 #include "Common/GameEngine.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/Recorder.h"
+#include "Common/CRCDebug.h"
 #include "Common/WorkerProcess.h"
 #include "GameLogic/GameLogic.h"
 #include "GameClient/GameClient.h"
@@ -97,7 +98,10 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 					fflush(stdout);
 				}
 				TheGameLogic->UPDATE();
-				if (TheRecorder->sawCRCMismatch())
+				// TheSuperHackers @feature bobtista 02/09/2026 Diagnostic simulation keeps going past a
+				// recorded CRC mismatch so a build that cannot reproduce retail CRCs can still play the
+				// whole command stream. The mismatch still counts as an error for the exit code.
+				if (TheRecorder->sawCRCMismatch() && !TheDebugIgnoreReplaySyncErrors)
 				{
 					numErrors++;
 					break;
