@@ -361,12 +361,12 @@ Bool GameEngine::isGameHalted()
  * Configure TheSkirmishGameInfo and post the new game message, mirroring what the skirmish game
  * options menu does when the start button is pressed. Harness only.
  */
-static void startCommandLineSkirmish()
+static Bool startCommandLineSkirmish()
 {
 	if (TheMapCache == nullptr)
 	{
 		DEBUG_LOG(("Command line skirmish: no map cache"));
-		return;
+		return FALSE;
 	}
 
 	AsciiString requestedMap = TheGlobalData->m_skirmishMap;
@@ -383,14 +383,14 @@ static void startCommandLineSkirmish()
 	if (mapData == nullptr)
 	{
 		DEBUG_LOG(("Command line skirmish: map '%s' is not in the map cache", requestedMap.str()));
-		return;
+		return FALSE;
 	}
 
 	if (mapData->m_numPlayers < 2)
 	{
 		DEBUG_LOG(("Command line skirmish: map '%s' has %d start positions, need at least 2",
 			mapData->m_fileName.str(), mapData->m_numPlayers));
-		return;
+		return FALSE;
 	}
 
 	if (TheSkirmishGameInfo == nullptr)
@@ -451,6 +451,7 @@ static void startCommandLineSkirmish()
 
 	DEBUG_LOG(("Command line skirmish on '%s' with %d computer opponents, seed %d",
 		mapData->m_fileName.str(), aiCount, TheGlobalData->m_skirmishSeed));
+	return TRUE;
 }
 
 /** -----------------------------------------------------------------------------------------------
@@ -855,7 +856,11 @@ void GameEngine::init()
 		// reproducible.
 		if (TheGlobalData->m_skirmishMap.isEmpty() == FALSE)
 		{
-			startCommandLineSkirmish();
+			if (startCommandLineSkirmish() == FALSE)
+			{
+				// A harness run that cannot start its game must not sit in the shell forever.
+				m_quitting = TRUE;
+			}
 		}
 		//
 		if (TheMapCache && TheGlobalData->m_shellMapOn)
