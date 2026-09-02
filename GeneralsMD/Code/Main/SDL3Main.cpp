@@ -203,12 +203,11 @@ int main(int argc, char **argv)
 	// initMemoryManager(); the SDL3 entry point with the null memory manager never does, so a
 	// logging build produced no output. Initialize it here so DEBUG_LOG reaches the log file and
 	// console. Expands to nothing when debug logging is compiled out.
-	DEBUG_INIT(DEBUG_FLAGS_DEFAULT);
-
 	// TheSuperHackers @bugfix bobtista 02/09/2026 A headless run never initializes the renderer, so
 	// it must not take over the display: it runs as a background app with a hidden window and
 	// never enters fullscreen. Before this every headless launch blanked the screen and stole
-	// focus from whatever the user was doing.
+	// focus from whatever the user was doing. This has to run before DEBUG_INIT, which claims the
+	// client instance lock, or the multi instance request arrives too late to be honored.
 	bool wantHeadless = false;
 	for (int headlessArg = 1; headlessArg < argc; ++headlessArg)
 	{
@@ -225,6 +224,9 @@ int main(int argc, char **argv)
 		rts::ClientInstance::setMultiInstance(TRUE);
 		rts::ClientInstance::skipPrimaryInstance();
 	}
+
+	DEBUG_INIT(DEBUG_FLAGS_DEFAULT);
+
 
 	GGC_TRACE("calling SDL_Init");
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))

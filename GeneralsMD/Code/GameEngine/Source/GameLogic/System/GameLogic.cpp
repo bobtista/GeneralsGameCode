@@ -4310,6 +4310,13 @@ void GameLogic::update()
 	if (TheGlobalData->m_quitAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_quitAtFrame && getGameMode() != GAME_SHELL)
 	{
 		DEBUG_LOG(("Command line quit at frame %d", m_frame));
+		// TheSuperHackers @bugfix bobtista 02/09/2026 Finish the recording before quitting. The
+		// replay header's frame count is written when recording stops, so quitting mid-game left
+		// it at zero and every reader of it (playback length, resume horizons) saw an empty replay.
+		if (TheRecorder != nullptr && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
+		{
+			TheRecorder->stopRecording();
+		}
 		TheGameEngine->setQuitting(TRUE);
 	}
 
