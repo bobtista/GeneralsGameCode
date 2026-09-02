@@ -5590,6 +5590,24 @@ void ScriptEngine::update()
 	for (i=0; i<TheSidesList->getNumSides(); i++) {
 		m_currentPlayer = ThePlayerList->getNthPlayer(i);
 		ScriptList *pSL = TheSidesList->getSideInfo(i)->getScriptList();
+		{
+			static Int s_sideProbe = -1;
+			if (s_sideProbe == -1)
+			{
+				s_sideProbe = getenv("GGC_LOG_SIDE_BINDING") != NULL ? 1 : 0;
+			}
+			if (s_sideProbe == 1)
+			{
+				const Player *probeLocal = ThePlayerList ? ThePlayerList->getLocalPlayer() : nullptr;
+				DEBUG_LOG(("GGC-SIDEBIND frame=%d side=%d player=%d side='%s' scripts=%d local=%d localSide='%s'",
+					TheGameLogic->getFrame(), i,
+					m_currentPlayer ? m_currentPlayer->getPlayerIndex() : -1,
+					m_currentPlayer ? m_currentPlayer->getSide().str() : "none",
+					pSL ? 1 : 0,
+					probeLocal ? probeLocal->getPlayerIndex() : -1,
+					probeLocal ? probeLocal->getSide().str() : "none"));
+			}
+		}
 		if (!pSL) continue;
 		executeScripts(pSL->getScript());
 		ScriptGroup *pGroup;
