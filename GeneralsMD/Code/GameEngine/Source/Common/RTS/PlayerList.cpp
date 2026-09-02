@@ -69,6 +69,9 @@ PlayerList::PlayerList() :
 	m_local(nullptr),
 	m_playerCount(0)
 {
+	m_xferLocalPlayerIndex = 0;
+	m_hasXferLocalPlayer = FALSE;
+	m_localPlayerRestored = FALSE;
 	// we only allocate a few of these, so don't bother pooling 'em
 	for (Int i = 0; i < MAX_PLAYER_COUNT; i++)
 		m_players[ i ] = NEW Player( i );
@@ -308,6 +311,26 @@ Team *PlayerList::validateTeam( AsciiString owner )
 }
 
 //-----------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+/** TheSuperHackers @bugfix bobtista 02/09/2026 Apply the local player a checkpoint restored. This
+  * runs after the whole load, not from loadPostProcess: setLocalPlayer sweeps object state through
+  * becomingLocalPlayer, which is not safe while the snapshot post process list is still draining. */
+//-------------------------------------------------------------------------------------------------
+void PlayerList::applyXferLocalPlayer( void )
+{
+	if( m_hasXferLocalPlayer == FALSE )
+	{
+		return;
+	}
+	m_hasXferLocalPlayer = FALSE;
+	if( m_xferLocalPlayerIndex >= 0 && m_xferLocalPlayerIndex < m_playerCount &&
+			m_players[ m_xferLocalPlayerIndex ] != nullptr )
+	{
+		setLocalPlayer( m_players[ m_xferLocalPlayerIndex ] );
+		m_localPlayerRestored = TRUE;
+	}
+}
+
 void PlayerList::setLocalPlayer(Player *player)
 {
 	// can't set local player to null -- if you try, you get neutral.
@@ -454,7 +477,16 @@ void PlayerList::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+	// 2: TheSuperHackers @bugfix bobtista 02/09/2026 Serialize which player is the local one.
+	//    Nothing else carries it, so a resumed checkpoint fell back to the first human slot and
+	//    every condition keyed on the local player, including the skirmish faction scripts,
+	//    evaluated for the wrong player.
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -478,6 +510,21 @@ void PlayerList::xfer( Xfer *xfer )
 	for( Int i = 0; i < playerCount; ++i )
 		xfer->xferSnapshot( m_players[ i ] );
 
+	if( version >= 2 )
+	{
+		//
+		// Staged rather than applied here: setLocalPlayer runs becomingLocalPlayer, which sweeps
+		// object state, and the players are still being restored at this point.
+		//
+		Int localIndex = m_local ? m_local->getPlayerIndex() : 0;
+		xfer->xferInt( &localIndex );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_xferLocalPlayerIndex = localIndex;
+			m_hasXferLocalPlayer = TRUE;
+		}
+	}
+
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -485,6 +532,7 @@ void PlayerList::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void PlayerList::loadPostProcess()
 {
+
 
 }
 
