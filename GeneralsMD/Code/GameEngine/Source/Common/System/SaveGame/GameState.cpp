@@ -47,8 +47,6 @@
 #include "Common/Recorder.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/NetworkAutoStart.h"
-#include "Common/Player.h"
-#include "Common/PlayerList.h"
 #include "GameClient/CampaignManager.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GameClient.h"
@@ -1208,22 +1206,25 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& inPath) c
 	{
 		return inPath;
 	}
+	// TheSuperHackers @bugfix bobtista 02/09/2026 The real directory prefixes use the native
+	// separator, so match them on the path as given. Only the portable prefixes below need the
+	// separator-normalized copy.
 	AsciiString in = normalizeMapPathSeparators(inPath);
 	AsciiString prefix;
-	if (in.startsWithNoCase(getSaveDirectory()))
+	if (inPath.startsWithNoCase(getSaveDirectory()))
 	{
 		prefix = PORTABLE_SAVE;
-		prefix.concat(getMapLeafName(in));
+		prefix.concat(getMapLeafName(inPath));
 	}
-	else if (in.startsWithNoCase(TheMapCache->getMapDir()))
+	else if (inPath.startsWithNoCase(TheMapCache->getMapDir()))
 	{
 		prefix = PORTABLE_MAPS;
-		prefix.concat(getMapLeafAndDirName(in));
+		prefix.concat(getMapLeafAndDirName(inPath));
 	}
-	else if (in.startsWithNoCase(TheMapCache->getUserMapDir()))
+	else if (inPath.startsWithNoCase(TheMapCache->getUserMapDir()))
 	{
 		prefix = PORTABLE_USER_MAPS;
-		prefix.concat(getMapLeafAndDirName(in));
+		prefix.concat(getMapLeafAndDirName(inPath));
 	}
 	else if (in.startsWithNoCase(PORTABLE_SAVE) || in.startsWithNoCase(PORTABLE_MAPS) || in.startsWithNoCase(PORTABLE_USER_MAPS))
 	{

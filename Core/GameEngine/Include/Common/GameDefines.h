@@ -92,6 +92,9 @@
 #endif
 
 // RETAIL_COMPATIBLE_CRC is default defined in BaseDefines.h
+#ifndef RETAIL_COMPATIBLE_CRC
+#define RETAIL_COMPATIBLE_CRC (0) // TheSuperHackers @info Checkpoint fidelity needs the full serialized AI state; games from this branch are not CRC compatible with retail
+#endif
 
 #ifndef RETAIL_COMPATIBLE_XFER_SAVE
 #define RETAIL_COMPATIBLE_XFER_SAVE (0) // TheSuperHackers @info Checkpoint saves need the full serialized state; saves from this branch are not retail compatible
