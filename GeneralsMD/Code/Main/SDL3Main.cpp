@@ -205,6 +205,23 @@ int main(int argc, char **argv)
 	// console. Expands to nothing when debug logging is compiled out.
 	DEBUG_INIT(DEBUG_FLAGS_DEFAULT);
 
+	// TheSuperHackers @bugfix bobtista 02/09/2026 A headless run never initializes the renderer, so
+	// it must not take over the display: it runs as a background app with a hidden window and
+	// never enters fullscreen. Before this every headless launch blanked the screen and stole
+	// focus from whatever the user was doing.
+	bool wantHeadless = false;
+	for (int headlessArg = 1; headlessArg < argc; ++headlessArg)
+	{
+		if (strcmp(argv[headlessArg], "-headless") == 0)
+		{
+			wantHeadless = true;
+		}
+	}
+	if (wantHeadless)
+	{
+		SDL_SetHint(SDL_HINT_MAC_BACKGROUND_APP, "1");
+	}
+
 	GGC_TRACE("calling SDL_Init");
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
 	{
@@ -215,7 +232,7 @@ int main(int argc, char **argv)
 
 	int windowW = kDefaultWindowWidth;
 	int windowH = kDefaultWindowHeight;
-	bool wantWindowed = false;
+	bool wantWindowed = wantHeadless;
 	int requestedW = 0;
 	int requestedH = 0;
 	for (int argi = 1; argi < argc; ++argi)
@@ -269,6 +286,10 @@ int main(int argc, char **argv)
 		windowFlags |= SDL_WINDOW_HIDDEN;
 	}
 #endif
+	if (wantHeadless)
+	{
+		windowFlags |= SDL_WINDOW_HIDDEN;
+	}
 	GGC_TRACE("calling SDL_CreateWindow");
 	TheSDL3Window = SDL_CreateWindow(kWindowTitle, windowW, windowH, windowFlags);
 	if (TheSDL3Window == NULL)
@@ -327,7 +348,7 @@ int main(int argc, char **argv)
 		SDL_SetWindowFullscreen(TheSDL3Window, true);
 		SDL_SyncWindow(TheSDL3Window);
 	}
-	else
+	else if (!wantHeadless)
 	{
 		// TheSuperHackers @bugfix bobtista 15/08/2026 Raise the window so it becomes the key window.
 		// A window created by a process that is not already frontmost does not reliably become key on
