@@ -953,7 +953,20 @@ void INI::parseInGameUIDefinition( INI* ini )
 	{
 		// parse the ini weapon definition
 		ini->initFromINI( TheInGameUI, TheInGameUI->getFieldParse() );
+		TheInGameUI->validate();
 	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void InGameUI::validate()
+{
+#if ENABLE_GUI_HACKS
+	// TheSuperHackers @bugfix bobtista 02/09/2026 Correct the known retail InGameUI.ini message delay typo
+	if (m_messageDelayMS == 75000)
+	{
+		m_messageDelayMS = 7500;
+	}
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
