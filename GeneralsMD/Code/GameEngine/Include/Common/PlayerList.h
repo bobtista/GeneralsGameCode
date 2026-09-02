@@ -126,6 +126,8 @@ public:
 		end up setting the local player to be the neutral player.
 	*/
 	void setLocalPlayer(Player *player);
+	void applyXferLocalPlayer( void );			///< apply the local player restored from a checkpoint
+	Bool wasLocalPlayerRestored( void ) const { return m_localPlayerRestored; }	///< TRUE once a checkpoint local player was applied
 
 	/**
 		Return the player matching the player mask
@@ -169,6 +171,11 @@ private:
 	void setSlotIndex(Int playerIndex, Int slotIndex);
 
 	Player				*m_local;
+	// TheSuperHackers @bugfix bobtista 02/09/2026 Staged local player index from a checkpoint,
+	// applied in loadPostProcess once every player exists.
+	Int					m_xferLocalPlayerIndex;
+	Bool				m_hasXferLocalPlayer;
+	Bool				m_localPlayerRestored;
 	Int						m_playerCount;
 	Player				*m_players[MAX_PLAYER_COUNT];
 	Int						m_slotIndices[MAX_PLAYER_COUNT];

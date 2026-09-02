@@ -736,6 +736,13 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	{
 		// do the post-process from a save game load
 		gameStatePostProcessLoad();
+
+		//
+		// TheSuperHackers @bugfix bobtista 02/09/2026 Put the local player back to whoever it was
+		// when the checkpoint was written. Everything else is loaded by now, so the object sweep
+		// inside setLocalPlayer is safe here.
+		//
+		ThePlayerList->applyXferLocalPlayer();
 	}
 	catch (...)
 	{

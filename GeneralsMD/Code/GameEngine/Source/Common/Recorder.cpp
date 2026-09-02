@@ -1300,10 +1300,16 @@ Bool RecorderClass::resumePlayback( AsciiString filename, UnsignedInt frame )
 	// local player, which can differ from the replay's local player and diverges client
 	// only state such as decals that are visible to the owning player alone.
 	//
-	Player *localPlayer = ThePlayerList->getPlayerFromSlotIndex( header.localPlayerIndex );
-	if( localPlayer != nullptr )
+	// TheSuperHackers @bugfix bobtista 02/09/2026 A checkpoint now carries the local player, and it
+	// is authoritative: the slot lookup below cannot express an observer, so it resolved the first
+	// human slot and every condition keyed on the local player evaluated for the wrong player.
+	if( ThePlayerList->wasLocalPlayerRestored() == FALSE )
 	{
-		ThePlayerList->setLocalPlayer( localPlayer );
+		Player *localPlayer = ThePlayerList->getPlayerFromSlotIndex( header.localPlayerIndex );
+		if( localPlayer != nullptr )
+		{
+			ThePlayerList->setLocalPlayer( localPlayer );
+		}
 	}
 
 	DEBUG_LOG(("RecorderClass::resumePlayback - resumed '%s' at frame %u, next command frame %u",
