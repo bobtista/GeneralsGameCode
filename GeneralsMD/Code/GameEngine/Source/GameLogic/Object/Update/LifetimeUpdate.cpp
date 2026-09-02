@@ -124,33 +124,13 @@ void LifetimeUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 02/09/2026 The wake frame recompute that lived here predates
+// the serialized wake frame and heap order; it pushed a module that was due on the saved frame out
+// to its death frame and permuted every same-frame update after a load.
 void LifetimeUpdate::loadPostProcess()
 {
+
 	// extend base class
 	UpdateModule::loadPostProcess();
 
-	Object *obj = getObject();
-
-	// TheSuperHackers @bugfix bobtista 03/07/2026 Destroy dead expired objects here instead of
-	// waking them for update(), so the live-simulation update path stays retail-identical
-	// (kill on an already dead object is a no-op) and this cleanup only applies on save load.
-	if (obj->isEffectivelyDead())
-	{
-		TheGameLogic->destroyObject(obj);
-		return;
-	}
-
-	UnsignedInt now = TheGameLogic->getFrame();
-	if (now == 0)
-	{
-		now = 1;
-	}
-
-	UnsignedInt wakeFrame = m_dieFrame;
-	if (wakeFrame < now)
-	{
-		wakeFrame = now;
-	}
-
-	friend_setNextCallFrame(wakeFrame);
 }

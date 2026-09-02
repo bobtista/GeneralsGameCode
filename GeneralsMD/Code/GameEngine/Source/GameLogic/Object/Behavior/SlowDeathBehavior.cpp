@@ -579,47 +579,13 @@ void SlowDeathBehavior::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 02/09/2026 The wake frame recompute that lived here predates
+// the serialized wake frame and heap order; it pushed a module that was due on the saved frame out
+// to its death frame and permuted every same-frame update after a load.
 void SlowDeathBehavior::loadPostProcess()
 {
 
 	// extend base class
 	UpdateModule::loadPostProcess();
 
-	if (!isSlowDeathActivated())
-	{
-		return;
-	}
-
-	UnsignedInt now = TheGameLogic->getFrame();
-	if (now == 0)
-	{
-		now = 1;
-	}
-
-	UnsignedInt wakeFrame = m_destructionFrame;
-	const SlowDeathBehaviorModuleData* d = getSlowDeathBehaviorModuleData();
-
-	if ((m_flags & (1<<FLUNG_INTO_AIR)) != 0)
-	{
-		wakeFrame = now;
-	}
-	else
-	{
-		if (d->m_sinkRate > 0.0f && m_sinkFrame < wakeFrame)
-		{
-			wakeFrame = m_sinkFrame;
-		}
-
-		if ((m_flags & (1<<MIDPOINT_EXECUTED)) == 0 && m_midpointFrame < wakeFrame)
-		{
-			wakeFrame = m_midpointFrame;
-		}
-
-		if (wakeFrame < now)
-		{
-			wakeFrame = now;
-		}
-	}
-
-	friend_setNextCallFrame(wakeFrame);
 }
