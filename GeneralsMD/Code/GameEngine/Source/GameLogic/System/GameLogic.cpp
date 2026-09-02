@@ -3419,19 +3419,19 @@ inline void GameLogic::validateSleepyUpdate() const
 		{
 			Int i0 = (i+1)/2-1;
 			UnsignedInt pri0 = m_sleepyUpdates[i0]->friend_getPriority();
-			DEBUG_ASSERTCRASH(pri >= pri0, ("sleepyUpdates are munged (0)"));
+			DEBUG_ASSERTCRASH(pri >= pri0, ("sleepyUpdates are munged (0): entry %d pri %08X object %d %s, parent %d pri %08X object %d %s", i, pri, m_sleepyUpdates[i]->friend_getObject() ? m_sleepyUpdates[i]->friend_getObject()->getID() : INVALID_ID, m_sleepyUpdates[i]->friend_getObject() ? m_sleepyUpdates[i]->friend_getObject()->getTemplate()->getName().str() : "none", i0, pri0, m_sleepyUpdates[i0]->friend_getObject() ? m_sleepyUpdates[i0]->friend_getObject()->getID() : INVALID_ID, m_sleepyUpdates[i0]->friend_getObject() ? m_sleepyUpdates[i0]->friend_getObject()->getTemplate()->getName().str() : "none"));
 		}
 		Int i1 = 2*(i+1)-1;
 		Int i2 = 2*(i+1);
 		if (i1 < sz)
 		{
 			UnsignedInt pri1 = m_sleepyUpdates[i1]->friend_getPriority();
-			DEBUG_ASSERTCRASH(pri <= pri1, ("sleepyUpdates are munged (1)"));
+			DEBUG_ASSERTCRASH(pri <= pri1, ("sleepyUpdates are munged (1): entry %d pri %08X object %d %s, child %d pri %08X object %d %s", i, pri, m_sleepyUpdates[i]->friend_getObject() ? m_sleepyUpdates[i]->friend_getObject()->getID() : INVALID_ID, m_sleepyUpdates[i]->friend_getObject() ? m_sleepyUpdates[i]->friend_getObject()->getTemplate()->getName().str() : "none", i1, pri1, m_sleepyUpdates[i1]->friend_getObject() ? m_sleepyUpdates[i1]->friend_getObject()->getID() : INVALID_ID, m_sleepyUpdates[i1]->friend_getObject() ? m_sleepyUpdates[i1]->friend_getObject()->getTemplate()->getName().str() : "none"));
 		}
 		if (i2 < sz)
 		{
 			UnsignedInt pri2 = m_sleepyUpdates[i2]->friend_getPriority();
-			DEBUG_ASSERTCRASH(pri <= pri2, ("sleepyUpdates are munged (2)"));
+			DEBUG_ASSERTCRASH(pri <= pri2, ("sleepyUpdates are munged (2): entry %d pri %08X object %d %s, child %d pri %08X object %d %s", i, pri, m_sleepyUpdates[i]->friend_getObject() ? m_sleepyUpdates[i]->friend_getObject()->getID() : INVALID_ID, m_sleepyUpdates[i]->friend_getObject() ? m_sleepyUpdates[i]->friend_getObject()->getTemplate()->getName().str() : "none", i2, pri2, m_sleepyUpdates[i2]->friend_getObject() ? m_sleepyUpdates[i2]->friend_getObject()->getID() : INVALID_ID, m_sleepyUpdates[i2]->friend_getObject() ? m_sleepyUpdates[i2]->friend_getObject()->getTemplate()->getName().str() : "none"));
 		}
 	}
 #endif
@@ -4401,6 +4401,39 @@ void GameLogic::update()
 		}
 		DEBUG_LOG(("GGC-HEAPFP frame=%d n=%d layout=%08X csum=%08X cxor=%08X",
 			m_frame, (Int)m_sleepyUpdates.size(), layoutHash, contentSum, contentXor));
+
+		// TheSuperHackers @feature bobtista 02/09/2026 GGC_DUMP_SLEEPY_FRAMES=a,b,... lists every heap
+		// entry on those frames so two runs can be diffed entry by entry, not only by fingerprint.
+		const char *dumpFrames = getenv("GGC_DUMP_SLEEPY_FRAMES");
+		if (dumpFrames != nullptr)
+		{
+			AsciiString frameToken;
+			frameToken.format(",%u,", m_frame);
+			AsciiString dumpList;
+			dumpList.format(",%s,", dumpFrames);
+			if (strstr(dumpList.str(), frameToken.str()) != nullptr)
+			{
+				for (size_t di = 0; di < m_sleepyUpdates.size(); ++di)
+				{
+					UpdateModule *dm = m_sleepyUpdates[di];
+					const Object *dobj = dm->friend_getObject();
+					UnsignedInt behaviorIndex = 0;
+					if (dobj != nullptr)
+					{
+						for (BehaviorModule **behavior = dobj->getBehaviorModules(); *behavior; ++behavior, ++behaviorIndex)
+						{
+							if ((*behavior)->getUpdate() == dm)
+							{
+								break;
+							}
+						}
+					}
+					DEBUG_LOG(("GGC-HEAPDUMP frame=%d i=%d obj=%d %s beh=%d pri=%08X",
+						m_frame, (Int)di, dobj ? (Int)dobj->getID() : -1, dobj ? dobj->getTemplate()->getName().str() : "none",
+						(Int)behaviorIndex, dm->friend_getPriority()));
+				}
+			}
+		}
 	}
 
 	// force CRC calculation, so we can keep a cache of the last N CRCs.  We do this right where the recorder
