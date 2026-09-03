@@ -251,15 +251,29 @@ void PlayerRelationMap::xfer( Xfer *xfer )
 	{
 
 		// go through all player relations
+		//
+		// TheSuperHackers @bugfix bobtista 03/09/2026 Write the relations in player index order. The
+		// map is a hash_map, so its iteration order follows the bucket layout and insertion history;
+		// a load re-inserts the entries in file order and the next save then wrote them in a
+		// different order than the run that saved them.
+		//
+		std::vector< PlayerIndex > relationKeys;
+		relationKeys.reserve( m_map.size() );
 		for( playerRelationIt = m_map.begin(); playerRelationIt != m_map.end(); ++playerRelationIt )
+		{
+			relationKeys.push_back( (*playerRelationIt).first );
+		}
+		std::sort( relationKeys.begin(), relationKeys.end() );
+
+		for( std::vector< PlayerIndex >::const_iterator keyIt = relationKeys.begin(); keyIt != relationKeys.end(); ++keyIt )
 		{
 
 			// write player index
-			playerIndex = (*playerRelationIt).first;
+			playerIndex = *keyIt;
 			xfer->xferInt( &playerIndex );
 
 			// write relationship
-			r = (*playerRelationIt).second;
+			r = m_map[ playerIndex ];
 			xfer->xferUser( &r, sizeof( Relationship ) );
 
 		}
