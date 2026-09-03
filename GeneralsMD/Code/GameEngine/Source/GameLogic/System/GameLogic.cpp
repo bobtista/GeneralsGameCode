@@ -29,6 +29,9 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include <algorithm>
+#include <vector>
+
 #include "Common/AudioAffect.h"
 #include "Common/AudioHandleSpecialValues.h"
 #include "Common/BuildAssistant.h"
@@ -5530,10 +5533,24 @@ void GameLogic::xfer( Xfer *xfer )
 	{
 		if( xfer->getXferMode() == XFER_SAVE )
 		{
+			//
+			// TheSuperHackers @bugfix bobtista 03/09/2026 Write the overrides in name order. The map
+			// is a hash_map, so its iteration order follows the bucket layout and insertion history;
+			// a load re-inserts the entries in file order and the next save then wrote them in a
+			// different order than the run that saved them.
+			//
+			std::vector< AsciiString > buildableKeys;
+			buildableKeys.reserve( m_thingTemplateBuildableOverrides.size() );
 			for (BuildableMap::const_iterator it = m_thingTemplateBuildableOverrides.begin(); it != m_thingTemplateBuildableOverrides.end(); ++it )
 			{
-				AsciiString name = it->first;
-				BuildableStatus bs = it->second;
+				buildableKeys.push_back( it->first );
+			}
+			std::sort( buildableKeys.begin(), buildableKeys.end() );
+
+			for (std::vector< AsciiString >::const_iterator keyIt = buildableKeys.begin(); keyIt != buildableKeys.end(); ++keyIt )
+			{
+				AsciiString name = *keyIt;
+				BuildableStatus bs = m_thingTemplateBuildableOverrides[ name ];
 				xfer->xferAsciiString(&name);
 				xfer->xferUser(&bs, sizeof(bs));
 			}
@@ -5570,10 +5587,23 @@ void GameLogic::xfer( Xfer *xfer )
 
 		if( xfer->getXferMode() == XFER_SAVE )
 		{
+			//
+			// TheSuperHackers @bugfix bobtista 03/09/2026 Write the overrides in name order, for the
+			// same hash_map iteration order reason as the buildable overrides above.
+			//
+			std::vector< AsciiString > controlBarKeys;
+			controlBarKeys.reserve( m_controlBarOverrides.size() );
 			for (ControlBarOverrideMap::const_iterator it = m_controlBarOverrides.begin(); it != m_controlBarOverrides.end(); ++it )
 			{
-				AsciiString name = it->first;
-				AsciiString value = it->second ? it->second->getName() : AsciiString::TheEmptyString;
+				controlBarKeys.push_back( it->first );
+			}
+			std::sort( controlBarKeys.begin(), controlBarKeys.end() );
+
+			for (std::vector< AsciiString >::const_iterator keyIt = controlBarKeys.begin(); keyIt != controlBarKeys.end(); ++keyIt )
+			{
+				AsciiString name = *keyIt;
+				ConstCommandButtonPtr button = m_controlBarOverrides[ name ];
+				AsciiString value = button ? button->getName() : AsciiString::TheEmptyString;
 				xfer->xferAsciiString(&name);
 				xfer->xferAsciiString(&value);
 			}
