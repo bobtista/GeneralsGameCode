@@ -107,6 +107,7 @@ GameClient::GameClient()
 	m_drawableList = nullptr;
 
 	m_nextDrawableID = (DrawableID)1;
+	m_loadSeedDrawableID = (DrawableID)0;
 	TheDrawGroupInfo = new DrawGroupInfo;
 
 	m_intro = nullptr;
@@ -482,6 +483,7 @@ void GameClient::reset()
 
 	// TheSuperHackers @fix Mauller 13/04/2025 Reset the drawable id so it does not keep growing over the lifetime of the game.
 	m_nextDrawableID = (DrawableID)1;
+	m_loadSeedDrawableID = (DrawableID)0;
 
 }
 
@@ -1623,10 +1625,21 @@ void GameClient::loadPostProcess()
 	// without objects, and then overwrote their ids with data from the save file, our allocator
 	// id may be far higher than it needs to be.  We'll pull it back down as low as we can
 	//
+	//
+	// TheSuperHackers @bugfix bobtista 03/09/2026 Actually pull the allocator down, as the comment
+	// above always intended. The old loop seeded the search with the current counter and only ever
+	// raised it, so the counter kept the value it climbed to while the load created a throwaway
+	// drawable per object. Every load therefore roughly doubled it, and a checkpoint resaved after
+	// a resume disagreed with the run that minted it on the stored drawable id counter.
+	//
 	Drawable *draw;
+	DrawableID highestID = (DrawableID)0;
 	for( draw = getDrawableList(); draw; draw = draw->getNextDrawable() )
-		if( draw->getID() >= m_nextDrawableID )
-			m_nextDrawableID = (DrawableID)((UnsignedInt)draw->getID() + 1);
+		if( (UnsignedInt)draw->getID() > (UnsignedInt)highestID )
+			highestID = draw->getID();
+	m_nextDrawableID = (DrawableID)((UnsignedInt)highestID + 1);
+	if( (UnsignedInt)m_loadSeedDrawableID > (UnsignedInt)m_nextDrawableID )
+		m_nextDrawableID = m_loadSeedDrawableID;
 
 }
 
