@@ -29,6 +29,8 @@
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include <algorithm>
+#include <vector>
 #include "Common/GameState.h"
 #include "Common/Team.h"
 #include "Common/ThingFactory.h"
@@ -106,16 +108,30 @@ void TeamRelationMap::xfer( Xfer *xfer )
 	if( xfer->getXferMode() == XFER_SAVE )
 	{
 
-		// go through all team relations
+		//
+		// TheSuperHackers @bugfix bobtista 03/09/2026 Write the relations in team id order. The map
+		// is a hash_map, so its iteration order follows the bucket layout and insertion history; a
+		// load re-inserts the entries in file order and the next save then wrote them in a
+		// different order than the run that saved them.
+		//
+		std::vector< TeamID > relationKeys;
+		relationKeys.reserve( m_map.size() );
 		for( teamRelationIt = m_map.begin(); teamRelationIt != m_map.end(); ++teamRelationIt )
+		{
+			relationKeys.push_back( (*teamRelationIt).first );
+		}
+		std::sort( relationKeys.begin(), relationKeys.end() );
+
+		// go through all team relations
+		for( std::vector< TeamID >::const_iterator keyIt = relationKeys.begin(); keyIt != relationKeys.end(); ++keyIt )
 		{
 
 			// write team ID
-			teamID = (*teamRelationIt).first;
+			teamID = *keyIt;
 			xfer->xferUser( &teamID, sizeof( TeamID ) );
 
 			// write relationship
-			r = (*teamRelationIt).second;
+			r = m_map[ teamID ];
 			xfer->xferUser( &r, sizeof( Relationship ) );
 
 		}
