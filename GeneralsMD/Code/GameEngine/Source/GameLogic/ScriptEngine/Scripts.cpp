@@ -962,7 +962,7 @@ void Script::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 3;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 4;
 #else
 	XferVersion currentVersion = 3;
 #endif
@@ -997,6 +997,33 @@ void Script::xfer( Xfer *xfer )
 				Int nextEvaluationFrame = parameter->getInt();
 				xfer->xferInt( &nextEvaluationFrame );
 				parameter->friend_setInt( nextEvaluationFrame );
+			}
+		}
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 04/09/2026 Carry the memoized result each condition keeps.
+	// The expensive conditions cache their answer in m_customData and the stamp they cached it at
+	// in m_customFrame, and only recompute once the script engine's object count stamp moves. None
+	// of that travelled with a checkpoint, so a resumed run held a different cache than the run
+	// that wrote the save and returned a stale answer until the next recompute, which fired scripts
+	// several frames late and drifted the simulation apart long after the load.
+	//
+	if( version >= 4 )
+	{
+		for( OrCondition *orCondition = m_condition; orCondition; orCondition = orCondition->getNextOrCondition() )
+		{
+			for( Condition *condition = orCondition->getFirstAndCondition(); condition; condition = condition->getNext() )
+			{
+				Int customData = condition->getCustomData();
+				UnsignedInt customFrame = condition->getCustomFrame();
+				xfer->xferInt( &customData );
+				xfer->xferUnsignedInt( &customFrame );
+				if( xfer->getXferMode() == XFER_LOAD )
+				{
+					condition->setCustomData( customData );
+					condition->setCustomFrame( (Int)customFrame );
+				}
 			}
 		}
 	}

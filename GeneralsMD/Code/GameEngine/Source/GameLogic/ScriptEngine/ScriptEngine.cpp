@@ -8887,9 +8887,9 @@ void ScriptEngine::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 5 : 6;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 5 : 7;
 #else
-	const XferVersion currentVersion = 6;
+	const XferVersion currentVersion = 7;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -9397,6 +9397,17 @@ void ScriptEngine::xfer( Xfer *xfer )
 
 		}
 
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 04/09/2026 Carry the stamp that invalidates the cached
+	// condition results. Expensive conditions memoize their answer and only recompute when this
+	// frame number changes, so a resumed checkpoint that starts the stamp at zero recomputes on a
+	// different schedule than the run that wrote the save and a script can fire frames late.
+	//
+	if( version >= 7 )
+	{
+		xfer->xferUnsignedInt( &m_frameObjectCountChanged );
 	}
 
 	if( xfer->getXferMode() == XFER_LOAD ) {
