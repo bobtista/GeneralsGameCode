@@ -92,6 +92,22 @@ void SetGameLogicRandomState( const UnsignedInt (&state)[GAMELOGIC_RANDOM_STATE_
 	}
 }
 
+void GetGameClientRandomState( UnsignedInt (&state)[GAMECLIENT_RANDOM_STATE_SIZE] )
+{
+	for( Int i = 0; i < GAMECLIENT_RANDOM_STATE_SIZE; ++i )
+	{
+		state[i] = theGameClientSeed[i];
+	}
+}
+
+void SetGameClientRandomState( const UnsignedInt (&state)[GAMECLIENT_RANDOM_STATE_SIZE] )
+{
+	for( Int i = 0; i < GAMECLIENT_RANDOM_STATE_SIZE; ++i )
+	{
+		theGameClientSeed[i] = state[i];
+	}
+}
+
 static void seedRandom(UnsignedInt SEED, UnsignedInt (&seed)[6])
 {
 	UnsignedInt ax;

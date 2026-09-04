@@ -779,6 +779,12 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 		// inside setLocalPlayer is safe here.
 		//
 		ThePlayerList->applyXferLocalPlayer();
+
+		//
+		// TheSuperHackers @bugfix bobtista 03/09/2026 The load consumes client random values while
+		// it rebuilds the world, so the generator is put back only now that everything is in place.
+		//
+		TheGameLogic->applyCheckpointClientRandomState();
 	}
 	catch (...)
 	{

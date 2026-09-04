@@ -558,6 +558,7 @@ GameLogic::GameLogic()
 	m_hasCheckpointTriggerAreaFrame = FALSE;
 	m_checkpointNextObjID = INVALID_ID;
 	m_hasCheckpointNextObjID = FALSE;
+	m_hasCheckpointClientRandomState = FALSE;
 	m_nextObjID = INVALID_ID;
 	m_startNewGame = FALSE;
 	m_gameMode = GAME_NONE;
@@ -773,6 +774,7 @@ void GameLogic::reset()
 	m_hasCheckpointTriggerAreaFrame = FALSE;
 	m_checkpointNextObjID = INVALID_ID;
 	m_hasCheckpointNextObjID = FALSE;
+	m_hasCheckpointClientRandomState = FALSE;
 	m_curUpdateModule = nullptr;
 
 	m_isScoringEnabled = TRUE;
@@ -1448,6 +1450,23 @@ static void populateRandomStartPosition( GameInfo *game )
 // ------------------------------------------------------------------------------------------------
 /** Update the load screen progress */
 // ------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
+/** Put the client random generator back to the state the checkpoint was written with. Called once
+  * the whole load is finished, because the load itself consumes client random values. */
+// ------------------------------------------------------------------------------------------------
+void GameLogic::applyCheckpointClientRandomState()
+{
+
+	if( m_hasCheckpointClientRandomState == FALSE )
+	{
+		return;
+	}
+
+	SetGameClientRandomState( m_checkpointClientRandomState );
+	m_hasCheckpointClientRandomState = FALSE;
+
+}
+
 void GameLogic::updateLoadProgress( Int progress )
 {
 
@@ -5745,9 +5764,9 @@ void GameLogic::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 10 : 16;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 10 : 17;
 #else
-	const XferVersion currentVersion = 16;
+	const XferVersion currentVersion = 17;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -6240,6 +6259,37 @@ void GameLogic::xfer( Xfer *xfer )
 		{
 			m_checkpointNextObjID = nextObjID;
 			m_hasCheckpointNextObjID = TRUE;
+		}
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 03/09/2026 Carry the client generator too. Eighteen logic
+	// modules draw from it, and two of them turn the draw into simulation state: a Chinook AI
+	// branch and the topple burst schedule. Without this a resumed checkpoint runs a different
+	// client stream, which leaves the saved state identical at load and drifts the simulation
+	// apart hundreds of frames later. Like the logic generator this goes last, so the values
+	// consumed while re-creating the world above are discarded.
+	//
+	if( version >= 17 )
+	{
+		UnsignedInt clientRandomState[GAMECLIENT_RANDOM_STATE_SIZE];
+		GetGameClientRandomState( clientRandomState );
+		for( Int i = 0; i < GAMECLIENT_RANDOM_STATE_SIZE; ++i )
+		{
+			xfer->xferUnsignedInt( &clientRandomState[i] );
+		}
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			//
+			// Staged rather than assigned here. The rest of the load still runs after this chunk,
+			// and creating drawables draws from the client generator, so assigning now would be
+			// overwritten by the time play resumes.
+			//
+			for( Int i = 0; i < GAMECLIENT_RANDOM_STATE_SIZE; ++i )
+			{
+				m_checkpointClientRandomState[i] = clientRandomState[i];
+			}
+			m_hasCheckpointClientRandomState = TRUE;
 		}
 	}
 }
