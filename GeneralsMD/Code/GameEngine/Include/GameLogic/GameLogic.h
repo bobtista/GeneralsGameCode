@@ -31,6 +31,7 @@
 
 #include "Common/GameCommon.h"	// ensure we get DUMP_PERF_STATS, or not
 #include "Common/GameType.h"
+#include "Common/RandomValue.h"
 #include "Common/Snapshot.h"
 #include "Common/STLTypedefs.h"
 #include "Common/ObjectStatusTypes.h"
@@ -167,6 +168,7 @@ public:
 	void loadMapINI( AsciiString mapName );
 
 	void updateLoadProgress( Int progress );
+	void applyCheckpointClientRandomState();
 	void deleteLoadScreen();
 
 	//Kris: Cut setGameLoading() and replaced with setLoadingMap() and setLoadingSave() -- reason: nomenclature
@@ -438,6 +440,8 @@ private:
 	Bool m_hasCheckpointTriggerAreaFrame;
 	ObjectID m_checkpointNextObjID;
 	Bool m_hasCheckpointNextObjID;
+	UnsignedInt m_checkpointClientRandomState[GAMECLIENT_RANDOM_STATE_SIZE];
+	Bool m_hasCheckpointClientRandomState;
 
 #ifdef ALLOW_NONSLEEPY_UPDATES
 	// this is a plain old list, not a pq.
