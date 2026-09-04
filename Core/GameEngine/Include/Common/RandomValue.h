@@ -41,6 +41,15 @@ enum { GAMELOGIC_RANDOM_STATE_SIZE = 6 };
 extern void GetGameLogicRandomState( UnsignedInt (&state)[GAMELOGIC_RANDOM_STATE_SIZE] );
 extern void SetGameLogicRandomState( const UnsignedInt (&state)[GAMELOGIC_RANDOM_STATE_SIZE] );
 
+//
+// TheSuperHackers @bugfix bobtista 03/09/2026 The client generator needs the same state access as
+// the logic one. Logic modules draw from it, so a checkpoint that does not carry it resumes onto a
+// different stream and the simulation drifts apart hundreds of frames later.
+//
+enum { GAMECLIENT_RANDOM_STATE_SIZE = 6 };
+extern void GetGameClientRandomState( UnsignedInt (&state)[GAMECLIENT_RANDOM_STATE_SIZE] );
+extern void SetGameClientRandomState( const UnsignedInt (&state)[GAMECLIENT_RANDOM_STATE_SIZE] );
+
 struct RandomValueClass
 {
 	virtual Int GetRandomValueInt( Int lo, Int hi, const char *file, Int line ) const = 0;
