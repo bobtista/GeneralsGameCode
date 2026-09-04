@@ -962,7 +962,44 @@ Int parseSaveAtFrame(char *args[], int num)
 {
 	if (num > 1)
 	{
-		TheWritableGlobalData->m_saveAtFrame = atoi(args[1]);
+		//
+		// TheSuperHackers @feature bobtista 04/09/2026 Accept a comma separated list of frames so a
+		// single simulation pass can mint every checkpoint a run needs. Each mint used to cost a
+		// whole replay simulation from frame zero.
+		//
+		Int frameCount = 0;
+		const char *cursor = args[1];
+		while( cursor != nullptr && *cursor != 0 && frameCount < GlobalData::MAX_SAVE_AT_FRAMES )
+		{
+			const Int parsedFrame = atoi( cursor );
+			if( parsedFrame > 0 )
+			{
+				TheWritableGlobalData->m_saveAtFrameList[ frameCount ] = parsedFrame;
+				++frameCount;
+			}
+			cursor = strchr( cursor, ',' );
+			if( cursor != nullptr )
+			{
+				++cursor;
+			}
+		}
+
+		// keep the list ascending so the run saves them in the order it reaches them
+		for( Int i = 1; i < frameCount; ++i )
+		{
+			const Int key = TheWritableGlobalData->m_saveAtFrameList[ i ];
+			Int j = i - 1;
+			while( j >= 0 && TheWritableGlobalData->m_saveAtFrameList[ j ] > key )
+			{
+				TheWritableGlobalData->m_saveAtFrameList[ j + 1 ] = TheWritableGlobalData->m_saveAtFrameList[ j ];
+				--j;
+			}
+			TheWritableGlobalData->m_saveAtFrameList[ j + 1 ] = key;
+		}
+
+		TheWritableGlobalData->m_saveAtFrameCount = frameCount;
+		TheWritableGlobalData->m_saveAtFrameNext = 0;
+		TheWritableGlobalData->m_saveAtFrame = (frameCount > 0) ? TheWritableGlobalData->m_saveAtFrameList[ 0 ] : 0;
 	}
 	return 2;
 }
