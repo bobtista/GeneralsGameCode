@@ -2864,6 +2864,18 @@ void TerrainLogic::flattenTerrain(Object *obj)
 		break;
 	}
 
+
+	//
+	// TheSuperHackers @bugfix bobtista 04/09/2026 Flattening moved the ground, so every cached
+	// height above terrain measured against the old ground is stale. Nothing invalidated them, and
+	// an object left holding a stale altitude takes different branches than a resumed checkpoint,
+	// which recomputes the altitude honestly.
+	//
+	for( Object *o = TheGameLogic->getFirstObject(); o; o = o->getNextObject() )
+	{
+		o->invalidateAltitudeCache();
+	}
+
 }
 
 
@@ -2914,6 +2926,21 @@ void TerrainLogic::createCraterInTerrain(Object *obj)
 			}
     }
   }
+
+	//
+	// TheSuperHackers @bugfix bobtista 04/09/2026 The ground just moved, so every cached height
+	// above terrain taken against the old ground is now wrong. Nothing invalidated them, so an
+	// object standing in the crater kept a stale altitude for the rest of the game while a resumed
+	// checkpoint recomputed it honestly, and threshold tests such as the MIN_ALTITUDE check in
+	// SlowDeathBehavior then took different branches in the two runs.
+	//
+	// Invalidate every object rather than guess at the bounds. This runs only when a building is
+	// constructed or destroyed, not per frame.
+	//
+	for( Object *o = TheGameLogic->getFirstObject(); o; o = o->getNextObject() )
+	{
+		o->invalidateAltitudeCache();
+	}
 
 }
 
