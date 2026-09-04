@@ -254,6 +254,34 @@ Real GetGameAudioRandomValueReal( Real lo, Real hi, const char *file, int line )
 	return rval;
 }
 
+// TheSuperHackers @info bobtista 04/09/2026 GGC_LOG_CLIENTRAND=1 logs every client generator draw
+// with its call site, between GGC_CLIENTRAND_FROM and GGC_CLIENTRAND_TO. Two runs can then be
+// diffed to find the frame and call site where the streams stop consuming in step.
+static void ggcLogClientDraw( const char *file, int line )
+{
+	static Int enabled = -1;
+	static Int fromFrame = 0;
+	static Int toFrame = 0;
+	if( enabled == -1 )
+	{
+		enabled = getenv( "GGC_LOG_CLIENTRAND" ) != nullptr ? 1 : 0;
+		const char *f = getenv( "GGC_CLIENTRAND_FROM" );
+		const char *t = getenv( "GGC_CLIENTRAND_TO" );
+		fromFrame = f ? atoi( f ) : 0;
+		toFrame = t ? atoi( t ) : 0x7FFFFFFF;
+	}
+	if( enabled != 1 || TheGameLogic == nullptr )
+	{
+		return;
+	}
+	const Int frame = (Int)TheGameLogic->getFrame();
+	if( frame < fromFrame || frame > toFrame )
+	{
+		return;
+	}
+	DEBUG_LOG(( "GGC-CRAND frame=%d %s:%d", frame, file, line ));
+}
+
 //
 // Integer random value
 //
@@ -264,6 +292,7 @@ Int GetGameClientRandomValue( int lo, int hi, const char *file, int line )
 
 	const UnsignedInt delta = hi - lo + 1;
 	const Int rval = ((Int)(randomValue(theGameClientSeed) % delta)) + lo;
+	ggcLogClientDraw( file, line );
 
 #ifdef DEBUG_RANDOM_CLIENT
 	DEBUG_LOG(( "%d: GetGameClientRandomValue = %d (%d - %d), %s line %d",
@@ -284,6 +313,7 @@ Real GetGameClientRandomValueReal( Real lo, Real hi, const char *file, int line 
 
 	const Real delta = hi - lo;
 	const Real rval = ((Real)(randomValue(theGameClientSeed)) * theMultFactor) * delta + lo;
+	ggcLogClientDraw( file, line );
 
 #ifdef DEBUG_RANDOM_CLIENT
 	DEBUG_LOG(( "%d: GetGameClientRandomValueReal = %f, %s line %d",
