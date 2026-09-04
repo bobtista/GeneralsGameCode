@@ -352,6 +352,12 @@ public:
 	AsciiString m_initialFile;				///< If this is specified, load a specific map from the command-line
 	Int m_saveAtFrame;						///< If greater than zero, write a save when this logic frame is reached
 	AsciiString m_saveToFile;				///< Filename used by m_saveAtFrame
+	// TheSuperHackers @feature bobtista 04/09/2026 Additional frames to save at in the same run, so
+	// one simulation pass can mint many checkpoints instead of re-simulating from frame zero for each.
+	enum { MAX_SAVE_AT_FRAMES = 64 };
+	Int m_saveAtFrameList[MAX_SAVE_AT_FRAMES];	///< Pending save frames, ascending; entry 0 mirrors m_saveAtFrame
+	Int m_saveAtFrameCount;						///< How many entries of m_saveAtFrameList are in use
+	Int m_saveAtFrameNext;						///< Index of the next pending entry
 	Int m_quitAtFrame;						///< If greater than zero, quit when this logic frame is reached
 	AsciiString m_pendingFile;				///< If this is specified, use this map at the next game start
 	AsciiString m_loadSaveGame;				///< If this is specified, load a save game file from the command-line

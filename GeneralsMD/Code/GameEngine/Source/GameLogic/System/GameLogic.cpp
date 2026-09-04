@@ -3948,12 +3948,41 @@ void GameLogic::update()
 			{
 				saveName = "commandline.sav";
 			}
+
+			//
+			// TheSuperHackers @feature bobtista 04/09/2026 When several frames were requested, give
+			// each save its own name by appending the frame actually reached, and keep simulating
+			// until the list is exhausted. A single name is left exactly as it was so existing
+			// harness runs are unaffected.
+			//
+			const Bool savingAList = (TheGlobalData->m_saveAtFrameCount > 1);
+			if (savingAList)
+			{
+				AsciiString stem = saveName;
+				const char *dot = strrchr(saveName.str(), '.');
+				if (dot != nullptr)
+				{
+					stem.truncateBy(strlen(dot));
+				}
+				saveName.format("%s_%d.sav", stem.str(), m_frame);
+			}
+
 			MAYBE_UNUSED const SaveResult saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"),
 				TheGlobalData->m_saveAtFrameNormal ? SAVE_FILE_TYPE_NORMAL : SAVE_FILE_TYPE_CHECKPOINT);
 			(void)saveResult;
 			DEBUG_LOG(("Command line save to '%s' at frame %d returned %d", saveName.str(), m_frame, (Int)saveResult.saveCode));
-			TheWritableGlobalData->m_saveAtFrame = 0;
-			TheGameEngine->setQuitting(TRUE);
+
+			TheWritableGlobalData->m_saveAtFrameNext = TheGlobalData->m_saveAtFrameNext + 1;
+			if (TheGlobalData->m_saveAtFrameNext < TheGlobalData->m_saveAtFrameCount)
+			{
+				// more checkpoints to mint in this same pass
+				TheWritableGlobalData->m_saveAtFrame = TheGlobalData->m_saveAtFrameList[TheGlobalData->m_saveAtFrameNext];
+			}
+			else
+			{
+				TheWritableGlobalData->m_saveAtFrame = 0;
+				TheGameEngine->setQuitting(TRUE);
+			}
 		}
 	}
 

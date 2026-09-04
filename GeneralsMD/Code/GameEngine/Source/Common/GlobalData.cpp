@@ -993,6 +993,12 @@ GlobalData::GlobalData()
 	m_buildMapCache = FALSE;
 	m_initialFile.clear();
 	m_saveAtFrame = 0;
+	m_saveAtFrameCount = 0;
+	m_saveAtFrameNext = 0;
+	for( Int saveFrameIndex = 0; saveFrameIndex < MAX_SAVE_AT_FRAMES; ++saveFrameIndex )
+	{
+		m_saveAtFrameList[ saveFrameIndex ] = 0;
+	}
 	m_quitAtFrame = 0;
 	m_saveToFile.clear();
 	m_pendingFile.clear();
