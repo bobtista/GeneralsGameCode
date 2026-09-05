@@ -369,7 +369,8 @@ void GameStateMap::xfer( Xfer *xfer )
 				// save: the serialized player list carries the real players, and the skirmish
 				// game info constructed below carries the slot layout.
 				//
-				if( gameMode == GAME_LAN || gameMode == GAME_INTERNET )
+				if( gameMode == GAME_LAN || gameMode == GAME_INTERNET ||
+						TheRecorder->isMultiplayer() )
 				{
 					gameMode = GAME_SKIRMISH;
 				}
@@ -480,7 +481,16 @@ void GameStateMap::xfer( Xfer *xfer )
 		// A checkpoint of a replayed game carries the recorded game's info (see the game mode
 		// note above). Multiplayer replays checkpoint as skirmish-shaped saves.
 		effectiveGameMode = TheRecorder->getGameMode();
-		if( effectiveGameMode == GAME_LAN || effectiveGameMode == GAME_INTERNET )
+		//
+		// TheSuperHackers @bugfix bobtista 05/09/2026 A replay of a multiplayer session that was
+		// recorded as a single player game still built its sides the skirmish way: startNewGame
+		// calls prepareForMP_or_Skirmish for any multiplayer session, which discards the map's
+		// own teams and adds one per occupied slot. Writing such a checkpoint with the recorded
+		// mode left the load rebuilding the map's teams instead, so the team prototypes did not
+		// match what the save recorded and the checkpoint would not load.
+		//
+		if( effectiveGameMode == GAME_LAN || effectiveGameMode == GAME_INTERNET ||
+				TheRecorder->isMultiplayer() )
 		{
 			effectiveGameMode = GAME_SKIRMISH;
 		}
