@@ -229,6 +229,7 @@ public:
 	void notifyOfTeamDestruction(Team *teamDestroyed);
 	void notifyOfObjectCreationOrDestruction();
 	UnsignedInt getFrameObjectCountChanged() {return m_frameObjectCountChanged;}
+	void applyCheckpointConditionTeam();
 	void setSequentialTimer(Object *obj, Int frameCount);
 	void setSequentialTimer(Team *team, Int frameCount);
 
@@ -460,6 +461,8 @@ protected:
 	Int								m_fadeFramesDecrease;
 
 	UnsignedInt				m_frameObjectCountChanged;
+	UnsignedInt				m_checkpointConditionTeamID;		///< condition team staged by a checkpoint load
+	Bool							m_hasCheckpointConditionTeam;
 
 	ObjectTypeCount		m_objectCounts[MAX_PLAYER_COUNT];
 

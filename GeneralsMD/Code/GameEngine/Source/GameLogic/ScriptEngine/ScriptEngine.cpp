@@ -460,6 +460,8 @@ m_skirmishHumanPlayer(nullptr),
 m_fade(FADE_NONE),
 m_freezeByScript(FALSE),
 m_frameObjectCountChanged(0),
+m_checkpointConditionTeamID(0),
+m_hasCheckpointConditionTeam(FALSE),
 m_closeWindowTimer(0),
 m_curFadeFrame(0),
 m_curFadeValue(0.0f),
@@ -5299,6 +5301,8 @@ void ScriptEngine::reset()
 	m_currentPlayer = nullptr;
 	m_skirmishHumanPlayer = nullptr;
 	m_frameObjectCountChanged = 0;
+	m_checkpointConditionTeamID = 0;
+	m_hasCheckpointConditionTeam = FALSE;
 
 	m_shownMPLocalDefeatWindow = FALSE;
 
@@ -7855,6 +7859,22 @@ void ScriptEngine::removeAllSequentialScripts(Team *team)
 	notifyOfTeamDestruction(team);
 }
 
+//-------------------------------------------------------------------------------------------------
+/** Put the leftover condition team back after a checkpoint load, once teams exist again. */
+//-------------------------------------------------------------------------------------------------
+void ScriptEngine::applyCheckpointConditionTeam()
+{
+
+	if( m_hasCheckpointConditionTeam == FALSE )
+	{
+		return;
+	}
+
+	m_conditionTeam = TheTeamFactory->findTeamByID( (TeamID)m_checkpointConditionTeamID );
+	m_hasCheckpointConditionTeam = FALSE;
+
+}
+
 void ScriptEngine::notifyOfObjectCreationOrDestruction()
 {
 	m_frameObjectCountChanged = TheGameLogic->getFrame();
@@ -8953,9 +8973,9 @@ void ScriptEngine::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 5 : 7;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 5 : 8;
 #else
-	const XferVersion currentVersion = 7;
+	const XferVersion currentVersion = 8;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -9474,6 +9494,24 @@ void ScriptEngine::xfer( Xfer *xfer )
 	if( version >= 7 )
 	{
 		xfer->xferUnsignedInt( &m_frameObjectCountChanged );
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 05/09/2026 Carry the leftover condition team. It is not
+	// cleared after a script is evaluated, and TeamFactory::createInactiveTeam runs a team's
+	// production condition action WITHOUT naming a team, so the "<This Team>" token falls back to
+	// whatever this still points at. Retail depends on that binding, so the value travels with the
+	// checkpoint rather than the behaviour being changed.
+	//
+	if( version >= 8 )
+	{
+		TeamID conditionTeamID = m_conditionTeam ? m_conditionTeam->getID() : (TeamID)TEAM_ID_INVALID;
+		xfer->xferUser( &conditionTeamID, sizeof( TeamID ) );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointConditionTeamID = (UnsignedInt)conditionTeamID;
+			m_hasCheckpointConditionTeam = TRUE;
+		}
 	}
 
 	if( xfer->getXferMode() == XFER_LOAD ) {

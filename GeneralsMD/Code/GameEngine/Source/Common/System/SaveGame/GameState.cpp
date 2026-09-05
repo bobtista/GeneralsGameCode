@@ -785,6 +785,7 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 		// it rebuilds the world, so the generator is put back only now that everything is in place.
 		//
 		TheGameLogic->applyCheckpointClientRandomState();
+		TheScriptEngine->applyCheckpointConditionTeam();
 	}
 	catch (...)
 	{
