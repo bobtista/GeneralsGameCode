@@ -1784,7 +1784,15 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	if (TheGameInfo)
 	{
 
-		if (TheGameEngine->isMultiplayerSession() || isSkirmishOrSkirmishReplay)
+		//
+		// TheSuperHackers @bugfix bobtista 05/09/2026 A loaded lobby snapshot is the serialized
+		// record that the original game built its sides the MP or skirmish way, so the load must
+		// build them the same way. Re-deriving it here fails for a recording with no AI slot:
+		// isSkirmishOrSkirmishReplay needs one, and isMultiplayerSession reads the recorder,
+		// which is not in playback mode yet when a checkpoint load starts the game.
+		//
+		if (TheGameEngine->isMultiplayerSession() || isSkirmishOrSkirmishReplay ||
+				(loadingSaveGame && TheSkirmishGameInfo != nullptr))
 		{
 			// Saves off any player, and resets the sides to 0 players so we can add the skirmish players.
 			TheSidesList->prepareForMP_or_Skirmish();
