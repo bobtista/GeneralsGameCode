@@ -51,6 +51,11 @@ if (NOT IS_VS6_BUILD)
         add_compile_options(/Zc:__cplusplus)
     else()
         add_compile_options(-Wsuggest-override)
+        # TheSuperHackers @bugfix bobtista 06/09/2026 Stop the compiler contracting a*b+c into a
+        # single fused multiply-add. FMA skips the intermediate rounding, so a contracted
+        # expression can differ from the same expression compiled for MSVC, which breaks bit exact
+        # simulation parity between platforms.
+        add_compile_options(-ffp-contract=off)
     endif()
 else()
     if(RTS_BUILD_OPTION_VC6_FULL_DEBUG)
