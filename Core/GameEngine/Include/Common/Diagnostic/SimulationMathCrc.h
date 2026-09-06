@@ -22,4 +22,9 @@ class SimulationMathCrc
 {
 public:
 	static UnsignedInt calculate();
+
+	// TheSuperHackers @feature bobtista 06/09/2026 Double precision companion to calculate().
+	// Two builds printing different values here disagree in the math library itself, which
+	// separates that cause from a divergence introduced by game code.
+	static UnsignedInt calculateDouble();
 };
