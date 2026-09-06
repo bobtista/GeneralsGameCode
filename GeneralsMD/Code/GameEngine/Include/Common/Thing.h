@@ -165,6 +165,21 @@ protected:
 	// one ULP even when the matrix itself is bit-identical.
 	void restoreCachedAngleForLoad(Real angle) { m_cachedAngle = angle; }
 
+	// TheSuperHackers @bugfix bobtista 06/09/2026 A checkpoint must carry the cached altitude for
+	// the same reason it carries the cached angle. Recomputing it against the current terrain can
+	// differ from the history-dependent value the continuous run is holding, and threshold tests
+	// such as isSignificantlyAboveTerrain then take a different branch after a resume.
+	Real getCachedAltitudeAboveTerrain() const { return m_cachedAltitudeAboveTerrain; }
+	Real getCachedAltitudeAboveTerrainOrWater() const { return m_cachedAltitudeAboveTerrainOrWater; }
+	Int getAltitudeCacheFlags() const { return m_cacheFlags & (VALID_ALTITUDE_TERRAIN | VALID_ALTITUDE_SEALEVEL); }
+	void restoreAltitudeCacheForLoad(Real aboveTerrain, Real aboveTerrainOrWater, Int altitudeFlags)
+	{
+		m_cachedAltitudeAboveTerrain = aboveTerrain;
+		m_cachedAltitudeAboveTerrainOrWater = aboveTerrainOrWater;
+		m_cacheFlags &= ~(VALID_ALTITUDE_TERRAIN | VALID_ALTITUDE_SEALEVEL);
+		m_cacheFlags |= (altitudeFlags & (VALID_ALTITUDE_TERRAIN | VALID_ALTITUDE_SEALEVEL));
+	}
+
 private:
 
 	// note that it is declared 'const' -- the assumption being that

@@ -4105,6 +4105,8 @@ void Object::crc( Xfer *xfer )
 	* 9: Extra sighting for reveal to all with different range units
 	* 10: TheSuperHackers @bugfix bobtista 17/08/2026 Preserve the history-dependent cached
 	*     orientation in non-retail checkpoints
+	* 13: TheSuperHackers @bugfix bobtista 06/09/2026 Preserve the history-dependent cached
+	*     altitude in non-retail checkpoints, for the same reason as the cached orientation
 	*/
 //-------------------------------------------------------------------------------------------------
 void Object::xfer( Xfer *xfer )
@@ -4113,9 +4115,9 @@ void Object::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 12;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 13;
 #else
-	const XferVersion currentVersion = 12;
+	const XferVersion currentVersion = 13;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -4131,6 +4133,9 @@ void Object::xfer( Xfer *xfer )
 	{
 		Matrix3D mtx = *getTransformMatrix();
 		Real cachedAngle = getOrientation();
+		Real cachedAltitudeAboveTerrain = getCachedAltitudeAboveTerrain();
+		Real cachedAltitudeAboveTerrainOrWater = getCachedAltitudeAboveTerrainOrWater();
+		Int cachedAltitudeFlags = getAltitudeCacheFlags();
 		xfer->xferMatrix3D(&mtx);
 
 		// The cached orientation travels only in version 10 streams (checkpoints); the
@@ -4138,11 +4143,24 @@ void Object::xfer( Xfer *xfer )
 		if (version >= 10)
 			xfer->xferReal(&cachedAngle);
 
+		// The cached altitude travels the same way, from version 13.
+		if (version >= 13)
+		{
+			xfer->xferReal(&cachedAltitudeAboveTerrain);
+			xfer->xferReal(&cachedAltitudeAboveTerrainOrWater);
+			xfer->xferInt(&cachedAltitudeFlags);
+		}
+
 		if (xfer->getXferMode() == XFER_LOAD)
 		{
 			setTransformMatrix(&mtx);
 			if (version >= 10)
 				restoreCachedAngleForLoad(cachedAngle);
+			// setTransformMatrix invalidates the altitude cache, so restore it afterwards.
+			if (version >= 13)
+			{
+				restoreAltitudeCacheForLoad(cachedAltitudeAboveTerrain, cachedAltitudeAboveTerrainOrWater, cachedAltitudeFlags);
+			}
 		}
 	}
 	else
