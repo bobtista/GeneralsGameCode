@@ -25,6 +25,8 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "Common/Diagnostic/SimulationMathCrc.h"
+
 #include <limits.h>
 
 #include "Common/ArchiveFileSystem.h"
@@ -1486,6 +1488,35 @@ Int parseClearDebugLevel(char *args[], int num)
 }
 #endif
 
+
+// TheSuperHackers @feature bobtista 09/06/2026 Print the deterministic simulation-math CRC
+// for cross-platform parity testing. Run on each machine with -mathCrcCheck and compare the
+// printed value; identical CRCs confirm the deterministic math path matches across architectures.
+Int parseMathCrcCheck(char *args[], int)
+{
+	const UnsignedInt crc = SimulationMathCrc::calculate();
+	const UnsignedInt crcDouble = SimulationMathCrc::calculateDouble();
+	printf("SimulationMathCrc = %08X\n", crc);
+	printf("SimulationMathCrcDouble = %08X\n", crcDouble);
+	fflush(stdout);
+	DEBUG_LOG(("SimulationMathCrc = %08X", crc));
+	DEBUG_LOG(("SimulationMathCrcDouble = %08X", crcDouble));
+	// TheSuperHackers @feature bobtista 14/06/2026 Also write the result to a plain file so the
+	// parity probe is machine-readable on a Windows GUI build (no stdout) and in pure Release
+	// builds (DEBUG_LOG compiled out). scripts/determinism/check-mathcrc compares this artifact.
+	FILE *crcFile = fopen("SimulationMathCrc.txt", "wt");
+	if (crcFile != nullptr)
+	{
+		fprintf(crcFile, "SimulationMathCrc = %08X\n", crc);
+		fprintf(crcFile, "SimulationMathCrcDouble = %08X\n", crcDouble);
+		fclose(crcFile);
+	}
+	// Pure math parity check - print and exit before launching the game so it can be run
+	// instantly on each machine and the value compared.
+	exit(0);
+	return 1;
+}
+
 // Initial Params are parsed before Windows Creation.
 // Note that except for TheGlobalData, no other global objects exist yet when these are parsed.
 static CommandLineParam paramsForStartup[] =
@@ -1496,6 +1527,7 @@ static CommandLineParam paramsForStartup[] =
 	// TheSuperHackers @feature helmutbuhler 11/04/2025
 	// This runs the game without a window, graphics, input and audio. You can combine this with -replay
 	{ "-headless", parseHeadless },
+
 
 	// TheSuperHackers @feature helmutbuhler 13/04/2025
 	// Play back a replay. Pass the filename including .rep afterwards.
@@ -1618,6 +1650,7 @@ static CommandLineParam paramsForEngineInit[] =
 	// Log CRC of Objects and Weapons (See Object::crc and Weapon::crc)
 	{ "-LogObjectCRCs", parseLogObjectCRCs },
 	{ "-LogCRCGenLines", parseLogCRCGenLines },
+	{ "-mathCrcCheck", parseMathCrcCheck },
 	{ "-LogCRCDebugLines", parseLogCRCDebugLines },
 
 	// Number of frames between each CRC check between all players in multiplayer games
