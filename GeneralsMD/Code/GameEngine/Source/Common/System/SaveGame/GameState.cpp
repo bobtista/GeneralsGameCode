@@ -933,75 +933,6 @@ void GameState::loadResumeSaveGame( AsciiString filename )
 	}
 }
 
-void GameState::loadQueuedSaveGame()
-{
-#if defined(RTS_DEBUG)
-	// TheSuperHackers @feature bobtista 26/08/2026 A queued multiplayer resume keeps GAME_LAN
-	// mode and reseeds lockstep instead of taking the single player load path.
-	if( NetworkAutoStart::getResumeSave().isNotEmpty() )
-	{
-		AsciiString resumeName = NetworkAutoStart::getResumeSave();
-		TheWritableGlobalData->m_loadSaveGame.clear();
-		loadResumeSaveGame( resumeName );
-		return;
-	}
-#endif
-
-	AvailableGameInfo gameInfo;
-	gameInfo.filename = TheGlobalData->m_loadSaveGame;
-	gameInfo.next = nullptr;
-	gameInfo.prev = nullptr;
-
-	TheWritableGlobalData->m_loadSaveGame.clear();
-
-	// getSaveGameInfoFromFile throws when the file is missing, so check before reading it
-	if( doesSaveGameExist( gameInfo.filename ) == FALSE )
-	{
-		DEBUG_LOG(("Save game '%s' was not found", gameInfo.filename.str()));
-		TheGameEngine->setQuitting( TRUE );
-		return;
-	}
-
-	// getSaveGameInfoFromFile throws on a malformed file instead of returning a SaveCode
-	try
-	{
-		AsciiString filepath = getFilePathInSaveDirectory( gameInfo.filename );
-		getSaveGameInfoFromFile( filepath, &gameInfo.saveGameInfo );
-	}
-	catch( ... )
-	{
-		DEBUG_LOG(("Save game '%s' could not be read", gameInfo.filename.str()));
-		TheGameEngine->setQuitting( TRUE );
-		return;
-	}
-
-	// this hides the shell, keeping the menu screens on the stack for when the game ends
-	TheGameLogic->prepareNewGame( GAME_SINGLE_PLAYER, DIFFICULTY_NORMAL, 0 );
-
-	if( loadGame( gameInfo ) != SC_OK )
-	{
-		DEBUG_LOG(("Failed to load save game '%s'", gameInfo.filename.str()));
-		if( TheGameLogic->isInGame() )
-			TheGameLogic->clearGameData( FALSE );
-		TheGameEngine->reset();
-		TheGameEngine->setQuitting( TRUE );
-		return;
-	}
-
-	applyResumeAsSlot();
-
-	// TheSuperHackers @feature bobtista 25/08/2026 Resume replay playback from the loaded
-	// checkpoint: skip the recorded commands the checkpoint already contains and continue
-	// feeding the rest, exactly where an uninterrupted playback would be at this frame.
-	if( TheGlobalData->m_resumeReplayName.isNotEmpty() && TheRecorder != nullptr )
-	{
-		MAYBE_UNUSED Bool resumed = TheRecorder->resumePlayback( TheGlobalData->m_resumeReplayName, TheGameLogic->getFrame() );
-		(void)resumed;
-		DEBUG_LOG(("Resume replay '%s' at frame %d: %s",
-			TheGlobalData->m_resumeReplayName.str(), TheGameLogic->getFrame(), resumed ? "OK" : "FAILED"));
-	}
-}
-
 //-------------------------------------------------------------------------------------------------
 static void showQueuedSaveGameLoadFailure( void )
 {
@@ -1016,6 +947,18 @@ static void showQueuedSaveGameLoadFailure( void )
 // ------------------------------------------------------------------------------------------------
 void GameState::loadQueuedSaveGame()
 {
+#if defined(RTS_DEBUG)
+	// TheSuperHackers @feature bobtista 26/08/2026 A queued multiplayer resume keeps GAME_LAN
+	// mode and reseeds lockstep instead of taking the single player load path.
+	if( NetworkAutoStart::getResumeSave().isNotEmpty() )
+	{
+		AsciiString resumeName = NetworkAutoStart::getResumeSave();
+		TheWritableGlobalData->m_loadSaveGame.clear();
+		loadResumeSaveGame( resumeName );
+		return;
+	}
+#endif
+
 	AvailableGameInfo gameInfo;
 	gameInfo.filename = TheGlobalData->m_loadSaveGame;
 	gameInfo.next = nullptr;
@@ -1060,6 +1003,20 @@ void GameState::loadQueuedSaveGame()
 			TheGameLogic->clearGameData( FALSE );
 		TheGameEngine->reset();
 		TheGameEngine->setQuitting( TRUE );
+		return;
+	}
+
+	applyResumeAsSlot();
+
+	// TheSuperHackers @feature bobtista 25/08/2026 Resume replay playback from the loaded
+	// checkpoint: skip the recorded commands the checkpoint already contains and continue
+	// feeding the rest, exactly where an uninterrupted playback would be at this frame.
+	if( TheGlobalData->m_resumeReplayName.isNotEmpty() && TheRecorder != nullptr )
+	{
+		MAYBE_UNUSED Bool resumed = TheRecorder->resumePlayback( TheGlobalData->m_resumeReplayName, TheGameLogic->getFrame() );
+		(void)resumed;
+		DEBUG_LOG(("Resume replay '%s' at frame %d: %s",
+			TheGlobalData->m_resumeReplayName.str(), TheGameLogic->getFrame(), resumed ? "OK" : "FAILED"));
 	}
 }
 
