@@ -837,6 +837,15 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 		}
 	}
 
+	// TheSuperHackers @info bobtista 08/09/2026 Report file and recovery traffic as it reaches
+	// the dispatcher, so a message that is sent but never acted on can be told apart from one
+	// that never arrived at all.
+	if ((cmdType == NETCOMMANDTYPE_FILEANNOUNCE) || (cmdType == NETCOMMANDTYPE_FILE) ||
+		(cmdType == NETCOMMANDTYPE_FILEPROGRESS) || (cmdType == NETCOMMANDTYPE_REJOINREQUEST)) {
+		DEBUG_LOG(("ConnectionManager::processNetCommand - INBOUND %s from player %d",
+			GetNetCommandTypeAsString(cmdType), msg->getPlayerID()));
+	}
+
 	// Don't allow an out of date command to be sent through.
 	// Its unnecessary traffic and it could cause problems.
 	//
