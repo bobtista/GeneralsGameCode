@@ -967,20 +967,26 @@ void GameEngine::update()
 						// file to exist: a shared save directory would satisfy existence
 						// before a single chunk was transferred.
 						snapshotArrived = (TheNetwork->getRecoveryReceivedFile() == donorSave);
-						// TheSuperHackers @bugfix bobtista 08/09/2026 Keep asking the donor while
-						// the snapshot is missing. Waiting passively made one dropped transfer
-						// fatal to the whole recovery: this peer ended the game after the wait
-						// expired and every other peer then timed out in the handshake on it.
+						// TheSuperHackers @bugfix bobtista 08/09/2026 Ask the donor again only once
+						// the transfer has STALLED. Waiting passively made one dropped transfer
+						// fatal to the whole recovery, but re-asking while bytes are still
+						// arriving restarts the send and guarantees it never finishes.
 						if (!snapshotArrived)
 						{
-							static UnsignedInt s_lastSnapshotRequest = 0;
-							if (s_lastSnapshotRequest == 0 ||
-								(UnsignedInt)(now - s_lastSnapshotRequest) >= (UnsignedInt)REJOIN_REQUEST_INTERVAL_MS)
+							static Int s_lastTransferPercent = -1;
+							static UnsignedInt s_lastTransferProgressTime = 0;
+							const Int nowPercent = TheNetwork->getRecoveryTransferPercent();
+							if (nowPercent != s_lastTransferPercent || s_lastTransferProgressTime == 0)
 							{
-								s_lastSnapshotRequest = now;
+								s_lastTransferPercent = nowPercent;
+								s_lastTransferProgressTime = now;
+							}
+							else if ((UnsignedInt)(now - s_lastTransferProgressTime) >= (UnsignedInt)RECOVERY_TRANSFER_STALL_MS)
+							{
+								s_lastTransferProgressTime = now;
 								TheNetwork->sendRejoinRequest();
-								DEBUG_LOG(("CRC recovery: re-requesting donor save '%s' (%d%% received)",
-									donorSave.str(), TheNetwork->getRecoveryTransferPercent()));
+								DEBUG_LOG(("CRC recovery: donor save '%s' stalled at %d%%, asking again",
+									donorSave.str(), nowPercent));
 							}
 						}
 						if (!snapshotArrived && TheInGameUI != nullptr)
@@ -1124,13 +1130,26 @@ void GameEngine::update()
 					!TheGameLogic->isInGame() && TheNetwork->isRecoveryInProgress() &&
 					TheNetwork->getRecoveryReceivedFile().isEmpty())
 			{
+				// TheSuperHackers @bugfix bobtista 08/09/2026 Keep the fast cadence only until the
+				// transfer starts. The donor now answers repeat requests, so asking again while
+				// bytes are arriving restarts the send and the snapshot never lands.
 				static UnsignedInt s_lastRejoinRequest = 0;
+				static Int s_lastRejoinPercent = -1;
 				UnsignedInt requestNow = timeGetTime();
-				if (s_lastRejoinRequest == 0 || (UnsignedInt)(requestNow - s_lastRejoinRequest) >= (UnsignedInt)REJOIN_REQUEST_INTERVAL_MS)
+				const Int rejoinPercent = TheNetwork->getRecoveryTransferPercent();
+				if (rejoinPercent != s_lastRejoinPercent)
+				{
+					s_lastRejoinPercent = rejoinPercent;
+					s_lastRejoinRequest = requestNow;
+				}
+				const UnsignedInt rejoinWait = (rejoinPercent > 0)
+					? (UnsignedInt)RECOVERY_TRANSFER_STALL_MS
+					: (UnsignedInt)REJOIN_REQUEST_INTERVAL_MS;
+				if (s_lastRejoinRequest == 0 || (UnsignedInt)(requestNow - s_lastRejoinRequest) >= rejoinWait)
 				{
 					s_lastRejoinRequest = requestNow;
 					TheNetwork->sendRejoinRequest();
-					DEBUG_LOG(("Rejoin: requesting the held snapshot (%d%% received)", TheNetwork->getRecoveryTransferPercent()));
+					DEBUG_LOG(("Rejoin: requesting the held snapshot (%d%% received)", rejoinPercent));
 				}
 			}
 #endif
