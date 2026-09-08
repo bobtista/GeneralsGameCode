@@ -72,6 +72,9 @@ public:
 		m_energyConsumption = 0;
 		m_powerSabotagedTillFrame = 0;
 		m_owner = owner;
+		m_checkpointProduction = 0;
+		m_checkpointConsumption = 0;
+		m_hasCheckpointTotals = FALSE;
 	}
 
 	/// return current energy production in kilowatts
@@ -103,6 +106,9 @@ public:
 	*/
 	Real getEnergySupplyRatio() const;
 
+	/// put back the totals a checkpoint carried, once every object and upgrade has loaded
+	void applyCheckpointTotals();
+
 protected:
 
 	// snapshot methods
@@ -119,4 +125,7 @@ private:
 	Int		m_energyConsumption;	///< level of energy consumption, in kw
 	UnsignedInt m_powerSabotagedTillFrame; ///< If power is sabotaged, the frame will be greater than now.
 	Player *m_owner;						///< Tight pointer to the Player I am intrinsic to.
+	Int		m_checkpointProduction;		///< production carried by a checkpoint, applied after the load
+	Int		m_checkpointConsumption;	///< consumption carried by a checkpoint, applied after the load
+	Bool	m_hasCheckpointTotals;
 };
