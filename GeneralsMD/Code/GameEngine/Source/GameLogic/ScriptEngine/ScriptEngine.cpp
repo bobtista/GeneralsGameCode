@@ -5559,9 +5559,9 @@ void ScriptEngine::update()
 			if (isScriptedEndSuppressed()) {
 				DEBUG_LOG(("ScriptEngine::update - ignoring the end game timer during playback"));
 				m_endGameTimer = -1;
-				return;
+			} else {
+				TheGameLogic->exitGame();
 			}
-			TheGameLogic->exitGame();
 			//TheScriptActions->closeWindows(FALSE); // Close victory or defeat windows.
 		}
 	}
