@@ -6991,6 +6991,7 @@ void ScriptEngine::checkConditionsForTeamNames(Script *pScript)
 /** Executes a script. */
 //-------------------------------------------------------------------------------------------------
 static AsciiString s_probeCurrentScript;
+static Script *s_probeCurrentScriptPtr = nullptr;
 
 // TheSuperHackers @info bobtista 08/09/2026 Dump the conditions and counters behind a script that
 // fires after a checkpoint load but not in the uninterrupted run, so the state the save fails to
@@ -7020,6 +7021,7 @@ static void probeDumpScript(ScriptEngine *engine, Script *pScript, const char *w
 void ScriptEngine::executeScript( Script *pScript )
 {
 	s_probeCurrentScript = pScript->getName();
+	s_probeCurrentScriptPtr = pScript;
 
 	pScript->setCurTime(0);
 	// If script is not active, return.
@@ -7083,8 +7085,6 @@ void ScriptEngine::executeScript( Script *pScript )
 				// Script Debug window
 				if (pScript->getAction()) {
 					_appendMessage(pScript->getName());
-					for (Int probeC = 0; probeC < m_numCounters; ++probeC) { if (pScript->getName().startsWith("Auto_power_exe") || pScript->getName().startsWith("Nuke_Launcher_Abuse")) { CRCDEBUG_LOG(("probe counter %d '%s' = %d timer %d", probeC, m_counters[probeC].name.str(), m_counters[probeC].value, m_counters[probeC].isCountdownTimer ? 1 : 0)); } }
-					probeDumpScript(this, pScript, "fire");
 					executeActions(pScript->getAction());
 				}
 
@@ -7097,7 +7097,6 @@ void ScriptEngine::executeScript( Script *pScript )
 				_appendMessage(pScript->getName(), false);
 
 				// Only do this if there are actually false actions.
-				probeDumpScript(this, pScript, "falsefire");
 				executeActions(pScript->getFalseAction());
       }
 		}
@@ -7719,6 +7718,10 @@ void ScriptEngine::executeActions( ScriptAction *pActionHead )
 {
 	for (ScriptAction *probeAction = pActionHead; probeAction != nullptr; probeAction = probeAction->getNext()) {
 		CRCDEBUG_LOG(("script action %d from '%s' on frame %d", (Int)probeAction->getActionType(), s_probeCurrentScript.str(), TheGameLogic->getFrame()));
+	}
+	if (s_probeCurrentScriptPtr != nullptr && (s_probeCurrentScript.startsWith("Auto_power_exe") || s_probeCurrentScript.startsWith("Nuke_Launcher_Abuse"))) {
+		for (Int probeC = 0; probeC < m_numCounters; ++probeC) { CRCDEBUG_LOG(("probe counter %d '%s' = %d timer %d", probeC, m_counters[probeC].name.str(), m_counters[probeC].value, m_counters[probeC].isCountdownTimer ? 1 : 0)); }
+		probeDumpScript(this, s_probeCurrentScriptPtr, "fire");
 	}
 	ScriptAction *pCurAction;
 	UnicodeString uStr1;
