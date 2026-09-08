@@ -552,7 +552,7 @@ void ConnectionManager::sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) {
 	if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
 		msg->setID(GenerateNextCommandID());
 	}
-	sendLocalCommandDirect(msg, 0xff ^ (1 << m_localSlot));
+	sendLocalCommand(msg, 0xff ^ (1 << m_localSlot));
 	msg->detach();
 
 	recordRecoveryReady(m_localSlot, frame, crc);

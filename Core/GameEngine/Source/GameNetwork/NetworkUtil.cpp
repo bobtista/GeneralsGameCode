@@ -179,7 +179,10 @@ Bool CommandRequiresDirectSend(const NetCommandMsg* msg)
 	case NETCOMMANDTYPE_DISCONNECTVOTE:
 	case NETCOMMANDTYPE_DISCONNECTFRAME:
 	case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
-	case NETCOMMANDTYPE_RECOVERYREADY:
+	// TheSuperHackers @bugfix bobtista 08/09/2026 RECOVERYREADY is deliberately NOT direct-only.
+	// A rejoining peer reconnects to the host alone, so a direct-only report never reaches the
+	// other survivors and they wait for it forever. Routing it through the packet router lets
+	// the host relay it to peers this client has no connection to.
 	case NETCOMMANDTYPE_REJOINREQUEST:
 		return TRUE;
 	default:
