@@ -637,6 +637,34 @@ void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
 	sendFile(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID), fileID);
 }
 
+// TheSuperHackers @bugfix bobtista 08/09/2026 A rejoining client rebuilds its slot list with
+// only the host and itself, so it has no connection to the other survivors and its recovery
+// report never reaches them; they then wait for a report that cannot arrive. Their packets do
+// reach the rejoiner, so learn each peer's address from its own traffic and attach it. Confined
+// to an active recovery, where a slot with no connection means a peer this client cannot answer.
+void ConnectionManager::attachPeerFromPacket(UnsignedInt slot, UnsignedInt addr, UnsignedShort port) {
+	if ((slot >= MAX_SLOTS) || ((Int)slot == m_localSlot) || (addr == 0)) {
+		return;
+	}
+	if (m_connections[slot] != nullptr) {
+		return;
+	}
+	if (TheGlobalData->m_recoveryDonorSave.isEmpty()) {
+		return;
+	}
+	m_connections[slot] = newInstance(Connection)();
+	m_connections[slot]->init();
+	m_connections[slot]->attachTransport(m_transport);
+	m_connections[slot]->setUser(newInstance(User)(UnicodeString(L"Peer"), addr, port));
+	if (m_frameData[slot] == nullptr) {
+		m_frameData[slot] = newInstance(FrameDataManager)(FALSE);
+		m_frameData[slot]->init();
+		m_frameData[slot]->reset();
+	}
+	DEBUG_LOG(("ConnectionManager::attachPeerFromPacket - attached slot %d at %d.%d.%d.%d:%d from its own traffic",
+		slot, (addr >> 24) & 0xff, (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff, port));
+}
+
 void ConnectionManager::processRecoveryReady(NetRecoveryReadyCommandMsg *msg) {
 	const UnsignedInt playerID = msg->getPlayerID();
 	if (playerID >= MAX_SLOTS) {
@@ -805,6 +833,9 @@ void ConnectionManager::doRelay() {
 			for (NetCommandRef* cmd = cmdList->getFirstMessage(); cmd; cmd = cmd->getNext()) {
 				//DEBUG_LOG(("ConnectionManager::doRelay() - Looking at a command of type %s",
 					//GetNetCommandTypeAsString(cmd->getCommand()->getNetCommandType())));
+
+				attachPeerFromPacket(cmd->getCommand()->getPlayerID(),
+					m_transport->m_inBuffer[i].addr, m_transport->m_inBuffer[i].port);
 
 				if (CommandRequiresAck(cmd->getCommand())) {
 					ackCommand(cmd, m_localSlot);
