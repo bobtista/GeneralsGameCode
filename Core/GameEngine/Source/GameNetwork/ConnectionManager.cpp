@@ -316,6 +316,7 @@ void ConnectionManager::init()
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_lastRecoveryFileSendTime = 0;
+	m_recoveryFileSendsThisWindow = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
@@ -420,6 +421,7 @@ void ConnectionManager::reset()
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_lastRecoveryFileSendTime = 0;
+	m_recoveryFileSendsThisWindow = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = -1;
@@ -499,6 +501,7 @@ void ConnectionManager::flushForRecovery() {
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_lastRecoveryFileSendTime = 0;
+	m_recoveryFileSendsThisWindow = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
 	Int i;
@@ -611,15 +614,21 @@ void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
 	// TheSuperHackers @bugfix bobtista 08/09/2026 Answer every request, not just the first.
 	// A single dropped transfer used to be fatal: the waiting peer asked again, the donor
 	// ignored the repeat, and that peer ended the game while everyone else timed out on it.
-	// Serve one peer at a time. Overlapping sends is what saturated the transport queue; the
-	// others re-ask when their transfer stalls, so nobody is forgotten.
+	// Cap how many peers are served at once. Sending to every peer together turned the save
+	// into thousands of ack-bearing wrapper commands per connection and saturated the shared
+	// transport queue; a six-player recovery delivers to five peers in parallel without
+	// trouble, so serve in windows of that size rather than strictly one at a time.
 	const UnsignedInt sendNow = timeGetTime();
-	if ((m_lastRecoveryFileSendTime != 0) &&
-		((UnsignedInt)(sendNow - m_lastRecoveryFileSendTime) < (UnsignedInt)RECOVERY_SEND_SPACING_MS)) {
-		DEBUG_LOG(("ConnectionManager::processRejoinRequest - busy serving another peer, player %d must ask again", playerID));
+	if ((m_lastRecoveryFileSendTime == 0) ||
+		((UnsignedInt)(sendNow - m_lastRecoveryFileSendTime) >= (UnsignedInt)RECOVERY_SEND_SPACING_MS)) {
+		m_lastRecoveryFileSendTime = sendNow;
+		m_recoveryFileSendsThisWindow = 0;
+	}
+	if (m_recoveryFileSendsThisWindow >= RECOVERY_SENDS_PER_WINDOW) {
+		DEBUG_LOG(("ConnectionManager::processRejoinRequest - send window full, player %d must ask again", playerID));
 		return;
 	}
-	m_lastRecoveryFileSendTime = sendNow;
+	++m_recoveryFileSendsThisWindow;
 	const Bool isRetry = ((m_rejoinFileSentMask & (1 << playerID)) != 0);
 	m_rejoinFileSentMask |= (1 << playerID);
 	DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked for the held snapshot%s",
