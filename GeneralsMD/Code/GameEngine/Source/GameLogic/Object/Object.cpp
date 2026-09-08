@@ -5019,6 +5019,12 @@ void Object::onPartitionCellChange()
 //-------------------------------------------------------------------------------------------------
 void Object::handlePartitionCellMaintenance()
 {
+	static Int s_probeMaint = 0;
+	if (s_probeMaint < 60 && TheGameLogic->getFrame() >= 33 && TheGameLogic->getFrame() <= 34)
+	{
+		++s_probeMaint;
+		DEBUG_LOG(("probe maint obj %u %s frame %d pos %f %f %f vision %f shroudClear %f lastValueFar %f lastValueValid %d", (UnsignedInt)getID(), getTemplate()->getName().str(), TheGameLogic->getFrame(), getPosition()->x, getPosition()->y, getPosition()->z, getVisionRange(), getShroudClearingRange(), m_partitionLastValue->m_howFar, m_partitionLastValue->isInvalid() ? 0 : 1));
+	}
 	handleShroud();
 	handleValueMap();
 	handleThreatMap();

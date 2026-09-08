@@ -4229,6 +4229,10 @@ void PartitionManager::doShroudReveal(Real centerX, Real centerY, Real radius, P
 	worldToCell(centerX, centerY, &cellCenterX, &cellCenterY);
 
 	Int cellRadius = worldToCellDist(radius);
+	if (cellRadius > 2000 || cellRadius < -2000)
+	{
+		DEBUG_LOG(("probe huge circle %s center %f %f radius %f cells %d frame %d", "doShroudReveal", centerX, centerY, radius, cellRadius, TheGameLogic->getFrame()));
+	}
 	if (cellRadius < 1)
 		cellRadius = 1;
 
@@ -4296,6 +4300,10 @@ void PartitionManager::undoShroudReveal(Real centerX, Real centerY, Real radius,
 	worldToCell(centerX, centerY, &cellCenterX, &cellCenterY);
 
 	Int cellRadius = worldToCellDist(radius);
+	if (cellRadius > 2000 || cellRadius < -2000)
+	{
+		DEBUG_LOG(("probe huge circle %s center %f %f radius %f cells %d frame %d", "undoShroudReveal", centerX, centerY, radius, cellRadius, TheGameLogic->getFrame()));
+	}
 	if (cellRadius < 1)
 		cellRadius = 1;
 
@@ -4333,6 +4341,10 @@ void PartitionManager::doShroudCover(Real centerX, Real centerY, Real radius, Pl
 	worldToCell(centerX, centerY, &cellCenterX, &cellCenterY);
 
 	Int cellRadius = worldToCellDist(radius);
+	if (cellRadius > 2000 || cellRadius < -2000)
+	{
+		DEBUG_LOG(("probe huge circle %s center %f %f radius %f cells %d frame %d", "doShroudCover", centerX, centerY, radius, cellRadius, TheGameLogic->getFrame()));
+	}
 	if (cellRadius < 1)
 		cellRadius = 1;
 
@@ -4357,6 +4369,10 @@ void PartitionManager::undoShroudCover(Real centerX, Real centerY, Real radius, 
 	worldToCell(centerX, centerY, &cellCenterX, &cellCenterY);
 
 	Int cellRadius = worldToCellDist(radius);
+	if (cellRadius > 2000 || cellRadius < -2000)
+	{
+		DEBUG_LOG(("probe huge circle %s center %f %f radius %f cells %d frame %d", "undoShroudCover", centerX, centerY, radius, cellRadius, TheGameLogic->getFrame()));
+	}
 	if (cellRadius < 1)
 		cellRadius = 1;
 
@@ -4381,6 +4397,10 @@ void PartitionManager::doThreatAffect( Real centerX, Real centerY, Real radius, 
 	Real fCellCenterY = INT_TO_REAL(cellCenterY);
 
 	Int cellRadius = worldToCellDist(radius);
+	if (cellRadius > 2000 || cellRadius < -2000)
+	{
+		DEBUG_LOG(("probe huge circle %s center %f %f radius %f cells %d frame %d", "doThreatAffect", centerX, centerY, radius, cellRadius, TheGameLogic->getFrame()));
+	}
 	if (cellRadius < 1)
 		cellRadius = 1;
 
@@ -4414,6 +4434,10 @@ void PartitionManager::undoThreatAffect( Real centerX, Real centerY, Real radius
 	Real fCellCenterY = INT_TO_REAL(cellCenterY);
 
 	Int cellRadius = worldToCellDist(radius);
+	if (cellRadius > 2000 || cellRadius < -2000)
+	{
+		DEBUG_LOG(("probe huge circle %s center %f %f radius %f cells %d frame %d", "undoThreatAffect", centerX, centerY, radius, cellRadius, TheGameLogic->getFrame()));
+	}
 	if (cellRadius < 1)
 		cellRadius = 1;
 
@@ -4447,6 +4471,10 @@ void PartitionManager::doValueAffect( Real centerX, Real centerY, Real radius, U
 	Real fCellCenterY = INT_TO_REAL(cellCenterY);
 
 	Int cellRadius = worldToCellDist(radius);
+	if (cellRadius > 2000 || cellRadius < -2000)
+	{
+		DEBUG_LOG(("probe huge circle %s center %f %f radius %f cells %d frame %d", "doValueAffect", centerX, centerY, radius, cellRadius, TheGameLogic->getFrame()));
+	}
 	if (cellRadius < 1)
 		cellRadius = 1;
 
@@ -4480,6 +4508,10 @@ void PartitionManager::undoValueAffect( Real centerX, Real centerY, Real radius,
 	Real fCellCenterY = INT_TO_REAL(cellCenterY);
 
 	Int cellRadius = worldToCellDist(radius);
+	if (cellRadius > 2000 || cellRadius < -2000)
+	{
+		DEBUG_LOG(("probe huge circle %s center %f %f radius %f cells %d frame %d", "undoValueAffect", centerX, centerY, radius, cellRadius, TheGameLogic->getFrame()));
+	}
 	if (cellRadius < 1)
 		cellRadius = 1;
 
