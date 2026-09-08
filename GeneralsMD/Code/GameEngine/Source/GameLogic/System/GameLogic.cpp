@@ -3235,6 +3235,7 @@ void GameLogic::pushSleepyUpdate(UpdateModulePtr u)
 	USE_PERF_TIMER(SleepyMaintenance)
 
 	DEBUG_ASSERTCRASH(u != nullptr, ("You may not pass null for sleepy update info"));
+	CRCDEBUG_LOG(("sleepy push obj %u key %08X", u->getObject() ? (UnsignedInt)u->getObject()->getID() : 0u, u->friend_getPriority()));
 
 	m_sleepyUpdates.push_back(u);
 	u->friend_setIndexInLogic(m_sleepyUpdates.size() - 1);
@@ -3264,6 +3265,10 @@ void GameLogic::popSleepyUpdate()
 		return;
 	}
 
+	// TheSuperHackers @info bobtista 08/09/2026 Record the pop order with its key inside the CRC
+	// debug window, so a resumed playback whose updates run in a different order shows whether
+	// the keys or the heap layout differ from the uninterrupted run.
+	CRCDEBUG_LOG(("sleepy pop obj %u key %08X", m_sleepyUpdates[0]->getObject() ? (UnsignedInt)m_sleepyUpdates[0]->getObject()->getID() : 0u, m_sleepyUpdates[0]->friend_getPriority()));
 	m_sleepyUpdates[0]->friend_setIndexInLogic(-1);
 	if (sz > 1)
 	{
