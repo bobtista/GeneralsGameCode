@@ -4561,6 +4561,11 @@ void GameLogic::exitGame()
 	TheScriptEngine->forceUnfreezeTime();
 	TheScriptEngine->doUnfreezeTime();
 
+	// TheSuperHackers @info bobtista 08/09/2026 Every game end passes through here and none of
+	// the callers log, so a resumed replay that ends early leaves no trace without this.
+	DEBUG_LOG(("GameLogic::exitGame - frame %d mode %d playback %d", m_frame, (Int)m_gameMode,
+		(TheRecorder && TheRecorder->isPlaybackMode()) ? 1 : 0));
+
 	TheMessageStream->appendMessage(GameMessage::MSG_CLEAR_GAME_DATA);
 
 #ifdef PROFILER_ENABLED
