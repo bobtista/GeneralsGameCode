@@ -677,7 +677,36 @@ UpdateSleepTime RailroadBehavior::update()
 		loadTrackData();
 
 		if ( m_track )
-		  createCarriages();
+		{
+			if ( m_carriagesCreated )
+			{
+				//
+				// TheSuperHackers @bugfix bobtista 08/09/2026 A loaded train keeps the carriages it saved.
+				// The track pointer is not saved, so the carriages get it back here by walking the saved
+				// trailer chain. Creating carriages again searched around the last car for something to
+				// hitch and, with the cars still parked together, found the locomotive itself, which
+				// closed the chain into a loop that never returned from the first update.
+				//
+				static NameKeyType key_rb = NAMEKEY("RailroadBehavior");
+				ObjectID carriageID = m_trailerID;
+				while ( carriageID != INVALID_ID )
+				{
+					Object *carriage = TheGameLogic->findObjectByID( carriageID );
+					RailroadBehavior *rb = carriage ? (RailroadBehavior*)carriage->findUpdateModule( key_rb ) : nullptr;
+					if ( rb == nullptr || rb->m_track != nullptr )
+					{
+						break;
+					}
+					rb->m_track = m_track;
+					rb->m_track->incReference();
+					carriageID = rb->m_trailerID;
+				}
+			}
+			else
+			{
+				createCarriages();
+			}
+		}
 
 		m_trackDataLoaded = TRUE;
 	}
