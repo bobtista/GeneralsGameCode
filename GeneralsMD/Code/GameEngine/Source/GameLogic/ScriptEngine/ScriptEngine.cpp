@@ -6971,6 +6971,17 @@ void ScriptEngine::executeScript( Script *pScript )
 	if (!pScript->isActive()) {
 		return;
 	}
+	// TheSuperHackers @info bobtista 08/09/2026 Name the script that can end the game, so a
+	// resumed playback that ends early can be traced to the map script that fired.
+	for (ScriptAction *endAction = pScript->getAction(); endAction != nullptr; endAction = endAction->getNext()) {
+		const ScriptActionType endType = endAction->getActionType();
+		if (endType == ScriptAction::VICTORY || endType == ScriptAction::DEFEAT ||
+			endType == ScriptAction::LOCALDEFEAT || endType == ScriptAction::QUICKVICTORY) {
+			DEBUG_LOG(("ScriptEngine::executeScript - '%s' carries end action %d, evaluating on frame %d",
+				pScript->getName().str(), (Int)endType, TheGameLogic->getFrame()));
+			break;
+		}
+	}
 	enum GameDifficulty difficulty = getGlobalDifficulty();
 	if (m_currentPlayer) {
 		difficulty = m_currentPlayer->getPlayerDifficulty();
