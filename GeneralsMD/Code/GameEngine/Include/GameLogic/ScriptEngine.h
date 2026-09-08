@@ -242,6 +242,7 @@ public:
 	virtual const ActionTemplate *getActionTemplate( Int ndx); ///< Get the template for a script action.
 	virtual const ConditionTemplate *getConditionTemplate( Int ndx); ///< Get the template for a script Condition.
 	virtual void startEndGameTimer(); ///< Starts the end game timer after a mission is won or lost.
+	Bool isScriptedEndSuppressed() const;
 	Bool isGameEnding() { return m_endGameTimer >= 0;	}
 	virtual void startQuickEndGameTimer(); ///< Starts the quick end game timer after a campaign is won or lost.
 	virtual void startCloseWindowTimer(); ///< Starts the timer to close windows after a mission is won or lost.
