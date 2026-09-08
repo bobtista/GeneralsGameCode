@@ -5519,6 +5519,14 @@ DECLARE_PERF_TIMER(ScriptEngine)
 void ScriptEngine::update()
 {
 	USE_PERF_TIMER(ScriptEngine)
+	for (Int probeIdx = 0; probeIdx < ThePlayerList->getPlayerCount(); ++probeIdx)
+	{
+		Player *probePlayer = ThePlayerList->getNthPlayer(probeIdx);
+		if (probePlayer)
+		{
+			CRCDEBUG_LOG(("probe power frame %d player %d prod %d cons %d sabotagedTill %u", TheGameLogic->getFrame(), probeIdx, probePlayer->getEnergy()->getProduction(), probePlayer->getEnergy()->getConsumption(), probePlayer->getEnergy()->getPowerSabotagedTillFrame()));
+		}
+	}
 #ifdef SPECIAL_SCRIPT_PROFILING
 #ifdef DEBUG_LOGGING
 	__int64 startTime64;
