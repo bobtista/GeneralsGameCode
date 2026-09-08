@@ -1377,6 +1377,7 @@ void TeamPrototype::xfer( Xfer *xfer )
 			// created with exactly the same team IDs they had before
 			//
 			teamInstance = TheTeamFactory->findTeamByID( teamID );
+			DEBUG_LOG(("probe team load id %u saved proto '%s' protoId %u player %d found %d on proto '%s'", (UnsignedInt)teamID, getName().str(), (UnsignedInt)getID(), m_owningPlayer ? m_owningPlayer->getPlayerIndex() : -1, teamInstance ? 1 : 0, teamInstance ? teamInstance->getPrototype()->getName().str() : "-"));
 			if( teamInstance == nullptr )
 			{
 
@@ -1466,6 +1467,7 @@ Team::Team(TeamPrototype *proto, TeamID id ) :
 		AsciiString teamName = proto->getName();
 		teamName.concat(" - creating team instance.");
 		TheScriptEngine->AppendDebugMessage(teamName, false);
+		DEBUG_LOG(("probe team create id %u proto '%s' protoId %u player %d", (UnsignedInt)id, proto->getName().str(), (UnsignedInt)proto->getID(), proto->getControllingPlayer() ? proto->getControllingPlayer()->getPlayerIndex() : -1));
 	}
 
 	for (Int i = 0; i < MAX_GENERIC_SCRIPTS; ++i)
