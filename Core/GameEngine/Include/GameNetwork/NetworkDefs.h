@@ -187,7 +187,7 @@ enum RecoveryTuning CPP_11(: Int) {
 	RECOVERY_SNAPSHOT_WAIT_MS = 240000,			///< How long a peer waits for the donor snapshot to arrive
 	RECOVERY_TRANSFER_STALL_MS = 15000,			///< No progress for this long before re-asking the donor
 	RECOVERY_SEND_SPACING_MS = 12000,			///< Length of one donor send window
-	RECOVERY_SENDS_PER_WINDOW = 4,				///< Peers the donor serves per window; 5 in parallel is known good
+	RECOVERY_SENDS_PER_WINDOW = 1,				///< Peers served per window; measured 4/8 loaded at 1, 2/8 at 4, 0/8 unbounded
 	RECOVERY_READY_DEADLINE_MS = 180000,		///< How long the post-load handshake may take before the endgame fallback
 	RECOVERY_READY_ROUNDS = 4,					///< Reports retained per peer so a later round cannot erase an open one
 	RECOVERY_WAIT_MESSAGE_MS = 5000,				///< Cadence of the "waiting for other players" message
