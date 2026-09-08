@@ -206,11 +206,6 @@ void ScriptActions::doSetInfantryLightingOverride(Real setting)
 //-------------------------------------------------------------------------------------------------
 void ScriptActions::doVictory()
 {
-	if (ThePlayerList && ThePlayerList->getLocalPlayer()) {
-		Player *endPlayer = ThePlayerList->getLocalPlayer();
-		DEBUG_LOG(("ScriptActions::doVictory - frame %d local player %d '%ls' observer %d", TheGameLogic->getFrame(),
-			endPlayer->getPlayerIndex(), endPlayer->getPlayerDisplayName().str(), endPlayer->isPlayerObserver() ? 1 : 0));
-	}
 	closeWindows(FALSE);
 	TheGameLogic->closeWindows();
 	doDisableInput();
@@ -235,11 +230,6 @@ void ScriptActions::doVictory()
 //-------------------------------------------------------------------------------------------------
 void ScriptActions::doDefeat()
 {
-	if (ThePlayerList && ThePlayerList->getLocalPlayer()) {
-		Player *endPlayer = ThePlayerList->getLocalPlayer();
-		DEBUG_LOG(("ScriptActions::doDefeat - frame %d local player %d '%ls' observer %d", TheGameLogic->getFrame(),
-			endPlayer->getPlayerIndex(), endPlayer->getPlayerDisplayName().str(), endPlayer->isPlayerObserver() ? 1 : 0));
-	}
 	closeWindows(FALSE);
 	TheGameLogic->closeWindows();
 	doDisableInput();
@@ -264,11 +254,6 @@ void ScriptActions::doDefeat()
 //-------------------------------------------------------------------------------------------------
 void ScriptActions::doLocalDefeat()
 {
-	if (ThePlayerList && ThePlayerList->getLocalPlayer()) {
-		Player *endPlayer = ThePlayerList->getLocalPlayer();
-		DEBUG_LOG(("ScriptActions::doLocalDefeat - frame %d local player %d '%ls' observer %d", TheGameLogic->getFrame(),
-			endPlayer->getPlayerIndex(), endPlayer->getPlayerDisplayName().str(), endPlayer->isPlayerObserver() ? 1 : 0));
-	}
 	TheScriptEngine->markMPLocalDefeatWindowShown();
 	closeWindows(FALSE);
 	TheGameLogic->closeWindows();

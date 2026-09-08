@@ -52,7 +52,6 @@
 
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
-#include "Common/CRCDebug.h"
 
 
 //-----------------------------------------------------------------------------
@@ -109,7 +108,6 @@ Bool Energy::hasSufficientPower() const
 //-------------------------------------------------------------------------------------------------
 void Energy::adjustPower(Int powerDelta, Bool adding)
 {
-	CRCDEBUG_LOG(("probe adjustPower delta %d adding %d before prod %d cons %d frame %d", powerDelta, adding ? 1 : 0, m_energyProduction, m_energyConsumption, TheGameLogic->getFrame()));
 	if (powerDelta == 0) {
 		return;
 	}
@@ -235,7 +233,6 @@ void Energy::removePowerBonus( Object *obj )
 // ------------------------------------------------------------------------------------------------
 void Energy::addProduction(Int amt)
 {
-	CRCDEBUG_LOG(("probe energy owner %d prod %d + %d cons %d frame %d", m_owner ? m_owner->getPlayerIndex() : -1, m_energyProduction, amt, m_energyConsumption, TheGameLogic->getFrame()));
 	m_energyProduction += amt;
 
 	if( m_owner == nullptr )
@@ -249,7 +246,6 @@ void Energy::addProduction(Int amt)
 // ------------------------------------------------------------------------------------------------
 void Energy::addConsumption(Int amt)
 {
-	CRCDEBUG_LOG(("probe energy owner %d cons %d + %d prod %d frame %d", m_owner ? m_owner->getPlayerIndex() : -1, m_energyConsumption, amt, m_energyProduction, TheGameLogic->getFrame()));
 	m_energyConsumption += amt;
 
 	if( m_owner == nullptr )
@@ -301,7 +297,6 @@ void Energy::xfer( Xfer *xfer )
 		owningPlayerIndex = m_owner->getPlayerIndex();
 	xfer->xferInt( &owningPlayerIndex );
 	m_owner = ThePlayerList->getNthPlayer( owningPlayerIndex );
-	CRCDEBUG_LOG(("probe energy xfer mode %d owner %d prod %d cons %d frame %d", (Int)xfer->getXferMode(), owningPlayerIndex, m_energyProduction, m_energyConsumption, TheGameLogic->getFrame()));
 
 	//Sabotage
 	if( version >= 3 )
