@@ -74,6 +74,7 @@ static HMODULE st_DebugDLL;
 #include "GameClient/ParticleSys.h"
 #include "Common/MapObject.h"
 #include "Common/Recorder.h"
+#include "Common/CRCDebug.h"
 #include "../../GameEngineDevice/Include/W3DDevice/GameClient/W3DAssetManagerExposed.h"
 
 static void _addUpdatedParticleSystem( AsciiString particleSystemName );
@@ -6989,8 +6990,11 @@ void ScriptEngine::checkConditionsForTeamNames(Script *pScript)
 //-------------------------------------------------------------------------------------------------
 /** Executes a script. */
 //-------------------------------------------------------------------------------------------------
+static AsciiString s_probeCurrentScript;
+
 void ScriptEngine::executeScript( Script *pScript )
 {
+	s_probeCurrentScript = pScript->getName();
 
 	pScript->setCurTime(0);
 	// If script is not active, return.
@@ -7685,6 +7689,9 @@ Bool ScriptEngine::evaluateConditions( Script *pScript, Team *thisTeam, Player *
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::executeActions( ScriptAction *pActionHead )
 {
+	for (ScriptAction *probeAction = pActionHead; probeAction != nullptr; probeAction = probeAction->getNext()) {
+		CRCDEBUG_LOG(("script action %d from '%s' on frame %d", (Int)probeAction->getActionType(), s_probeCurrentScript.str(), TheGameLogic->getFrame()));
+	}
 	ScriptAction *pCurAction;
 	UnicodeString uStr1;
 	for (pCurAction = pActionHead; pCurAction; pCurAction = pCurAction->getNext()) {
