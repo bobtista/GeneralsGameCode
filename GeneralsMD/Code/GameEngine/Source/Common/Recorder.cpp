@@ -454,6 +454,7 @@ void RecorderClass::stopPlayback() {
 
 	if (!m_doingAnalysis)
 	{
+		DEBUG_LOG(("RecorderClass::stopPlayback - frame %d nextFrame %d", TheGameLogic->getFrame(), m_nextFrame));
 		TheGameLogic->exitGame();
 	}
 }
@@ -1645,6 +1646,7 @@ RecorderClass::CullBadCommandsResult RecorderClass::cullBadCommands() {
 		}
 		else if (msg->getType() == GameMessage::MSG_CLEAR_GAME_DATA)
 		{
+			DEBUG_LOG(("RecorderClass::cullBadCommands - MSG_CLEAR_GAME_DATA on frame %d", TheGameLogic->getFrame()));
 			result.hasClearGameDataMessage = true;
 		}
 

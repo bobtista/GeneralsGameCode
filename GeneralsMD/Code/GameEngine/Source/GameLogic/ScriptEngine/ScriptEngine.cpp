@@ -5552,6 +5552,7 @@ void ScriptEngine::update()
 	if (m_endGameTimer>0) {
 		m_endGameTimer--;
 		if (m_endGameTimer < 1) {
+			DEBUG_LOG(("ScriptEngine::update - end game timer expired on frame %d", TheGameLogic->getFrame()));
 			TheGameLogic->exitGame();
 			//TheScriptActions->closeWindows(FALSE); // Close victory or defeat windows.
 		}
@@ -5716,6 +5717,7 @@ AsciiString ScriptEngine::getStats(Real *curTimePtr, Real *script1Time, Real *sc
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::startQuickEndGameTimer()
 {
+	DEBUG_LOG(("ScriptEngine::startQuickEndGameTimer - frame %d", TheGameLogic->getFrame()));
 	m_endGameTimer = 1;
 }
 
@@ -5724,6 +5726,7 @@ void ScriptEngine::startQuickEndGameTimer()
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::startEndGameTimer()
 {
+	DEBUG_LOG(("ScriptEngine::startEndGameTimer - frame %d", TheGameLogic->getFrame()));
 	m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
 }
 
@@ -9039,6 +9042,8 @@ void ScriptEngine::xfer( Xfer *xfer )
 	// end game timers
 	xfer->xferInt( &m_endGameTimer );
 	xfer->xferInt( &m_closeWindowTimer );
+	DEBUG_LOG(("ScriptEngine::xfer - mode %d endGameTimer %d closeWindowTimer %d frame %d",
+		(Int)xfer->getXferMode(), m_endGameTimer, m_closeWindowTimer, TheGameLogic->getFrame()));
 
 	// named objects
 	UnsignedShort namedObjectsCount = m_namedObjects.size();
