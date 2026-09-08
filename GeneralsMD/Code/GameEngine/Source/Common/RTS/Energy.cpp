@@ -62,6 +62,9 @@ Energy::Energy()
 	m_energyConsumption = 0;
 	m_owner = nullptr;
 	m_powerSabotagedTillFrame = 0;
+	m_checkpointProduction = 0;
+	m_checkpointConsumption = 0;
+	m_hasCheckpointTotals = FALSE;
 }
 
 //-----------------------------------------------------------------------------
@@ -272,7 +275,12 @@ void Energy::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 3;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 3 : 4;
+#else
+	XferVersion currentVersion = 4;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -301,6 +309,27 @@ void Energy::xfer( Xfer *xfer )
 		xfer->xferUnsignedInt( &m_powerSabotagedTillFrame );
 	}
 
+	//
+	// TheSuperHackers @bugfix bobtista 08/09/2026 Checkpoints carry the running totals. The load
+	// rebuilds them from who owns each building now, which is not what the running game holds
+	// whenever a team changed hands without a power adjustment (TEAM_TRANSFER_TO_PLAYER keeps the
+	// production with the player who owned the team when the building was made). The saved values
+	// are staged here and applied by applyCheckpointTotals once every object and upgrade has loaded.
+	//
+	if( version >= 4 )
+	{
+		Int production = m_energyProduction;
+		Int consumption = m_energyConsumption;
+		xfer->xferInt( &production );
+		xfer->xferInt( &consumption );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointProduction = production;
+			m_checkpointConsumption = consumption;
+			m_hasCheckpointTotals = TRUE;
+		}
+	}
+
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -309,4 +338,18 @@ void Energy::xfer( Xfer *xfer )
 void Energy::loadPostProcess()
 {
 
+}
+
+// ------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
+void Energy::applyCheckpointTotals()
+{
+	if( m_hasCheckpointTotals == FALSE )
+	{
+		return;
+	}
+
+	m_energyProduction = m_checkpointProduction;
+	m_energyConsumption = m_checkpointConsumption;
+	m_hasCheckpointTotals = FALSE;
 }
