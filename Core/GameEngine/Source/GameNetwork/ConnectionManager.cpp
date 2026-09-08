@@ -778,6 +778,20 @@ void ConnectionManager::doRelay() {
 		if (m_transport->m_inBuffer[i].length > 0) {
 			// This transport buffer has yet to be processed.
 
+			// TheSuperHackers @info bobtista 08/09/2026 Report which peers this client actually
+			// hears from. A rejoining client has connections to the host only, so this tells
+			// apart "the packet never arrived" from "it arrived and was discarded".
+			{
+				static UnsignedInt s_heardFrom = 0;
+				const UnsignedInt srcAddr = m_transport->m_inBuffer[i].addr;
+				const UnsignedInt srcBit = (1 << (srcAddr & 0x1f));
+				if ((s_heardFrom & srcBit) == 0) {
+					s_heardFrom |= srcBit;
+					DEBUG_LOG(("ConnectionManager - FIRST PACKET from %d.%d.%d.%d",
+						(srcAddr >> 24) & 0xff, (srcAddr >> 16) & 0xff, (srcAddr >> 8) & 0xff, srcAddr & 0xff));
+				}
+			}
+
 			// make a NetPacket out of this data so it can be broken up into individual commands.
 			NetPacket packet(m_transport->m_inBuffer[i]);
 
