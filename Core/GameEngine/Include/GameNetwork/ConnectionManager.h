@@ -201,6 +201,7 @@ private:
 	UnsignedInt m_recoveryQuarantineBelowFrame;
 	AsciiString m_recoveryReceivedFile;
 	UnsignedByte m_rejoinFileSentMask;
+	UnsignedInt m_lastRecoveryFileSendTime;
 	UnsignedShort m_recoveryTransferFileID;
 	Bool m_recoveryTransferIDValid;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];

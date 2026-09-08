@@ -315,6 +315,7 @@ void ConnectionManager::init()
 	m_recoveryQuarantineBelowFrame = 0;
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
+	m_lastRecoveryFileSendTime = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
@@ -418,6 +419,7 @@ void ConnectionManager::reset()
 	m_recoveryQuarantineBelowFrame = 0;
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
+	m_lastRecoveryFileSendTime = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = -1;
@@ -496,6 +498,7 @@ void ConnectionManager::flushForRecovery() {
 	m_recoveryHold = TRUE;
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
+	m_lastRecoveryFileSendTime = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
 	Int i;
@@ -562,9 +565,13 @@ void ConnectionManager::sendRecoveryFile(AsciiString path) {
 			mask |= (1 << i);
 		}
 	}
-	DEBUG_LOG(("ConnectionManager::sendRecoveryFile - sending '%s' to mask %X", path.str(), mask));
-	UnsignedShort fileID = sendFileAnnounce(path, mask);
-	sendFile(path, mask, fileID);
+	// TheSuperHackers @bugfix bobtista 08/09/2026 Announce to every peer, then let each one ask
+	// for the payload. Pushing the save to all peers at once turns it into thousands of
+	// ack-bearing wrapper commands per connection, all retried every m_retryTime, which
+	// saturates the shared transport queue and starves even the announce. That is why an
+	// eight-player recovery delivered nothing while six players worked.
+	DEBUG_LOG(("ConnectionManager::sendRecoveryFile - announcing '%s' to mask %X, serving on request", path.str(), mask));
+	sendFileAnnounce(path, mask);
 }
 
 AsciiString ConnectionManager::getRecoveryReceivedFile() {
@@ -604,6 +611,15 @@ void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
 	// TheSuperHackers @bugfix bobtista 08/09/2026 Answer every request, not just the first.
 	// A single dropped transfer used to be fatal: the waiting peer asked again, the donor
 	// ignored the repeat, and that peer ended the game while everyone else timed out on it.
+	// Serve one peer at a time. Overlapping sends is what saturated the transport queue; the
+	// others re-ask when their transfer stalls, so nobody is forgotten.
+	const UnsignedInt sendNow = timeGetTime();
+	if ((m_lastRecoveryFileSendTime != 0) &&
+		((UnsignedInt)(sendNow - m_lastRecoveryFileSendTime) < (UnsignedInt)RECOVERY_SEND_SPACING_MS)) {
+		DEBUG_LOG(("ConnectionManager::processRejoinRequest - busy serving another peer, player %d must ask again", playerID));
+		return;
+	}
+	m_lastRecoveryFileSendTime = sendNow;
 	const Bool isRetry = ((m_rejoinFileSentMask & (1 << playerID)) != 0);
 	m_rejoinFileSentMask |= (1 << playerID);
 	DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked for the held snapshot%s",
