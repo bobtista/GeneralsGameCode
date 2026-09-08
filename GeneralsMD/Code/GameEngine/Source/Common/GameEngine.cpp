@@ -981,7 +981,10 @@ void GameEngine::update()
 								s_lastTransferPercent = nowPercent;
 								s_lastTransferProgressTime = now;
 							}
-							else if ((UnsignedInt)(now - s_lastTransferProgressTime) >= (UnsignedInt)RECOVERY_TRANSFER_STALL_MS)
+							// A peer sitting at 0% is queued behind another transfer, not stalled
+							// mid-stream, so it may ask again at the fast cadence.
+							else if ((UnsignedInt)(now - s_lastTransferProgressTime) >=
+								((nowPercent > 0) ? (UnsignedInt)RECOVERY_TRANSFER_STALL_MS : (UnsignedInt)REJOIN_REQUEST_INTERVAL_MS))
 							{
 								s_lastTransferProgressTime = now;
 								TheNetwork->sendRejoinRequest();
