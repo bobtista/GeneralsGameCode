@@ -7001,7 +7001,6 @@ static void probeDumpScript(ScriptEngine *engine, Script *pScript, const char *w
 	if (!(name.startsWith("Auto_power_exe") || name.startsWith("Nuke_Launcher_Abuse"))) {
 		return;
 	}
-	for (Int c = 0; c < engine->m_numCounters; ++c) { CRCDEBUG_LOG(("probe counter %d '%s' = %d timer %d", c, engine->m_counters[c].name.str(), engine->m_counters[c].value, engine->m_counters[c].isCountdownTimer ? 1 : 0)); }
 	CRCDEBUG_LOG(("probe %s script '%s' active %d evalAt %u frame %d", where, name.str(), pScript->isActive() ? 1 : 0, pScript->getFrameToEvaluate(), TheGameLogic->getFrame()));
 	Int orIdx = 0;
 	for (OrCondition *pOr = pScript->getOrCondition(); pOr != nullptr; pOr = pOr->getNextOrCondition(), ++orIdx) {
@@ -7084,6 +7083,7 @@ void ScriptEngine::executeScript( Script *pScript )
 				// Script Debug window
 				if (pScript->getAction()) {
 					_appendMessage(pScript->getName());
+					for (Int probeC = 0; probeC < m_numCounters; ++probeC) { if (pScript->getName().startsWith("Auto_power_exe") || pScript->getName().startsWith("Nuke_Launcher_Abuse")) { CRCDEBUG_LOG(("probe counter %d '%s' = %d timer %d", probeC, m_counters[probeC].name.str(), m_counters[probeC].value, m_counters[probeC].isCountdownTimer ? 1 : 0)); } }
 					probeDumpScript(this, pScript, "fire");
 					executeActions(pScript->getAction());
 				}
