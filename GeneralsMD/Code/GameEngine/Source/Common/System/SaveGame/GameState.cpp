@@ -751,15 +751,6 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 		//
 		TheGameLogic->applyCheckpointClientRandomState();
 		TheScriptEngine->applyCheckpointConditionTeam();
-
-		//
-		// TheSuperHackers @bugfix bobtista 08/09/2026 The power totals rebuilt during the load are
-		// replaced by the ones the checkpoint carried, now that every building and upgrade is in.
-		//
-		for( Int playerIndex = 0; playerIndex < ThePlayerList->getPlayerCount(); ++playerIndex )
-		{
-			ThePlayerList->getNthPlayer( playerIndex )->getEnergy()->applyCheckpointTotals();
-		}
 	}
 	catch (...)
 	{
