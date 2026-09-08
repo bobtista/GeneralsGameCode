@@ -967,6 +967,22 @@ void GameEngine::update()
 						// file to exist: a shared save directory would satisfy existence
 						// before a single chunk was transferred.
 						snapshotArrived = (TheNetwork->getRecoveryReceivedFile() == donorSave);
+						// TheSuperHackers @bugfix bobtista 08/09/2026 Keep asking the donor while
+						// the snapshot is missing. Waiting passively made one dropped transfer
+						// fatal to the whole recovery: this peer ended the game after the wait
+						// expired and every other peer then timed out in the handshake on it.
+						if (!snapshotArrived)
+						{
+							static UnsignedInt s_lastSnapshotRequest = 0;
+							if (s_lastSnapshotRequest == 0 ||
+								(UnsignedInt)(now - s_lastSnapshotRequest) >= (UnsignedInt)REJOIN_REQUEST_INTERVAL_MS)
+							{
+								s_lastSnapshotRequest = now;
+								TheNetwork->sendRejoinRequest();
+								DEBUG_LOG(("CRC recovery: re-requesting donor save '%s' (%d%% received)",
+									donorSave.str(), TheNetwork->getRecoveryTransferPercent()));
+							}
+						}
 						if (!snapshotArrived && TheInGameUI != nullptr)
 						{
 							static Int s_lastShownPercent = -1;

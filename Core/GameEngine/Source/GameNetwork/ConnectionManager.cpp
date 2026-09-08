@@ -590,20 +590,24 @@ void ConnectionManager::sendRejoinRequest() {
 // survivors stay quiet so the rejoiner receives exactly one snapshot.
 void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
 	const UnsignedInt playerID = msg->getPlayerID();
-	if (playerID >= MAX_SLOTS || !m_recoveryHold) {
+	if (playerID >= MAX_SLOTS) {
 		return;
 	}
 	AsciiString localSave;
 	localSave.format("recovery_s%d.sav", (Int)m_localSlot);
+	// Only the elected donor answers, and only while a recovery or hold has named its save.
+	// That check alone gates this, so a mismatch recovery is answered as well as a rejoin hold.
 	if (TheGlobalData->m_recoveryDonorSave != localSave) {
 		DEBUG_LOG(("ConnectionManager::processRejoinRequest - not the donor, staying quiet"));
 		return;
 	}
-	if ((m_rejoinFileSentMask & (1 << playerID)) != 0) {
-		return;
-	}
+	// TheSuperHackers @bugfix bobtista 08/09/2026 Answer every request, not just the first.
+	// A single dropped transfer used to be fatal: the waiting peer asked again, the donor
+	// ignored the repeat, and that peer ended the game while everyone else timed out on it.
+	const Bool isRetry = ((m_rejoinFileSentMask & (1 << playerID)) != 0);
 	m_rejoinFileSentMask |= (1 << playerID);
-	DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked for the held snapshot", playerID));
+	DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked for the held snapshot%s",
+		playerID, isRetry ? " (retry)" : ""));
 	UnsignedShort fileID = sendFileAnnounce(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID));
 	sendFile(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID), fileID);
 }
