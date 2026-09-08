@@ -3062,6 +3062,7 @@ inline void GameLogic::validateSleepyUpdate() const
 // ------------------------------------------------------------------------------------------------
 void GameLogic::eraseSleepyUpdate(Int i)
 {
+	if (i >= 0 && i < (Int)m_sleepyUpdates.size()) { CRCDEBUG_LOG(("sleepy erase obj %u key %08X", m_sleepyUpdates[i]->friend_getObject() ? (UnsignedInt)m_sleepyUpdates[i]->friend_getObject()->getID() : 0u, m_sleepyUpdates[i]->friend_getPriority())); }
 	USE_PERF_TIMER(SleepyMaintenance)
 
 	DEBUG_ASSERTCRASH(i >= 0 && i < m_sleepyUpdates.size(), ("bad sleepy idx"));
@@ -4370,6 +4371,7 @@ Object *GameLogic::friend_createObject( const ThingTemplate *thing, const Object
 	Object *obj;
 
 	obj = newInstance(Object)( thing, statusBits, team );
+	CRCDEBUG_LOG(("object create id %u template %s nextId %u", (UnsignedInt)obj->getID(), thing ? thing->getName().str() : "?", (UnsignedInt)m_nextObjID));
 
 	return obj;
 }
@@ -4380,6 +4382,7 @@ Object *GameLogic::friend_createObject( const ThingTemplate *thing, const Object
 // ------------------------------------------------------------------------------------------------
 void GameLogic::destroyObject( Object *obj )
 {
+	if (obj) { CRCDEBUG_LOG(("object destroy id %u template %s", (UnsignedInt)obj->getID(), obj->getTemplate() ? obj->getTemplate()->getName().str() : "?")); }
 	DEBUG_ASSERTCRASH(obj != nullptr, ("destroying null object"));
 
 	// if already flagged for destruction, ignore
@@ -4477,6 +4480,7 @@ UnsignedInt GameLogic::getCRC( Int mode, AsciiString deepCRCFileName )
 	if (isInGameLogicUpdate())
 	{
 		CRCGEN_LOG(("CRC at start of frame %d is 0x%8.8X", m_frame, xferCRC->getCRC()));
+		CRCDEBUG_LOG(("frame %d nextObjectId %u sleepyCount %u", m_frame, (UnsignedInt)m_nextObjID, (UnsignedInt)m_sleepyUpdates.size()));
 	}
 
 	marker = "MARKER:Objects";
