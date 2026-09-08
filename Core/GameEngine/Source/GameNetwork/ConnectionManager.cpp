@@ -2632,7 +2632,7 @@ UnsignedShort ConnectionManager::sendFileAnnounce(AsciiString path, UnsignedByte
 	announceMsg->setPlayerMask(playerMask);
 	UnsignedShort fileID = GenerateNextCommandID();
 	announceMsg->setFileID(fileID);
-	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendFileAnnounce() - creating announce message with ID of %d from %d to mask %X for '%s' going to %X as command %d",
+	DEBUG_LOG(("ConnectionManager::sendFileAnnounce() - creating announce message with ID of %d from %d to mask %X for '%s' going to %X as command %d",
 		announceMsg->getID(), announceMsg->getPlayerID(), announceMask, announceMsg->getRealFilename().str(),
 		announceMsg->getPlayerMask(), announceMsg->getFileID()));
 
