@@ -59,6 +59,7 @@
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/Scripts.h"
 #include "GameLogic/VictoryConditions.h"
+#include "Common/CRCDebug.h"
 
 
 class ObjectTypesTemp
@@ -1875,6 +1876,7 @@ Bool ScriptConditions::evaluatePlayerHasComparisonValueExcessPower(Parameter *pP
 	}
 	Int desiredKilowattExcess = pKWHParm->getInt();
 	Int actualKilowats = pPlayer->getEnergy()->getProduction() - pPlayer->getEnergy()->getConsumption();
+	CRCDEBUG_LOG(("probe excess power player %d '%s' production %d consumption %d excess %d cmp %d vs %d frame %d", pPlayer->getPlayerIndex(), pPlayerParm->getString().str(), pPlayer->getEnergy()->getProduction(), pPlayer->getEnergy()->getConsumption(), actualKilowats, pComparisonParm->getInt(), desiredKilowattExcess, TheGameLogic->getFrame()));
 	switch (pComparisonParm->getInt())
 	{
 		case Parameter::LESS_THAN :			return (actualKilowats < desiredKilowattExcess);

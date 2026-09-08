@@ -52,6 +52,7 @@
 
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
+#include "Common/CRCDebug.h"
 
 
 //-----------------------------------------------------------------------------
@@ -105,6 +106,7 @@ Bool Energy::hasSufficientPower() const
 //-------------------------------------------------------------------------------------------------
 void Energy::adjustPower(Int powerDelta, Bool adding)
 {
+	CRCDEBUG_LOG(("probe adjustPower delta %d adding %d before prod %d cons %d frame %d", powerDelta, adding ? 1 : 0, m_energyProduction, m_energyConsumption, TheGameLogic->getFrame()));
 	if (powerDelta == 0) {
 		return;
 	}

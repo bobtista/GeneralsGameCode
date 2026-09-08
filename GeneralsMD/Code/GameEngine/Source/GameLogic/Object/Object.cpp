@@ -3866,6 +3866,7 @@ void Object::updateObjValuesFromMapProperties(Dict* properties)
 //-------------------------------------------------------------------------------------------------
 void Object::friend_adjustPowerForPlayer( Bool incoming )
 {
+	CRCDEBUG_LOG(("probe adjustPowerForPlayer obj %u %s incoming %d disabled %d frame %d", (UnsignedInt)getID(), getTemplate() ? getTemplate()->getName().str() : "?", incoming ? 1 : 0, isDisabled() ? 1 : 0, TheGameLogic->getFrame()));
 	if (isDisabled() && getTemplate()->getEnergyProduction() > 0)
 	{
 		// Disabledness only affects Producers, not Consumers.
@@ -3963,6 +3964,7 @@ void Object::onDisabledEdge(Bool becomingDisabled)
 
 		// Now, adjust the power for the player.
 		if (controller)
+			CRCDEBUG_LOG(("probe   -> adjust obj %u power %d adding %d", (UnsignedInt)getID(), powerToAdjust, becomingDisabled ? 0 : 1));
 			controller->getEnergy()->adjustPower(powerToAdjust, !becomingDisabled);
 	}
 }
