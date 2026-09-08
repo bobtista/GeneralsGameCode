@@ -74,7 +74,6 @@ static HMODULE st_DebugDLL;
 #include "GameClient/ParticleSys.h"
 #include "Common/MapObject.h"
 #include "Common/Recorder.h"
-#include "Common/CRCDebug.h"
 #include "../../GameEngineDevice/Include/W3DDevice/GameClient/W3DAssetManagerExposed.h"
 
 static void _addUpdatedParticleSystem( AsciiString particleSystemName );
@@ -5519,14 +5518,6 @@ DECLARE_PERF_TIMER(ScriptEngine)
 void ScriptEngine::update()
 {
 	USE_PERF_TIMER(ScriptEngine)
-	for (Int probeIdx = 0; probeIdx < ThePlayerList->getPlayerCount(); ++probeIdx)
-	{
-		Player *probePlayer = ThePlayerList->getNthPlayer(probeIdx);
-		if (probePlayer)
-		{
-			CRCDEBUG_LOG(("probe power frame %d player %d prod %d cons %d sabotagedTill %u", TheGameLogic->getFrame(), probeIdx, probePlayer->getEnergy()->getProduction(), probePlayer->getEnergy()->getConsumption(), probePlayer->getEnergy()->getPowerSabotagedTillFrame()));
-		}
-	}
 #ifdef SPECIAL_SCRIPT_PROFILING
 #ifdef DEBUG_LOGGING
 	__int64 startTime64;
@@ -5562,7 +5553,6 @@ void ScriptEngine::update()
 	if (m_endGameTimer>0) {
 		m_endGameTimer--;
 		if (m_endGameTimer < 1) {
-			DEBUG_LOG(("ScriptEngine::update - end game timer expired on frame %d", TheGameLogic->getFrame()));
 			// A timer restored from a checkpoint runs down after playback has begun, so the
 			// load-time discard cannot see it. Decide at expiry, when the recorder's mode is known.
 			if (isScriptedEndSuppressed()) {
@@ -5734,7 +5724,6 @@ AsciiString ScriptEngine::getStats(Real *curTimePtr, Real *script1Time, Real *sc
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::startQuickEndGameTimer()
 {
-	DEBUG_LOG(("ScriptEngine::startQuickEndGameTimer - frame %d", TheGameLogic->getFrame()));
 	if (isScriptedEndSuppressed())
 	{
 		return;
@@ -5747,7 +5736,6 @@ void ScriptEngine::startQuickEndGameTimer()
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::startEndGameTimer()
 {
-	DEBUG_LOG(("ScriptEngine::startEndGameTimer - frame %d", TheGameLogic->getFrame()));
 	if (isScriptedEndSuppressed())
 	{
 		return;
@@ -6998,54 +6986,13 @@ void ScriptEngine::checkConditionsForTeamNames(Script *pScript)
 //-------------------------------------------------------------------------------------------------
 /** Executes a script. */
 //-------------------------------------------------------------------------------------------------
-static AsciiString s_probeCurrentScript;
-static Script *s_probeCurrentScriptPtr = nullptr;
-
-// TheSuperHackers @info bobtista 08/09/2026 Dump the conditions and counters behind a script that
-// fires after a checkpoint load but not in the uninterrupted run, so the state the save fails to
-// carry can be read off the dump instead of guessed.
-static void probeDumpScript(ScriptEngine *engine, Script *pScript, const char *where)
-{
-	const AsciiString &name = pScript->getName();
-	if (!(name.startsWith("Auto_power_exe") || name.startsWith("Nuke_Launcher_Abuse"))) {
-		return;
-	}
-	CRCDEBUG_LOG(("probe %s script '%s' active %d evalAt %u frame %d", where, name.str(), pScript->isActive() ? 1 : 0, pScript->getFrameToEvaluate(), TheGameLogic->getFrame()));
-	Int orIdx = 0;
-	for (OrCondition *pOr = pScript->getOrCondition(); pOr != nullptr; pOr = pOr->getNextOrCondition(), ++orIdx) {
-		for (Condition *pCond = pOr->getFirstAndCondition(); pCond != nullptr; pCond = pCond->getNext()) {
-			AsciiString parms;
-			for (Int i = 0; i < pCond->getNumParameters(); ++i) {
-				Parameter *p = pCond->getParameter(i);
-				AsciiString one;
-				one.format(" [%d:%d '%s']", i, p ? p->getInt() : 0, p ? p->getString().str() : "");
-				parms.concat(one);
-			}
-			CRCDEBUG_LOG(("probe   or%d cond type %d%s", orIdx, (Int)pCond->getConditionType(), parms.str()));
-		}
-	}
-}
-
 void ScriptEngine::executeScript( Script *pScript )
 {
-	s_probeCurrentScript = pScript->getName();
-	s_probeCurrentScriptPtr = pScript;
 
 	pScript->setCurTime(0);
 	// If script is not active, return.
 	if (!pScript->isActive()) {
 		return;
-	}
-	// TheSuperHackers @info bobtista 08/09/2026 Name the script that can end the game, so a
-	// resumed playback that ends early can be traced to the map script that fired.
-	for (ScriptAction *endAction = pScript->getAction(); endAction != nullptr; endAction = endAction->getNext()) {
-		const Int endType = (Int)endAction->getActionType();
-		if (endType == (Int)ScriptAction::VICTORY || endType == (Int)ScriptAction::DEFEAT ||
-			endType == (Int)ScriptAction::LOCALDEFEAT || endType == (Int)ScriptAction::QUICKVICTORY) {
-			DEBUG_LOG(("ScriptEngine::executeScript - '%s' carries end action %d, evaluating on frame %d",
-				pScript->getName().str(), endType, TheGameLogic->getFrame()));
-			break;
-		}
 	}
 	enum GameDifficulty difficulty = getGlobalDifficulty();
 	if (m_currentPlayer) {
@@ -7724,13 +7671,6 @@ Bool ScriptEngine::evaluateConditions( Script *pScript, Team *thisTeam, Player *
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::executeActions( ScriptAction *pActionHead )
 {
-	for (ScriptAction *probeAction = pActionHead; probeAction != nullptr; probeAction = probeAction->getNext()) {
-		CRCDEBUG_LOG(("script action %d from '%s' on frame %d", (Int)probeAction->getActionType(), s_probeCurrentScript.str(), TheGameLogic->getFrame()));
-	}
-	if (s_probeCurrentScriptPtr != nullptr && (s_probeCurrentScript.startsWith("Auto_power_exe") || s_probeCurrentScript.startsWith("Nuke_Launcher_Abuse"))) {
-		for (Int probeC = 0; probeC < m_numCounters; ++probeC) { CRCDEBUG_LOG(("probe counter %d '%s' = %d timer %d", probeC, m_counters[probeC].name.str(), m_counters[probeC].value, m_counters[probeC].isCountdownTimer ? 1 : 0)); }
-		probeDumpScript(this, s_probeCurrentScriptPtr, "fire");
-	}
 	ScriptAction *pCurAction;
 	UnicodeString uStr1;
 	for (pCurAction = pActionHead; pCurAction; pCurAction = pCurAction->getNext()) {
@@ -9125,8 +9065,6 @@ void ScriptEngine::xfer( Xfer *xfer )
 	// end game timers
 	xfer->xferInt( &m_endGameTimer );
 	xfer->xferInt( &m_closeWindowTimer );
-	DEBUG_LOG(("ScriptEngine::xfer - mode %d endGameTimer %d closeWindowTimer %d frame %d",
-		(Int)xfer->getXferMode(), m_endGameTimer, m_closeWindowTimer, TheGameLogic->getFrame()));
 	// A checkpoint taken while the countdown was running must not end a playback it resumes.
 	if (xfer->getXferMode() == XFER_LOAD && m_endGameTimer > 0 && isScriptedEndSuppressed())
 	{

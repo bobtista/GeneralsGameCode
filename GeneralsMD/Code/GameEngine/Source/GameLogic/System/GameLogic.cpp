@@ -3062,7 +3062,6 @@ inline void GameLogic::validateSleepyUpdate() const
 // ------------------------------------------------------------------------------------------------
 void GameLogic::eraseSleepyUpdate(Int i)
 {
-	if (i >= 0 && i < (Int)m_sleepyUpdates.size()) { CRCDEBUG_LOG(("sleepy erase obj %u key %08X", m_sleepyUpdates[i]->friend_getObject() ? (UnsignedInt)m_sleepyUpdates[i]->friend_getObject()->getID() : 0u, m_sleepyUpdates[i]->friend_getPriority())); }
 	USE_PERF_TIMER(SleepyMaintenance)
 
 	DEBUG_ASSERTCRASH(i >= 0 && i < m_sleepyUpdates.size(), ("bad sleepy idx"));
@@ -3236,7 +3235,6 @@ void GameLogic::pushSleepyUpdate(UpdateModulePtr u)
 	USE_PERF_TIMER(SleepyMaintenance)
 
 	DEBUG_ASSERTCRASH(u != nullptr, ("You may not pass null for sleepy update info"));
-	CRCDEBUG_LOG(("sleepy push obj %u key %08X", u->friend_getObject() ? (UnsignedInt)u->friend_getObject()->getID() : 0u, u->friend_getPriority()));
 
 	m_sleepyUpdates.push_back(u);
 	u->friend_setIndexInLogic(m_sleepyUpdates.size() - 1);
@@ -3266,10 +3264,6 @@ void GameLogic::popSleepyUpdate()
 		return;
 	}
 
-	// TheSuperHackers @info bobtista 08/09/2026 Record the pop order with its key inside the CRC
-	// debug window, so a resumed playback whose updates run in a different order shows whether
-	// the keys or the heap layout differ from the uninterrupted run.
-	CRCDEBUG_LOG(("sleepy pop obj %u key %08X", m_sleepyUpdates[0]->friend_getObject() ? (UnsignedInt)m_sleepyUpdates[0]->friend_getObject()->getID() : 0u, m_sleepyUpdates[0]->friend_getPriority()));
 	m_sleepyUpdates[0]->friend_setIndexInLogic(-1);
 	if (sz > 1)
 	{
@@ -4371,7 +4365,6 @@ Object *GameLogic::friend_createObject( const ThingTemplate *thing, const Object
 	Object *obj;
 
 	obj = newInstance(Object)( thing, statusBits, team );
-	CRCDEBUG_LOG(("object create id %u template %s nextId %u", (UnsignedInt)obj->getID(), thing ? thing->getName().str() : "?", (UnsignedInt)m_nextObjID));
 
 	return obj;
 }
@@ -4382,7 +4375,6 @@ Object *GameLogic::friend_createObject( const ThingTemplate *thing, const Object
 // ------------------------------------------------------------------------------------------------
 void GameLogic::destroyObject( Object *obj )
 {
-	if (obj) { CRCDEBUG_LOG(("object destroy id %u template %s", (UnsignedInt)obj->getID(), obj->getTemplate() ? obj->getTemplate()->getName().str() : "?")); }
 	DEBUG_ASSERTCRASH(obj != nullptr, ("destroying null object"));
 
 	// if already flagged for destruction, ignore
@@ -4480,7 +4472,6 @@ UnsignedInt GameLogic::getCRC( Int mode, AsciiString deepCRCFileName )
 	if (isInGameLogicUpdate())
 	{
 		CRCGEN_LOG(("CRC at start of frame %d is 0x%8.8X", m_frame, xferCRC->getCRC()));
-		CRCDEBUG_LOG(("frame %d nextObjectId %u sleepyCount %u", m_frame, (UnsignedInt)m_nextObjID, (UnsignedInt)m_sleepyUpdates.size()));
 	}
 
 	marker = "MARKER:Objects";
@@ -4569,11 +4560,6 @@ void GameLogic::exitGame()
 	setGamePaused(FALSE);
 	TheScriptEngine->forceUnfreezeTime();
 	TheScriptEngine->doUnfreezeTime();
-
-	// TheSuperHackers @info bobtista 08/09/2026 Every game end passes through here and none of
-	// the callers log, so a resumed replay that ends early leaves no trace without this.
-	DEBUG_LOG(("GameLogic::exitGame - frame %d mode %d playback %d", m_frame, (Int)m_gameMode,
-		(TheRecorder && TheRecorder->isPlaybackMode()) ? 1 : 0));
 
 	TheMessageStream->appendMessage(GameMessage::MSG_CLEAR_GAME_DATA);
 
