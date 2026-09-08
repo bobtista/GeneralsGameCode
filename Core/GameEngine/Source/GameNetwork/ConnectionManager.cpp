@@ -629,9 +629,7 @@ void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
 			DEBUG_LOG(("ConnectionManager::processRejoinRequest - finished with player %d (%s), taking the next peer",
 				m_recoveryServingSlot, servedPeerHasIt ? "complete" : "timed out"));
 			m_recoveryServingSlot = -1;
-		} else {
-			// Ignore every request while a transfer is live, including one from the peer being
-			// served: answering it restarts that transfer from the beginning and it never lands.
+		} else if ((Int)playerID != m_recoveryServingSlot) {
 			DEBUG_LOG(("ConnectionManager::processRejoinRequest - still serving player %d, player %d must ask again",
 				m_recoveryServingSlot, playerID));
 			return;
