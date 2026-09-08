@@ -166,6 +166,7 @@ private:
 	void processRejoinRequest(NetCommandMsg *msg);
 	void processRecoveryReady(NetRecoveryReadyCommandMsg *msg);
 	void recordRecoveryReady(UnsignedInt slot, UnsignedInt frame, UnsignedInt crc);
+	void attachPeerFromPacket(UnsignedInt slot, UnsignedInt addr, UnsignedShort port);
 	void processFrameInfo(NetFrameCommandMsg *msg);
 	void processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg);
 	void processDisconnectChat(NetDisconnectChatCommandMsg *msg);
