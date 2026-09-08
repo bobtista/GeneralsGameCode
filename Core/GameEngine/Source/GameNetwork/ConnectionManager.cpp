@@ -306,9 +306,11 @@ void ConnectionManager::init()
 	m_recoveryHold = FALSE;
 	m_recoveryHoldReleaseFrame = 0;
 	for (Int recSlot = 0; recSlot < MAX_SLOTS; ++recSlot) {
-		m_recoveryReadySeen[recSlot] = FALSE;
-		m_recoveryReadyFrame[recSlot] = 0;
-		m_recoveryReadyCRC[recSlot] = 0;
+		m_recoveryReadyCount[recSlot] = 0;
+		for (Int recRound = 0; recRound < RECOVERY_READY_ROUNDS; ++recRound) {
+			m_recoveryReadyFrame[recSlot][recRound] = 0;
+			m_recoveryReadyCRC[recSlot][recRound] = 0;
+		}
 	}
 	m_recoveryQuarantineBelowFrame = 0;
 	m_recoveryReceivedFile.clear();
@@ -407,9 +409,11 @@ void ConnectionManager::reset()
 	m_recoveryHold = FALSE;
 	m_recoveryHoldReleaseFrame = 0;
 	for (Int recSlot = 0; recSlot < MAX_SLOTS; ++recSlot) {
-		m_recoveryReadySeen[recSlot] = FALSE;
-		m_recoveryReadyFrame[recSlot] = 0;
-		m_recoveryReadyCRC[recSlot] = 0;
+		m_recoveryReadyCount[recSlot] = 0;
+		for (Int recRound = 0; recRound < RECOVERY_READY_ROUNDS; ++recRound) {
+			m_recoveryReadyFrame[recSlot][recRound] = 0;
+			m_recoveryReadyCRC[recSlot][recRound] = 0;
+		}
 	}
 	m_recoveryQuarantineBelowFrame = 0;
 	m_recoveryReceivedFile.clear();
@@ -496,9 +500,11 @@ void ConnectionManager::flushForRecovery() {
 	m_recoveryTransferIDValid = FALSE;
 	Int i;
 	for (i = 0; i < MAX_SLOTS; ++i) {
-		m_recoveryReadySeen[i] = FALSE;
-		m_recoveryReadyFrame[i] = 0;
-		m_recoveryReadyCRC[i] = 0;
+		m_recoveryReadyCount[i] = 0;
+		for (Int resetRound = 0; resetRound < RECOVERY_READY_ROUNDS; ++resetRound) {
+			m_recoveryReadyFrame[i][resetRound] = 0;
+			m_recoveryReadyCRC[i][resetRound] = 0;
+		}
 	}
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		if (m_connections[i] != nullptr) {
@@ -543,9 +549,7 @@ void ConnectionManager::sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) {
 	sendLocalCommandDirect(msg, 0xff ^ (1 << m_localSlot));
 	msg->detach();
 
-	m_recoveryReadySeen[m_localSlot] = TRUE;
-	m_recoveryReadyFrame[m_localSlot] = frame;
-	m_recoveryReadyCRC[m_localSlot] = crc;
+	recordRecoveryReady(m_localSlot, frame, crc);
 	DEBUG_LOG(("ConnectionManager::sendRecoveryReady - frame %d crc %8.8X", frame, crc));
 }
 
@@ -609,44 +613,115 @@ void ConnectionManager::processRecoveryReady(NetRecoveryReadyCommandMsg *msg) {
 	if (playerID >= MAX_SLOTS) {
 		return;
 	}
-	m_recoveryReadySeen[playerID] = TRUE;
-	m_recoveryReadyFrame[playerID] = msg->getRecoveryFrame();
-	m_recoveryReadyCRC[playerID] = msg->getRecoveryCRC();
+	recordRecoveryReady(playerID, msg->getRecoveryFrame(), msg->getRecoveryCRC());
 	DEBUG_LOG(("ConnectionManager::processRecoveryReady - player %d frame %d crc %8.8X",
 		playerID, msg->getRecoveryFrame(), msg->getRecoveryCRC()));
 }
 
-/**
- * Returns 1 when every active peer has reported the same post-load frame and CRC,
- * -1 when reports disagree, and 0 while reports are still outstanding.
- */
-Int ConnectionManager::checkRecoveryReady() {
-	Bool haveReference = FALSE;
-	UnsignedInt referenceFrame = 0;
-	UnsignedInt referenceCRC = 0;
-	for (Int i = 0; i < MAX_SLOTS; ++i) {
-		Bool active = (i == m_localSlot);
-		if (!active) {
-			active = (m_connections[i] != nullptr) &&
-				(m_frameData[i] != nullptr) && (m_frameData[i]->getIsQuitting() == FALSE);
-		}
-		if (!active) {
-			continue;
-		}
-		if (!m_recoveryReadySeen[i]) {
-			return 0;
-		}
-		if (!haveReference) {
-			haveReference = TRUE;
-			referenceFrame = m_recoveryReadyFrame[i];
-			referenceCRC = m_recoveryReadyCRC[i];
-		} else if ((m_recoveryReadyFrame[i] != referenceFrame) || (m_recoveryReadyCRC[i] != referenceCRC)) {
-			DEBUG_LOG(("ConnectionManager::checkRecoveryReady - player %d reported frame %d crc %8.8X vs frame %d crc %8.8X",
-				i, m_recoveryReadyFrame[i], m_recoveryReadyCRC[i], referenceFrame, referenceCRC));
-			return -1;
+// TheSuperHackers @bugfix bobtista 07/09/2026 Retain the last few reports per peer rather
+// than one slot each. A peer that completed a handshake round broadcasts the next round while
+// slower peers are still collecting the current one, and with a single slot that later report
+// overwrote the value they were still comparing against. They then failed a handshake that no
+// peer actually disagreed on, which grew more likely with every extra peer on the wire.
+void ConnectionManager::recordRecoveryReady(UnsignedInt slot, UnsignedInt frame, UnsignedInt crc) {
+	if (slot >= MAX_SLOTS) {
+		return;
+	}
+	UnsignedInt existing;
+	for (existing = 0; existing < m_recoveryReadyCount[slot]; ++existing) {
+		if (m_recoveryReadyFrame[slot][existing] == frame) {
+			m_recoveryReadyCRC[slot][existing] = crc;
+			return;
 		}
 	}
-	return haveReference ? 1 : 0;
+	if (m_recoveryReadyCount[slot] < RECOVERY_READY_ROUNDS) {
+		m_recoveryReadyFrame[slot][m_recoveryReadyCount[slot]] = frame;
+		m_recoveryReadyCRC[slot][m_recoveryReadyCount[slot]] = crc;
+		++m_recoveryReadyCount[slot];
+		return;
+	}
+	UnsignedInt shift;
+	for (shift = 1; shift < RECOVERY_READY_ROUNDS; ++shift) {
+		m_recoveryReadyFrame[slot][shift - 1] = m_recoveryReadyFrame[slot][shift];
+		m_recoveryReadyCRC[slot][shift - 1] = m_recoveryReadyCRC[slot][shift];
+	}
+	m_recoveryReadyFrame[slot][RECOVERY_READY_ROUNDS - 1] = frame;
+	m_recoveryReadyCRC[slot][RECOVERY_READY_ROUNDS - 1] = crc;
+}
+
+/**
+ * Returns 1 when every active peer has reported the same post-load frame and CRC, -1 when
+ * every active peer reported one frame but disagreed on its CRC, and 0 while any report for
+ * that frame is still outstanding.
+ */
+Int ConnectionManager::checkRecoveryReady() {
+	Bool active[MAX_SLOTS];
+	Bool haveActive = FALSE;
+	Bool sawConflict = FALSE;
+	UnsignedInt conflictFrame = 0;
+	UnsignedInt conflictCRC = 0;
+	UnsignedInt conflictLocalCRC = 0;
+	Int conflictPeer = -1;
+	Int slot;
+	Int peer;
+	UnsignedInt round;
+	UnsignedInt held;
+
+	for (slot = 0; slot < MAX_SLOTS; ++slot) {
+		active[slot] = (slot == (Int)m_localSlot);
+		if (!active[slot]) {
+			active[slot] = (m_connections[slot] != nullptr) &&
+				(m_frameData[slot] != nullptr) && (m_frameData[slot]->getIsQuitting() == FALSE);
+		}
+		if (active[slot]) {
+			haveActive = TRUE;
+		}
+	}
+	if (!haveActive) {
+		return 0;
+	}
+
+	for (round = 0; round < m_recoveryReadyCount[m_localSlot]; ++round) {
+		const UnsignedInt frame = m_recoveryReadyFrame[m_localSlot][round];
+		const UnsignedInt crc = m_recoveryReadyCRC[m_localSlot][round];
+		Bool everyoneReported = TRUE;
+		Bool crcDiffers = FALSE;
+		for (peer = 0; peer < MAX_SLOTS; ++peer) {
+			if (!active[peer]) {
+				continue;
+			}
+			Bool reported = FALSE;
+			for (held = 0; held < m_recoveryReadyCount[peer]; ++held) {
+				if (m_recoveryReadyFrame[peer][held] == frame) {
+					reported = TRUE;
+					if (m_recoveryReadyCRC[peer][held] != crc) {
+						crcDiffers = TRUE;
+						conflictPeer = peer;
+						conflictFrame = frame;
+						conflictCRC = m_recoveryReadyCRC[peer][held];
+						conflictLocalCRC = crc;
+					}
+					break;
+				}
+			}
+			if (!reported) {
+				everyoneReported = FALSE;
+			}
+		}
+		if (everyoneReported && !crcDiffers) {
+			return 1;
+		}
+		if (everyoneReported && crcDiffers) {
+			sawConflict = TRUE;
+		}
+	}
+
+	if (sawConflict) {
+		DEBUG_LOG(("ConnectionManager::checkRecoveryReady - player %d reported frame %d crc %8.8X vs crc %8.8X",
+			conflictPeer, conflictFrame, conflictCRC, conflictLocalCRC));
+		return -1;
+	}
+	return 0;
 }
 
 /**

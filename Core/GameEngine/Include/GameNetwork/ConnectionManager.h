@@ -165,6 +165,7 @@ private:
 	void processAck(NetCommandMsg *msg);
 	void processRejoinRequest(NetCommandMsg *msg);
 	void processRecoveryReady(NetRecoveryReadyCommandMsg *msg);
+	void recordRecoveryReady(UnsignedInt slot, UnsignedInt frame, UnsignedInt crc);
 	void processFrameInfo(NetFrameCommandMsg *msg);
 	void processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg);
 	void processDisconnectChat(NetDisconnectChatCommandMsg *msg);
@@ -193,9 +194,9 @@ private:
 	UnsignedInt m_localSlot;
 	UnsignedInt m_packetRouterSlot;
 	Bool m_recoveryHold;
-	Bool m_recoveryReadySeen[MAX_SLOTS];
-	UnsignedInt m_recoveryReadyFrame[MAX_SLOTS];
-	UnsignedInt m_recoveryReadyCRC[MAX_SLOTS];
+	UnsignedInt m_recoveryReadyCount[MAX_SLOTS];
+	UnsignedInt m_recoveryReadyFrame[MAX_SLOTS][RECOVERY_READY_ROUNDS];
+	UnsignedInt m_recoveryReadyCRC[MAX_SLOTS][RECOVERY_READY_ROUNDS];
 	UnsignedInt m_recoveryHoldReleaseFrame;
 	UnsignedInt m_recoveryQuarantineBelowFrame;
 	AsciiString m_recoveryReceivedFile;
