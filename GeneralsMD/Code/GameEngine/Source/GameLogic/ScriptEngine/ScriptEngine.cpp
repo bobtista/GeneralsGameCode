@@ -73,6 +73,7 @@ static HMODULE st_DebugDLL;
 #define DEFINE_PARTICLE_SYSTEM_NAMES 1
 #include "GameClient/ParticleSys.h"
 #include "Common/MapObject.h"
+#include "Common/Recorder.h"
 #include "../../GameEngineDevice/Include/W3DDevice/GameClient/W3DAssetManagerExposed.h"
 
 static void _addUpdatedParticleSystem( AsciiString particleSystemName );
@@ -5554,7 +5555,14 @@ void ScriptEngine::update()
 	if (m_endGameTimer>0) {
 		m_endGameTimer--;
 		if (m_endGameTimer < 1) {
-			TheGameLogic->exitGame();
+			// A timer restored from a checkpoint runs down after playback has begun, so the
+			// load-time discard cannot see it. Decide at expiry, when the recorder's mode is known.
+			if (isScriptedEndSuppressed()) {
+				DEBUG_LOG(("ScriptEngine::update - ignoring the end game timer during playback"));
+				m_endGameTimer = -1;
+			} else {
+				TheGameLogic->exitGame();
+			}
 			//TheScriptActions->closeWindows(FALSE); // Close victory or defeat windows.
 		}
 	}
@@ -5736,6 +5744,10 @@ AsciiString ScriptEngine::getStats(Real *curTimePtr, Real *script1Time, Real *sc
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::startQuickEndGameTimer()
 {
+	if (isScriptedEndSuppressed())
+	{
+		return;
+	}
 	m_endGameTimer = 1;
 }
 
@@ -5744,7 +5756,21 @@ void ScriptEngine::startQuickEndGameTimer()
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::startEndGameTimer()
 {
+	if (isScriptedEndSuppressed())
+	{
+		return;
+	}
 	m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
+}
+
+// TheSuperHackers @bugfix bobtista 08/09/2026 A replay keeps playing to its recorded end.
+// During playback the local player is the observer, so the multiplayer defeat script fires
+// for it at the first check and ended a resumed playback 120 frames later, while the headless
+// reference run never delivers that exit at all. The recorded end still arrives through the
+// recorder reaching end of file, which this does not touch.
+Bool ScriptEngine::isScriptedEndSuppressed() const
+{
+	return TheRecorder != nullptr && TheRecorder->isPlaybackMode();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -9105,6 +9131,12 @@ void ScriptEngine::xfer( Xfer *xfer )
 	// end game timers
 	xfer->xferInt( &m_endGameTimer );
 	xfer->xferInt( &m_closeWindowTimer );
+	// A checkpoint taken while the countdown was running must not end a playback it resumes.
+	if (xfer->getXferMode() == XFER_LOAD && m_endGameTimer > 0 && isScriptedEndSuppressed())
+	{
+		DEBUG_LOG(("ScriptEngine::xfer - discarding a restored end game timer of %d during playback", m_endGameTimer));
+		m_endGameTimer = -1;
+	}
 
 	// named objects
 	UnsignedShort namedObjectsCount = m_namedObjects.size();
