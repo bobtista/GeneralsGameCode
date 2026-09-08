@@ -690,6 +690,12 @@ UpdateSleepTime RailroadBehavior::update()
 		return UPDATE_SLEEP_NONE;
 	}
 
+	static Int s_probeUpdates = 0;
+	if (s_probeUpdates < 400)
+	{
+		++s_probeUpdates;
+		DEBUG_LOG(("probe train update obj %u frame %d loco %d lead %d len %f loop %d dist %f speed %f state %d trailer %u created %d points %d", (UnsignedInt)getObject()->getID(), TheGameLogic->getFrame(), m_isLocomotive ? 1 : 0, m_isLeadCarriage ? 1 : 0, m_track->m_length, m_track->m_isLooping ? 1 : 0, conductorPullInfo.trackDistance, conductorPullInfo.speed, (Int)m_conductorState, (UnsignedInt)m_trailerID, m_carriagesCreated ? 1 : 0, m_track->getPointList() ? (Int)m_track->getPointList()->size() : -1));
+	}
 
 	//Object *us = getObject();
 	const RailroadBehaviorModuleData *modData = getRailroadBehaviorModuleData();
@@ -785,10 +791,23 @@ UpdateSleepTime RailroadBehavior::update()
 
 		conductorPullInfo.trackDistance += conductorPullInfo.speed ;
 		// only normalize track position for a looping track, otherwise, let train exit by exceeding tracklength
+		UnsignedInt probeSpins = 0;
 		while ( (conductorPullInfo.trackDistance > m_track->m_length) && m_track->m_isLooping)
+		{
 			conductorPullInfo.trackDistance -= m_track->m_length;
+			if (++probeSpins == 1000000)
+			{
+				DEBUG_LOG(("probe train spin A obj %u dist %f len %f", (UnsignedInt)getObject()->getID(), conductorPullInfo.trackDistance, m_track->m_length));
+			}
+		}
 		while ( (conductorPullInfo.trackDistance < 0.0f ) && m_track->m_isLooping)
+		{
 			conductorPullInfo.trackDistance += m_track->m_length;
+			if (++probeSpins == 1000000)
+			{
+				DEBUG_LOG(("probe train spin B obj %u dist %f len %f", (UnsignedInt)getObject()->getID(), conductorPullInfo.trackDistance, m_track->m_length));
+			}
+		}
 
 		FindPosByPathDistance( &conductorPullInfo.towHitchPosition,
 														conductorPullInfo.trackDistance,
@@ -1381,13 +1400,22 @@ void RailroadBehavior::FindPosByPathDistance( Coord3D *pos, const Real dist, con
 
 	if ( m_track->m_isLooping )
 	{
+		UnsignedInt probeSpins = 0;
 		while ( actualDistance < 0.0f )
 		{
 			actualDistance += length;
+			if (++probeSpins == 1000000)
+			{
+				DEBUG_LOG(("probe train spin C obj %u dist %f len %f", (UnsignedInt)getObject()->getID(), actualDistance, length));
+			}
 		}
 		while ( actualDistance > length )
 		{
 			actualDistance -= length;
+			if (++probeSpins == 1000000)
+			{
+				DEBUG_LOG(("probe train spin D obj %u dist %f len %f", (UnsignedInt)getObject()->getID(), actualDistance, length));
+			}
 		}
 	}
 	else
