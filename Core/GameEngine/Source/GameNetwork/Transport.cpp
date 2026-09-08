@@ -420,7 +420,17 @@ Bool Transport::queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedBy
 			return true;
 		}
 	}
-	DEBUG_LOG(("Send Queue is getting full, dropping packets"));
+	// TheSuperHackers @info bobtista 08/09/2026 Report what is actually being lost. A silent
+	// drop here looks downstream like a peer that never answered.
+	{
+		static Int s_dropCount = 0;
+		++s_dropCount;
+		if (s_dropCount <= 5 || (s_dropCount % 250) == 0) {
+			DEBUG_LOG(("Transport::queueSend - OUT QUEUE FULL (%d slots), dropping %d bytes to %d.%d.%d.%d, drop #%d",
+				(Int)ARRAY_SIZE(m_outBuffer), len,
+				(addr >> 24) & 0xff, (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff, s_dropCount));
+		}
+	}
 	return false;
 }
 
