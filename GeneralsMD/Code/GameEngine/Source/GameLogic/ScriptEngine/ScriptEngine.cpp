@@ -5554,6 +5554,13 @@ void ScriptEngine::update()
 		m_endGameTimer--;
 		if (m_endGameTimer < 1) {
 			DEBUG_LOG(("ScriptEngine::update - end game timer expired on frame %d", TheGameLogic->getFrame()));
+			// A timer restored from a checkpoint runs down after playback has begun, so the
+			// load-time discard cannot see it. Decide at expiry, when the recorder's mode is known.
+			if (isScriptedEndSuppressed()) {
+				DEBUG_LOG(("ScriptEngine::update - ignoring the end game timer during playback"));
+				m_endGameTimer = -1;
+				return;
+			}
 			TheGameLogic->exitGame();
 			//TheScriptActions->closeWindows(FALSE); // Close victory or defeat windows.
 		}
