@@ -185,6 +185,7 @@ enum NetCommandType CPP_11(: Int) {
 enum RecoveryTuning CPP_11(: Int) {
 	RECOVERY_RELOAD_STAGGER_MS = 8000,			///< Per-instance offset so shared scratch maps extract one at a time
 	RECOVERY_SNAPSHOT_WAIT_MS = 90000,			///< How long a peer waits for the donor snapshot to arrive
+	RECOVERY_TRANSFER_STALL_MS = 15000,			///< No progress for this long before re-asking the donor
 	RECOVERY_READY_DEADLINE_MS = 180000,		///< How long the post-load handshake may take before the endgame fallback
 	RECOVERY_READY_ROUNDS = 4,					///< Reports retained per peer so a later round cannot erase an open one
 	RECOVERY_WAIT_MESSAGE_MS = 5000,				///< Cadence of the "waiting for other players" message
