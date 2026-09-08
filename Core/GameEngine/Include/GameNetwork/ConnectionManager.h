@@ -202,8 +202,7 @@ private:
 	AsciiString m_recoveryReceivedFile;
 	UnsignedByte m_rejoinFileSentMask;
 	UnsignedInt m_lastRecoveryFileSendTime;
-	Int m_recoveryServingSlot;
-	UnsignedShort m_recoveryServingFileID;
+	Int m_recoveryFileSendsThisWindow;
 	UnsignedShort m_recoveryTransferFileID;
 	Bool m_recoveryTransferIDValid;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];

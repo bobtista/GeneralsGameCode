@@ -316,8 +316,7 @@ void ConnectionManager::init()
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_lastRecoveryFileSendTime = 0;
-	m_recoveryServingSlot = -1;
-	m_recoveryServingFileID = 0;
+	m_recoveryFileSendsThisWindow = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
@@ -422,8 +421,7 @@ void ConnectionManager::reset()
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_lastRecoveryFileSendTime = 0;
-	m_recoveryServingSlot = -1;
-	m_recoveryServingFileID = 0;
+	m_recoveryFileSendsThisWindow = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = -1;
@@ -503,8 +501,7 @@ void ConnectionManager::flushForRecovery() {
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_lastRecoveryFileSendTime = 0;
-	m_recoveryServingSlot = -1;
-	m_recoveryServingFileID = 0;
+	m_recoveryFileSendsThisWindow = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
 	Int i;
@@ -619,30 +616,24 @@ void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
 	// ignored the repeat, and that peer ended the game while everyone else timed out on it.
 	// Cap how many peers are served at once. Sending to every peer together turned the save
 	// into thousands of ack-bearing wrapper commands per connection and saturated the shared
-	// transport queue, which starved even the announce. Free the slot as soon as the peer being
-	// served has the whole file, so the queue drains at transfer speed rather than on a timer.
+	// transport queue; a six-player recovery delivers to five peers in parallel without
+	// trouble, so serve in windows of that size rather than strictly one at a time.
 	const UnsignedInt sendNow = timeGetTime();
-	if (m_recoveryServingSlot >= 0) {
-		const Bool servedPeerHasIt = (s_fileProgressMap[m_recoveryServingSlot][m_recoveryServingFileID] >= 100);
-		const Bool servingTimedOut = ((UnsignedInt)(sendNow - m_lastRecoveryFileSendTime) >= (UnsignedInt)RECOVERY_SEND_SPACING_MS);
-		if (servedPeerHasIt || servingTimedOut) {
-			DEBUG_LOG(("ConnectionManager::processRejoinRequest - finished with player %d (%s), taking the next peer",
-				m_recoveryServingSlot, servedPeerHasIt ? "complete" : "timed out"));
-			m_recoveryServingSlot = -1;
-		} else if ((Int)playerID != m_recoveryServingSlot) {
-			DEBUG_LOG(("ConnectionManager::processRejoinRequest - still serving player %d, player %d must ask again",
-				m_recoveryServingSlot, playerID));
-			return;
-		}
+	if ((m_lastRecoveryFileSendTime == 0) ||
+		((UnsignedInt)(sendNow - m_lastRecoveryFileSendTime) >= (UnsignedInt)RECOVERY_SEND_SPACING_MS)) {
+		m_lastRecoveryFileSendTime = sendNow;
+		m_recoveryFileSendsThisWindow = 0;
 	}
-	m_recoveryServingSlot = (Int)playerID;
-	m_lastRecoveryFileSendTime = sendNow;
+	if (m_recoveryFileSendsThisWindow >= RECOVERY_SENDS_PER_WINDOW) {
+		DEBUG_LOG(("ConnectionManager::processRejoinRequest - send window full, player %d must ask again", playerID));
+		return;
+	}
+	++m_recoveryFileSendsThisWindow;
 	const Bool isRetry = ((m_rejoinFileSentMask & (1 << playerID)) != 0);
 	m_rejoinFileSentMask |= (1 << playerID);
 	DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked for the held snapshot%s",
 		playerID, isRetry ? " (retry)" : ""));
 	UnsignedShort fileID = sendFileAnnounce(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID));
-	m_recoveryServingFileID = fileID;
 	sendFile(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID), fileID);
 }
 
