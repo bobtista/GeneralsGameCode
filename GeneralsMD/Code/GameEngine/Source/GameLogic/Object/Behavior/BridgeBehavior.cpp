@@ -1398,11 +1398,17 @@ void BridgeBehavior::xfer( Xfer *xfer )
 	{
 		Bridge *bridge = TheTerrainLogic->findBridgeAt( us->getPosition() );
 
-		// sanity
-		DEBUG_ASSERTCRASH( bridge, ("BridgeBehavior::xfer - Unable to find bridge" ));
-
-		// set new object ID in bridge info to us
-		bridge->setBridgeObjectID( us->getID() );
+		//
+		// TheSuperHackers @bugfix bobtista 09/09/2026 A decorative bridge object, such as
+		// MonumentTrainBridge, carries this module without a terrain bridge under it. The lookup
+		// then finds nothing and the load crashed on the null pointer, for user saves and
+		// checkpoints alike. Nothing needs registering for such an object.
+		//
+		if( bridge != nullptr )
+		{
+			// set new object ID in bridge info to us
+			bridge->setBridgeObjectID( us->getID() );
+		}
 
 	}
 
@@ -1416,12 +1422,14 @@ void BridgeBehavior::xfer( Xfer *xfer )
 		Object *us = getObject();
 		Bridge *bridge = TheTerrainLogic->findBridgeAt( us->getPosition() );
 
-		// sanity
-		DEBUG_ASSERTCRASH( bridge, ("BridgeBehavior::xfer - Unable to find bridge" ));
-
 		// set new object ID in bridge info to us
-		for( Int i = 0; i < BRIDGE_MAX_TOWERS; ++i )
-			bridge->setTowerObjectID( m_towerID[ i ], (BridgeTowerType)i );
+		if( bridge != nullptr )
+		{
+			for( Int i = 0; i < BRIDGE_MAX_TOWERS; ++i )
+			{
+				bridge->setTowerObjectID( m_towerID[ i ], (BridgeTowerType)i );
+			}
+		}
 
 	}
 
