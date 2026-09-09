@@ -954,7 +954,12 @@ void ParkingPlaceBehavior::xfer( Xfer *xfer )
 	Int i;
 
 	// version
-	const XferVersion currentVersion = 3;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 3 : 4;
+#else
+	const XferVersion currentVersion = 4;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1067,6 +1072,39 @@ void ParkingPlaceBehavior::xfer( Xfer *xfer )
 
 		}
 
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 09/09/2026 Carry the parking geometry the running game built.
+	// It comes from model bones, and a load rebuilds it from the drawable's initial state, which can
+	// place two parking spots in each other's positions. Two jets then landed at swapped spots and
+	// the games drifted apart from that frame on.
+	//
+	if( version >= 4 )
+	{
+		UnsignedByte geomSpaces = m_spaces.size();
+		xfer->xferUnsignedByte( &geomSpaces );
+		for( i = 0; i < geomSpaces; ++i )
+		{
+			ParkingPlaceInfo scratch;
+			ParkingPlaceInfo *sp = ( i < (Int)m_spaces.size() ) ? &m_spaces[ i ] : &scratch;
+			xfer->xferCoord3D( &sp->m_hangarStart );
+			xfer->xferReal( &sp->m_hangarStartOrient );
+			xfer->xferCoord3D( &sp->m_location );
+			xfer->xferReal( &sp->m_orientation );
+			xfer->xferCoord3D( &sp->m_prep );
+			xfer->xferInt( &sp->m_runway );
+			xfer->xferUser( &sp->m_door, sizeof( sp->m_door ) );
+		}
+		UnsignedByte geomRunways = m_runways.size();
+		xfer->xferUnsignedByte( &geomRunways );
+		for( i = 0; i < geomRunways; ++i )
+		{
+			RunwayInfo scratch;
+			RunwayInfo *rw = ( i < (Int)m_runways.size() ) ? &m_runways[ i ] : &scratch;
+			xfer->xferCoord3D( &rw->m_start );
+			xfer->xferCoord3D( &rw->m_end );
+		}
 	}
 
 	// healees
