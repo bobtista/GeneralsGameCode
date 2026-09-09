@@ -413,9 +413,7 @@ StateReturnType StateMachine::updateStateMachine()
 {
 	if (m_owner && m_owner->getID() == (ObjectID)661 && TheGameLogic->getFrame() >= 15312 && TheGameLogic->getFrame() <= 15316)
 	{
-		AsciiString probeMachineName = getName();
-		AsciiString probeStateName = m_currentState ? m_currentState->getName() : AsciiString("-");
-		DEBUG_LOG(("probe sm661 update frame %d machine '%s' state %u '%s'", TheGameLogic->getFrame(), probeMachineName.str(), (UnsignedInt)getCurrentStateID(), probeStateName.str()));
+		DEBUG_LOG(("probe sm661 update frame %d machine %p state %u", TheGameLogic->getFrame(), (void*)this, (UnsignedInt)getCurrentStateID()));
 	}
 	UnsignedInt now = TheGameLogic->getFrame();
 	if (m_sleepTill != 0 && now < m_sleepTill)
@@ -845,8 +843,7 @@ void StateMachine::xfer( Xfer *xfer )
 	xfer->xferUnsignedInt(&curStateID);
 	if (m_owner && m_owner->getID() == (ObjectID)661)
 	{
-		AsciiString probeMachineName = getName();
-		DEBUG_LOG(("probe sm661 xfer mode %d frame %d machine '%s' curState %u", (Int)xfer->getXferMode(), TheGameLogic->getFrame(), probeMachineName.str(), (UnsignedInt)curStateID));
+		DEBUG_LOG(("probe sm661 xfer mode %d frame %d machine %p curState %u", (Int)xfer->getXferMode(), TheGameLogic->getFrame(), (void*)this, (UnsignedInt)curStateID));
 	}
 	if (xfer->getXferMode() == XFER_LOAD)	{
 		// We are going to jump into the current state.	We don't call onEnter or onExit, because the
