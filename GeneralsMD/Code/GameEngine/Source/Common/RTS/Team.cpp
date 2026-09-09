@@ -1168,6 +1168,20 @@ void TeamPrototype::moveTeamTo(Coord3D destination)
 }
 
 // ------------------------------------------------------------------------
+Script *TeamPrototype::createProductionConditionScript() const
+{
+	if( m_teamTemplate.m_productionCondition.isEmpty() )
+	{
+		return nullptr;
+	}
+	const Script *pScript = TheScriptEngine->findScriptByName( m_teamTemplate.m_productionCondition );
+	if( pScript == nullptr )
+	{
+		return nullptr;
+	}
+	return pScript->duplicate();
+}
+
 Bool TeamPrototype::evaluateProductionCondition()
 {
 	if (m_productionConditionAlwaysFalse) {
@@ -1274,9 +1288,9 @@ void TeamPrototype::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 4;
 #else
-	XferVersion currentVersion = 3;
+	XferVersion currentVersion = 4;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -1318,6 +1332,34 @@ void TeamPrototype::xfer( Xfer *xfer )
 		{
 			m_checkpointProductionConditionFrame = productionConditionFrame;
 			m_hasCheckpointProductionConditionFrame = TRUE;
+		}
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 09/09/2026 A checkpoint carries the duplicated production
+	// condition script itself. Only its next evaluation frame travelled before, so a loaded game
+	// evaluated a fresh duplicate whose per-condition state (periodic condition frames, cached
+	// custom data) started over, and the AI built a team on the load frame that the running game
+	// did not build. The duplicate is made here the same way the first evaluation makes it, then
+	// the saved script state is read into it.
+	//
+	if( version >= 4 )
+	{
+		Bool hasProductionConditionScript = (m_productionConditionScript != nullptr);
+		xfer->xferBool( &hasProductionConditionScript );
+		if( hasProductionConditionScript )
+		{
+			if( xfer->getXferMode() == XFER_LOAD && m_productionConditionScript == nullptr )
+			{
+				m_productionConditionScript = createProductionConditionScript();
+				if( m_productionConditionScript == nullptr )
+				{
+					DEBUG_CRASH(( "TeamPrototype::xfer - production condition script '%s' not found", m_teamTemplate.m_productionCondition.str() ));
+					throw SC_INVALID_DATA;
+				}
+				m_hasCheckpointProductionConditionFrame = FALSE;
+			}
+			xfer->xferSnapshot( m_productionConditionScript );
 		}
 	}
 
