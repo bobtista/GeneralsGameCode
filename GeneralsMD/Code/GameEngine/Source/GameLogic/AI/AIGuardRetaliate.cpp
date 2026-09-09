@@ -662,9 +662,26 @@ void AIGuardRetaliateReturnState::crc( Xfer *xfer )
 void AIGuardRetaliateReturnState::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
+
+	//
+	// TheSuperHackers @bugfix bobtista 09/09/2026 Chain through the move state so the return goal and
+	// the path wait carry over. This was the one move-derived state that skipped its base, so a guard
+	// walking back to its post came out of a load with a goal of (0,0) and no pending path, asked the
+	// pathfinder for a path to the map corner on the load frame, and the game desynced from the
+	// recording a few hundred frames later.
+	//
+	if( version >= 2 )
+	{
+		AIInternalMoveToState::xfer( xfer );
+	}
 
 	xfer->xferUnsignedInt(&m_nextReturnScanTime);
 }
