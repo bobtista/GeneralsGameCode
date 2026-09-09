@@ -585,6 +585,10 @@ UpdateSleepTime StealthUpdate::calcSleepTime() const
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime StealthUpdate::update()
 {
+	if (getObject()->getID() == (ObjectID)355 && TheGameLogic->getFrame() >= 2374 && TheGameLogic->getFrame() <= 2380)
+	{
+		DEBUG_LOG(("probe stealth355 update frame %d stealthAllowed %u detectionExpires %u stealthed %d detected %d enabled %d granted %d", TheGameLogic->getFrame(), m_stealthAllowedFrame, m_detectionExpiresFrame, getObject()->getStatusBits().test(OBJECT_STATUS_STEALTHED) ? 1 : 0, getObject()->getStatusBits().test(OBJECT_STATUS_DETECTED) ? 1 : 0, m_enabled ? 1 : 0, m_framesGranted));
+	}
 
 	// restore disguise if we need to from a game load
 	if( m_xferRestoreDisguise == TRUE )
@@ -1140,6 +1144,10 @@ void StealthUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void StealthUpdate::xfer( Xfer *xfer )
 {
+	if (getObject()->getID() == (ObjectID)355)
+	{
+		DEBUG_LOG(("probe stealth355 xfer mode %d frame %d stealthAllowed %u detectionExpires %u stealthed %d detected %d", (Int)xfer->getXferMode(), TheGameLogic->getFrame(), m_stealthAllowedFrame, m_detectionExpiresFrame, getObject()->getStatusBits().test(OBJECT_STATUS_STEALTHED) ? 1 : 0, getObject()->getStatusBits().test(OBJECT_STATUS_DETECTED) ? 1 : 0));
+	}
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
