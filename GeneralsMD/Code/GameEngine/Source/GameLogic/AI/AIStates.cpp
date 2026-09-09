@@ -5446,12 +5446,7 @@ void AIAttackState::crc( Xfer *xfer )
 void AIAttackState::xfer( Xfer *xfer )
 {
   // version
-#if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
-#else
-	XferVersion currentVersion = 2;
-#endif
+  XferVersion currentVersion = 1;
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -5459,35 +5454,6 @@ void AIAttackState::xfer( Xfer *xfer )
 
 	xfer->xferBool(&hasMachine);
 	xfer->xferCoord3D(&m_originalVictimPos);
-
-	//
-	// TheSuperHackers @bugfix bobtista 09/09/2026 Carry the weapon this attack was locked to when it
-	// began, as its slot. The pointer came back null from a load, so the check that ends the attack
-	// when the current weapon changes never fired in a resumed game: a Patriot that had just fired
-	// and switched weapons kept attacking where the running game had gone idle, and the games
-	// drifted apart from that frame on.
-	//
-	if( version >= 2 )
-	{
-		Int lockedSlot = -1;
-		Object *lockOwner = getMachineOwner();
-		if( xfer->getXferMode() == XFER_SAVE && m_lockedWeaponOnEnter != nullptr && lockOwner != nullptr )
-		{
-			for( Int slot = 0; slot < WEAPONSLOT_COUNT; ++slot )
-			{
-				if( lockOwner->getWeaponInWeaponSlot( (WeaponSlotType)slot ) == m_lockedWeaponOnEnter )
-				{
-					lockedSlot = slot;
-					break;
-				}
-			}
-		}
-		xfer->xferInt( &lockedSlot );
-		if( xfer->getXferMode() == XFER_LOAD )
-		{
-			m_lockedWeaponOnEnter = ( lockedSlot >= 0 && lockOwner != nullptr ) ? lockOwner->getWeaponInWeaponSlot( (WeaponSlotType)lockedSlot ) : nullptr;
-		}
-	}
 
 	if (hasMachine && m_attackMachine==nullptr)	{
 		// create new state machine for attack behavior
