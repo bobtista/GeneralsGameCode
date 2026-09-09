@@ -5495,6 +5495,10 @@ void AIAttackState::xfer( Xfer *xfer )
 		{
 			m_lockedWeaponOnEnter = ( lockedSlot >= 0 && lockOwner != nullptr ) ? lockOwner->getWeaponInWeaponSlot( (WeaponSlotType)lockedSlot ) : nullptr;
 		}
+		if (lockOwner && lockOwner->getID() == (ObjectID)487)
+		{
+			DEBUG_LOG(("probe lock487 xfer mode %d frame %d state %u version %u slot %d locked %p s0 %p s1 %p", (Int)xfer->getXferMode(), TheGameLogic->getFrame(), (UnsignedInt)getID(), (UnsignedInt)version, lockedSlot, (const void*)m_lockedWeaponOnEnter, (void*)lockOwner->getWeaponInWeaponSlot((WeaponSlotType)0), (void*)lockOwner->getWeaponInWeaponSlot((WeaponSlotType)1)));
+		}
 	}
 
 	if (hasMachine && m_attackMachine==nullptr)	{
