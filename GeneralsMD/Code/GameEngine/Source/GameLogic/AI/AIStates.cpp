@@ -5636,6 +5636,7 @@ StateReturnType AIAttackState::update()
 		{
 			Object *probeVictim = getMachineGoalObject();
 			Weapon *probeCur = probeSrc->getCurrentWeapon();
+			DEBUG_LOG(("probe attack487 slots frame %d s0 %p s1 %p s2 %p", TheGameLogic->getFrame(), (void*)probeSrc->getWeaponInWeaponSlot((WeaponSlotType)0), (void*)probeSrc->getWeaponInWeaponSlot((WeaponSlotType)1), (void*)probeSrc->getWeaponInWeaponSlot((WeaponSlotType)2)));
 			DEBUG_LOG(("probe attack487 frame %d params %d shouldExit %d outOfAmmo %d victim %d dead %d rel %d locked %p cur %p maxShots %d curLocked %d", TheGameLogic->getFrame(), m_attackParameters ? 1 : 0, (m_attackParameters && m_attackParameters->shouldExit(getMachine())) ? 1 : 0, probeSrc->isOutOfAmmo() ? 1 : 0, probeVictim ? (Int)probeVictim->getID() : -1, (probeVictim && probeVictim->isEffectivelyDead()) ? 1 : 0, probeVictim ? (Int)probeSrc->getRelationship(probeVictim) : -1, (const void*)m_lockedWeaponOnEnter, (void*)probeCur, probeCur ? probeCur->getMaxShotCount() : -1, probeSrc->isCurWeaponLocked() ? 1 : 0));
 		}
 	}
