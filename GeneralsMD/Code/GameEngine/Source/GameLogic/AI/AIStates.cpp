@@ -5630,6 +5630,15 @@ StateReturnType AIAttackState::onEnter()
 StateReturnType AIAttackState::update()
 {
 	USE_PERF_TIMER(AIAttackState)
+	{
+		Object *probeSrc = getMachineOwner();
+		if (probeSrc && probeSrc->getID() == (ObjectID)487 && TheGameLogic->getFrame() >= 2376 && TheGameLogic->getFrame() <= 2378)
+		{
+			Object *probeVictim = getMachineGoalObject();
+			Weapon *probeCur = probeSrc->getCurrentWeapon();
+			DEBUG_LOG(("probe attack487 frame %d params %d shouldExit %d outOfAmmo %d victim %d dead %d rel %d locked %p cur %p curSlot %d maxShots %d curLocked %d", TheGameLogic->getFrame(), m_attackParameters ? 1 : 0, (m_attackParameters && m_attackParameters->shouldExit(getMachine())) ? 1 : 0, probeSrc->isOutOfAmmo() ? 1 : 0, probeVictim ? (Int)probeVictim->getID() : -1, (probeVictim && probeVictim->isEffectivelyDead()) ? 1 : 0, probeVictim ? (Int)probeSrc->getRelationship(probeVictim) : -1, (const void*)m_lockedWeaponOnEnter, (void*)probeCur, (Int)probeSrc->getCurrentWeaponSlot(), probeCur ? probeCur->getMaxShotCount() : -1, probeSrc->isCurWeaponLocked() ? 1 : 0));
+		}
+	}
 	// if we've met the conditions specified by m_attackParameters, we consider ourselves "successful."
 	if (m_attackParameters && m_attackParameters->shouldExit(getMachine()))
 	{
@@ -5714,6 +5723,10 @@ StateReturnType AIAttackState::update()
 	// Something can happen to make none of our weapons work.  Return failure, or we will start shooting
 	// our Primary (default pick) regardless of legality.
 	Bool weaponPicked = chooseWeapon();
+	if (getMachineOwner() && getMachineOwner()->getID() == (ObjectID)487 && TheGameLogic->getFrame() >= 2376 && TheGameLogic->getFrame() <= 2378)
+	{
+		DEBUG_LOG(("probe attack487 frame %d weaponPicked %d cur %p curSlot %d", TheGameLogic->getFrame(), weaponPicked ? 1 : 0, (void*)getMachineOwner()->getCurrentWeapon(), (Int)getMachineOwner()->getCurrentWeaponSlot()));
+	}
 	if( !weaponPicked )
 		return STATE_FAILURE;
 
