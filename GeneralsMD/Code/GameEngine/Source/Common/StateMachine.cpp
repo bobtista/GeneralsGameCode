@@ -26,7 +26,9 @@
 // Implementation of basic state machine
 // Author: Michael S. Booth, January 2002
 
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"
+#include "GameLogic/Weapon.h"
+#include "GameLogic/Object.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Errors.h"
 #include "Common/StateMachine.h"
@@ -429,7 +431,8 @@ StateReturnType StateMachine::updateStateMachine()
 {
 	if (probeWantsObject(m_owner))
 	{
-		DEBUG_LOG(("probe sm661 update frame %d machine %p state %u", TheGameLogic->getFrame(), (void*)this, (UnsignedInt)getCurrentStateID()));
+		Weapon *probeWeapon = m_owner->getCurrentWeapon();
+		DEBUG_LOG(("probe sm661 update frame %d machine %p state %u default %u weaponStatus %d nextShot %u lastShot %u", TheGameLogic->getFrame(), (void*)this, (UnsignedInt)getCurrentStateID(), (UnsignedInt)m_defaultStateID, probeWeapon ? (Int)probeWeapon->getStatus() : -1, probeWeapon ? probeWeapon->getPossibleNextShotFrame() : 0, probeWeapon ? probeWeapon->getLastShotFrame() : 0));
 	}
 	UnsignedInt now = TheGameLogic->getFrame();
 	if (m_sleepTill != 0 && now < m_sleepTill)
