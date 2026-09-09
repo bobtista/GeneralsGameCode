@@ -4465,9 +4465,9 @@ void GameLogic::update()
 							}
 						}
 					}
-					DEBUG_LOG(("GGC-HEAPDUMP frame=%d i=%d obj=%d %s beh=%d pri=%08X",
+					DEBUG_LOG(("GGC-HEAPDUMP frame=%d i=%d obj=%d %s beh=%d pri=%08X tag=%s",
 						m_frame, (Int)di, dobj ? (Int)dobj->getID() : -1, dobj ? dobj->getTemplate()->getName().str() : "none",
-						(Int)behaviorIndex, dm->friend_getPriority()));
+						(Int)behaviorIndex, dm->friend_getPriority(), TheNameKeyGenerator->keyToName(dm->getModuleTagNameKey()).str()));
 				}
 			}
 		}
