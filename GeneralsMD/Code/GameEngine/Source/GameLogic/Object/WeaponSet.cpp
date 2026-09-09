@@ -329,6 +329,24 @@ void WeaponSet::xfer( Xfer *xfer )
 	{
 		m_totalDamageTypeMask.xfer(xfer);// BitSet has built in xfer
 	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 09/09/2026 The pitch limit flag is never written (the second
+	// bool above repeats the damage weapon flag), so every load cleared it and a pitch limited unit
+	// could acquire targets above or below its guns that the running game rejected. Derive it from
+	// the restored weapons the same way updateWeaponSet does.
+	//
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_hasPitchLimit = false;
+		for (Int slot = 0; slot < WEAPONSLOT_COUNT; ++slot)
+		{
+			if (m_weapons[slot] != nullptr && m_weapons[slot]->isPitchLimited())
+			{
+				m_hasPitchLimit = true;
+			}
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
