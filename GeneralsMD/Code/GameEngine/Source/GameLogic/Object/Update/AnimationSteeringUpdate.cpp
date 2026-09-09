@@ -156,12 +156,31 @@ void AnimationSteeringUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
 	// extend base class
 	UpdateModule::xfer( xfer );
+
+	//
+	// TheSuperHackers @bugfix bobtista 09/09/2026 Carry the turn animation in progress and the frame
+	// it may change. A load left the module believing the vehicle was going straight while the
+	// drawable still showed the recenter animation, so the flag was never cleared, the container's
+	// condition monitor never fired, and a rider was never re-seated where the running game seated it.
+	//
+	if( version >= 2 )
+	{
+		Int turnAnim = (Int)m_currentTurnAnim;
+		xfer->xferInt( &turnAnim );
+		m_currentTurnAnim = (ModelConditionFlagType)turnAnim;
+		xfer->xferUnsignedInt( &m_nextTransitionFrame );
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
