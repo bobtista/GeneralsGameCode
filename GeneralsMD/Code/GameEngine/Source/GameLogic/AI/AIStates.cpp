@@ -1112,7 +1112,7 @@ Bool outOfWeaponRangeObject( State *thisState, void* userData )
 	Object *victim = thisState->getMachineGoalObject();
 	Weapon *weapon = obj->getCurrentWeapon();
 
-	CRCDEBUG_LOG(("outOfWeaponRangeObject()"));
+	CRCDEBUG_LOG(("outOfWeaponRangeObject() obj %d state %u victim %d", obj ? (Int)obj->getID() : -1, (UnsignedInt)thisState->getID(), victim ? (Int)victim->getID() : -1));
 	if (victim && weapon)
 	{
 		Bool viewBlocked = false;
