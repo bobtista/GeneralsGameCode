@@ -584,6 +584,10 @@ StateReturnType StateMachine::setState( StateID newStateID )
  */
 StateReturnType StateMachine::internalSetState( StateID newStateID )
 {
+	if (probeWantsObject(m_owner))
+	{
+		DEBUG_LOG(("probe sm661 setstate frame %d machine %p from %u to %u", TheGameLogic->getFrame(), (void*)this, (UnsignedInt)getCurrentStateID(), (UnsignedInt)newStateID));
+	}
 	State *newState = nullptr;
 
 	// anytime the state changes, stop sleeping
