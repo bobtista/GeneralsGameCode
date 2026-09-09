@@ -659,6 +659,7 @@ private:
 	Int										m_flags;					///< misc team flags
 
 	Bool									m_productionConditionAlwaysFalse; ///< Flag set to true if we don't have a production condition.
+	Script *createProductionConditionScript() const; ///< duplicate of the map script named by the template, or null
 	Script								*m_productionConditionScript; ///< Script to evaluate for production condition.
 	UnsignedInt						m_checkpointProductionConditionFrame; ///< Staged evaluation frame for the production condition script.
 	Bool									m_hasCheckpointProductionConditionFrame;
