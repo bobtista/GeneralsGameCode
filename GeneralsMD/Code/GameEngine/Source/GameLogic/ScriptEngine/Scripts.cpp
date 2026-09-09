@@ -964,7 +964,7 @@ void Script::xfer( Xfer *xfer )
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 4;
 #else
-	XferVersion currentVersion = 3;
+	XferVersion currentVersion = 4;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
