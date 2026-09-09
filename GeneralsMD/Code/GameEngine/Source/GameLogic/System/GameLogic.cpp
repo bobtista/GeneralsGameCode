@@ -4122,6 +4122,26 @@ void GameLogic::update()
 #endif
 
 	{
+		const char *probeDumpFrames = getenv("GGC_DUMP_SLEEPY_FRAMES");
+		if (probeDumpFrames != nullptr)
+		{
+			AsciiString probeToken;
+			probeToken.format(",%u,", m_frame);
+			AsciiString probeList;
+			probeList.format(",%s,", probeDumpFrames);
+			if (strstr(probeList.str(), probeToken.str()) != nullptr)
+			{
+				for (size_t probeIdx = 0; probeIdx < m_sleepyUpdates.size(); ++probeIdx)
+				{
+					UpdateModule *probeModule = m_sleepyUpdates[probeIdx];
+					const Object *probeObj = probeModule->friend_getObject();
+					DEBUG_LOG(("GGC-HEAPDUMP frame=%d i=%d obj=%d %s pri=%08X tag=%s", m_frame, (Int)probeIdx, probeObj ? (Int)probeObj->getID() : -1, probeObj ? probeObj->getTemplate()->getName().str() : "none", probeModule->friend_getPriority(), TheNameKeyGenerator->keyToName(probeModule->getModuleTagNameKey()).str()));
+				}
+			}
+		}
+	}
+
+	{
 		while (!m_sleepyUpdates.empty())
 		{
 			UpdateModulePtr u = peekSleepyUpdate();
