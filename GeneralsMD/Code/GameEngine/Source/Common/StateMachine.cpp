@@ -409,9 +409,25 @@ StateReturnType StateMachine::resetToDefaultState()
 /**
  * Run one step of the machine
  */
+
+static Bool probeWantsObject(const Object *obj)
+{
+	static Int s_probeObj = -2;
+	static Int s_probeFrom = 0;
+	static Int s_probeTo = 0;
+	if (s_probeObj == -2)
+	{
+		const char *e = getenv("GGC_PROBE_OBJ"); s_probeObj = e ? atoi(e) : -1;
+		const char *f = getenv("GGC_PROBE_FROM"); s_probeFrom = f ? atoi(f) : 0;
+		const char *t = getenv("GGC_PROBE_TO"); s_probeTo = t ? atoi(t) : 0x7fffffff;
+	}
+	if (s_probeObj < 0 || obj == nullptr || (Int)obj->getID() != s_probeObj) return FALSE;
+	const Int frame = (Int)TheGameLogic->getFrame();
+	return frame >= s_probeFrom && frame <= s_probeTo;
+}
 StateReturnType StateMachine::updateStateMachine()
 {
-	if (m_owner && m_owner->getID() == (ObjectID)661 && TheGameLogic->getFrame() >= 15312 && TheGameLogic->getFrame() <= 15316)
+	if (probeWantsObject(m_owner))
 	{
 		DEBUG_LOG(("probe sm661 update frame %d machine %p state %u", TheGameLogic->getFrame(), (void*)this, (UnsignedInt)getCurrentStateID()));
 	}
@@ -841,7 +857,7 @@ void StateMachine::xfer( Xfer *xfer )
 	xfer->xferUnsignedInt(&m_defaultStateID);
 	StateID curStateID = getCurrentStateID();
 	xfer->xferUnsignedInt(&curStateID);
-	if (m_owner && m_owner->getID() == (ObjectID)661)
+	if (m_owner && getenv("GGC_PROBE_OBJ") && (Int)m_owner->getID() == atoi(getenv("GGC_PROBE_OBJ")))
 	{
 		DEBUG_LOG(("probe sm661 xfer mode %d frame %d machine %p curState %u", (Int)xfer->getXferMode(), TheGameLogic->getFrame(), (void*)this, (UnsignedInt)curStateID));
 	}
