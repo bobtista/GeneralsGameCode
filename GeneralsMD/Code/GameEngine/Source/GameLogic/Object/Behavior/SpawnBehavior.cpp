@@ -1080,15 +1080,27 @@ void SpawnBehavior::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 4;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 5;
 #else
-	XferVersion currentVersion = 4;
+	XferVersion currentVersion = 5;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
-	// extend base class
-	BehaviorModule::xfer( xfer );
+	//
+	// TheSuperHackers @bugfix bobtista 09/09/2026 Chain through UpdateModule so the wake frame is
+	// carried. Going straight to BehaviorModule left the sleep state at the constructor's value, so a
+	// loaded spawner woke on the load frame instead of the frame the running game had scheduled,
+	// and the update order of everything sharing that frame shifted from the first update on.
+	//
+	if( version >= 5 )
+	{
+		UpdateModule::xfer( xfer );
+	}
+	else
+	{
+		BehaviorModule::xfer( xfer );
+	}
 
 
 	if (version >= 2) {
