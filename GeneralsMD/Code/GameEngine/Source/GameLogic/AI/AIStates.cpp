@@ -1577,6 +1577,10 @@ void AIInternalMoveToState::xfer( Xfer *xfer )
 	xfer->xferUnsignedInt(&m_pathTimestamp);
 	xfer->xferUnsignedInt(&m_blockedRepathTimestamp);
 	xfer->xferBool(&m_adjustDestinations);
+	if (getMachineOwner() && getMachineOwner()->getID() == (ObjectID)661)
+	{
+		DEBUG_LOG(("probe move661 xfer mode %d frame %d stateWaiting %d pathTs %u blockedRepathTs %u tryOneMore %d goal %f %f pathGoal %f %f", (Int)xfer->getXferMode(), TheGameLogic->getFrame(), m_waitingForPath ? 1 : 0, m_pathTimestamp, m_blockedRepathTimestamp, m_tryOneMoreRepath ? 1 : 0, m_goalPosition.x, m_goalPosition.y, m_pathGoalPosition.x, m_pathGoalPosition.y));
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1822,6 +1826,10 @@ StateReturnType AIInternalMoveToState::update()
 	Bool forceRecompute = false;
 	if (thePath==nullptr) {
 		forceRecompute = true;
+	}
+	if (obj->getID() == (ObjectID)661 && TheGameLogic->getFrame() >= 15312 && TheGameLogic->getFrame() <= 15320)
+	{
+		DEBUG_LOG(("probe move661 update frame %d path %d stateWaiting %d aiWaiting %d blockedStuck %d framesBlocked %d pathTs %u blockedRepathTs %u tryOneMore %d goal %f %f pathGoal %f %f pos %f %f", TheGameLogic->getFrame(), thePath ? 1 : 0, m_waitingForPath ? 1 : 0, ai->isWaitingForPath() ? 1 : 0, ai->isBlockedAndStuck() ? 1 : 0, ai->getNumFramesBlocked(), m_pathTimestamp, m_blockedRepathTimestamp, m_tryOneMoreRepath ? 1 : 0, m_goalPosition.x, m_goalPosition.y, m_pathGoalPosition.x, m_pathGoalPosition.y, obj->getPosition()->x, obj->getPosition()->y));
 	}
 	Bool blocked=false;
 	if (ai->isBlockedAndStuck() || ai->getNumFramesBlocked()>2*LOGICFRAMES_PER_SECOND) {

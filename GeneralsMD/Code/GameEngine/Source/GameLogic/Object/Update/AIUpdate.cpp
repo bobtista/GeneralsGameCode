@@ -5237,6 +5237,10 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 
 	xfer->xferUnsignedInt(&m_ignoreCollisionsUntil);
 	xfer->xferUnsignedInt(&m_queueForPathFrame);
+	if (getObject()->getID() == (ObjectID)661)
+	{
+		DEBUG_LOG(("probe ai661 xfer mode %d frame %d path %d waiting %d queueForPathFrame %u pathTs %u blockedFrames %d blocked %d stuck %d retry %d reqDest %f %f", (Int)xfer->getXferMode(), TheGameLogic->getFrame(), m_path ? 1 : 0, m_waitingForPath ? 1 : 0, m_queueForPathFrame, m_pathTimestamp, m_blockedFrames, m_isBlocked ? 1 : 0, m_isBlockedAndStuck ? 1 : 0, m_retryPath ? 1 : 0, m_requestedDestination.x, m_requestedDestination.y));
+	}
 	xfer->xferCoord3D(&m_finalPosition);
 	xfer->xferBool(&m_doFinalPosition);
 	xfer->xferBool(&m_isAttackPath);
