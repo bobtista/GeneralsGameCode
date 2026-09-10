@@ -130,7 +130,27 @@ void AICommandParmsStorage::reconstitute(AICommandParms& parms) const
 void AICommandParmsStorage::doXfer(Xfer *xfer)
 {
 	xfer->xferUser(&m_cmd, sizeof(m_cmd));
-	xfer->xferUser(&m_cmd, sizeof(m_cmdSource));
+	//
+	// TheSuperHackers @bugfix bobtista 10/09/2026 The second field was written from m_cmd, so a pending
+	// command came back from a load with its source reset to the AI, and a Chinook carrying out a
+	// player's move order after a load pathed to a different goal than the running game. Checkpoints
+	// carry the real source in the same slot; user saves keep the retail bytes.
+	//
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	const Bool checkpointShaped = (xfer->getXferMode() == XFER_LOAD)
+		? (TheGameState != nullptr && TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT)
+		: (xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT);
+#else
+	const Bool checkpointShaped = TRUE;
+#endif
+	if (checkpointShaped)
+	{
+		xfer->xferUser(&m_cmdSource, sizeof(m_cmdSource));
+	}
+	else
+	{
+		xfer->xferUser(&m_cmd, sizeof(m_cmdSource));
+	}
 	xfer->xferCoord3D(&m_pos);
 	xfer->xferObjectID(&m_obj);
 	xfer->xferObjectID(&m_otherObj);
