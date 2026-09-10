@@ -1543,7 +1543,11 @@ void FlightDeckBehavior::xfer( Xfer *xfer )
 	Int i;
 
 	// version
-	const XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	const XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1554,6 +1558,67 @@ void FlightDeckBehavior::xfer( Xfer *xfer )
 	{
 		// first, build our info, so it won't be overwritten later.
 		buildInfo(FALSE); // False, because the planes are going to save themselves.  We don't re-create them
+	}
+
+	//
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the deck geometry built from model bones.
+	// A load rebuilt it from the drawable in whatever condition it was in at that moment, and a
+	// deck saved under construction rebuilt nothing and dropped every reservation that followed.
+	//
+	if( version >= 2 )
+	{
+		Bool gotInfo = m_gotInfo;
+		xfer->xferBool( &gotInfo );
+		UnsignedByte geomSpaces = m_spaces.size();
+		xfer->xferUnsignedByte( &geomSpaces );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_gotInfo = gotInfo;
+			m_spaces.resize( geomSpaces );
+		}
+		for( i = 0; i < geomSpaces; ++i )
+		{
+			FlightDeckInfo *sp = &m_spaces[ i ];
+			xfer->xferCoord3D( &sp->m_prep );
+			xfer->xferReal( &sp->m_orientation );
+			xfer->xferInt( &sp->m_runway );
+		}
+		UnsignedByte geomRunways = m_runways.size();
+		xfer->xferUnsignedByte( &geomRunways );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_runways.resize( geomRunways );
+		}
+		for( i = 0; i < geomRunways; ++i )
+		{
+			RunwayInfo *rw = &m_runways[ i ];
+			xfer->xferCoord3D( &rw->m_start );
+			xfer->xferUser( &rw->m_startTransform, sizeof( rw->m_startTransform ) );
+			xfer->xferCoord3D( &rw->m_end );
+			xfer->xferCoord3D( &rw->m_landingStart );
+			xfer->xferCoord3D( &rw->m_landingEnd );
+			xfer->xferReal( &rw->m_startOrient );
+			UnsignedShort taxiCount = rw->m_taxi.size();
+			xfer->xferUnsignedShort( &taxiCount );
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				rw->m_taxi.resize( taxiCount );
+			}
+			for( Int k = 0; k < taxiCount; ++k )
+			{
+				xfer->xferCoord3D( &rw->m_taxi[ k ] );
+			}
+			UnsignedShort creationCount = rw->m_creation.size();
+			xfer->xferUnsignedShort( &creationCount );
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				rw->m_creation.resize( creationCount );
+			}
+			for( Int k = 0; k < creationCount; ++k )
+			{
+				xfer->xferCoord3D( &rw->m_creation[ k ] );
+			}
+		}
 	}
 
 	// spaces info count and data

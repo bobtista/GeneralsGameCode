@@ -3267,7 +3267,11 @@ void AIFollowPathState::crc( Xfer *xfer )
 void AIFollowPathState::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -3276,6 +3280,13 @@ void AIFollowPathState::xfer( Xfer *xfer )
 	xfer->xferInt(&m_index);
 	xfer->xferBool(&m_adjustFinal);
 	xfer->xferBool(&m_adjustFinalOverride);
+
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the remaining path retries. A load refilled
+	// them, so a unit that had nearly given up on a blocked segment kept retrying after a load.
+	if (version >= 2)
+	{
+		xfer->xferInt(&m_retryCount);
+	}
 }
 
 // ------------------------------------------------------------------------------------------------

@@ -568,6 +568,7 @@ void AIDockMoveToDockState::onExit( StateExitType status )
 AIDockProcessDockState::AIDockProcessDockState( StateMachine *machine ) : State( machine, "AIDockProcessDockState" )
 {
 	m_nextDockActionFrame = 0;
+	m_droneID = INVALID_ID;
 }
 
 //----------------------------------------------------------------------------------------------
@@ -618,9 +619,9 @@ void AIDockProcessDockState::xfer( Xfer *xfer )
 {
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 3;
 #else
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -628,6 +629,13 @@ void AIDockProcessDockState::xfer( Xfer *xfer )
 	if( version >= 2 )
 	{
 		xfer->xferUnsignedInt( &m_nextDockActionFrame );
+	}
+
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the cached drone id. It was never
+	// initialized or saved, so the first dock action after a load looked up a stale id.
+	if( version >= 3 )
+	{
+		xfer->xferObjectID( &m_droneID );
 	}
 }
 
