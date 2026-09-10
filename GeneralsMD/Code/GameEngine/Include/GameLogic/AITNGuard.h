@@ -120,7 +120,9 @@ class AITNGuardInnerState : public State
 public:
 	AITNGuardInnerState( StateMachine *machine ) : State( machine, "AITNGuardInner" )
 	{
+#if !RETAIL_COMPATIBLE_CRC
 		m_scanForEnemy = FALSE;
+#endif
 		m_attackState = nullptr;
 		m_subStatesRestored = FALSE;
 	}

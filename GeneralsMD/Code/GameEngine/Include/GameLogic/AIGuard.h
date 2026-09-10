@@ -165,7 +165,12 @@ class AIGuardIdleState : public State
 {
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(AIGuardIdleState, "AIGuardIdleState")
 public:
-	AIGuardIdleState( StateMachine *machine ) : State( machine, "AIGuardIdleState" ) { m_guardeePos.zero(); }
+	AIGuardIdleState( StateMachine *machine ) : State( machine, "AIGuardIdleState" )
+	{
+#if !RETAIL_COMPATIBLE_CRC
+		m_guardeePos.zero();
+#endif
+	}
 	virtual Bool isAttack() const override { return FALSE; }
 	virtual Bool isGuardIdle() const override { return TRUE; }
 	virtual StateReturnType onEnter() override;

@@ -322,9 +322,9 @@ void AITNGuardInnerState::xfer( Xfer *xfer )
   // version
 #if RETAIL_COMPATIBLE_XFER_SAVE
   // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 3;
 #else
-  XferVersion currentVersion = 2;
+  XferVersion currentVersion = 3;
 #endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
@@ -347,6 +347,13 @@ void AITNGuardInnerState::xfer( Xfer *xfer )
 		{
 			xfer->xferSnapshot( m_attackState );
 		}
+	}
+
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the one-shot scan flag. It is never
+	// initialized, so a resumed game read a different value than the running game.
+	if( version >= 3 )
+	{
+		xfer->xferBool( &m_scanForEnemy );
 	}
 }
 

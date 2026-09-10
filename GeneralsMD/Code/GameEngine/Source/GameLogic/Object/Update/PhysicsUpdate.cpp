@@ -224,8 +224,11 @@ PhysicsBehavior::PhysicsBehavior( Thing *thing, const ModuleData* moduleData ) :
 
 	setAllowBouncing(getPhysicsBehaviorModuleData()->m_allowBouncing);
 	// TheSuperHackers @bugfix bobtista 10/09/2026 The original bounce state was never assigned, so
-	// the end of a bounce restored the flag from uninitialized memory.
+	// the end of a bounce restored the flag from uninitialized memory. Retail replays depend on that
+	// value, so retail builds keep it and carry it through checkpoints instead.
+#if !RETAIL_COMPATIBLE_CRC
 	m_originalAllowBounce = getPhysicsBehaviorModuleData()->m_allowBouncing;
+#endif
 	setAllowCollideForce(getPhysicsBehaviorModuleData()->m_allowCollideForce);
 
 	m_pui = nullptr;
@@ -1949,6 +1952,7 @@ void PhysicsBehavior::xfer( Xfer *xfer )
 	if( version >= 3 )
 	{
 		xfer->xferObjectID( &m_lastCollidee );
+		xfer->xferBool( &m_originalAllowBounce );
 	}
 
 }
