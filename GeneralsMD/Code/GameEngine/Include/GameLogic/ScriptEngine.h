@@ -456,6 +456,7 @@ protected:
 
 	UnsignedInt				m_frameObjectCountChanged;
 	UnsignedInt				m_checkpointConditionTeamID;		///< condition team staged by a checkpoint load
+	ObjectID					m_checkpointConditionObjectID;	///< condition object staged by a checkpoint load
 	Bool							m_hasCheckpointConditionTeam;
 
 	ObjectTypeCount		m_objectCounts[MAX_PLAYER_COUNT];

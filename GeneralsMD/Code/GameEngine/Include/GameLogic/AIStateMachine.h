@@ -1011,6 +1011,7 @@ private:
 	AttackStateMachine*							m_attackMachine;						///< state sub-machine for attack behavior
 	AttackExitConditionsInterface*	m_attackParameters;					///< these are not owned by this, and will not be deleted on destruction
 	Team*														m_victimTeam;								///< recorded onEnter because if it changes during attack , it may no longer be a valid target.
+	UnsignedInt											m_xferVictimTeamID;					///< victim team id carried by a checkpoint, resolved in loadPostProcess
 	Coord3D													m_originalVictimPos;				///< position of first obj/pos attacked... used for ContinueAttackRange.
 	const Weapon*						m_lockedWeaponOnEnter;
 	const Bool							m_follow;
