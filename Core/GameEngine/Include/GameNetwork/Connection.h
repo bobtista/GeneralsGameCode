@@ -72,6 +72,7 @@ public:
 	NetCommandRef * processAck(UnsignedShort commandID, UnsignedByte originalPlayerID);
 
 	void clearCommandsExceptFrom( Int playerIndex );
+	void releasePendingPieces();
 
 	void setQuitting();
 	Bool isQuitting() { return m_isQuitting; }
@@ -90,6 +91,7 @@ protected:
 	User *m_user;
 
 	NetCommandList *m_netCommandList;
+	NetCommandList *m_pendingPieces;			///< pieces of a split command not yet handed to the send list
 	time_t m_retryTime;						///< The time between sending retry packets for this connection.  Time is in milliseconds.
 	Real m_averageLatency;			///< The average time between sending a command and receiving an ACK.
 	Real m_latencies[CONNECTION_LATENCY_HISTORY_LENGTH];	///< List of the last 100 latencies.
