@@ -561,6 +561,21 @@ StateReturnType StateMachine::setState( StateID newStateID )
  */
 StateReturnType StateMachine::internalSetState( StateID newStateID )
 {
+	{
+		static Int s_from = -2, s_to = 0;
+		if (s_from == -2)
+		{
+			const char *f = getenv("GGC_PROBE_FROM"); s_from = f ? atoi(f) : -1;
+			const char *t = getenv("GGC_PROBE_TO"); s_to = t ? atoi(t) : 0;
+		}
+		const Int frame = (Int)TheGameLogic->getFrame();
+		const Int id = m_owner ? (Int)m_owner->getID() : -1;
+		if (s_from >= 0 && frame >= s_from && frame <= s_to && (id == 894 || id == 8381 || id == 7424 || id == 404 || id == 15443))
+		{
+			DEBUG_LOG(("probe setstate frame %d obj %d from %d to %d", frame, id, (Int)getCurrentStateID(), (Int)newStateID));
+		}
+	}
+
 	State *newState = nullptr;
 
 	// anytime the state changes, stop sleeping

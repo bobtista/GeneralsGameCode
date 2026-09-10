@@ -758,6 +758,22 @@ UpdateSleepTime TurretAI::updateTurretAI()
 	{
 		m_didFire = false;
 
+		{
+			static Int s_from = -2, s_to = 0;
+			if (s_from == -2)
+			{
+				const char *f = getenv("GGC_PROBE_FROM"); s_from = f ? atoi(f) : -1;
+				const char *t = getenv("GGC_PROBE_TO"); s_to = t ? atoi(t) : 0;
+			}
+			const Int id = (Int)m_owner->getID();
+			if (s_from >= 0 && (Int)now >= s_from && (Int)now <= s_to && (id == 894 || id == 8381 || id == 7424 || id == 404 || id == 15443))
+			{
+				Object *goal = m_turretStateMachine->getGoalObject();
+				Weapon *w = m_owner->getCurrentWeapon();
+				DEBUG_LOG(("probe turret frame %d obj %d state %d turretSleep %d goal %d target %d enabled %d sweepUntil %d contFire %d idleMood %d wstatus %d aiVictim %d", (Int)now, id, (Int)m_turretStateMachine->getCurrentStateID(), (Int)m_sleepUntil, goal ? (Int)goal->getID() : -1, (Int)m_target, (Int)m_enabled, (Int)m_enableSweepUntil, (Int)m_continuousFireExpirationFrame, (Int)m_targetWasSetByIdleMood, w ? (Int)w->getStatus() : -1, (m_owner->getAI() && m_owner->getAI()->getCurrentVictim()) ? (Int)m_owner->getAI()->getCurrentVictim()->getID() : -1));
+			}
+		}
+
 		// run the behavior state machine BEFORE doing sound check
 		StateReturnType stRet = m_turretStateMachine->updateStateMachine();
 
