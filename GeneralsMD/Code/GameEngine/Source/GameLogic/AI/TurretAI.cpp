@@ -31,8 +31,10 @@
 #define DEFINE_WEAPONSLOTTYPE_NAMES
 
 #include "Common/GameAudio.h"
+#include "Common/GameState.h"
 #include "Common/PerfTimer.h"
 #include "Common/RandomValue.h"
+#include "Common/Team.h"
 #include "Common/ThingTemplate.h"
 #include "Common/Xfer.h"
 
@@ -294,7 +296,8 @@ TurretAI::TurretAI(Object* owner, const TurretAIData* data, WhichTurretType tur)
 	m_enabled(!data->m_initiallyDisabled),
 	m_firesWhileTurning(data->m_firesWhileTurning),
 	m_isForceAttacking(false),
-	m_victimInitialTeam(nullptr)
+	m_victimInitialTeam(nullptr),
+	m_xferVictimInitialTeamID(TEAM_ID_INVALID)
 {
 	m_continuousFireExpirationFrame = -1;
 	if (!m_data)
@@ -351,9 +354,9 @@ void TurretAI::xfer( Xfer *xfer )
 	// flag cleared, failed the continued attack test on the first frame after a load, and dropped
 	// from aim to hold while the live run kept aiming. Checkpoints pin the new version at runtime
 	// by purpose; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 4;
 #else
-	const XferVersion currentVersion = 3;
+	const XferVersion currentVersion = 4;
 #endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
@@ -393,6 +396,23 @@ void TurretAI::xfer( Xfer *xfer )
 		m_isForceAttacking = isForceAttacking;
 	}
 
+	//
+	// TheSuperHackers @bugfix bobtista 09/09/2026 Carry the team the victim had when the attack began.
+	// Deriving it again from the victim on load forgets a team change since then, so a turret that
+	// had just given up on a converted target in the running game kept aiming and fired after a load.
+	// Team instances cannot be looked up while objects load, so the id is resolved in loadPostProcess.
+	//
+	if (version >= 4)
+	{
+		TeamID initialTeamID = m_victimInitialTeam ? m_victimInitialTeam->getID() : TEAM_ID_INVALID;
+		xfer->xferUser(&initialTeamID, sizeof(initialTeamID));
+		if (xfer->getXferMode() == XFER_LOAD)
+		{
+			m_xferVictimInitialTeamID = initialTeamID;
+			m_victimInitialTeam = nullptr;
+		}
+	}
+
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -400,6 +420,11 @@ void TurretAI::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void TurretAI::loadPostProcess()
 {
+	if (TheGameState != nullptr && TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT)
+	{
+		m_victimInitialTeam = (m_xferVictimInitialTeamID != TEAM_ID_INVALID) ? TheTeamFactory->findTeamByID(m_xferVictimInitialTeamID) : nullptr;
+		return;
+	}
 	Object *victim = m_turretStateMachine->getGoalObject();
 	if (victim) {
 		m_victimInitialTeam = victim->getTeam();

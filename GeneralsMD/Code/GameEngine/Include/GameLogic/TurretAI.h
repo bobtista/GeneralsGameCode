@@ -356,6 +356,7 @@ private:
 	AudioEventRTS							m_turretRotOrPitchSound;		///< Sound of turret rotation
 	UnsignedInt								m_enableSweepUntil;
 	Team*											m_victimInitialTeam; // The team of the victim at the BEGINNING of the attack. If it changes, we may need to stop the attack.
+	UnsignedInt								m_xferVictimInitialTeamID;	///< team id carried by a checkpoint, resolved in loadPostProcess
 	mutable TurretTargetType	m_target;
 	UnsignedInt								m_continuousFireExpirationFrame;
 	UnsignedInt								m_sleepUntil;
