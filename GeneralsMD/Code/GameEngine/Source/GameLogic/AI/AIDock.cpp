@@ -568,7 +568,9 @@ void AIDockMoveToDockState::onExit( StateExitType status )
 AIDockProcessDockState::AIDockProcessDockState( StateMachine *machine ) : State( machine, "AIDockProcessDockState" )
 {
 	m_nextDockActionFrame = 0;
+#if !RETAIL_COMPATIBLE_CRC
 	m_droneID = INVALID_ID;
+#endif
 }
 
 //----------------------------------------------------------------------------------------------
