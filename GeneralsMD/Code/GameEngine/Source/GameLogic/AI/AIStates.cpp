@@ -5440,7 +5440,8 @@ AIAttackState::AIAttackState( StateMachine *machine, Bool follow, Bool attacking
 	m_isAttackingObject(attackingObject),
 	m_isForceAttacking(forceAttacking),
 	m_victimTeam( nullptr ),
-	m_xferVictimTeamID( TEAM_ID_INVALID )
+	m_xferVictimTeamID( TEAM_ID_INVALID ),
+	m_xferLockedWeaponSlot( -1 )
 {
 	m_originalVictimPos.zero();
 #ifdef STATE_MACHINE_DEBUG
@@ -5518,7 +5519,10 @@ void AIAttackState::xfer( Xfer *xfer )
 		xfer->xferInt( &lockedSlot );
 		if( xfer->getXferMode() == XFER_LOAD )
 		{
-			m_lockedWeaponOnEnter = ( lockedSlot >= 0 && lockOwner != nullptr ) ? lockOwner->getWeaponInWeaponSlot( (WeaponSlotType)lockedSlot ) : nullptr;
+			// The object's weapon set loads after its modules, so an upgrade-only slot is still empty
+			// here. Resolved in loadPostProcess once the weapons exist.
+			m_xferLockedWeaponSlot = lockedSlot;
+			m_lockedWeaponOnEnter = nullptr;
 		}
 	}
 
@@ -5575,6 +5579,11 @@ void AIAttackState::loadPostProcess()
 	{
 		Object* source = getMachineOwner();
 		m_lockedWeaponOnEnter = source->isCurWeaponLocked() ? source->getCurrentWeapon() : nullptr;
+	}
+	else
+	{
+		Object* source = getMachineOwner();
+		m_lockedWeaponOnEnter = ( m_xferLockedWeaponSlot >= 0 && source != nullptr ) ? source->getWeaponInWeaponSlot( (WeaponSlotType)m_xferLockedWeaponSlot ) : nullptr;
 	}
 }
 
