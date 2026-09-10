@@ -5439,7 +5439,8 @@ AIAttackState::AIAttackState( StateMachine *machine, Bool follow, Bool attacking
 	m_follow(follow),
 	m_isAttackingObject(attackingObject),
 	m_isForceAttacking(forceAttacking),
-	m_victimTeam( nullptr )
+	m_victimTeam( nullptr ),
+	m_xferVictimTeamID( TEAM_ID_INVALID )
 {
 	m_originalVictimPos.zero();
 #ifdef STATE_MACHINE_DEBUG
@@ -5480,9 +5481,9 @@ void AIAttackState::xfer( Xfer *xfer )
   // version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 3;
 #else
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 #endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
@@ -5521,6 +5522,21 @@ void AIAttackState::xfer( Xfer *xfer )
 		}
 	}
 
+	//
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the team the victim had when the attack began.
+	// Deriving it again on load forgets a team change since then, so an attack the running game had
+	// broken off against a converted target carried on after a load. Resolved in loadPostProcess.
+	//
+	if( version >= 3 )
+	{
+		TeamID victimTeamID = m_victimTeam ? m_victimTeam->getID() : TEAM_ID_INVALID;
+		xfer->xferUser( &victimTeamID, sizeof( victimTeamID ) );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_xferVictimTeamID = victimTeamID;
+		}
+	}
+
 	if (hasMachine && m_attackMachine==nullptr)	{
 		// create new state machine for attack behavior
 		m_attackMachine = newInstance(AttackStateMachine)(getMachineOwner(), this, "AIAttackMachine", m_follow, m_isAttackingObject, m_isForceAttacking  );
@@ -5541,10 +5557,17 @@ void AIAttackState::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void AIAttackState::loadPostProcess()
 {
-	Object* victim = getMachineGoalObject();
-	if (victim)
+	if( TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
 	{
-		m_victimTeam = victim->getTeam();
+		m_victimTeam = ( m_xferVictimTeamID != TEAM_ID_INVALID ) ? TheTeamFactory->findTeamByID( m_xferVictimTeamID ) : nullptr;
+	}
+	else
+	{
+		Object* victim = getMachineGoalObject();
+		if (victim)
+		{
+			m_victimTeam = victim->getTeam();
+		}
 	}
 	// TheSuperHackers @bugfix bobtista 09/09/2026 A checkpoint carries the locked weapon in xfer, so leave it.
 	// Deriving it again here from the current lock forgets a lock that was released after the attack began.

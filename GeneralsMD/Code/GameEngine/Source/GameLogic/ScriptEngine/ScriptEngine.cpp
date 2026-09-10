@@ -462,6 +462,7 @@ m_fade(FADE_NONE),
 m_freezeByScript(FALSE),
 m_frameObjectCountChanged(0),
 m_checkpointConditionTeamID(0),
+m_checkpointConditionObjectID(INVALID_ID),
 m_hasCheckpointConditionTeam(FALSE),
 m_closeWindowTimer(0),
 m_curFadeFrame(0),
@@ -5303,6 +5304,7 @@ void ScriptEngine::reset()
 	m_skirmishHumanPlayer = nullptr;
 	m_frameObjectCountChanged = 0;
 	m_checkpointConditionTeamID = 0;
+	m_checkpointConditionObjectID = INVALID_ID;
 	m_hasCheckpointConditionTeam = FALSE;
 
 	m_shownMPLocalDefeatWindow = FALSE;
@@ -7897,6 +7899,7 @@ void ScriptEngine::applyCheckpointConditionTeam()
 	}
 
 	m_conditionTeam = TheTeamFactory->findTeamByID( (TeamID)m_checkpointConditionTeamID );
+	m_conditionObject = TheGameLogic->findObjectByID( m_checkpointConditionObjectID );
 	m_hasCheckpointConditionTeam = FALSE;
 
 }
@@ -8999,9 +9002,9 @@ void ScriptEngine::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 5 : 8;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 5 : 9;
 #else
-	const XferVersion currentVersion = 8;
+	const XferVersion currentVersion = 9;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -9543,6 +9546,18 @@ void ScriptEngine::xfer( Xfer *xfer )
 		{
 			m_checkpointConditionTeamID = (UnsignedInt)conditionTeamID;
 			m_hasCheckpointConditionTeam = TRUE;
+		}
+	}
+
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the leftover condition object for the same
+	// reason: the "<This Object>" token falls back to it, and a load left it null.
+	if( version >= 9 )
+	{
+		ObjectID conditionObjectID = m_conditionObject ? m_conditionObject->getID() : INVALID_ID;
+		xfer->xferObjectID( &conditionObjectID );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_checkpointConditionObjectID = conditionObjectID;
 		}
 	}
 
