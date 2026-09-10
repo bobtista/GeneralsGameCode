@@ -53,6 +53,7 @@ class NetFileProgressCommandMsg;
 class NetDisconnectFrameCommandMsg;
 class NetRecoveryReadyCommandMsg;
 class NetRejoinRequestCommandMsg;
+class NetRejoinRosterCommandMsg;
 class NetDisconnectScreenOffCommandMsg;
 class NetFrameResendRequestCommandMsg;
 class NetLoadCompleteCommandMsg;
@@ -1131,6 +1132,42 @@ struct NetPacketRejoinRequestCommandBase
 // NetPacketRecoveryReadyCommand
 ////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
+// NetPacketRejoinRosterCommand
+////////////////////////////////////////////////////////////////////////////////
+
+struct NetPacketRejoinRosterCommandData
+{
+	typedef NetRejoinRosterCommandMsg CommandMsg;
+
+	struct FixedData
+	{
+		UnsignedInt slotIP[MAX_SLOTS];
+		UnsignedShort slotPort[MAX_SLOTS];
+	};
+
+	static size_t getSize(const NetCommandMsg &msg) { return sizeof(FixedData); }
+	static size_t copyBytes(UnsignedByte *buffer, const NetCommandRef &ref);
+	static size_t readMessage(NetCommandRef &ref, NetPacketBuf buf);
+};
+
+struct NetPacketRejoinRosterCommandBase
+{
+	typedef NetRejoinRosterCommandMsg CommandMsg;
+
+	struct CommandBase
+	{
+		NetPacketCommandTypeField commandType;
+		NetPacketRelayField relay;
+		NetPacketPlayerIdField playerId;
+		NetPacketCommandIdField commandId;
+		NetPacketDataField dataHeader;
+	};
+
+	static size_t getSize() { return sizeof(CommandBase); }
+	static size_t copyBytes(UnsignedByte *buffer, const NetCommandRef &ref);
+};
+
 struct NetPacketRecoveryReadyCommandData
 {
 	typedef NetRecoveryReadyCommandMsg CommandMsg;
@@ -1262,6 +1299,7 @@ struct NetPacketTimeOutGameStartCommand         : public NetPacketCommandTemplat
 struct NetPacketDisconnectFrameCommand          : public NetPacketCommandTemplate<NetPacketDisconnectFrameCommandBase, NetPacketDisconnectFrameCommandData> {};
 struct NetPacketRecoveryReadyCommand            : public NetPacketCommandTemplate<NetPacketRecoveryReadyCommandBase, NetPacketRecoveryReadyCommandData> {};
 struct NetPacketRejoinRequestCommand            : public NetPacketCommandTemplate<NetPacketRejoinRequestCommandBase, NetPacketNoData> {};
+struct NetPacketRejoinRosterCommand             : public NetPacketCommandTemplate<NetPacketRejoinRosterCommandBase, NetPacketRejoinRosterCommandData> {};
 struct NetPacketDisconnectScreenOffCommand      : public NetPacketCommandTemplate<NetPacketDisconnectScreenOffCommandBase, NetPacketDisconnectScreenOffCommandData> {};
 struct NetPacketFrameResendRequestCommand       : public NetPacketCommandTemplate<NetPacketFrameResendRequestCommandBase, NetPacketFrameResendRequestCommandData> {};
 
@@ -1290,6 +1328,7 @@ struct SmallNetPacketTimeOutGameStartCommand    : public SmallNetPacketCommandTe
 struct SmallNetPacketDisconnectFrameCommand     : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketDisconnectFrameCommandData> {};
 struct SmallNetPacketRecoveryReadyCommand       : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketRecoveryReadyCommandData> {};
 struct SmallNetPacketRejoinRequestCommand       : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketNoData> {};
+struct SmallNetPacketRejoinRosterCommand        : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketRejoinRosterCommandData> {};
 struct SmallNetPacketDisconnectScreenOffCommand : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketDisconnectScreenOffCommandData> {};
 struct SmallNetPacketFrameResendRequestCommand  : public SmallNetPacketCommandTemplate<SmallNetPacketCommandBase, NetPacketFrameResendRequestCommandData> {};
 

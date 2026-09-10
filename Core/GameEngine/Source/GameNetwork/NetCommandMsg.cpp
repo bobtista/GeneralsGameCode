@@ -1172,6 +1172,44 @@ NetCommandMsg::Select NetRejoinRequestCommandMsg::getSmallNetPacketSelect() cons
 }
 
 //-------------------------
+// NetRejoinRosterCommandMsg
+//-------------------------
+NetRejoinRosterCommandMsg::NetRejoinRosterCommandMsg() {
+	m_commandType = NETCOMMANDTYPE_REJOINROSTER;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		m_slotIP[i] = 0;
+		m_slotPort[i] = 0;
+	}
+}
+
+NetRejoinRosterCommandMsg::~NetRejoinRosterCommandMsg() {
+}
+
+UnsignedInt NetRejoinRosterCommandMsg::getSlotIP(Int slot) const {
+	return (slot >= 0 && slot < MAX_SLOTS) ? m_slotIP[slot] : 0;
+}
+
+UnsignedShort NetRejoinRosterCommandMsg::getSlotPort(Int slot) const {
+	return (slot >= 0 && slot < MAX_SLOTS) ? m_slotPort[slot] : 0;
+}
+
+void NetRejoinRosterCommandMsg::setSlot(Int slot, UnsignedInt ip, UnsignedShort port) {
+	if (slot >= 0 && slot < MAX_SLOTS) {
+		m_slotIP[slot] = ip;
+		m_slotPort[slot] = port;
+	}
+}
+
+NetCommandMsg::Select NetRejoinRosterCommandMsg::getSmallNetPacketSelect() const {
+	Select select;
+	select.useCommandType = 1;
+	select.useRelay = 1;
+	select.usePlayerId = 1;
+	select.useCommandId = 1;
+	return select;
+}
+
+//-------------------------
 // NetRecoveryReadyCommandMsg
 //-------------------------
 NetRecoveryReadyCommandMsg::NetRecoveryReadyCommandMsg() {

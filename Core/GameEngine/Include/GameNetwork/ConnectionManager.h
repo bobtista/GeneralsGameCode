@@ -78,6 +78,7 @@ public:
 	Int checkRecoveryReady();
 	void sendRecoveryFile(AsciiString path);
 	void sendRejoinRequest();
+	void sendRejoinRoster(UnsignedInt toSlot);
 	AsciiString getRecoveryReceivedFile();
 	Int getRecoveryTransferPercent();
 	void destroyGameMessages();
@@ -164,6 +165,7 @@ private:
 	void processAckStage2(NetCommandMsg *msg);
 	void processAck(NetCommandMsg *msg);
 	void processRejoinRequest(NetCommandMsg *msg);
+	void processRejoinRoster(NetRejoinRosterCommandMsg *msg);
 	void processRecoveryReady(NetRecoveryReadyCommandMsg *msg);
 	void recordRecoveryReady(UnsignedInt slot, UnsignedInt frame, UnsignedInt crc);
 	void processFrameInfo(NetFrameCommandMsg *msg);

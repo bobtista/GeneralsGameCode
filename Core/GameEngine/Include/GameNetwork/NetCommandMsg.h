@@ -639,6 +639,27 @@ public:
 };
 
 //-----------------------------------------------------------------------------
+// TheSuperHackers @feature bobtista 10/09/2026 The held game's donor answers a rejoin request
+// with the addresses of every connected slot, so the rejoiner can build the full peer mesh
+// instead of talking to the donor alone.
+class NetRejoinRosterCommandMsg : public NetCommandMsgT<NetPacketRejoinRosterCommand, SmallNetPacketRejoinRosterCommand>
+{
+	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(NetRejoinRosterCommandMsg, "NetRejoinRosterCommandMsg")
+public:
+	NetRejoinRosterCommandMsg();
+
+	UnsignedInt getSlotIP(Int slot) const;
+	UnsignedShort getSlotPort(Int slot) const;
+	void setSlot(Int slot, UnsignedInt ip, UnsignedShort port);
+
+	virtual Select getSmallNetPacketSelect() const override;
+
+protected:
+	UnsignedInt m_slotIP[MAX_SLOTS];
+	UnsignedShort m_slotPort[MAX_SLOTS];
+};
+
+//-----------------------------------------------------------------------------
 class NetRecoveryReadyCommandMsg : public NetCommandMsgT<NetPacketRecoveryReadyCommand, SmallNetPacketRecoveryReadyCommand>
 {
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(NetRecoveryReadyCommandMsg, "NetRecoveryReadyCommandMsg")

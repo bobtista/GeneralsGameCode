@@ -591,8 +591,65 @@ Int ConnectionManager::getRecoveryTransferPercent() {
 void ConnectionManager::sendRejoinRequest() {
 	NetRejoinRequestCommandMsg *msg = newInstance(NetRejoinRequestCommandMsg);
 	msg->setPlayerID(m_localSlot);
-	sendLocalCommandDirect(msg, 0xff ^ (1 << m_localSlot));
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Ask the held game's host only. Once the roster
+	// has attached the other survivors, a request to all of them would have every survivor answer
+	// with its own snapshot at once.
+	sendLocalCommandDirect(msg, (UnsignedByte)(1 << 0));
 	msg->detach();
+}
+
+// TheSuperHackers @feature bobtista 10/09/2026 Tell a rejoiner where every connected slot is.
+// The rejoiner rebuilt its network from the command line with the host and itself only, so its
+// reports reached the host alone and the other survivors waited for a report that could not arrive.
+void ConnectionManager::sendRejoinRoster(UnsignedInt toSlot) {
+	NetRejoinRosterCommandMsg *msg = newInstance(NetRejoinRosterCommandMsg);
+	msg->setPlayerID(m_localSlot);
+	if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
+		msg->setID(GenerateNextCommandID());
+	}
+	Int listed = 0;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		if (m_connections[i] != nullptr && m_connections[i]->getUser() != nullptr && i != (Int)toSlot) {
+			msg->setSlot(i, m_connections[i]->getUser()->GetIPAddr(), m_connections[i]->getUser()->GetPort());
+			++listed;
+		}
+	}
+	DEBUG_LOG(("ConnectionManager::sendRejoinRoster - %d slots to player %d", listed, toSlot));
+	sendLocalCommandDirect(msg, (UnsignedByte)(1 << toSlot));
+	msg->detach();
+}
+
+void ConnectionManager::processRejoinRoster(NetRejoinRosterCommandMsg *msg) {
+	if (TheGlobalData->m_rejoinHostIP.isEmpty()) {
+		return;
+	}
+	Int attached = 0;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		const UnsignedInt ip = msg->getSlotIP(i);
+		const UnsignedShort port = msg->getSlotPort(i);
+		if (i == (Int)m_localSlot || ip == 0 || port == 0 || m_connections[i] != nullptr) {
+			continue;
+		}
+		AsciiString name;
+		name.format("Peer%d", i);
+		m_connections[i] = newInstance(Connection)();
+		m_connections[i]->init();
+		m_connections[i]->attachTransport(m_transport);
+		m_connections[i]->setUser(newInstance(User)(UnicodeString(L"Peer"), ip, port));
+		m_frameData[i] = newInstance(FrameDataManager)(FALSE);
+		m_frameData[i]->init();
+		m_frameData[i]->reset();
+		DEBUG_LOG(("ConnectionManager::processRejoinRoster - attached slot %d at %X:%d", i, ip, (Int)port));
+		++attached;
+	}
+	Int numUsers = 0;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		if (i == (Int)m_localSlot || m_connections[i] != nullptr) {
+			m_packetRouterFallback[numUsers] = i;
+			++numUsers;
+		}
+	}
+	DEBUG_LOG(("ConnectionManager::processRejoinRoster - %d slots attached, %d users in the mesh", attached, numUsers));
 }
 
 // TheSuperHackers @feature bobtista 27/08/2026 A restarted peer asks for the held game's
@@ -633,6 +690,7 @@ void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
 	m_rejoinFileSentMask |= (1 << playerID);
 	DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked for the held snapshot%s",
 		playerID, isRetry ? " (retry)" : ""));
+	sendRejoinRoster(playerID);
 	UnsignedShort fileID = sendFileAnnounce(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID));
 	sendFile(TheGameState->getFilePathInSaveDirectory(localSave), (UnsignedByte)(1 << playerID), fileID);
 }
@@ -920,6 +978,10 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 
 		case NETCOMMANDTYPE_REJOINREQUEST:
 			processRejoinRequest(msg);
+			return TRUE;
+
+		case NETCOMMANDTYPE_REJOINROSTER:
+			processRejoinRoster((NetRejoinRosterCommandMsg *)msg);
 			return TRUE;
 
 		case NETCOMMANDTYPE_FRAMEINFO: {

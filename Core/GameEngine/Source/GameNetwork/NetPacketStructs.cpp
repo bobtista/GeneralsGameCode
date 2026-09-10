@@ -241,6 +241,9 @@ NetCommandMsg *SmallNetPacketCommandBase::constructNetCommandMsg(const CommandBa
 	case NETCOMMANDTYPE_REJOINREQUEST:
 		msg = newInstance(NetRejoinRequestCommandMsg);
 		break;
+	case NETCOMMANDTYPE_REJOINROSTER:
+		msg = newInstance(NetRejoinRosterCommandMsg);
+		break;
 	case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
 		msg = newInstance(NetDisconnectScreenOffCommandMsg);
 		break;
@@ -1370,6 +1373,50 @@ size_t NetPacketRejoinRequestCommandBase::copyBytes(UnsignedByte *buffer, const 
 	base.commandType.commandType = msg->getNetCommandType();
 	base.relay.relay = ref.getRelay();
 	base.playerId.playerId = msg->getPlayerID();
+
+	return network::writeObject(buffer, base);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// NetPacketRejoinRosterCommand
+////////////////////////////////////////////////////////////////////////////////
+
+size_t NetPacketRejoinRosterCommandData::copyBytes(UnsignedByte *buffer, const NetCommandRef &ref)
+{
+	const CommandMsg *cmdMsg = static_cast<const CommandMsg *>(ref.getCommand());
+	FixedData data;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		data.slotIP[i] = cmdMsg->getSlotIP(i);
+		data.slotPort[i] = cmdMsg->getSlotPort(i);
+	}
+
+	return network::writeObject(buffer, data);
+}
+
+size_t NetPacketRejoinRosterCommandData::readMessage(NetCommandRef &ref, NetPacketBuf buf)
+{
+	CommandMsg *cmdMsg = static_cast<CommandMsg *>(ref.getCommand());
+	FixedData data;
+	memset(&data, 0, sizeof(data));
+
+	size_t size = network::readObject(data, buf);
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		cmdMsg->setSlot(i, data.slotIP[i], data.slotPort[i]);
+	}
+
+	return size;
+}
+
+size_t NetPacketRejoinRosterCommandBase::copyBytes(UnsignedByte *buffer, const NetCommandRef &ref)
+{
+	const NetCommandMsg *msg = ref.getCommand();
+	CommandBase base;
+	base.commandType.commandType = msg->getNetCommandType();
+	base.relay.relay = ref.getRelay();
+	base.playerId.playerId = msg->getPlayerID();
+	base.commandId.commandId = msg->getID();
 
 	return network::writeObject(buffer, base);
 }
