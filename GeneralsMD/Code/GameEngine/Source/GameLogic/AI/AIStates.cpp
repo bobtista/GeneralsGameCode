@@ -1134,6 +1134,19 @@ Bool outOfWeaponRangeObject( State *thisState, void* userData )
 	Weapon *weapon = obj->getCurrentWeapon();
 
 	CRCDEBUG_LOG(("outOfWeaponRangeObject()"));
+	{
+		static Int s_from = -2, s_to = 0;
+		if (s_from == -2)
+		{
+			const char *f = getenv("GGC_PROBE_FROM"); s_from = f ? atoi(f) : -1;
+			const char *t = getenv("GGC_PROBE_TO"); s_to = t ? atoi(t) : 0;
+		}
+		const Int frame = (Int)TheGameLogic->getFrame();
+		if (s_from >= 0 && frame >= s_from && frame <= s_to)
+		{
+			DEBUG_LOG(("probe range frame %d obj %d state %d victim %d weapon %s", frame, (Int)obj->getID(), (Int)thisState->getMachine()->getCurrentStateID(), victim ? (Int)victim->getID() : -1, weapon ? weapon->getName().str() : "none"));
+		}
+	}
 	if (victim && weapon)
 	{
 		Bool viewBlocked = false;
