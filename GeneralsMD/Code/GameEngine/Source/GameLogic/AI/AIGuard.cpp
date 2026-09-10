@@ -822,11 +822,22 @@ void AIGuardIdleState::crc( Xfer *xfer )
 void AIGuardIdleState::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
 	xfer->xferUnsignedInt(&m_nextEnemyScanTime);
+
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the last known guardee position. It was
+	// never initialized or saved, so the moved-away test after a load compared against garbage.
+	if (version >= 2)
+	{
+		xfer->xferCoord3D(&m_guardeePos);
+	}
 }
 
 // ------------------------------------------------------------------------------------------------

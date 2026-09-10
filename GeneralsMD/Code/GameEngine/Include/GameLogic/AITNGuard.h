@@ -120,6 +120,7 @@ class AITNGuardInnerState : public State
 public:
 	AITNGuardInnerState( StateMachine *machine ) : State( machine, "AITNGuardInner" )
 	{
+		m_scanForEnemy = FALSE;
 		m_attackState = nullptr;
 		m_subStatesRestored = FALSE;
 	}

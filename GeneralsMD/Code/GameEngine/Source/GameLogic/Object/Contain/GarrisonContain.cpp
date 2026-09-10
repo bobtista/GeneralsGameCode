@@ -1831,7 +1831,11 @@ void GarrisonContain::xfer( Xfer *xfer )
 	Int i;
 
 	// version
-	XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1946,6 +1950,33 @@ void GarrisonContain::xfer( Xfer *xfer )
 
 	// exit rally point
 	xfer->xferCoord3D( &m_exitRallyPoint );
+
+	//
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the evacuation disposition and the station
+	// points. The disposition is set by script and picks a code path that draws logic random values,
+	// and the station points are built from model bones and hold the occupant to slot mapping, so a
+	// load rebuilt them differently and stood the occupants at other positions.
+	//
+	if( version >= 2 )
+	{
+		Int evacDisposition = m_evacDisposition;
+		xfer->xferInt( &evacDisposition );
+		m_evacDisposition = (EvacDisposition)evacDisposition;
+		Bool stationsInitialized = m_stationGarrisonPointsInitialized;
+		xfer->xferBool( &stationsInitialized );
+		UnsignedShort stationCount = m_stationPointList.size();
+		xfer->xferUnsignedShort( &stationCount );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_stationGarrisonPointsInitialized = stationsInitialized;
+			m_stationPointList.resize( stationCount );
+		}
+		for( i = 0; i < stationCount; ++i )
+		{
+			xfer->xferObjectID( &m_stationPointList[ i ].occupantID );
+			xfer->xferCoord3D( &m_stationPointList[ i ].position );
+		}
+	}
 
 }
 

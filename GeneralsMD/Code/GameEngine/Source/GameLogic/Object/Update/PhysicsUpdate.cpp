@@ -223,6 +223,9 @@ PhysicsBehavior::PhysicsBehavior( Thing *thing, const ModuleData* moduleData ) :
 	m_ignoreCollisionsWith = INVALID_ID;
 
 	setAllowBouncing(getPhysicsBehaviorModuleData()->m_allowBouncing);
+	// TheSuperHackers @bugfix bobtista 10/09/2026 The original bounce state was never assigned, so
+	// the end of a bounce restored the flag from uninitialized memory.
+	m_originalAllowBounce = getPhysicsBehaviorModuleData()->m_allowBouncing;
 	setAllowCollideForce(getPhysicsBehaviorModuleData()->m_allowCollideForce);
 
 	m_pui = nullptr;
@@ -1868,7 +1871,11 @@ void PhysicsBehavior::xfer( Xfer *xfer )
 {
 
 	// version
-	const XferVersion currentVersion = 2;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+#else
+	const XferVersion currentVersion = 3;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1936,6 +1943,13 @@ void PhysicsBehavior::xfer( Xfer *xfer )
 
 	// mag of current vel
 	xfer->xferReal( &m_velMag );
+
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the last collidee. Slow death behaviors read
+	// it to pick the tree to topple, and a load forgot it.
+	if( version >= 3 )
+	{
+		xfer->xferObjectID( &m_lastCollidee );
+	}
 
 }
 
