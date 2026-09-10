@@ -5824,6 +5824,28 @@ StateReturnType AIAttackState::update()
 	if (m_lockedWeaponOnEnter != nullptr && m_lockedWeaponOnEnter != curWeapon)
 		return STATE_FAILURE;
 
+	{
+		static Int s_from = -2, s_to = 0;
+		if (s_from == -2)
+		{
+			const char *f = getenv("GGC_PROBE_FROM"); s_from = f ? atoi(f) : -1;
+			const char *t = getenv("GGC_PROBE_TO"); s_to = t ? atoi(t) : 0;
+		}
+		const Int frame = (Int)TheGameLogic->getFrame();
+		const Int id = (Int)source->getID();
+		if (s_from >= 0 && frame >= s_from && frame <= s_to && (id == 894 || id == 8381 || id == 7424 || id == 404 || id == 15443))
+		{
+			WeaponSlotType cs = PRIMARY_WEAPON; source->getCurrentWeapon(&cs);
+			AsciiString slots;
+			for (Int k = 0; k < WEAPONSLOT_COUNT; ++k)
+			{
+				Weapon *wk = source->getWeaponInWeaponSlot((WeaponSlotType)k);
+				AsciiString one; one.format("[%d %s max %d ammo %d st %d fire %d] ", k, wk ? wk->getName().str() : "-", wk ? wk->getMaxShotCount() : -1, wk ? (Int)wk->getRemainingAmmo() : -1, wk ? (Int)wk->getStatus() : -1, wk ? (Int)wk->getPossibleNextShotFrame() : -1);
+				slots.concat(one);
+			}
+			DEBUG_LOG(("probe attack frame %d obj %d cur %d locked %p %s", frame, id, (Int)cs, (void*)m_lockedWeaponOnEnter, slots.str()));
+		}
+	}
 	// we've shot as many times as we are allowed to
 	if (curWeapon == nullptr || curWeapon->getMaxShotCount() <= 0)
 		return STATE_FAILURE;

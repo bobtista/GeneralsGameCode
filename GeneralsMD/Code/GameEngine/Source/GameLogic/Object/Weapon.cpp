@@ -2911,6 +2911,20 @@ Bool Weapon::privateFireWeapon(
 		--m_ammoInClip;
 		--m_maxShotCount;
 		--m_numShotsForCurBarrel;
+		{
+		static Int s_from = -2, s_to = 0;
+		if (s_from == -2)
+		{
+			const char *f = getenv("GGC_PROBE_FROM"); s_from = f ? atoi(f) : -1;
+			const char *t = getenv("GGC_PROBE_TO"); s_to = t ? atoi(t) : 0;
+		}
+			const Int frame = (Int)now;
+			const Int id = (Int)sourceObj->getID();
+			if (s_from >= 0 && frame >= s_from && frame <= s_to && (id == 894 || id == 8381 || id == 7424 || id == 404 || id == 15443))
+			{
+				DEBUG_LOG(("probe shot frame %d obj %d slot %d weapon %s max %d ammo %d barrelShots %d", frame, id, (Int)m_wslot, getName().str(), m_maxShotCount, (Int)m_ammoInClip, m_numShotsForCurBarrel));
+			}
+		}
 		if (m_numShotsForCurBarrel <= 0)
 		{
 			++m_curBarrel;
