@@ -478,6 +478,7 @@ protected:
 	// actually deal out the damage.
 	void dealDamageInternal(ObjectID sourceID, ObjectID victimID, const Coord3D *pos, const WeaponBonus& bonus, Bool isProjectileDetonation) const;
 	void trimOldHistoricDamage() const;
+	void friend_xferHistoricDamage( Xfer *xfer ) const;
 	void trimTriggeredHistoricDamage() const;
 	void processHistoricDamage(const Object* source, const Coord3D* pos) const;
 
@@ -868,6 +869,12 @@ public:
 	// outright. Serialized by GameLogic::xfer.
 	//
 	void xferDelayedDamage( Xfer *xfer );
+	//
+	// TheSuperHackers @bugfix bobtista 10/09/2026 The historic bonus hit list lives on the template,
+	// so a checkpoint dropped the hits before the mint and the bonus weapon (a napalm firestorm)
+	// never fired after a load. Serialized by GameLogic::xfer.
+	//
+	void xferHistoricDamage( Xfer *xfer );
 
 	static void parseWeaponTemplateDefinition(INI* ini);
 
