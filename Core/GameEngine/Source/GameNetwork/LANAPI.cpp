@@ -30,6 +30,7 @@
 #include "Common/GameState.h"
 #include "Common/Registry.h"
 #include "GameNetwork/LANAPI.h"
+#include "GameClient/ClientInstance.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/networkutil.h"
 #include "Common/GlobalData.h"
@@ -108,7 +109,14 @@ void LANAPI::init()
 #ifdef _WIN32
 	m_transport->init(m_localIP, lobbyPort);
 #else
-	m_transport->init((UnsignedInt)0, lobbyPort);
+	// TheSuperHackers @debug bobtista 10/09/2026 When several clients share one host they all
+	// carry the same wildcard bind, so the kernel hands a datagram to whichever socket it picks
+	// and every packet arrives claiming the host's outbound address. Binding the instance's own
+	// 127.0.0.x makes delivery and source address unambiguous, which is what LookupPlayer needs.
+	// This trades away broadcast reception, so only Direct Connect works in this mode; single
+	// client play keeps the wildcard bind and its lobby discovery.
+	const Bool bindExactAddress = rts::ClientInstance::isMultiInstance() && m_localIP != 0;
+	m_transport->init(bindExactAddress ? m_localIP : (UnsignedInt)0, lobbyPort);
 #endif
 	m_transport->allowBroadcasts(true);
 
@@ -1298,13 +1306,21 @@ Bool LANAPI::SetLocalIP( UnsignedInt localIP )
 	// drops them on those platforms. m_localIP remains our identity in the protocol.
 #ifdef _WIN32
 	retval = m_transport->init(m_localIP, lobbyPort);
+	const char *bindDesc = "bound to localIP";
 #else
-	retval = m_transport->init((UnsignedInt)0, lobbyPort);
+	// TheSuperHackers @debug bobtista 10/09/2026 When several clients share one host they all
+	// carry the same wildcard bind, so the second one cannot bind the lobby port at all and the
+	// kernel would otherwise hand a datagram to whichever socket it picks. Binding the instance's
+	// own 127.0.0.x makes delivery and source address unambiguous. This trades away broadcast
+	// reception, so only Direct Connect works in this mode; single client play keeps the wildcard.
+	const Bool bindExactAddress = rts::ClientInstance::isMultiInstance() && m_localIP != 0;
+	retval = m_transport->init(bindExactAddress ? m_localIP : (UnsignedInt)0, lobbyPort);
+	const char *bindDesc = bindExactAddress ? "bound to localIP (multi instance)" : "bound INADDR_ANY";
 #endif
 	m_transport->allowBroadcasts(true);
 
-	DEBUG_LOG(("LANAPI::SetLocalIP - identity localIP=%d.%d.%d.%d broadcast=%d.%d.%d.%d (socket bound INADDR_ANY on non-Windows)",
-		PRINTF_IP_AS_4_INTS(m_localIP), PRINTF_IP_AS_4_INTS(m_broadcastAddr)));
+	DEBUG_LOG(("LANAPI::SetLocalIP - identity localIP=%d.%d.%d.%d broadcast=%d.%d.%d.%d (socket %s) retval=%d",
+		PRINTF_IP_AS_4_INTS(m_localIP), PRINTF_IP_AS_4_INTS(m_broadcastAddr), bindDesc, (int)retval));
 
 	return retval;
 }
