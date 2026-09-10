@@ -2418,6 +2418,19 @@ void PartitionData::friend_setSkipCellChangeCheckOnce()
 }
 
 //-----------------------------------------------------------------------------
+void PartitionData::friend_getLastCellXY( Int &x, Int &y ) const
+{
+	x = ( m_lastCell != nullptr ) ? m_lastCell->getCellX() : -1;
+	y = ( m_lastCell != nullptr ) ? m_lastCell->getCellY() : -1;
+}
+
+//-----------------------------------------------------------------------------
+void PartitionData::friend_setLastCellXY( Int x, Int y )
+{
+	m_lastCell = ( x >= 0 && y >= 0 ) ? ThePartitionManager->getCellAt( x, y ) : nullptr;
+}
+
+//-----------------------------------------------------------------------------
 Bool PartitionData::friend_isInNeedOfCellUpdate() const
 {
 	return m_dirtyStatus == NEED_CELL_UPDATE_AND_COLLISION_CHECK;

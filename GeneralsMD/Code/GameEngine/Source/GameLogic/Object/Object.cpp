@@ -184,6 +184,8 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 	m_containedBy(nullptr),
 	m_xferContainedByID(INVALID_ID),
 	m_xferPartitionDirty(0),
+	m_xferLastCellX(-1),
+	m_xferLastCellY(-1),
 	m_containedByFrame(0),
 	m_behaviors(nullptr),
 	m_body(nullptr),
@@ -4667,9 +4669,19 @@ void Object::xfer( Xfer *xfer )
 	{
 		UnsignedByte dirty = ( xfer->getXferMode() == XFER_SAVE && m_partitionData != nullptr ) ? m_partitionData->friend_getDirtyStatus() : 0;
 		xfer->xferUnsignedByte( &dirty );
+		Int cellX = -1, cellY = -1;
+		if( xfer->getXferMode() == XFER_SAVE && m_partitionData != nullptr )
+		{
+			m_partitionData->friend_getLastCellXY( cellX, cellY );
+		}
+		Short cellXShort = (Short)cellX, cellYShort = (Short)cellY;
+		xfer->xferShort( &cellXShort );
+		xfer->xferShort( &cellYShort );
 		if( xfer->getXferMode() == XFER_LOAD )
 		{
 			m_xferPartitionDirty = dirty;
+			m_xferLastCellX = cellXShort;
+			m_xferLastCellY = cellYShort;
 		}
 	}
 }
