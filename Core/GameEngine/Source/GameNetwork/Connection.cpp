@@ -56,6 +56,7 @@ Connection::Connection() {
 	m_transport = nullptr;
 	m_user = nullptr;
 	m_netCommandList = nullptr;
+	m_pendingPieces = nullptr;
 	m_retryTime = DefaultRetryTime;
 	m_frameInfoRetryTime = MaxFrameInfoRetryTime;
 	m_smoothedRtt = 0.0f;
@@ -82,6 +83,9 @@ Connection::~Connection() {
 
 	deleteInstance(m_netCommandList);
 	m_netCommandList = nullptr;
+
+	deleteInstance(m_pendingPieces);
+	m_pendingPieces = nullptr;
 }
 
 /**
@@ -98,6 +102,12 @@ void Connection::init() {
 		m_netCommandList->init();
 	}
 	m_netCommandList->reset();
+
+	if (m_pendingPieces == nullptr) {
+		m_pendingPieces = newInstance(NetCommandList);
+		m_pendingPieces->init();
+	}
+	m_pendingPieces->reset();
 
 	m_lastTimeSent = 0;
 	m_frameGrouping = 1;
@@ -177,9 +187,17 @@ void Connection::sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay) {
 			tempref->setRelay(relay);
 
 			// the message doesn't fit in a single packet, need to split it up.
+			//
+			// TheSuperHackers @bugfix bobtista 10/09/2026 Hand the pieces to the send list a window at a
+			// time instead of all at once. A multi megabyte snapshot became tens of thousands of pieces
+			// queued in one go, every packet of every frame was full of them, the receiver's socket
+			// buffer overflowed under the burst, and the small commands queued beside them (the file
+			// announce, the peer roster) were lost with it, so an eight player rejoin never received
+			// the snapshot it was being sent.
+			//
 			if (NetCommandList* list = NetPacket::ConstructBigCommandList(tempref)) {
 				for (NetCommandRef* ref1 = list->getFirstMessage(); ref1 != nullptr; ref1 = ref1->getNext()) {
-					if (NetCommandRef* ref2 = m_netCommandList->addMessage(ref1->getCommand())) {
+					if (NetCommandRef* ref2 = m_pendingPieces->addMessage(ref1->getCommand())) {
 						ref2->setRelay(relay);
 					}
 				}
@@ -187,6 +205,7 @@ void Connection::sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay) {
 				deleteInstance(list);
 				list = nullptr;
 			}
+			releasePendingPieces();
 
 			deleteInstance(tempref);
 			tempref = nullptr;
@@ -234,13 +253,57 @@ void Connection::clearCommandsExceptFrom( Int playerIndex )
 
 		tmp = next;
 	}
+
+	tmp = m_pendingPieces->getFirstMessage();
+	while (tmp)
+	{
+		NetCommandRef *next = tmp->getNext();
+		if (tmp->getCommand()->getPlayerID() != playerIndex)
+		{
+			m_pendingPieces->removeMessage(tmp);
+			deleteInstance(tmp);
+		}
+		tmp = next;
+	}
 }
 
 Bool Connection::isQueueEmpty() {
-	if (m_netCommandList->getFirstMessage() == nullptr) {
+	if (m_netCommandList->getFirstMessage() == nullptr && m_pendingPieces->getFirstMessage() == nullptr) {
 		return TRUE;
 	}
 	return FALSE;
+}
+
+// Move pieces of a split command onto the send list until MaxOutstandingPieces of them are in
+// flight. Called when pieces are added and at the start of every send, so acknowledgements keep
+// the window moving.
+void Connection::releasePendingPieces() {
+	const Int MaxOutstandingPieces = 48;
+	if (m_pendingPieces == nullptr || m_pendingPieces->getFirstMessage() == nullptr) {
+		return;
+	}
+	Int outstanding = 0;
+	for (NetCommandRef *r = m_netCommandList->getFirstMessage(); r != nullptr; r = r->getNext()) {
+		if (r->getCommand()->getNetCommandType() == NETCOMMANDTYPE_WRAPPER) {
+			++outstanding;
+			if (outstanding >= MaxOutstandingPieces) {
+				return;
+			}
+		}
+	}
+	while (outstanding < MaxOutstandingPieces) {
+		NetCommandRef *piece = m_pendingPieces->getFirstMessage();
+		if (piece == nullptr) {
+			break;
+		}
+		const UnsignedByte relay = piece->getRelay();
+		if (NetCommandRef *sent = m_netCommandList->addMessage(piece->getCommand())) {
+			sent->setRelay(relay);
+		}
+		m_pendingPieces->removeMessage(piece);
+		deleteInstance(piece);
+		++outstanding;
+	}
 }
 
 void Connection::setQuitting()
@@ -270,12 +333,14 @@ UnsignedInt Connection::doSend() {
 	Int numpackets = 0;
 	time_t curtime = timeGetTime();
 	Bool couldQueue = TRUE;
+	releasePendingPieces();
 
 	// Do this check first, since it's an important fail-safe
 	if (m_isQuitting && curtime > m_quitTime + MaxQuitFlushTime)
 	{
 		DEBUG_LOG(("Timed out a quitting connection.  Deleting all %d messages", m_netCommandList->length()));
 		m_netCommandList->reset();
+		m_pendingPieces->reset();
 		return 0;
 	}
 
