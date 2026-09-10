@@ -1916,6 +1916,16 @@ void GameState::gameStatePostProcessLoad()
 	TheGameLogic->updateLoadProgress( 99 );
 	ThePartitionManager->updateCellsOnlyForLoad();
 	ThePartitionManager->finishLoadPostProcess();
+	// Objects saved while owing a partition update get it back now, after the load-time cell pass.
+	for( Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject() )
+	{
+		const UnsignedByte dirty = obj->friend_getXferPartitionDirty();
+		if( dirty != 0 && obj->friend_getPartitionData() != nullptr )
+		{
+			obj->friend_getPartitionData()->makeDirty( dirty == 2 );
+		}
+		obj->friend_clearXferPartitionDirty();
+	}
 	DEBUG_LOG(("gameStatePostProcessLoad: partition finish took %d ms", timeGetTime() - phaseStart));
 
 	TheVictoryConditions->resyncDefeatStateAfterLoad();

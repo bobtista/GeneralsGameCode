@@ -417,6 +417,8 @@ public:
 	/// cache the partition module (should be called only by PartitionData)
 	void friend_setPartitionData(PartitionData *pd) { m_partitionData = pd; }
 	PartitionData *friend_getPartitionData() const { return m_partitionData; }
+	UnsignedByte friend_getXferPartitionDirty() const { return m_xferPartitionDirty; }
+	void friend_clearXferPartitionDirty() { m_xferPartitionDirty = 0; }
 	const SightingInfo *friend_getPartitionLastLook() const { return m_partitionLastLook; }
 	const PartitionData *friend_getConstPartitionData() const { return m_partitionData; }
 	Bool hasGhostObject() const; ///< This object has a ghost object. This does not imply that a ghost snapshot is taken or active.
@@ -762,6 +764,7 @@ private:
 	Object*												m_containedBy;					/**< an object can only be contained by at most one
 																	other object, this is that object (if present) */
 	ObjectID											m_xferContainedByID;	///< xfer uses IDs to store pointers and looks them up after
+	UnsignedByte									m_xferPartitionDirty;	///< checkpoint: partition dirty status at the save, re-applied after the load-time cell update
 	UnsignedInt										m_containedByFrame;	///< frame we were contained by m_containedBy
 
 	Real													m_constructionPercent;			///< for objects being built ... this is the amount completed (0.0 to 100.0)
