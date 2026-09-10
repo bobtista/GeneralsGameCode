@@ -956,9 +956,9 @@ void ParkingPlaceBehavior::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 3 : 4;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 3 : 5;
 #else
-	const XferVersion currentVersion = 4;
+	const XferVersion currentVersion = 5;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -1095,6 +1095,15 @@ void ParkingPlaceBehavior::xfer( Xfer *xfer )
 			xfer->xferCoord3D( &sp->m_prep );
 			xfer->xferInt( &sp->m_runway );
 			xfer->xferUser( &sp->m_door, sizeof( sp->m_door ) );
+			//
+			// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the postponed runway reservation flag.
+			// It was never serialized, so a jet whose first request had already been postponed before
+			// the save was postponed again after a load and left the takeoff queue one frame late.
+			//
+			if( version >= 5 )
+			{
+				xfer->xferBool( &sp->m_postponedRunwayReservationForTakeoff );
+			}
 		}
 		UnsignedByte geomRunways = m_runways.size();
 		xfer->xferUnsignedByte( &geomRunways );
