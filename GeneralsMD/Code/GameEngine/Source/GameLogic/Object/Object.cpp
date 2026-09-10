@@ -183,6 +183,7 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 	m_geometryInfo(tt->getTemplateGeometryInfo()),
 	m_containedBy(nullptr),
 	m_xferContainedByID(INVALID_ID),
+	m_xferPartitionDirty(0),
 	m_containedByFrame(0),
 	m_behaviors(nullptr),
 	m_body(nullptr),
@@ -4129,9 +4130,9 @@ void Object::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 13;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 14;
 #else
-	const XferVersion currentVersion = 13;
+	const XferVersion currentVersion = 14;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -4655,6 +4656,22 @@ void Object::xfer( Xfer *xfer )
 		}
 	}
 
+	//
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the partition dirty status. An object that
+	// moved in the frame before the save still owes the partition manager a cell update and a
+	// fresh look; the load-time cell update dropped that look, so the running game revealed
+	// shroud one frame that the resumed game never did, and the cells differed until the
+	// queued undo caught up. The status is re-applied after the load-time cell update.
+	//
+	if( version >= 14 )
+	{
+		UnsignedByte dirty = ( xfer->getXferMode() == XFER_SAVE && m_partitionData != nullptr ) ? m_partitionData->friend_getDirtyStatus() : 0;
+		xfer->xferUnsignedByte( &dirty );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_xferPartitionDirty = dirty;
+		}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
