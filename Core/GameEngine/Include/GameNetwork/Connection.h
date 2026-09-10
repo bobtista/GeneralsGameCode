@@ -58,6 +58,7 @@ public:
 
 	Bool allCommandsReady(UnsignedInt frame);
 	Bool isQueueEmpty();
+	void debugDumpQueue(Int slot);
 	void attachTransport(Transport *transport);
 	void setUser(User *user);
 	User *getUser();

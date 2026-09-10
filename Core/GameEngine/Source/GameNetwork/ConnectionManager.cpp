@@ -867,6 +867,9 @@ void ConnectionManager::doRelay() {
 				if (CommandRequiresAck(cmd->getCommand())) {
 					ackCommand(cmd, m_localSlot);
 				}
+				if (TheGlobalData->m_rejoinHostIP.isNotEmpty()) {
+					DEBUG_LOG(("probe rx frame %d type %s player %d id %d exec %d from %X", (Int)TheGameLogic->getFrame(), GetNetCommandTypeAsString(cmd->getCommand()->getNetCommandType()), (Int)cmd->getCommand()->getPlayerID(), (Int)cmd->getCommand()->getID(), (Int)cmd->getCommand()->getExecutionFrame(), (UnsignedInt)m_transport->m_inBuffer[i].addr));
+				}
 				if (!processNetCommand(cmd)) {
 					sendRemoteCommand(cmd);
 				}
@@ -1768,6 +1771,16 @@ void ConnectionManager::update(Bool isInGame) {
 	// send any necessary keep-alive packets.
 	doKeepAlive();
 
+	{
+		static UnsignedInt s_probeTick = 0;
+		if (m_recoveryHold && (++s_probeTick % 60) == 0) {
+			for (Int q = 0; q < MAX_SLOTS; ++q) {
+				if (m_connections[q] != nullptr) {
+					m_connections[q]->debugDumpQueue(q);
+				}
+			}
+		}
+	}
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		if (m_connections[i] != nullptr) {
 			/*

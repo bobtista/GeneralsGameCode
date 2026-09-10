@@ -386,3 +386,14 @@ void Connection::debugPrintCommands() {
 	}
 }
 #endif
+
+void Connection::debugDumpQueue(Int slot) {
+	AsciiString head;
+	Int n = 0;
+	for (NetCommandRef *r = m_netCommandList->getFirstMessage(); r != nullptr && n < 6; r = r->getNext(), ++n) {
+		AsciiString one;
+		one.format("[%s id %d f %d last %d] ", GetNetCommandTypeAsString(r->getCommand()->getNetCommandType()), (Int)r->getCommand()->getID(), (Int)r->getCommand()->getExecutionFrame(), (Int)r->getTimeLastSent());
+		head.concat(one);
+	}
+	DEBUG_LOG(("probe queue slot %d len %d head %s", slot, m_netCommandList->length(), head.str()));
+}
