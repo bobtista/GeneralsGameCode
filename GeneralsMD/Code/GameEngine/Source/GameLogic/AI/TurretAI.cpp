@@ -33,6 +33,7 @@
 #include "Common/GameAudio.h"
 #include "Common/PerfTimer.h"
 #include "Common/RandomValue.h"
+#include "Common/Team.h"
 #include "Common/ThingTemplate.h"
 #include "Common/Xfer.h"
 
@@ -983,6 +984,21 @@ StateReturnType TurretAIAimTurretState::onEnter()
 /**
  * Rotate our turret to point at the machine's goal
  */
+static Bool turretProbeWantsObject(const Object *obj)
+{
+	static Int s_probeObj = -2;
+	static Int s_probeFrom = 0;
+	static Int s_probeTo = 0;
+	if (s_probeObj == -2)
+	{
+		const char *e = getenv("GGC_PROBE_OBJ"); s_probeObj = e ? atoi(e) : -1;
+		const char *f = getenv("GGC_PROBE_FROM"); s_probeFrom = f ? atoi(f) : 0;
+		const char *t = getenv("GGC_PROBE_TO"); s_probeTo = t ? atoi(t) : 0x7fffffff;
+	}
+	if (s_probeObj < 0 || obj == nullptr || (Int)obj->getID() != s_probeObj) return FALSE;
+	const Int frame = (Int)TheGameLogic->getFrame();
+	return frame >= s_probeFrom && frame <= s_probeTo;
+}
 StateReturnType TurretAIAimTurretState::update()
 {
 	//DEBUG_LOG(("TurretAIAimTurretState frame %d: %08lx",TheGameLogic->getFrame(),getTurretAI()->getOwner()));
@@ -1028,6 +1044,10 @@ StateReturnType TurretAIAimTurretState::update()
 			}
 
 			nothingInRange = !turret->friend_isAnyWeaponInRangeOf(enemy);
+			if (turretProbeWantsObject(obj))
+			{
+				DEBUG_LOG(("probe aim frame %d obj %d enemy %d enemyTeam %d initialTeam %d primary %d able %d nothingInRange %d idleMood %d", TheGameLogic->getFrame(), (Int)obj->getID(), enemy ? (Int)enemy->getID() : -1, (enemy && enemy->getTeam()) ? (Int)enemy->getTeam()->getID() : -1, turret->friend_getVictimInitialTeam() ? (Int)turret->friend_getVictimInitialTeam()->getID() : -1, (Int)isPrimaryEnemy, (Int)ableToAttackTarget, (Int)nothingInRange, (Int)turret->friend_getTargetWasSetByIdleMood()));
+			}
 			if (enemy == nullptr || !ableToAttackTarget ||
 					(!isPrimaryEnemy && nothingInRange) ||
 					enemy->getTeam() != turret->friend_getVictimInitialTeam()
