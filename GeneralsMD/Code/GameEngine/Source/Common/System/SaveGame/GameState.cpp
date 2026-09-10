@@ -1920,6 +1920,11 @@ void GameState::gameStatePostProcessLoad()
 	for( Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject() )
 	{
 		const UnsignedByte dirty = obj->friend_getXferPartitionDirty();
+		if( obj->friend_getPartitionData() != nullptr && obj->friend_getXferLastCellX() >= -1 && TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
+		{
+			// the anchor the run that saved actually had, which may be none for a fresh object
+			obj->friend_getPartitionData()->friend_setLastCellXY( obj->friend_getXferLastCellX(), obj->friend_getXferLastCellY() );
+		}
 		if( dirty != 0 && obj->friend_getPartitionData() != nullptr )
 		{
 			obj->friend_getPartitionData()->makeDirty( dirty == 2 );

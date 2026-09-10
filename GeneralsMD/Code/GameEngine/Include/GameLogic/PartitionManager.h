@@ -495,6 +495,8 @@ public:
 
 	void friend_restoreLastCellFromLook();
 	void friend_setSkipCellChangeCheckOnce();
+	void friend_getLastCellXY( Int &x, Int &y ) const;
+	void friend_setLastCellXY( Int x, Int y );
 	Bool friend_isInNeedOfCellUpdate() const;
 
 	PartitionData();

@@ -418,6 +418,8 @@ public:
 	void friend_setPartitionData(PartitionData *pd) { m_partitionData = pd; }
 	PartitionData *friend_getPartitionData() const { return m_partitionData; }
 	UnsignedByte friend_getXferPartitionDirty() const { return m_xferPartitionDirty; }
+	Int friend_getXferLastCellX() const { return m_xferLastCellX; }
+	Int friend_getXferLastCellY() const { return m_xferLastCellY; }
 	void friend_clearXferPartitionDirty() { m_xferPartitionDirty = 0; }
 	const SightingInfo *friend_getPartitionLastLook() const { return m_partitionLastLook; }
 	const PartitionData *friend_getConstPartitionData() const { return m_partitionData; }
@@ -764,6 +766,8 @@ private:
 	Object*												m_containedBy;					/**< an object can only be contained by at most one
 																	other object, this is that object (if present) */
 	ObjectID											m_xferContainedByID;	///< xfer uses IDs to store pointers and looks them up after
+	Short													m_xferLastCellX;			///< checkpoint: partition anchor cell at the save, -1 when none
+	Short													m_xferLastCellY;
 	UnsignedByte									m_xferPartitionDirty;	///< checkpoint: partition dirty status at the save, re-applied after the load-time cell update
 	UnsignedInt										m_containedByFrame;	///< frame we were contained by m_containedBy
 
