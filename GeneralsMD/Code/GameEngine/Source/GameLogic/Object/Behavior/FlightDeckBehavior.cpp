@@ -1614,9 +1614,9 @@ void FlightDeckBehavior::xfer( Xfer *xfer )
 			{
 				rw->m_creation.resize( creationCount );
 			}
-			for( Int k = 0; k < creationCount; ++k )
+			for( Int n = 0; n < creationCount; ++n )
 			{
-				xfer->xferCoord3D( &rw->m_creation[ k ] );
+				xfer->xferCoord3D( &rw->m_creation[ n ] );
 			}
 		}
 	}
