@@ -1724,6 +1724,125 @@ void WeaponStore::deleteAllDelayedDamage()
 	* 1: Initial version
 	*/
 //-------------------------------------------------------------------------------------------------
+void WeaponTemplate::friend_xferHistoricDamage( Xfer *xfer ) const
+{
+	const XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
+
+	xfer->xferUnsignedInt( &m_historicDamageTriggerId );
+	UnsignedShort count = (UnsignedShort)m_historicDamage.size();
+	xfer->xferUnsignedShort( &count );
+	if( xfer->getXferMode() == XFER_SAVE )
+	{
+		HistoricWeaponDamageList::iterator it;
+		for( it = m_historicDamage.begin(); it != m_historicDamage.end(); ++it )
+		{
+			xfer->xferUnsignedInt( &it->frame );
+			xfer->xferCoord3D( &it->location );
+			xfer->xferUnsignedInt( &it->triggerId );
+		}
+	}
+	else
+	{
+		m_historicDamage.clear();
+		for( UnsignedShort i = 0; i < count; ++i )
+		{
+			Coord3D location;
+			UnsignedInt frame = 0;
+			UnsignedInt triggerId = 0;
+			xfer->xferUnsignedInt( &frame );
+			xfer->xferCoord3D( &location );
+			xfer->xferUnsignedInt( &triggerId );
+			HistoricWeaponDamageInfo info( frame, location );
+			info.triggerId = triggerId;
+			m_historicDamage.push_back( info );
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void WeaponStore::xferHistoricDamage( Xfer *xfer )
+{
+	const XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
+
+	// the list lives on the instance the store hands out by name, which is the override copy when
+	// a map overrides the weapon, so address every list through findWeaponTemplate
+	std::vector<WeaponTemplate*>::iterator it;
+	if( xfer->getXferMode() == XFER_SAVE )
+	{
+		UnsignedShort count = 0;
+		for( it = m_weaponTemplateVector.begin(); it != m_weaponTemplateVector.end(); ++it )
+		{
+			const WeaponTemplate *t = ( *it != nullptr ) ? findWeaponTemplate( (*it)->getName() ) : nullptr;
+			if( t != nullptr && !t->m_historicDamage.empty() )
+			{
+				++count;
+			}
+		}
+		xfer->xferUnsignedShort( &count );
+		for( it = m_weaponTemplateVector.begin(); it != m_weaponTemplateVector.end(); ++it )
+		{
+			const WeaponTemplate *t = ( *it != nullptr ) ? findWeaponTemplate( (*it)->getName() ) : nullptr;
+			if( t != nullptr && !t->m_historicDamage.empty() )
+			{
+				AsciiString name = t->getName();
+				xfer->xferAsciiString( &name );
+				t->friend_xferHistoricDamage( xfer );
+			}
+		}
+	}
+	else
+	{
+		for( it = m_weaponTemplateVector.begin(); it != m_weaponTemplateVector.end(); ++it )
+		{
+			if( *it != nullptr )
+			{
+				(*it)->m_historicDamage.clear();
+				const WeaponTemplate *t = findWeaponTemplate( (*it)->getName() );
+				if( t != nullptr )
+				{
+					t->m_historicDamage.clear();
+				}
+			}
+		}
+		UnsignedShort count = 0;
+		xfer->xferUnsignedShort( &count );
+		for( UnsignedShort i = 0; i < count; ++i )
+		{
+			AsciiString name;
+			xfer->xferAsciiString( &name );
+			const WeaponTemplate *tmpl = findWeaponTemplate( name );
+			if( tmpl != nullptr )
+			{
+				tmpl->friend_xferHistoricDamage( xfer );
+			}
+			else
+			{
+				// unknown template (mod or renamed weapon): consume the entries and drop them
+				XferVersion entryVersion = 1;
+				xfer->xferVersion( &entryVersion, 1 );
+				UnsignedInt triggerId = 0;
+				xfer->xferUnsignedInt( &triggerId );
+				UnsignedShort entries = 0;
+				xfer->xferUnsignedShort( &entries );
+				for( UnsignedShort e = 0; e < entries; ++e )
+				{
+					Coord3D location;
+					UnsignedInt frame = 0;
+					UnsignedInt id = 0;
+					xfer->xferUnsignedInt( &frame );
+					xfer->xferCoord3D( &location );
+					xfer->xferUnsignedInt( &id );
+				}
+			}
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 void WeaponStore::xferDelayedDamage( Xfer *xfer )
 {
 	const XferVersion currentVersion = 1;
