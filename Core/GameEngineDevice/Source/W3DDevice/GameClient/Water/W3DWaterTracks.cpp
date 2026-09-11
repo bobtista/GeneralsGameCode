@@ -517,9 +517,15 @@ void WaterTracksRenderSystem::drawBatch(Int firstVertex, Int trackCount, Texture
 		return;
 	}
 
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Bind the vertex buffer only around the draw.
+	// The tracks of a batch append into it first, and a buffer left bound by the previous batch
+	// or frame still carries an engine reference, which the append lock asserts against on every
+	// track (about 190 asserts per frame on the shell map).
 	WW3D::Get_Render_Backend()->Set_Texture(0,texture);
+	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexBuffer);
 	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_batchIndexBuffer,firstVertex);
 	WW3D::Get_Render_Backend()->Draw_Triangles(0,trackCount*2,0,trackCount*WATER_STRIP_X*WATER_STRIP_Y);
+	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(nullptr, 0);	// Free up the reference to the vertex buffer
 }
 
 //=============================================================================
@@ -956,7 +962,6 @@ Try improving the fit to vertical surfaces like cliffs.
 	WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
 	WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexBuffer);
 	WW3D::Get_Render_Backend()->Set_Z_Bias(8);
 	//Force apply of render states so we can override them.
 	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
