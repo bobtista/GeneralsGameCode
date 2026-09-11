@@ -316,6 +316,7 @@ void ConnectionManager::init()
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_lastRecoveryFileSendTime = 0;
+	m_lastFileProgressTime = 0;
 	m_recoveryFileSendsThisWindow = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
@@ -421,6 +422,7 @@ void ConnectionManager::reset()
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_lastRecoveryFileSendTime = 0;
+	m_lastFileProgressTime = 0;
 	m_recoveryFileSendsThisWindow = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
@@ -501,6 +503,7 @@ void ConnectionManager::flushForRecovery() {
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_lastRecoveryFileSendTime = 0;
+	m_lastFileProgressTime = 0;
 	m_recoveryFileSendsThisWindow = 0;
 	m_recoveryTransferFileID = 0;
 	m_recoveryTransferIDValid = FALSE;
@@ -1418,6 +1421,13 @@ void ConnectionManager::processFileProgress(NetFileProgressCommandMsg *msg)
 	const UnsignedShort fileID = msg->getFileID();
 	const Int oldProgress = s_fileProgressMap[playerID][fileID];
 	s_fileProgressMap[playerID][fileID] = max(oldProgress, msg->getProgress());
+	if (msg->getProgress() > oldProgress) {
+		m_lastFileProgressTime = timeGetTime();
+	}
+}
+
+UnsignedInt ConnectionManager::getLastFileProgressTime() {
+	return m_lastFileProgressTime;
 }
 
 void ConnectionManager::processProgress( NetProgressCommandMsg *msg )

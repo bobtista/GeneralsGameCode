@@ -290,6 +290,17 @@ void Connection::setQuitting()
  * This is the good part. We take all the network commands queued up for this connection,
  * packetize them and put them on the transport's send queue for actual sending.
  */
+// Pieces of a split command that have never been sent. They are bounded by the acknowledgement
+// window, so sending them as soon as they are released costs nothing but latency.
+Bool Connection::hasUnsentPieces() const {
+	for (NetCommandRef *msg = m_netCommandList->getFirstMessage(); msg != nullptr; msg = msg->getNext()) {
+		if (msg->getTimeLastSent() == -1 && msg->getCommand()->getNetCommandType() == NETCOMMANDTYPE_WRAPPER) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
 UnsignedInt Connection::doSend() {
 	Int numpackets = 0;
 	time_t curtime = timeGetTime();
@@ -305,7 +316,11 @@ UnsignedInt Connection::doSend() {
 		return 0;
 	}
 
-	if ((curtime - m_lastTimeSent) < m_frameGrouping) {
+	// TheSuperHackers @bugfix bobtista 11/09/2026 A snapshot transfer must not wait for the
+	// frame grouping interval: at half a second per batch of pieces a mid-game snapshot took
+	// minutes to deliver and a rejoin missed the countdown. Freshly released pieces go out at
+	// once; retries keep their interval.
+	if ((curtime - m_lastTimeSent) < m_frameGrouping && !hasUnsentPieces()) {
 //		DEBUG_LOG(("not sending packet, time = %d, m_lastFrameSent = %d, m_frameGrouping = %d", curtime, m_lastTimeSent, m_frameGrouping));
 		return 0;
 	}
