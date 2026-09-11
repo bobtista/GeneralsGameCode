@@ -380,6 +380,8 @@ void RecorderClass::init() {
 	m_wasDesync = FALSE;
 	m_doingAnalysis = FALSE;
 	m_playbackFrameCount = 0;
+	m_resumeSkipCommands = FALSE;
+	m_resumeMinCRCFrame = 0;
 
 	OptionPreferences optionPref;
 	m_archiveReplays = optionPref.getArchiveReplaysEnabled();
