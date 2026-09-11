@@ -646,9 +646,9 @@ void ConnectionManager::processRejoinRoster(NetRejoinRosterCommandMsg *msg) {
 		++attached;
 	}
 	Int numUsers = 0;
-	for (Int i = 0; i < MAX_SLOTS; ++i) {
-		if (i == (Int)m_localSlot || m_connections[i] != nullptr) {
-			m_packetRouterFallback[numUsers] = i;
+	for (Int slot = 0; slot < MAX_SLOTS; ++slot) {
+		if (slot == (Int)m_localSlot || m_connections[slot] != nullptr) {
+			m_packetRouterFallback[numUsers] = slot;
 			++numUsers;
 		}
 	}
