@@ -191,6 +191,7 @@ enum RecoveryTuning CPP_11(: Int) {
 	RECOVERY_SENDS_PER_WINDOW = 1,				///< Peers served per window; measured 4/8 loaded at 1, 2/8 at 4, 0/8 unbounded
 	RECOVERY_READY_DEADLINE_MS = 180000,		///< How long the post-load handshake may take before the endgame fallback
 	RECOVERY_READY_ROUNDS = 4,					///< Reports retained per peer so a later round cannot erase an open one
+	RECOVERY_READY_RESEND_MS = 3000,			///< Cadence of repeating the post-load report to peers that have not answered it
 	RECOVERY_WAIT_MESSAGE_MS = 5000,				///< Cadence of the "waiting for other players" message
 	RECOVERY_TRANSFER_MESSAGE_STEP = 20,		///< Percent step between transfer progress messages
 	REJOIN_REQUEST_INTERVAL_MS = 3000,			///< Cadence of snapshot requests from a rejoining peer
