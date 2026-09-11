@@ -111,11 +111,8 @@ typedef Int XferBlockSize;
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-// TheSuperHackers @feature bobtista 28/08/2026 What a serialization pass is for. A
-// checkpoint captures the complete deterministic simulation state so lockstep can continue
-// from it; a save game carries only what a loadable user save needs. Version selection at
-// individual xfer sites keys on this at save time; loading is driven by the versions found
-// in the file.
+// TheSuperHackers @feature bobtista 28/08/2026 A checkpoint captures the full deterministic
+// simulation state; a save game carries only what a user save needs. Xfer sites key versions on it.
 enum XferPurpose CPP_11(: Int)
 {
 	XFER_PURPOSE_SAVEGAME = 0,

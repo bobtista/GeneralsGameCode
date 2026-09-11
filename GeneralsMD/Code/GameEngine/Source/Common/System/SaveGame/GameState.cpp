@@ -322,14 +322,8 @@ void GameState::init()
 	addSnapshotBlock( "CHUNK_TeamFactory",						TheTeamFactory,						SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_Players",								ThePlayerList,						SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_GameLogic",							TheGameLogic,							SNAPSHOT_SAVELOAD );
-	//
-	// TheSuperHackers @bugfix bobtista 16/08/2026 The AI was never written to a save at all, so the
-	// pathfind request queue and the group list came back empty or rebuilt rather than restored.
-	// It follows CHUNK_GameLogic because both hold object ids that only resolve once objects exist.
-	// A save written without this block simply never presents the token, and the load skips it.
-	// TheSuperHackers @bugfix bobtista 29/08/2026 Register the block in every build. Whether it is
-	// written is decided per save: checkpoints carry it, retail shaped saves leave it out.
-	//
+	// TheSuperHackers @bugfix bobtista 29/08/2026 The AI was never saved, so its pathfind queue and groups
+	// came back rebuilt. Checkpoints write this block; retail shaped saves omit it and the load skips it.
 	addSnapshotBlock( "CHUNK_AI",										TheAI,										SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_Radar",									TheRadar,									SNAPSHOT_SAVELOAD );
 	addSnapshotBlock( "CHUNK_ScriptEngine",						TheScriptEngine,					SNAPSHOT_SAVELOAD );
@@ -686,11 +680,8 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	// open the save file
 	XferLoad xferLoad;
 
-	//
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Mirror the save side purpose on load. A
-	// checkpoint stream can gate fields on the purpose when no version field is available, so the
-	// loader must present the same purpose the writer used.
-	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Mirror the save side purpose on load. A checkpoint stream
+	// gates fields on the purpose where no version field exists, so the loader must present the same one.
 	if( gameInfo.saveGameInfo.saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
 	{
 		xferLoad.setPurpose( XFER_PURPOSE_CHECKPOINT );
@@ -735,11 +726,8 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 		// do the post-process from a save game load
 		gameStatePostProcessLoad();
 
-		//
-		// TheSuperHackers @bugfix bobtista 02/09/2026 Put the local player back to whoever it was
-		// when the checkpoint was written. Everything else is loaded by now, so the object sweep
-		// inside setLocalPlayer is safe here.
-		//
+		// TheSuperHackers @bugfix bobtista 02/09/2026 Restore the checkpoint's local player. Everything else
+		// is loaded by now, so the object sweep inside setLocalPlayer is safe here.
 		ThePlayerList->applyXferLocalPlayer();
 
 		//
@@ -808,11 +796,8 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 }
 
 // ------------------------------------------------------------------------------------------------
-// TheSuperHackers @feature bobtista 26/08/2026 Take control of a chosen lobby slot when
-// playing on from a multiplayer checkpoint. Without this the first occupied slot's player
-// is the local player. Ignored while resuming playback, which controls every player.
-// Returns FALSE when the requested slot exists but no player could be matched to it, so
-// callers can refuse to report a successful resume under the wrong identity.
+// TheSuperHackers @feature bobtista 26/08/2026 Take control of a chosen lobby slot when playing on from
+// a multiplayer checkpoint. Returns FALSE when the slot exists but no player matches it.
 static Bool applyResumeAsSlot( void )
 {
 	if( TheGlobalData->m_resumeAsSlot >= 0 && TheGlobalData->m_resumeReplayName.isEmpty() &&
@@ -922,10 +907,8 @@ void GameState::loadResumeSaveGame( AsciiString filename )
 
 	Bool resumeIdentityOk = applyResumeAsSlot();
 
-	// TheSuperHackers @feature bobtista 27/08/2026 A recovery or rejoin reload reports its
-	// post-load state so the handshake can gate the resume, whichever path loaded the save.
-	// A peer that could not take its own slot must not report success; the handshake times
-	// out into the endgame instead of resuming under the wrong identity.
+	// TheSuperHackers @feature bobtista 27/08/2026 A recovery or rejoin reload reports its post-load state
+	// so the handshake can gate the resume. A peer that could not take its own slot withholds the report.
 	if( TheNetwork != nullptr && TheNetwork->isRecoveryInProgress() )
 	{
 		if( resumeIdentityOk )

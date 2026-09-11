@@ -352,23 +352,15 @@ void GameStateMap::xfer( Xfer *xfer )
 
 		if (currentVersion >= 2)
 		{
-			//
-			// TheSuperHackers @feature bobtista 24/08/2026 A save minted during replay playback is
-			// a checkpoint OF the recorded game, not of the playback session. Record the original
-			// game mode from the recorder so the checkpoint loads as a normal game with the
-			// original local player instead of a replay observer.
-			//
+			// TheSuperHackers @feature bobtista 24/08/2026 A save minted during replay playback is a checkpoint
+			// of the recorded game, so record its game mode and it loads as a normal game, not a replay.
 			Int gameMode = (Int)TheGameLogic->getGameMode();
 			if( gameMode == GAME_REPLAY && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
 			{
 				gameMode = TheRecorder->getGameMode();
 
-				//
-				// TheSuperHackers @feature bobtista 26/08/2026 A checkpoint of a multiplayer
-				// replay must load without live network objects. Write it as a skirmish-shaped
-				// save: the serialized player list carries the real players, and the skirmish
-				// game info constructed below carries the slot layout.
-				//
+				// TheSuperHackers @feature bobtista 26/08/2026 A checkpoint of a multiplayer replay must load
+				// without live network objects, so write it as a skirmish-shaped save.
 				if( gameMode == GAME_LAN || gameMode == GAME_INTERNET ||
 						TheRecorder->isMultiplayer() )
 				{
@@ -481,29 +473,16 @@ void GameStateMap::xfer( Xfer *xfer )
 		// A checkpoint of a replayed game carries the recorded game's info (see the game mode
 		// note above). Multiplayer replays checkpoint as skirmish-shaped saves.
 		effectiveGameMode = TheRecorder->getGameMode();
-		//
-		// TheSuperHackers @bugfix bobtista 05/09/2026 A replay of a multiplayer session that was
-		// recorded as a single player game still built its sides the skirmish way: startNewGame
-		// calls prepareForMP_or_Skirmish for any multiplayer session, which discards the map's
-		// own teams and adds one per occupied slot. Writing such a checkpoint with the recorded
-		// mode left the load rebuilding the map's teams instead, so the team prototypes did not
-		// match what the save recorded and the checkpoint would not load.
-		//
+		// TheSuperHackers @bugfix bobtista 05/09/2026 A multiplayer session recorded as a single player game
+		// still built its sides the skirmish way, so its checkpoint must be written as skirmish too.
 		if( effectiveGameMode == GAME_LAN || effectiveGameMode == GAME_INTERNET ||
 				TheRecorder->isMultiplayer() )
 		{
 			effectiveGameMode = GAME_SKIRMISH;
 		}
 	}
-	//
-	// TheSuperHackers @feature bobtista 27/08/2026 A synchronized multiplayer save carries its
-	// slot layout: side substitution on load must use the saved lobby snapshot, because the
-	// live lobby's slot state is stale by the time a deferred resume load runs, and peers
-	// must build identical sides regardless of reconnection order.
-	//
-	// On load the file's mode alone decides: every LAN-mode save this branch writes embeds
-	// the lobby snapshot, and a network-less reader (single player -loadsave) must still
-	// consume it or the stream desynchronizes at the next block.
+	// TheSuperHackers @feature bobtista 27/08/2026 A synchronized multiplayer save carries its slot layout,
+	// so every LAN-mode save embeds the lobby snapshot and any reader, networked or not, must consume it.
 	if( effectiveGameMode == GAME_LAN &&
 			(TheNetwork != nullptr || xfer->getXferMode() == XFER_LOAD) )
 	{
@@ -535,14 +514,8 @@ void GameStateMap::xfer( Xfer *xfer )
 			}
 		}
 		xfer->xferSnapshot(TheSkirmishGameInfo);
-		//
-		// TheSuperHackers @bugfix bobtista 28/08/2026 The snapshot carries no local identity
-		// (slot addresses are not serialized), so side construction would mark the first
-		// occupied slot as the local player: the camera restores to the donor's base and the
-		// world briefly renders with the donor's vision before the resume switches players.
-		// Stamp the resuming slot before sides are built so this peer is itself from the
-		// first frame. The addresses are matching keys only; the network is already built.
-		//
+		// TheSuperHackers @bugfix bobtista 28/08/2026 The snapshot carries no local identity, so side
+		// construction made the first occupied slot local. Stamp the resuming slot before sides are built.
 		if( xfer->getXferMode() == XFER_LOAD && TheGlobalData->m_resumeAsSlot >= 0 &&
 				TheSkirmishGameInfo != nullptr )
 		{
@@ -624,11 +597,8 @@ void GameStateMap::clearScratchPadMaps()
 			Char *c = strrchr( item.cFileName, '.' );
 			if( c && stricmp( c, ".map" ) == 0 )
 			{
-				//
-				// TheSuperHackers @bugfix bobtista 27/08/2026 Concurrent client instances share
-				// this directory; only delete our own instance's scratch maps (suffixed _i<id>)
-				// and legacy unsuffixed ones, never a peer instance's file.
-				//
+				// TheSuperHackers @bugfix bobtista 27/08/2026 Concurrent client instances share this directory,
+				// so only delete our own instance's scratch maps and legacy unsuffixed ones.
 				AsciiString ggcOwn;
 				ggcOwn.format("_i%u.map", rts::ClientInstance::getInstanceId());
 				const char *ggcSuffix = strstr( item.cFileName, "_i" );

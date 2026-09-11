@@ -134,11 +134,8 @@ public:
 	they are high enough that we should let them act like they're flying. jba. */
 	Bool isSignificantlyAboveTerrain() const ;
 
-	//
-	// TheSuperHackers @bugfix bobtista 19/08/2026 Drop the cached altitude. Loading populates it
-	// before the terrain layers are restored, so a unit standing on a bridge measures its height
-	// against the ground underneath and reads as airborne on the first resumed frame.
-	//
+	// TheSuperHackers @bugfix bobtista 19/08/2026 Drop the cached altitude. Loading fills it before
+	// terrain layers are restored, so a unit on a bridge read as airborne on the first resumed frame.
 	void invalidateAltitudeCache() { m_cacheFlags &= ~(VALID_ALTITUDE_TERRAIN | VALID_ALTITUDE_SEALEVEL); }
 
 	void convertBonePosToWorldPos(const Coord3D* bonePos, const Matrix3D* boneTransform, Coord3D* worldPos, Matrix3D* worldTransform) const;
@@ -165,10 +162,8 @@ protected:
 	// one ULP even when the matrix itself is bit-identical.
 	void restoreCachedAngleForLoad(Real angle) { m_cachedAngle = angle; }
 
-	// TheSuperHackers @bugfix bobtista 06/09/2026 A checkpoint must carry the cached altitude for
-	// the same reason it carries the cached angle. Recomputing it against the current terrain can
-	// differ from the history-dependent value the continuous run is holding, and threshold tests
-	// such as isSignificantlyAboveTerrain then take a different branch after a resume.
+	// TheSuperHackers @bugfix bobtista 06/09/2026 A checkpoint must carry the cached altitude too.
+	// Recomputing it can differ from the history-dependent value and flip threshold tests on resume.
 	Real getCachedAltitudeAboveTerrain() const { return m_cachedAltitudeAboveTerrain; }
 	Real getCachedAltitudeAboveTerrainOrWater() const { return m_cachedAltitudeAboveTerrainOrWater; }
 	Int getAltitudeCacheFlags() const { return m_cacheFlags & (VALID_ALTITUDE_TERRAIN | VALID_ALTITUDE_SEALEVEL); }

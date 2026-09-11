@@ -236,13 +236,8 @@ void WeaponSet::xfer( Xfer *xfer )
 		}
 		else
 		{
-			//
-			// TheSuperHackers @bugfix bobtista 24/08/2026 Resolve the restored set on the owning
-			// object's template. Looking the template up by name can return a different instance
-			// than the one the object carries (map overrides, copied templates), and the set
-			// pointer then never matches the one updateWeaponSet resolves, so the first weapon
-			// set condition change after load rebuilt the weapons the run that saved kept.
-			//
+			// TheSuperHackers @bugfix bobtista 24/08/2026 Resolve the restored set on the owning object's
+			// template. A name lookup can return another instance and the weapons were then rebuilt.
 			const ThingTemplate* tt = nullptr;
 			if (m_xferOwner != nullptr)
 			{
@@ -329,12 +324,8 @@ void WeaponSet::xfer( Xfer *xfer )
 		m_totalDamageTypeMask.xfer(xfer);// BitSet has built in xfer
 	}
 
-	//
 	// TheSuperHackers @bugfix bobtista 09/09/2026 The pitch limit flag is never written (the second
-	// bool above repeats the damage weapon flag), so every load cleared it and a pitch limited unit
-	// could acquire targets above or below its guns that the running game rejected. Derive it from
-	// the restored weapons the same way updateWeaponSet does.
-	//
+	// bool above repeats the damage weapon flag), so derive it from the restored weapons on load.
 	if (xfer->getXferMode() == XFER_LOAD)
 	{
 		m_hasPitchLimit = false;

@@ -167,12 +167,8 @@ void AnimationSteeringUpdate::xfer( Xfer *xfer )
 	// extend base class
 	UpdateModule::xfer( xfer );
 
-	//
 	// TheSuperHackers @bugfix bobtista 09/09/2026 Carry the turn animation in progress and the frame
-	// it may change. A load left the module believing the vehicle was going straight while the
-	// drawable still showed the recenter animation, so the flag was never cleared, the container's
-	// condition monitor never fired, and a rider was never re-seated where the running game seated it.
-	//
+	// it may change. A load lost the recenter state and a rider was never re-seated.
 	if( version >= 2 )
 	{
 		Int turnAnim = (Int)m_currentTurnAnim;

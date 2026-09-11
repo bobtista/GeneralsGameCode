@@ -2648,13 +2648,8 @@ void Object::setTriggerAreaFlagsForChangeInPosition()
 	if (isKindOf(KINDOF_PROJECTILE) || isKindOf(KINDOF_INERT))
 		return;
 
-	//
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Do not evaluate trigger areas while a
-	// checkpoint is loading. Restoring the position ran this scan with empty trigger info, so
-	// every object inside an area raised a phantom entered event and set its team's entered or
-	// exited flag, which script conditions then consumed on the first resumed frame. The saved
-	// trigger state is restored by Object::xfer instead.
-	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Do not evaluate trigger areas while a checkpoint is
+	// loading. The scan raised phantom entered events. Object::xfer restores the saved state.
 	if( TheGameState != nullptr && TheGameState->isInLoadGame() &&
 			TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
 	{
@@ -4245,14 +4240,8 @@ void Object::xfer( Xfer *xfer )
 			  preXferGeometry.getMajorRadius() != m_geometryInfo.getMajorRadius() ||
 			  preXferGeometry.getMinorRadius() != m_geometryInfo.getMinorRadius() ) )
 		{
-			//
-			// TheSuperHackers @bugfix bobtista 25/08/2026 Re-register with the partition manager
-			// when the restored geometry differs from the one registration used. The cell
-			// intersection array is sized at registration, so a runtime geometry override -- a
-			// rebuild hole adopting the dead building's footprint -- restored by this xfer alone
-			// kept the template-sized array, truncated the footprint fill, and the object stopped
-			// colliding on the missing cells.
-			//
+			// TheSuperHackers @bugfix bobtista 25/08/2026 Re-register with the partition manager when
+			// the restored geometry differs. The cell array is sized at registration and truncated.
 			ThePartitionManager->unRegisterObject( this );
 			ThePartitionManager->registerObject( this );
 		}
@@ -4574,12 +4563,8 @@ void Object::xfer( Xfer *xfer )
 
 	if( version >= 11 )
 	{
-		//
-		// TheSuperHackers @bugfix bobtista 29/08/2026 Record whether the object was registered with
-		// the partition manager. Off map objects such as payload delivery planes are removed from
-		// it until they re-enter, but the load registers every restored object, so they came back
-		// with a phantom partition module that forked the partition state from the run that saved.
-		//
+		// TheSuperHackers @bugfix bobtista 29/08/2026 Record whether the object was registered with the
+		// partition manager. The load registered every object, including off map ones such as planes.
 		Bool partitionRegistered = ( m_partitionData != nullptr );
 		xfer->xferBool( &partitionRegistered );
 		if( xfer->getXferMode() == XFER_LOAD && !partitionRegistered && m_partitionData != nullptr )
@@ -4590,11 +4575,8 @@ void Object::xfer( Xfer *xfer )
 
 	if( version >= 12 )
 	{
-		//
-		// TheSuperHackers @bugfix bobtista 30/08/2026 Serialize the trigger area state. Without
-		// it a loaded object raised phantom entered events for every area it stood in, and the
-		// script conditions that watch those flags fired on the first resumed frame.
-		//
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Serialize the trigger area state. Without it a
+		// loaded object raised phantom entered events and script conditions fired on the first frame.
 		xfer->xferUnsignedInt( &m_enteredOrExitedFrame );
 		xfer->xferUser( &m_iPos, sizeof( m_iPos ) );
 		UnsignedByte activeCount = (UnsignedByte)m_numTriggerAreasActive;
@@ -4638,13 +4620,8 @@ void Object::xfer( Xfer *xfer )
 		}
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the partition dirty status. An object that
-	// moved in the frame before the save still owes the partition manager a cell update and a
-	// fresh look; the load-time cell update dropped that look, so the running game revealed
-	// shroud one frame that the resumed game never did, and the cells differed until the
-	// queued undo caught up. The status is re-applied after the load-time cell update.
-	//
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the partition dirty status. The load-time cell
+	// update dropped the pending look of an object that moved before the save and forked the shroud.
 	if( version >= 14 )
 	{
 		UnsignedByte dirty = ( xfer->getXferMode() == XFER_SAVE && m_partitionData != nullptr ) ? m_partitionData->friend_getDirtyStatus() : 0;

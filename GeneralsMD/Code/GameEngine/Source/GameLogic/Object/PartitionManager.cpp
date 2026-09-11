@@ -4942,12 +4942,8 @@ void PartitionManager::xfer( Xfer *xfer )
 			// until loadPostProcess, but I ain't gonna change it now.
 //			DEBUG_ASSERTCRASH(m_pendingUndoShroudReveals.empty(), ("At load, we appear to not be in a reset state.") );
 
-			//
-			// TheSuperHackers @bugfix bobtista 29/08/2026 Drop the unlooks the load itself queued
-			// before restoring the saved queue. The restored cells never re-applied the reveals
-			// those entries would undo, and their later deadlines sit at the front of the FIFO,
-			// blocking every restored unlook behind them past its due frame.
-			//
+			// TheSuperHackers @bugfix bobtista 29/08/2026 Drop the unlooks queued by the load itself. They
+			// undid nothing and blocked every restored unlook queued behind them past its due frame.
 			resetPendingUndoShroudRevealQueue();
 
 			// I have to split this up though, since on Load I need to make new instances.
@@ -5038,15 +5034,8 @@ void PartitionManager::xfer( Xfer *xfer )
 
 	if (version >= 4)
 	{
-		//
-		// TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the pending dirty list. It holds the
-		// objects that have moved since the last collision sweep, and it spans the frame boundary --
-		// anything dirtied after a frame's sweep is still waiting at the start of the next one. A
-		// load cannot rebuild that from the world state, so the first resumed frame sweeps a
-		// different set in a different order, and since processContactList hands the first object of
-		// each pair its onCollide() first and collisions re-dirty both participants, the difference
-		// never washes out.
-		//
+		// TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the pending dirty list. A load cannot
+		// rebuild it, so the first resumed collision sweep ran a different set in a different order.
 		UnsignedInt dirtyCount = 0;
 		if (xfer->getXferMode() == XFER_SAVE)
 		{
@@ -5102,16 +5091,8 @@ void PartitionManager::xfer( Xfer *xfer )
 void PartitionManager::loadPostProcess()
 {
 
-	//
-	// TheSuperHackers @bugfix bobtista 23/08/2026 Re-anchor every object's last-cell record and
-	// drop the dirty entries the load itself produced. Rebuilding the partition sets each object's
-	// last cell to its current cell and queues a cell update for the restored transform, but the
-	// run that saved may still owe a cell-change refresh: its last cell dates from an older
-	// position, and the refresh only fires when the next cell update notices the mismatch. Keeping
-	// the load-time anchor and dirty entries either loses that refresh or fires it frames early,
-	// forking the shroud from the run that saved. The saved look record carries the position the
-	// anchor was made at, so restore the anchor from it and let the refresh fire on its own frame.
-	//
+	// TheSuperHackers @bugfix bobtista 23/08/2026 Restore each object's last-cell anchor from the saved
+	// look record and drop the load's dirty entries, so a pending cell refresh fires on its own frame.
 	for( Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject() )
 	{
 		PartitionData *pd = obj->friend_getPartitionData();
@@ -5153,15 +5134,8 @@ void PartitionManager::finishLoadPostProcess()
 		return;
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 31/08/2026 Rebuild every object's cell coverage from the
-	// saved membership before restoring the per cell order. The load recomputes coverage from
-	// current positions, but an object that moved after the frame's last collision sweep was
-	// saved with the coverage of its older position, and the order restore below cannot repair
-	// a cell whose membership differs. The restored dirty list already owes such an object a
-	// cell update, so the first resumed sweep recomputes the same coverage the uninterrupted
-	// run would.
-	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Rebuild every object's cell coverage from the saved
+	// membership before restoring the per cell order. The load recomputed it from current positions.
 	typedef std::map< ObjectID, std::vector<PartitionCell*> > SavedCoverageMap;
 	SavedCoverageMap savedCoverage;
 	for (Int cellIndex = 0; cellIndex < m_totalCellCount; ++cellIndex)

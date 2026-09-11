@@ -288,9 +288,8 @@ void Path::crc( Xfer *xfer )
 /** Xfer
 	*	Version Info:
 	* 1: Initial version
-	* 2: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the cached closest-point-on-path.
-	*    Discarding it on load moves the frame the goal point is next recomputed on, so a loaded
-	*    unit steers to a different path point than the same unit in a continuous run
+	* 2: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the cached closest-point-on-path so a
+	*    loaded unit recomputes its goal point on the same frame as a continuous run
 	*/
 void Path::xfer( Xfer *xfer )
 {
@@ -10535,13 +10534,8 @@ void Pathfinder::removePos( Object *obj)
 
 	ICoord2D newCell;
 	newCell.x = newCell.y = -1;
-	//
-	// TheSuperHackers @bugfix bobtista 31/08/2026 Keep the serialized pathfind cell while a save
-	// is loading. Restoring a contained unit removes it from the pathfind map, and that wipe also
-	// cleared the cell coordinate the save stream had already restored. The grid itself is healed
-	// afterwards, by the checkpoint cell snapshot or the legacy post load rebuild, so only the
-	// per unit coordinate was lost.
-	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Keep the serialized pathfind cell while a save is
+	// loading. Removing a restored contained unit from the map used to wipe the restored coordinate.
 	if( TheGameState == nullptr || !TheGameState->isInLoadGame() )
 	{
 		ai->setCurPathfindCell(newCell);
@@ -11701,25 +11695,20 @@ void Pathfinder::crc( Xfer *xfer )
 /** Load/Save the pathfinder
 	*	Version Info:
 	* 1: Initial version
-	* 2: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize the pending pathfind request queue,
-	*    so units that were waiting on a path come back queued in the same slots and the same order,
-	*    along with the two scalars beside it that the frame CRC covers and a load cannot rebuild:
-	*    the ignored obstacle and the pathfind cell budget
+	* 2: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize the pending pathfind request queue, the
+	*    ignored obstacle and the cell budget, which the frame CRC covers and a load cannot rebuild
 	* 3: TheSuperHackers @feature bobtista 16/08/2026 Snapshot the mutable ground cell state. A cell
 	*    carries classification history that no rebuild from the object graph reproduces, so the cell
 	*    and its obstacle/unit metadata are restored atomically after object post processing
 	* 4: TheSuperHackers @feature bobtista 16/08/2026 Omit the per cell zone numbers. loadPostProcess
 	*    always rebuilds them from the restored grid, so saving the discarded numbering only made the
 	*    checkpoint non idempotent
-	* 5: TheSuperHackers @feature bobtista 17/08/2026 Restore cell zone numbers together with the
-	*    matching zone equivalency tables, hierarchical blocks, layer zones, and recalculation frame.
-	*    Rebuilding those tables is topologically valid but can assign different history-dependent zone
-	*    identities and change line-of-fire and path decisions immediately after load.
-	* 6: TheSuperHackers @bugfix bobtista 21/08/2026 Checkpoint the bridge and wall layer cells,
-	*    plus the cross-search tunneling flag and ignored obstacle id. Only the ground grid was
-	*    captured, so unit position and goal marks on layer cells vanished on load and the A*
-	*    costed routes near bridges differently than the run that saved; the two transients are
-	*    hashed by crc() and made the load frame disagree until the next search rewrote them.
+	* 5: TheSuperHackers @feature bobtista 17/08/2026 Restore cell zone numbers with their equivalency
+	*    tables, hierarchical blocks, layer zones and recalculation frame; a rebuild can assign
+	*    different history-dependent zone identities and change path decisions right after load
+	* 6: TheSuperHackers @bugfix bobtista 21/08/2026 Checkpoint the bridge and wall layer cells, the
+	*    cross-search tunneling flag and ignored obstacle id. Only the ground grid was captured, so
+	*    layer cell marks vanished on load and the two crc() hashed transients broke the load frame
 	*/
 //-----------------------------------------------------------------------------
 void Pathfinder::xfer( Xfer *xfer )
@@ -11894,14 +11883,8 @@ void Pathfinder::xfer( Xfer *xfer )
 		}
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Recompute the logical extent on load.
-	// It is derived state that only processPathfindQueue refreshes, and the AI updates of
-	// the first loaded frame run before that refresh. With the reset value of zero every
-	// destination adjustment for a human owned unit failed its logical extent check and
-	// fell back to snapping the raw goal, so the first move order after a load sent units
-	// to different spots than the same order in an uninterrupted run.
-	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Recompute the logical extent on load. It stayed zero
+	// until processPathfindQueue ran, so the first move order after a load snapped goals differently.
 	if( xfer->getXferMode() == XFER_LOAD )
 	{
 		Region3D terrainExtent;

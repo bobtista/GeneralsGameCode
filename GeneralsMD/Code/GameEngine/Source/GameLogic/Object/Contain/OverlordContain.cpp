@@ -108,11 +108,8 @@ OverlordContain::~OverlordContain()
 
 void OverlordContain::onObjectCreated()
 {
-	//
 	// TheSuperHackers @bugfix bobtista 23/08/2026 Do not create the initial payload while a save is
-	// loading. The saved payload objects are restored from the save stream and re-registered by the
-	// contain xfer, so creating them here as well duplicated every payload on load.
-	//
+	// loading. The contain xfer restores the saved payload, so creating it here duplicated it.
 	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
 	{
 		return;

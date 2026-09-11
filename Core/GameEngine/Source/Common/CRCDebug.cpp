@@ -190,11 +190,8 @@ static void addCRCDebugLineInternal(bool count, const char *fmt, va_list args)
 {
 	if (TheGameLogic == nullptr)
 		return;
-	//
-	// TheSuperHackers @tweak bobtista 25/08/2026 -LogCRCDebugLines also works during replay
-	// playback, same as the gen-line path: TheDebugIgnoreSyncErrors silences the network mismatch
-	// machinery, not an explicitly requested debug log.
-	//
+	// TheSuperHackers @tweak bobtista 25/08/2026 -LogCRCDebugLines also works during replay playback.
+	// TheDebugIgnoreSyncErrors silences network mismatch reporting, not a requested debug log.
 	if (g_logCRCDebugLines)
 	{
 		Bool frameInWindow = TheGameLogic->isInGame() && !TheGameLogic->isInShellGame() &&
@@ -233,12 +230,8 @@ static void addCRCDebugLineInternal(bool count, const char *fmt, va_list args)
 		++tmp;
 	}
 
-	//
-	// TheSuperHackers @feature bobtista 16/08/2026 -LogCRCDebugLines writes the per-field detail to
-	// the debug log. Far more verbose than -LogCRCGenLines, so it is bounded by the
-	// -DebugCRCFromFrame / -DebugCRCUntilFrame window and meant for localising a divergence that
-	// the subsystem checkpoints have already narrowed down.
-	//
+	// TheSuperHackers @feature bobtista 16/08/2026 -LogCRCDebugLines writes per-field detail to the
+	// debug log, bounded by the -DebugCRCFromFrame / -DebugCRCUntilFrame window since it is verbose.
 	if (g_logCRCDebugLines)
 	{
 		DEBUG_LOG(("%s", DebugStrings[nextDebugString]));
@@ -272,12 +265,8 @@ void addCRCDebugLineNoCounter(const char *fmt, ...)
 
 void addCRCGenLine(const char *fmt, ...)
 {
-	//
-	// TheSuperHackers @tweak bobtista 24/08/2026 -LogCRCGenLines also works during replay
-	// playback. TheDebugIgnoreSyncErrors silences the network mismatch machinery, and command
-	// line replay loads set it to keep mismatch banners off screen, but the explicitly requested
-	// checkpoint log should not be silenced with it.
-	//
+	// TheSuperHackers @tweak bobtista 24/08/2026 -LogCRCGenLines also works during replay playback.
+	// TheDebugIgnoreSyncErrors silences network mismatch reporting, not a requested checkpoint log.
 	Bool frameInWindow = TheGameLogic->isInGame() && !TheGameLogic->isInShellGame() &&
 		TheCRCFirstFrameToLog >= 0 && TheCRCFirstFrameToLog <= TheGameLogic->getFrame() &&
 		TheGameLogic->getFrame() <= TheCRCLastFrameToLog;
@@ -298,13 +287,8 @@ void addCRCGenLine(const char *fmt, ...)
 	va_end( va );
 	addCRCDebugLine("%s", buf);
 
-	//
-	// TheSuperHackers @feature bobtista 16/08/2026 The buffered lines are only flushed when the
-	// network reports a CRC mismatch, so a single player run never emits them however many CRC
-	// options are passed. -LogCRCGenLines writes them to the debug log instead, which is what makes
-	// a save/load round trip comparable frame by frame.
-	//
-	// -LogCRCDebugLines already writes every buffered line, so do not emit these a second time
+	// TheSuperHackers @feature bobtista 16/08/2026 Buffered lines are only flushed on a network CRC
+	// mismatch, so -LogCRCGenLines writes them to the debug log unless -LogCRCDebugLines does.
 	if (g_logCRCGenLines && !g_logCRCDebugLines)
 	{
 		DEBUG_LOG(("%s", buf));

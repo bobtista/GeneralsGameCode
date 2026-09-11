@@ -348,12 +348,8 @@ void AIGuardRetaliateInnerState::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer Method */
 // ------------------------------------------------------------------------------------------------
-//
-// TheSuperHackers @bugfix bobtista 24/08/2026 Serialize the attack sub-states instead of
-// re-entering on load. loadPostProcess previously reconstructed them by calling onEnter, which
-// re-chose the weapon, reset its shot budget, restarted the inner attack machine at its default
-// state and stamped a fresh give-up deadline -- all diverging from the run that saved.
-//
+// TheSuperHackers @bugfix bobtista 24/08/2026 Serialize the attack sub-states. loadPostProcess
+// re-entered them via onEnter, which re-chose the weapon and reset its budget and deadline.
 void AIGuardRetaliateInnerState::xfer( Xfer *xfer )
 {
   // version
@@ -668,13 +664,8 @@ void AIGuardRetaliateReturnState::xfer( Xfer *xfer )
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
-	//
 	// TheSuperHackers @bugfix bobtista 09/09/2026 Chain through the move state so the return goal and
-	// the path wait carry over. This was the one move-derived state that skipped its base, so a guard
-	// walking back to its post came out of a load with a goal of (0,0) and no pending path, asked the
-	// pathfinder for a path to the map corner on the load frame, and the game desynced from the
-	// recording a few hundred frames later.
-	//
+	// path wait carry over. Skipping it left a loaded guard heading for (0,0) and the game desynced.
 	if( version >= 2 )
 	{
 		AIInternalMoveToState::xfer( xfer );

@@ -145,11 +145,8 @@ public:
 protected:
 	// snapshot interface
 	virtual void crc( Xfer *xfer ) override {};
-	//
-	// TheSuperHackers @bugfix bobtista 21/08/2026 Serialize the facing captured when the plane
-	// heads off map. The update self-destructs the plane when its facing drifts from this vector,
-	// so the zeroed value after a load made every turning payload plane kill itself.
-	//
+	// TheSuperHackers @bugfix bobtista 21/08/2026 Serialize the facing captured when the plane heads
+	// off map. The zeroed value after a load made every turning payload plane self-destruct.
 	virtual void xfer( Xfer *xfer ) override
 	{
 #if RETAIL_COMPATIBLE_XFER_SAVE

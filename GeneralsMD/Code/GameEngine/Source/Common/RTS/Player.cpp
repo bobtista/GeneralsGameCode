@@ -251,12 +251,8 @@ void PlayerRelationMap::xfer( Xfer *xfer )
 	{
 
 		// go through all player relations
-		//
-		// TheSuperHackers @bugfix bobtista 03/09/2026 Write the relations in player index order. The
-		// map is a hash_map, so its iteration order follows the bucket layout and insertion history;
-		// a load re-inserts the entries in file order and the next save then wrote them in a
-		// different order than the run that saved them.
-		//
+		// TheSuperHackers @bugfix bobtista 03/09/2026 Write the relations in player index order. The map is a
+		// hash_map whose iteration order follows insertion history, so a load and resave reordered them.
 		std::vector< PlayerIndex > relationKeys;
 		relationKeys.reserve( m_map.size() );
 		for( playerRelationIt = m_map.begin(); playerRelationIt != m_map.end(); ++playerRelationIt )
@@ -1051,11 +1047,8 @@ void Player::becomingTeamMember(Object *obj, Bool yes)
 		}
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 29/08/2026 Do not touch the battle plan bonuses while a
-	// save is loading. The restored object state already carries them, and the team wiring the
-	// load performs re-fired this hook, stacking the sight bonus onto the restored values.
-	//
+	// TheSuperHackers @bugfix bobtista 29/08/2026 Do not touch the battle plan bonuses while a checkpoint
+	// loads. The restored state already carries them and the load's team wiring re-fired this hook.
 	if( getNumBattlePlansActive() > 0 && obj->areModulesReady() &&
 			( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE ||
 				TheGameState->getSaveGameInfo()->saveFileType != SAVE_FILE_TYPE_CHECKPOINT ) )
@@ -3315,13 +3308,8 @@ static void doPowerDisable( Object *obj, void *userData )
 //-------------------------------------------------------------------------------------------------
 void Player::onPowerBrownOutChange( Bool brownOut )
 {
-	//
-	// TheSuperHackers @bugfix bobtista 31/08/2026 Ignore power supply edges while a save is
-	// loading. Energy totals are reconstructed one building at a time during the load, and the
-	// transient shortfalls paused and unpaused every special power, leaving pause bookkeeping
-	// and radar state behind that the uninterrupted game never wrote. The radar restriction,
-	// disabled masks and pause counts are all restored from the save stream directly.
-	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Ignore power supply edges while a checkpoint loads. The
+	// totals are rebuilt one building at a time, and the transient shortfalls paused every special power.
 	if( TheGameState != nullptr && TheGameState->isInLoadGame() &&
 			TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
 	{
@@ -4169,11 +4157,8 @@ void Player::xfer( Xfer *xfer )
 
 		}
 
-		//
-		// TheSuperHackers @bugfix bobtista 30/08/2026 Rebuild the upgrade list in its saved order
-		// when loading a checkpoint. addUpgrade prepends, so reading the entries forward reversed
-		// the list on every load.
-		//
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Rebuild the upgrade list in its saved order when loading
+		// a checkpoint. addUpgrade prepends, so reading the entries forward reversed the list on every load.
 		if( TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
 		{
 			Upgrade *reversedList = nullptr;

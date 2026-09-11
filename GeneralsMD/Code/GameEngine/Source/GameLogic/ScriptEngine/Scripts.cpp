@@ -951,10 +951,8 @@ void Script::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version
 	* 2: TheSuperHackers @bugfix Preserve the delayed evaluation deadline
-	* 3: TheSuperHackers @bugfix bobtista 21/08/2026 Preserve the re-check deadline that a skirmish
-	*    special power ready condition caches in its own parameter. The scripts are rebuilt from the
-	*    map on load, so it reset to zero and the condition then evaluated on a different cadence
-	*    than the run that saved it, firing the power on a different frame or not at all. */
+	* 3: TheSuperHackers @bugfix bobtista 21/08/2026 Preserve the re-check deadline a skirmish special
+	*    power ready condition caches. Scripts rebuild from the map on load, so it reset to zero */
 // ------------------------------------------------------------------------------------------------
 void Script::xfer( Xfer *xfer )
 {
@@ -1000,14 +998,8 @@ void Script::xfer( Xfer *xfer )
 		}
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 04/09/2026 Carry the memoized result each condition keeps.
-	// The expensive conditions cache their answer in m_customData and the stamp they cached it at
-	// in m_customFrame, and only recompute once the script engine's object count stamp moves. None
-	// of that travelled with a checkpoint, so a resumed run held a different cache than the run
-	// that wrote the save and returned a stale answer until the next recompute, which fired scripts
-	// several frames late and drifted the simulation apart long after the load.
-	//
+	// TheSuperHackers @bugfix bobtista 04/09/2026 Carry each condition's memoized result and stamp.
+	// A resumed run otherwise returned a stale answer until the next recompute and fired scripts late.
 	if( version >= 4 )
 	{
 		for( OrCondition *orCondition = m_condition; orCondition; orCondition = orCondition->getNextOrCondition() )

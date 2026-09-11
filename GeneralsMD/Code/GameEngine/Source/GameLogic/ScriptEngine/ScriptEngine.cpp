@@ -9442,24 +9442,15 @@ void ScriptEngine::xfer( Xfer *xfer )
 
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 04/09/2026 Carry the stamp that invalidates the cached
-	// condition results. Expensive conditions memoize their answer and only recompute when this
-	// frame number changes, so a resumed checkpoint that starts the stamp at zero recomputes on a
-	// different schedule than the run that wrote the save and a script can fire frames late.
-	//
+	// TheSuperHackers @bugfix bobtista 04/09/2026 Carry the stamp that invalidates cached condition
+	// results. Starting it at zero recomputed on a different schedule and fired scripts frames late.
 	if( version >= 7 )
 	{
 		xfer->xferUnsignedInt( &m_frameObjectCountChanged );
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 05/09/2026 Carry the leftover condition team. It is not
-	// cleared after a script is evaluated, and TeamFactory::createInactiveTeam runs a team's
-	// production condition action WITHOUT naming a team, so the "<This Team>" token falls back to
-	// whatever this still points at. Retail depends on that binding, so the value travels with the
-	// checkpoint rather than the behaviour being changed.
-	//
+	// TheSuperHackers @bugfix bobtista 05/09/2026 Carry the leftover condition team. createInactiveTeam
+	// runs a production condition without naming a team, so "<This Team>" resolves to this stale value.
 	if( version >= 8 )
 	{
 		TeamID conditionTeamID = m_conditionTeam ? m_conditionTeam->getID() : (TeamID)TEAM_ID_INVALID;

@@ -92,11 +92,11 @@
 #endif
 
 #ifndef RETAIL_COMPATIBLE_CRC
-#define RETAIL_COMPATIBLE_CRC (0) // TheSuperHackers @info Checkpoint fidelity needs the full serialized AI state; games from this branch are not CRC compatible with retail
+#define RETAIL_COMPATIBLE_CRC (0) // TheSuperHackers @info bobtista 26/08/2026 Checkpoint fidelity needs the full serialized AI state; games from this branch are not CRC compatible with retail
 #endif
 
 #ifndef RETAIL_COMPATIBLE_XFER_SAVE
-#define RETAIL_COMPATIBLE_XFER_SAVE (0) // TheSuperHackers @info Checkpoint saves need the full serialized state; saves from this branch are not retail compatible
+#define RETAIL_COMPATIBLE_XFER_SAVE (0) // TheSuperHackers @info bobtista 26/08/2026 Checkpoint saves need the full serialized state; saves from this branch are not retail compatible
 #endif
 
 // This is here to easily toggle between the retail compatible with fixed pathfinding fallback and pure fixed pathfinding mode

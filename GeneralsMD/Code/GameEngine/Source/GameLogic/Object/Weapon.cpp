@@ -1719,7 +1719,7 @@ void WeaponStore::deleteAllDelayedDamage()
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Xfer the pending delayed damage
+/** Xfer the historic bonus hit list
 	*	Version Info:
 	* 1: Initial version
 	*/
@@ -1768,8 +1768,7 @@ void WeaponStore::xferHistoricDamage( Xfer *xfer )
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
-	// the list lives on the instance the store hands out by name, which is the override copy when
-	// a map overrides the weapon, so address every list through findWeaponTemplate
+	// address every list through findWeaponTemplate so save and load resolve the same instance
 	std::vector<WeaponTemplate*>::iterator it;
 	if( xfer->getXferMode() == XFER_SAVE )
 	{

@@ -1206,11 +1206,8 @@ void StealthUpdate::xfer( Xfer *xfer )
 		xfer->xferUnsignedInt( &m_framesGranted );
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the black market check timer. It gates a stealth test that draws from the
-	// logic random, so a reset to zero fires the draw on the first resumed frame and
-	// keeps firing until it catches up, shifting the shared random sequence for everyone.
-	//
+	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the black market check timer. A reset to zero
+	// fired its logic random draw on the first resumed frame and shifted the shared sequence.
 	if( version >= 3 )
 	{
 		xfer->xferUnsignedInt( &m_nextBlackMarketCheckFrame );

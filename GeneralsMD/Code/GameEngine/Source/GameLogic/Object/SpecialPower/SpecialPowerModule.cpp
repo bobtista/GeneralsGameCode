@@ -213,11 +213,8 @@ void SpecialPowerModule::resolveSpecialPower()
 //-------------------------------------------------------------------------------------------------
 void SpecialPowerModule::onSpecialPowerCreation()
 {
-	//
 	// TheSuperHackers @bugfix bobtista 31/08/2026 Do not restart the power during a load. Restoring
-	// purchased sciences fires this hook again, which re-stamped the ready frame and the player's
-	// shared ready frame over the values the save carries.
-	//
+	// sciences fires this hook again and re-stamped the ready frames the save carries.
 	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
 	{
 		return;

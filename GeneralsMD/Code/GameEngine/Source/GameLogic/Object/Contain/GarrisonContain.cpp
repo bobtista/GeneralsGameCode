@@ -782,12 +782,8 @@ void GarrisonContain::trackTargets()
 // ------------------------------------------------------------------------------------------------
 void GarrisonContain::redeployOccupants()
 {
-	//
-	// TheSuperHackers @bugfix bobtista 31/08/2026 Do not redeploy during a load. The transform and
-	// model condition churn of reconstruction triggers redeploys that reset and re-derive the fire
-	// point cursors and matrices the save already restored, so a garrisoned building resumed with a
-	// different next fire point than the uninterrupted run.
-	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Do not redeploy during a load. Reconstruction churn
+	// re-derived the fire point cursors and matrices the save already restored.
 	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
 	{
 		return;
@@ -1222,13 +1218,8 @@ void GarrisonContain::recalcApparentControllingPlayer()
 	// Check to see if we have any units contained in our object
 	if( getContainCount() > 0 )
 	{
-		//
-		// TheSuperHackers @bugfix bobtista 31/08/2026 Record the original team only while the
-		// building is occupied. Recording it on an empty building left a stale team behind that
-		// a later empty-building recalc, for example the local player switch when resuming a
-		// replay from a checkpoint, wrote into the save stream where the uninterrupted game
-		// kept none.
-		//
+		// TheSuperHackers @bugfix bobtista 31/08/2026 Record the original team only while the building
+		// is occupied. Recording it on an empty building left a stale team that later reached the save.
 		if( m_originalTeam == nullptr )
 		{
 			m_originalTeam = getObject()->getTeam();
@@ -1778,11 +1769,8 @@ void GarrisonContain::onBodyDamageStateChange( const DamageInfo* , BodyDamageTyp
 // ------------------------------------------------------------------------------------------------
 void GarrisonContain::onObjectCreated()
 {
-	//
 	// TheSuperHackers @bugfix bobtista 23/08/2026 Do not create the initial payload while a save is
-	// loading. The saved payload objects are restored from the save stream and re-registered by the
-	// contain xfer, so creating them here as well duplicated every payload on load.
-	//
+	// loading. The contain xfer restores the saved payload, so creating it here duplicated it.
 	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
 	{
 		return;
@@ -1951,12 +1939,8 @@ void GarrisonContain::xfer( Xfer *xfer )
 	// exit rally point
 	xfer->xferCoord3D( &m_exitRallyPoint );
 
-	//
 	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the evacuation disposition and the station
-	// points. The disposition is set by script and picks a code path that draws logic random values,
-	// and the station points are built from model bones and hold the occupant to slot mapping, so a
-	// load rebuilt them differently and stood the occupants at other positions.
-	//
+	// points. A load rebuilt the station points differently and stood the occupants elsewhere.
 	if( version >= 2 )
 	{
 		Int evacDisposition = m_evacDisposition;

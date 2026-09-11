@@ -692,11 +692,8 @@ void MinefieldBehavior::xfer( Xfer *xfer )
 	if( xfer->getXferMode() == XFER_LOAD )
 		m_detonators.clear();
 
-	//
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the detonator list in checkpoints. It was
-	// cleared on load, so a unit standing on the mine at the save re-triggered a virtual mine
-	// detonation on the first resumed frame, which the uninterrupted run does not do.
-	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the detonator list in checkpoints. Clearing
+	// it on load re-triggered a virtual mine detonation for a unit standing on the mine at the save.
 	if( version >= 2 )
 	{
 		UnsignedShort detonatorCount = (UnsignedShort)m_detonators.size();

@@ -958,10 +958,8 @@ void GameEngine::update()
 				}
 			}
 
-			// TheSuperHackers @feature bobtista 27/08/2026 Pending CRC recovery reload: once the
-			// donor's synchronized save exists, tear the diverged game down with the network kept
-			// alive and resume from the donor state, exactly like a cold multiplayer resume.
-			// Peers reload staggered so only one extracts the shared scratch map at a time.
+			// TheSuperHackers @feature bobtista 27/08/2026 Pending CRC recovery reload: once the donor's
+			// save arrives, tear the diverged game down with the network kept alive and resume from it.
 			if (TheGlobalData->m_recoveryResumeSave.isNotEmpty() && TheNetwork != nullptr &&
 					TheGameLogic->isInGame())
 			{
@@ -985,10 +983,8 @@ void GameEngine::update()
 						// file to exist: a shared save directory would satisfy existence
 						// before a single chunk was transferred.
 						snapshotArrived = (TheNetwork->getRecoveryReceivedFile() == donorSave);
-						// TheSuperHackers @bugfix bobtista 08/09/2026 Ask the donor again only once
-						// the transfer has STALLED. Waiting passively made one dropped transfer
-						// fatal to the whole recovery, but re-asking while bytes are still
-						// arriving restarts the send and guarantees it never finishes.
+						// TheSuperHackers @bugfix bobtista 08/09/2026 Ask the donor again only once the transfer
+						// has stalled. Re-asking while bytes still arrive restarts the send and it never finishes.
 						if (!snapshotArrived)
 						{
 							static Int s_lastTransferPercent = -1;
@@ -1050,10 +1046,8 @@ void GameEngine::update()
 				}
 			}
 
-			// TheSuperHackers @feature bobtista 27/08/2026 A peer stopped answering: hold the
-			// game for it to rejoin. This instance snapshots the stall frame, reloads its own
-			// snapshot through the certified recovery path, and waits in the handshake; the
-			// missing peer's slot, connection and address all stay valid because nothing kicks.
+			// TheSuperHackers @feature bobtista 27/08/2026 A peer stopped answering: snapshot the stall
+			// frame, reload it through the recovery path and wait in the handshake for the peer to rejoin.
 			if (TheGlobalData->m_rejoinHoldPending && TheGameLogic->isInGame() &&
 					TheNetwork != nullptr && !TheNetwork->isRecoveryInProgress() &&
 					TheGlobalData->m_recoveryResumeSave.isEmpty())
@@ -1075,10 +1069,8 @@ void GameEngine::update()
 				}
 			}
 
-			// TheSuperHackers @feature bobtista 27/08/2026 Rejoin a running game: rebuild the
-			// network with the original slot layout (the survivors never tore this peer's
-			// connection down, so the same address simply starts answering again), then ask
-			// for the held snapshot and resume through the certified recovery path.
+			// TheSuperHackers @feature bobtista 27/08/2026 Rejoin a running game: rebuild the network with
+			// the original slot layout, then ask for the held snapshot and resume through the recovery path.
 			if (TheGlobalData->m_rejoinHostIP.isNotEmpty() && TheNetwork == nullptr &&
 					TheGlobalData->m_rejoinSlot >= 0 && !TheGameLogic->isInGame())
 			{

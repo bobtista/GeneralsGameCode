@@ -108,12 +108,8 @@ void TeamRelationMap::xfer( Xfer *xfer )
 	if( xfer->getXferMode() == XFER_SAVE )
 	{
 
-		//
-		// TheSuperHackers @bugfix bobtista 03/09/2026 Write the relations in team id order. The map
-		// is a hash_map, so its iteration order follows the bucket layout and insertion history; a
-		// load re-inserts the entries in file order and the next save then wrote them in a
-		// different order than the run that saved them.
-		//
+		// TheSuperHackers @bugfix bobtista 03/09/2026 Write the relations in team id order. The map is a
+		// hash_map whose iteration order follows insertion history, so a load and resave reordered them.
 		std::vector< TeamID > relationKeys;
 		relationKeys.reserve( m_map.size() );
 		for( teamRelationIt = m_map.begin(); teamRelationIt != m_map.end(); ++teamRelationIt )
@@ -458,11 +454,8 @@ void TeamFactory::xfer( Xfer *xfer )
 	// unique team ID counter
 	xfer->xferUser( &m_uniqueTeamID, sizeof( TeamID ) );
 
-	//
-	// TheSuperHackers @bugfix bobtista 31/08/2026 Remember the serialized allocator value.
-	// Loading the team instances below bumps the live counter for every team it has to
-	// create, so loadPostProcess reapplies this stashed value for checkpoints.
-	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Remember the serialized allocator value. Loading the
+	// team instances bumps the live counter, so loadPostProcess reapplies this value for checkpoints.
 	if( xfer->getXferMode() == XFER_LOAD )
 	{
 		m_xferUniqueTeamID = m_uniqueTeamID;
@@ -580,12 +573,8 @@ fclose( fp );
 // ------------------------------------------------------------------------
 void TeamFactory::loadPostProcess()
 {
-	//
-	// TheSuperHackers @bugfix bobtista 31/08/2026 Checkpoints reapply the serialized allocator
-	// value instead of rebuilding it from the surviving teams. The counter never goes backwards
-	// in a running game, so when the most recently allocated teams were destroyed before the
-	// save, a rebuild from the survivors handed those IDs out a second time after the load.
-	//
+	// TheSuperHackers @bugfix bobtista 31/08/2026 Checkpoints reapply the serialized allocator value. A
+	// rebuild from surviving teams reissued the ids of teams destroyed before the save.
 	const Bool keepSerializedTeamID = TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT;
 	if( keepSerializedTeamID )
 	{
@@ -1242,12 +1231,8 @@ Bool TeamPrototype::evaluateProductionCondition()
 				return false;
 			}
 
-			//
-			// TheSuperHackers @bugfix bobtista 22/08/2026 Arm the periodic evaluation delay exactly
-			// like the steady-state path does. The run that saved evaluated through that path and
-			// pushed its next evaluation out by the delay; skipping it here let a loaded game
-			// re-evaluate every call until the first steady-state pass, changing AI team builds.
-			//
+			// TheSuperHackers @bugfix bobtista 22/08/2026 Arm the periodic evaluation delay like the steady
+			// state path does. Skipping it let a loaded game re-evaluate every call and change AI team builds.
 			Int delaySeconds = m_productionConditionScript->getDelayEvalSeconds();
 			if( delaySeconds > 0 )
 			{
@@ -1278,9 +1263,8 @@ void TeamPrototype::crc( Xfer *xfer )
 	*	Version Info:
 	* 1: Initial version
 	* 2: Attack priority name
-	* 3: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the production condition script's
-	*    evaluation frame. The script is a private duplicate owned by the prototype, so it is not
-	*    covered by the script engine's own chunk, and a load rebuilt it with the frame cleared
+	* 3: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the production condition script's evaluation
+	*    frame. The script is a private duplicate outside the script engine chunk, so a load cleared it.
 	*/
 void TeamPrototype::xfer( Xfer *xfer )
 {
@@ -1313,9 +1297,8 @@ void TeamPrototype::xfer( Xfer *xfer )
 		//
 		// The script itself is duplicated lazily on the first evaluation, so on load the value is
 		// staged here and applied by evaluateProductionCondition once that duplicate exists.
-		// TheSuperHackers @bugfix bobtista 30/08/2026 A save taken before the first evaluation
-		// writes the staged value instead of zero, so a checkpoint of a loaded game no longer
-		// loses the pending evaluation frame.
+		// TheSuperHackers @bugfix bobtista 30/08/2026 A save taken before the first evaluation writes
+		// the staged value instead of zero, so a checkpoint of a loaded game keeps the pending frame.
 		//
 		UnsignedInt productionConditionFrame = 0;
 		if( m_productionConditionScript )
@@ -1334,14 +1317,8 @@ void TeamPrototype::xfer( Xfer *xfer )
 		}
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 09/09/2026 A checkpoint carries the duplicated production
-	// condition script itself. Only its next evaluation frame travelled before, so a loaded game
-	// evaluated a fresh duplicate whose per-condition state (periodic condition frames, cached
-	// custom data) started over, and the AI built a team on the load frame that the running game
-	// did not build. The duplicate is made here the same way the first evaluation makes it, then
-	// the saved script state is read into it.
-	//
+	// TheSuperHackers @bugfix bobtista 09/09/2026 A checkpoint carries the duplicated production condition
+	// script. Only its next evaluation frame travelled before, so a fresh duplicate changed AI team builds.
 	if( version >= 4 )
 	{
 		Bool hasProductionConditionScript = (m_productionConditionScript != nullptr);
@@ -1436,16 +1413,8 @@ void TeamPrototype::xfer( Xfer *xfer )
 
 		}
 
-		//
-		// TheSuperHackers @bugfix bobtista 22/08/2026 Put the instance list back into the order it
-		// was saved in. Teams created here are prepended to the instance list, so reading the saved
-		// sequence front to back leaves the list reversed relative to the run that saved it. The
-		// instance order is not cosmetic: per-team AI processes instances in list order, so a
-		// reversed list reorders pathfind requests and forks the frame CRC after load.
-		//
-		// The instances were written in list order, so prepending them in reverse rebuilds that
-		// exact order.
-		//
+		// TheSuperHackers @bugfix bobtista 22/08/2026 Put the instance list back into its saved order. Teams
+		// are prepended on load, and the AI walks instances in list order, so a reversed list forks the CRC.
 		for( std::vector< Team* >::reverse_iterator rIt = loadedTeamInstances.rbegin();
 				 rIt != loadedTeamInstances.rend(); ++rIt )
 		{
@@ -2911,17 +2880,8 @@ void Team::loadPostProcess()
 
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 18/08/2026 Put the member list back into the order it was
-	// saved in. Objects join their team from their own xfer, which prepends, so the list ends up in
-	// object load order rather than the order members actually joined. Those agree for most teams,
-	// which is why this hid for so long, but they differ whenever a member joined out of id
-	// sequence. Team order is not cosmetic: getTeamAsAIGroup() walks it, and AIGroup::crc() hashes
-	// the resulting member list in order, so a reordered team moves the frame CRC.
-	//
-	// The ids were written in list order, so prepending them in reverse rebuilds that exact order.
-	// Only the list links are touched here; each object's team pointer is already correct.
-	//
+	// TheSuperHackers @bugfix bobtista 18/08/2026 Put the member list back into its saved order. Objects
+	// prepend themselves on load, and AIGroup::crc() hashes members in order, so a reordered team desyncs.
 	for( std::list< ObjectID >::reverse_iterator rIt = m_xferMemberIDList.rbegin();
 			 rIt != m_xferMemberIDList.rend(); ++rIt )
 	{

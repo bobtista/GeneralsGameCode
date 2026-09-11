@@ -1073,12 +1073,8 @@ void ParkingPlaceBehavior::xfer( Xfer *xfer )
 
 	}
 
-	//
 	// TheSuperHackers @bugfix bobtista 09/09/2026 Carry the parking geometry the running game built.
-	// It comes from model bones, and a load rebuilds it from the drawable's initial state, which can
-	// place two parking spots in each other's positions. Two jets then landed at swapped spots and
-	// the games drifted apart from that frame on.
-	//
+	// Rebuilding it from the drawable's initial state on load could swap two parking spots.
 	if( version >= 4 )
 	{
 		// TheSuperHackers @bugfix bobtista 11/09/2026 Carry whether the geometry was built at all, so
@@ -1109,11 +1105,8 @@ void ParkingPlaceBehavior::xfer( Xfer *xfer )
 			xfer->xferCoord3D( &sp->m_prep );
 			xfer->xferInt( &sp->m_runway );
 			xfer->xferUser( &sp->m_door, sizeof( sp->m_door ) );
-			//
 			// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the postponed runway reservation flag.
-			// It was never serialized, so a jet whose first request had already been postponed before
-			// the save was postponed again after a load and left the takeoff queue one frame late.
-			//
+			// It was never saved, so a loaded jet was postponed again and left the takeoff queue late.
 			if( version >= 5 )
 			{
 				xfer->xferBool( &sp->m_postponedRunwayReservationForTakeoff );

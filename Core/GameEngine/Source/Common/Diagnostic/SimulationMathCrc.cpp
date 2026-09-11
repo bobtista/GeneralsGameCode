@@ -68,12 +68,8 @@ static void xferDoubleBits( XferCRC &xfer, double value )
     xfer.xferInt64(&bits);
 }
 
-//
-// TheSuperHackers @info bobtista 06/09/2026 The single precision probe never exercises the
-// double precision library, which is where an x87 build and an SSE build most easily disagree.
-// Sweep the double entry points over movement shaped inputs so two builds can be compared
-// directly, without routing through WWMath so this stays buildable on any branch.
-//
+// TheSuperHackers @info bobtista 06/09/2026 The single precision probe never exercises the double
+// precision library, where x87 and SSE builds most easily disagree, so sweep those entry points too.
 static const double s_probeY[] = { 0.4, 1.3, -2.7, 187.66, -1116.46, 0.000123, 3.5, -0.841933 };
 static const double s_probeX[] = { 1.3, 0.4, 11.9, -59.13, 1412.47, 9999.5, -3.5, 2.121793 };
 static const Int s_probeCount = sizeof(s_probeY) / sizeof(s_probeY[0]);
