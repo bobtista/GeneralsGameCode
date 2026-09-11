@@ -825,7 +825,6 @@ void StateMachine::xfer( Xfer *xfer )
 	// 2: TheSuperHackers @bugfix bobtista 02/09/2026 The all-states flag is part of the stream, so
 	//    it is gated on the version. Version 1 saves carry only the current state.
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 	const XferVersion currentVersion = 2;

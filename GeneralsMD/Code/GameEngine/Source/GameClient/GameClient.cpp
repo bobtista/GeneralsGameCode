@@ -1637,11 +1637,9 @@ void GameClient::loadPostProcess()
 	// id may be far higher than it needs to be.  We'll pull it back down as low as we can
 	//
 	//
-	// TheSuperHackers @bugfix bobtista 03/09/2026 Actually pull the allocator down, as the comment
-	// above always intended. The old loop seeded the search with the current counter and only ever
-	// raised it, so the counter kept the value it climbed to while the load created a throwaway
-	// drawable per object. Every load therefore roughly doubled it, and a checkpoint resaved after
-	// a resume disagreed with the run that minted it on the stored drawable id counter.
+	// TheSuperHackers @bugfix bobtista 03/09/2026 Pull the allocator down as intended. The old loop
+	// only ever raised it, so every load roughly doubled the drawable id counter and a checkpoint
+	// resaved after a resume disagreed with the run that minted it.
 	//
 	Drawable *draw;
 	DrawableID highestID = (DrawableID)0;

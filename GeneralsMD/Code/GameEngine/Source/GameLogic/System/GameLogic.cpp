@@ -1470,8 +1470,6 @@ void GameLogic::applyCheckpointClientRandomState()
 void GameLogic::updateLoadProgress( Int progress )
 {
 
-	DEBUG_LOG(("updateLoadProgress: %d at %d ms", progress, timeGetTime()));
-
 	if( m_loadScreen )
 		m_loadScreen->update( progress );
 
@@ -5805,7 +5803,6 @@ void GameLogic::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 10 : 18;
 #else
 	const XferVersion currentVersion = 18;

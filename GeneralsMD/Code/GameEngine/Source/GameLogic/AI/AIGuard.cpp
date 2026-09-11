@@ -363,7 +363,6 @@ void AIGuardMachine::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
   XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
 #else
   XferVersion currentVersion = 3;
@@ -422,7 +421,6 @@ void AIGuardInnerState::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
   XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
   XferVersion currentVersion = 2;
@@ -599,7 +597,6 @@ void AIGuardOuterState::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
   XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
   XferVersion currentVersion = 2;
@@ -744,21 +741,16 @@ void AIGuardReturnState::crc( Xfer *xfer )
 }
 
 // ------------------------------------------------------------------------------------------------
-/** Xfer Method */
-// ------------------------------------------------------------------------------------------------
-// ------------------------------------------------------------------------------------------------
 /** Xfer Method
 	* Version Info:
 	* 1: Initial version
-	* 2: TheSuperHackers @bugfix bobtista 17/08/2026 Extend the base class. This is the one guard
-	*    state that derives from AIInternalMoveToState and its update() runs that base update, but
-	*    the base was never transferred, so a loaded guard resumed its return move with no goal */
+	* 2: TheSuperHackers @bugfix bobtista 17/08/2026 Chain AIInternalMoveToState, whose update this
+	*    state runs, so a loaded guard keeps the goal of its return move */
 // ------------------------------------------------------------------------------------------------
 void AIGuardReturnState::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
   XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
   XferVersion currentVersion = 2;
@@ -1094,7 +1086,6 @@ void AIGuardAttackAggressorState::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-  // Checkpoints always carry the full deterministic state; user saves stay retail shaped.
   XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
   XferVersion currentVersion = 2;

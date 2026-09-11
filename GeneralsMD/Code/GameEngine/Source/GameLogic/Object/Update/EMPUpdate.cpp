@@ -380,22 +380,15 @@ void EMPUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version, a stub that saved nothing, not even the base class
+	* 2: TheSuperHackers @bugfix bobtista 19/08/2026 Chain UpdateModule and save m_dieFrame, so a
+	*    restored EMP effect expires instead of lingering as a live object */
 // ------------------------------------------------------------------------------------------------
-/** Xfer
-	*	Version Info:
-	* 1: Initial version -- a stub that saved nothing at all, not even the base class
-	* 2: TheSuperHackers @bugfix bobtista 19/08/2026 Actually serialize the module. Version 1 wrote
-	*    only the version tag: it never chained to UpdateModule, so the sleepy scheduler state was
-	*    lost, and it never saved m_dieFrame, which update() compares against to kill the effect.
-	*    A restored EMP effect therefore never expired and lingered as a live object.
-	*/
 void EMPUpdate::xfer( Xfer *xfer )
 {
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 	XferVersion currentVersion = 2;
@@ -580,7 +573,6 @@ void LeafletDropBehavior::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 	XferVersion currentVersion = 2;

@@ -482,7 +482,6 @@ void PlayerList::xfer( Xfer *xfer )
 	//    every condition keyed on the local player, including the skirmish faction scripts,
 	//    evaluated for the wrong player.
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 	XferVersion currentVersion = 2;
@@ -532,7 +531,6 @@ void PlayerList::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void PlayerList::loadPostProcess()
 {
-
 
 }
 

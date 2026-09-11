@@ -186,7 +186,6 @@ void isBlackMarket( Object *obj, void *userData )
 		}
 		*(Bool*)userData = TRUE;
 	}
-
 }
 
 //---------------------------------------------------------------------------------------~-_-~-_-~-
@@ -434,7 +433,6 @@ void StealthUpdate::hintDetectableWhileUnstealthed()
 				selfDraw->setSecondMaterialPassOpacity( 1.0f );
 		}
 	}
-
 }
 
 
@@ -542,7 +540,6 @@ StealthLookType StealthUpdate::calcStealthedStatusForPlayer(const Object* obj, c
 	{
 		return STEALTHLOOK_NONE;
 	}
-
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -861,7 +858,6 @@ void setWakeupIfInRange( Object *obj, void *userData)
 //			draw->setEmoticon( "Emoticon_Alarm", 5000 );
 //		}
 //	}
-
 }
 
 
@@ -932,7 +928,6 @@ void StealthUpdate::markAsDetected(UnsignedInt numFrames)
 			player->iterateObjects(setWakeupIfInRange, self);
 		}
 	}
-
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1143,7 +1138,6 @@ void StealthUpdate::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
 #else
 	XferVersion currentVersion = 3;

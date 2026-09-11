@@ -5095,7 +5095,6 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	// TheSuperHackers @bugfix bobtista 30/08/2026 Pin the version at runtime by purpose instead
 	// of at compile time. The compile time pin made every checkpoint drop the blocked movement
 	// state, so a vehicle that was crowd blocked at the save resumed unblocked and skipped its
