@@ -1422,7 +1422,11 @@ void ChinookAIUpdate::xfer( Xfer *xfer )
 {
 
   // version
-  XferVersion currentVersion = 2;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 3;
+#else
+  XferVersion currentVersion = 3;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 	// extend base class
@@ -1430,7 +1434,7 @@ void ChinookAIUpdate::xfer( Xfer *xfer )
 
 	xfer->xferBool(&m_hasPendingCommand);
 	if (m_hasPendingCommand) {
-		m_pendingCommand.doXfer(xfer);
+		m_pendingCommand.doXfer(xfer, version >= 3);
 	}
 	xfer->xferUser(&m_flightStatus, sizeof(m_flightStatus));
 	xfer->xferObjectID(&m_airfieldForHealing);

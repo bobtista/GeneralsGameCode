@@ -2820,7 +2820,7 @@ void JetAIUpdate::xfer( Xfer *xfer )
 
 
 	xfer->xferCoord3D(&m_producerLocation);
-	m_mostRecentCommand.doXfer(xfer);
+	m_mostRecentCommand.doXfer(xfer, version >= 3);
 	xfer->xferUnsignedInt(&m_attackLocoExpireFrame);
 	xfer->xferUnsignedInt(&m_attackersMissExpireFrame);
 	xfer->xferUnsignedInt(&m_returnToBaseFrame);

@@ -451,7 +451,7 @@ private:
 public:
 	void store(const AICommandParms& parms);
 	void reconstitute(AICommandParms& parms) const;
-	void doXfer(Xfer *xfer);
+	void doXfer(Xfer *xfer, Bool carrySource);
 	AICommandType getCommandType() const { return m_cmd; }
 };
 
