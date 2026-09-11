@@ -956,9 +956,9 @@ void ParkingPlaceBehavior::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 3 : 5;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 3 : 6;
 #else
-	const XferVersion currentVersion = 5;
+	const XferVersion currentVersion = 6;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -1082,8 +1082,23 @@ void ParkingPlaceBehavior::xfer( Xfer *xfer )
 	//
 	if( version >= 4 )
 	{
+		// TheSuperHackers @bugfix bobtista 11/09/2026 Carry whether the geometry was built at all, so
+		// a checkpoint taken before the first update rebuilds it on the same frame the live game did.
+		if( version >= 6 )
+		{
+			Bool gotInfo = m_gotInfo;
+			xfer->xferBool( &gotInfo );
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				m_gotInfo = gotInfo;
+			}
+		}
 		UnsignedByte geomSpaces = m_spaces.size();
 		xfer->xferUnsignedByte( &geomSpaces );
+		if( version >= 6 && xfer->getXferMode() == XFER_LOAD )
+		{
+			m_spaces.resize( geomSpaces );
+		}
 		for( i = 0; i < geomSpaces; ++i )
 		{
 			ParkingPlaceInfo scratch;
@@ -1107,6 +1122,10 @@ void ParkingPlaceBehavior::xfer( Xfer *xfer )
 		}
 		UnsignedByte geomRunways = m_runways.size();
 		xfer->xferUnsignedByte( &geomRunways );
+		if( version >= 6 && xfer->getXferMode() == XFER_LOAD )
+		{
+			m_runways.resize( geomRunways );
+		}
 		for( i = 0; i < geomRunways; ++i )
 		{
 			RunwayInfo scratch;
