@@ -539,6 +539,93 @@ void NetworkAutoStart::onLocalAddressSet(Bool result)
 
 static AsciiString s_resumeSave;
 
+// TheSuperHackers @feature bobtista 11/09/2026 Rejoin ticket. A client in a network game writes
+// where it is playing and as which slot; a normal exit removes it, a crash leaves it behind, and
+// the next launch within the countdown window uses it to go straight back into that game.
+static AsciiString rejoinTicketPath()
+{
+	AsciiString path = TheGlobalData->getPath_UserData();
+	AsciiString leaf;
+	leaf.format("rejoin_%u.ini", rts::ClientInstance::getInstanceId());
+	path.concat(leaf);
+#if !defined(_WIN32)
+	AsciiString native;
+	for (const char *c = path.str(); *c != '\0'; ++c)
+	{
+		native.concat((*c == '\\') ? '/' : *c);
+	}
+	path = native;
+#endif
+	return path;
+}
+
+void NetworkAutoStart::writeRejoinTicket(UnsignedInt hostIP, Int slot)
+{
+	if (TheGlobalData == nullptr || slot <= 0 || hostIP == 0)
+	{
+		return;
+	}
+	FILE *fp = fopen(rejoinTicketPath().str(), "w");
+	if (fp == nullptr)
+	{
+		return;
+	}
+	fprintf(fp, "host=%d.%d.%d.%d\nslot=%d\ntime=%ld\n",
+		(hostIP >> 24) & 0xff, (hostIP >> 16) & 0xff, (hostIP >> 8) & 0xff, hostIP & 0xff, slot, (long)time(nullptr));
+	fclose(fp);
+	DEBUG_LOG(("NetworkAutoStart::writeRejoinTicket - slot %d, host %X", slot, hostIP));
+}
+
+void NetworkAutoStart::clearRejoinTicket()
+{
+	if (TheGlobalData == nullptr)
+	{
+		return;
+	}
+	remove(rejoinTicketPath().str());
+}
+
+Bool NetworkAutoStart::readRejoinTicket(AsciiString &hostIP, Int &slot)
+{
+	if (TheGlobalData == nullptr)
+	{
+		return FALSE;
+	}
+	FILE *fp = fopen(rejoinTicketPath().str(), "r");
+	if (fp == nullptr)
+	{
+		return FALSE;
+	}
+	char host[64] = { 0 };
+	Int ticketSlot = -1;
+	long stamp = 0;
+	char line[128];
+	while (fgets(line, sizeof(line), fp) != nullptr)
+	{
+		if (sscanf(line, "host=%63s", host) == 1)
+		{
+			continue;
+		}
+		if (sscanf(line, "slot=%d", &ticketSlot) == 1)
+		{
+			continue;
+		}
+		sscanf(line, "time=%ld", &stamp);
+	}
+	fclose(fp);
+	clearRejoinTicket();
+	const long ageMs = ((long)time(nullptr) - stamp) * 1000L;
+	if (host[0] == '\0' || ticketSlot <= 0 || ticketSlot >= MAX_SLOTS || ageMs < 0 || ageMs > (long)REJOIN_TICKET_MAX_AGE_MS)
+	{
+		DEBUG_LOG(("NetworkAutoStart::readRejoinTicket - stale or invalid ticket (slot %d, age %ld ms), discarded", ticketSlot, ageMs));
+		return FALSE;
+	}
+	hostIP = host;
+	slot = ticketSlot;
+	DEBUG_LOG(("NetworkAutoStart::readRejoinTicket - slot %d at %s, age %ld ms", slot, host, ageMs));
+	return TRUE;
+}
+
 void NetworkAutoStart::setResumeSave(const AsciiString &name)
 {
 	s_resumeSave = name;

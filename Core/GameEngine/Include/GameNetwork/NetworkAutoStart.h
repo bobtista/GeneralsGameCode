@@ -33,6 +33,9 @@ public:
 
 	static void setResumeSave(const AsciiString &name);
 	static AsciiString getResumeSave();
+	static void writeRejoinTicket(UnsignedInt hostIP, Int slot);
+	static void clearRejoinTicket();
+	static Bool readRejoinTicket(AsciiString &hostIP, Int &slot);
 	enum Mode
 	{
 		MODE_NONE,
@@ -92,6 +95,9 @@ public:
 
 	static void setResumeSave(const AsciiString &) {}
 	static AsciiString getResumeSave() { return AsciiString::TheEmptyString; }
+	static void writeRejoinTicket(UnsignedInt, Int) {}
+	static void clearRejoinTicket() {}
+	static Bool readRejoinTicket(AsciiString &, Int &) { return FALSE; }
 	static Bool hasArguments() { return FALSE; }
 	static Bool isEnabled() { return FALSE; }
 	static Bool shouldOpenDirectConnect() { return FALSE; }

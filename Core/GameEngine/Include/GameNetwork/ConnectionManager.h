@@ -94,6 +94,7 @@ public:
 	Bool areAllQueuesEmpty();
 
 	UnsignedInt getLocalPlayerID();
+	UnsignedInt getPlayerIP(Int slot);
 	UnicodeString getPlayerName(Int playerNum);
 	Int getNumPlayers();
 

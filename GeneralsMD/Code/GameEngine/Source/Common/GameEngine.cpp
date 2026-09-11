@@ -590,6 +590,24 @@ void GameEngine::init()
 		// special-case: parse command-line parameters after loading global data
 		CommandLine::parseCommandLineForEngineInit();
 
+		// TheSuperHackers @feature bobtista 11/09/2026 A client that crashed out of a network
+		// game left its rejoin ticket behind. A launch within the countdown window skips the
+		// intro and goes straight back into that game; a stale ticket is discarded.
+		if (TheGlobalData->m_rejoinHostIP.isEmpty())
+		{
+			AsciiString ticketHost;
+			Int ticketSlot = -1;
+			if (NetworkAutoStart::readRejoinTicket(ticketHost, ticketSlot))
+			{
+				TheWritableGlobalData->m_rejoinHostIP = ticketHost;
+				TheWritableGlobalData->m_rejoinSlot = ticketSlot;
+				TheWritableGlobalData->m_crcRecovery = TRUE;
+				TheWritableGlobalData->m_playIntro = FALSE;
+				TheWritableGlobalData->m_playSizzle = FALSE;
+				TheWritableGlobalData->m_shellMapOn = FALSE;
+			}
+		}
+
 		TheArchiveFileSystem->loadMods();
 
 		// doesn't require resets so just create a single instance here.
@@ -1160,7 +1178,7 @@ void GameEngine::update()
 				{
 					if (TheInGameUI != nullptr)
 					{
-						TheInGameUI->message(UnicodeString(L"Player disconnected - holding the game for a rejoin..."));
+						TheInGameUI->message(UnicodeString(L"Player rejoining - holding the game..."));
 					}
 					TheWritableGlobalData->m_recoveryResumeSave = holdSave;
 					TheWritableGlobalData->m_recoveryDonorSave = holdSave;
@@ -1242,7 +1260,30 @@ void GameEngine::update()
 					TheNetwork->getRecoveryReceivedFile().isEmpty())
 			{
 				static UnsignedInt s_lastRejoinRequest = 0;
+				static UnsignedInt s_firstRejoinRequest = 0;
 				UnsignedInt requestNow = timeGetTime();
+				if (s_firstRejoinRequest == 0)
+				{
+					s_firstRejoinRequest = requestNow;
+				}
+				// TheSuperHackers @feature bobtista 11/09/2026 The held game answers only during
+				// its countdown; once that has kicked this slot nobody will ever send the snapshot,
+				// so stop asking and hand the player the shell.
+				if (TheNetwork->getRecoveryTransferPercent() <= 0 && (UnsignedInt)(requestNow - s_firstRejoinRequest) >= (UnsignedInt)REJOIN_GIVEUP_MS)
+				{
+					DEBUG_LOG(("Rejoin: no snapshot after %u ms, the game has moved on, giving up", (UnsignedInt)(requestNow - s_firstRejoinRequest)));
+					TheWritableGlobalData->m_rejoinHostIP.clear();
+					TheWritableGlobalData->m_rejoinSlot = -1;
+					TheWritableGlobalData->m_recoveryDonorSave.clear();
+					TheWritableGlobalData->m_loadSaveGame.clear();
+					TheWritableGlobalData->m_resumeAsSlot = -1;
+					NetworkAutoStart::setResumeSave(AsciiString::TheEmptyString);
+					delete TheNetwork;
+					TheNetwork = nullptr;
+					s_firstRejoinRequest = 0;
+					s_lastRejoinRequest = 0;
+					return;
+				}
 				if (s_lastRejoinRequest == 0 || (UnsignedInt)(requestNow - s_lastRejoinRequest) >= (UnsignedInt)REJOIN_REQUEST_INTERVAL_MS)
 				{
 					s_lastRejoinRequest = requestNow;
