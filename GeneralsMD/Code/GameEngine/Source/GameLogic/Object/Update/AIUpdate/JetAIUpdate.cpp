@@ -1312,9 +1312,9 @@ protected:
 	{
 		// version
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-		XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+		XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 3;
 #else
-		XferVersion currentVersion = 2;
+		XferVersion currentVersion = 3;
 #endif
 		XferVersion version = currentVersion;
 		xfer->xferVersion( &version, currentVersion );
@@ -1329,18 +1329,20 @@ protected:
 		xfer->xferUnsignedInt(&m_whenTakeoff);
 		xfer->xferUnsignedInt(&m_whenTransfer);
 
-#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-		xfer->xferBool(&m_afterburners);
-		xfer->xferBool(&m_resetTimer);
-#else
-		if (version <= 1)
+		// TheSuperHackers @bugfix bobtista 11/09/2026 Every build writes the same layout for a given
+		// version: the two flags travel at version 1 and again from version 3, never at version 2.
+		if (version <= 1 || version >= 3)
 		{
+#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
+			xfer->xferBool(&m_afterburners);
+			xfer->xferBool(&m_resetTimer);
+#else
 			Bool afterburners = false;
 			Bool resetTimer = false;
 			xfer->xferBool(&afterburners);
 			xfer->xferBool(&resetTimer);
-		}
 #endif
+		}
 
 		xfer->xferObjectID(&m_waitedForTaxiID);
 	}
