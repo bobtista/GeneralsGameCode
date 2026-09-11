@@ -111,7 +111,7 @@ public:
 	Bool isPlaybackInProgress() const;
 
 public:
-	void handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool fromPlayback);
+	void handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool fromPlayback, Int subjectFrame = -1);
 
 	// read in info relating to a replay, conditionally setting up m_file for playback
 	struct ReplayHeader

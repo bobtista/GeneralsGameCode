@@ -979,8 +979,9 @@ Bool RecorderClass::sawCRCMismatch() const
 	return m_crcInfo.sawCRCMismatch();
 }
 
-void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool fromPlayback)
+void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool fromPlayback, Int subjectFrame)
 {
+	(void)subjectFrame;
 	if (fromPlayback)
 	{
 		//DEBUG_LOG(("RecorderClass::handleCRCMessage() - Adding CRC of %X from %d to m_crcInfo", newCRC, playerIndex));
