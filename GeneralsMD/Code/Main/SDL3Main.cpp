@@ -21,6 +21,7 @@
 #endif
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 
 // TheSuperHackers @info bobtista 30/04/2026 Release builds strip
@@ -82,16 +83,117 @@ const char *g_csfFile = "data/%s/Generals.csf";
 // build of the SDL3 entry point links.
 const char *gAppPrefix = "";
 
-// Stack-dump shims. The Win build provides these in core_debug; the engine
-// references them from RTS_DEBUG / IG_DEBUG_STACKTRACE-gated code so just
-// give them weak no-ops on non-Win.
+// Stack dumps. The Win build provides these in core_debug; the engine references them from
+// RTS_DEBUG / IG_DEBUG_STACKTRACE-gated code. TheSuperHackers @feature bobtista 10/09/2026 Walk
+// the stack with the POSIX backtrace facilities so a logged assert carries its call stack
+// instead of an empty "Stack Dump:" header.
 #include "Common/StackDump.h"
+#include <cxxabi.h>
+#include <dlfcn.h>
+#include <execinfo.h>
 AsciiString g_LastErrorDump;
-void FillStackAddresses(void ** /*addresses*/, unsigned int /*count*/, unsigned int /*skip*/) {}
-void StackDumpFromAddresses(void ** /*addresses*/, unsigned int /*count*/, void (* /*cb*/)(const char *)) {}
-void StackDump(void (* /*cb*/)(const char *)) {}
-void StackDumpFromContext(unsigned long /*eip*/, unsigned long /*esp*/, unsigned long /*ebp*/, void (* /*cb*/)(const char *)) {}
-void GetFunctionDetails(void * /*p*/, char * /*name*/, char * /*filename*/, unsigned int * /*line*/, unsigned int * /*addr*/) {}
+
+void FillStackAddresses(void **addresses, unsigned int count, unsigned int skip)
+{
+	enum { MaxFrames = 128 };
+	void *frames[MaxFrames];
+	const unsigned int firstWanted = skip + 1;	// drop this function's own frame as well
+	unsigned int want = count + firstWanted;
+	if (want > (unsigned int)MaxFrames)
+	{
+		want = MaxFrames;
+	}
+	const int got = backtrace(frames, (int)want);
+	unsigned int out = 0;
+	for (unsigned int i = firstWanted; (int)i < got && out < count; ++i)
+	{
+		addresses[out] = frames[i];
+		++out;
+	}
+	for (; out < count; ++out)
+	{
+		addresses[out] = NULL;
+	}
+}
+
+void GetFunctionDetails(void *pointer, char *name, char *filename, unsigned int *linenumber, unsigned int *address)
+{
+	Dl_info info;
+	const char *symbol = "?";
+	const char *module = "?";
+	unsigned int offset = 0;
+	if (dladdr(pointer, &info) != 0)
+	{
+		if (info.dli_sname != NULL)
+		{
+			symbol = info.dli_sname;
+		}
+		if (info.dli_fname != NULL)
+		{
+			module = info.dli_fname;
+			if (const char *slash = strrchr(module, '/'))
+			{
+				module = slash + 1;
+			}
+		}
+		if (info.dli_saddr != NULL)
+		{
+			offset = (unsigned int)((const char *)pointer - (const char *)info.dli_saddr);
+		}
+	}
+	int status = 0;
+	char *demangled = abi::__cxa_demangle(symbol, NULL, NULL, &status);
+	if (name != NULL)
+	{
+		snprintf(name, 256, "%s", (status == 0 && demangled != NULL) ? demangled : symbol);
+	}
+	free(demangled);
+	if (filename != NULL)
+	{
+		snprintf(filename, 256, "%s", module);
+	}
+	if (linenumber != NULL)
+	{
+		*linenumber = 0;
+	}
+	if (address != NULL)
+	{
+		*address = offset;
+	}
+}
+
+void StackDumpFromAddresses(void **addresses, unsigned int count, void (*cb)(const char *))
+{
+	if (cb == NULL || addresses == NULL)
+	{
+		return;
+	}
+	for (unsigned int i = 0; i < count && addresses[i] != NULL; ++i)
+	{
+		char name[256];
+		char module[256];
+		unsigned int line = 0;
+		unsigned int offset = 0;
+		GetFunctionDetails(addresses[i], name, module, &line, &offset);
+		char text[640];
+		snprintf(text, sizeof(text), "\n  %p %s + %u (%s)", addresses[i], name, offset, module);
+		cb(text);
+	}
+}
+
+void StackDump(void (*cb)(const char *))
+{
+	void *addresses[64];
+	FillStackAddresses(addresses, 64, 1);
+	StackDumpFromAddresses(addresses, 64, cb);
+}
+
+void StackDumpFromContext(unsigned long /*eip*/, unsigned long /*esp*/, unsigned long /*ebp*/, void (*cb)(const char *))
+{
+	// No foreign context to unwind on this platform; dump the current stack instead.
+	StackDump(cb);
+}
+
 void DumpExceptionInfo(unsigned int /*u*/, EXCEPTION_POINTERS * /*e*/) {}
 
 // OS busy-state UI is Win-only.
