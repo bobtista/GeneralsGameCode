@@ -300,6 +300,9 @@ public:
 protected:
 	Pathfinder *m_pathfinder;							///< the pathfinding system
 	std::list<AIGroup *> m_groupList;			///< the list of AIGroups
+#if !RETAIL_COMPATIBLE_AIGROUP
+	std::vector<AIGroupPtr> m_loadedGroups;	///< keeps loaded groups alive until their members relink
+#endif
 	TAiData *m_aiData;
 	void newOverride();
 	void addSideInfo(AISideInfo *info);

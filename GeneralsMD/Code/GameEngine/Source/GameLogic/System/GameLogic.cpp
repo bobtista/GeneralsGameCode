@@ -165,6 +165,7 @@ static void findAndSelectCommandCenter(Object *obj, void* alreadyFound);
 #if defined(RTS_DEBUG)
 // One in-game CRC recovery attempt is allowed per match; a second mismatch ends the game.
 static Bool s_crcRecoveryAttempted = FALSE;
+static Bool s_crcRecoveryPending = FALSE;
 #endif
 
 enum
@@ -1618,6 +1619,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	{
 		// A fresh match may attempt its own recovery; the latch is per match, not per process.
 		s_crcRecoveryAttempted = FALSE;
+		s_crcRecoveryPending = FALSE;
 	}
 #endif
 
@@ -3265,7 +3267,9 @@ void GameLogic::processCommandList( CommandList *list )
 			}
 			else if (TheGlobalData->m_crcRecovery && !s_crcRecoveryAttempted)
 			{
-				beginCrcRecovery();
+				// TheSuperHackers @bugfix bobtista 11/09/2026 Take the snapshot at the top of the next
+				// update, between frames, instead of here in the middle of one.
+				s_crcRecoveryPending = TRUE;
 			}
 			else
 #endif
@@ -4334,6 +4338,14 @@ void GameLogic::update()
 		}
 		TheGameEngine->setQuitting(TRUE);
 	}
+
+#if defined(RTS_DEBUG)
+	if (s_crcRecoveryPending)
+	{
+		s_crcRecoveryPending = FALSE;
+		beginCrcRecovery();
+	}
+#endif
 
 	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_saveAtFrame && getGameMode() != GAME_SHELL)
 	{

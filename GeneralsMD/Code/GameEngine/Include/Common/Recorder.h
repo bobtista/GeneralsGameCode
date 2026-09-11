@@ -74,6 +74,7 @@ protected:
 		int GetQueueSize() const { return m_data.size(); }
 		UnsignedInt getLocalPlayer() const { return m_localPlayer; }
 		void setSawCRCMismatch() { m_sawCRCMismatch = TRUE; }
+		void markFirstSkipped() { m_skippedOne = TRUE; }
 		Bool sawCRCMismatch() const { return m_sawCRCMismatch; }
 
 	protected:
