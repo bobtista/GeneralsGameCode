@@ -5743,12 +5743,12 @@ void ScriptEngine::startEndGameTimer()
 	m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
 }
 
-// TheSuperHackers @bugfix bobtista 08/09/2026 A playback resumed from a checkpoint keeps its
-// local player as the observer, so the multiplayer defeat script fired for it and ended the
-// playback 120 frames later. The recorded end still arrives through the recorder.
+// TheSuperHackers @bugfix bobtista 08/09/2026 During playback the local player is the observer, so
+// the multiplayer defeat script fired for it and ended the playback 120 frames later. The recorder
+// still ends the playback when the recording runs out.
 Bool ScriptEngine::isScriptedEndSuppressed() const
 {
-	return TheRecorder != nullptr && TheRecorder->isResumedPlayback();
+	return TheRecorder != nullptr && TheRecorder->isPlaybackMode();
 }
 
 //-------------------------------------------------------------------------------------------------
