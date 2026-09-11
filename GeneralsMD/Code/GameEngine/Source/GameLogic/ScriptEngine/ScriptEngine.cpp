@@ -5555,10 +5555,8 @@ void ScriptEngine::update()
 	if (m_endGameTimer>0) {
 		m_endGameTimer--;
 		if (m_endGameTimer < 1) {
-			// A timer restored from a checkpoint runs down after playback has begun, so the
-			// load-time discard cannot see it. Decide at expiry, when the recorder's mode is known.
 			if (isScriptedEndSuppressed()) {
-				DEBUG_LOG(("ScriptEngine::update - ignoring the end game timer during playback"));
+				DEBUG_LOG(("ScriptEngine::update - ignoring the end game timer during a resumed playback"));
 				m_endGameTimer = -1;
 			} else {
 				TheGameLogic->exitGame();
@@ -5745,14 +5743,12 @@ void ScriptEngine::startEndGameTimer()
 	m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
 }
 
-// TheSuperHackers @bugfix bobtista 08/09/2026 A replay keeps playing to its recorded end.
-// During playback the local player is the observer, so the multiplayer defeat script fires
-// for it at the first check and ended a resumed playback 120 frames later, while the headless
-// reference run never delivers that exit at all. The recorded end still arrives through the
-// recorder reaching end of file, which this does not touch.
+// TheSuperHackers @bugfix bobtista 08/09/2026 A playback resumed from a checkpoint keeps its
+// local player as the observer, so the multiplayer defeat script fired for it and ended the
+// playback 120 frames later. The recorded end still arrives through the recorder.
 Bool ScriptEngine::isScriptedEndSuppressed() const
 {
-	return TheRecorder != nullptr && TheRecorder->isPlaybackMode();
+	return TheRecorder != nullptr && TheRecorder->isResumedPlayback();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -9068,12 +9064,6 @@ void ScriptEngine::xfer( Xfer *xfer )
 	// end game timers
 	xfer->xferInt( &m_endGameTimer );
 	xfer->xferInt( &m_closeWindowTimer );
-	// A checkpoint taken while the countdown was running must not end a playback it resumes.
-	if (xfer->getXferMode() == XFER_LOAD && m_endGameTimer > 0 && isScriptedEndSuppressed())
-	{
-		DEBUG_LOG(("ScriptEngine::xfer - discarding a restored end game timer of %d during playback", m_endGameTimer));
-		m_endGameTimer = -1;
-	}
 
 	// named objects
 	UnsignedShort namedObjectsCount = m_namedObjects.size();

@@ -347,6 +347,7 @@ RecorderClass::RecorderClass()
 	m_nextFrame = 0;
 	m_resumeSkipCommands = FALSE;
 	m_resumeMinCRCFrame = 0;
+	m_resumedPlayback = FALSE;
 	m_wasDesync = FALSE;
 	init(); // just for the heck of it.
 }
@@ -382,6 +383,7 @@ void RecorderClass::init() {
 	m_playbackFrameCount = 0;
 	m_resumeSkipCommands = FALSE;
 	m_resumeMinCRCFrame = 0;
+	m_resumedPlayback = FALSE;
 
 	OptionPreferences optionPref;
 	m_archiveReplays = optionPref.getArchiveReplaysEnabled();
@@ -1292,6 +1294,7 @@ Bool RecorderClass::resumePlayback( AsciiString filename, UnsignedInt frame )
 	m_resumeSkipCommands = FALSE;
 
 	m_resumeMinCRCFrame = frame;
+	m_resumedPlayback = TRUE;
 	m_mode = RECORDERMODETYPE_PLAYBACK;
 	m_currentReplayFilename = filename;
 	m_playbackFrameCount = header.frameCount;
