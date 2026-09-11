@@ -316,6 +316,17 @@ void Connection::setQuitting()
 /**
  * Returns true when a time-critical command is waiting for its first send.
  */
+// Pieces of a split command that have never been sent. They are bounded by the acknowledgement
+// window, so sending them as soon as they are released costs nothing but latency.
+Bool Connection::hasUnsentPieces() const {
+	for (NetCommandRef *msg = m_netCommandList->getFirstMessage(); msg != nullptr; msg = msg->getNext()) {
+		if (msg->getTimeLastSent() == -1 && msg->getCommand()->getNetCommandType() == NETCOMMANDTYPE_WRAPPER) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
 Bool Connection::hasPendingPriorityCommand() const {
 	for (NetCommandRef *msg = m_netCommandList->getFirstMessage(); msg != nullptr; msg = msg->getNext()) {
 		if (msg->getTimeLastSent() == -1 && IsCommandTimeCritical(msg->getCommand()->getNetCommandType())) {
@@ -349,10 +360,16 @@ UnsignedInt Connection::doSend() {
 	Bool priorityOnly = FALSE;
 	if ((curtime - m_lastTimeSent) < m_frameGrouping) {
 //		DEBUG_LOG(("not sending packet, time = %d, m_lastFrameSent = %d, m_frameGrouping = %d", curtime, m_lastTimeSent, m_frameGrouping));
-		if (!hasPendingPriorityCommand()) {
-			return 0;
+		// TheSuperHackers @bugfix bobtista 11/09/2026 A snapshot transfer must not wait for the
+		// frame grouping interval: at half a second per batch of pieces a mid-game snapshot
+		// took minutes to deliver and a rejoin missed the countdown. Freshly released pieces go
+		// out at once; retries keep their interval.
+		if (!hasUnsentPieces()) {
+			if (!hasPendingPriorityCommand()) {
+				return 0;
+			}
+			priorityOnly = TRUE;
 		}
-		priorityOnly = TRUE;
 	}
 
 	// iterate through all the messages and put them into a packet(s).

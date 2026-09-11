@@ -81,6 +81,7 @@ public:
 	void sendRejoinRoster(UnsignedInt toSlot);
 	AsciiString getRecoveryReceivedFile();
 	Int getRecoveryTransferPercent();
+	UnsignedInt getLastFileProgressTime();
 	void destroyGameMessages();
 //	void createConnections(UnsignedInt numberOfPlayers, UnsignedInt localSlot);
 	void setLocalAddress(UnsignedInt ip, UnsignedInt port);
@@ -205,6 +206,7 @@ private:
 	AsciiString m_recoveryReceivedFile;
 	UnsignedByte m_rejoinFileSentMask;
 	UnsignedShort m_recoveryTransferFileID;
+	UnsignedInt m_lastFileProgressTime;
 	Bool m_recoveryTransferIDValid;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];
 	UnsignedInt m_localAddr;

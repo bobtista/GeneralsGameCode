@@ -860,7 +860,12 @@ void Network::update()
 				TheInGameUI->message(UnicodeString(L"Game synchronized - resuming"));
 			}
 		}
-		else if ((readyState == -1) || ((UnsignedInt)(waitNow - m_recoveryReadyStart) >= (UnsignedInt)RECOVERY_READY_DEADLINE_MS))
+		// TheSuperHackers @bugfix bobtista 11/09/2026 A peer still receiving the snapshot cannot
+		// report yet; count the deadline from the last transfer progress seen, not from this
+		// peer's own report, so a large snapshot does not end the game for everyone.
+		const UnsignedInt lastProgress = m_conMgr->getLastFileProgressTime();
+		const UnsignedInt deadlineBase = (lastProgress != 0 && (Int)(lastProgress - m_recoveryReadyStart) > 0) ? lastProgress : m_recoveryReadyStart;
+		if ((readyState == -1) || ((UnsignedInt)(waitNow - deadlineBase) >= (UnsignedInt)RECOVERY_READY_DEADLINE_MS))
 		{
 			DEBUG_LOG(("Network::update - recovery handshake %s, falling back to the mismatch endgame",
 				(readyState == -1) ? "disagreed" : "timed out"));

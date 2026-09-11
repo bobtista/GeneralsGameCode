@@ -74,6 +74,7 @@ public:
 
 	void clearCommandsExceptFrom( Int playerIndex );
 	void releasePendingPieces();
+	Bool hasUnsentPieces() const;
 
 	void setQuitting();
 	Bool isQuitting() { return m_isQuitting; }

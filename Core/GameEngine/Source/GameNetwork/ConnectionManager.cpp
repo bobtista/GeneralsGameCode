@@ -314,6 +314,7 @@ void ConnectionManager::init()
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_recoveryTransferFileID = 0;
+	m_lastFileProgressTime = 0;
 	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = 0; /// @todo The LAN/WOL interface should be telling us who the packet router is based on machine specs passed around through game options.
 	for (i = 0; i < MAX_SLOTS; ++i) {
@@ -415,6 +416,7 @@ void ConnectionManager::reset()
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_recoveryTransferFileID = 0;
+	m_lastFileProgressTime = 0;
 	m_recoveryTransferIDValid = FALSE;
 	m_packetRouterSlot = -1;
 
@@ -493,6 +495,7 @@ void ConnectionManager::flushForRecovery() {
 	m_recoveryReceivedFile.clear();
 	m_rejoinFileSentMask = 0;
 	m_recoveryTransferFileID = 0;
+	m_lastFileProgressTime = 0;
 	m_recoveryTransferIDValid = FALSE;
 	Int i;
 	for (i = 0; i < MAX_SLOTS; ++i) {
@@ -1294,6 +1297,13 @@ void ConnectionManager::processFileProgress(NetFileProgressCommandMsg *msg)
 	const UnsignedShort fileID = msg->getFileID();
 	const Int oldProgress = s_fileProgressMap[playerID][fileID];
 	s_fileProgressMap[playerID][fileID] = max(oldProgress, msg->getProgress());
+	if (msg->getProgress() > oldProgress) {
+		m_lastFileProgressTime = timeGetTime();
+	}
+}
+
+UnsignedInt ConnectionManager::getLastFileProgressTime() {
+	return m_lastFileProgressTime;
 }
 
 void ConnectionManager::processProgress( NetProgressCommandMsg *msg )
