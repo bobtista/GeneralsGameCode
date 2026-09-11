@@ -1057,7 +1057,8 @@ void Player::becomingTeamMember(Object *obj, Bool yes)
 	// load performs re-fired this hook, stacking the sight bonus onto the restored values.
 	//
 	if( getNumBattlePlansActive() > 0 && obj->areModulesReady() &&
-			( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE ) )
+			( TheGameState == nullptr || TheGameState->isInLoadGame() == FALSE ||
+				TheGameState->getSaveGameInfo()->saveFileType != SAVE_FILE_TYPE_CHECKPOINT ) )
 	{
 		if( yes )
 		{
@@ -3321,7 +3322,8 @@ void Player::onPowerBrownOutChange( Bool brownOut )
 	// and radar state behind that the uninterrupted game never wrote. The radar restriction,
 	// disabled masks and pause counts are all restored from the save stream directly.
 	//
-	if( TheGameState != NULL && TheGameState->isInLoadGame() )
+	if( TheGameState != nullptr && TheGameState->isInLoadGame() &&
+			TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT )
 	{
 		return;
 	}

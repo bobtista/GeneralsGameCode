@@ -1914,7 +1914,15 @@ void GameState::gameStatePostProcessLoad()
 	// evil... must ensure this is updated prior to the script engine running the first time.
 	phaseStart = timeGetTime();
 	TheGameLogic->updateLoadProgress( 99 );
-	ThePartitionManager->updateCellsOnlyForLoad();
+	const Bool checkpointLoad = getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT;
+	if( checkpointLoad )
+	{
+		ThePartitionManager->updateCellsOnlyForLoad();
+	}
+	else
+	{
+		ThePartitionManager->update();
+	}
 	ThePartitionManager->finishLoadPostProcess();
 	// Objects saved while owing a partition update get it back now, after the load-time cell pass.
 	for( Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject() )
@@ -1933,7 +1941,10 @@ void GameState::gameStatePostProcessLoad()
 	}
 	DEBUG_LOG(("gameStatePostProcessLoad: partition finish took %d ms", timeGetTime() - phaseStart));
 
-	TheVictoryConditions->resyncDefeatStateAfterLoad();
+	if( checkpointLoad )
+	{
+		TheVictoryConditions->resyncDefeatStateAfterLoad();
+	}
 
 }
 

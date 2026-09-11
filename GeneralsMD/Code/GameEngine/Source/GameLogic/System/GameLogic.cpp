@@ -5865,19 +5865,6 @@ void GameLogic::loadPostProcess()
 	{
 		if( obj->getID() >= m_nextObjID )
 			m_nextObjID = (ObjectID)((UnsignedInt)obj->getID() + 1);
-
-		//
-		// The terrain layers are in place by now, so any altitude cached earlier in the load was
-		// measured against the wrong surface for anything standing on a bridge.
-		//
-		// TheSuperHackers @bugfix bobtista 09/09/2026 A checkpoint carries every object's cached
-		// altitude, and the running game keeps those values as they are, stale or not. Wiping them
-		// here made the resumed game recompute an honest altitude and take a different branch the
-		// next time a threshold test ran, so the carried values are kept for a checkpoint.
-		if( TheGameState->getSaveGameInfo()->saveFileType != SAVE_FILE_TYPE_CHECKPOINT )
-		{
-			obj->invalidateAltitudeCache();
-		}
 	}
 
 	//
