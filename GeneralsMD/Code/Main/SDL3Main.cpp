@@ -199,16 +199,17 @@ int main(int argc, char **argv)
 	}
 	g_compatCommandLine = s_compatCommandLineStorage.c_str();
 
-	// TheSuperHackers @bugfix bobtista 09/06/2026 WinMain initializes the debug log via
-	// initMemoryManager(); the SDL3 entry point with the null memory manager never does, so a
-	// logging build produced no output. Initialize it here so DEBUG_LOG reaches the log file and
-	// console. Expands to nothing when debug logging is compiled out.
-	DEBUG_INIT(DEBUG_FLAGS_DEFAULT);
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Initialize the memory manager the way WinMain
+	// does. It also opens the debug log. Calling DEBUG_INIT alone left TheDynamicMemoryAllocator
+	// null for the whole run, so every string allocation logged the "before its initialization"
+	// assert (874k lines in one session) while the null allocator silently kept working.
+	initMemoryManager();
 
 	GGC_TRACE("calling SDL_Init");
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
 	{
 		SDL_Log("SDL_Init failed: %s", SDL_GetError());
+		shutdownMemoryManager();
 		return 1;
 	}
 	GGC_TRACE("SDL_Init OK");
@@ -275,6 +276,7 @@ int main(int argc, char **argv)
 	{
 		SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
 		SDL_Quit();
+		shutdownMemoryManager();
 		return 1;
 	}
 #if !defined(__APPLE__)
@@ -417,6 +419,7 @@ int main(int argc, char **argv)
 	MiniDumper::shutdownMiniDumper();
 #endif
 
+	shutdownMemoryManager();
 	return result;
 }
 
