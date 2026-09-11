@@ -707,7 +707,6 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 	// load the save data
 	Bool error = FALSE;
-	UnsignedInt loadPhaseStart = timeGetTime();
 	try
 	{
 
@@ -731,8 +730,6 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	// un-savelock the ghost objects
 	TheGhostObjectManager->saveLockGhostObjects( FALSE );
 
-	DEBUG_LOG(("GameState::loadGame: xferSaveData took %d ms", timeGetTime() - loadPhaseStart));
-	loadPhaseStart = timeGetTime();
 	try
 	{
 		// do the post-process from a save game load
@@ -1790,12 +1787,8 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 					// read block start
 					blockSize = xfer->beginBlock();
 
-					UnsignedInt blockStart = timeGetTime();
-
 					// parse this data
 					xfer->xferSnapshot( blockInfo->snapshot );
-
-					DEBUG_LOG(("xferSaveData: block '%s' took %d ms", token.str(), timeGetTime() - blockStart));
 
 					// read block end
 					xfer->endBlock();
@@ -1871,7 +1864,6 @@ void GameState::gameStatePostProcessLoad()
 	Snapshot *snapshot;
 	Int postProcessCount = (Int)m_snapshotPostProcessList.size();
 	Int postProcessDone = 0;
-	UnsignedInt phaseStart = timeGetTime();
 	for( it = m_snapshotPostProcessList.begin(); it != m_snapshotPostProcessList.end(); /*emtpy*/ )
 	{
 
@@ -1900,20 +1892,16 @@ void GameState::gameStatePostProcessLoad()
 		snapshot->loadPostProcess();
 
 	}
-	DEBUG_LOG(("gameStatePostProcessLoad: %d snapshot callbacks took %d ms", postProcessCount, timeGetTime() - phaseStart));
 
 	// clear the snapshot post process list as we are now done with it
 	m_snapshotPostProcessList.clear();
 
 	// The restored pathfind ring remains authoritative while later blocks rebuild their state.
 	// Normal gameplay requests may resume only after every load post-process callback has run.
-	phaseStart = timeGetTime();
 	TheGameLogic->updateLoadProgress( 98 );
 	TheAI->pathfinder()->finishLoadPostProcess();
-	DEBUG_LOG(("gameStatePostProcessLoad: pathfinder finish took %d ms", timeGetTime() - phaseStart));
 
 	// evil... must ensure this is updated prior to the script engine running the first time.
-	phaseStart = timeGetTime();
 	TheGameLogic->updateLoadProgress( 99 );
 	const Bool checkpointLoad = getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT;
 	if( checkpointLoad )
@@ -1940,7 +1928,6 @@ void GameState::gameStatePostProcessLoad()
 		}
 		obj->friend_clearXferPartitionDirty();
 	}
-	DEBUG_LOG(("gameStatePostProcessLoad: partition finish took %d ms", timeGetTime() - phaseStart));
 
 	if( checkpointLoad )
 	{

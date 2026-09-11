@@ -213,7 +213,6 @@ void SupplyTruckAIUpdate::privateDock( Object *dock, CommandSourceType cmdSource
 		// practical realization has been made that you do not want separate memory.
 		m_preferredDock = dock->getID();
 	}
-
 }
 
 //----------------------------------------------------------------------------------------
@@ -262,7 +261,6 @@ void SupplyTruckAIUpdate::crc( Xfer *xfer )
 void SupplyTruckAIUpdate::xfer( Xfer *xfer )
 {
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else
 	XferVersion currentVersion = 2;

@@ -172,8 +172,8 @@ public:
 										 SnapshotType which = SNAPSHOT_SAVELOAD );  ///< save a game
 	SaveResult missionSave();																 ///< do a in between mission save
 	SaveCode loadGame( AvailableGameInfo gameInfo );							 ///< load a save file
-	void loadQueuedSaveGame();
-	void loadResumeSaveGame( AsciiString filename );		///< load a synchronized multiplayer save with the network live																 ///< load the save file requested on startup
+	void loadQueuedSaveGame();																 ///< load the save file requested on startup
+	void loadResumeSaveGame( AsciiString filename );		///< load a synchronized multiplayer save with the network live
 	SaveGameInfo *getSaveGameInfo() { return &m_gameInfo; }
 
 	// snapshot interaction

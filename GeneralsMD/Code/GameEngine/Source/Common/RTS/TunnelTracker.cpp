@@ -104,7 +104,6 @@ void TunnelTracker::iterateContained( ContainIterateFunc func, void *userData, B
 			(*func)( obj, userData );
 		}
 	}
-
 }
 
 // ------------------------------------------------------------------------
@@ -134,7 +133,6 @@ void TunnelTracker::updateNemesis(const Object *target)
 	} else if (getCurNemesis()==target) {
 		m_nemesisTimestamp = TheGameLogic->getFrame();
 	}
-
 }
 
 // ------------------------------------------------------------------------
@@ -197,7 +195,6 @@ void TunnelTracker::addToContainList( Object *obj )
 	{
 		++m_heroUnitsContained;
 	}
-
 }
 
 // ------------------------------------------------------------------------
@@ -395,7 +392,6 @@ void TunnelTracker::healObject( Object *obj, void *frames)
 		body->attemptHealing( &healInfo );
 
 	}
-
 }
 
 void TunnelTracker::updateFullHealTime()
@@ -443,7 +439,6 @@ void TunnelTracker::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 3;
 #else
 	XferVersion currentVersion = 3;

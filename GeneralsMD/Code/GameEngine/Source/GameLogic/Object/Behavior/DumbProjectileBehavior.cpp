@@ -756,7 +756,6 @@ void DumbProjectileBehavior::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
 	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 4;
 #else
 	XferVersion currentVersion = 4;
@@ -819,10 +818,8 @@ void DumbProjectileBehavior::xfer( Xfer *xfer )
 	if( version >= 3 )
 	{
 		//
-		// TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the launcher's weapon bonus. It is
-		// captured when the projectile is fired and read again when it detonates, so a shell that is
-		// in the air across a save lands for unbonused damage -- a China tank shell fired with the
-		// horde bonus up did 60 instead of 72.
+		// TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the launcher's weapon bonus, which is
+		// read again at detonation, so a shell in the air across a save keeps its bonus damage.
 		//
 		xfer->xferUnsignedInt( &m_extraBonusFlags );
 	}
