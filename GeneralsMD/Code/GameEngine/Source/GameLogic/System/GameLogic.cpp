@@ -2448,7 +2448,12 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// Turn off the UI
 	HideControlBar();
 #endif
-	TheWritableGlobalData->m_loadScreenRender = FALSE;	///< mark to resume rendering as normal
+	// TheSuperHackers @bugfix bobtista 11/09/2026 A save load keeps the load screen, so keep the
+	// restricted rendering with it until the restore finishes.
+	if( loadingSaveGame == FALSE )
+	{
+		TheWritableGlobalData->m_loadScreenRender = FALSE;	///< mark to resume rendering as normal
+	}
 
 	// if we're in a gamespy game, mark us as playing
 	if (TheGameSpyBuddyMessageQueue && TheGameSpyGame && isInInternetGame())

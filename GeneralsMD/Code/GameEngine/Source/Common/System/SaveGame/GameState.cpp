@@ -769,6 +769,7 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 	// the load screen survives startNewGame during a save load; the restore is done now
 	TheGameLogic->updateLoadProgress( 100 );
 	TheGameLogic->deleteLoadScreen();
+	TheWritableGlobalData->m_loadScreenRender = FALSE;
 
 	// check for error
 	if( error == TRUE )
