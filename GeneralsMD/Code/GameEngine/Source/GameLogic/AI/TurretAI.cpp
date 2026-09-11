@@ -412,7 +412,7 @@ void TurretAI::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void TurretAI::loadPostProcess()
 {
-	if (TheGameState != nullptr && TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT)
+	if (TheGameState->getSaveGameInfo()->saveFileType == SAVE_FILE_TYPE_CHECKPOINT)
 	{
 		m_victimInitialTeam = (m_xferVictimInitialTeamID != TEAM_ID_INVALID) ? TheTeamFactory->findTeamByID(m_xferVictimInitialTeamID) : nullptr;
 		return;

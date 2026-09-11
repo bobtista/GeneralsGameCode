@@ -601,8 +601,12 @@ void GameStateMap::clearScratchPadMaps()
 				// so only delete our own instance's scratch maps and legacy unsuffixed ones.
 				AsciiString ggcOwn;
 				ggcOwn.format("_i%u.map", rts::ClientInstance::getInstanceId());
-				const char *ggcSuffix = strstr( item.cFileName, "_i" );
-				if( ggcSuffix == nullptr || strstr( item.cFileName, ggcOwn.str() ) != nullptr )
+				const Int nameLen = strlen( item.cFileName );
+				const Int ownLen = ggcOwn.getLength();
+				const Bool ownFile = nameLen >= ownLen && ggcOwn.compareNoCase( item.cFileName + nameLen - ownLen ) == 0;
+				const char *ggcSuffix = strrchr( item.cFileName, '_' );
+				const Bool peerFile = ggcSuffix != nullptr && ggcSuffix[1] == 'i' && ggcSuffix[2] >= '0' && ggcSuffix[2] <= '9';
+				if( ownFile || peerFile == FALSE )
 				{
 					fileToDelete.set( item.cFileName );  // we want to delete this one
 				}

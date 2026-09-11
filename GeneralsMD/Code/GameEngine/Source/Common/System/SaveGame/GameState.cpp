@@ -1004,7 +1004,6 @@ void GameState::loadQueuedSaveGame()
 	if( TheGlobalData->m_resumeReplayName.isNotEmpty() && TheRecorder != nullptr )
 	{
 		MAYBE_UNUSED Bool resumed = TheRecorder->resumePlayback( TheGlobalData->m_resumeReplayName, TheGameLogic->getFrame() );
-		(void)resumed;
 		DEBUG_LOG(("Resume replay '%s' at frame %d: %s",
 			TheGlobalData->m_resumeReplayName.str(), TheGameLogic->getFrame(), resumed ? "OK" : "FAILED"));
 	}
@@ -1847,6 +1846,7 @@ void GameState::gameStatePostProcessLoad()
 	Snapshot *snapshot;
 	Int postProcessCount = (Int)m_snapshotPostProcessList.size();
 	Int postProcessDone = 0;
+	Int lastPostPercent = -1;
 	for( it = m_snapshotPostProcessList.begin(); it != m_snapshotPostProcessList.end(); /*emtpy*/ )
 	{
 
@@ -1862,7 +1862,6 @@ void GameState::gameStatePostProcessLoad()
 		if( postProcessCount > 0 )
 		{
 			Int postPercent = 95 + (3 * postProcessDone) / postProcessCount;
-			static Int lastPostPercent = -1;
 			if( postPercent != lastPostPercent )
 			{
 				lastPostPercent = postPercent;

@@ -4583,6 +4583,10 @@ void Object::xfer( Xfer *xfer )
 		xfer->xferUnsignedByte( &activeCount );
 		if( xfer->getXferMode() == XFER_LOAD )
 		{
+			if( activeCount > MAX_TRIGGER_AREA_INFOS )
+			{
+				throw SC_INVALID_DATA;
+			}
 			m_numTriggerAreasActive = activeCount;
 		}
 		for( Int t = 0; t < m_numTriggerAreasActive; ++t )

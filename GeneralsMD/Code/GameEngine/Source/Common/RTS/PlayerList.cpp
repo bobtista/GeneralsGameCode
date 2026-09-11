@@ -246,6 +246,8 @@ void PlayerList::init()
 
 	std::fill(m_slotIndices, m_slotIndices + ARRAY_SIZE(m_slotIndices), -1);
 	std::fill(m_slotToPlayerIndices, m_slotToPlayerIndices + ARRAY_SIZE(m_slotToPlayerIndices), -1);
+	m_hasXferLocalPlayer = FALSE;
+	m_localPlayerRestored = FALSE;
 
 	// call setLocalPlayer so that becomingLocalPlayer() gets called appropriately
 	setLocalPlayer(m_players[0]);

@@ -629,13 +629,11 @@ Int parseAutoNetworkAI(char *args[], int num)
 
 Int parseAutoNetworkResume(char *args[], int num)
 {
-#if defined(RTS_DEBUG)
 	if (num > 1)
 	{
 		NetworkAutoStart::setResumeSave(AsciiString(args[1]));
 		return 2;
 	}
-#endif
 	return 1;
 }
 
@@ -1039,7 +1037,7 @@ Int parseSaveAtFrame(char *args[], int num)
 		TheWritableGlobalData->m_saveAtFrameNext = 0;
 		TheWritableGlobalData->m_saveAtFrame = (frameCount > 0) ? TheWritableGlobalData->m_saveAtFrameList[ 0 ] : 0;
 	}
-	return 2;
+	return (num > 1) ? 2 : 1;
 }
 
 // TheSuperHackers @feature bobtista 19/08/2026 Quit at a chosen logic frame so an unattended
@@ -1050,7 +1048,7 @@ Int parseQuitAtFrame(char *args[], int num)
 	{
 		TheWritableGlobalData->m_quitAtFrame = atoi(args[1]);
 	}
-	return 2;
+	return (num > 1) ? 2 : 1;
 }
 
 Int parseSaveTo(char *args[], int num)
@@ -1059,7 +1057,7 @@ Int parseSaveTo(char *args[], int num)
 	{
 		TheWritableGlobalData->m_saveToFile = args[1];
 	}
-	return 2;
+	return (num > 1) ? 2 : 1;
 }
 
 #if defined(RTS_DEBUG)

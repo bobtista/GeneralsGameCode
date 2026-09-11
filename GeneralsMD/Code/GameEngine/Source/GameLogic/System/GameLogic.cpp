@@ -3958,7 +3958,6 @@ void GameLogic::update()
 
 			MAYBE_UNUSED const SaveResult saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"),
 				TheGlobalData->m_saveAtFrameNormal ? SAVE_FILE_TYPE_NORMAL : SAVE_FILE_TYPE_CHECKPOINT);
-			(void)saveResult;
 			DEBUG_LOG(("Command line save to '%s' at frame %d returned %d", saveName.str(), m_frame, (Int)saveResult.saveCode));
 
 			TheWritableGlobalData->m_saveAtFrameNext = TheGlobalData->m_saveAtFrameNext + 1;
@@ -5366,6 +5365,7 @@ void GameLogic::xfer( Xfer *xfer )
 		Int objectDataSize;
 		UnsignedShort tocID;
 		ObjectTOCEntry *tocEntry;
+		Int lastObjectPercent = -1;
 		for( UnsignedInt i = 0; i < objectCount; ++i )
 		{
 
@@ -5375,7 +5375,6 @@ void GameLogic::xfer( Xfer *xfer )
 				// the load screen sits still through all of it. Only push changed values:
 				// every call renders a frame.
 				Int objectPercent = 50 + (Int)((45 * i) / objectCount);
-				static Int lastObjectPercent = -1;
 				if( objectPercent != lastObjectPercent )
 				{
 					lastObjectPercent = objectPercent;

@@ -11757,12 +11757,17 @@ void Pathfinder::xfer( Xfer *xfer )
 		xfer->xferBool( &hasCellSnapshot );
 		if( hasCellSnapshot )
 		{
-			UnsignedInt cellCount = (m_extent.hi.x - m_extent.lo.x + 1) *
+			const UnsignedInt liveCellCount = (m_extent.hi.x - m_extent.lo.x + 1) *
 				(m_extent.hi.y - m_extent.lo.y + 1);
+			UnsignedInt cellCount = liveCellCount;
 			xfer->xferUnsignedInt( &cellCount );
 
 			if( xfer->getXferMode() == XFER_LOAD )
 			{
+				if( cellCount != liveCellCount )
+				{
+					throw SC_INVALID_DATA;
+				}
 				delete [] m_checkpointCells;
 				m_checkpointCells = MSGNEW("PathfindCheckpointCells") PathfindCell::CheckpointState[cellCount];
 				m_checkpointCellCount = cellCount;
