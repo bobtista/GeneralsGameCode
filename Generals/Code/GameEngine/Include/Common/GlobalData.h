@@ -352,6 +352,30 @@ public:
 	Bool m_enforceMaxCameraHeight;		///< Enforce max camera height while scrolling?
 	Bool m_buildMapCache;
 	AsciiString m_initialFile;				///< If this is specified, load a specific map from the command-line
+	Int m_saveAtFrame;						///< If greater than zero, write a save when this logic frame is reached
+	AsciiString m_saveToFile;				///< Filename used by m_saveAtFrame
+	// TheSuperHackers @feature bobtista 04/09/2026 Additional frames to save at in the same run, so
+	// one simulation pass can mint many checkpoints instead of re-simulating from frame zero for each.
+	enum { MAX_SAVE_AT_FRAMES = 64 };
+	Int m_saveAtFrameList[MAX_SAVE_AT_FRAMES];	///< Pending save frames, ascending; entry 0 mirrors m_saveAtFrame
+	Int m_saveAtFrameCount;						///< How many entries of m_saveAtFrameList are in use
+	Int m_saveAtFrameNext;						///< Index of the next pending entry
+	Int m_quitAtFrame;						///< If greater than zero, quit when this logic frame is reached
+	AsciiString m_resumeReplayName;
+	Int m_resumeAsSlot;						///< with m_loadSaveGame: take control of this lobby slot instead of the recording player
+	Bool m_crcRecovery;						///< Attempt in-game recovery from a network CRC mismatch instead of ending the game
+	Int m_desyncAtFrame;					///< If greater than zero, perturb this instance's next network CRC at this logic frame
+	Int m_divergeAtFrame;					///< If greater than zero, truly diverge this instance's game state at this logic frame
+	AsciiString m_recoveryResumeSave;		///< Donor save a pending CRC recovery reload should resume from
+	AsciiString m_recoveryDonorSave;		///< Donor snapshot name for the whole current hold; outlives the reload
+	Int m_rejoinWaitMs;						///< If greater than zero, hold a stalled game this long for a peer to rejoin instead of kicking
+	Bool m_rejoinHoldPending;				///< A stalled game should enter the rejoin hold at the next engine update
+	AsciiString m_rejoinHostIP;				///< Rejoin a running game hosted at this address instead of starting normally
+	Int m_rejoinSlot;						///< Lobby slot this instance held before it disconnected
+	Int m_rejoinSkewFrame;					///< If greater than zero, withhold this instance's frame data past this frame (debug)
+	Int m_rejoinSkewMask;					///< Slots that stop receiving frame data first under -rejoinSkewFrame (debug)
+	Bool m_saveAtFrameNormal;				///< -saveatframe writes a normal user save instead of a checkpoint
+	AsciiString m_loadReplayGame;			///< If this is specified, load a replay file from the command-line
 	AsciiString m_pendingFile;				///< If this is specified, use this map at the next game start
 	AsciiString m_loadSaveGame;				///< If this is specified, load a save game file from the command-line
 

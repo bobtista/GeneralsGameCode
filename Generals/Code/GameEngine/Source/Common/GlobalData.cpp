@@ -985,6 +985,30 @@ GlobalData::GlobalData()
 
 	m_buildMapCache = FALSE;
 	m_initialFile.clear();
+	m_saveAtFrame = 0;
+	m_saveAtFrameCount = 0;
+	m_saveAtFrameNext = 0;
+	for( Int saveFrameIndex = 0; saveFrameIndex < MAX_SAVE_AT_FRAMES; ++saveFrameIndex )
+	{
+		m_saveAtFrameList[ saveFrameIndex ] = 0;
+	}
+	m_quitAtFrame = 0;
+	m_saveToFile.clear();
+	m_resumeReplayName.clear();
+	m_resumeAsSlot = -1;
+	m_crcRecovery = FALSE;
+	m_desyncAtFrame = 0;
+	m_divergeAtFrame = 0;
+	m_recoveryResumeSave.clear();
+	m_recoveryDonorSave.clear();
+	m_rejoinWaitMs = 0;
+	m_rejoinHoldPending = FALSE;
+	m_rejoinHostIP.clear();
+	m_rejoinSlot = -1;
+	m_rejoinSkewFrame = 0;
+	m_rejoinSkewMask = 0;
+	m_saveAtFrameNormal = FALSE;
+	m_loadReplayGame.clear();
 	m_pendingFile.clear();
 
 	m_simulateReplays.clear();
