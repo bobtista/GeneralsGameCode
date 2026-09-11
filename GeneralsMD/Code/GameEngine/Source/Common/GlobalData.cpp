@@ -1013,6 +1013,8 @@ GlobalData::GlobalData()
 	m_rejoinHoldPending = FALSE;
 	m_rejoinHostIP.clear();
 	m_rejoinSlot = -1;
+	m_rejoinSkewFrame = 0;
+	m_rejoinSkewMask = 0;
 	m_saveAtFrameNormal = FALSE;
 	m_loadReplayGame.clear();
 

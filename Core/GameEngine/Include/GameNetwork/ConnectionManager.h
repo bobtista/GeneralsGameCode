@@ -166,6 +166,7 @@ private:
 	void processAck(NetCommandMsg *msg);
 	void processRejoinRequest(NetCommandMsg *msg);
 	void processRejoinRoster(NetRejoinRosterCommandMsg *msg);
+	UnsignedByte applyRejoinSkew(NetCommandMsg *msg, UnsignedByte relay) const;
 	void processRecoveryReady(NetRecoveryReadyCommandMsg *msg);
 	void recordRecoveryReady(UnsignedInt slot, UnsignedInt frame, UnsignedInt crc);
 	void processFrameInfo(NetFrameCommandMsg *msg);

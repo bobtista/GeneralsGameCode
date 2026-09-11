@@ -955,6 +955,26 @@ Int parseRejoinSlot(char *args[], int num)
 	return 1;
 }
 
+Int parseRejoinSkewFrame(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_rejoinSkewFrame = atoi(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parseRejoinSkewMask(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_rejoinSkewMask = atoi(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
 Int parseSaveNormal(char *[], int)
 {
 	TheWritableGlobalData->m_saveAtFrameNormal = TRUE;
@@ -1617,6 +1637,8 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-rejoinWait", parseRejoinWait },
 	{ "-autoNetworkRejoin", parseAutoNetworkRejoin },
 	{ "-rejoinSlot", parseRejoinSlot },
+	{ "-rejoinSkewFrame", parseRejoinSkewFrame },
+	{ "-rejoinSkewMask", parseRejoinSkewMask },
 	{ "-noaudio", parseNoAudio },
 	{ "-map", parseMapName },
 	{ "-nomusic", parseNoMusic },
