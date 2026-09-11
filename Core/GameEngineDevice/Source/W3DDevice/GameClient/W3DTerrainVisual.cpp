@@ -1259,9 +1259,13 @@ void W3DTerrainVisual::xfer( Xfer *xfer )
 	}
 
 	if (version >= 4) {
-		Bool hasRenderSnapshot = (TheGlobalData->m_headless == FALSE && m_terrainRenderObject != nullptr);
+		const Bool canRender = (TheGlobalData->m_headless == FALSE && m_terrainRenderObject != nullptr);
+		Bool hasRenderSnapshot = canRender;
 		xfer->xferBool(&hasRenderSnapshot);
-		if (hasRenderSnapshot) {
+		// TheSuperHackers @bugfix bobtista 11/09/2026 A headless reader has no tree or prop buffers to
+		// take a windowed writer's snapshot. It is the last item of the block, so leave it unread and
+		// let the block end seek past it.
+		if (hasRenderSnapshot && canRender) {
 			xfer->xferSnapshot(m_terrainRenderObject);
 		}
 	}
