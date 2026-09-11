@@ -444,9 +444,9 @@ void TunnelTracker::xfer( Xfer *xfer )
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	// Checkpoints always carry the full deterministic state; user saves stay retail shaped.
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 3;
 #else
-	XferVersion currentVersion = 2;
+	XferVersion currentVersion = 3;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -506,11 +506,9 @@ void TunnelTracker::xfer( Xfer *xfer )
 	}
 #endif
 
-	//
-	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the current nemesis and the frame it was chosen, so a tunnel network keeps
-	// aiming at what it had picked before the save.
-	//
-	if( version >= 2 )
+	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the current nemesis and the frame it was
+	// chosen, so a tunnel network keeps aiming at what it had picked before the save.
+	if( version >= 3 )
 	{
 		xfer->xferObjectID( &m_curNemesisID );
 		xfer->xferUnsignedInt( &m_nemesisTimestamp );
