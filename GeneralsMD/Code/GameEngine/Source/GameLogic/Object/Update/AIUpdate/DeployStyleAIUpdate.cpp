@@ -481,11 +481,11 @@ void DeployStyleAIUpdate::xfer( Xfer *xfer )
 			xfer->xferBool( &obsoleteBool );
 		}
 
-		obsoleteAICommandParmsStorage.doXfer( xfer );
+		obsoleteAICommandParmsStorage.doXfer( xfer, FALSE );
 
 		if( version < 2 )
 		{
-			obsoleteAICommandParmsStorage.doXfer(xfer);
+			obsoleteAICommandParmsStorage.doXfer(xfer, FALSE);
 		}
 
 		//Initialize unit to able to move.
