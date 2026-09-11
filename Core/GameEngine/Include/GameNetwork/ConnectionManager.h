@@ -75,12 +75,10 @@ public:
 	void zeroFrames(UnsignedInt startingFrame, UnsignedInt numFrames);
 	void flushForRecovery();
 	void sendRecoveryReady(UnsignedInt frame, UnsignedInt crc);
-	void resendRecoveryReady();
 	Int checkRecoveryReady();
 	void sendRecoveryFile(AsciiString path);
 	void sendRejoinRequest();
 	void sendRejoinRoster(UnsignedInt toSlot);
-	UnsignedByte getStalledPeerMask();
 	AsciiString getRecoveryReceivedFile();
 	Int getRecoveryTransferPercent();
 	void destroyGameMessages();

@@ -187,7 +187,6 @@ enum RecoveryTuning CPP_11(: Int) {
 	RECOVERY_RELOAD_STAGGER_MS = 8000,			///< Per-instance offset so shared scratch maps extract one at a time
 	RECOVERY_SNAPSHOT_WAIT_MS = 90000,			///< How long a peer waits for the donor snapshot to arrive
 	RECOVERY_READY_DEADLINE_MS = 180000,		///< How long the post-load handshake may take before the endgame fallback
-	RECOVERY_READY_RESEND_MS = 3000,			///< Cadence of repeating the post-load report to peers that have not answered it
 	RECOVERY_WAIT_MESSAGE_MS = 5000,				///< Cadence of the "waiting for other players" message
 	RECOVERY_TRANSFER_MESSAGE_STEP = 20,		///< Percent step between transfer progress messages
 	REJOIN_REQUEST_INTERVAL_MS = 3000,			///< Cadence of snapshot requests from a rejoining peer

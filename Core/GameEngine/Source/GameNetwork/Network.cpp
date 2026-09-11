@@ -181,7 +181,6 @@ public:
 	virtual Int getRecoveryTransferPercent() override;							///< How much of the recovery snapshot has arrived, 0-100.
 	virtual Bool isRecoveryInProgress() override;									///< A mismatch recovery currently holds the game.
 	virtual void sendRejoinRequest() override;										///< Ask the held game for its snapshot.
-	virtual UnsignedByte getStalledPeerMask() override;							///< Peers whose frame data for the current frame has not arrived.
 	virtual Int  getExecutionFrame() override;																			///< Returns the next valid frame for simultaneous command execution.
 
 	// For disconnect blame assignment
@@ -215,7 +214,6 @@ protected:
 	Bool m_awaitingRecoveryReady;								///< Waiting for every peer's post-load recovery report.
 	UnsignedInt m_recoveryReadyStart;						///< When the recovery handshake began waiting.
 	UnsignedInt m_lastRecoveryWaitMessage;			///< Last time the waiting message was shown.
-	UnsignedInt m_lastRecoveryReadyResend;			///< Last time the post-load report was repeated.
 	Int m_lastExecutionFrame;																	///< The highest frame number that a command could have been executed on.
 	Int m_lastFrameCompleted;
 	Bool m_didSelfSlug;
@@ -351,7 +349,6 @@ void Network::init()
 	m_awaitingRecoveryReady = FALSE;
 	m_recoveryReadyStart = 0;
 	m_lastRecoveryWaitMessage = 0;
-	m_lastRecoveryReadyResend = 0;
 	m_lastExecutionFrame = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_lastFrameCompleted = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_frameDataReady = FALSE;
@@ -525,7 +522,6 @@ void Network::setStartFrame(Int frame)
 		m_awaitingRecoveryReady = TRUE;
 		m_recoveryReadyStart = timeGetTime();
 		m_lastRecoveryWaitMessage = 0;
-		m_lastRecoveryReadyResend = m_recoveryReadyStart;
 	}
 	// Re-enter the pregame state a cold resume naturally starts in: readiness short-circuits
 	// until logic crosses the start frame, which skips the flushed current frame that no peer
@@ -591,15 +587,6 @@ void Network::sendRejoinRequest()
 	{
 		m_conMgr->sendRejoinRequest();
 	}
-}
-
-UnsignedByte Network::getStalledPeerMask()
-{
-	if (m_conMgr != nullptr)
-	{
-		return m_conMgr->getStalledPeerMask();
-	}
-	return 0;
 }
 
 Int Network::getExecutionFrame() {
@@ -852,11 +839,6 @@ void Network::update()
 		{
 			m_lastRecoveryWaitMessage = waitNow;
 			TheInGameUI->message(UnicodeString(L"Waiting for other players to finish loading..."));
-		}
-		if ((UnsignedInt)(waitNow - m_lastRecoveryReadyResend) >= (UnsignedInt)RECOVERY_READY_RESEND_MS)
-		{
-			m_lastRecoveryReadyResend = waitNow;
-			m_conMgr->resendRecoveryReady();
 		}
 		Int readyState = m_conMgr->checkRecoveryReady();
 		if (readyState == 1)

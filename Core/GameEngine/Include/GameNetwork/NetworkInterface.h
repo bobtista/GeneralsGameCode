@@ -119,7 +119,6 @@ public:
 	virtual Int getRecoveryTransferPercent() = 0;								///< How much of the recovery snapshot has arrived, 0-100.
 	virtual Bool isRecoveryInProgress() = 0;									///< A mismatch recovery currently holds the game.
 	virtual void sendRejoinRequest() = 0;										///< Ask the held game for its snapshot.
-	virtual UnsignedByte getStalledPeerMask() = 0;								///< Peers whose frame data for the current frame has not arrived.
 	virtual Int  getExecutionFrame() = 0;																			///< Returns the next valid frame for simultaneous command execution.
 
 #if defined(RTS_DEBUG)
