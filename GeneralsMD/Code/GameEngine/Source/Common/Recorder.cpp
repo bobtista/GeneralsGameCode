@@ -1251,6 +1251,8 @@ Bool RecorderClass::resumePlayback( AsciiString filename, UnsignedInt frame )
 
 	Bool isMultiplayer = m_gameInfo.getSlot(header.localPlayerIndex)->getIP() != 0;
 	m_crcInfo = CRCInfo(header.localPlayerIndex, isMultiplayer);
+	// The recording holds the CRC of every frame from here on, so the multiplayer skip does not apply.
+	m_crcInfo.markFirstSkipped();
 	// TheSuperHackers @bugfix bobtista 02/09/2026 The resumed game must emit its CRCs on the frames
 	// the recording did, so take the interval from the recording like playbackFile does.
 	REPLAY_CRC_INTERVAL = m_gameInfo.getCRCInterval();

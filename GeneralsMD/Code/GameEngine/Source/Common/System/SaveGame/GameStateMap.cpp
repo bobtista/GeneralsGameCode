@@ -497,18 +497,24 @@ void GameStateMap::xfer( Xfer *xfer )
 	}
 	if( effectiveGameMode == GAME_SKIRMISH )
 	{
+		// TheSuperHackers @bugfix bobtista 11/09/2026 A snapshot this loader created is rebuilt from the
+		// live game on every save, so a later checkpoint never carries a stale lobby.
+		static Bool s_ownSnapshot = FALSE;
 		if( TheSkirmishGameInfo==nullptr )
 		{
 			TheSkirmishGameInfo = NEW SkirmishGameInfo;
 			TheSkirmishGameInfo->init();
 			TheSkirmishGameInfo->clearSlotList();
 			TheSkirmishGameInfo->reset();
-			if( xfer->getXferMode() == XFER_SAVE && TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
+			s_ownSnapshot = TRUE;
+		}
+		if( s_ownSnapshot && xfer->getXferMode() == XFER_SAVE )
+		{
+			if( TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
 			{
-				GameInfo *replayInfo = TheRecorder->getGameInfo();
-				buildSnapshotFromGameInfo( replayInfo );
+				buildSnapshotFromGameInfo( TheRecorder->getGameInfo() );
 			}
-			else if( xfer->getXferMode() == XFER_SAVE && TheNetwork != nullptr && TheGameInfo != nullptr )
+			else if( TheNetwork != nullptr && TheGameInfo != nullptr )
 			{
 				buildSnapshotFromGameInfo( TheGameInfo );
 			}

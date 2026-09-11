@@ -954,6 +954,7 @@ void GameEngine::update()
 				}
 				if (now >= s_resumeEligibleAt)
 				{
+					s_resumeEligibleAt = 0;
 					TheGameState->loadQueuedSaveGame();
 				}
 			}
@@ -964,6 +965,8 @@ void GameEngine::update()
 					TheGameLogic->isInGame())
 			{
 				static UnsignedInt s_recoveryWaitStart = 0;
+				static Int s_lastTransferPercent = -1;
+				static UnsignedInt s_lastTransferProgressTime = 0;
 				AsciiString donorSave = TheGlobalData->m_recoveryResumeSave;
 				UnsignedInt now = timeGetTime();
 				UnsignedInt staggerMs = (rts::ClientInstance::getInstanceId() - 1u) * (UnsignedInt)RECOVERY_RELOAD_STAGGER_MS;
@@ -987,8 +990,6 @@ void GameEngine::update()
 						// has stalled. Re-asking while bytes still arrive restarts the send and it never finishes.
 						if (!snapshotArrived)
 						{
-							static Int s_lastTransferPercent = -1;
-							static UnsignedInt s_lastTransferProgressTime = 0;
 							const Int nowPercent = TheNetwork->getRecoveryTransferPercent();
 							if (nowPercent != s_lastTransferPercent || s_lastTransferProgressTime == 0)
 							{
@@ -1022,6 +1023,8 @@ void GameEngine::update()
 					if (snapshotArrived && TheGameState->doesSaveGameExist(donorSave))
 					{
 						s_recoveryWaitStart = 0;
+						s_lastTransferPercent = -1;
+						s_lastTransferProgressTime = 0;
 						TheWritableGlobalData->m_recoveryResumeSave.clear();
 						if (TheGlobalData->m_resumeAsSlot < 0)
 						{
@@ -1040,6 +1043,8 @@ void GameEngine::update()
 					{
 						DEBUG_LOG(("CRC recovery: donor save '%s' never appeared, ending the game", donorSave.str()));
 						s_recoveryWaitStart = 0;
+						s_lastTransferPercent = -1;
+						s_lastTransferProgressTime = 0;
 						TheWritableGlobalData->m_recoveryResumeSave.clear();
 						TheNetwork->setSawCRCMismatch();
 					}
@@ -1163,6 +1168,7 @@ void GameEngine::update()
 					TheWritableGlobalData->m_recoveryDonorSave.clear();
 					TheWritableGlobalData->m_loadSaveGame.clear();
 					TheWritableGlobalData->m_resumeAsSlot = -1;
+					TheWritableGlobalData->m_crcRecovery = FALSE;
 					NetworkAutoStart::setResumeSave(AsciiString::TheEmptyString);
 					delete TheNetwork;
 					TheNetwork = nullptr;

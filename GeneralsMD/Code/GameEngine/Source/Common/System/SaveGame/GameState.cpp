@@ -729,6 +729,7 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 		// TheSuperHackers @bugfix bobtista 02/09/2026 Restore the checkpoint's local player. Everything else
 		// is loaded by now, so the object sweep inside setLocalPlayer is safe here.
 		ThePlayerList->applyXferLocalPlayer();
+		TheVictoryConditions->recacheLocalPlayer();
 
 		//
 		// TheSuperHackers @bugfix bobtista 03/09/2026 The load consumes client random values while
@@ -906,6 +907,7 @@ void GameState::loadResumeSaveGame( AsciiString filename )
 	}
 
 	Bool resumeIdentityOk = applyResumeAsSlot();
+	TheVictoryConditions->recacheLocalPlayer();
 
 	// TheSuperHackers @feature bobtista 27/08/2026 A recovery or rejoin reload reports its post-load state
 	// so the handshake can gate the resume. A peer that could not take its own slot withholds the report.
@@ -997,15 +999,20 @@ void GameState::loadQueuedSaveGame()
 	}
 
 	applyResumeAsSlot();
+	TheVictoryConditions->recacheLocalPlayer();
 
 	// TheSuperHackers @feature bobtista 25/08/2026 Resume replay playback from the loaded
 	// checkpoint: skip the recorded commands the checkpoint already contains and continue
 	// feeding the rest, exactly where an uninterrupted playback would be at this frame.
 	if( TheGlobalData->m_resumeReplayName.isNotEmpty() && TheRecorder != nullptr )
 	{
-		MAYBE_UNUSED Bool resumed = TheRecorder->resumePlayback( TheGlobalData->m_resumeReplayName, TheGameLogic->getFrame() );
+		const Bool resumed = TheRecorder->resumePlayback( TheGlobalData->m_resumeReplayName, TheGameLogic->getFrame() );
 		DEBUG_LOG(("Resume replay '%s' at frame %d: %s",
 			TheGlobalData->m_resumeReplayName.str(), TheGameLogic->getFrame(), resumed ? "OK" : "FAILED"));
+		if (resumed == FALSE)
+		{
+			TheGameEngine->setQuitting(TRUE);
+		}
 	}
 }
 
@@ -1138,17 +1145,17 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& inPath) c
 	}
 	AsciiString in = normalizeMapPathSeparators(inPath);
 	AsciiString prefix;
-	if (in.startsWithNoCase(getSaveDirectory()))
+	if (in.startsWithNoCase(normalizeMapPathSeparators(getSaveDirectory())))
 	{
 		prefix = PORTABLE_SAVE;
 		prefix.concat(getMapLeafName(in));
 	}
-	else if (in.startsWithNoCase(TheMapCache->getMapDir()))
+	else if (in.startsWithNoCase(normalizeMapPathSeparators(TheMapCache->getMapDir())))
 	{
 		prefix = PORTABLE_MAPS;
 		prefix.concat(getMapLeafAndDirName(in));
 	}
-	else if (in.startsWithNoCase(TheMapCache->getUserMapDir()))
+	else if (in.startsWithNoCase(normalizeMapPathSeparators(TheMapCache->getUserMapDir())))
 	{
 		prefix = PORTABLE_USER_MAPS;
 		prefix.concat(getMapLeafAndDirName(in));

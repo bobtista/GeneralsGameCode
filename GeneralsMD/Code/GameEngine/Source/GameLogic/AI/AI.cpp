@@ -1092,7 +1092,12 @@ void AI::xfer( Xfer *xfer )
 			for( UnsignedInt i = 0; i < groupCount; ++i )
 			{
 				AIGroupPtr group = createGroup();
+#if RETAIL_COMPATIBLE_AIGROUP
 				xfer->xferSnapshot( group );
+#else
+				m_loadedGroups.push_back( group );
+				xfer->xferSnapshot( group.Peek() );
+#endif
 			}
 		}
 
@@ -1112,7 +1117,9 @@ void AI::xfer( Xfer *xfer )
 //-----------------------------------------------------------------------------
 void AI::loadPostProcess()
 {
-
+#if !RETAIL_COMPATIBLE_AIGROUP
+	m_loadedGroups.clear();
+#endif
 }
 
 

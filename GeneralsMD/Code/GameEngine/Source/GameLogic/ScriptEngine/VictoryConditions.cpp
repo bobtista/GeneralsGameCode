@@ -92,6 +92,7 @@ public:
 	virtual Bool isLocalAlliedDefeat() override;									///< convenience function
 	virtual Bool isLocalDefeat() override;												///< convenience function
 	virtual Bool amIObserver() override { return m_isObserver;} 	///< Am I an observer?( need this for scripts )
+	virtual void recacheLocalPlayer() override;
 	virtual UnsignedInt getEndFrame() override { return m_endFrame; }	///< on which frame was the game effectively over?
 private:
 	Player* findFirstUndefeatedPlayer(); ///< Find the first player that has not been defeated.
@@ -340,6 +341,24 @@ void VictoryConditions::resyncDefeatStateAfterLoad()
 		{
 			m_isDefeated[i] = true;
 		}
+	}
+}
+
+// TheSuperHackers @bugfix bobtista 11/09/2026 A resumed game applies its local player after the
+// players were cached, so the local slot and its defeat flag are derived again from the new player.
+void VictoryConditions::recacheLocalPlayer()
+{
+	if (!TheRecorder->isMultiplayer())
+	{
+		return;
+	}
+	m_localSlotNum = -1;
+	m_isObserver = false;
+	m_localPlayerDefeated = false;
+	cachePlayerPtrs();
+	if (m_localSlotNum >= 0 && m_isDefeated[m_localSlotNum])
+	{
+		m_localPlayerDefeated = true;
 	}
 }
 
