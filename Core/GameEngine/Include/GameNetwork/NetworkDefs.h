@@ -194,6 +194,8 @@ enum RecoveryTuning CPP_11(: Int) {
 	RECOVERY_WAIT_MESSAGE_MS = 5000,				///< Cadence of the "waiting for other players" message
 	RECOVERY_TRANSFER_MESSAGE_STEP = 20,		///< Percent step between transfer progress messages
 	REJOIN_REQUEST_INTERVAL_MS = 3000,			///< Cadence of snapshot requests from a rejoining peer
+	REJOIN_GIVEUP_MS = 45000,					///< A rejoiner that has received no snapshot bytes for this long returns to the shell
+	REJOIN_TICKET_MAX_AGE_MS = 120000,			///< A rejoin ticket older than this belongs to a game that has moved on
 	REJOIN_HOLD_COOLDOWN_MS = 120000,				///< Quiet period after a recovery before another hold may trigger
 };
 

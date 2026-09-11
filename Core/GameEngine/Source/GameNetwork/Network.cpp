@@ -298,6 +298,7 @@ Network::Network()
  */
 Network::~Network()
 {
+	NetworkAutoStart::clearRejoinTicket();
 	deinit();
 }
 
@@ -615,6 +616,9 @@ Bool Network::processCommand(GameMessage *msg)
 			// Idealy this shouldn't be necessary, but I don't think its hurting anything by being here.
 			if (TheGameLogic->getFrame() == (UnsignedInt)(m_startFrame + 1)) {
 				m_localStatus = NETLOCALSTATUS_INGAME;
+				if (m_conMgr->getLocalPlayerID() != 0 && m_conMgr->isPlayerConnected(0)) {
+					NetworkAutoStart::writeRejoinTicket(m_conMgr->getPlayerIP(0), (Int)m_conMgr->getLocalPlayerID());
+				}
 				NetCommandList *netcmdlist = m_conMgr->getFrameCommandList(m_startFrame); // clear out the start frame since we skipped it
 				deleteInstance(netcmdlist);
 			} else {

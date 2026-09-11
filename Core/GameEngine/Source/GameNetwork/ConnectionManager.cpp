@@ -660,6 +660,51 @@ void ConnectionManager::processRejoinRequest(NetCommandMsg *msg) {
 	if (playerID >= MAX_SLOTS) {
 		return;
 	}
+	// TheSuperHackers @feature bobtista 11/09/2026 A request that arrives while the retail
+	// disconnect countdown runs starts the hold: every survivor snapshots the frozen frame and
+	// the lowest live slot forwards the request to the others so they arm on the same frame. A
+	// request for a slot that is no longer connected (already kicked) is ignored, and the
+	// rejoiner gives up on its own.
+	if (TheGlobalData->m_recoveryDonorSave.isEmpty()) {
+		if (TheGlobalData->m_rejoinWaitMs <= 0 || playerID == m_localSlot || m_connections[playerID] == nullptr) {
+			DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked outside a hold, ignoring", playerID));
+			return;
+		}
+		// Only the peer whose frame data has stopped may be replaced; a request naming a slot
+		// that is still delivering frames is an impostor or a stale client.
+		const UnsignedInt waitFrame = TheGameLogic->getFrame();
+		if (m_frameData[playerID] == nullptr ||
+				m_frameData[playerID]->getFrameCommandCount(waitFrame) == m_frameData[playerID]->getCommandCount(waitFrame)) {
+			DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked but its slot is still live, ignoring", playerID));
+			return;
+		}
+		if (!TheGlobalData->m_rejoinHoldPending) {
+			TheWritableGlobalData->m_rejoinHoldPending = TRUE;
+			Int lowest = -1;
+			UnsignedByte others = 0;
+			for (Int i = 0; i < MAX_SLOTS; ++i) {
+				if (i == (Int)playerID) {
+					continue;
+				}
+				if (i == (Int)m_localSlot || (m_connections[i] != nullptr && !m_connections[i]->isQuitting())) {
+					if (lowest < 0) {
+						lowest = i;
+					}
+					if (i != (Int)m_localSlot) {
+						others |= (UnsignedByte)(1 << i);
+					}
+				}
+			}
+			if (lowest == (Int)m_localSlot && others != 0) {
+				NetRejoinRequestCommandMsg *forward = newInstance(NetRejoinRequestCommandMsg);
+				forward->setPlayerID(playerID);
+				sendLocalCommandDirect(forward, others);
+				forward->detach();
+			}
+			DEBUG_LOG(("ConnectionManager::processRejoinRequest - player %d asked during the countdown, hold armed, forwarded to %X", playerID, (Int)others));
+		}
+		return;
+	}
 	AsciiString localSave;
 	localSave.format("recovery_s%d.sav", (Int)m_localSlot);
 	// Only the elected donor answers, and only while a recovery or hold has named its save.
@@ -2477,6 +2522,13 @@ void ConnectionManager::resendPendingCommands() {
 
 UnsignedInt ConnectionManager::getLocalPlayerID() {
 	return m_localSlot;
+}
+
+UnsignedInt ConnectionManager::getPlayerIP(Int slot) {
+	if (slot < 0 || slot >= MAX_SLOTS || m_connections[slot] == nullptr || m_connections[slot]->getUser() == nullptr) {
+		return 0;
+	}
+	return m_connections[slot]->getUser()->GetIPAddr();
 }
 
 UnicodeString ConnectionManager::getPlayerName(Int playerNum) {
