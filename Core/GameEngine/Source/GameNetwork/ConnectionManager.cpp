@@ -1950,7 +1950,27 @@ void ConnectionManager::sendLocalGameMessage(GameMessage *msg, UnsignedInt frame
  * This is a NetCommandMsg that originated on the local computer. Send this to everyone specified
  * in the relay field.  Commands sent in this way go through the packet router.
  */
+// TheSuperHackers @info bobtista 10/09/2026 Debug aid for the rejoin hold. From -rejoinSkewFrame
+// on, this instance withholds its frame data from the slots in -rejoinSkewMask, and a few frames
+// later from everyone, so the survivors stall at different frames the way uneven delivery of a
+// dying peer's last packets leaves them.
+UnsignedByte ConnectionManager::applyRejoinSkew(NetCommandMsg *msg, UnsignedByte relay) const {
+	const Int RejoinSkewSpreadFrames = 4;
+	if (TheGlobalData->m_rejoinSkewFrame <= 0 || !IsCommandSynchronized(msg->getNetCommandType())) {
+		return relay;
+	}
+	const Int frame = (Int)msg->getExecutionFrame();
+	if (frame > TheGlobalData->m_rejoinSkewFrame + RejoinSkewSpreadFrames) {
+		return (UnsignedByte)(relay & (1 << m_localSlot));
+	}
+	if (frame > TheGlobalData->m_rejoinSkewFrame) {
+		return (UnsignedByte)(relay & ~(UnsignedByte)TheGlobalData->m_rejoinSkewMask);
+	}
+	return relay;
+}
+
 void ConnectionManager::sendLocalCommand(NetCommandMsg *msg, UnsignedByte relay /* = 0xff by default*/) {
+	relay = applyRejoinSkew(msg, relay);
 	if (CommandRequiresDirectSend(msg) || (m_packetRouterSlot < 0) || (m_packetRouterSlot >= MAX_SLOTS) || (m_connections[m_packetRouterSlot] == nullptr)) {
 		sendLocalCommandDirect(msg, relay);
 		return;
@@ -2001,6 +2021,7 @@ void ConnectionManager::sendLocalCommand(NetCommandMsg *msg, UnsignedByte relay 
  * in the relay field.  Commands sent in this way do not go through the packet router.
  */
 void ConnectionManager::sendLocalCommandDirect(NetCommandMsg *msg, UnsignedByte relay) {
+	relay = applyRejoinSkew(msg, relay);
 	msg->attach();
 
 	if (((relay & (1 << m_localSlot)) != 0) && (m_frameData[m_localSlot] != nullptr)) {

@@ -433,6 +433,8 @@ public:
 	Bool m_rejoinHoldPending;				///< A stalled game should enter the rejoin hold at the next engine update
 	AsciiString m_rejoinHostIP;				///< Rejoin a running game hosted at this address instead of starting normally
 	Int m_rejoinSlot;						///< Lobby slot this instance held before it disconnected
+	Int m_rejoinSkewFrame;					///< If greater than zero, withhold this instance's frame data past this frame (debug)
+	Int m_rejoinSkewMask;					///< Slots that stop receiving frame data first under -rejoinSkewFrame (debug)
 	Bool m_saveAtFrameNormal;				///< -saveatframe writes a normal user save instead of a checkpoint
 	AsciiString m_loadReplayGame;			///< If this is specified, load a replay file from the command-line
 	AsciiString m_skirmishMap;				///< If this is specified, start a skirmish on this map from the command-line
