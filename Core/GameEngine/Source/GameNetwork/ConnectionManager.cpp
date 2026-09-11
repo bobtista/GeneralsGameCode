@@ -549,6 +549,42 @@ void ConnectionManager::sendRecoveryReady(UnsignedInt frame, UnsignedInt crc) {
 	DEBUG_LOG(("ConnectionManager::sendRecoveryReady - frame %d crc %8.8X", frame, crc));
 }
 
+// TheSuperHackers @bugfix bobtista 10/09/2026 Repeat the post-load report to the peers that have
+// not answered it. The report is sent once and left to the retry queue, but a rejoiner that was
+// still starting up when it went out never acknowledged it, and on a connection already holding
+// unacknowledged traffic for that peer the retry never got a packet, so the rejoiner waited for a
+// report that had been sent before it existed and fell back when a later one disagreed.
+void ConnectionManager::resendRecoveryReady() {
+	if (!m_recoveryReadySeen[m_localSlot]) {
+		return;
+	}
+	const UnsignedInt frame = m_recoveryReadyFrame[m_localSlot];
+	const UnsignedInt crc = m_recoveryReadyCRC[m_localSlot];
+	UnsignedByte mask = 0;
+	for (Int peer = 0; peer < MAX_SLOTS; ++peer) {
+		if (peer == (Int)m_localSlot || m_connections[peer] == nullptr || m_frameData[peer] == nullptr ||
+				m_frameData[peer]->getIsQuitting()) {
+			continue;
+		}
+		if (!m_recoveryReadySeen[peer] || m_recoveryReadyFrame[peer] != frame) {
+			mask |= (UnsignedByte)(1 << peer);
+		}
+	}
+	if (mask == 0) {
+		return;
+	}
+	NetRecoveryReadyCommandMsg *msg = newInstance(NetRecoveryReadyCommandMsg);
+	msg->setRecoveryFrame(frame);
+	msg->setRecoveryCRC(crc);
+	msg->setPlayerID(m_localSlot);
+	if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
+		msg->setID(GenerateNextCommandID());
+	}
+	sendLocalCommandDirect(msg, mask);
+	msg->detach();
+	DEBUG_LOG(("ConnectionManager::resendRecoveryReady - frame %d crc %8.8X to mask %X", frame, crc, (Int)mask));
+}
+
 // TheSuperHackers @feature bobtista 27/08/2026 The elected donor pushes its snapshot to
 // every peer over the file-transfer channel; receivers gate their reload on its arrival.
 void ConnectionManager::sendRecoveryFile(AsciiString path) {
@@ -577,11 +613,33 @@ Int ConnectionManager::getRecoveryTransferPercent() {
 void ConnectionManager::sendRejoinRequest() {
 	NetRejoinRequestCommandMsg *msg = newInstance(NetRejoinRequestCommandMsg);
 	msg->setPlayerID(m_localSlot);
-	// TheSuperHackers @bugfix bobtista 10/09/2026 Ask the held game's host only. Once the roster
-	// has attached the other survivors, a request to all of them would have every survivor answer
-	// with its own snapshot at once.
-	sendLocalCommandDirect(msg, (UnsignedByte)(1 << 0));
+	// TheSuperHackers @bugfix bobtista 10/09/2026 Ask the donor only. Once the roster has attached
+	// the other survivors, a request to all of them would have every survivor answer with its own
+	// snapshot at once. The donor is named by the hold's snapshot; a rejoiner names the host's.
+	Int donorSlot = 0;
+	if (sscanf(TheGlobalData->m_recoveryDonorSave.str(), "recovery_s%d.sav", &donorSlot) != 1 ||
+			donorSlot < 0 || donorSlot >= MAX_SLOTS) {
+		donorSlot = 0;
+	}
+	sendLocalCommandDirect(msg, (UnsignedByte)(1 << donorSlot));
 	msg->detach();
+}
+
+// Peers whose frame data for the frame logic is waiting on has not arrived. During a stall this
+// names the peer the game is being held for.
+UnsignedByte ConnectionManager::getStalledPeerMask() {
+	UnsignedByte mask = 0;
+	const UnsignedInt frame = TheGameLogic->getFrame();
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		if (i == (Int)m_localSlot || m_connections[i] == nullptr || m_frameData[i] == nullptr ||
+				m_frameData[i]->getIsQuitting()) {
+			continue;
+		}
+		if (m_frameData[i]->getFrameCommandCount(frame) != m_frameData[i]->getCommandCount(frame)) {
+			mask |= (UnsignedByte)(1 << i);
+		}
+	}
+	return mask;
 }
 
 // TheSuperHackers @feature bobtista 10/09/2026 Tell a rejoiner where every connected slot is.

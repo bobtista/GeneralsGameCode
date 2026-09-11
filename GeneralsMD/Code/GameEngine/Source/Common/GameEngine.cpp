@@ -1162,9 +1162,33 @@ void GameEngine::update()
 					{
 						TheInGameUI->message(UnicodeString(L"Player disconnected - holding the game for a rejoin..."));
 					}
-					TheWritableGlobalData->m_recoveryResumeSave = holdSave;
-					TheWritableGlobalData->m_recoveryDonorSave = holdSave;
+					// TheSuperHackers @bugfix bobtista 10/09/2026 Resume every survivor from one
+					// snapshot. The dying peer's last packets reach the survivors unevenly, so they
+					// stall on different frames; each reloading its own hold save then reported a
+					// frame nobody else could match and the handshake fell back to the endgame.
+					// The lowest slot still delivering frames donates, and the others fetch its
+					// snapshot exactly as a rejoiner does.
+					const UnsignedByte stalledPeers = TheNetwork->getStalledPeerMask();
+					const Int localSlot = (Int)TheNetwork->getLocalPlayerID();
+					Int donorSlot = localSlot;
+					for (Int slot = 0; slot < MAX_SLOTS; ++slot)
+					{
+						if (TheNetwork->isPlayerConnected(slot) && (stalledPeers & (1 << slot)) == 0)
+						{
+							donorSlot = slot;
+							break;
+						}
+					}
+					AsciiString donorSave;
+					donorSave.format("recovery_s%d.sav", donorSlot);
+					DEBUG_LOG(("Rejoin hold: donor slot %d, stalled peers %X", donorSlot, (Int)stalledPeers));
+					TheWritableGlobalData->m_recoveryResumeSave = donorSave;
+					TheWritableGlobalData->m_recoveryDonorSave = donorSave;
 					TheNetwork->prepareForRecovery();
+					if (donorSlot == localSlot)
+					{
+						TheNetwork->sendRecoveryFile(TheGameState->getFilePathInSaveDirectory(holdSave));
+					}
 				}
 			}
 
