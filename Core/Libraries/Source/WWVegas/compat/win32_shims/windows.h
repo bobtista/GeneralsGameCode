@@ -285,6 +285,10 @@ inline unsigned int GetDoubleClickTime() { return 500; }
 // a no-op on macOS, leaving audio + rendering in their default modes.
 extern const char *g_compatCommandLine;
 inline const char *GetCommandLineA() { return g_compatCommandLine != nullptr ? g_compatCommandLine : ""; }
+// TheSuperHackers @build bobtista 11/09/2026 The Windows CRT declares __argc and __argv in
+// stdlib.h. SDL3Main.cpp defines them on POSIX for the command-line parser.
+extern int __argc;
+extern char **__argv;
 inline DWORD GetModuleFileName(HMODULE, char *, DWORD size) { (void)size; return 0; }
 inline DWORD GetModuleFileNameA(HMODULE, char *, DWORD size) { (void)size; return 0; }
 inline void GetLocalTime(SYSTEMTIME *t)
