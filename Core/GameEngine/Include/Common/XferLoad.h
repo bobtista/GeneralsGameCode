@@ -62,5 +62,6 @@ protected:
 	virtual void xferImplementation( void *data, Int dataSize ) override;		///< the xfer implementation
 
 	FILE * m_fileFP;																					///< pointer to file
+	long m_blockEnd;																					///< file position where the open block ends
 
 };

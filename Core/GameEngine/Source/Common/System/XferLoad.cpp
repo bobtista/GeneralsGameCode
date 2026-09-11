@@ -41,6 +41,7 @@ XferLoad::XferLoad()
 
 	m_xferMode = XFER_LOAD;
 	m_fileFP = nullptr;
+	m_blockEnd = 0;
 
 }
 
@@ -135,6 +136,10 @@ Int XferLoad::beginBlock()
 
 	}
 
+	// TheSuperHackers @bugfix bobtista 11/09/2026 Remember where the block ends, so a reader that
+	// stops early inside it leaves the stream aligned for the next block.
+	m_blockEnd = ftell( m_fileFP ) + blockSize;
+
 	// return the block size
 	return blockSize;
 
@@ -145,6 +150,17 @@ Int XferLoad::beginBlock()
 // ------------------------------------------------------------------------------------------------
 void XferLoad::endBlock()
 {
+
+	if( m_blockEnd > 0 && m_fileFP != nullptr )
+	{
+		const long pos = ftell( m_fileFP );
+		DEBUG_ASSERTCRASH( pos <= m_blockEnd, ("XferLoad::endBlock - block overrun by %ld bytes", pos - m_blockEnd) );
+		if( pos < m_blockEnd && fseek( m_fileFP, m_blockEnd, SEEK_SET ) != 0 )
+		{
+			throw XFER_SKIP_ERROR;
+		}
+	}
+	m_blockEnd = 0;
 
 }
 
