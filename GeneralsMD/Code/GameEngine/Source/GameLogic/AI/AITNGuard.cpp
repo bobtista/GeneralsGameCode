@@ -310,12 +310,8 @@ void AITNGuardInnerState::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer Method */
 // ------------------------------------------------------------------------------------------------
-//
-// TheSuperHackers @bugfix bobtista 24/08/2026 Serialize the attack sub-states instead of
-// re-entering on load. loadPostProcess previously reconstructed them by calling onEnter, which
-// re-chose the weapon, reset its shot budget, restarted the inner attack machine at its default
-// state and stamped a fresh give-up deadline -- all diverging from the run that saved.
-//
+// TheSuperHackers @bugfix bobtista 24/08/2026 Serialize the attack sub-states. loadPostProcess
+// re-entered them via onEnter, which re-chose the weapon and reset its budget and deadline.
 void AITNGuardInnerState::xfer( Xfer *xfer )
 {
   // version

@@ -83,12 +83,8 @@ GrantUpgradeCreate::~GrantUpgradeCreate()
 void GrantUpgradeCreate::onCreate()
 {
 
-	//
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Do not grant during a load. Objects are
-	// re-created before their status bits are restored, so a building that was still under
-	// construction in the live game looked finished here and granted its upgrade early. The
-	// loaded player and object state already carry whatever was truly granted.
-	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Do not grant during a load. Status bits are restored
+	// after creation, so a building still under construction looked finished and granted early.
 	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
 	{
 		return;

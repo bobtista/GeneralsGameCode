@@ -130,10 +130,8 @@ void AICommandParmsStorage::reconstitute(AICommandParms& parms) const
 void AICommandParmsStorage::doXfer(Xfer *xfer, Bool carrySource)
 {
 	xfer->xferUser(&m_cmd, sizeof(m_cmd));
-	// TheSuperHackers @bugfix bobtista 10/09/2026 The second field was written from m_cmd, so a
-	// pending command came back from a load with its source reset to the AI, and a Chinook carrying
-	// out a player's move order after a load pathed to a different goal than the running game.
-	// The owner's stream version says whether the slot holds the real source or the retail bytes.
+	// TheSuperHackers @bugfix bobtista 10/09/2026 The second field was written from m_cmd, so a loaded
+	// command had its source reset to the AI. The owner's stream version says which the slot holds.
 	if (carrySource)
 	{
 		xfer->xferUser(&m_cmdSource, sizeof(m_cmdSource));
@@ -3576,11 +3574,8 @@ void AIAttackMoveToState::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version
 	* 2: Sleep frame and retry count
-	* 3: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize m_commandSrc. onEnter captures the
-	*    originating command source and update() writes it back into the AI once the attack-move
-	*    machine goes idle. Leaving it unsaved meant a loaded unit wrote CMD_FROM_PLAYER back over
-	*    a command that came from the AI, and every consumer that tests for CMD_FROM_AI then took
-	*    the other branch -- CommandButtonHuntUpdate, for one, stops hunting and sleeps forever.
+	* 3: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize m_commandSrc. Unsaved, a loaded unit
+	*    wrote CMD_FROM_PLAYER over an AI command and CMD_FROM_AI consumers took the other branch
 	*/
 // ------------------------------------------------------------------------------------------------
 void AIAttackMoveToState::xfer( Xfer *xfer )
@@ -5483,13 +5478,8 @@ void AIAttackState::xfer( Xfer *xfer )
 	xfer->xferBool(&hasMachine);
 	xfer->xferCoord3D(&m_originalVictimPos);
 
-	//
-	// TheSuperHackers @bugfix bobtista 09/09/2026 Carry the weapon this attack was locked to when it
-	// began, as its slot. The pointer came back null from a load, so the check that ends the attack
-	// when the current weapon changes never fired in a resumed game: a Patriot that had just fired
-	// and switched weapons kept attacking where the running game had gone idle, and the games
-	// drifted apart from that frame on.
-	//
+	// TheSuperHackers @bugfix bobtista 09/09/2026 Carry the locked weapon as its slot. The pointer came
+	// back null from a load, so the check that ends the attack on a weapon change never fired.
 	if( version >= 2 )
 	{
 		Int lockedSlot = -1;
@@ -5515,11 +5505,8 @@ void AIAttackState::xfer( Xfer *xfer )
 		}
 	}
 
-	//
 	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the team the victim had when the attack began.
-	// Deriving it again on load forgets a team change since then, so an attack the running game had
-	// broken off against a converted target carried on after a load. Resolved in loadPostProcess.
-	//
+	// Re-deriving it on load forgets a team change. Resolved in loadPostProcess.
 	if( version >= 3 )
 	{
 		TeamID victimTeamID = m_victimTeam ? m_victimTeam->getID() : TEAM_ID_INVALID;

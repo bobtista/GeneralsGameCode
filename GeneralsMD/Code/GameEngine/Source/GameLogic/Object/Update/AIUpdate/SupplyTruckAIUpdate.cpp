@@ -276,11 +276,8 @@ void SupplyTruckAIUpdate::xfer( Xfer *xfer )
 	xfer->xferInt(&m_numberBoxes);
 	xfer->xferBool(&m_forcePending);
 
-	//
-	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the forced busy latch. Its neighbour m_forcePending was already saved, but
-	// this one was not, so a truck forced busy at the save resumed idle and took a
-	// different state machine branch.
-	//
+	// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the forced busy latch. It was never saved, so
+	// a truck forced busy at the save resumed idle and took a different state machine branch.
 	if( version >= 2 )
 	{
 		xfer->xferBool( &m_forcedBusyPending );

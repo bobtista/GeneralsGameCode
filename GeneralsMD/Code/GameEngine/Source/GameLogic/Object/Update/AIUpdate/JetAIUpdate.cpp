@@ -732,21 +732,15 @@ public:
 	JetTakeoffOrLandingState( StateMachine *machine, Bool landing ) : m_landing(landing), AIFollowPathState( machine, "JetTakeoffOrLandingState" ) { }
 
 protected:
-	//
-	// TheSuperHackers @bugfix bobtista 21/08/2026 Serialize the lift and speed captured on state
-	// enter. The takeoff update rescales the locomotor's lift from m_maxLift every frame, so a jet
-	// loaded mid takeoff or landing ramped its lift from zero and sank instead of climbing.
-	//
+	// TheSuperHackers @bugfix bobtista 21/08/2026 Serialize the lift and speed captured on state enter.
+	// A jet loaded mid takeoff or landing ramped its lift from zero and sank instead of climbing.
 	virtual void xfer( Xfer *xfer ) override
 	{
 		// extend base class
 		AIFollowPathState::xfer( xfer );
 
-		//
-		// TheSuperHackers @bugfix bobtista 30/08/2026 Carry these in checkpoints too. This stream
-		// has no version field and adding one would change the retail save layout, so the fields
-		// are gated on the save purpose, which the save file type reproduces on load.
-		//
+		// TheSuperHackers @bugfix bobtista 30/08/2026 Carry these in checkpoints too. The stream has no
+		// version field, so the fields are gated on the save purpose instead.
 #if RETAIL_COMPATIBLE_XFER_SAVE
 		if( xfer->getPurpose() == XFER_PURPOSE_CHECKPOINT )
 		{
@@ -1300,14 +1294,8 @@ protected:
 		// empty. jba.
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 22/08/2026 Chain the base class snapshot. This override
-	// dropped AIFaceState's xfer, losing the turn-in-place flag captured on state enter, so a
-	// jet loaded while pausing before takeoff drove toward the runway end instead of turning.
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Pin the version at runtime by purpose instead
-	// of at compile time, and chain the base class after the version field so the reader can
-	// decide from the stream. The compile time pin left checkpoints without the base class data.
-	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Chain AIFaceState::xfer after a version pinned at
+	// runtime by purpose. The turn-in-place flag was lost on load and checkpoints lacked the base data.
 	virtual void xfer( Xfer *xfer ) override
 	{
 		// version

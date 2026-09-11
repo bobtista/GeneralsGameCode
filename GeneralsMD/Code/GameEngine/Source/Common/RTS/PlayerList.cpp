@@ -312,9 +312,8 @@ Team *PlayerList::validateTeam( AsciiString owner )
 
 //-----------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-/** TheSuperHackers @bugfix bobtista 02/09/2026 Apply the local player a checkpoint restored. This
-  * runs after the whole load, not from loadPostProcess: setLocalPlayer sweeps object state through
-  * becomingLocalPlayer, which is not safe while the snapshot post process list is still draining. */
+/** TheSuperHackers @bugfix bobtista 02/09/2026 Apply the local player a checkpoint restored. Runs after
+  * the whole load, since setLocalPlayer sweeps object state and is unsafe while post process drains. */
 //-------------------------------------------------------------------------------------------------
 void PlayerList::applyXferLocalPlayer( void )
 {
@@ -477,10 +476,8 @@ void PlayerList::xfer( Xfer *xfer )
 {
 
 	// version
-	// 2: TheSuperHackers @bugfix bobtista 02/09/2026 Serialize which player is the local one.
-	//    Nothing else carries it, so a resumed checkpoint fell back to the first human slot and
-	//    every condition keyed on the local player, including the skirmish faction scripts,
-	//    evaluated for the wrong player.
+	// 2: TheSuperHackers @bugfix bobtista 02/09/2026 Serialize which player is the local one. A resumed
+	//    checkpoint fell back to the first human slot, so local player conditions ran for the wrong player.
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
 #else

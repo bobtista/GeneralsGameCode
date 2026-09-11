@@ -1630,10 +1630,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	{
 		if (loadingSaveGame && TheSkirmishGameInfo != nullptr)
 		{
-			// TheSuperHackers @feature bobtista 27/08/2026 A resumed multiplayer save carries
-			// its lobby snapshot; building sides from it keeps team prototypes identical to
-			// the original match on every peer, regardless of live lobby state. A rejoining
-			// peer has no lobby at all, so this must not depend on TheLAN.
+			// TheSuperHackers @feature bobtista 27/08/2026 A resumed multiplayer save carries its lobby
+			// snapshot. Building sides from it keeps team prototypes identical on every peer, no TheLAN.
 			DEBUG_LOG(("Starting network game from a resumed snapshot"));
 			TheGameInfo = TheSkirmishGameInfo;
 		}
@@ -1782,13 +1780,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	if (TheGameInfo)
 	{
 
-		//
-		// TheSuperHackers @bugfix bobtista 05/09/2026 A loaded lobby snapshot is the serialized
-		// record that the original game built its sides the MP or skirmish way, so the load must
-		// build them the same way. Re-deriving it here fails for a recording with no AI slot:
-		// isSkirmishOrSkirmishReplay needs one, and isMultiplayerSession reads the recorder,
-		// which is not in playback mode yet when a checkpoint load starts the game.
-		//
+		// TheSuperHackers @bugfix bobtista 05/09/2026 A loaded lobby snapshot records that the original
+		// game built its sides the MP way. Re-deriving it fails for a recording with no AI slot.
 		if (TheGameEngine->isMultiplayerSession() || isSkirmishOrSkirmishReplay ||
 				(loadingSaveGame && TheSkirmishGameInfo != nullptr))
 		{
@@ -2682,10 +2675,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 	while(!isProgressComplete())
 	{
-		// TheSuperHackers @bugfix bobtista 28/08/2026 A recovery reload gates its resume on
-		// the verified post-load handshake instead. Waiting here deadlocks into the 60s
-		// timeout: a peer that reloads first sends LOADCOMPLETE before this peer's reload
-		// reset, so the mark is received, wiped, and never re-sent.
+		// TheSuperHackers @bugfix bobtista 28/08/2026 A recovery reload resumes on the post-load
+		// handshake. Waiting here deadlocks, the reload wiped an early LOADCOMPLETE that is never re-sent.
 		if( TheNetwork != nullptr && TheNetwork->isRecoveryInProgress() )
 			break;
 		updateLoadProgress(101); // keep greater then 100
@@ -3108,10 +3099,8 @@ void GameLogic::processDestroyList()
 /** Process the command list passed to the logic from the network */
 //-------------------------------------------------------------------------------------------------
 #if defined(RTS_DEBUG)
-// TheSuperHackers @feature bobtista 27/08/2026 In-game CRC mismatch recovery: every peer sees
-// the same CRC set on the same frame, so each independently elects the same donor (lowest slot
-// holding the majority CRC), writes a synchronized save at this exact frame, and schedules an
-// in-process reload of the donor's save. Ties go to the cohort holding the lowest slot.
+// TheSuperHackers @feature bobtista 27/08/2026 In-game CRC mismatch recovery. Every peer elects the
+// same donor (lowest slot holding the majority CRC), saves at this frame and reloads the donor's save.
 void GameLogic::beginCrcRecovery( void )
 {
 	Int donorSlot = MAX_SLOTS;
@@ -3373,11 +3362,8 @@ void GameLogic::deselectObject(Object *obj, PlayerMaskType playerMask, Bool affe
 		}
 
 #if !RETAIL_COMPATIBLE_AIGROUP
-		// TheSuperHackers @bugfix bobtista 16/08/2026 Skip the temporary group when the object is not
-		// in this player's selection. A PLAYERMASK_ALL deselect otherwise burned one group id per
-		// player on a no-op, which moved the allocator away from the sequence the save recorded.
-		// Retail replays were recorded against the allocator advancing, so this stays behind the
-		// AIGroup compatibility macro.
+		// TheSuperHackers @bugfix bobtista 16/08/2026 Skip the temporary group for an unselected object.
+		// A PLAYERMASK_ALL deselect otherwise burned a group id per player and drifted the allocator.
 		if (player->isObjectInCurrentSelection(obj) == FALSE) {
 			if (affectClient) {
 				Drawable *draw = obj->getDrawable();
@@ -4335,11 +4321,7 @@ void GameLogic::update()
 	PROFILER_PLOT("LogicFrame", static_cast<int64_t>(now));
 
 	// TheSuperHackers @feature bobtista 14/08/2026 Write a save at the requested logic frame and quit.
-	// This sits ahead of everything the frame does, because the engine's own save runs from
-	// TheGameClient->UPDATE(), which precedes TheGameLogic->UPDATE(). Saving further down would
-	// capture a mid-frame state that no player save can produce, and reloading it would re-run the
-	// part of the frame that had already executed.
-	//
+	// This runs ahead of the frame, matching the engine's own save from TheGameClient->UPDATE().
 	if (TheGlobalData->m_quitAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_quitAtFrame && getGameMode() != GAME_SHELL)
 	{
 		DEBUG_LOG(("Command line quit at frame %d", m_frame));
@@ -4375,12 +4357,8 @@ void GameLogic::update()
 				saveName = "commandline.sav";
 			}
 
-			//
-			// TheSuperHackers @feature bobtista 04/09/2026 When several frames were requested, give
-			// each save its own name by appending the frame actually reached, and keep simulating
-			// until the list is exhausted. A single name is left exactly as it was so existing
-			// harness runs are unaffected.
-			//
+			// TheSuperHackers @feature bobtista 04/09/2026 With several frames requested, append the
+			// frame reached to each save name and keep simulating. A single name is left as it was.
 			const Bool savingAList = (TheGlobalData->m_saveAtFrameCount > 1);
 			if (savingAList)
 			{
@@ -4518,10 +4496,8 @@ void GameLogic::update()
 #endif // DEBUG_CRC
 
 #if defined(RTS_DEBUG)
-	// TheSuperHackers @feature bobtista 27/08/2026 Truly diverge this instance's simulation:
-	// one extra logic RNG draw shifts the seed, which the frame CRC covers directly, and the
-	// divergence propagates through every later random decision until the donor snapshot
-	// overwrites it. Money and similar fields are save-serialized but outside the frame CRC.
+	// TheSuperHackers @feature bobtista 27/08/2026 Diverge this instance: one extra logic RNG draw
+	// shifts the seed, which the frame CRC covers, until the donor snapshot overwrites it.
 	if (TheGlobalData->m_divergeAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_divergeAtFrame)
 	{
 		MAYBE_UNUSED Int divergeDraw = GameLogicRandomValue(0, 1);
@@ -4549,10 +4525,8 @@ void GameLogic::update()
 		GameMessage *msg = newInstance(GameMessage)(GameMessage::MSG_LOGIC_CRC);
 		msg->appendIntegerArgument(m_CRC);
 		msg->appendBooleanArgument(isPlayback);
-		// TheSuperHackers @feature bobtista 25/08/2026 Carry the frame this CRC describes. Replay
-		// playback resumed from a checkpoint uses it to drop recorded CRCs from before the
-		// checkpoint instead of comparing them against the wrong frame. Older replays without the
-		// argument still parse; readers treat it as optional.
+		// TheSuperHackers @feature bobtista 25/08/2026 Carry the frame this CRC describes so a playback
+		// resumed from a checkpoint can drop earlier recorded CRCs. Readers treat it as optional.
 		msg->appendIntegerArgument((Int)m_frame);
 
 		// TheSuperHackers @info helmutbuhler 13/04/2025
@@ -5781,21 +5755,15 @@ void GameLogic::prepareLogicForObjectLoad()
   * 11: TheSuperHackers @fix Save objects in reverse order so they load in correct order
 	* 12: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize the logic random generator state, so
 	*     a loaded game continues the same random sequence instead of starting a divergent one
-	* 14: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize the frame objects last changed trigger
-	*     areas on. Creating the objects during a load stamps it with the load frame, which told every
-	*     guarding unit inside a trigger area that the area had just changed and made it rescan for
-	*     targets on the first resumed frame
+	* 14: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize the frame trigger areas last changed on.
+	*     Load stamped it with the load frame, so every guarding unit inside an area rescanned at once
 	* 13: TheSuperHackers @feature bobtista 16/08/2026 Serialize the sleepy update heap's exact array
-	*     order. Rebuilding it by pushing modules in object list order reproduces the same contents
-	*     and priorities but not the same layout among equal priorities, which decides whether a
-	*     module runs in its creation frame or the next one
+	*     order. A rebuild orders equal priorities differently, which changes which frame a module runs
 	* 15: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the weapon store's pending delayed
 	*     damage. A shot whose damage lands a few frames later is held only in that runtime list, so
 	*     saving between the shot and its landing frame cancelled the shot outright
-	* 16: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the next object id counter. Load
-	*     rebuilt it from the highest live id, which hands out again every id belonging to an object
-	*     that died before the save, so objects created after a load carry different ids than the
-	*     same objects in the continuous simulation
+	* 16: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the next object id counter. Rebuilding
+	*     it from the highest live id reissued the ids of objects that died before the save
 	*/
 // ------------------------------------------------------------------------------------------------
 void GameLogic::xfer( Xfer *xfer )
@@ -6086,12 +6054,8 @@ void GameLogic::xfer( Xfer *xfer )
 	{
 		if( xfer->getXferMode() == XFER_SAVE )
 		{
-			//
-			// TheSuperHackers @bugfix bobtista 03/09/2026 Write the overrides in name order. The map
-			// is a hash_map, so its iteration order follows the bucket layout and insertion history;
-			// a load re-inserts the entries in file order and the next save then wrote them in a
-			// different order than the run that saved them.
-			//
+			// TheSuperHackers @bugfix bobtista 03/09/2026 Write the overrides in name order. hash_map
+			// iteration follows insertion history, so a save after a load wrote them in a different order.
 			std::vector< AsciiString > buildableKeys;
 			buildableKeys.reserve( m_thingTemplateBuildableOverrides.size() );
 			for (BuildableMap::const_iterator it = m_thingTemplateBuildableOverrides.begin(); it != m_thingTemplateBuildableOverrides.end(); ++it )
@@ -6305,14 +6269,8 @@ void GameLogic::xfer( Xfer *xfer )
 		}
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 03/09/2026 Carry the client generator too. Eighteen logic
-	// modules draw from it, and two of them turn the draw into simulation state: a Chinook AI
-	// branch and the topple burst schedule. Without this a resumed checkpoint runs a different
-	// client stream, which leaves the saved state identical at load and drifts the simulation
-	// apart hundreds of frames later. Like the logic generator this goes last, so the values
-	// consumed while re-creating the world above are discarded.
-	//
+	// TheSuperHackers @bugfix bobtista 03/09/2026 Carry the client generator too. Some logic modules
+	// turn its draws into simulation state. Goes last so draws consumed while loading are discarded.
 	if( version >= 17 )
 	{
 		UnsignedInt clientRandomState[GAMECLIENT_RANDOM_STATE_SIZE];
@@ -6364,12 +6322,8 @@ void GameLogic::loadPostProcess()
 			m_nextObjID = (ObjectID)((UnsignedInt)obj->getID() + 1);
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 19/08/2026 Prefer the saved counter. The rebuild above only
-	// sees objects that are still alive, so every id belonging to an object that died before the
-	// save gets handed out a second time, and the object ids are part of the frame CRC. The max
-	// keeps the rebuild as a floor for saves written before the counter was serialized.
-	//
+	// TheSuperHackers @bugfix bobtista 19/08/2026 Prefer the saved counter. The rebuild only sees live
+	// objects and reissued ids of objects that died before the save. The max is a floor for old saves.
 	if( m_hasCheckpointNextObjID )
 	{
 		if( (UnsignedInt)m_checkpointNextObjID > (UnsignedInt)m_nextObjID )

@@ -125,12 +125,8 @@ GenerateMinefieldBehavior::~GenerateMinefieldBehavior()
 //-------------------------------------------------------------------------------------------------
 void GenerateMinefieldBehavior::upgradeImplementation()
 {
-	//
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Do not place mines while a save is loading.
-	// Wiring the object's team during load re-evaluates its upgrades and fired this before the
-	// module's own state was restored, so a loaded game gained a duplicate set of mines next
-	// to the restored ones.
-	//
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Do not place mines while a save is loading. Team
+	// wiring during load re-evaluated the upgrades and added a duplicate set of mines.
 	if( TheGameState != nullptr && TheGameState->isInLoadGame() )
 	{
 		return;
@@ -528,11 +524,8 @@ void GenerateMinefieldBehavior::crc( Xfer *xfer )
 /** Xfer method
 	* Version Info:
 	* 1: Initial version
-	* 2: TheSuperHackers @bugfix bobtista 21/08/2026 Extend UpdateModule instead of skipping to
-	*    BehaviorModule, so the sleepy wake frame survives the save. The module sleeps forever once
-	*    the minefield can no longer upgrade, but a load woke it again; the extra heap pop reordered
-	*    every same-priority update after it, changing which objects consume which logic random
-	*    draws. */
+	* 2: TheSuperHackers @bugfix bobtista 21/08/2026 Extend UpdateModule instead of BehaviorModule so
+	*    the sleepy wake frame survives the save. A load woke the module and reordered updates. */
 // ------------------------------------------------------------------------------------------------
 void GenerateMinefieldBehavior::xfer( Xfer *xfer )
 {

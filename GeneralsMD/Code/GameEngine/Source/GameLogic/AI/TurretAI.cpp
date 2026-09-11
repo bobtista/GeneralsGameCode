@@ -348,11 +348,8 @@ void TurretAI::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the force attacking flag in checkpoints.
-	// It was never serialized, so a turret aiming under a force attack order came back with the
-	// flag cleared, failed the continued attack test on the first frame after a load, and dropped
-	// from aim to hold while the live run kept aiming. Checkpoints pin the new version at runtime
-	// by purpose; user saves stay retail shaped.
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Carry the force attacking flag in checkpoints. It
+	// came back cleared and the turret dropped from aim to hold. User saves stay retail shaped.
 	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 2 : 4;
 #else
 	const XferVersion currentVersion = 4;
@@ -395,12 +392,8 @@ void TurretAI::xfer( Xfer *xfer )
 		m_isForceAttacking = isForceAttacking;
 	}
 
-	//
 	// TheSuperHackers @bugfix bobtista 09/09/2026 Carry the team the victim had when the attack began.
-	// Deriving it again from the victim on load forgets a team change since then, so a turret that
-	// had just given up on a converted target in the running game kept aiming and fired after a load.
-	// Team instances cannot be looked up while objects load, so the id is resolved in loadPostProcess.
-	//
+	// Re-deriving it on load forgets a team change. Resolved in loadPostProcess, teams cannot load yet.
 	if (version >= 4)
 	{
 		TeamID initialTeamID = m_victimInitialTeam ? m_victimInitialTeam->getID() : TEAM_ID_INVALID;

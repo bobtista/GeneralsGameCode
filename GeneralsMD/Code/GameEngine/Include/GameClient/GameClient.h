@@ -105,12 +105,8 @@ public:
 
 	virtual Drawable *findDrawableByID( const DrawableID id );					///< Given an ID, return the associated drawable
 
-	//
-	// TheSuperHackers @bugfix bobtista 03/09/2026 Remember the value a load seeds the allocator
-	// with. The saved counter can sit above every surviving drawable, because drawables destroyed
-	// before the save already consumed ids, so loadPostProcess needs it as a floor to land back on
-	// the number the run that wrote the checkpoint was holding.
-	//
+	// TheSuperHackers @bugfix bobtista 03/09/2026 Remember the value a load seeds the allocator with.
+	// The saved counter can sit above every surviving drawable; loadPostProcess needs it as a floor.
 	void setDrawableIDCounter( DrawableID nextDrawableID ) { m_nextDrawableID = nextDrawableID; m_loadSeedDrawableID = nextDrawableID; }
 	DrawableID getDrawableIDCounter() { return m_nextDrawableID; }
 

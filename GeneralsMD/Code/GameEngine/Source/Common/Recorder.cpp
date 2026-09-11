@@ -1012,12 +1012,8 @@ void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool f
 		return;
 	}
 
-	//
-	// TheSuperHackers @feature bobtista 25/08/2026 After a checkpoint resume, recorded CRC
-	// messages still in flight describe frames from before the checkpoint. The resumed game never
-	// computed those frames, so drop them without consuming the live queue; comparison re-aligns
-	// at the first recorded CRC describing the checkpoint frame or later.
-	//
+	// TheSuperHackers @feature bobtista 25/08/2026 After a checkpoint resume, drop recorded CRC messages
+	// for frames before the checkpoint without consuming the live queue; the resumed game never ran them.
 	if (m_resumeMinCRCFrame > 0 && subjectFrame >= 0 && (UnsignedInt)subjectFrame < m_resumeMinCRCFrame)
 	{
 		return;
@@ -1308,11 +1304,8 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 }
 
 /**
- * TheSuperHackers @feature bobtista 24/08/2026 Re-enter playback of a replay from a checkpoint.
- * The caller has already loaded a save minted during playback of this replay; the logic frame
- * counter holds the checkpoint frame. Commands at or before that frame were already applied by
- * the game that the checkpoint captured, so they are read and discarded; playback then continues
- * from the first later command exactly where the uninterrupted playback would be.
+ * TheSuperHackers @feature bobtista 24/08/2026 Re-enter playback of a replay from a loaded checkpoint.
+ * Commands at or before the checkpoint frame were already applied, so they are read and discarded.
  */
 Bool RecorderClass::resumePlayback( AsciiString filename, UnsignedInt frame )
 {
@@ -1367,15 +1360,8 @@ Bool RecorderClass::resumePlayback( AsciiString filename, UnsignedInt frame )
 	m_currentReplayFilename = filename;
 	m_playbackFrameCount = header.frameCount;
 
-	//
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Give the resumed playback the recording
-	// player's viewpoint. The loaded checkpoint falls back to the first human slot as the
-	// local player, which can differ from the replay's local player and diverges client
-	// only state such as decals that are visible to the owning player alone.
-	//
-	// TheSuperHackers @bugfix bobtista 02/09/2026 A checkpoint now carries the local player, and it
-	// is authoritative: the slot lookup below cannot express an observer, so it resolved the first
-	// human slot and every condition keyed on the local player evaluated for the wrong player.
+	// TheSuperHackers @bugfix bobtista 02/09/2026 The restored local player is authoritative, since the slot
+	// lookup cannot express an observer. Fall back to the replay header's player only when none was restored.
 	if( ThePlayerList->wasLocalPlayerRestored() == FALSE )
 	{
 		Player *localPlayer = ThePlayerList->getPlayerFromSlotIndex( header.localPlayerIndex );

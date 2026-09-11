@@ -1201,11 +1201,8 @@ Int parseSaveAtFrame(char *args[], int num)
 {
 	if (num > 1)
 	{
-		//
-		// TheSuperHackers @feature bobtista 04/09/2026 Accept a comma separated list of frames so a
-		// single simulation pass can mint every checkpoint a run needs. Each mint used to cost a
-		// whole replay simulation from frame zero.
-		//
+		// TheSuperHackers @feature bobtista 04/09/2026 Accept a comma separated list of frames so one
+		// simulation pass can mint every checkpoint a run needs instead of one replay per mint.
 		Int frameCount = 0;
 		const char *cursor = args[1];
 		while( cursor != nullptr && *cursor != 0 && frameCount < GlobalData::MAX_SAVE_AT_FRAMES )

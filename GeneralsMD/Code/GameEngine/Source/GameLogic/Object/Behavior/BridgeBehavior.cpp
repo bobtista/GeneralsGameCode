@@ -1400,12 +1400,8 @@ void BridgeBehavior::xfer( Xfer *xfer )
 	{
 		Bridge *bridge = TheTerrainLogic->findBridgeAt( us->getPosition() );
 
-		//
-		// TheSuperHackers @bugfix bobtista 09/09/2026 A decorative bridge object, such as
-		// MonumentTrainBridge, carries this module without a terrain bridge under it. The lookup
-		// then finds nothing and the load crashed on the null pointer, for user saves and
-		// checkpoints alike. Nothing needs registering for such an object.
-		//
+		// TheSuperHackers @bugfix bobtista 09/09/2026 A decorative bridge such as MonumentTrainBridge
+		// has no terrain bridge under it, and the load crashed on the null pointer. Skip it instead.
 		if( bridge != nullptr )
 		{
 			// set new object ID in bridge info to us

@@ -324,12 +324,8 @@ Bool VictoryConditions::hasBeenDefeated(Player *player)
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-// TheSuperHackers @bugfix bobtista 21/08/2026 Re-derive the defeat flags after a save game load.
-// This subsystem is not serialized, so a loaded game forgot who had already been defeated and the
-// first update re-ran the whole defeat sequence: the permanent map reveal double-added a looker to
-// every partition cell and killPlayer destroyed the defeated player's leftover objects, both
-// diverging from a game that played through the same frames continuously.
-//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 21/08/2026 Re-derive the defeat flags after a load. This subsystem
+// is not serialized, so the first update re-ran the defeat sequence for already defeated players.
 void VictoryConditions::resyncDefeatStateAfterLoad()
 {
 	if (!TheRecorder->isMultiplayer() || (m_localSlotNum < 0 && !m_isObserver))

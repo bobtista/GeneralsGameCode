@@ -303,13 +303,8 @@ void Energy::xfer( Xfer *xfer )
 		xfer->xferUnsignedInt( &m_powerSabotagedTillFrame );
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 08/09/2026 Checkpoints carry the running totals. The load
-	// rebuilds them from who owns each building now, which is not what the running game holds
-	// whenever a team changed hands without a power adjustment (TEAM_TRANSFER_TO_PLAYER keeps the
-	// production with the player who owned the team when the building was made). The saved values
-	// are staged here and applied by applyCheckpointTotals once every object and upgrade has loaded.
-	//
+	// TheSuperHackers @bugfix bobtista 08/09/2026 Checkpoints carry the running power totals. The load
+	// rebuilds them from current owners, which is wrong after a team transfer without a power adjustment.
 	if( version >= 4 )
 	{
 		Int production = m_energyProduction;

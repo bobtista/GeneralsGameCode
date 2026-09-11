@@ -1086,12 +1086,8 @@ void SpawnBehavior::xfer( Xfer *xfer )
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
-	//
 	// TheSuperHackers @bugfix bobtista 09/09/2026 Chain through UpdateModule so the wake frame is
-	// carried. Going straight to BehaviorModule left the sleep state at the constructor's value, so a
-	// loaded spawner woke on the load frame instead of the frame the running game had scheduled,
-	// and the update order of everything sharing that frame shifted from the first update on.
-	//
+	// carried. A loaded spawner woke on the load frame instead and shifted the update order.
 	if( version >= 5 )
 	{
 		UpdateModule::xfer( xfer );
@@ -1164,13 +1160,8 @@ void SpawnBehavior::xfer( Xfer *xfer )
 
 	if( version >= 4 )
 	{
-		//
 		// TheSuperHackers @bugfix bobtista 01/09/2026 Carry the round robin cursor over the spawn
-		// template list. It alone decides which template the next spawn uses, because the spawn
-		// path overwrites m_spawnTemplate from it, and it restarted at the first entry after a
-		// load. A mob part way through its list then spawned a duplicate member where the
-		// uninterrupted game spawned the next one.
-		//
+		// template list. It restarted at the first entry after a load, so a mob spawned a duplicate.
 		const SpawnBehaviorModuleData *md = getSpawnBehaviorModuleData();
 		const Int templateCount = (Int)md->m_spawnTemplateNameData.size();
 		Int templateIndex = 0;

@@ -3321,6 +3321,7 @@ void AIPlayer::crc( Xfer *xfer )
 	* 1: Reset back to 1 with major save file changes.
 	* 2: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize the bridge-repair return origin and
 	*    supply-attack scan deadline so active skirmish AI work resumes without resetting history.
+	* 3: TheSuperHackers @bugfix bobtista 18/08/2026 Serialize the supply center under attack.
 */
 // ------------------------------------------------------------------------------------------------
 void AIPlayer::xfer( Xfer *xfer )

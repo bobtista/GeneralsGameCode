@@ -680,13 +680,8 @@ UpdateSleepTime RailroadBehavior::update()
 		{
 			if ( m_carriagesCreated )
 			{
-				//
-				// TheSuperHackers @bugfix bobtista 08/09/2026 A loaded train keeps the carriages it saved.
-				// The track pointer is not saved, so the carriages get it back here by walking the saved
-				// trailer chain. Creating carriages again searched around the last car for something to
-				// hitch and, with the cars still parked together, found the locomotive itself, which
-				// closed the chain into a loop that never returned from the first update.
-				//
+				// TheSuperHackers @bugfix bobtista 08/09/2026 A loaded train keeps its saved carriages and
+				// only restores their track pointer. Creating them again hitched the locomotive to itself.
 				static NameKeyType key_rb = NAMEKEY("RailroadBehavior");
 				ObjectID carriageID = m_trailerID;
 				while ( carriageID != INVALID_ID )

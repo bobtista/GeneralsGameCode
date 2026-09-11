@@ -5080,10 +5080,8 @@ void AIUpdateInterface::crc( Xfer *x )
 	* 3: Removed lastFrameMoved and repulsorCountdown; removed surrender and demoralize variables
 	* 4: Read m_curLocomotorSet from ini
 	* 5: TheSuperHackers @fix Fixed out-of-bounds xfer of m_guardTargetType
-	* 6: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize m_isMoving in the slot that
-	*    repeated m_isSafePath, so a unit that is moving without a live locomotor goal keeps
-	*    its pathfind reservation on load, and serialize m_allowedToChase, so assault transport
-	*    passengers may still close on the target they were sent to attack
+	* 6: TheSuperHackers @bugfix bobtista 15/08/2026 Serialize m_isMoving in the slot that repeated
+	*    m_isSafePath, and m_allowedToChase, so pathfind reservations and chasing survive a load
 	* 7: TheSuperHackers @bugfix bobtista 16/08/2026 Serialize m_pathTimestamp. It gates the
 	*    "repathing in less than 3 frames" throttle, so leaving it at zero let every unit that had
 	*    just pathed request another one on the first loaded frame, which no continuous run does
@@ -5095,10 +5093,8 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 {
   // version
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Pin the version at runtime by purpose instead
-	// of at compile time. The compile time pin made every checkpoint drop the blocked movement
-	// state, so a vehicle that was crowd blocked at the save resumed unblocked and skipped its
-	// blocked speed scrub.
+	// TheSuperHackers @bugfix bobtista 30/08/2026 Pin the version at runtime by purpose instead of at
+	// compile time. The compile time pin made every checkpoint drop the blocked movement state.
 	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 4 : 9;
 #else
 	const XferVersion currentVersion = 9;
@@ -5154,12 +5150,8 @@ void AIUpdateInterface::xfer( Xfer *xfer )
 	xfer->xferAsciiString(&attackName);
 	if (xfer->getXferMode() == XFER_LOAD)
 	{
-		//
-		// TheSuperHackers @bugfix bobtista 17/08/2026 Resolve this in loadPostProcess rather than
-		// here. The objects are read before CHUNK_ScriptEngine, so the attack priority table is
-		// still empty at this point and getAttackInfo() quietly hands back the default set. Every
-		// unit then lost its priorities and picked targets by plain distance instead.
-		//
+		// TheSuperHackers @bugfix bobtista 17/08/2026 Resolve this in loadPostProcess. The attack
+		// priority table is still empty here, so getAttackInfo() returned the default set instead.
 		m_attackInfoNameToResolve = attackName;
 	}
 
@@ -5411,13 +5403,8 @@ void AIUpdateInterface::loadPostProcess()
 		}
 	}
 
-	//
-	// TheSuperHackers @bugfix bobtista 15/08/2026 Ask for the path again. A save that does not carry
-	// the pathfind queue brings a waiting unit back with the waiting flag set, no path, and nothing
-	// left to service it. doLocomotor then parks it on UPDATE_SLEEP_FOREVER and it never moves again
-	// until it is given a new order. Saves that do carry the queue restore the original requests in
-	// their original order, so re-queueing here would only disturb that order.
-	//
+	// TheSuperHackers @bugfix bobtista 15/08/2026 Re-queue when the save did not carry the pathfind
+	// queue, or a waiting unit never moves again. A restored queue must keep its original order.
 	if (m_waitingForPath && getPath() == nullptr && !TheAI->pathfinder()->wasQueueRestoredFromSave())
 	{
 		TheAI->pathfinder()->queueForPath(getObject()->getID());

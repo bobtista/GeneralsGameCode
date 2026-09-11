@@ -393,7 +393,7 @@ void HordeUpdate::crc( Xfer *xfer )
 /** Xfer method
 	* Version Info:
 	* 1: Initial version
-	* 2: TheSuperHackers @bugfix Serialize horde membership history */
+	* 2: TheSuperHackers @bugfix bobtista 17/08/2026 Serialize the horde membership history */
 // ------------------------------------------------------------------------------------------------
 void HordeUpdate::xfer( Xfer *xfer )
 {

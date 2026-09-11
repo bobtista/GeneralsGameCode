@@ -233,7 +233,7 @@ private:
 
   std::vector<StationPointData> m_stationPointList;
 
-	Bool		m_stationGarrisonPointsInitialized;	///< DO NOT XFER THIS!!!   TRUE once we have loaded the pre-assigned garrison point positions from the art
+	Bool		m_stationGarrisonPointsInitialized;	///< TRUE once we have loaded the pre-assigned garrison point positions from the art; checkpoints carry it
 	Bool		m_garrisonPointsInitialized;							///< TRUE once we have loaded the garrison point positions from the art
 	Bool		m_hideGarrisonedStateFromNonallies;								///< if T, don't appear to be garrisoned (all stealthy)
 	Bool		m_rallyValid;															///< TRUE when m_exitRallyPoint is valid

@@ -1560,11 +1560,8 @@ void FlightDeckBehavior::xfer( Xfer *xfer )
 		buildInfo(FALSE); // False, because the planes are going to save themselves.  We don't re-create them
 	}
 
-	//
 	// TheSuperHackers @bugfix bobtista 10/09/2026 Carry the deck geometry built from model bones.
-	// A load rebuilt it from the drawable in whatever condition it was in at that moment, and a
-	// deck saved under construction rebuilt nothing and dropped every reservation that followed.
-	//
+	// A load rebuilt it from the drawable's current condition and could drop every reservation.
 	if( version >= 2 )
 	{
 		Bool gotInfo = m_gotInfo;

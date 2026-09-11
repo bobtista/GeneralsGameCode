@@ -863,17 +863,11 @@ public:
 
 	void handleProjectileDetonation( const WeaponTemplate* w, const Object *source, const Coord3D* pos, WeaponBonusConditionFlags extraBonusFlags, Bool inflictDamage = TRUE );
 
-	//
-	// TheSuperHackers @bugfix bobtista 19/08/2026 Damage that has been fired but has not landed yet
-	// lives only here, so a save taken between the shot and its landing frame used to cancel the shot
-	// outright. Serialized by GameLogic::xfer.
-	//
+	// TheSuperHackers @bugfix bobtista 19/08/2026 Delayed damage lives only here, so a save taken
+	// before it landed used to cancel the shot. Serialized by GameLogic::xfer.
 	void xferDelayedDamage( Xfer *xfer );
-	//
 	// TheSuperHackers @bugfix bobtista 10/09/2026 The historic bonus hit list lives on the template,
-	// so a checkpoint dropped the hits before the mint and the bonus weapon (a napalm firestorm)
-	// never fired after a load. Serialized by GameLogic::xfer.
-	//
+	// so a checkpoint dropped it and the bonus weapon never fired. Serialized by GameLogic::xfer.
 	void xferHistoricDamage( Xfer *xfer );
 
 	static void parseWeaponTemplateDefinition(INI* ini);
