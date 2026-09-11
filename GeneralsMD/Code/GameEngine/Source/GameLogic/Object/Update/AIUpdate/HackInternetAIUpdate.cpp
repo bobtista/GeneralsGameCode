@@ -217,7 +217,11 @@ void HackInternetAIUpdate::crc( Xfer *xfer )
 void HackInternetAIUpdate::xfer( Xfer *xfer )
 {
   // version
-  XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+  XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 1 : 2;
+#else
+  XferVersion currentVersion = 2;
+#endif
   XferVersion version = currentVersion;
   xfer->xferVersion( &version, currentVersion );
 
@@ -225,7 +229,7 @@ void HackInternetAIUpdate::xfer( Xfer *xfer )
 	AIUpdateInterface::xfer(xfer);
 	xfer->xferBool(&m_hasPendingCommand);
 	if (m_hasPendingCommand) {
-		m_pendingCommand.doXfer(xfer);
+		m_pendingCommand.doXfer(xfer, version >= 2);
 	}
 }
 
