@@ -117,7 +117,6 @@ public:
 	struct ReplayHeader
 	{
 		AsciiString filename;
-		Bool forPlayback;
 		UnicodeString replayName;
 		SYSTEMTIME timeVal;
 		UnicodeString versionString;
@@ -134,7 +133,7 @@ public:
 		AsciiString gameOptions;
 		Int localPlayerIndex;
 	};
-	Bool readReplayHeader( ReplayHeader& header );
+	Bool readReplayHeader( ReplayHeader& header, const AsciiString& filename, Bool forPlayback );
 
 	RecorderModeType getMode();												///< Returns the current operating mode.
 	Bool isPlaybackMode() const { return m_mode == RECORDERMODETYPE_PLAYBACK || m_mode == RECORDERMODETYPE_SIMULATION_PLAYBACK; }
