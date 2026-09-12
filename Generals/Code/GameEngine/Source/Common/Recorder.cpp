@@ -845,18 +845,18 @@ void RecorderClass::writeArgument(GameMessageArgumentDataType type, const GameMe
  * Read in a replay header, for (1) populating a replay listbox or (2) starting playback.  In
  * case (2), set FILE *m_file.
  */
-Bool RecorderClass::readReplayHeader(ReplayHeader& header)
+Bool RecorderClass::readReplayHeader(ReplayHeader& header, const AsciiString& filename, Bool forPlayback)
 {
-	AsciiString filepath = getReplayDir();
-	filepath.concat(header.filename.str());
+	header.filename = getReplayDir();
+	header.filename.concat(filename.str());
 
 	// TheSuperHackers @performance More buffered data reduces disk overhead and will improve fast forward playback
-	const UnsignedInt buffersize = header.forPlayback ? replayBufferBytes : File::BUFFERSIZE;
-	m_file = TheFileSystem->openFile(filepath.str(), File::READ | File::BINARY, buffersize);
+	const UnsignedInt buffersize = forPlayback ? replayBufferBytes : File::BUFFERSIZE;
+	m_file = TheFileSystem->openFile(header.filename.str(), File::READ | File::BINARY, buffersize);
 
 	if (m_file == nullptr)
 	{
-		DEBUG_LOG(("Can't open %s (%s)", filepath.str(), header.filename.str()));
+		DEBUG_LOG(("Can't open %s (%s)", header.filename.str(), filename.str()));
 		return FALSE;
 	}
 
@@ -930,7 +930,7 @@ Bool RecorderClass::readReplayHeader(ReplayHeader& header)
 		m_gameInfo.setLocalIP(localIP);
 	}
 
-	if (!header.forPlayback)
+	if (!forPlayback)
 	{
 		m_gameInfo.endGame();
 		m_gameInfo.reset();
@@ -1047,9 +1047,7 @@ void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool f
 Bool RecorderClass::replayMatchesGameVersion(AsciiString filename)
 {
 	ReplayHeader header;
-	header.forPlayback = TRUE;
-	header.filename = filename;
-	if ( readReplayHeader( header ) )
+	if ( readReplayHeader( header, filename, TRUE ) )
 	{
 		return replayMatchesGameVersion( header );
 	}
@@ -1085,9 +1083,7 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 	}
 
 	ReplayHeader header;
-	header.forPlayback = TRUE;
-	header.filename = filename;
-	Bool success = readReplayHeader( header );
+	Bool success = readReplayHeader( header, filename, TRUE );
 	if (!success)
 	{
 		return FALSE;
