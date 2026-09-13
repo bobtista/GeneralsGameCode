@@ -309,9 +309,11 @@ void Path::xfer( Xfer *xfer )
 		node = node->getNext();
 	}
 	xfer->xferInt(&count);
+	const Int probeCount = count;
 
 	if (xfer->getXferMode() == XFER_SAVE)	{
 		node = m_pathTail;  // Write them out backwards.
+		if (probeCount >= 10) { DEBUG_LOG(("PATHXFER SAVE n=%d opt=%d", probeCount, (Int)m_isOptimized)); }
 		while (node) {
 			node->m_id = count;
 			xfer->xferInt(&count);
@@ -325,12 +327,14 @@ void Path::xfer( Xfer *xfer )
 			if (node->getNextOptimized()) {
 				id = node->getNextOptimized()->m_id;
 			}
+			if (probeCount >= 10) { DEBUG_LOG(("PATHXFER S id=%d pos=%08X,%08X canOpt=%d opt=%d", count, *(UnsignedInt*)&pos.x, *(UnsignedInt*)&pos.y, (Int)canOpt, id)); }
 			xfer->xferInt(&id);
 			count--;
 			node = node->getPrevious();
 		}
 		DEBUG_ASSERTCRASH(count==0, ("Wrong data count"));
 	} else {
+		if (probeCount >= 10) { DEBUG_LOG(("PATHXFER LOAD n=%d", probeCount)); }
 		m_cpopValid = FALSE;
 		while (count) {
 			Int nodeId;
@@ -363,6 +367,7 @@ void Path::xfer( Xfer *xfer )
 			if (optNode) {
 				node->setNextOptimized(optNode);
 			}
+			if (probeCount >= 10) { DEBUG_LOG(("PATHXFER L id=%d pos=%08X,%08X canOpt=%d opt=%d found=%d", nodeId, *(UnsignedInt*)&pos.x, *(UnsignedInt*)&pos.y, (Int)canOpt, optID, optNode ? 1 : 0)); }
 			count--;
 		}
 	}
