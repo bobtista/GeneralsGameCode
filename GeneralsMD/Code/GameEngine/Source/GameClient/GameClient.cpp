@@ -1402,7 +1402,11 @@ void GameClient::xfer( Xfer *xfer )
 {
 
 	// version
-	XferVersion currentVersion = 3;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 3 : 4;
+#else
+	XferVersion currentVersion = 4;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1424,14 +1428,33 @@ void GameClient::xfer( Xfer *xfer )
 
 	// drawable count
 	Drawable *draw;
-	UnsignedShort drawableCount = 0;
+	UnsignedInt drawableCount = 0;
+	UnsignedInt objectlessCount = 0;
 	for( draw = getDrawableList(); draw; draw = draw->getNextDrawable() )
 	{
 		if (xfer->getXferMode() == XFER_SAVE && !shouldSaveDrawable(draw))
 			continue;
 		drawableCount++;
+		if (draw->getObject() == nullptr)
+			objectlessCount++;
 	}
-	xfer->xferUnsignedShort( &drawableCount );
+	// TheSuperHackers @bugfix bobtista 13/09/2026 A long game can hold more than 65535 drawables. The
+	// retail count wrapped, so the loader stopped early and read the next drawable as briefing text.
+	if( version >= 4 )
+	{
+		xfer->xferUnsignedInt( &drawableCount );
+	}
+	else
+	{
+		DEBUG_ASSERTCRASH( drawableCount <= 0xFFFF, ("GameClient::xfer - %u drawables do not fit a retail save", drawableCount) );
+		UnsignedShort shortCount = (UnsignedShort)drawableCount;
+		xfer->xferUnsignedShort( &shortCount );
+		drawableCount = shortCount;
+	}
+	if( xfer->getXferMode() == XFER_SAVE )
+	{
+		DEBUG_LOG(("GameClient::xfer - saving %u drawables, %u without an object", drawableCount, objectlessCount));
+	}
 
 	// drawable data
 	DrawableTOCEntry *tocEntry;
@@ -1481,7 +1504,7 @@ void GameClient::xfer( Xfer *xfer )
 		Int dataSize;
 
 		// read all entries
-		for( UnsignedShort i = 0; i < drawableCount; ++i )
+		for( UnsignedInt i = 0; i < drawableCount; ++i )
 		{
 
 			// read toc id entry
