@@ -309,11 +309,9 @@ void Path::xfer( Xfer *xfer )
 		node = node->getNext();
 	}
 	xfer->xferInt(&count);
-	const Int probeCount = count;
 
 	if (xfer->getXferMode() == XFER_SAVE)	{
 		node = m_pathTail;  // Write them out backwards.
-		if (probeCount >= 10) { DEBUG_LOG(("PATHXFER SAVE n=%d opt=%d", probeCount, (Int)m_isOptimized)); }
 		while (node) {
 			node->m_id = count;
 			xfer->xferInt(&count);
@@ -327,14 +325,12 @@ void Path::xfer( Xfer *xfer )
 			if (node->getNextOptimized()) {
 				id = node->getNextOptimized()->m_id;
 			}
-			if (probeCount >= 10) { DEBUG_LOG(("PATHXFER S id=%d pos=%08X,%08X canOpt=%d opt=%d", count, *(UnsignedInt*)&pos.x, *(UnsignedInt*)&pos.y, (Int)canOpt, id)); }
 			xfer->xferInt(&id);
 			count--;
 			node = node->getPrevious();
 		}
 		DEBUG_ASSERTCRASH(count==0, ("Wrong data count"));
 	} else {
-		if (probeCount >= 10) { DEBUG_LOG(("PATHXFER LOAD n=%d", probeCount)); }
 		m_cpopValid = FALSE;
 		while (count) {
 			Int nodeId;
@@ -367,7 +363,6 @@ void Path::xfer( Xfer *xfer )
 			if (optNode) {
 				node->setNextOptimized(optNode);
 			}
-			if (probeCount >= 10) { DEBUG_LOG(("PATHXFER L id=%d pos=%08X,%08X canOpt=%d opt=%d found=%d", nodeId, *(UnsignedInt*)&pos.x, *(UnsignedInt*)&pos.y, (Int)canOpt, optID, optNode ? 1 : 0)); }
 			count--;
 		}
 	}
@@ -2966,21 +2961,6 @@ void PathfindZoneManager::reset()  ///< Called when the map is reset.
 	freeBlocks();
 }
 
-
-UnsignedInt PathfindZoneManager::probeChecksum() const
-{
-	UnsignedInt h = 2166136261u;
-	h = (h ^ m_maxZone) * 16777619u;
-	h = (h ^ (UnsignedInt)m_zoneBlockExtent.x) * 16777619u;
-	h = (h ^ (UnsignedInt)m_zoneBlockExtent.y) * 16777619u;
-	const zoneStorageType *tables[6] = { m_groundCliffZones, m_groundWaterZones, m_groundRubbleZones, m_terrainZones, m_crusherZones, m_hierarchicalZones };
-	for (Int t = 0; t < 6; ++t)
-	{
-		if (tables[t] == nullptr) continue;
-		for (UnsignedShort i = 0; i < m_maxZone; ++i) { h = (h ^ tables[t][i]) * 16777619u; }
-	}
-	return h;
-}
 
 void PathfindZoneManager::markZonesDirty()  ///< Called when the zones need to be recalculated.
 {
@@ -6436,60 +6416,10 @@ void Pathfinder::processPathfindQueue()
 	m_logicalExtent = bounds;
 
 	m_cumulativeCellsAllocated = 0;	// Number of pathfind cells examined.
-	{
-		// temporary probe: GGC_DUMP_CELLS_FRAME=<frame> writes the whole ground cell grid before this frame's searches
-		static Bool s_dumped = FALSE;
-		const char *dumpFrame = getenv("GGC_DUMP_CELLS_FRAME");
-		if (!s_dumped && dumpFrame != nullptr && (UnsignedInt)atoi(dumpFrame) == TheGameLogic->getFrame() && m_map != nullptr)
-		{
-			s_dumped = TRUE;
-			AsciiString name; name.format("cells_%u.txt", TheGameLogic->getFrame());
-			FILE *fp = fopen(name.str(), "w");
-			if (fp != nullptr)
-			{
-				fprintf(fp, "extent %d,%d %d,%d layers %d\n", m_extent.lo.x, m_extent.lo.y, m_extent.hi.x, m_extent.hi.y, (Int)LAYER_LAST);
-				Int infoCells = 0; Int orphanInfoCells = 0; Int linkedInfoCells = 0;
-				for (Int j = m_extent.lo.y; j <= m_extent.hi.y; ++j)
-				{
-					for (Int i = m_extent.lo.x; i <= m_extent.hi.x; ++i)
-					{
-						PathfindCell::CheckpointState st;
-						PathfindCell *dc = &m_map[i][j];
-						dc->captureCheckpointState(&st);
-						UnsignedInt hi = dc->hasInfo() ? 1 : 0;
-						UnsignedInt op = (hi && dc->getOpen()) ? 1 : 0;
-						UnsignedInt cl = (hi && dc->getClosed()) ? 1 : 0;
-						if (hi) { ++infoCells; }
-						if (hi && st.obstacleID == INVALID_ID && st.goalUnitID == INVALID_ID && st.posUnitID == INVALID_ID && st.goalAircraftID == INVALID_ID) { ++orphanInfoCells; }
-						if (op || cl) { ++linkedInfoCells; }
-						fprintf(fp, "%d,%d o=%u g=%u p=%u a=%u z=%u t=%u f=%u c=%u l=%u b=%u fe=%u tr=%u ag=%u pi=%u hi=%u op=%u cl=%u\n", i, j,
-							(UnsignedInt)st.obstacleID, (UnsignedInt)st.goalUnitID, (UnsignedInt)st.posUnitID, (UnsignedInt)st.goalAircraftID,
-							(UnsignedInt)st.zone, st.type, st.flags, st.connectsToLayer, st.layer, st.blockedByAlly, st.obstacleIsFence, st.obstacleIsTransparent, st.aircraftGoal, st.pinched, hi, op, cl);
-					}
-				}
-				fclose(fp);
-				DEBUG_LOG(("PFDUMP infoCells=%d orphanInfoCells=%d linkedInfoCells=%d", infoCells, orphanInfoCells, linkedInfoCells));
-				UnsignedInt lh = 2166136261u; Int lcells = 0;
-				for (Int layer = LAYER_GROUND + 1; layer <= LAYER_LAST; ++layer)
-				{
-					if (!m_layers[layer].hasCells()) continue;
-					for (Int y = 0; y < m_layers[layer].getCellHeight(); ++y) for (Int x = 0; x < m_layers[layer].getCellWidth(); ++x)
-					{
-						PathfindCell::CheckpointState st; m_layers[layer].getCellRaw(x, y)->captureCheckpointState(&st);
-						const UnsignedByte *b = (const UnsignedByte *)&st;
-						for (UnsignedInt k = 0; k < sizeof(st); ++k) { lh = (lh ^ b[k]) * 16777619u; }
-						++lcells;
-					}
-				}
-				DEBUG_LOG(("PFDUMP wrote %s zoneSum=%08X layerCells=%d layerSum=%08X nextZone=%u", name.str(), m_zoneManager.probeChecksum(), lcells, lh, m_zoneManager.getNextFrameToCalculateZones()));
-			}
-		}
-	}
 	Int pathsFound = 0;
 	while (m_cumulativeCellsAllocated < PATHFIND_CELLS_PER_FRAME &&
 		m_queuePRTail!=m_queuePRHead) {
 		Object *obj = TheGameLogic->findObjectByID(m_queuedPathfindRequests[m_queuePRHead]);
-		DEBUG_LOG(("PFQ %d obj=%d head=%d tail=%d cells=%d", TheGameLogic->getFrame(), (Int)m_queuedPathfindRequests[m_queuePRHead], m_queuePRHead, m_queuePRTail, m_cumulativeCellsAllocated));
 		m_queuedPathfindRequests[m_queuePRHead] = INVALID_ID;
 		if (obj) {
 			AIUpdateInterface *ai = obj->getAIUpdateInterface();
@@ -12003,18 +11933,6 @@ void Pathfinder::xfer( Xfer *xfer )
 		bounds.hi.x--;
 		bounds.hi.y--;
 		m_logicalExtent = bounds;
-	}
-	{
-		Int queued = 0;
-		AsciiString ids;
-		for( Int q = m_queuePRHead; q != m_queuePRTail; q = (q + 1) % PATHFIND_QUEUE_LEN )
-		{
-			AsciiString one; one.format(" %d", (Int)m_queuedPathfindRequests[q]); ids.concat(one); ++queued;
-		}
-		ICoord2D zext; m_zoneManager.getExtent(zext);
-		DEBUG_LOG(("PFXFER %s frame=%d head=%d tail=%d queued=%d nextZoneFrame=%u zoneExtent=%d,%d ids=%s",
-			xfer->getXferMode() == XFER_SAVE ? "SAVE" : "LOAD", TheGameLogic->getFrame(), m_queuePRHead, m_queuePRTail, queued,
-			m_zoneManager.getNextFrameToCalculateZones(), zext.x, zext.y, ids.str()));
 	}
 }
 

@@ -396,23 +396,10 @@ except by the pathfinder during pathfind queue processing.  jba */
 void AIUpdateInterface::doPathfind( PathfindServicesInterface *pathfinder )
 {
 	if (!m_waitingForPath) {
-	{
-		Int nodes = 0;
-		if (m_path != nullptr) { for (PathNode *n = m_path->getFirstNode(); n != nullptr; n = n->getNext()) { ++nodes; } }
-		DEBUG_LOG(("PFRES %d obj=%d nodes=%d", TheGameLogic->getFrame(), (Int)getObject()->getID(), nodes));
-	}
 		return;
 	}
 	//CRCDEBUG_LOG(("AIUpdateInterface::doPathfind() for object %d", getObject()->getID()));
 	m_waitingForPath = FALSE;
-	{
-		const Coord3D *pp = getObject()->getPosition();
-		DEBUG_LOG(("PFIN %d obj=%d pos=%08X,%08X,%08X dest=%08X,%08X,%08X safe=%d approach=%d attack=%d victim=%d stuck=%d final=%d ignore=%d surf=%d goalCell=%d,%d qframe=%u ground=%d",
-			TheGameLogic->getFrame(), (Int)getObject()->getID(), *(const UnsignedInt*)&pp->x, *(const UnsignedInt*)&pp->y, *(const UnsignedInt*)&pp->z,
-			*(const UnsignedInt*)&m_requestedDestination.x, *(const UnsignedInt*)&m_requestedDestination.y, *(const UnsignedInt*)&m_requestedDestination.z,
-			(Int)m_isSafePath, (Int)m_isApproachPath, (Int)m_isAttackPath, (Int)m_requestedVictimID, (Int)m_isBlockedAndStuck, (Int)m_isFinalGoal, (Int)m_ignoreObstacleID,
-			(Int)m_locomotorSet.getValidSurfaces(), m_pathfindGoalCell.x, m_pathfindGoalCell.y, m_queueForPathFrame, (Int)isDoingGroundMovement()));
-	}
 	if (m_isSafePath) {
 		destroyPath();
 		Coord3D pos1, pos2;
@@ -430,11 +417,6 @@ void AIUpdateInterface::doPathfind( PathfindServicesInterface *pathfinder )
 			getObject()->getPosition(),
 			&pos1, 	&pos2,
 			getObject()->getVisionRange() + TheAI->getAiData()->m_repulsedDistance);
-	{
-		Int nodes = 0;
-		if (m_path != nullptr) { for (PathNode *n = m_path->getFirstNode(); n != nullptr; n = n->getNext()) { ++nodes; } }
-		DEBUG_LOG(("PFRES %d obj=%d nodes=%d", TheGameLogic->getFrame(), (Int)getObject()->getID(), nodes));
-	}
 		return;
 	}
 	if (m_isApproachPath & !isDoingGroundMovement()) {
@@ -448,11 +430,6 @@ void AIUpdateInterface::doPathfind( PathfindServicesInterface *pathfinder )
 			TheAI->pathfinder()->updateGoal(getObject(), getPath()->getLastNode()->getPosition(),
 				getPath()->getLastNode()->getLayer());
 		}
-	{
-		Int nodes = 0;
-		if (m_path != nullptr) { for (PathNode *n = m_path->getFirstNode(); n != nullptr; n = n->getNext()) { ++nodes; } }
-		DEBUG_LOG(("PFRES %d obj=%d nodes=%d", TheGameLogic->getFrame(), (Int)getObject()->getID(), nodes));
-	}
 		return;
 	}
 	if (m_isAttackPath) {
@@ -467,11 +444,6 @@ void AIUpdateInterface::doPathfind( PathfindServicesInterface *pathfinder )
 			}
 			//CRCDEBUG_LOG(("AIUpdateInterface::doPathfind() - m_isAttackPath = TRUE after computeAttackPath"));
 			m_isAttackPath = TRUE;
-	{
-		Int nodes = 0;
-		if (m_path != nullptr) { for (PathNode *n = m_path->getFirstNode(); n != nullptr; n = n->getNext()) { ++nodes; } }
-		DEBUG_LOG(("PFRES %d obj=%d nodes=%d", TheGameLogic->getFrame(), (Int)getObject()->getID(), nodes));
-	}
 			return;
 		}
 		//CRCDEBUG_LOG(("AIUpdateInterface::doPathfind() - m_isAttackPath = FALSE after computeAttackPath()"));
@@ -498,11 +470,6 @@ void AIUpdateInterface::doPathfind( PathfindServicesInterface *pathfinder )
 		wakeUpNow();
 	}
 #endif
-	{
-		Int nodes = 0;
-		if (m_path != nullptr) { for (PathNode *n = m_path->getFirstNode(); n != nullptr; n = n->getNext()) { ++nodes; } }
-		DEBUG_LOG(("PFRES %d obj=%d nodes=%d", TheGameLogic->getFrame(), (Int)getObject()->getID(), nodes));
-	}
 }
 
 /* Requests a path to be found.  Note that if it is possible to do it without having to use the
