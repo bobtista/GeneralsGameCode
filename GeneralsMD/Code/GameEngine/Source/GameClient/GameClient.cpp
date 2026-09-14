@@ -1430,10 +1430,13 @@ void GameClient::xfer( Xfer *xfer )
 	Drawable *draw;
 	UnsignedInt drawableCount = 0;
 	UnsignedInt objectlessCount = 0;
+	std::vector<Drawable *> saveList;
 	for( draw = getDrawableList(); draw; draw = draw->getNextDrawable() )
 	{
 		if (xfer->getXferMode() == XFER_SAVE && !shouldSaveDrawable(draw))
 			continue;
+		if (xfer->getXferMode() == XFER_SAVE)
+			saveList.push_back(draw);
 		drawableCount++;
 		if (draw->getObject() == nullptr)
 			objectlessCount++;
@@ -1478,10 +1481,9 @@ void GameClient::xfer( Xfer *xfer )
 	{
 
 		// iterate all drawables
-		for( draw = getDrawableList(); draw; draw = draw->getNextDrawable() )
+		for( std::vector<Drawable *>::const_iterator saveIt = saveList.begin(); saveIt != saveList.end(); ++saveIt )
 		{
-			if (!shouldSaveDrawable(draw))
-				continue;
+			draw = *saveIt;
 
 			// get TOC entry for this drawable
 			tocEntry = findTOCEntryByName( draw->getTemplate()->getName() );
