@@ -6393,6 +6393,34 @@ void Pathfinder::processPathfindQueue()
 	m_logicalExtent = bounds;
 
 	m_cumulativeCellsAllocated = 0;	// Number of pathfind cells examined.
+	{
+		// temporary probe: GGC_DUMP_CELLS_FRAME=<frame> writes the whole ground cell grid before this frame's searches
+		static Bool s_dumped = FALSE;
+		const char *dumpFrame = getenv("GGC_DUMP_CELLS_FRAME");
+		if (!s_dumped && dumpFrame != nullptr && (UnsignedInt)atoi(dumpFrame) == TheGameLogic->getFrame() && m_map != nullptr)
+		{
+			s_dumped = TRUE;
+			AsciiString name; name.format("cells_%u.txt", TheGameLogic->getFrame());
+			FILE *fp = fopen(name.str(), "w");
+			if (fp != nullptr)
+			{
+				fprintf(fp, "extent %d,%d %d,%d layers %d\n", m_extent.lo.x, m_extent.lo.y, m_extent.hi.x, m_extent.hi.y, (Int)LAYER_LAST);
+				for (Int j = m_extent.lo.y; j <= m_extent.hi.y; ++j)
+				{
+					for (Int i = m_extent.lo.x; i <= m_extent.hi.x; ++i)
+					{
+						PathfindCell::CheckpointState st;
+						m_map[i][j].captureCheckpointState(&st);
+						fprintf(fp, "%d,%d o=%u g=%u p=%u a=%u z=%u t=%u f=%u c=%u l=%u b=%u fe=%u tr=%u ag=%u pi=%u\n", i, j,
+							(UnsignedInt)st.obstacleID, (UnsignedInt)st.goalUnitID, (UnsignedInt)st.posUnitID, (UnsignedInt)st.goalAircraftID,
+							(UnsignedInt)st.zone, st.type, st.flags, st.connectsToLayer, st.layer, st.blockedByAlly, st.obstacleIsFence, st.obstacleIsTransparent, st.aircraftGoal, st.pinched);
+					}
+				}
+				fclose(fp);
+				DEBUG_LOG(("PFDUMP wrote %s", name.str()));
+			}
+		}
+	}
 	Int pathsFound = 0;
 	while (m_cumulativeCellsAllocated < PATHFIND_CELLS_PER_FRAME &&
 		m_queuePRTail!=m_queuePRHead) {
