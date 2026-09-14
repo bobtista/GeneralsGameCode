@@ -594,7 +594,9 @@ UpdateSleepTime StealthUpdate::update()
 			wasHidden = TRUE;
 
 		// do the change (we get a new drawable from this)
-		changeVisualDisguise();
+		// TheSuperHackers @bugfix bobtista 14/09/2026 Keep the loaded velocity. The disguise is only
+		// re-created here for the drawable, and resetting the physics stopped a moving unit after a load.
+		changeVisualDisguise( FALSE );
 
 		// restore hidden state in the new drawable
 		draw = getObject()->getDrawable();
@@ -976,7 +978,7 @@ void StealthUpdate::disguiseAsObject( const Object *target )
 }
 
 //-------------------------------------------------------------------------------------------------
-void StealthUpdate::changeVisualDisguise()
+void StealthUpdate::changeVisualDisguise( Bool resetDynamicPhysics )
 {
 	Object *self = getObject();
 	const StealthUpdateModuleData *data = getStealthUpdateModuleData();
@@ -1002,7 +1004,10 @@ void StealthUpdate::changeVisualDisguise()
 			draw->setOrientation( self->getOrientation() );
 			draw->setModelConditionFlags( flags );
 			draw->updateDrawable();
-			self->getPhysics()->resetDynamicPhysics();
+			if( resetDynamicPhysics )
+			{
+				self->getPhysics()->resetDynamicPhysics();
+			}
 			if( selected )
 			{
 				TheInGameUI->selectDrawable( draw );
@@ -1060,7 +1065,10 @@ void StealthUpdate::changeVisualDisguise()
 			draw->setOrientation( self->getOrientation() );
 			draw->setModelConditionFlags( flags );
 			draw->updateDrawable();
-			self->getPhysics()->resetDynamicPhysics();
+			if( resetDynamicPhysics )
+			{
+				self->getPhysics()->resetDynamicPhysics();
+			}
 			if (TheGlobalData->m_timeOfDay == TIME_OF_DAY_NIGHT)
 				draw->setIndicatorColor( self->getNightIndicatorColor() );
 			else

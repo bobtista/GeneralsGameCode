@@ -150,7 +150,7 @@ protected:
 	Real getRevealDistanceFromTarget() const { return getStealthUpdateModuleData()->m_revealDistanceFromTarget; }
 	void hintDetectableWhileUnstealthed() ;
 
-	void changeVisualDisguise();
+	void changeVisualDisguise( Bool resetDynamicPhysics = TRUE );
 
 	UpdateSleepTime calcSleepTime() const;
 
