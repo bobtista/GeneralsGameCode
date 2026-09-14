@@ -163,6 +163,7 @@ public:
 	static bool removeExtension(AsciiString& path);
 	static bool removeExtension(UnicodeString& path);
 
+	static AsciiString normalizePathSeparators(const AsciiString& path);	///< converts game-data path separators to the native separator.
 	static void appendPathSeparator(AsciiString& path);	///< appends the platform separator, unless the path is empty or already ends with either separator.
 
 protected:
