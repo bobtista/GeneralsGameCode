@@ -1086,7 +1086,7 @@ static AsciiString normalizePathSeparators( const AsciiString &path )
 
 	for (; *src != 0; ++src)
 	{
-		if (isAnyPathSeparator(*src) && *src != nativeSeparator)
+		if (isPathSeparator(*src) && *src != nativeSeparator)
 		{
 			break;
 		}
@@ -1100,7 +1100,7 @@ static AsciiString normalizePathSeparators( const AsciiString &path )
 	AsciiString normalized;
 	for (src = path.str(); *src != 0; ++src)
 	{
-		normalized.concat(isAnyPathSeparator(*src) ? nativeSeparator : *src);
+		normalized.concat(isPathSeparator(*src) ? nativeSeparator : *src);
 	}
 
 	return normalized;
