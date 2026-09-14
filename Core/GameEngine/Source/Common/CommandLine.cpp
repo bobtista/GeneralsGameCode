@@ -42,6 +42,11 @@
 #include "GgcRuntimeFlags.h"
 #include "GameNetwork/NetworkAutoStart.h"
 
+#include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
+
+
 
 
 Bool TheDebugIgnoreSyncErrors = FALSE;
@@ -1025,23 +1030,36 @@ Int parseDisplayDebug(char *args[], int)
 	return 1;
 }
 
-// TheSuperHackers @feature bobtista 14/08/2026 Write a save at a chosen logic frame so a save
-// and load round trip can be run without a person at the keyboard.
 Int parseSaveAtFrame(char *args[], int num)
 {
-	if (num > 1)
+	if (num <= 1)
 	{
-		TheWritableGlobalData->m_saveAtFrame = atoi(args[1]);
+		printf("Missing frame number for -saveatframe\n");
+		exit(1);
 	}
+
+	char *end;
+	errno = 0;
+	const long frame = strtol(args[1], &end, 10);
+	if (errno == ERANGE || end == args[1] || *end != '\0' || frame <= 0 || frame > INT_MAX)
+	{
+		printf("Invalid frame number for -saveatframe: '%s'\n", args[1]);
+		exit(1);
+	}
+
+	TheWritableGlobalData->m_saveAtFrame = static_cast<Int>(frame);
 	return 2;
 }
 
 Int parseSaveTo(char *args[], int num)
 {
-	if (num > 1)
+	if (num <= 1 || args[1][0] == '\0' || args[1][0] == '-')
 	{
-		TheWritableGlobalData->m_saveToFile = args[1];
+		printf("Missing filename for -saveto\n");
+		exit(1);
 	}
+
+	TheWritableGlobalData->m_saveToFile = args[1];
 	return 2;
 }
 
@@ -1884,6 +1902,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-munkee", parseMunkee },
 	{ "-displayDebug", parseDisplayDebug },
 	{ "-file", parseFile },
+	// TheSuperHackers @feature bobtista 14/08/2026 Save at a chosen logic frame and quit for unattended save/load tests.
 	{ "-saveatframe", parseSaveAtFrame },
 	{ "-saveto", parseSaveTo },
 
