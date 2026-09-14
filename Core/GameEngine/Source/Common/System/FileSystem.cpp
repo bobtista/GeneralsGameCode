@@ -410,6 +410,22 @@ bool FileSystem::removeExtension(UnicodeString& path)
 }
 
 //============================================================================
+// FileSystem::normalizePathSeparators
+//============================================================================
+AsciiString FileSystem::normalizePathSeparators(const AsciiString& path)
+{
+	const char otherSeparator = getNativePathSeparator() == '/' ? '\\' : '/';
+	if (path.find(otherSeparator) == nullptr)
+	{
+		return path;
+	}
+
+	AsciiString normalized;
+	::normalizePathSeparators(normalized.getBufferForRead(path.getLength()), path.str());
+	return normalized;
+}
+
+//============================================================================
 // FileSystem::appendPathSeparator
 //============================================================================
 void FileSystem::appendPathSeparator(AsciiString& path)
