@@ -208,7 +208,42 @@ enum {MAX_WALL_PIECES = 128};
 class PathfindCellInfo
 {
 	friend class PathfindCell;
+	friend class Pathfinder;
 public:
+	// TheSuperHackers @feature bobtista 14/09/2026 Exact image of one pooled record for checkpoints.
+	// Records leak and keep stale list links, costs and marks that later searches read, and the
+	// pool is finite, so a checkpoint carries every record by index instead of re-allocating.
+	struct CheckpointRecord
+	{
+		UnsignedByte isFree;
+		UnsignedByte layer;
+		UnsignedByte marks;
+		ICoord2D pos;
+		UnsignedShort nextOpen;
+		UnsignedShort prevOpen;
+		UnsignedShort pathParent;
+		UnsignedShort totalCost;
+		UnsignedShort costSoFar;
+		ObjectID goalUnitID;
+		ObjectID posUnitID;
+		ObjectID goalAircraftID;
+		ObjectID obstacleID;
+	};
+
+	enum CheckpointRecordMarks
+	{
+		CHECKPOINT_RECORD_BLOCKED_BY_ALLY = 0x01,
+		CHECKPOINT_RECORD_OBSTACLE_IS_FENCE = 0x02,
+		CHECKPOINT_RECORD_OBSTACLE_IS_TRANSPARENT = 0x04,
+		CHECKPOINT_RECORD_OPEN = 0x08,
+		CHECKPOINT_RECORD_CLOSED = 0x10
+	};
+
+	enum
+	{
+		CHECKPOINT_RECORD_NONE = 0xFFFF
+	};
+
 #if RETAIL_COMPATIBLE_PATHFINDING
 	static void forceCleanPathFindCellInfos();
 #endif
@@ -281,6 +316,7 @@ private:
  */
 class PathfindCell
 {
+	friend class Pathfinder;
 public:
 	struct CheckpointState
 	{
@@ -298,14 +334,6 @@ public:
 		UnsignedByte obstacleIsTransparent;
 		UnsignedByte aircraftGoal;
 		UnsignedByte pinched;
-		UnsignedByte infoFlags;
-	};
-
-	enum CheckpointInfoFlags
-	{
-		CHECKPOINT_INFO_ALLOCATED = 0x01,
-		CHECKPOINT_INFO_OPEN = 0x02,
-		CHECKPOINT_INFO_CLOSED = 0x04
 	};
 
 
@@ -339,7 +367,7 @@ public:
 	Bool removeObstacle( Object *obstacle );				///< unflag this cell as an obstacle, from the given one
 	void setType( CellType type );	///< set the cell type
 	void captureCheckpointState( CheckpointState *state ) const;
-	void restoreCheckpointState( const CheckpointState &state, const ICoord2D &pos );
+	void restoreCheckpointState( const CheckpointState &state, const ICoord2D &pos, Bool allocateInfoRecord );
 	CellType getType() const { return (CellType)m_type; }				///< get the cell type
 	CellFlags getFlags() const { return (CellFlags)m_flags; }				///< get the cell type
 	Bool isAircraftGoal() const {return m_aircraftGoal != 0;}
@@ -966,6 +994,15 @@ private:
 	ICoord2D			m_checkpointLayerCellOrigin[LAYER_LAST+1];
 	ICoord2D			m_checkpointLayerCellSize[LAYER_LAST+1];
 	Bool					m_checkpointIncludesZones;
+	PathfindCellInfo::CheckpointRecord *m_checkpointInfoRecords;
+	UnsignedInt		m_checkpointInfoRecordCount;
+	UnsignedInt		m_checkpointInfoFirstFree;
+
+	static UnsignedShort checkpointInfoRecordIndex( const PathfindCellInfo *info );
+	static PathfindCellInfo *checkpointInfoRecordFromIndex( UnsignedInt index );
+	void captureCheckpointInfoRecord( UnsignedInt index, PathfindCellInfo::CheckpointRecord *record );
+	void applyCheckpointInfoRecords();
+	void releaseCheckpointInfoRecords();
 
 #if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
 public:

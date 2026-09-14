@@ -1364,26 +1364,9 @@ void PathfindCell::captureCheckpointState( CheckpointState *state ) const
 	state->obstacleIsTransparent = isObstacleTransparent();
 	state->aircraftGoal = m_aircraftGoal;
 	state->pinched = m_pinched;
-	// TheSuperHackers @bugfix bobtista 13/09/2026 Carry the info record allocation and stale list bits.
-	// Retail keeps leaked records on cells with no occupant and leaves open bits set on occupied
-	// cells; the hierarchical search skips both kinds and the fixed pool of records runs out in
-	// large late games, so the exact allocation state decides which paths are found after load.
-	state->infoFlags = 0;
-	if (m_info != nullptr)
-	{
-		state->infoFlags |= CHECKPOINT_INFO_ALLOCATED;
-		if (m_info->m_open)
-		{
-			state->infoFlags |= CHECKPOINT_INFO_OPEN;
-		}
-		if (m_info->m_closed)
-		{
-			state->infoFlags |= CHECKPOINT_INFO_CLOSED;
-		}
-	}
 }
 
-void PathfindCell::restoreCheckpointState( const CheckpointState &state, const ICoord2D &pos )
+void PathfindCell::restoreCheckpointState( const CheckpointState &state, const ICoord2D &pos, Bool allocateInfoRecord )
 {
 	reset();
 	m_obstacleID = state.obstacleID;
@@ -1398,8 +1381,12 @@ void PathfindCell::restoreCheckpointState( const CheckpointState &state, const I
 	m_aircraftGoal = state.aircraftGoal != 0;
 	m_pinched = state.pinched != 0;
 
-	if ((state.infoFlags & CHECKPOINT_INFO_ALLOCATED) != 0 ||
-		state.obstacleID != INVALID_ID || state.goalUnitID != INVALID_ID ||
+	if (!allocateInfoRecord)
+	{
+		return;
+	}
+
+	if (state.obstacleID != INVALID_ID || state.goalUnitID != INVALID_ID ||
 		state.posUnitID != INVALID_ID || state.goalAircraftID != INVALID_ID)
 	{
 		allocateInfo(pos);
@@ -1412,14 +1399,12 @@ void PathfindCell::restoreCheckpointState( const CheckpointState &state, const I
 			m_info->m_blockedByAlly = state.blockedByAlly != 0;
 			m_info->m_obstacleIsFence = state.obstacleIsFence != 0;
 			m_info->m_obstacleIsTransparent = state.obstacleIsTransparent != 0;
-			m_info->m_open = (state.infoFlags & CHECKPOINT_INFO_OPEN) != 0;
-			m_info->m_closed = (state.infoFlags & CHECKPOINT_INFO_CLOSED) != 0;
 		}
 	}
 }
 
 static void xferPathfindCellCheckpointState( Xfer *xfer, PathfindCell::CheckpointState *state,
-	Bool includeZone, Bool includeInfoFlags )
+	Bool includeZone )
 {
 	xfer->xferObjectID( &state->obstacleID );
 	xfer->xferObjectID( &state->goalUnitID );
@@ -1445,14 +1430,23 @@ static void xferPathfindCellCheckpointState( Xfer *xfer, PathfindCell::Checkpoin
 	xfer->xferUnsignedByte( &state->obstacleIsTransparent );
 	xfer->xferUnsignedByte( &state->aircraftGoal );
 	xfer->xferUnsignedByte( &state->pinched );
-	if( includeInfoFlags )
-	{
-		xfer->xferUnsignedByte( &state->infoFlags );
-	}
-	else if( xfer->getXferMode() == XFER_LOAD )
-	{
-		state->infoFlags = 0;
-	}
+}
+
+static void xferPathfindCellInfoCheckpointRecord( Xfer *xfer, PathfindCellInfo::CheckpointRecord *record )
+{
+	xfer->xferUnsignedByte( &record->isFree );
+	xfer->xferUnsignedByte( &record->layer );
+	xfer->xferUnsignedByte( &record->marks );
+	xfer->xferICoord2D( &record->pos );
+	xfer->xferUnsignedShort( &record->nextOpen );
+	xfer->xferUnsignedShort( &record->prevOpen );
+	xfer->xferUnsignedShort( &record->pathParent );
+	xfer->xferUnsignedShort( &record->totalCost );
+	xfer->xferUnsignedShort( &record->costSoFar );
+	xfer->xferObjectID( &record->goalUnitID );
+	xfer->xferObjectID( &record->posUnitID );
+	xfer->xferObjectID( &record->goalAircraftID );
+	xfer->xferObjectID( &record->obstacleID );
 }
 
 /**
@@ -4343,7 +4337,8 @@ void PathfindLayer::classifyWallMapCell( Int i, Int j , PathfindCell *cell, Obje
 //----------------------- Pathfinder ---------------------------------------
 
 Pathfinder::Pathfinder() :m_map(nullptr), m_checkpointCells(nullptr), m_checkpointCellCount(0),
-	m_checkpointZoneManager(nullptr), m_checkpointIncludesZones(false)
+	m_checkpointZoneManager(nullptr), m_checkpointIncludesZones(false),
+	m_checkpointInfoRecords(nullptr), m_checkpointInfoRecordCount(0), m_checkpointInfoFirstFree(0)
 {
 	for (Int layer = 0; layer <= LAYER_LAST; ++layer)
 	{
@@ -4377,6 +4372,7 @@ void Pathfinder::reset()
 	delete m_checkpointZoneManager;
 	m_checkpointZoneManager = nullptr;
 	m_checkpointIncludesZones = false;
+	releaseCheckpointInfoRecords();
 	for (Int layer = 0; layer <= LAYER_LAST; ++layer)
 	{
 		m_checkpointLayerZones[layer] = 0;
@@ -11747,9 +11743,9 @@ void Pathfinder::crc( Xfer *xfer )
 	* 6: TheSuperHackers @bugfix bobtista 21/08/2026 Checkpoint the bridge and wall layer cells, the
 	*    cross-search tunneling flag and ignored obstacle id. Only the ground grid was captured, so
 	*    layer cell marks vanished on load and the two crc() hashed transients broke the load frame
-	* 7: TheSuperHackers @bugfix bobtista 13/09/2026 Checkpoint each cell's info record allocation
-	*    and stale open/closed bits. The hierarchical search skips cells without a record and the
-	*    record pool is finite, so leaked records changed the paths found after a late-game load
+	* 7: TheSuperHackers @bugfix bobtista 14/09/2026 Checkpoint the cell info record pool by index.
+	*    Leaked records, stale list links and marks steer later searches and the pool is finite,
+	*    so re-allocating records from the cell ids changed the paths found after a late-game load
 	*/
 //-----------------------------------------------------------------------------
 void Pathfinder::xfer( Xfer *xfer )
@@ -11825,7 +11821,7 @@ void Pathfinder::xfer( Xfer *xfer )
 						m_map[i][j].captureCheckpointState( &state );
 					}
 
-					xferPathfindCellCheckpointState( xfer, &state, version <= 3 || version >= 5, version >= 7 );
+					xferPathfindCellCheckpointState( xfer, &state, version <= 3 || version >= 5 );
 
 					if( xfer->getXferMode() == XFER_LOAD && index < m_checkpointCellCount )
 					{
@@ -11918,13 +11914,53 @@ void Pathfinder::xfer( Xfer *xfer )
 						m_layers[layer].getCellRaw(i, j)->captureCheckpointState( &state );
 					}
 
-					xferPathfindCellCheckpointState( xfer, &state, true, version >= 7 );
+					xferPathfindCellCheckpointState( xfer, &state, true );
 
 					if( xfer->getXferMode() == XFER_LOAD )
 					{
 						m_checkpointLayerCells[layer][index] = state;
 					}
 				}
+			}
+		}
+	}
+
+	if( version >= 7 )
+	{
+		UnsignedInt recordCount = PathfindCellInfo::s_infoArray != nullptr ? CELL_INFOS_TO_ALLOCATE : 0;
+		xfer->xferUnsignedInt( &recordCount );
+		UnsignedInt firstFree = PathfindCellInfo::CHECKPOINT_RECORD_NONE;
+		if( PathfindCellInfo::s_firstFree != nullptr )
+		{
+			firstFree = (UnsignedInt)(PathfindCellInfo::s_firstFree - PathfindCellInfo::s_infoArray);
+		}
+		xfer->xferUnsignedInt( &firstFree );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			releaseCheckpointInfoRecords();
+			if( recordCount != 0 && recordCount != CELL_INFOS_TO_ALLOCATE )
+			{
+				DEBUG_CRASH(("Pathfinder checkpoint has an unexpected cell info pool size."));
+				throw SC_INVALID_DATA;
+			}
+			if( recordCount != 0 )
+			{
+				m_checkpointInfoRecords = MSGNEW("PathfindCheckpointCells") PathfindCellInfo::CheckpointRecord[recordCount];
+				m_checkpointInfoRecordCount = recordCount;
+				m_checkpointInfoFirstFree = firstFree;
+			}
+		}
+		for( UnsignedInt index = 0; index < recordCount; ++index )
+		{
+			PathfindCellInfo::CheckpointRecord record;
+			if( xfer->getXferMode() == XFER_SAVE )
+			{
+				captureCheckpointInfoRecord( index, &record );
+			}
+			xferPathfindCellInfoCheckpointRecord( xfer, &record );
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				m_checkpointInfoRecords[index] = record;
 			}
 		}
 	}
@@ -11970,7 +12006,7 @@ void Pathfinder::loadPostProcess()
 			ICoord2D pos;
 			pos.x = i;
 			pos.y = j;
-			m_map[i][j].restoreCheckpointState( m_checkpointCells[index], pos );
+			m_map[i][j].restoreCheckpointState( m_checkpointCells[index], pos, m_checkpointInfoRecords == nullptr );
 		}
 	}
 
@@ -12017,7 +12053,7 @@ void Pathfinder::loadPostProcess()
 					ICoord2D pos;
 					pos.x = m_checkpointLayerCellOrigin[layer].x + i;
 					pos.y = m_checkpointLayerCellOrigin[layer].y + j;
-					m_layers[layer].getCellRaw(i, j)->restoreCheckpointState( m_checkpointLayerCells[layer][index], pos );
+					m_layers[layer].getCellRaw(i, j)->restoreCheckpointState( m_checkpointLayerCells[layer][index], pos, m_checkpointInfoRecords == nullptr );
 				}
 			}
 		}
@@ -12026,9 +12062,208 @@ void Pathfinder::loadPostProcess()
 		m_checkpointLayerCells[layer] = nullptr;
 	}
 
+	applyCheckpointInfoRecords();
+
 	delete [] m_checkpointCells;
 	m_checkpointCells = nullptr;
 	m_checkpointCellCount = 0;
 	m_checkpointIncludesZones = false;
 
+}
+
+//-----------------------------------------------------------------------------
+UnsignedShort Pathfinder::checkpointInfoRecordIndex( const PathfindCellInfo *info )
+{
+	if( info == nullptr )
+	{
+		return PathfindCellInfo::CHECKPOINT_RECORD_NONE;
+	}
+	return (UnsignedShort)(info - PathfindCellInfo::s_infoArray);
+}
+
+PathfindCellInfo *Pathfinder::checkpointInfoRecordFromIndex( UnsignedInt index )
+{
+	if( index >= CELL_INFOS_TO_ALLOCATE )
+	{
+		return nullptr;
+	}
+	return &PathfindCellInfo::s_infoArray[index];
+}
+
+//-----------------------------------------------------------------------------
+void Pathfinder::captureCheckpointInfoRecord( UnsignedInt index, PathfindCellInfo::CheckpointRecord *record )
+{
+	const PathfindCellInfo *info = &PathfindCellInfo::s_infoArray[index];
+	record->isFree = info->m_isFree ? 1 : 0;
+	record->layer = LAYER_INVALID;
+	record->marks = 0;
+	if( info->m_blockedByAlly )
+	{
+		record->marks |= PathfindCellInfo::CHECKPOINT_RECORD_BLOCKED_BY_ALLY;
+	}
+	if( info->m_obstacleIsFence )
+	{
+		record->marks |= PathfindCellInfo::CHECKPOINT_RECORD_OBSTACLE_IS_FENCE;
+	}
+	if( info->m_obstacleIsTransparent )
+	{
+		record->marks |= PathfindCellInfo::CHECKPOINT_RECORD_OBSTACLE_IS_TRANSPARENT;
+	}
+	if( info->m_open )
+	{
+		record->marks |= PathfindCellInfo::CHECKPOINT_RECORD_OPEN;
+	}
+	if( info->m_closed )
+	{
+		record->marks |= PathfindCellInfo::CHECKPOINT_RECORD_CLOSED;
+	}
+	record->pos = info->m_pos;
+	record->nextOpen = checkpointInfoRecordIndex( info->m_nextOpen );
+	record->prevOpen = checkpointInfoRecordIndex( info->m_prevOpen );
+	record->pathParent = checkpointInfoRecordIndex( info->m_pathParent );
+	record->totalCost = info->m_totalCost;
+	record->costSoFar = info->m_costSoFar;
+	record->goalUnitID = info->m_goalUnitID;
+	record->posUnitID = info->m_posUnitID;
+	record->goalAircraftID = info->m_goalAircraftID;
+	record->obstacleID = info->m_obstacleID;
+
+	if( info->m_isFree || info->m_cell == nullptr )
+	{
+		return;
+	}
+
+	//
+	// A record only knows its owner by pointer. Name the owner by layer and cell coordinates so the
+	// load can hand the same record index back to the same cell.
+	//
+	const ICoord2D &pos = info->m_pos;
+	if( m_map != nullptr && pos.x >= m_extent.lo.x && pos.x <= m_extent.hi.x &&
+		pos.y >= m_extent.lo.y && pos.y <= m_extent.hi.y && &m_map[pos.x][pos.y] == info->m_cell )
+	{
+		record->layer = LAYER_GROUND;
+		return;
+	}
+	for( Int layer = LAYER_GROUND + 1; layer <= LAYER_LAST; ++layer )
+	{
+		if( !m_layers[layer].hasCells() )
+		{
+			continue;
+		}
+		Int i = pos.x - m_layers[layer].getCellXOrigin();
+		Int j = pos.y - m_layers[layer].getCellYOrigin();
+		if( i < 0 || i >= m_layers[layer].getCellWidth() || j < 0 || j >= m_layers[layer].getCellHeight() )
+		{
+			continue;
+		}
+		if( m_layers[layer].getCellRaw(i, j) == info->m_cell )
+		{
+			record->layer = (UnsignedByte)layer;
+			return;
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+void Pathfinder::applyCheckpointInfoRecords()
+{
+	if( m_checkpointInfoRecords == nullptr )
+	{
+		return;
+	}
+	if( PathfindCellInfo::s_infoArray == nullptr || m_checkpointInfoRecordCount != CELL_INFOS_TO_ALLOCATE )
+	{
+		DEBUG_CRASH(("Pathfinder checkpoint cell info pool does not match the live pool."));
+		releaseCheckpointInfoRecords();
+		return;
+	}
+
+	// The pool is rebuilt wholesale, so every cell drops its current record first.
+	if( m_map != nullptr )
+	{
+		for( Int j = m_extent.lo.y; j <= m_extent.hi.y; ++j )
+		{
+			for( Int i = m_extent.lo.x; i <= m_extent.hi.x; ++i )
+			{
+				m_map[i][j].m_info = nullptr;
+			}
+		}
+	}
+	for( Int layer = LAYER_GROUND + 1; layer <= LAYER_LAST; ++layer )
+	{
+		if( !m_layers[layer].hasCells() )
+		{
+			continue;
+		}
+		for( Int i = 0; i < m_layers[layer].getCellWidth(); ++i )
+		{
+			for( Int j = 0; j < m_layers[layer].getCellHeight(); ++j )
+			{
+				m_layers[layer].getCellRaw(i, j)->m_info = nullptr;
+			}
+		}
+	}
+
+	for( UnsignedInt index = 0; index < m_checkpointInfoRecordCount; ++index )
+	{
+		const PathfindCellInfo::CheckpointRecord &record = m_checkpointInfoRecords[index];
+		PathfindCellInfo *info = &PathfindCellInfo::s_infoArray[index];
+		info->m_isFree = record.isFree != 0;
+		info->m_blockedByAlly = (record.marks & PathfindCellInfo::CHECKPOINT_RECORD_BLOCKED_BY_ALLY) != 0;
+		info->m_obstacleIsFence = (record.marks & PathfindCellInfo::CHECKPOINT_RECORD_OBSTACLE_IS_FENCE) != 0;
+		info->m_obstacleIsTransparent = (record.marks & PathfindCellInfo::CHECKPOINT_RECORD_OBSTACLE_IS_TRANSPARENT) != 0;
+		info->m_open = (record.marks & PathfindCellInfo::CHECKPOINT_RECORD_OPEN) != 0;
+		info->m_closed = (record.marks & PathfindCellInfo::CHECKPOINT_RECORD_CLOSED) != 0;
+		info->m_pos = record.pos;
+		info->m_nextOpen = checkpointInfoRecordFromIndex( record.nextOpen );
+		info->m_prevOpen = checkpointInfoRecordFromIndex( record.prevOpen );
+		info->m_pathParent = checkpointInfoRecordFromIndex( record.pathParent );
+		info->m_totalCost = record.totalCost;
+		info->m_costSoFar = record.costSoFar;
+		info->m_goalUnitID = record.goalUnitID;
+		info->m_posUnitID = record.posUnitID;
+		info->m_goalAircraftID = record.goalAircraftID;
+		info->m_obstacleID = record.obstacleID;
+		info->m_cell = nullptr;
+		if( record.isFree )
+		{
+			continue;
+		}
+
+		PathfindCell *cell = nullptr;
+		if( record.layer == LAYER_GROUND )
+		{
+			if( m_map != nullptr && record.pos.x >= m_extent.lo.x && record.pos.x <= m_extent.hi.x &&
+				record.pos.y >= m_extent.lo.y && record.pos.y <= m_extent.hi.y )
+			{
+				cell = &m_map[record.pos.x][record.pos.y];
+			}
+		}
+		else if( record.layer > LAYER_GROUND && record.layer <= LAYER_LAST && m_layers[record.layer].hasCells() )
+		{
+			Int i = record.pos.x - m_layers[record.layer].getCellXOrigin();
+			Int j = record.pos.y - m_layers[record.layer].getCellYOrigin();
+			if( i >= 0 && i < m_layers[record.layer].getCellWidth() && j >= 0 && j < m_layers[record.layer].getCellHeight() )
+			{
+				cell = m_layers[record.layer].getCellRaw(i, j);
+			}
+		}
+		if( cell != nullptr )
+		{
+			cell->m_info = info;
+			info->m_cell = cell;
+		}
+	}
+
+	PathfindCellInfo::s_firstFree = checkpointInfoRecordFromIndex( m_checkpointInfoFirstFree );
+	releaseCheckpointInfoRecords();
+}
+
+//-----------------------------------------------------------------------------
+void Pathfinder::releaseCheckpointInfoRecords()
+{
+	delete [] m_checkpointInfoRecords;
+	m_checkpointInfoRecords = nullptr;
+	m_checkpointInfoRecordCount = 0;
+	m_checkpointInfoFirstFree = PathfindCellInfo::CHECKPOINT_RECORD_NONE;
 }
