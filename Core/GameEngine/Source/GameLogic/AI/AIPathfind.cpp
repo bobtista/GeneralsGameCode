@@ -6420,18 +6420,27 @@ void Pathfinder::processPathfindQueue()
 			if (fp != nullptr)
 			{
 				fprintf(fp, "extent %d,%d %d,%d layers %d\n", m_extent.lo.x, m_extent.lo.y, m_extent.hi.x, m_extent.hi.y, (Int)LAYER_LAST);
+				Int infoCells = 0; Int orphanInfoCells = 0; Int linkedInfoCells = 0;
 				for (Int j = m_extent.lo.y; j <= m_extent.hi.y; ++j)
 				{
 					for (Int i = m_extent.lo.x; i <= m_extent.hi.x; ++i)
 					{
 						PathfindCell::CheckpointState st;
-						m_map[i][j].captureCheckpointState(&st);
-						fprintf(fp, "%d,%d o=%u g=%u p=%u a=%u z=%u t=%u f=%u c=%u l=%u b=%u fe=%u tr=%u ag=%u pi=%u\n", i, j,
+						PathfindCell *dc = &m_map[i][j];
+						dc->captureCheckpointState(&st);
+						UnsignedInt hi = dc->hasInfo() ? 1 : 0;
+						UnsignedInt op = (hi && dc->getOpen()) ? 1 : 0;
+						UnsignedInt cl = (hi && dc->getClosed()) ? 1 : 0;
+						if (hi) { ++infoCells; }
+						if (hi && st.obstacleID == INVALID_ID && st.goalUnitID == INVALID_ID && st.posUnitID == INVALID_ID && st.goalAircraftID == INVALID_ID) { ++orphanInfoCells; }
+						if (op || cl) { ++linkedInfoCells; }
+						fprintf(fp, "%d,%d o=%u g=%u p=%u a=%u z=%u t=%u f=%u c=%u l=%u b=%u fe=%u tr=%u ag=%u pi=%u hi=%u op=%u cl=%u\n", i, j,
 							(UnsignedInt)st.obstacleID, (UnsignedInt)st.goalUnitID, (UnsignedInt)st.posUnitID, (UnsignedInt)st.goalAircraftID,
-							(UnsignedInt)st.zone, st.type, st.flags, st.connectsToLayer, st.layer, st.blockedByAlly, st.obstacleIsFence, st.obstacleIsTransparent, st.aircraftGoal, st.pinched);
+							(UnsignedInt)st.zone, st.type, st.flags, st.connectsToLayer, st.layer, st.blockedByAlly, st.obstacleIsFence, st.obstacleIsTransparent, st.aircraftGoal, st.pinched, hi, op, cl);
 					}
 				}
 				fclose(fp);
+				DEBUG_LOG(("PFDUMP infoCells=%d orphanInfoCells=%d linkedInfoCells=%d", infoCells, orphanInfoCells, linkedInfoCells));
 				UnsignedInt lh = 2166136261u; Int lcells = 0;
 				for (Int layer = LAYER_GROUND + 1; layer <= LAYER_LAST; ++layer)
 				{
