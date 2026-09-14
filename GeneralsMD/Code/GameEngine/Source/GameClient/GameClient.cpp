@@ -1454,6 +1454,21 @@ void GameClient::xfer( Xfer *xfer )
 	if( xfer->getXferMode() == XFER_SAVE )
 	{
 		DEBUG_LOG(("GameClient::xfer - saving %u drawables, %u without an object", drawableCount, objectlessCount));
+		std::map<AsciiString, Int> orphanTemplates;
+		for( draw = getDrawableList(); draw; draw = draw->getNextDrawable() )
+		{
+			if( draw->getObject() == nullptr && shouldSaveDrawable( draw ) )
+			{
+				orphanTemplates[ draw->getTemplate()->getName() ]++;
+			}
+		}
+		for( std::map<AsciiString, Int>::const_iterator it = orphanTemplates.begin(); it != orphanTemplates.end(); ++it )
+		{
+			if( it->second >= 50 )
+			{
+				DEBUG_LOG(("GameClient::xfer - objectless drawables '%s' x%d", it->first.str(), it->second));
+			}
+		}
 	}
 
 	// drawable data
