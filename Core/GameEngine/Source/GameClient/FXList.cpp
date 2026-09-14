@@ -170,6 +170,11 @@ public:
 		if (m_probability <= GameClientRandomValueReal(0, 1))
 			return;
 
+		// TheSuperHackers @bugfix bobtista 13/09/2026 A headless client never updates drawables, so its
+		// tracers never expired and a long run accumulated tens of thousands of them.
+		if (TheGlobalData->m_headless)
+			return;
+
 		if (primary && secondary)
 		{
 			Drawable *tracer = TheThingFactory->newDrawable(TheThingFactory->findTemplate(m_tracerName));
