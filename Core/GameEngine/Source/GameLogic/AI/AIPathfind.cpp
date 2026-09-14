@@ -1366,6 +1366,23 @@ void PathfindCell::captureCheckpointState( CheckpointState *state ) const
 	state->obstacleIsTransparent = isObstacleTransparent();
 	state->aircraftGoal = m_aircraftGoal;
 	state->pinched = m_pinched;
+	// TheSuperHackers @bugfix bobtista 13/09/2026 Carry the info record allocation and stale list bits.
+	// Retail keeps leaked records on cells with no occupant and leaves open bits set on occupied
+	// cells; the hierarchical search skips both kinds and the fixed pool of records runs out in
+	// large late games, so the exact allocation state decides which paths are found after load.
+	state->infoFlags = 0;
+	if (m_info != nullptr)
+	{
+		state->infoFlags |= CHECKPOINT_INFO_ALLOCATED;
+		if (m_info->m_open)
+		{
+			state->infoFlags |= CHECKPOINT_INFO_OPEN;
+		}
+		if (m_info->m_closed)
+		{
+			state->infoFlags |= CHECKPOINT_INFO_CLOSED;
+		}
+	}
 }
 
 void PathfindCell::restoreCheckpointState( const CheckpointState &state, const ICoord2D &pos )
@@ -1383,7 +1400,8 @@ void PathfindCell::restoreCheckpointState( const CheckpointState &state, const I
 	m_aircraftGoal = state.aircraftGoal != 0;
 	m_pinched = state.pinched != 0;
 
-	if (state.obstacleID != INVALID_ID || state.goalUnitID != INVALID_ID ||
+	if ((state.infoFlags & CHECKPOINT_INFO_ALLOCATED) != 0 ||
+		state.obstacleID != INVALID_ID || state.goalUnitID != INVALID_ID ||
 		state.posUnitID != INVALID_ID || state.goalAircraftID != INVALID_ID)
 	{
 		allocateInfo(pos);
@@ -1396,12 +1414,14 @@ void PathfindCell::restoreCheckpointState( const CheckpointState &state, const I
 			m_info->m_blockedByAlly = state.blockedByAlly != 0;
 			m_info->m_obstacleIsFence = state.obstacleIsFence != 0;
 			m_info->m_obstacleIsTransparent = state.obstacleIsTransparent != 0;
+			m_info->m_open = (state.infoFlags & CHECKPOINT_INFO_OPEN) != 0;
+			m_info->m_closed = (state.infoFlags & CHECKPOINT_INFO_CLOSED) != 0;
 		}
 	}
 }
 
 static void xferPathfindCellCheckpointState( Xfer *xfer, PathfindCell::CheckpointState *state,
-	Bool includeZone )
+	Bool includeZone, Bool includeInfoFlags )
 {
 	xfer->xferObjectID( &state->obstacleID );
 	xfer->xferObjectID( &state->goalUnitID );
@@ -1427,6 +1447,14 @@ static void xferPathfindCellCheckpointState( Xfer *xfer, PathfindCell::Checkpoin
 	xfer->xferUnsignedByte( &state->obstacleIsTransparent );
 	xfer->xferUnsignedByte( &state->aircraftGoal );
 	xfer->xferUnsignedByte( &state->pinched );
+	if( includeInfoFlags )
+	{
+		xfer->xferUnsignedByte( &state->infoFlags );
+	}
+	else if( xfer->getXferMode() == XFER_LOAD )
+	{
+		state->infoFlags = 0;
+	}
 }
 
 /**
@@ -11779,6 +11807,9 @@ void Pathfinder::crc( Xfer *xfer )
 	* 6: TheSuperHackers @bugfix bobtista 21/08/2026 Checkpoint the bridge and wall layer cells, the
 	*    cross-search tunneling flag and ignored obstacle id. Only the ground grid was captured, so
 	*    layer cell marks vanished on load and the two crc() hashed transients broke the load frame
+	* 7: TheSuperHackers @bugfix bobtista 13/09/2026 Checkpoint each cell's info record allocation
+	*    and stale open/closed bits. The hierarchical search skips cells without a record and the
+	*    record pool is finite, so leaked records changed the paths found after a late-game load
 	*/
 //-----------------------------------------------------------------------------
 void Pathfinder::xfer( Xfer *xfer )
@@ -11786,9 +11817,9 @@ void Pathfinder::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 4 : 6;
+	XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 4 : 7;
 #else
-	XferVersion currentVersion = 6;
+	XferVersion currentVersion = 7;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -11854,7 +11885,7 @@ void Pathfinder::xfer( Xfer *xfer )
 						m_map[i][j].captureCheckpointState( &state );
 					}
 
-					xferPathfindCellCheckpointState( xfer, &state, version <= 3 || version >= 5 );
+					xferPathfindCellCheckpointState( xfer, &state, version <= 3 || version >= 5, version >= 7 );
 
 					if( xfer->getXferMode() == XFER_LOAD && index < m_checkpointCellCount )
 					{
@@ -11947,7 +11978,7 @@ void Pathfinder::xfer( Xfer *xfer )
 						m_layers[layer].getCellRaw(i, j)->captureCheckpointState( &state );
 					}
 
-					xferPathfindCellCheckpointState( xfer, &state, true );
+					xferPathfindCellCheckpointState( xfer, &state, true, version >= 7 );
 
 					if( xfer->getXferMode() == XFER_LOAD )
 					{
