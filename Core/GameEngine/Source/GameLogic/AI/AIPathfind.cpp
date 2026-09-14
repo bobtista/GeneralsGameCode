@@ -6397,6 +6397,7 @@ void Pathfinder::processPathfindQueue()
 	while (m_cumulativeCellsAllocated < PATHFIND_CELLS_PER_FRAME &&
 		m_queuePRTail!=m_queuePRHead) {
 		Object *obj = TheGameLogic->findObjectByID(m_queuedPathfindRequests[m_queuePRHead]);
+		DEBUG_LOG(("PFQ %d obj=%d head=%d tail=%d cells=%d", TheGameLogic->getFrame(), (Int)m_queuedPathfindRequests[m_queuePRHead], m_queuePRHead, m_queuePRTail, m_cumulativeCellsAllocated));
 		m_queuedPathfindRequests[m_queuePRHead] = INVALID_ID;
 		if (obj) {
 			AIUpdateInterface *ai = obj->getAIUpdateInterface();
@@ -11907,6 +11908,18 @@ void Pathfinder::xfer( Xfer *xfer )
 		bounds.hi.x--;
 		bounds.hi.y--;
 		m_logicalExtent = bounds;
+	}
+	{
+		Int queued = 0;
+		AsciiString ids;
+		for( Int q = m_queuePRHead; q != m_queuePRTail; q = (q + 1) % PATHFIND_QUEUE_LEN )
+		{
+			AsciiString one; one.format(" %d", (Int)m_queuedPathfindRequests[q]); ids.concat(one); ++queued;
+		}
+		ICoord2D zext; m_zoneManager.getExtent(zext);
+		DEBUG_LOG(("PFXFER %s frame=%d head=%d tail=%d queued=%d nextZoneFrame=%u zoneExtent=%d,%d ids=%s",
+			xfer->getXferMode() == XFER_SAVE ? "SAVE" : "LOAD", TheGameLogic->getFrame(), m_queuePRHead, m_queuePRTail, queued,
+			m_zoneManager.getNextFrameToCalculateZones(), zext.x, zext.y, ids.str()));
 	}
 }
 

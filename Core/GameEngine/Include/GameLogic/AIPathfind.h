@@ -586,6 +586,7 @@ public:
 	void reset();
 
 	Bool needToCalculateZones() const {return m_nextFrameToCalculateZones <= TheGameLogic->getFrame() ;} ///< Returns true if the zones need to be recalculated.
+	UnsignedInt getNextFrameToCalculateZones() const { return m_nextFrameToCalculateZones; }
 	void markZonesDirty() ; ///< Called when the zones need to be recalculated.
 	void updateZonesForModify( PathfindCell **map,  PathfindLayer layers[], const IRegion2D &structureBounds, const IRegion2D &globalBounds ) ; ///< Called to recalculate an area when a structure has been removed.
 	void calculateZones(	PathfindCell **map, PathfindLayer layers[], const IRegion2D &bounds);	///< Does zone calculations.
