@@ -39,6 +39,7 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/Locomotor.h"
+#include "Common/CRCDebug.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
@@ -972,6 +973,9 @@ void Locomotor::locoUpdate_moveTowardsPosition(Object* obj, const Coord3D& goalP
 		return;
 	}
 
+	CRCDEBUG_LOG(("LOCOPROBE %d flags=%x brake=%g dtg=%g spd=%g max=%g donut=%u circ=%g angOff=%g offInc=%g prefH=%g", (Int)obj->getID(), m_flags, m_brakingFactor, onPathDistToGoal, desiredSpeed, maxSpeed, m_donutTimer, m_circleThresh, m_angleOffset, m_offsetIncrement, m_preferredHeight));
+	DUMPCOORD3DNAMED(&goalPos, "goalPos");
+	DUMPCOORD3DNAMED(&m_maintainPos, "maintainPos");
 	// Skip moveTowardsPosition if physics say you're stunned
 	if(physics->getIsStunned())
 	{

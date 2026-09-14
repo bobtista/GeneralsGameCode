@@ -643,6 +643,10 @@ UpdateSleepTime PhysicsBehavior::update()
 
 	Coord3D prevPos = *obj->getPosition();
 	m_prevAccel = m_accel;
+	CRCDEBUG_LOG(("PHYSPROBE %d in flags=%x air=%d ovl=%d/%d mfe=%u turn=%d mass=%g vm=%g", (Int)obj->getID(), m_flags, (Int)airborneAtStart, (Int)m_currentOverlap, (Int)m_previousOverlap, m_motiveForceExpires, (Int)m_turning, m_mass, m_velMag));
+	DUMPCOORD3D(&prevPos);
+	DUMPCOORD3D(&m_accel);
+	DUMPCOORD3D(&m_vel);
 
 	if (!obj->isDisabledByType(DISABLED_HELD))
 	{
@@ -650,6 +654,7 @@ UpdateSleepTime PhysicsBehavior::update()
 
 		applyGravitationalForces();
 		applyFrictionalForces();
+		DUMPCOORD3DNAMED(&m_accel, "accelAfterForces");
 
 		// integrate acceleration into velocity
 		m_vel.x += m_accel.x;
@@ -683,6 +688,13 @@ UpdateSleepTime PhysicsBehavior::update()
 			mtx.Adjust_Z_Translation(m_vel.z);
 		}
 
+		{
+			Coord3D probePos;
+			probePos.x = mtx.Get_X_Translation(); probePos.y = mtx.Get_Y_Translation(); probePos.z = mtx.Get_Z_Translation();
+			CRCDEBUG_LOG(("PHYSPROBE %d integrated braking=%d", (Int)obj->getID(), (Int)obj->testStatus(OBJECT_STATUS_BRAKING)));
+			DUMPCOORD3D(&probePos);
+			DUMPCOORD3DNAMED(&m_vel, "velAfter");
+		}
 		if (_isnan(mtx.Get_X_Translation()) || _isnan(mtx.Get_Y_Translation()) ||
 			_isnan(mtx.Get_Z_Translation())) {
 			DEBUG_CRASH(("Object position is NAN, deleting."));
