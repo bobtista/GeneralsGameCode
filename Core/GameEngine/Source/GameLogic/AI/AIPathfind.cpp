@@ -2939,6 +2939,21 @@ void PathfindZoneManager::reset()  ///< Called when the map is reset.
 }
 
 
+UnsignedInt PathfindZoneManager::probeChecksum() const
+{
+	UnsignedInt h = 2166136261u;
+	h = (h ^ m_maxZone) * 16777619u;
+	h = (h ^ (UnsignedInt)m_zoneBlockExtent.x) * 16777619u;
+	h = (h ^ (UnsignedInt)m_zoneBlockExtent.y) * 16777619u;
+	const zoneStorageType *tables[6] = { m_groundCliffZones, m_groundWaterZones, m_groundRubbleZones, m_terrainZones, m_crusherZones, m_hierarchicalZones };
+	for (Int t = 0; t < 6; ++t)
+	{
+		if (tables[t] == nullptr) continue;
+		for (UnsignedShort i = 0; i < m_maxZone; ++i) { h = (h ^ tables[t][i]) * 16777619u; }
+	}
+	return h;
+}
+
 void PathfindZoneManager::markZonesDirty()  ///< Called when the zones need to be recalculated.
 {
 #if RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING
@@ -6417,7 +6432,19 @@ void Pathfinder::processPathfindQueue()
 					}
 				}
 				fclose(fp);
-				DEBUG_LOG(("PFDUMP wrote %s", name.str()));
+				UnsignedInt lh = 2166136261u; Int lcells = 0;
+				for (Int layer = LAYER_GROUND + 1; layer <= LAYER_LAST; ++layer)
+				{
+					if (!m_layers[layer].hasCells()) continue;
+					for (Int y = 0; y < m_layers[layer].getCellHeight(); ++y) for (Int x = 0; x < m_layers[layer].getCellWidth(); ++x)
+					{
+						PathfindCell::CheckpointState st; m_layers[layer].getCellRaw(x, y)->captureCheckpointState(&st);
+						const UnsignedByte *b = (const UnsignedByte *)&st;
+						for (UnsignedInt k = 0; k < sizeof(st); ++k) { lh = (lh ^ b[k]) * 16777619u; }
+						++lcells;
+					}
+				}
+				DEBUG_LOG(("PFDUMP wrote %s zoneSum=%08X layerCells=%d layerSum=%08X nextZone=%u", name.str(), m_zoneManager.probeChecksum(), lcells, lh, m_zoneManager.getNextFrameToCalculateZones()));
 			}
 		}
 	}

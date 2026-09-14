@@ -405,6 +405,14 @@ void AIUpdateInterface::doPathfind( PathfindServicesInterface *pathfinder )
 	}
 	//CRCDEBUG_LOG(("AIUpdateInterface::doPathfind() for object %d", getObject()->getID()));
 	m_waitingForPath = FALSE;
+	{
+		const Coord3D *pp = getObject()->getPosition();
+		DEBUG_LOG(("PFIN %d obj=%d pos=%08X,%08X,%08X dest=%08X,%08X,%08X safe=%d approach=%d attack=%d victim=%d stuck=%d final=%d ignore=%d surf=%d goalCell=%d,%d qframe=%u ground=%d",
+			TheGameLogic->getFrame(), (Int)getObject()->getID(), *(const UnsignedInt*)&pp->x, *(const UnsignedInt*)&pp->y, *(const UnsignedInt*)&pp->z,
+			*(const UnsignedInt*)&m_requestedDestination.x, *(const UnsignedInt*)&m_requestedDestination.y, *(const UnsignedInt*)&m_requestedDestination.z,
+			(Int)m_isSafePath, (Int)m_isApproachPath, (Int)m_isAttackPath, (Int)m_requestedVictimID, (Int)m_isBlockedAndStuck, (Int)m_isFinalGoal, (Int)m_ignoreObstacleID,
+			(Int)m_locomotorSet.getValidSurfaces(), m_pathfindGoalCell.x, m_pathfindGoalCell.y, m_queueForPathFrame, (Int)isDoingGroundMovement()));
+	}
 	if (m_isSafePath) {
 		destroyPath();
 		Coord3D pos1, pos2;
