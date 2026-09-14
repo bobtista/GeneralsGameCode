@@ -39,7 +39,6 @@
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/NetworkAutoStart.h"
-#include "WWLib/trim.h"
 
 
 
@@ -1279,6 +1278,7 @@ static CommandLineParam paramsForStartup[] =
 	{ "-setCwd", parseSetCwd },
 	{ "-useCwd", parseUseCwd },
 #if defined(RTS_DEBUG)
+	// TheSuperHackers @feature bobtista 10/08/2026 Automate network match startup for multi-instance testing.
 	{ "-autoNetworkMode", parseAutoNetworkMode },
 #endif
 };
