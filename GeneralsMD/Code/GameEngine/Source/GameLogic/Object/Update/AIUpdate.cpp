@@ -2287,8 +2287,6 @@ UpdateSleepTime AIUpdateInterface::doLocomotor()
 			}
 		}
 
-		CRCDEBUG_LOG(("AIPROBE %d loco done blocked=%d bf=%d bump=%g maxBlk=%g goalType=%d", (Int)getObject()->getID(), (Int)blocked, m_blockedFrames, m_bumpSpeedLimit, m_curMaxBlockedSpeed, (Int)m_locomotorGoalType));
-		DUMPCOORD3DNAMED(getObject()->getPosition(), "posAfterLoco");
 		if (!blocked && m_blockedFrames>1)
 		{
 			m_blockedFrames = 1;

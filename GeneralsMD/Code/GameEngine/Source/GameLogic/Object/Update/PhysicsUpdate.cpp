@@ -29,7 +29,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 // please talk to MDC (x36804) before taking this out
-// #define NO_DEBUG_CRC
+#define NO_DEBUG_CRC
 
 #include "Common/PerfTimer.h"
 #include "Common/Player.h"
@@ -643,10 +643,6 @@ UpdateSleepTime PhysicsBehavior::update()
 
 	Coord3D prevPos = *obj->getPosition();
 	m_prevAccel = m_accel;
-	CRCDEBUG_LOG(("PHYSPROBE %d in flags=%x air=%d ovl=%d/%d mfe=%u turn=%d mass=%g vm=%g cf=%x ca=%g layer=%d", (Int)obj->getID(), m_flags, (Int)airborneAtStart, (Int)m_currentOverlap, (Int)m_previousOverlap, m_motiveForceExpires, (Int)m_turning, m_mass, m_velMag, obj->probeCacheFlags(), obj->probeCachedAltitude(), (Int)obj->getLayer()));
-	DUMPCOORD3D(&prevPos);
-	DUMPCOORD3D(&m_accel);
-	DUMPCOORD3D(&m_vel);
 
 	if (!obj->isDisabledByType(DISABLED_HELD))
 	{
@@ -654,7 +650,6 @@ UpdateSleepTime PhysicsBehavior::update()
 
 		applyGravitationalForces();
 		applyFrictionalForces();
-		DUMPCOORD3DNAMED(&m_accel, "accelAfterForces");
 
 		// integrate acceleration into velocity
 		m_vel.x += m_accel.x;
@@ -688,13 +683,6 @@ UpdateSleepTime PhysicsBehavior::update()
 			mtx.Adjust_Z_Translation(m_vel.z);
 		}
 
-		{
-			Coord3D probePos;
-			probePos.x = mtx.Get_X_Translation(); probePos.y = mtx.Get_Y_Translation(); probePos.z = mtx.Get_Z_Translation();
-			CRCDEBUG_LOG(("PHYSPROBE %d integrated braking=%d", (Int)obj->getID(), (Int)obj->testStatus(OBJECT_STATUS_BRAKING)));
-			DUMPCOORD3D(&probePos);
-			DUMPCOORD3DNAMED(&m_vel, "velAfter");
-		}
 		if (_isnan(mtx.Get_X_Translation()) || _isnan(mtx.Get_Y_Translation()) ||
 			_isnan(mtx.Get_Z_Translation())) {
 			DEBUG_CRASH(("Object position is NAN, deleting."));
@@ -774,7 +762,6 @@ UpdateSleepTime PhysicsBehavior::update()
 		{
 			groundZ += obj->getCarrierDeckHeight();
 		}
-		CRCDEBUG_LOG(("PHYSPROBE %d ground oldZ=%g newZ=%g groundZ=%g cf=%x", (Int)obj->getID(), oldPosZ, mtx.Get_Z_Translation(), groundZ, obj->probeCacheFlags()));
 		gotBounceForce = handleBounce(oldPosZ, mtx.Get_Z_Translation(), groundZ, &bounceForce);
 
 		// remember our z-vel prior to doing ground-slam adjustment
@@ -847,10 +834,7 @@ UpdateSleepTime PhysicsBehavior::update()
 		applyForce(&bounceForce);
 	}
 
-	CRCDEBUG_LOG(("PHYSPROBE %d end wasAir=%d bounce=%d cf=%x ca=%g z=%g", (Int)obj->getID(), (Int)getFlag(WAS_AIRBORNE_LAST_FRAME), (Int)gotBounceForce, obj->probeCacheFlags(), obj->probeCachedAltitude(), obj->getPosition()->z));
 	Bool airborneAtEnd = obj->isAboveTerrain();
-	CRCDEBUG_LOG(("PHYSPROBE %d airEnd=%d cf=%x ca=%g", (Int)obj->getID(), (Int)airborneAtEnd, obj->probeCacheFlags(), obj->probeCachedAltitude()));
-	DUMPCOORD3DNAMED(&m_vel, "velEnd");
 
 	// it's not good enough to check for airborne being different between
 	// the start and end of this func... we have to compare since last frame,
@@ -1179,8 +1163,6 @@ void PhysicsBehavior::doBounceSound(const Coord3D& prevPos)
 //DECLARE_PERF_TIMER(PhysicsBehavioronCollide)
 void PhysicsBehavior::onCollide( Object *other, const Coord3D *loc, const Coord3D *normal )
 {
-	CRCDEBUG_LOG(("COLLPROBE %d other=%d", (Int)getObject()->getID(), other ? (Int)other->getID() : 0));
-	DUMPCOORD3DNAMED(&m_vel, "velAtCollide");
 	//USE_PERF_TIMER(PhysicsBehavioronCollide)
 	if (m_pui != nullptr)
 	{
@@ -1301,7 +1283,6 @@ void PhysicsBehavior::onCollide( Object *other, const Coord3D *loc, const Coord3
 		if (!((obj->isEffectivelyDead() || obj->testStatus(OBJECT_STATUS_PARACHUTING)) && otherImmobile))
 		{
 			Bool doForce = ai->processCollision(this, other);
-			CRCDEBUG_LOG(("COLLPROBE %d doForce=%d", (Int)obj->getID(), (Int)doForce));
 			if (!doForce)
 				return;
 		}

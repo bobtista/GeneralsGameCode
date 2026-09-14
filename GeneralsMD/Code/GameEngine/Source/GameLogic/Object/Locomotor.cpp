@@ -39,7 +39,6 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/Locomotor.h"
-#include "Common/CRCDebug.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
@@ -973,9 +972,6 @@ void Locomotor::locoUpdate_moveTowardsPosition(Object* obj, const Coord3D& goalP
 		return;
 	}
 
-	CRCDEBUG_LOG(("LOCOPROBE %d flags=%x brake=%g dtg=%g spd=%g max=%g donut=%u angOff=%g offInc=%g prefH=%g", (Int)obj->getID(), m_flags, m_brakingFactor, onPathDistToGoal, desiredSpeed, maxSpeed, m_donutTimer, m_angleOffset, m_offsetIncrement, m_preferredHeight));
-	DUMPCOORD3DNAMED(&goalPos, "goalPos");
-	DUMPCOORD3DNAMED(&m_maintainPos, "maintainPos");
 	// Skip moveTowardsPosition if physics say you're stunned
 	if(physics->getIsStunned())
 	{
@@ -1037,8 +1033,6 @@ void Locomotor::locoUpdate_moveTowardsPosition(Object* obj, const Coord3D& goalP
 	// than being pushed around by objects bumping it.
 	nullAccel.x = nullAccel.y = nullAccel.z = 0;
 	physics->applyMotiveForce(&nullAccel);
-	CRCDEBUG_LOG(("LOCOPROBE2 %d treatAir=%d has=%g blocked=%d air=%d cf=%x dist=%g", (Int)obj->getID(), (Int)treatAsAirborne, heightAboveSurface, (Int)*blocked, (Int)obj->isAboveTerrain(), obj->probeCacheFlags(), dist));
-	DUMPCOORD3DNAMED(&pos, "locoPos");
 
 	if (*blocked)
 	{
@@ -1060,7 +1054,6 @@ void Locomotor::locoUpdate_moveTowardsPosition(Object* obj, const Coord3D& goalP
 		if (m_template->m_wanderWidthFactor == 0.0f)
 		{
 			*blocked = (TURN_NONE != rotateObjAroundLocoPivot(obj, goalPos, turnRate));
-			CRCDEBUG_LOG(("LOCOPROBE5 %d blocked branch rotated blocked=%d", (Int)obj->getID(), (Int)*blocked));
 		}
 
 		// it is very important to be sure to call this in all situations, even if not moving in 2d space.
@@ -1116,10 +1109,6 @@ void Locomotor::locoUpdate_moveTowardsPosition(Object* obj, const Coord3D& goalP
 	handleBehaviorZ(obj, physics, goalPos);
 	// Objects that are braking don't follow the normal physics, so they end up at their destination exactly.
 	obj->setStatus( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_BRAKING ), getFlag(IS_BRAKING) );
-	CRCDEBUG_LOG(("LOCOPROBE4 %d after move flags=%x wasBraking=%d", (Int)obj->getID(), m_flags, (Int)wasBraking));
-	DUMPCOORD3DNAMED(obj->getPosition(), "posAfterMove");
-	DUMPCOORD3DNAMED(physics->getVelocity(), "velAfterMove");
-	DUMPCOORD3DNAMED(physics->getAcceleration(), "accAfterMove");
 
 	if (wasBraking)
 	{
@@ -1167,8 +1156,6 @@ void Locomotor::locoUpdate_moveTowardsPosition(Object* obj, const Coord3D& goalP
 				pos.y += dy * vel;
 			}
 		}
-		CRCDEBUG_LOG(("LOCOPROBE3 %d setPosition line %d", (Int)obj->getID(), __LINE__));
-		DUMPCOORD3DNAMED(&pos, "newPos");
 		obj->setPosition(&pos);
 	}
 
@@ -2250,8 +2237,6 @@ Bool Locomotor::handleBehaviorZ(Object* obj, PhysicsBehavior *physics, const Coo
 				} else {
 					pos.z = TheTerrainLogic->getLayerHeight(pos.x, pos.y, obj->getLayer());
 				}
-				CRCDEBUG_LOG(("LOCOPROBE3 %d setPosition line %d", (Int)obj->getID(), __LINE__));
-				DUMPCOORD3DNAMED(&pos, "newPos");
 				obj->setPosition(&pos);
 			}
 			break;
@@ -2264,8 +2249,6 @@ Bool Locomotor::handleBehaviorZ(Object* obj, PhysicsBehavior *physics, const Coo
 				Bool surfaceRel = (m_template->m_behaviorZ == Z_FIXED_SURFACE_RELATIVE_HEIGHT);
 				Real surfaceHt = surfaceRel ? getSurfaceHtAtPt(pos.x, pos.y) : 0.0f;
 				pos.z = m_preferredHeight + (surfaceRel ? surfaceHt : 0);
-				CRCDEBUG_LOG(("LOCOPROBE3 %d setPosition line %d", (Int)obj->getID(), __LINE__));
-				DUMPCOORD3DNAMED(&pos, "newPos");
 				obj->setPosition(&pos);
 			}
 			break;
@@ -2279,8 +2262,6 @@ Bool Locomotor::handleBehaviorZ(Object* obj, PhysicsBehavior *physics, const Coo
 
 					pos.z = m_preferredHeight + surfaceHt;
 
-					CRCDEBUG_LOG(("LOCOPROBE3 %d setPosition line %d", (Int)obj->getID(), __LINE__));
-					DUMPCOORD3DNAMED(&pos, "newPos");
 					obj->setPosition(&pos);
 
 			}
