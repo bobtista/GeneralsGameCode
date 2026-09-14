@@ -137,6 +137,8 @@ public:
 	// TheSuperHackers @bugfix bobtista 19/08/2026 Drop the cached altitude. Loading fills it before
 	// terrain layers are restored, so a unit on a bridge read as airborne on the first resumed frame.
 	void invalidateAltitudeCache() { m_cacheFlags &= ~(VALID_ALTITUDE_TERRAIN | VALID_ALTITUDE_SEALEVEL); }
+	Int probeCacheFlags() const { return m_cacheFlags; }
+	Real probeCachedAltitude() const { return m_cachedAltitudeAboveTerrain; }
 
 	void convertBonePosToWorldPos(const Coord3D* bonePos, const Matrix3D* boneTransform, Coord3D* worldPos, Matrix3D* worldTransform) const;
 
