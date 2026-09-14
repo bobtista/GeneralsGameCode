@@ -298,6 +298,14 @@ public:
 		UnsignedByte obstacleIsTransparent;
 		UnsignedByte aircraftGoal;
 		UnsignedByte pinched;
+		UnsignedByte infoFlags;
+	};
+
+	enum CheckpointInfoFlags
+	{
+		CHECKPOINT_INFO_ALLOCATED = 0x01,
+		CHECKPOINT_INFO_OPEN = 0x02,
+		CHECKPOINT_INFO_CLOSED = 0x04
 	};
 
 
