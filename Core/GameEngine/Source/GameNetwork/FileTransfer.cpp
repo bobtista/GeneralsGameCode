@@ -30,6 +30,7 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "Common/FileSystem.h"
 #include "GameClient/LoadScreen.h"
 #include "GameClient/Shell.h"
 #include "GameNetwork/FileTransfer.h"
@@ -183,24 +184,18 @@ AsciiString GetBaseFileFromFile( AsciiString fname )
 
 static AsciiString GetFileInMapDirectory( const AsciiString &mapPath, const AsciiString &filename )
 {
-	AsciiString base = GetBasePathFromPath(mapPath);
-	if (base.isEmpty())
-	{
-		return filename;
-	}
-
-	const char *separator = getLastPathSeparator(mapPath.str());
+	const char *file = getFileName(mapPath.str());
 	AsciiString path;
-	path.format("%s%c%s", base.str(), separator ? *separator : getNativePathSeparator(), filename.str());
+	path.set(mapPath.str(), file - mapPath.str());
+	path.concat(filename);
 	return path;
 }
 
 AsciiString GetPreviewFromMap( AsciiString path )
 {
-	AsciiString fname = GetBaseFileFromFile(GetFileFromPath(path));
-	AsciiString preview;
-	preview.format("%s.tga", fname.str());
-	return GetFileInMapDirectory(path, preview);
+	FileSystem::removeExtension(path);
+	path.concat(".tga");
+	return path;
 }
 
 AsciiString GetINIFromMap( AsciiString path )
