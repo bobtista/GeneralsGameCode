@@ -5557,9 +5557,11 @@ void ScriptEngine::update()
 	if (m_endGameTimer>0) {
 		m_endGameTimer--;
 		if (m_endGameTimer < 1) {
+			// TheSuperHackers @bugfix bobtista 15/09/2026 Only the exit is skipped during a playback. The
+			// expired timer must stay at zero like it does in the recorded game, because that is what keeps
+			// the scripts frozen; resetting it resumed script evaluation and desynced the playback.
 			if (isScriptedEndSuppressed()) {
-				DEBUG_LOG(("ScriptEngine::update - ignoring the end game timer during a resumed playback"));
-				m_endGameTimer = -1;
+				DEBUG_LOG(("ScriptEngine::update - ignoring the end game exit during a playback"));
 			} else {
 				TheGameLogic->exitGame();
 			}
@@ -5744,10 +5746,6 @@ AsciiString ScriptEngine::getStats(Real *curTimePtr, Real *script1Time, Real *sc
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::startQuickEndGameTimer()
 {
-	if (isScriptedEndSuppressed())
-	{
-		return;
-	}
 	m_endGameTimer = 1;
 }
 
@@ -5756,16 +5754,13 @@ void ScriptEngine::startQuickEndGameTimer()
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::startEndGameTimer()
 {
-	if (isScriptedEndSuppressed())
-	{
-		return;
-	}
 	m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
 }
 
 // TheSuperHackers @bugfix bobtista 08/09/2026 During playback the local player is the observer, so
-// the multiplayer defeat script fired for it and ended the playback 120 frames later. The recorder
-// still ends the playback when the recording runs out.
+// the multiplayer defeat script fired for it and ended the playback 120 frames later. The timer still
+// runs and freezes the scripts like the recorded game did; only the exit is skipped, the recorder ends
+// the playback when the recording runs out.
 Bool ScriptEngine::isScriptedEndSuppressed() const
 {
 	return TheRecorder != nullptr && TheRecorder->isPlaybackMode();
