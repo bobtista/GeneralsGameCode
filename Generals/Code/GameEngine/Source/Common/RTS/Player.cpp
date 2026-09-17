@@ -2042,6 +2042,9 @@ static void cancelUpgradeInProduction(Object* obj, void* userData)
 //=============================================================================
 void Player::transferAssetsFromThat(Player *that)
 {
+	printf("CONTAIN_PROBE frame %u: transferAssetsFromThat %s -> %s\n", TheGameLogic->getFrame(),
+		KEYNAME(that->getPlayerNameKey()).str(), KEYNAME(getPlayerNameKey()).str());
+	fflush(stdout);
 	Team *defaultTeam = getDefaultTeam();
 	if (!defaultTeam) {
 		return;
