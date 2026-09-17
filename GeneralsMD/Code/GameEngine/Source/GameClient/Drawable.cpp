@@ -1150,11 +1150,13 @@ void Drawable::updateDrawable()
 
 			setDrawableOpacity(numer/(Real)m_timeToFade);
 			// TheSuperHackers @bugfix bobtista 15/09/2026 Decouple Drawable fade timing from render updates.
-			const Real fadeTimeScale = TheFramePacer->getActualLogicTimeScaleOverFpsRatio();
-			m_timeElapsedFade += fadeTimeScale;
+			m_timeElapsedFade += TheFramePacer->getActualLogicTimeScaleOverFpsRatio();
 
 			if (m_timeElapsedFade > m_timeToFade)
+			{
+				setDrawableOpacity(m_fadeMode == FADING_IN ? 1.0f : 0.0f);
 				m_fadeMode = FADING_NONE;
+			}
 		}
 	}
 
@@ -1170,8 +1172,7 @@ void Drawable::updateDrawable()
 				//LERP
 				(*dm)->setTerrainDecalOpacity(m_decalOpacity);
 				// TheSuperHackers @bugfix bobtista 15/09/2026 Decouple decal opacity fade timing from render updates.
-				const Real decalFadeTimeScale = TheFramePacer->getActualLogicTimeScaleOverFpsRatio();
-				m_decalOpacity += m_decalOpacityFadeRate * decalFadeTimeScale;
+				m_decalOpacity += m_decalOpacityFadeRate * TheFramePacer->getActualLogicTimeScaleOverFpsRatio();
 			}
 			//---------------
 
@@ -4854,6 +4855,7 @@ void Drawable::xferDrawableModules( Xfer *xfer )
 	* 6: Added m_ambientSoundEnabledFromScript flag (Added in Zero Hour)
 	* 7: Save the customize ambient sound info (Added in Zero Hour)
 	* 8: TheSuperHackers @bugfix Removed m_prevTintStatus because loading its value is unnecessary and undesirable
+	* 9: TheSuperHackers @info Preserve fractional fade progress in non-retail saves
 	*/
 // ------------------------------------------------------------------------------------------------
 void Drawable::xfer( Xfer *xfer )
@@ -4865,7 +4867,7 @@ void Drawable::xfer( Xfer *xfer )
 #elif RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 7;
 #else
-	const XferVersion currentVersion = 8;
+	const XferVersion currentVersion = 9;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -5039,11 +5041,18 @@ void Drawable::xfer( Xfer *xfer )
 	xfer->xferUser( &m_fadeMode, sizeof( FadingMode ) );
 
 	// time elapsed fade
-	UnsignedInt timeElapsedFadeFrames = static_cast<UnsignedInt>(m_timeElapsedFade);
-	xfer->xferUnsignedInt( &timeElapsedFadeFrames );
-	if (xfer->getXferMode() == XFER_LOAD)
+	if (version >= 9)
 	{
-		m_timeElapsedFade = static_cast<Real>(timeElapsedFadeFrames);
+		xfer->xferReal( &m_timeElapsedFade );
+	}
+	else
+	{
+		UnsignedInt timeElapsedFadeFrames = static_cast<UnsignedInt>(m_timeElapsedFade);
+		xfer->xferUnsignedInt( &timeElapsedFadeFrames );
+		if (xfer->getXferMode() == XFER_LOAD)
+		{
+			m_timeElapsedFade = static_cast<Real>(timeElapsedFadeFrames);
+		}
 	}
 
 	// time to fade
