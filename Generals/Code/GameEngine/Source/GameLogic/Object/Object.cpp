@@ -811,6 +811,16 @@ void Object::setOrRestoreTeam( Team* team, Bool restoring )
 
 	Team* oldTeam = m_team;
 
+	if (m_team && team && getContain() && getContain()->isTunnelContain())
+	{
+		printf("CONTAIN_PROBE frame %u: tunnel '%s' id %u changes owner %s -> %s (restoring %d, old active %d)\n",
+			TheGameLogic->getFrame(), getTemplate()->getName().str(), getID(),
+			m_team->getControllingPlayer() ? m_team->getControllingPlayer()->getPlayerNameKey() != NAMEKEY_INVALID ? KEYNAME(m_team->getControllingPlayer()->getPlayerNameKey()).str() : "?" : "none",
+			team->getControllingPlayer() ? KEYNAME(team->getControllingPlayer()->getPlayerNameKey()).str() : "none",
+			(int)restoring, m_team->getControllingPlayer() ? (int)m_team->getControllingPlayer()->isPlayerActive() : -1);
+		fflush(stdout);
+	}
+
 	// Before Switch //////////////////////////
 	if (m_team)
 	{
