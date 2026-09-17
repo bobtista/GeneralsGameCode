@@ -4124,7 +4124,6 @@ void GameLogic::update()
 
 	PROFILER_PLOT("LogicFrame", static_cast<int64_t>(now));
 
-#if defined(RTS_DEBUG)
 	// Save before scripts and object updates so loading does not repeat part of a frame.
 	if (TheGlobalData->m_saveAtFrame > 0 && m_frame >= static_cast<UnsignedInt>(TheGlobalData->m_saveAtFrame)
 		&& isInInteractiveGame())
@@ -4156,7 +4155,6 @@ void GameLogic::update()
 			return;
 		}
 	}
-#endif
 
 	// update (execute) scripts
 	{
