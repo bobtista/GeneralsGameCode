@@ -526,6 +526,11 @@ static Bool parseNonNegativeInt(const char *text, Int &result)
 	return true;
 }
 
+static Bool parsePositiveInt(const char *text, Int &result)
+{
+	return parseNonNegativeInt(text, result) && result > 0;
+}
+
 Int parseAutoNetworkMode(char *args[], int num)
 {
 	if (num > 1 && NetworkAutoStart::setMode(args[1]))
