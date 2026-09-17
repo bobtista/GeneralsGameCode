@@ -699,12 +699,14 @@ void NetworkAutoStart::updateInGame()
 			GameMessage *enterMsg = TheMessageStream->appendMessage(GameMessage::MSG_ENTER);
 			enterMsg->appendObjectIDArgument(INVALID_ID);
 			enterMsg->appendObjectIDArgument(tunnel->getID());
+			DEBUG_LOG(("NetworkAutoStart frame %d: ordering %u units into tunnel id %u", frame, static_cast<UnsignedInt>(riders.size()), tunnel->getID()));
 			printf("NetworkAutoStart frame %d: ordering %u units into tunnel id %u\n", frame, static_cast<UnsignedInt>(riders.size()), tunnel->getID());
 			fflush(stdout);
 			s_garrisonDone = true;
 		}
 		else
 		{
+			DEBUG_LOG(("NetworkAutoStart frame %d: no completed tunnel or no units to garrison yet", frame));
 			printf("NetworkAutoStart frame %d: no completed tunnel or no units to garrison yet\n", frame);
 			fflush(stdout);
 		}
@@ -720,6 +722,7 @@ void NetworkAutoStart::updateInGame()
 				teamMsg->appendBooleanArgument(TRUE);
 				teamMsg->appendObjectIDArgument(obj->getID());
 				TheMessageStream->appendMessage(GameMessage::MSG_SELL);
+				DEBUG_LOG(("NetworkAutoStart frame %d: selling tunnel id %u", frame, obj->getID()));
 				printf("NetworkAutoStart frame %d: selling tunnel id %u\n", frame, obj->getID());
 				fflush(stdout);
 				break;
@@ -736,6 +739,7 @@ void NetworkAutoStart::updateInGame()
 		{
 			TheInGameUI->setClientQuiet(TRUE);
 		}
+		DEBUG_LOG(("NetworkAutoStart frame %d: surrendering with asset transfer", frame));
 		printf("NetworkAutoStart frame %d: surrendering with asset transfer\n", frame);
 		fflush(stdout);
 		s_surrenderDone = true;
