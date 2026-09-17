@@ -159,6 +159,14 @@ Int OpenContain::getContainMax() const
 //-------------------------------------------------------------------------------------------------
 OpenContain::~OpenContain()
 {
+	for (ContainedItemsList::iterator probeIt = m_containList.begin(); probeIt != m_containList.end(); ++probeIt)
+	{
+		Object *leftover = *probeIt;
+		printf("CONTAIN_PROBE frame %u: container '%s' id %u deleted with rider '%s' id %u still listed (rider containedBy %p, us %p)\n",
+			TheGameLogic->getFrame(), getObject()->getTemplate()->getName().str(), getObject()->getID(),
+			leftover->getTemplate()->getName().str(), leftover->getID(), leftover->getContainedBy(), getObject());
+		fflush(stdout);
+	}
 
 	// sanity, the system should be cleaning these up itself if all is going well
 	DEBUG_ASSERTCRASH( m_containList.empty(),
