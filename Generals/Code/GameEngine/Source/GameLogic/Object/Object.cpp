@@ -44,6 +44,7 @@
 #include "Common/Team.h"
 #include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
+#include "Common/TunnelTracker.h"
 #include "Common/Upgrade.h"
 #include "Common/WellKnownKeys.h"
 #include "Common/Xfer.h"
@@ -162,6 +163,20 @@ AsciiString DebugDescribeObject(const Object *obj)
 	}
 
 	return ret;
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+static Bool isLiveObject( const Object *obj )
+{
+	for( const Object *other = TheGameLogic->getFirstObject(); other; other = other->getNextObject() )
+	{
+		if( other == obj )
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -702,9 +717,30 @@ void Object::onDestroy()
 {
 
 	// This is the old cleanUpContain safeguard.  Say goodbye so they don't try to look us up.
-	if( m_containedBy && m_containedBy->getContain() )
+	if( m_containedBy )
 	{
-		m_containedBy->getContain()->removeFromContain( this );
+		// TheSuperHackers @bugfix bobtista 17/09/2026 The container may already be destroyed without this
+		// object knowing, for example a Tunnel Network that changed owner through the asset transfer of a
+		// surrendering ally. Only call into a container that still exists, and drop the stale link otherwise.
+		if( isLiveObject( m_containedBy ) )
+		{
+			if( m_containedBy->getContain() )
+			{
+				m_containedBy->getContain()->removeFromContain( this );
+			}
+		}
+		else
+		{
+			for( Int i = 0; i < ThePlayerList->getPlayerCount(); ++i )
+			{
+				TunnelTracker *tracker = ThePlayerList->getNthPlayer( i )->getTunnelSystem();
+				if( tracker )
+				{
+					tracker->removeFromContain( this );
+				}
+			}
+			onRemovedFrom( nullptr );
+		}
 	}
 
 	//
