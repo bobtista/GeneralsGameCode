@@ -40,6 +40,7 @@
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/OpenContain.h"
 #include "GameLogic/Module/TunnelContain.h"
+#include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/PartitionManager.h"
 
@@ -65,6 +66,13 @@ TunnelContain::~TunnelContain()
 void TunnelContain::addToContainList( Object *obj )
 {
 	Player *owningPlayer = getObject()->getControllingPlayer();
+
+	printf("CONTAIN_PROBE frame %u: tunnel '%s' id %u addToContainList '%s' id %u (registered %d, sold %d, dead %d, destroyed %d, rider dead %d)\n",
+		TheGameLogic->getFrame(), getObject()->getTemplate()->getName().str(), getObject()->getID(),
+		obj->getTemplate()->getName().str(), obj->getID(), (int)m_isCurrentlyRegistered,
+		(int)getObject()->testStatus(OBJECT_STATUS_SOLD), (int)getObject()->isEffectivelyDead(), (int)getObject()->isDestroyed(),
+		(int)obj->isEffectivelyDead());
+	fflush(stdout);
 
 	if(!owningPlayer->getTunnelSystem())
 		return;
@@ -184,6 +192,9 @@ void TunnelContain::onRemoving( Object *obj )
 //-------------------------------------------------------------------------------------------------
 void TunnelContain::onSelling()
 {
+	printf("CONTAIN_PROBE frame %u: tunnel '%s' id %u onSelling (registered %d)\n",
+		TheGameLogic->getFrame(), getObject()->getTemplate()->getName().str(), getObject()->getID(), (int)m_isCurrentlyRegistered);
+	fflush(stdout);
 	// A TunnelContain tells everyone to leave if this is the last tunnel
 	Player *owningPlayer = getObject()->getControllingPlayer();
 	if( owningPlayer == nullptr )
@@ -337,6 +348,10 @@ void TunnelContain::scatterToNearbyPosition(Object* obj)
 //-------------------------------------------------------------------------------------------------
 void TunnelContain::onDie( const DamageInfo * damageInfo )
 {
+	printf("CONTAIN_PROBE frame %u: tunnel '%s' id %u onDie (registered %d, applicable %d)\n",
+		TheGameLogic->getFrame(), getObject()->getTemplate()->getName().str(), getObject()->getID(), (int)m_isCurrentlyRegistered,
+		(int)getTunnelContainModuleData()->m_dieMuxData.isDieApplicable(getObject(), damageInfo));
+	fflush(stdout);
 	// override the onDie we inherit from OpenContain. no super call.
 	if (!getTunnelContainModuleData()->m_dieMuxData.isDieApplicable(getObject(), damageInfo))
 		return;
@@ -358,6 +373,9 @@ void TunnelContain::onDie( const DamageInfo * damageInfo )
 //-------------------------------------------------------------------------------------------------
 void TunnelContain::onDelete()
 {
+	printf("CONTAIN_PROBE frame %u: tunnel '%s' id %u onDelete (registered %d)\n",
+		TheGameLogic->getFrame(), getObject()->getTemplate()->getName().str(), getObject()->getID(), (int)m_isCurrentlyRegistered);
+	fflush(stdout);
 	// Being sold is a straight up delete.  no death
 
 	if( !m_isCurrentlyRegistered )
