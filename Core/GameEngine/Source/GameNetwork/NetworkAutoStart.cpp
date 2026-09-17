@@ -23,6 +23,15 @@
 #include <limits.h>
 
 #include "Common/GameEngine.h"
+#include "Common/MessageStream.h"
+#include "Common/Player.h"
+#include "Common/PlayerList.h"
+#include "Common/PlayerTemplate.h"
+#include "Common/ThingTemplate.h"
+#include "GameClient/InGameUI.h"
+#include "GameLogic/GameLogic.h"
+#include "GameLogic/Object.h"
+#include "GameNetwork/NetworkInterface.h"
 #include "GameClient/ClientInstance.h"
 #include "GameClient/MapUtil.h"
 #include "GameNetwork/LANAPICallbacks.h"
@@ -41,6 +50,44 @@ NetworkAutoStart::Mode s_mode = NetworkAutoStart::MODE_NONE;
 NetworkAutoStart::Role s_role = NetworkAutoStart::ROLE_NONE;
 Int s_expectedPlayers = 0;
 Int s_aiPlayers = 0;
+Bool s_teamGame = false;
+Bool s_teamGameApplied = false;
+Bool s_convertHumansToAI = false;
+Int s_garrisonFrame = -1;
+Int s_sellTunnelsFrame = -1;
+Int s_surrenderFrame = -1;
+Bool s_garrisonDone = false;
+Bool s_surrenderDone = false;
+Int s_lastSellFrame = -1;
+const char *const TunnelTemplateName = "GLATunnelNetwork";
+
+enum
+{
+	GarrisonRetryFrames = 300,
+	SellIntervalFrames = 600,
+	MaxGarrisonUnits = 4,
+};
+
+Int findPlayerTemplateBySide(const char *side)
+{
+	for (Int i = 0; i < ThePlayerTemplateStore->getPlayerTemplateCount(); ++i)
+	{
+		const PlayerTemplate *pt = ThePlayerTemplateStore->getNthPlayerTemplate(i);
+		if (pt != nullptr && pt->getSide().compareNoCase(side) == 0)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+Bool isCompletedTunnel(const Object *obj)
+{
+	return obj->getTemplate()->getName().compare(TunnelTemplateName) == 0 &&
+		!obj->getStatusBits().test(OBJECT_STATUS_UNDER_CONSTRUCTION) &&
+		!obj->getStatusBits().test(OBJECT_STATUS_SOLD) &&
+		!obj->isEffectivelyDead();
+}
 UnsignedInt s_hostAddress = 0;
 UnsignedInt s_localAddress = 0;
 AsciiString s_playerName;
@@ -95,6 +142,58 @@ Bool NetworkAutoStart::setAICount(Int aiPlayers)
 
 	s_aiPlayers = aiPlayers;
 	return true;
+}
+
+Bool NetworkAutoStart::setTeamGame()
+{
+	s_hasArguments = true;
+	s_teamGame = true;
+	return true;
+}
+
+Bool NetworkAutoStart::setConvertHumansToAI()
+{
+	s_hasArguments = true;
+	s_convertHumansToAI = true;
+	return true;
+}
+
+Bool NetworkAutoStart::setGarrisonFrame(Int frame)
+{
+	s_hasArguments = true;
+	if (frame < 1)
+	{
+		return false;
+	}
+	s_garrisonFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::setSellTunnelsFrame(Int frame)
+{
+	s_hasArguments = true;
+	if (frame < 1)
+	{
+		return false;
+	}
+	s_sellTunnelsFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::setSurrenderFrame(Int frame)
+{
+	s_hasArguments = true;
+	if (frame < 1)
+	{
+		return false;
+	}
+	s_surrenderFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::shouldConvertHumansToAI()
+{
+	return s_convertHumansToAI;
 }
 
 Bool NetworkAutoStart::setJoin(AsciiString hostAddress)
@@ -421,6 +520,41 @@ void NetworkAutoStart::updateGameOptions()
 		return;
 	}
 
+	if (s_teamGame && !s_teamGameApplied)
+	{
+		const Int glaTemplate = findPlayerTemplateBySide("GLA");
+		const Int chinaTemplate = findPlayerTemplateBySide("China");
+		if (glaTemplate < 0 || chinaTemplate < 0)
+		{
+			fail("GLA or China player template not found for -autoNetworkTeamGame");
+			return;
+		}
+		for (Int teamIndex = 0; teamIndex < MAX_SLOTS; ++teamIndex)
+		{
+			LANGameSlot *slot = game->getLANSlot(teamIndex);
+			if (slot == nullptr)
+			{
+				continue;
+			}
+			if (slot->isHuman())
+			{
+				slot->setTeamNumber(0);
+				slot->setPlayerTemplate(teamIndex == 0 ? glaTemplate : chinaTemplate);
+			}
+			else if (slot->isAI())
+			{
+				slot->setTeamNumber(1);
+			}
+		}
+		DEBUG_LOG(("NetworkAutoStart arranged a team game: humans on team 0 (host GLA, others China), AI on team 1"));
+		s_teamGameApplied = true;
+		game->resetAccepted();
+		TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
+		lanUpdateSlotList();
+		s_lastActionTime = timeGetTime();
+		return;
+	}
+
 	LANGameSlot *hostSlot = game->getLANSlot(0);
 	if (hostSlot == nullptr)
 	{
@@ -515,6 +649,97 @@ void NetworkAutoStart::onGameStart()
 	DEBUG_LOG(("NetworkAutoStart requested network game startup"));
 	printf("NetworkAutoStart requested network game startup\n");
 	fflush(stdout);
+}
+
+
+void NetworkAutoStart::updateInGame()
+{
+	if (!s_hasArguments || TheGameLogic == nullptr || !TheGameLogic->isInGame() || TheNetwork == nullptr || ThePlayerList == nullptr)
+	{
+		return;
+	}
+
+	Player *local = ThePlayerList->getLocalPlayer();
+	if (local == nullptr)
+	{
+		return;
+	}
+
+	const Int frame = static_cast<Int>(TheGameLogic->getFrame());
+
+	if (s_garrisonFrame > 0 && !s_garrisonDone && frame >= s_garrisonFrame && (frame - s_garrisonFrame) % GarrisonRetryFrames == 0)
+	{
+		Object *tunnel = nullptr;
+		std::vector<ObjectID> riders;
+		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
+		{
+			if (obj->getControllingPlayer() != local || obj->isEffectivelyDead())
+			{
+				continue;
+			}
+			if (tunnel == nullptr && isCompletedTunnel(obj))
+			{
+				tunnel = obj;
+			}
+			else if (riders.size() < MaxGarrisonUnits && !obj->isContained() && !obj->isKindOf(KINDOF_AIRCRAFT) &&
+				!obj->isKindOf(KINDOF_DOZER) && !obj->isKindOf(KINDOF_HARVESTER) &&
+				(obj->isKindOf(KINDOF_INFANTRY) || obj->isKindOf(KINDOF_VEHICLE)))
+			{
+				riders.push_back(obj->getID());
+			}
+		}
+		if (tunnel != nullptr && !riders.empty())
+		{
+			GameMessage *teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
+			teamMsg->appendBooleanArgument(TRUE);
+			for (size_t i = 0; i < riders.size(); ++i)
+			{
+				teamMsg->appendObjectIDArgument(riders[i]);
+			}
+			GameMessage *enterMsg = TheMessageStream->appendMessage(GameMessage::MSG_ENTER);
+			enterMsg->appendObjectIDArgument(INVALID_ID);
+			enterMsg->appendObjectIDArgument(tunnel->getID());
+			printf("NetworkAutoStart frame %d: ordering %u units into tunnel id %u\n", frame, static_cast<UnsignedInt>(riders.size()), tunnel->getID());
+			fflush(stdout);
+			s_garrisonDone = true;
+		}
+		else
+		{
+			printf("NetworkAutoStart frame %d: no completed tunnel or no units to garrison yet\n", frame);
+			fflush(stdout);
+		}
+	}
+
+	if (s_sellTunnelsFrame > 0 && frame >= s_sellTunnelsFrame && (s_lastSellFrame < 0 || frame - s_lastSellFrame >= SellIntervalFrames))
+	{
+		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
+		{
+			if (obj->getControllingPlayer() == local && isCompletedTunnel(obj))
+			{
+				GameMessage *teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
+				teamMsg->appendBooleanArgument(TRUE);
+				teamMsg->appendObjectIDArgument(obj->getID());
+				TheMessageStream->appendMessage(GameMessage::MSG_SELL);
+				printf("NetworkAutoStart frame %d: selling tunnel id %u\n", frame, obj->getID());
+				fflush(stdout);
+				break;
+			}
+		}
+		s_lastSellFrame = frame;
+	}
+
+	if (s_surrenderFrame > 0 && !s_surrenderDone && frame >= s_surrenderFrame)
+	{
+		GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
+		msg->appendBooleanArgument(TRUE);
+		if (TheInGameUI != nullptr)
+		{
+			TheInGameUI->setClientQuiet(TRUE);
+		}
+		printf("NetworkAutoStart frame %d: surrendering with asset transfer\n", frame);
+		fflush(stdout);
+		s_surrenderDone = true;
+	}
 }
 
 #endif

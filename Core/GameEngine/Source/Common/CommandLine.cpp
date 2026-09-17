@@ -613,6 +613,57 @@ Int parseAutoNetworkAI(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoNetworkTeamGame(char *args[], int num)
+{
+	NetworkAutoStart::setTeamGame();
+	return 1;
+}
+
+Int parseAutoAIHumans(char *args[], int num)
+{
+	NetworkAutoStart::setConvertHumansToAI();
+	return 1;
+}
+
+Int parseAutoGarrison(char *args[], int num)
+{
+	Int frame = 0;
+	if (num > 1 && parsePositiveInt(args[1], frame) && NetworkAutoStart::setGarrisonFrame(frame))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoGarrison. Pass a positive logic frame.\n");
+	exit(1);
+	return 1;
+}
+
+Int parseAutoSellTunnels(char *args[], int num)
+{
+	Int frame = 0;
+	if (num > 1 && parsePositiveInt(args[1], frame) && NetworkAutoStart::setSellTunnelsFrame(frame))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoSellTunnels. Pass a positive logic frame.\n");
+	exit(1);
+	return 1;
+}
+
+Int parseAutoSurrender(char *args[], int num)
+{
+	Int frame = 0;
+	if (num > 1 && parsePositiveInt(args[1], frame) && NetworkAutoStart::setSurrenderFrame(frame))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoSurrender. Pass a positive logic frame.\n");
+	exit(1);
+	return 1;
+}
+
 Int parseAutoNetworkTimeout(char *args[], int num)
 {
 	Int timeoutSeconds = 0;
@@ -1334,6 +1385,11 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoNetworkMap", parseAutoNetworkMap },
 	{ "-autoNetworkAI", parseAutoNetworkAI },
 	{ "-autoNetworkTimeout", parseAutoNetworkTimeout },
+	{ "-autoNetworkTeamGame", parseAutoNetworkTeamGame },
+	{ "-autoAIHumans", parseAutoAIHumans },
+	{ "-autoGarrison", parseAutoGarrison },
+	{ "-autoSellTunnels", parseAutoSellTunnels },
+	{ "-autoSurrender", parseAutoSurrender },
 #endif
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-noshellmap", parseNoShellMap },

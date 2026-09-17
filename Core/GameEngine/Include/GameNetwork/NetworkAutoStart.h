@@ -46,6 +46,11 @@ public:
 	static Bool setMode(const AsciiString &mode);
 	static Bool setHost(Int expectedPlayers);
 	static Bool setAICount(Int aiPlayers);
+	static Bool setTeamGame();
+	static Bool setConvertHumansToAI();
+	static Bool setGarrisonFrame(Int frame);
+	static Bool setSellTunnelsFrame(Int frame);
+	static Bool setSurrenderFrame(Int frame);
 	static Bool setJoin(AsciiString hostAddress);
 	static Bool setLocalAddress(AsciiString localAddress);
 	static Bool setPlayerName(AsciiString playerName);
@@ -65,6 +70,8 @@ public:
 
 	static void updateDirectConnect();
 	static void updateGameOptions();
+	static void updateInGame();
+	static Bool shouldConvertHumansToAI();
 	static void onGameCreate(LANAPIInterface::ReturnType result);
 	static void onGameJoin(LANAPIInterface::ReturnType result);
 	static void onLocalAddressSet(Bool result);

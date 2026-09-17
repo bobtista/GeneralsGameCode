@@ -101,6 +101,9 @@
 #include "GameLogic/Scripts.h"
 
 #include "GameNetwork/GameSpy/BuddyThread.h"
+#if defined(RTS_DEBUG)
+#include "GameNetwork/NetworkAutoStart.h"
+#endif
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 #include "GameNetwork/LANAPICallbacks.h"
@@ -1239,7 +1242,16 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			AsciiString playerName;
 			playerName.format("player%d", i);
 			d.setAsciiString(TheKey_playerName, playerName);
-			d.setBool(TheKey_playerIsHuman, slot->isHuman());
+			Bool playerIsHuman = slot->isHuman();
+#if defined(RTS_DEBUG)
+			if (playerIsHuman && NetworkAutoStart::shouldConvertHumansToAI())
+			{
+				playerIsHuman = FALSE;
+				d.setBool(TheKey_playerIsSkirmish, true);
+				d.setInt(TheKey_skirmishDifficulty, DIFFICULTY_HARD);
+			}
+#endif
+			d.setBool(TheKey_playerIsHuman, playerIsHuman);
 			d.setUnicodeString(TheKey_playerDisplayName, slot->getName());
 			const PlayerTemplate* pt;
 			if (slot->getPlayerTemplate() >= 0)
@@ -3268,6 +3280,10 @@ void GameLogic::update()
 	{
 		TheRecorder->UPDATE();
 	}
+
+#if defined(RTS_DEBUG)
+	NetworkAutoStart::updateInGame();
+#endif
 
 	// process client commands
 	{
