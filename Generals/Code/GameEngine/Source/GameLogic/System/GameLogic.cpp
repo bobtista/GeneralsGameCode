@@ -29,6 +29,8 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include <set>
+
 #include "Common/AudioAffect.h"
 #include "Common/AudioHandleSpecialValues.h"
 #include "Common/BuildAssistant.h"
@@ -296,6 +298,32 @@ void GameLogic::destroyAllObjectsImmediate()
 {
 	Object *obj;
 	Object *nextObj;
+
+	{
+		std::set<const Object*> liveObjects;
+		for( obj = m_objList; obj; obj = obj->getNextObject() )
+		{
+			liveObjects.insert(obj);
+		}
+		UnsignedInt contained = 0;
+		for( obj = m_objList; obj; obj = obj->getNextObject() )
+		{
+			const Object *container = obj->getContainedBy();
+			if (container == nullptr)
+			{
+				continue;
+			}
+			++contained;
+			if (liveObjects.find(container) == liveObjects.end())
+			{
+				printf("CONTAIN_PROBE reset frame %u: '%s' id %u has STALE containedBy %p (contained since frame %u)\n",
+					m_frame, obj->getTemplate()->getName().str(), obj->getID(), container, obj->getContainedByFrame());
+				fflush(stdout);
+			}
+		}
+		printf("CONTAIN_PROBE reset frame %u: %u live objects, %u contained\n", m_frame, (UnsignedInt)liveObjects.size(), contained);
+		fflush(stdout);
+	}
 
 	// TheSuperHackers @bugfix xezon 22/05/2025 Set all remaining objects effectively dead to avoid triggering their
 	// death modules that eventually would spawn new objects, such as debris, which could then crash the game.

@@ -622,6 +622,15 @@ void Object::onContainedBy( Object *containedBy )
 	m_containedBy = containedBy;
 	m_containedByFrame = TheGameLogic->getFrame();
 
+	if (containedBy && (containedBy->isDestroyed() || containedBy->isEffectivelyDead()))
+	{
+		printf("CONTAIN_PROBE frame %u: '%s' id %u contained by %s container '%s' id %u\n",
+			TheGameLogic->getFrame(), getTemplate()->getName().str(), getID(),
+			containedBy->isDestroyed() ? "DESTROYED" : "dead",
+			containedBy->getTemplate()->getName().str(), containedBy->getID());
+		fflush(stdout);
+	}
+
 	DEBUG_ASSERTCRASH(containedBy == nullptr || !containedBy->isDestroyed(),
 		("Object::onContainedBy - Adding to a destroyed container"));
 }
