@@ -22,6 +22,7 @@
 
 #include "Common/GameEngine.h"
 #include "Common/LocalFileSystem.h"
+#include "Common/CRCDebug.h"
 #include "Common/Recorder.h"
 #include "Common/WorkerProcess.h"
 #include "GameLogic/GameLogic.h"
@@ -97,7 +98,7 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 					fflush(stdout);
 				}
 				TheGameLogic->UPDATE();
-				if (TheRecorder->sawCRCMismatch())
+				if (TheRecorder->sawCRCMismatch() && !TheDebugIgnoreReplaySyncErrors)
 				{
 					numErrors++;
 					break;
