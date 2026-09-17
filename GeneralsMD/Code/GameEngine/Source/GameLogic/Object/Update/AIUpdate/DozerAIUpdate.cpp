@@ -2050,12 +2050,8 @@ void DozerAIUpdate::newTask( DozerTask task, Object *target )
 	* re-evaluate what it wants to do if it was working on the task being
 	* cancelled */
 //-------------------------------------------------------------------------------------------------
-void DozerAIUpdate::cancelTask( DozerTask task, Bool rememberTask )
+void DozerAIUpdate::cancelTask( DozerTask task )
 {
-	if (rememberTask)
-		setPreviousTask(task);
-	else
-		clearPreviousTask();
 
 	// clear the order
 	internalCancelTask( task );
@@ -2067,8 +2063,6 @@ void DozerAIUpdate::cancelTask( DozerTask task, Bool rememberTask )
 
 void DozerAIUpdate::cancelAllTasks()
 {
-	clearPreviousTask();
-
 	for (UnsignedInt task = DOZER_TASK_FIRST; task < DOZER_NUM_TASKS; ++task)
 		internalCancelTask((DozerTask)task);
 
@@ -2076,47 +2070,16 @@ void DozerAIUpdate::cancelAllTasks()
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Set the previous task so that we may return to it if we become temporarily incapacitated */
-//-------------------------------------------------------------------------------------------------
-void DozerAIUpdate::setPreviousTask(DozerTask task)
-{
-	if (task == DOZER_TASK_INVALID)
-		return;
-
-	DEBUG_ASSERTCRASH(m_previousTask == DOZER_TASK_INVALID, ("Dozer already remembers a previous task"));
-
-	m_previousTask = task;
-	m_previousTaskInfo = m_task[task];
-}
-
-//-------------------------------------------------------------------------------------------------
 /** Attempt to resume the previous task */
 //-------------------------------------------------------------------------------------------------
 void DozerAIUpdate::resumePreviousTask()
 {
-	if (m_previousTask == DOZER_TASK_INVALID)
-		return;
-
-	if (m_previousTask == DOZER_TASK_BUILD)
+	if (m_previousTask != DOZER_TASK_INVALID)
 	{
-		Object* target = TheGameLogic->findObjectByID(m_previousTaskInfo.m_targetObjectID);
-		if (target && target->testStatus(OBJECT_STATUS_UNDER_CONSTRUCTION))
-			newTask(m_previousTask, target);
+		newTask(m_previousTask, TheGameLogic->findObjectByID(m_previousTaskInfo.m_targetObjectID));
+		m_previousTask = DOZER_TASK_INVALID;
+		m_previousTaskInfo = DozerTaskInfo();
 	}
-	else if (m_previousTask == DOZER_TASK_REPAIR || m_previousTask == DOZER_TASK_FORTIFY)
-	{
-		Object* target = TheGameLogic->findObjectByID(m_previousTaskInfo.m_targetObjectID);
-		if (target)
-			newTask(m_previousTask, target);
-	}
-
-	clearPreviousTask();
-}
-
-void DozerAIUpdate::clearPreviousTask()
-{
-  m_previousTask = DOZER_TASK_INVALID;
-  m_previousTaskInfo = DozerTaskInfo();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2175,7 +2138,8 @@ void DozerAIUpdate::internalTaskComplete( DozerTask task )
 	m_task[ task ].m_targetObjectID = INVALID_ID;
 	m_task[ task ].m_taskOrderFrame = 0;
 
-	clearPreviousTask();
+	m_previousTask = DOZER_TASK_INVALID;
+	m_previousTaskInfo = DozerTaskInfo();
 
 	// remove dock point info for this task
 	for( Int i = 0; i < DOZER_NUM_DOCK_POINTS; i++ )
@@ -2198,6 +2162,9 @@ void DozerAIUpdate::internalCancelTask( DozerTask task )
 
 	// call the single method that gets called for completing and canceling tasks
 	internalTaskCompleteOrCancelled( task );
+
+	m_previousTask = task;
+	m_previousTaskInfo = m_task[task];
 
 	// remove the info for this task
 	m_task[ task ].m_targetObjectID = INVALID_ID;
@@ -2332,32 +2299,6 @@ void DozerAIUpdate::onDelete()
 		{
 			goalObject->clearModelConditionState(MODELCONDITION_ACTIVELY_BEING_CONSTRUCTED);
 		}
-	}
-}
-
-void DozerAIUpdate::onDisabledEdge(Bool nowDisabled)
-{
-	if (nowDisabled)
-	{
-		// Have to say goodbye to the thing we might be building or repairing so someone else can do it.
-		if (getCurrentTask() != DOZER_TASK_INVALID)
-		{
-			// TheSuperHackers @info We want to explicitly define what types to resume from as some types
-			// are undesirable (e.g. DISABLED_HELD via entering/exiting a container).
-			Bool rememberTask = getObject()->isDisabledByType(DISABLED_EMP) ||
-				getObject()->isDisabledByType(DISABLED_HACKED) ||
-				getObject()->isDisabledByType(DISABLED_SUBDUED) ||
-				getObject()->isDisabledByType(DISABLED_UNDERPOWERED);
-
-			cancelTask(getCurrentTask(), rememberTask);
-		}
-	}
-	else
-	{
-#if !RETAIL_COMPATIBLE_CRC
-		// TheSuperHackers @bugfix Stubbjax 17/11/2025 Resume previous task when re-enabled.
-		resumePreviousTask();
-#endif
 	}
 }
 
@@ -2582,7 +2523,7 @@ void DozerAIUpdate::xfer( Xfer *xfer )
 	xfer->xferSnapshot(m_dozerMachine);
 	xfer->xferUser(&m_currentTask, sizeof(m_currentTask));
 
-	if (version >= 2)
+	if (currentVersion >= 2)
 	{
 		xfer->xferUser(&m_previousTask, sizeof(m_previousTask));
 		xfer->xferUser(&m_previousTaskInfo, sizeof(m_previousTaskInfo));
