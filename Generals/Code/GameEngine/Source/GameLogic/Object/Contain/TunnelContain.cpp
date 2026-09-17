@@ -32,6 +32,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Player.h"
+#include "Common/PlayerList.h"
 #include "Common/RandomValue.h"
 #include "Common/ThingTemplate.h"
 #include "Common/TunnelTracker.h"
@@ -44,6 +45,31 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/PartitionManager.h"
 
+
+//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 17/09/2026 A tunnel that changed owner after it registered, for
+// example through the asset transfer of a surrendering ally, is still listed in the tunnel tracker of
+// the previous owner, and the occupants in that tracker still point at the tunnel object. Notify every
+// tracker that lists the tunnel, so that no occupant keeps a pointer to the destroyed tunnel.
+//-------------------------------------------------------------------------------------------------
+static void onTunnelDestroyedInListingTrackers( const Object *tunnel, const TunnelTracker *ownerTracker )
+{
+	const ObjectID tunnelID = tunnel->getID();
+	for( Int i = 0; i < ThePlayerList->getPlayerCount(); ++i )
+	{
+		TunnelTracker *tracker = ThePlayerList->getNthPlayer( i )->getTunnelSystem();
+		if( tracker == nullptr || tracker == ownerTracker )
+		{
+			continue;
+		}
+
+		const std::list< ObjectID > *tunnelIDs = tracker->getContainerList();
+		if( std::find( tunnelIDs->begin(), tunnelIDs->end(), tunnelID ) != tunnelIDs->end() )
+		{
+			tracker->onTunnelDestroyed( tunnel );
+		}
+	}
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////////////////////////
@@ -214,6 +240,7 @@ void TunnelContain::onSelling()
 	if( m_isCurrentlyRegistered )
 	{
 		tunnelTracker->onTunnelDestroyed( getObject() );
+		onTunnelDestroyedInListingTrackers( getObject(), tunnelTracker );
 		m_isCurrentlyRegistered = FALSE;
 	}
 }
@@ -367,6 +394,7 @@ void TunnelContain::onDie( const DamageInfo * damageInfo )
 		return;
 
 	tunnelTracker->onTunnelDestroyed( getObject() );
+	onTunnelDestroyedInListingTrackers( getObject(), tunnelTracker );
 	m_isCurrentlyRegistered = FALSE;
 }
 
@@ -389,6 +417,7 @@ void TunnelContain::onDelete()
 		return;
 
 	tunnelTracker->onTunnelDestroyed( getObject() );
+	onTunnelDestroyedInListingTrackers( getObject(), tunnelTracker );
 	m_isCurrentlyRegistered = FALSE;
 }
 
