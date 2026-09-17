@@ -450,6 +450,7 @@ public:
 	inline const Object *getContainedBy() const { return m_containedBy; }
 	inline UnsignedInt getContainedByFrame() const { return m_containedByFrame; }
 	inline Bool isContained() const { return m_containedBy != nullptr; }
+	static Object *getGhostContainer();		///< stand-in for a deleted container a unit still points at
 	void onContainedBy( Object *containedBy );
 	void onRemovedFrom( Object *removedFrom );
 	Int getTransportSlotCount() const;
@@ -766,6 +767,7 @@ private:
 	Object*												m_containedBy;					/**< an object can only be contained by at most one
 																	other object, this is that object (if present) */
 	ObjectID											m_xferContainedByID;	///< xfer uses IDs to store pointers and looks them up after
+	Bool												m_xferContainedByGhost;	///< the saved link pointed at a deleted container
 	Short													m_xferLastCellX;			///< checkpoint: partition anchor cell at the save, -1 when none
 	Short													m_xferLastCellY;
 	UnsignedByte									m_xferPartitionDirty;	///< checkpoint: partition dirty status at the save, re-applied after the load-time cell update

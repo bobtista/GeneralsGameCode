@@ -183,6 +183,7 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 	m_geometryInfo(tt->getTemplateGeometryInfo()),
 	m_containedBy(nullptr),
 	m_xferContainedByID(INVALID_ID),
+	m_xferContainedByGhost(FALSE),
 	m_xferLastCellX(-1),
 	m_xferLastCellY(-1),
 	m_xferPartitionDirty(0),
@@ -4119,6 +4120,9 @@ void Object::crc( Xfer *xfer )
 	*     orientation in non-retail checkpoints
 	* 13: TheSuperHackers @bugfix bobtista 06/09/2026 Preserve the history-dependent cached
 	*     altitude in non-retail checkpoints, for the same reason as the cached orientation
+	* 15: TheSuperHackers @bugfix bobtista 17/09/2026 Carry a container link that outlived its
+	*     container. Retail leaves the link in place when a unit boards a transport on the frame the
+	*     transport is deleted, so the unit stays a contained ghost; a load that drops the link woke it
 	*/
 //-------------------------------------------------------------------------------------------------
 void Object::xfer( Xfer *xfer )
@@ -4126,9 +4130,9 @@ void Object::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 14;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 15;
 #else
-	const XferVersion currentVersion = 14;
+	const XferVersion currentVersion = 15;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -4664,15 +4668,40 @@ void Object::xfer( Xfer *xfer )
 			m_xferLastCellY = cellYShort;
 		}
 	}
+
+	if( version >= 15 )
+	{
+		// A destroyed container clears its own id before its memory goes, so a link that still points
+		// at one reads INVALID_ID. The link itself is what the simulation keys on, not the object.
+		Bool containedByGhost = ( m_containedBy != nullptr && m_xferContainedByID == INVALID_ID );
+		xfer->xferBool( &containedByGhost );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			m_xferContainedByGhost = containedByGhost;
+		}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
 /** Object load game post process phase */
 //-------------------------------------------------------------------------------------------------
+/** Stand-in for a container that was deleted while a unit still pointed at it. The unit keeps
+  * behaving as contained, and every field it can read through the link is zero: no id, no
+  * modules, no template. */
+//-------------------------------------------------------------------------------------------------
+Object *Object::getGhostContainer()
+{
+	static char s_ghostContainer[ sizeof( Object ) ] = { 0 };
+	return reinterpret_cast<Object *>( s_ghostContainer );
+}
+
+//-------------------------------------------------------------------------------------------------
 void Object::loadPostProcess()
 {
 	if( m_xferContainedByID != INVALID_ID )
 		m_containedBy = TheGameLogic->findObjectByID(m_xferContainedByID);
+	else if( m_xferContainedByGhost )
+		m_containedBy = getGhostContainer();
 	else
 		m_containedBy = nullptr;
 
