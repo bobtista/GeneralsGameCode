@@ -815,6 +815,11 @@ void OpenContain::onCollide( Object *other, const Coord3D *loc, const Coord3D *n
 	if( !isValidContainerFor( other, TRUE ) )
 		return;
 
+	printf("CONTAIN_PROBE frame %u: COLLIDE-ADD '%s' id %u into '%s' id %u (us sold %d dead %d destroyed %d)\n",
+		TheGameLogic->getFrame(), other->getTemplate()->getName().str(), other->getID(),
+		getObject()->getTemplate()->getName().str(), getObject()->getID(),
+		(int)getObject()->testStatus(OBJECT_STATUS_SOLD), (int)getObject()->isEffectivelyDead(), (int)getObject()->isDestroyed());
+	fflush(stdout);
 	addToContain(other);
 }
 
