@@ -1476,11 +1476,9 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			d.setInt(TheKey_multiplayerStartIndex, slot->getStartPos());
 //			d.setBool(TheKey_multiplayerIsLocal, slot->isLocalPlayer());
 //			d.setBool(TheKey_multiplayerIsLocal, slot->getIP() == game->getLocalIP());
-			// TheSuperHackers @bugfix bobtista 30/08/2026 Replays may have no local player.
-			const Int localSlotNum = TheGameInfo->getLocalSlotNum();
-			const GameSlot *localGameSlot = localSlotNum >= 0 && localSlotNum < MAX_SLOTS ? TheGameInfo->getSlot(localSlotNum) : nullptr;
-			d.setBool(TheKey_multiplayerIsLocal, slot->isHuman() && localGameSlot != nullptr
-				&& (slot->getName().compare(localGameSlot->getName().str()) == 0));
+			// TheSuperHackers @bugfix bobtista 17/09/2026 Identify the local player by slot, since names need not be unique.
+			const Bool isLocalPlayer = slot->isHuman() && i == TheGameInfo->getLocalSlotNum();
+			d.setBool(TheKey_multiplayerIsLocal, isLocalPlayer);
 
 /*
 			if (slot->getIP() == game->getLocalIP())
@@ -1501,9 +1499,8 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 				}
 			}
 
-			AsciiString slotNameAscii;
-			slotNameAscii.translate(slot->getName());
-			if (slot->isHuman() && TheGameInfo->getSlotNum(slotNameAscii) == TheGameInfo->getLocalSlotNum()) {
+			if (isLocalPlayer)
+			{
 				localSlot = i;
 			}
 			TheSidesList->addSide(&d);
