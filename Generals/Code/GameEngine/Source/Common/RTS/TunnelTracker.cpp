@@ -39,6 +39,7 @@
 
 #include "GameLogic/AI.h"
 #include "GameLogic/AIPathfind.h"
+#include "Common/ThingTemplate.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/PartitionManager.h"
@@ -252,6 +253,11 @@ void TunnelTracker::onTunnelDestroyed( const Object *deadTunnel )
 
 	m_tunnelCount--;
 
+	printf("CONTAIN_PROBE frame %u: onTunnelDestroyed '%s' id %u: count now %u, ids %u, riders %u\n",
+		TheGameLogic->getFrame(), deadTunnel->getTemplate()->getName().str(), deadTunnel->getID(),
+		m_tunnelCount, (UnsignedInt)m_tunnelIDs.size(), (UnsignedInt)m_containList.size());
+	fflush(stdout);
+
 	if( m_tunnelCount == 0 )
 	{
 		// Kill everyone in our contain list.  Cave in!
@@ -265,6 +271,15 @@ void TunnelTracker::onTunnelDestroyed( const Object *deadTunnel )
 		// The tunnel count may diverge from the container size, because of bugs that cannot be fixed with
 		// retail compatibility enabled. Expected retail behavior: empty container access results in a nullptr.
 		Object *tunnel = m_tunnelIDs.empty() ? nullptr : TheGameLogic->findObjectByID( m_tunnelIDs.front() );
+
+		for(ContainedItemsList::iterator probeIt = m_containList.begin(); probeIt != m_containList.end(); ++probeIt)
+		{
+			Object *rider = *probeIt;
+			printf("CONTAIN_PROBE frame %u:   rider '%s' id %u containedBy %p (dead tunnel %p) -> repoint to id %u\n",
+				TheGameLogic->getFrame(), rider->getTemplate()->getName().str(), rider->getID(), rider->getContainedBy(), deadTunnel,
+				rider->getContainedBy() == deadTunnel ? (tunnel ? tunnel->getID() : 0) : rider->getContainedBy() ? rider->getContainedBy()->getID() : 0);
+		}
+		fflush(stdout);
 
 		// Otherwise, make sure nobody inside remembers the dead tunnel as the one they entered
 		// (scripts need to use so there must be something valid here)

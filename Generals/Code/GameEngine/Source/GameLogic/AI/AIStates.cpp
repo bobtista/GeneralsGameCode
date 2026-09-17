@@ -6197,6 +6197,10 @@ StateReturnType AIEnterState::update()
 					ContainModuleInterface* contain = goal->getContain();
 					if (contain)
 					{
+						printf("CONTAIN_PROBE frame %u: ENTER-FORCE '%s' id %u into '%s' id %u\n",
+							TheGameLogic->getFrame(), obj->getTemplate()->getName().str(), obj->getID(),
+							goal->getTemplate()->getName().str(), goal->getID());
+						fflush(stdout);
 						contain->addToContain(obj);
 					}
 				}
