@@ -1003,14 +1003,14 @@ void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool f
 		if (TheGameLogic->getFrame() > 0 && newCRC != playbackCRC && !m_crcInfo.sawCRCMismatch())
 		{
 			// TheSuperHackers @feature bobtista 08/08/2026 Diagnostic playback continues past a mismatch
-			// without the UI report and the pause that normal playback uses.
+			// without the UI report and the pause that normal playback uses. The mismatch is not marked
+			// as seen, so every later mismatch is logged too and the playback does not count as failed.
 			if (TheDebugIgnoreReplaySyncErrors)
 			{
 				const UnsignedInt ignoredFrame = TheGameLogic->getFrame() - m_crcInfo.GetQueueSize() - 1;
 				DEBUG_LOG(("Replay CRC mismatch ignored\nInGame:%8.8X Replay:%8.8X\nFrame:%d",
 					playbackCRC, newCRC, ignoredFrame));
 				printf("CRC Mismatch in Frame %d (ignored)\n", ignoredFrame);
-				m_crcInfo.setSawCRCMismatch();
 				return;
 			}
 
