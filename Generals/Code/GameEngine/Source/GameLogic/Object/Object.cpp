@@ -711,6 +711,10 @@ void Object::onDestroy()
 		// An object without a contain module cannot be the container either, so a reused block is treated the same.
 		if (!TheGameLogic->findObjectByID(m_containedBy->getID()) || m_containedBy->getContain() == nullptr)
 		{
+			printf("CONTAIN_PROBE frame %u: onDestroy '%s' id %u drops stale container %p (%s)\n", TheGameLogic->getFrame(),
+				getTemplate()->getName().str(), getID(), m_containedBy,
+				TheGameLogic->findObjectByID(m_containedBy->getID()) ? "live object without contain module" : "id not registered");
+			fflush(stdout);
 			for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
 			{
 				TunnelTracker* tracker = ThePlayerList->getNthPlayer(i)->getTunnelSystem();
