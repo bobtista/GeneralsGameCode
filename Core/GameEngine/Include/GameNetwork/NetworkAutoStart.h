@@ -47,6 +47,7 @@ public:
 	static Bool setHost(Int expectedPlayers);
 	static Bool setAICount(Int aiPlayers);
 	static Bool setTeamGame();
+	static Bool setAllySide(AsciiString side);
 	static Bool setConvertHumansToAI();
 	static Bool setGarrisonFrame(Int frame);
 	static Bool setSellTunnelsFrame(Int frame);
