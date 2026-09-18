@@ -319,6 +319,18 @@ void GameLogic::destroyAllObjectsImmediate()
 			{
 				printf("CONTAIN_PROBE reset frame %u: '%s' id %u has STALE containedBy %p (contained since frame %u)\n",
 					m_frame, obj->getTemplate()->getName().str(), obj->getID(), container, obj->getContainedByFrame());
+				const ContainModuleInterface *stale = container->getContain();
+				const Object *registered = findObjectByID(container->getID());
+				printf("CONTAIN_PROBE   stale block: id %u registered %p template %p contain %p\n", container->getID(), registered, container->getTemplate(), stale);
+				if (stale != nullptr)
+				{
+					const ContainedItemsList *list = stale->getContainedItemsList();
+					printf("CONTAIN_PROBE   stale contain: count %u list %p\n", stale->getContainCount(), list);
+					if (list != nullptr)
+					{
+						printf("CONTAIN_PROBE   stale list: empty %d\n", list->empty() ? 1 : 0);
+					}
+				}
 				fflush(stdout);
 			}
 		}
