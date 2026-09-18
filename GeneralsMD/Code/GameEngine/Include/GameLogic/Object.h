@@ -163,7 +163,9 @@ class Object : public Thing, public Snapshot
 public:
 
 	/// Object constructor automatically attaches all objects to "TheGameLogic"
-	Object(const ThingTemplate *thing, const ObjectStatusMaskType &objectStatusMask, Team *team);
+	// TheSuperHackers @bugfix bobtista 18/09/2026 A ghost container is a bare Object with a template and
+	// status bits only: no id, no modules, no registration. It stands in for a deleted container.
+	Object(const ThingTemplate *thing, const ObjectStatusMaskType &objectStatusMask, Team *team, Bool ghostContainer = FALSE);
 
 	void initObject();
 
@@ -450,7 +452,8 @@ public:
 	inline const Object *getContainedBy() const { return m_containedBy; }
 	inline UnsignedInt getContainedByFrame() const { return m_containedByFrame; }
 	inline Bool isContained() const { return m_containedBy != nullptr; }
-	static Object *getGhostContainer();		///< stand-in for a deleted container a unit still points at
+	static Object *getGhostContainer( UnsignedInt key, const AsciiString &templateName, const ObjectStatusMaskType &status );	///< stand-in for a deleted container a unit still points at
+	static void resetGhostContainers();
 	void onContainedBy( Object *containedBy );
 	void onRemovedFrom( Object *removedFrom );
 	Int getTransportSlotCount() const;
@@ -767,7 +770,8 @@ private:
 	Object*												m_containedBy;					/**< an object can only be contained by at most one
 																	other object, this is that object (if present) */
 	ObjectID											m_xferContainedByID;	///< xfer uses IDs to store pointers and looks them up after
-	Bool												m_xferContainedByGhost;	///< the saved link pointed at a deleted container
+	Object*												m_xferContainedByGhost;	///< stand-in resolved during a load for a link that pointed at a deleted container
+	Bool												m_ghostContainer;			///< this object is a stand-in for a deleted container
 	Short													m_xferLastCellX;			///< checkpoint: partition anchor cell at the save, -1 when none
 	Short													m_xferLastCellY;
 	UnsignedByte									m_xferPartitionDirty;	///< checkpoint: partition dirty status at the save, re-applied after the load-time cell update

@@ -175,7 +175,7 @@ AsciiString DebugDescribeObject(const Object *obj)
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatusMask, Team *team ) :
+Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatusMask, Team *team, Bool ghostContainer ) :
 	Thing(tt),
 	m_indicatorColor(0),
 	m_ai(nullptr),
@@ -183,7 +183,8 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 	m_geometryInfo(tt->getTemplateGeometryInfo()),
 	m_containedBy(nullptr),
 	m_xferContainedByID(INVALID_ID),
-	m_xferContainedByGhost(FALSE),
+	m_xferContainedByGhost(nullptr),
+	m_ghostContainer(ghostContainer),
 	m_xferLastCellX(-1),
 	m_xferLastCellY(-1),
 	m_xferPartitionDirty(0),
@@ -258,6 +259,13 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 		assert( 0 );
 		return;
 
+	}
+
+	if( m_ghostContainer )
+	{
+		m_id = INVALID_ID;
+		m_status = objectStatusMask;
+		return;
 	}
 
 	// Object's set of these persist for the life of the object.
@@ -598,6 +606,10 @@ void Object::initObject()
 //-------------------------------------------------------------------------------------------------
 Object::~Object()
 {
+	if( m_ghostContainer )
+	{
+		return;
+	}
 
 	// tell the AI the building is gone
 	/// @todo Generalize the notion of objects entering and leaving the world, so we don't have to special case this
@@ -4656,9 +4668,26 @@ void Object::xfer( Xfer *xfer )
 		// at one reads INVALID_ID. The link itself is what the simulation keys on, not the object.
 		Bool containedByGhost = ( m_containedBy != nullptr && m_xferContainedByID == INVALID_ID );
 		xfer->xferBool( &containedByGhost );
-		if( xfer->getXferMode() == XFER_LOAD )
+		if( containedByGhost )
 		{
-			m_xferContainedByGhost = containedByGhost;
+			// The deleted container keeps its template and status bits in its freed memory, and that
+			// is what the simulation reads through the link. The key only groups units that shared
+			// the same container.
+			UnsignedInt ghostKey = (UnsignedInt)(size_t)m_containedBy;
+			AsciiString ghostTemplate;
+			ObjectStatusMaskType ghostStatus;
+			if( xfer->getXferMode() == XFER_SAVE )
+			{
+				ghostTemplate = m_containedBy->getTemplate()->getName();
+				ghostStatus = m_containedBy->getStatusBits();
+			}
+			xfer->xferUnsignedInt( &ghostKey );
+			xfer->xferAsciiString( &ghostTemplate );
+			ghostStatus.xfer( xfer );
+			if( xfer->getXferMode() == XFER_LOAD )
+			{
+				m_xferContainedByGhost = getGhostContainer( ghostKey, ghostTemplate, ghostStatus );
+			}
 		}
 	}
 }
@@ -4667,13 +4696,39 @@ void Object::xfer( Xfer *xfer )
 /** Object load game post process phase */
 //-------------------------------------------------------------------------------------------------
 /** Stand-in for a container that was deleted while a unit still pointed at it. The unit keeps
-  * behaving as contained, and every field it can read through the link is zero: no id, no
-  * modules, no template. */
+  * behaving as contained and reads the container's template and status bits through the link,
+  * as it did from the freed memory. Units that shared a container share the stand-in. */
 //-------------------------------------------------------------------------------------------------
-Object *Object::getGhostContainer()
+static std::map<UnsignedInt, Object *> s_ghostContainers;
+
+Object *Object::getGhostContainer( UnsignedInt key, const AsciiString &templateName, const ObjectStatusMaskType &status )
 {
-	static char s_ghostContainer[ sizeof( Object ) ] = { 0 };
-	return reinterpret_cast<Object *>( s_ghostContainer );
+	std::map<UnsignedInt, Object *>::iterator it = s_ghostContainers.find( key );
+	if( it != s_ghostContainers.end() )
+	{
+		return it->second;
+	}
+
+	const ThingTemplate *tt = TheThingFactory->findTemplate( templateName );
+	if( tt == nullptr )
+	{
+		DEBUG_LOG(( "Object::getGhostContainer: No template '%s' for a deleted container", templateName.str() ));
+		return nullptr;
+	}
+
+	Object *ghost = newInstance(Object)( tt, status, nullptr, TRUE );
+	s_ghostContainers[ key ] = ghost;
+	return ghost;
+}
+
+//-------------------------------------------------------------------------------------------------
+void Object::resetGhostContainers()
+{
+	for( std::map<UnsignedInt, Object *>::iterator it = s_ghostContainers.begin(); it != s_ghostContainers.end(); ++it )
+	{
+		friend_deleteInstance( it->second );
+	}
+	s_ghostContainers.clear();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -4681,8 +4736,8 @@ void Object::loadPostProcess()
 {
 	if( m_xferContainedByID != INVALID_ID )
 		m_containedBy = TheGameLogic->findObjectByID(m_xferContainedByID);
-	else if( m_xferContainedByGhost )
-		m_containedBy = getGhostContainer();
+	else if( m_xferContainedByGhost != nullptr )
+		m_containedBy = m_xferContainedByGhost;
 	else
 		m_containedBy = nullptr;
 

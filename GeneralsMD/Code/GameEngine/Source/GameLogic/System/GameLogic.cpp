@@ -453,6 +453,7 @@ void GameLogic::reset()
 
 	// destroy all objects
 	destroyAllObjectsImmediate();
+	Object::resetGhostContainers();
 
 	m_nextObjID = (ObjectID)1;
 
