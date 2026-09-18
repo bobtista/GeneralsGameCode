@@ -55,6 +55,7 @@ if(IS_VS6_BUILD AND RTS_BUILD_OPTION_VC6_FULL_DEBUG)
     target_compile_options(core_config INTERFACE ${RTS_FLAGS} /Zi)
 else()
     target_compile_options(core_config INTERFACE ${RTS_FLAGS})
+target_compile_definitions(core_config INTERFACE RTS_POISON_FREED_MEMORY)
 endif()
 
 # This disables a lot of warnings steering developers to use windows only functions/function names.
