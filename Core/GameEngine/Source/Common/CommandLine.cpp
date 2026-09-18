@@ -624,6 +624,18 @@ Int parseAutoNetworkTeamGame(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoNetworkAllySide(char *args[], int num)
+{
+	if (num > 1 && NetworkAutoStart::setAllySide(args[1]))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoNetworkAllySide. Pass a player template side such as GLA, China or America.\n");
+	exit(1);
+	return 1;
+}
+
 Int parseAutoAIHumans(char *args[], int num)
 {
 	NetworkAutoStart::setConvertHumansToAI();
@@ -1391,6 +1403,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoNetworkAI", parseAutoNetworkAI },
 	{ "-autoNetworkTimeout", parseAutoNetworkTimeout },
 	{ "-autoNetworkTeamGame", parseAutoNetworkTeamGame },
+	{ "-autoNetworkAllySide", parseAutoNetworkAllySide },
 	{ "-autoAIHumans", parseAutoAIHumans },
 	{ "-autoGarrison", parseAutoGarrison },
 	{ "-autoSellTunnels", parseAutoSellTunnels },

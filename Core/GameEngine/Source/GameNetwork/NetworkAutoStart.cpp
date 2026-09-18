@@ -51,6 +51,7 @@ NetworkAutoStart::Role s_role = NetworkAutoStart::ROLE_NONE;
 Int s_expectedPlayers = 0;
 Int s_aiPlayers = 0;
 Bool s_teamGame = false;
+AsciiString s_allySide = "China";
 Bool s_teamGameApplied = false;
 Bool s_convertHumansToAI = false;
 Int s_garrisonFrame = -1;
@@ -148,6 +149,17 @@ Bool NetworkAutoStart::setTeamGame()
 {
 	s_hasArguments = true;
 	s_teamGame = true;
+	return true;
+}
+
+Bool NetworkAutoStart::setAllySide(AsciiString side)
+{
+	s_hasArguments = true;
+	if (side.isEmpty())
+	{
+		return false;
+	}
+	s_allySide = side;
 	return true;
 }
 
@@ -523,10 +535,10 @@ void NetworkAutoStart::updateGameOptions()
 	if (s_teamGame && !s_teamGameApplied)
 	{
 		const Int glaTemplate = findPlayerTemplateBySide("GLA");
-		const Int chinaTemplate = findPlayerTemplateBySide("China");
+		const Int chinaTemplate = findPlayerTemplateBySide(s_allySide.str());
 		if (glaTemplate < 0 || chinaTemplate < 0)
 		{
-			fail("GLA or China player template not found for -autoNetworkTeamGame");
+			fail("GLA or ally side player template not found for -autoNetworkTeamGame");
 			return;
 		}
 		for (Int teamIndex = 0; teamIndex < MAX_SLOTS; ++teamIndex)
