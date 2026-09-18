@@ -498,6 +498,7 @@ void GameLogic::reset()
 	m_checkpointNextObjID = INVALID_ID;
 	m_hasCheckpointNextObjID = FALSE;
 	m_hasCheckpointClientRandomState = FALSE;
+	m_checkpointObjectsToDestroy.clear();
 	m_curUpdateModule = nullptr;
 
 	m_isScoringEnabled = TRUE;
@@ -5281,6 +5282,9 @@ void GameLogic::prepareLogicForObjectLoad()
 	*     saving between the shot and its landing frame cancelled the shot outright
 	* 16: TheSuperHackers @bugfix bobtista 19/08/2026 Serialize the next object id counter. Rebuilding
 	*     it from the highest live id reissued the ids of objects that died before the save
+	* 19: TheSuperHackers @bugfix bobtista 18/09/2026 Serialize the end of frame destroy list. A command
+	*     processed before the save had already flagged its object destroyed, and the flag alone does
+	*     not destroy it after a load, so the object lived on with its modules still updating
 	*/
 // ------------------------------------------------------------------------------------------------
 void GameLogic::xfer( Xfer *xfer )
@@ -5288,9 +5292,9 @@ void GameLogic::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 10 : 18;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 10 : 19;
 #else
-	const XferVersion currentVersion = 18;
+	const XferVersion currentVersion = 19;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -5810,6 +5814,32 @@ void GameLogic::xfer( Xfer *xfer )
 			m_hasCheckpointClientRandomState = TRUE;
 		}
 	}
+
+	if( version >= 19 )
+	{
+		UnsignedInt pendingCount = m_objectsToDestroy.size();
+		xfer->xferUnsignedInt( &pendingCount );
+		if( xfer->getXferMode() == XFER_SAVE )
+		{
+			for( ObjectPointerListIterator it = m_objectsToDestroy.begin(); it != m_objectsToDestroy.end(); ++it )
+			{
+				ObjectID pendingID = (*it)->getID();
+				xfer->xferObjectID( &pendingID );
+			}
+		}
+		else
+		{
+			// Staged rather than pushed here, because the objects are resolved by id once every
+			// object exists.
+			m_checkpointObjectsToDestroy.clear();
+			for( UnsignedInt i = 0; i < pendingCount; ++i )
+			{
+				ObjectID pendingID = INVALID_ID;
+				xfer->xferObjectID( &pendingID );
+				m_checkpointObjectsToDestroy.push_back( pendingID );
+			}
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -5849,6 +5879,17 @@ void GameLogic::loadPostProcess()
 		}
 		m_hasCheckpointNextObjID = FALSE;
 	}
+
+	// The destroy calls already ran before the save, so the objects only rejoin the list.
+	for( std::vector<ObjectID>::const_iterator pendingIt = m_checkpointObjectsToDestroy.begin(); pendingIt != m_checkpointObjectsToDestroy.end(); ++pendingIt )
+	{
+		obj = findObjectByID( *pendingIt );
+		if( obj != nullptr && obj->isDestroyed() )
+		{
+			m_objectsToDestroy.push_back( obj );
+		}
+	}
+	m_checkpointObjectsToDestroy.clear();
 
 	// blow away the sleepy update and normal update module lists
 	for (std::vector<UpdateModulePtr>::iterator it = m_sleepyUpdates.begin(); it != m_sleepyUpdates.end(); ++it)

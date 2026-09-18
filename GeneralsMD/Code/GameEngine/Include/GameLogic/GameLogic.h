@@ -442,6 +442,7 @@ private:
 	Bool m_hasCheckpointNextObjID;
 	UnsignedInt m_checkpointClientRandomState[GAMECLIENT_RANDOM_STATE_SIZE];
 	Bool m_hasCheckpointClientRandomState;
+	std::vector<ObjectID> m_checkpointObjectsToDestroy;
 
 #ifdef ALLOW_NONSLEEPY_UPDATES
 	// this is a plain old list, not a pq.
