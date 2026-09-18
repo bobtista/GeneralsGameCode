@@ -12,7 +12,7 @@ set_property(CACHE RTS_DEBUG_PROFILE PROPERTY STRINGS DEFAULT ON OFF)
 
 option(RTS_DEBUG_CHEATS "Enables debug cheats in release builds" OFF)
 option(RTS_DEBUG_INCLUDE_DEBUG_LOG_IN_CRC_LOG "Includes normal debug log in crc log" OFF)
-option(RTS_DEBUG_MULTI_INSTANCE "Enables multi client instance support" OFF)
+option(RTS_DEBUG_MULTI_INSTANCE "Enables multi client instance support" ON)
 
 
 define_tristate_option(RTS_DEBUG_LOGGING    DebugLogging    "Build with Debug Logging"      DEBUG_LOGGING    DISABLE_DEBUG_LOGGING)
