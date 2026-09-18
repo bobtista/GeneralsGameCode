@@ -2258,6 +2258,17 @@ bool GameLogic::onSetBeaconText(MAYBE_UNUSED GameMessage *msg, AIGroupPtr &curre
 bool GameLogic::onSelfDestruct(MAYBE_UNUSED GameMessage *msg)
 {
 	Player *msgPlayer = getMessagePlayer(msg);
+	{
+		UnsignedInt objs = 0;
+		for (Object *o = getFirstObject(); o; o = o->getNextObject()) { ++objs; }
+		DEBUG_LOG(("SELFDESTRUCT_PROBE frame %u: player %d transfer %d local %d objects %u", getFrame(),
+			msgPlayer ? msgPlayer->getPlayerIndex() : -1, (int)msg->getArgument(0)->boolean,
+			msgPlayer ? (int)msgPlayer->isLocalPlayer() : -1, objs));
+		printf("SELFDESTRUCT_PROBE frame %u: player %d transfer %d local %d objects %u\n", getFrame(),
+			msgPlayer ? msgPlayer->getPlayerIndex() : -1, (int)msg->getArgument(0)->boolean,
+			msgPlayer ? (int)msgPlayer->isLocalPlayer() : -1, objs);
+		fflush(stdout);
+	}
 
 	if (msg->getArgument(0)->boolean)
 	{
@@ -2275,6 +2286,9 @@ bool GameLogic::onSelfDestruct(MAYBE_UNUSED GameMessage *msg)
 						continue;
 
 					// a living ally!  hooray!
+					DEBUG_LOG(("SELFDESTRUCT_PROBE frame %u: transferring to player %d", getFrame(), otherPlayer->getPlayerIndex()));
+					printf("SELFDESTRUCT_PROBE frame %u: transferring to player %d\n", getFrame(), otherPlayer->getPlayerIndex());
+					fflush(stdout);
 					otherPlayer->transferAssetsFromThat(msgPlayer);
 					msgPlayer->killPlayer(); // just to be safe (and to kill beacons etc that don't transfer)
 					break;
@@ -2284,6 +2298,9 @@ bool GameLogic::onSelfDestruct(MAYBE_UNUSED GameMessage *msg)
 		if (i == ThePlayerList->getPlayerCount())
 		{
 			// didn't find any allies.  die, loner!
+			DEBUG_LOG(("SELFDESTRUCT_PROBE frame %u: no living ally, killing player %d", getFrame(), msgPlayer->getPlayerIndex()));
+			printf("SELFDESTRUCT_PROBE frame %u: no living ally, killing player %d\n", getFrame(), msgPlayer->getPlayerIndex());
+			fflush(stdout);
 			msgPlayer->killPlayer();
 		}
 	}

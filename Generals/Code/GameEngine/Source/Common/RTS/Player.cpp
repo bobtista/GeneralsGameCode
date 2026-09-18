@@ -81,6 +81,7 @@
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/AISkirmishPlayer.h"
 #include "GameLogic/ExperienceTracker.h"
+#include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/Scripts.h"
 #include "GameLogic/PartitionManager.h"
@@ -1930,6 +1931,15 @@ void Player::setUnitsShouldHunt(Bool unitsShouldHunt, CommandSourceType source)
 //=============================================================================
 void Player::killPlayer()
 {
+	{
+		UnsignedInt objs = 0;
+		for (Object *o = TheGameLogic->getFirstObject(); o; o = o->getNextObject()) { if (o->getControllingPlayer() == this) { ++objs; } }
+		DEBUG_LOG(("KILLPLAYER_PROBE frame %u: player %d local %d type %d objects %u", TheGameLogic->getFrame(),
+			getPlayerIndex(), (int)isLocalPlayer(), (int)getPlayerType(), objs));
+		printf("KILLPLAYER_PROBE frame %u: player %d local %d type %d objects %u\n", TheGameLogic->getFrame(),
+			getPlayerIndex(), (int)isLocalPlayer(), (int)getPlayerType(), objs);
+		fflush(stdout);
+	}
 	PlayerTeamList::iterator it = m_playerTeamPrototypes.begin();
 	for (; it != m_playerTeamPrototypes.end(); ++it) {
 		for (DLINK_ITERATOR<Team> iter = (*it)->iterate_TeamInstanceList(); !iter.done(); iter.advance()) {
