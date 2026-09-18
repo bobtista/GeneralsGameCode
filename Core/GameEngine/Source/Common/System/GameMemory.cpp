@@ -206,6 +206,9 @@ static Int roundUpMemBound(Int i);
 static void *sysAllocateDoNotZero(Int numBytes);
 static void sysFree(void* p);
 static void memset32(void* ptr, Int value, Int bytesToFill);
+#if defined(RTS_POISON_FREED_MEMORY) && !defined(MEMORYPOOL_DEBUG)
+static const Int GARBAGE_FILL_VALUE = 0xdeadbeef;
+#endif
 #ifdef MEMORYPOOL_STACKTRACE
 static void doStackDumpOutput(const char* m);
 static void doStackDump(void **stacktrace, int size);
@@ -273,6 +276,8 @@ static void sysFree(void* p)
 			::memset32(p, GARBAGE_FILL_VALUE, ::GlobalSize(p));
 			theTotalSystemAllocationInBytes -= ::GlobalSize(p);
 		}
+#elif defined(RTS_POISON_FREED_MEMORY)
+		::memset32(p, GARBAGE_FILL_VALUE, ::GlobalSize(p));
 #endif
 		::GlobalFree(p);
 	}
@@ -427,6 +432,11 @@ private:
 private:
 
 	void* getUserDataNoDbg();
+#if defined(RTS_POISON_FREED_MEMORY) && !defined(MEMORYPOOL_DEBUG)
+public:
+	void poisonUserData(Int size) { ::memset32(getUserDataNoDbg(), GARBAGE_FILL_VALUE, size); }
+private:
+#endif
 #ifdef MEMORYPOOL_BOUNDINGWALL
 	void debugFillInWalls();
 #endif
@@ -1299,6 +1309,8 @@ void MemoryPoolBlob::freeSingleBlock(MemoryPoolSingleBlock *block)
 #endif
 #ifdef MEMORYPOOL_DEBUG
 	block->debugMarkBlockAsFree();
+#elif defined(RTS_POISON_FREED_MEMORY)
+	block->poisonUserData(m_owningPool->getAllocationSize());
 #endif
 #ifdef MEMORYPOOL_INTENSE_VERIFY
 	debugMemoryVerifyBlob();
