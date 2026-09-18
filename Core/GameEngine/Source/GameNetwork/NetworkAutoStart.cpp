@@ -90,17 +90,21 @@ Int findPlayerTemplateBySide(const char *side)
 	return -1;
 }
 
-const char *containerTemplateForSide(const AsciiString &side)
+// The prerequisite comes first; the last entry is the container that gets built s_buildCount times.
+const char *const *buildOrderForSide(const AsciiString &side)
 {
+	static const char *const gla[] = { "GLABarracks", "GLATunnelNetwork", nullptr };
+	static const char *const china[] = { "ChinaBarracks", "ChinaBunker", nullptr };
+	static const char *const america[] = { "AmericaBarracks", "AmericaFirebase", nullptr };
 	if (side.compareNoCase("GLA") == 0)
 	{
-		return "GLATunnelNetwork";
+		return gla;
 	}
 	if (side.compareNoCase("China") == 0)
 	{
-		return "ChinaBunker";
+		return china;
 	}
-	return "AmericaFirebase";
+	return america;
 }
 
 Bool isCompletedContainerStructure(const Object *obj)
@@ -789,11 +793,36 @@ void NetworkAutoStart::updateInGame()
 	if (s_buildFrame > 0 && frame >= s_buildFrame && (s_lastBuildFrame < 0 || frame - s_lastBuildFrame >= GarrisonRetryFrames))
 	{
 		s_lastBuildFrame = frame;
-		const ThingTemplate *build = TheThingFactory->findTemplate(containerTemplateForSide(local->getSide()));
-		Object *dozer = nullptr;
-		Object *center = nullptr;
+		const char *const *order = buildOrderForSide(local->getSide());
+		const ThingTemplate *build = nullptr;
 		Int existing = 0;
 		Bool constructing = false;
+		for (Int stage = 0; order[stage] != nullptr && build == nullptr; ++stage)
+		{
+			const ThingTemplate *candidate = TheThingFactory->findTemplate(order[stage]);
+			const Int need = order[stage + 1] == nullptr ? s_buildCount : 1;
+			Int have = 0;
+			Bool building = false;
+			for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
+			{
+				if (obj->getControllingPlayer() == local && !obj->isEffectivelyDead() && obj->getTemplate() == candidate)
+				{
+					++have;
+					if (obj->getStatusBits().test(OBJECT_STATUS_UNDER_CONSTRUCTION))
+					{
+						building = true;
+					}
+				}
+			}
+			if (have < need || building)
+			{
+				build = candidate;
+				existing = have;
+				constructing = building;
+			}
+		}
+		Object *dozer = nullptr;
+		Object *center = nullptr;
 		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
 		{
 			if (obj->getControllingPlayer() != local || obj->isEffectivelyDead())
@@ -808,16 +837,8 @@ void NetworkAutoStart::updateInGame()
 			{
 				center = obj;
 			}
-			if (build != nullptr && obj->getTemplate() == build)
-			{
-				++existing;
-				if (obj->getStatusBits().test(OBJECT_STATUS_UNDER_CONSTRUCTION))
-				{
-					constructing = true;
-				}
-			}
 		}
-		if (build != nullptr && dozer != nullptr && center != nullptr && existing < s_buildCount && !constructing)
+		if (build != nullptr && dozer != nullptr && center != nullptr && !constructing)
 		{
 			const Real ring[] = { 220.0f, 300.0f, 380.0f };
 			Bool placed = false;
