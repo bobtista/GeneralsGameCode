@@ -967,6 +967,7 @@ void InGameUI::validate()
 		m_messageDelayMS = 7500;
 	}
 #endif
+	m_messageDelayMS = max(0, m_messageDelayMS);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1896,7 +1897,7 @@ void InGameUI::update()
 	//
 	UnsignedInt currLogicFrame = TheGameLogic->getFrame();
 	// TheSuperHackers @bugfix bobtista 13/08/2026 Convert milliseconds to logic frames
-	const int messageTimeout = REAL_TO_INT_CEIL( ConvertDurationFromMsecsToFrames( (Real)max(0, m_messageDelayMS) ) );
+	const int messageTimeout = REAL_TO_INT_CEIL( ConvertDurationFromMsecsToFrames( (Real)m_messageDelayMS ) );
 	UnsignedByte r, g, b, a;
 	Int amount;
 	for( i = MAX_UI_MESSAGES - 1; i >= 0; i-- )
