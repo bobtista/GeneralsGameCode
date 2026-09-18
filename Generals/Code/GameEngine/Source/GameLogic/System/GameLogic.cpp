@@ -1315,7 +1315,6 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			d.setInt(TheKey_multiplayerStartIndex, slot->getStartPos());
 //			d.setBool(TheKey_multiplayerIsLocal, slot->isLocalPlayer());
 //			d.setBool(TheKey_multiplayerIsLocal, slot->getIP() == game->getLocalIP());
-			// TheSuperHackers @bugfix bobtista 17/09/2026 Identify the local player by slot, since names need not be unique.
 			const Bool isLocalPlayer = slot->isHuman() && i == TheGameInfo->getLocalSlotNum();
 			d.setBool(TheKey_multiplayerIsLocal, isLocalPlayer);
 

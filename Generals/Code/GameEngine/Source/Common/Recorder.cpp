@@ -926,7 +926,7 @@ Bool RecorderClass::readReplayHeader(ReplayHeader& header, const AsciiString& fi
 		m_file = nullptr;
 		return FALSE;
 	}
-	// TheSuperHackers @bugfix bobtista 17/09/2026 Use the recorded local slot, including no local player.
+	// TheSuperHackers @bugfix bobtista 17/09/2026 Preserve the recorded local slot, including -1 for no local player.
 	m_gameInfo.setLocalSlotNum(header.localPlayerIndex);
 	if (header.localPlayerIndex >= 0)
 	{
@@ -1211,7 +1211,6 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 
 	m_file->read(&m_originalGameMode, sizeof(m_originalGameMode));
 
-	// TheSuperHackers @bugfix bobtista 30/08/2026 Use the recorded game mode because replays may have no local player.
 	const Bool isMultiplayer = m_originalGameMode == GAME_LAN || m_originalGameMode == GAME_INTERNET;
 	m_crcInfo = CRCInfo(header.localPlayerIndex, isMultiplayer);
 	DEBUG_LOG(("Player index is %d, replay CRC interval is %d", m_crcInfo.getLocalPlayer(), REPLAY_CRC_INTERVAL));
