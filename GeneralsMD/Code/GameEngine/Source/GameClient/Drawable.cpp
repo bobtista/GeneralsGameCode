@@ -1127,7 +1127,7 @@ void Drawable::imitateStealthLook( Drawable& otherDraw )
 /** update is called once per frame */
 //-------------------------------------------------------------------------------------------------
 //DECLARE_PERF_TIMER(updateDrawable)
-void Drawable::updateDrawable()
+void Drawable::updateDrawable(Real timeScale)
 {
 	//USE_PERF_TIMER(updateDrawable)
 
@@ -1148,15 +1148,16 @@ void Drawable::updateDrawable()
 		{
 			Real numer = (m_fadeMode == FADING_IN) ? (m_timeElapsedFade) : (m_timeToFade-m_timeElapsedFade);
 
-			setDrawableOpacity(numer/(Real)m_timeToFade);
+			Real opacity = numer/(Real)m_timeToFade;
 			// TheSuperHackers @bugfix bobtista 15/09/2026 Decouple Drawable fade timing from render updates.
-			m_timeElapsedFade += TheFramePacer->getActualLogicTimeScaleOverFpsRatio();
+			m_timeElapsedFade += timeScale;
 
 			if (m_timeElapsedFade > m_timeToFade)
 			{
-				setDrawableOpacity(m_fadeMode == FADING_IN ? 1.0f : 0.0f);
+				opacity = m_fadeMode == FADING_IN ? 1.0f : 0.0f;
 				m_fadeMode = FADING_NONE;
 			}
+			setDrawableOpacity(opacity);
 		}
 	}
 
@@ -1172,7 +1173,7 @@ void Drawable::updateDrawable()
 				//LERP
 				(*dm)->setTerrainDecalOpacity(m_decalOpacity);
 				// TheSuperHackers @bugfix bobtista 15/09/2026 Decouple decal opacity fade timing from render updates.
-				m_decalOpacity += m_decalOpacityFadeRate * TheFramePacer->getActualLogicTimeScaleOverFpsRatio();
+				m_decalOpacity += m_decalOpacityFadeRate * timeScale;
 			}
 			//---------------
 
@@ -4855,7 +4856,7 @@ void Drawable::xferDrawableModules( Xfer *xfer )
 	* 6: Added m_ambientSoundEnabledFromScript flag (Added in Zero Hour)
 	* 7: Save the customize ambient sound info (Added in Zero Hour)
 	* 8: TheSuperHackers @bugfix Removed m_prevTintStatus because loading its value is unnecessary and undesirable
-	* 9: TheSuperHackers @info Preserve fractional fade progress in non-retail saves
+	* 9: TheSuperHackers @tweak m_timeElapsedFade is now serialized as Real instead of UnsignedInt
 	*/
 // ------------------------------------------------------------------------------------------------
 void Drawable::xfer( Xfer *xfer )
