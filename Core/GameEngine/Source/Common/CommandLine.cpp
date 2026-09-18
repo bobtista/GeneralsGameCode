@@ -498,6 +498,8 @@ Int parseYRes(char *args[], int num)
 }
 
 #if defined(RTS_DEBUG)
+#endif
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 static Bool parseNonNegativeInt(const char *text, Int &result)
 {
 	if (text == nullptr || *text < '0' || *text > '9')
@@ -655,6 +657,45 @@ Int parseAutoGarrison(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoBuild(char *args[], int num)
+{
+	Int frame = 0;
+	if (num > 1 && parsePositiveInt(args[1], frame) && NetworkAutoStart::setBuildFrame(frame))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoBuild. Pass a positive logic frame.\n");
+	exit(1);
+	return 1;
+}
+
+Int parseAutoBuildCount(char *args[], int num)
+{
+	Int count = 0;
+	if (num > 1 && parsePositiveInt(args[1], count) && NetworkAutoStart::setBuildCount(count))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoBuildCount. Pass a positive count.\n");
+	exit(1);
+	return 1;
+}
+
+Int parseAutoSellContainers(char *args[], int num)
+{
+	Int frame = 0;
+	if (num > 1 && parsePositiveInt(args[1], frame) && NetworkAutoStart::setSellContainersFrame(frame))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoSellContainers. Pass a positive logic frame.\n");
+	exit(1);
+	return 1;
+}
+
 Int parseAutoSellTunnels(char *args[], int num)
 {
 	Int frame = 0;
@@ -694,6 +735,8 @@ Int parseAutoNetworkTimeout(char *args[], int num)
 	return 1;
 }
 
+#endif
+#if defined(RTS_DEBUG)
 //=============================================================================
 //=============================================================================
 Int parseLatencyAverage(char *args[], int num)
@@ -1385,7 +1428,7 @@ static CommandLineParam paramsForStartup[] =
 	// The last successful selection wins; otherwise use the executable directory.
 	{ "-setCwd", parseSetCwd },
 	{ "-useCwd", parseUseCwd },
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 	// TheSuperHackers @feature bobtista 10/08/2026 Automate network match startup for multi-instance testing.
 	{ "-autoNetworkMode", parseAutoNetworkMode },
 #endif
@@ -1394,7 +1437,7 @@ static CommandLineParam paramsForStartup[] =
 // These Params are parsed during Engine Init before INI data is loaded
 static CommandLineParam paramsForEngineInit[] =
 {
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 	{ "-autoNetworkHost", parseAutoNetworkHost },
 	{ "-autoNetworkJoin", parseAutoNetworkJoin },
 	{ "-autoNetworkLocalAddress", parseAutoNetworkLocalAddress },
@@ -1406,6 +1449,9 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoNetworkAllySide", parseAutoNetworkAllySide },
 	{ "-autoAIHumans", parseAutoAIHumans },
 	{ "-autoGarrison", parseAutoGarrison },
+	{ "-autoBuild", parseAutoBuild },
+	{ "-autoBuildCount", parseAutoBuildCount },
+	{ "-autoSellContainers", parseAutoSellContainers },
 	{ "-autoSellTunnels", parseAutoSellTunnels },
 	{ "-autoSurrender", parseAutoSurrender },
 #endif

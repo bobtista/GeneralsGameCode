@@ -784,7 +784,7 @@ void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 		slot->setPlayerTemplate( pref.getPreferredFaction() );
 		slot->setNATBehavior(FirewallHelperClass::FIREWALL_TYPE_SIMPLE);
 		AsciiString mapName = pref.getPreferredMap();
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 		if (NetworkAutoStart::isEnabled() && NetworkAutoStart::getMapName().isNotEmpty())
 			mapName = NetworkAutoStart::getMapName();
 #endif
@@ -983,7 +983,7 @@ void LanGameOptionsMenuShutdown( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void LanGameOptionsMenuUpdate( WindowLayout * layout, void *userData)
 {
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 	if (NetworkAutoStart::isEnabled() && TheLAN != nullptr)
 	{
 		TheLAN->update();

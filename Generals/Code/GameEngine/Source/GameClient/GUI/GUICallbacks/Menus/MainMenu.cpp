@@ -749,7 +749,7 @@ void ResolutionDialogUpdate()
 void DownloadMenuUpdate( WindowLayout *layout, void *userData );
 void MainMenuUpdate( WindowLayout *layout, void *userData )
 {
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 	if (NetworkAutoStart::shouldOpenDirectConnect())
 	{
 		NetworkAutoStart::markDirectConnectOpened();

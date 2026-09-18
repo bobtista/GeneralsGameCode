@@ -18,19 +18,22 @@
 
 #include "PreRTS.h"
 
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 
 #include <limits.h>
 
+#include "Common/BuildAssistant.h"
 #include "Common/GameEngine.h"
 #include "Common/MessageStream.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "Common/PlayerTemplate.h"
+#include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
 #include "GameClient/InGameUI.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
+#include "GameLogic/TerrainLogic.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameClient/ClientInstance.h"
 #include "GameClient/MapUtil.h"
@@ -55,6 +58,11 @@ AsciiString s_allySide = "China";
 Bool s_teamGameApplied = false;
 Bool s_convertHumansToAI = false;
 Int s_garrisonFrame = -1;
+Int s_buildFrame = -1;
+Int s_buildCount = 1;
+Int s_lastBuildFrame = -1;
+Int s_sellContainersFrame = -1;
+Int s_lastContainerSellFrame = -1;
 Int s_sellTunnelsFrame = -1;
 Int s_surrenderFrame = -1;
 Bool s_garrisonDone = false;
@@ -80,6 +88,27 @@ Int findPlayerTemplateBySide(const char *side)
 		}
 	}
 	return -1;
+}
+
+const char *containerTemplateForSide(const AsciiString &side)
+{
+	if (side.compareNoCase("GLA") == 0)
+	{
+		return "GLATunnelNetwork";
+	}
+	if (side.compareNoCase("China") == 0)
+	{
+		return "ChinaBunker";
+	}
+	return "AmericaFirebase";
+}
+
+Bool isCompletedContainerStructure(const Object *obj)
+{
+	return obj->isKindOf(KINDOF_STRUCTURE) && obj->getContain() != nullptr &&
+		!obj->getStatusBits().test(OBJECT_STATUS_UNDER_CONSTRUCTION) &&
+		!obj->getStatusBits().test(OBJECT_STATUS_SOLD) &&
+		!obj->isEffectivelyDead();
 }
 
 Bool isCompletedTunnel(const Object *obj)
@@ -178,6 +207,39 @@ Bool NetworkAutoStart::setGarrisonFrame(Int frame)
 		return false;
 	}
 	s_garrisonFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::setBuildFrame(Int frame)
+{
+	s_hasArguments = true;
+	if (frame < 1)
+	{
+		return false;
+	}
+	s_buildFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::setBuildCount(Int count)
+{
+	s_hasArguments = true;
+	if (count < 1)
+	{
+		return false;
+	}
+	s_buildCount = count;
+	return true;
+}
+
+Bool NetworkAutoStart::setSellContainersFrame(Int frame)
+{
+	s_hasArguments = true;
+	if (frame < 1)
+	{
+		return false;
+	}
+	s_sellContainersFrame = frame;
 	return true;
 }
 
@@ -722,6 +784,95 @@ void NetworkAutoStart::updateInGame()
 			printf("NetworkAutoStart frame %d: no completed tunnel or no units to garrison yet\n", frame);
 			fflush(stdout);
 		}
+	}
+
+	if (s_buildFrame > 0 && frame >= s_buildFrame && (s_lastBuildFrame < 0 || frame - s_lastBuildFrame >= GarrisonRetryFrames))
+	{
+		s_lastBuildFrame = frame;
+		const ThingTemplate *build = TheThingFactory->findTemplate(containerTemplateForSide(local->getSide()));
+		Object *dozer = nullptr;
+		Object *center = nullptr;
+		Int existing = 0;
+		Bool constructing = false;
+		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
+		{
+			if (obj->getControllingPlayer() != local || obj->isEffectivelyDead())
+			{
+				continue;
+			}
+			if (dozer == nullptr && obj->isKindOf(KINDOF_DOZER))
+			{
+				dozer = obj;
+			}
+			if (center == nullptr && obj->isKindOf(KINDOF_COMMANDCENTER))
+			{
+				center = obj;
+			}
+			if (build != nullptr && obj->getTemplate() == build)
+			{
+				++existing;
+				if (obj->getStatusBits().test(OBJECT_STATUS_UNDER_CONSTRUCTION))
+				{
+					constructing = true;
+				}
+			}
+		}
+		if (build != nullptr && dozer != nullptr && center != nullptr && existing < s_buildCount && !constructing)
+		{
+			const Real ring[] = { 220.0f, 300.0f, 380.0f };
+			Bool placed = false;
+			for (Int r = 0; r < 3 && !placed; ++r)
+			{
+				for (Int step = 0; step < 12 && !placed; ++step)
+				{
+					const Real angle = step * (2.0f * PI / 12.0f);
+					Coord3D pos = *center->getPosition();
+					pos.x += ring[r] * cosf(angle);
+					pos.y += ring[r] * sinf(angle);
+					pos.z = TheTerrainLogic->getGroundHeight(pos.x, pos.y);
+					if (TheBuildAssistant->isLocationLegalToBuild(&pos, build, 0.0f,
+						BuildAssistant::USE_QUICK_PATHFIND | BuildAssistant::TERRAIN_RESTRICTIONS | BuildAssistant::CLEAR_PATH |
+						BuildAssistant::NO_OBJECT_OVERLAP | BuildAssistant::SHROUD_REVEALED | BuildAssistant::IGNORE_STEALTHED |
+						BuildAssistant::FAIL_STEALTHED_WITHOUT_FEEDBACK, dozer, nullptr) == LBC_OK)
+					{
+						GameMessage *teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
+						teamMsg->appendBooleanArgument(TRUE);
+						teamMsg->appendObjectIDArgument(dozer->getID());
+						GameMessage *placeMsg = TheMessageStream->appendMessage(GameMessage::MSG_DOZER_CONSTRUCT);
+						placeMsg->appendIntegerArgument(build->getTemplateID());
+						placeMsg->appendLocationArgument(pos);
+						placeMsg->appendRealArgument(0.0f);
+						DEBUG_LOG(("NetworkAutoStart frame %d: ordering dozer id %u to build %s at %f %f (%d existing)", frame, dozer->getID(), build->getName().str(), pos.x, pos.y, existing));
+						printf("NetworkAutoStart frame %d: ordering dozer id %u to build %s at %f %f (%d existing)\n", frame, dozer->getID(), build->getName().str(), pos.x, pos.y, existing);
+						fflush(stdout);
+						placed = true;
+					}
+				}
+			}
+			if (!placed)
+			{
+				DEBUG_LOG(("NetworkAutoStart frame %d: no legal spot to build %s", frame, build->getName().str()));
+			}
+		}
+	}
+
+	if (s_sellContainersFrame > 0 && frame >= s_sellContainersFrame && (s_lastContainerSellFrame < 0 || frame - s_lastContainerSellFrame >= GarrisonRetryFrames))
+	{
+		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
+		{
+			if (obj->getControllingPlayer() == local && isCompletedContainerStructure(obj) && !obj->isKindOf(KINDOF_COMMANDCENTER))
+			{
+				GameMessage *teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
+				teamMsg->appendBooleanArgument(TRUE);
+				teamMsg->appendObjectIDArgument(obj->getID());
+				TheMessageStream->appendMessage(GameMessage::MSG_SELL);
+				DEBUG_LOG(("NetworkAutoStart frame %d: selling container %s id %u", frame, obj->getTemplate()->getName().str(), obj->getID()));
+				printf("NetworkAutoStart frame %d: selling container %s id %u\n", frame, obj->getTemplate()->getName().str(), obj->getID());
+				fflush(stdout);
+				break;
+			}
+		}
+		s_lastContainerSellFrame = frame;
 	}
 
 	if (s_sellTunnelsFrame > 0 && frame >= s_sellTunnelsFrame && (s_lastSellFrame < 0 || frame - s_lastSellFrame >= SellIntervalFrames))

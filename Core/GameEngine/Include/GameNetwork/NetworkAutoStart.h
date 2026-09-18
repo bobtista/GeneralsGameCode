@@ -18,7 +18,7 @@
 
 #pragma once
 
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 
 #include "Common/AsciiString.h"
 #include "Common/UnicodeString.h"
@@ -50,6 +50,9 @@ public:
 	static Bool setAllySide(AsciiString side);
 	static Bool setConvertHumansToAI();
 	static Bool setGarrisonFrame(Int frame);
+	static Bool setBuildFrame(Int frame);
+	static Bool setBuildCount(Int count);
+	static Bool setSellContainersFrame(Int frame);
 	static Bool setSellTunnelsFrame(Int frame);
 	static Bool setSurrenderFrame(Int frame);
 	static Bool setJoin(AsciiString hostAddress);

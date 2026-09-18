@@ -255,7 +255,7 @@ void NetworkDirectConnectInit( WindowLayout *layout, void *userData )
 
 	Bool automatedStartup = FALSE;
 	UnsignedInt autoLocalIP = 0;
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 	if (NetworkAutoStart::isEnabled())
 	{
 		automatedStartup = TRUE;
@@ -351,7 +351,7 @@ void NetworkDirectConnectInit( WindowLayout *layout, void *userData )
 //		}
 		if (automatedStartup)
 		{
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 			NetworkAutoStart::onLocalAddressSet(TheLAN->SetLocalIP(IP));
 #endif
 		}
@@ -418,7 +418,7 @@ void NetworkDirectConnectShutdown( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void NetworkDirectConnectUpdate( WindowLayout * layout, void *userData)
 {
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 	if (NetworkAutoStart::isEnabled() && TheLAN != nullptr)
 	{
 		TheLAN->update();

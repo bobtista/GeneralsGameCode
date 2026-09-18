@@ -101,7 +101,7 @@
 #include "GameLogic/Scripts.h"
 
 #include "GameNetwork/GameSpy/BuddyThread.h"
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 #include "GameNetwork/NetworkAutoStart.h"
 #endif
 #include "GameNetwork/GameSpy/PeerDefs.h"
@@ -1243,7 +1243,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			playerName.format("player%d", i);
 			d.setAsciiString(TheKey_playerName, playerName);
 			Bool playerIsHuman = slot->isHuman();
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 			if (playerIsHuman && NetworkAutoStart::shouldConvertHumansToAI())
 			{
 				playerIsHuman = FALSE;
@@ -3281,7 +3281,7 @@ void GameLogic::update()
 		TheRecorder->UPDATE();
 	}
 
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
 	NetworkAutoStart::updateInGame();
 #endif
 
