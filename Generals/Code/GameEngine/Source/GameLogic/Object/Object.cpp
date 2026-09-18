@@ -702,13 +702,14 @@ const Object* Object::getOuterObject() const
 void Object::onDestroy()
 {
 	// This is the old cleanUpContain safeguard.  Say goodbye so they don't try to look us up.
-	if (m_containedBy && m_containedBy->getContain())
+	if (m_containedBy)
 	{
 #if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
 		// TheSuperHackers @bugfix bobtista / Caball009 17/09/2026 The container may already be destroyed without this
 		// object knowing, for example a Tunnel Network that changed owner through the asset transfer of a
 		// surrendering ally. Only call into a container that still exists, and drop the stale link otherwise.
-		if (!TheGameLogic->findObjectByID(m_containedBy->getID()))
+		// An object without a contain module cannot be the container either, so a reused block is treated the same.
+		if (!TheGameLogic->findObjectByID(m_containedBy->getID()) || m_containedBy->getContain() == nullptr)
 		{
 			for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
 			{
@@ -723,6 +724,7 @@ void Object::onDestroy()
 		}
 		else
 #endif
+		if (m_containedBy->getContain())
 		{
 			m_containedBy->getContain()->removeFromContain(this);
 		}

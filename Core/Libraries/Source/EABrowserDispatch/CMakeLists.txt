@@ -5,6 +5,10 @@ if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
         # Use widl for MinGW builds
         add_idl_file(browserdispatch_idl "${CMAKE_CURRENT_LIST_DIR}/BrowserDispatch.idl")
         add_library(core_browserdispatchwin STATIC ${browserdispatch_idl_IID} ${browserdispatch_idl_HEADER})
+    elseif(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BrowserDispatch_i.c" AND EXISTS "${CMAKE_CURRENT_BINARY_DIR}/BrowserDispatch.h")
+        # Local only: reuse midl outputs copied from a Windows build tree
+        add_library(core_browserdispatchwin STATIC "${CMAKE_CURRENT_BINARY_DIR}/BrowserDispatch_i.c")
+        target_include_directories(core_browserdispatchwin PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
     elseif(MSVC)
         # Use midl for MSVC builds
         add_custom_command(
