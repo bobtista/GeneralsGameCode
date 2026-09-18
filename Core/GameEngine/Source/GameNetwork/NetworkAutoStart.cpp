@@ -55,7 +55,6 @@ Int s_expectedPlayers = 0;
 Int s_aiPlayers = 0;
 Bool s_teamGame = false;
 AsciiString s_allySide = "China";
-Bool s_teamGameApplied = false;
 Bool s_convertHumansToAI = false;
 Int s_garrisonFrame = -1;
 Int s_buildFrame = -1;
@@ -617,7 +616,7 @@ void NetworkAutoStart::updateGameOptions()
 		return;
 	}
 
-	if (s_teamGame && !s_teamGameApplied)
+	if (s_teamGame)
 	{
 		const Int glaTemplate = findPlayerTemplateBySide("GLA");
 		const Int chinaTemplate = findPlayerTemplateBySide(s_allySide.str());
@@ -626,6 +625,9 @@ void NetworkAutoStart::updateGameOptions()
 			fail("GLA or ally side player template not found for -autoNetworkTeamGame");
 			return;
 		}
+		// A joining client requests its own preferred faction right after the join, which can undo the
+		// arrangement, so re-apply it whenever a slot deviates.
+		Bool deviates = false;
 		for (Int teamIndex = 0; teamIndex < MAX_SLOTS; ++teamIndex)
 		{
 			LANGameSlot *slot = game->getLANSlot(teamIndex);
@@ -635,23 +637,45 @@ void NetworkAutoStart::updateGameOptions()
 			}
 			if (slot->isHuman())
 			{
-				slot->setTeamNumber(0);
-				slot->setPlayerTemplate(teamIndex == 0 ? glaTemplate : chinaTemplate);
+				const Int wanted = teamIndex == 0 ? glaTemplate : chinaTemplate;
+				if (slot->getTeamNumber() != 0 || slot->getPlayerTemplate() != wanted)
+				{
+					deviates = true;
+				}
 			}
-			else if (slot->isAI())
+			else if (slot->isAI() && slot->getTeamNumber() != 1)
 			{
-				slot->setTeamNumber(1);
+				deviates = true;
 			}
 		}
-		DEBUG_LOG(("NetworkAutoStart arranged a team game: humans on team 0 (host GLA, others China), AI on team 1"));
-		s_teamGameApplied = true;
-		game->resetAccepted();
-		TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
-		lanUpdateSlotList();
-		s_lastActionTime = timeGetTime();
-		return;
+		const UnsignedInt teamNow = timeGetTime();
+		if (deviates && (s_lastActionTime == 0 || teamNow - s_lastActionTime >= ActionRetryMilliseconds))
+		{
+			for (Int teamIndex = 0; teamIndex < MAX_SLOTS; ++teamIndex)
+			{
+				LANGameSlot *slot = game->getLANSlot(teamIndex);
+				if (slot == nullptr)
+				{
+					continue;
+				}
+				if (slot->isHuman())
+				{
+					slot->setTeamNumber(0);
+					slot->setPlayerTemplate(teamIndex == 0 ? glaTemplate : chinaTemplate);
+				}
+				else if (slot->isAI())
+				{
+					slot->setTeamNumber(1);
+				}
+			}
+			DEBUG_LOG(("NetworkAutoStart arranged a team game: humans on team 0 (host GLA, others %s), AI on team 1", s_allySide.str()));
+			game->resetAccepted();
+			TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
+			lanUpdateSlotList();
+			s_lastActionTime = teamNow;
+			return;
+		}
 	}
-
 	LANGameSlot *hostSlot = game->getLANSlot(0);
 	if (hostSlot == nullptr)
 	{
