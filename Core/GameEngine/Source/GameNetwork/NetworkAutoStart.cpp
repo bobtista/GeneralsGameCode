@@ -69,6 +69,8 @@ Bool s_garrisonDone = false;
 Bool s_surrenderDone = false;
 Int s_quitFrame = -1;
 Bool s_quitDone = false;
+Int s_selectAllFrame = -1;
+Bool s_selectAllDone = false;
 Int s_lastSellFrame = -1;
 const char *const TunnelTemplateName = "GLATunnelNetwork";
 
@@ -298,6 +300,17 @@ Bool NetworkAutoStart::setQuitFrame(Int frame)
 		return false;
 	}
 	s_quitFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::setSelectAllFrame(Int frame)
+{
+	s_hasArguments = true;
+	if (frame < 1)
+	{
+		return false;
+	}
+	s_selectAllFrame = frame;
 	return true;
 }
 
@@ -984,6 +997,30 @@ void NetworkAutoStart::updateInGame()
 		printf("NetworkAutoStart frame %d: surrendering with asset transfer\n", frame);
 		fflush(stdout);
 		s_surrenderDone = true;
+	}
+
+	// Selecting every own object allocates a fresh AI group list holding their pointers, occupants included.
+	if (s_selectAllFrame > 0 && !s_selectAllDone && frame >= s_selectAllFrame)
+	{
+		GameMessage *teamMsg = nullptr;
+		Int selected = 0;
+		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
+		{
+			if (obj->getControllingPlayer() == local && !obj->isEffectivelyDead())
+			{
+				if (teamMsg == nullptr)
+				{
+					teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
+					teamMsg->appendBooleanArgument(TRUE);
+				}
+				teamMsg->appendObjectIDArgument(obj->getID());
+				++selected;
+			}
+		}
+		DEBUG_LOG(("NetworkAutoStart frame %d: selecting %d own objects", frame, selected));
+		printf("NetworkAutoStart frame %d: selecting %d own objects\n", frame, selected);
+		fflush(stdout);
+		s_selectAllDone = true;
 	}
 
 	// Same sequence as the Exit button of the quit menu: self destruct with transfer, stop recording, leave the game.
