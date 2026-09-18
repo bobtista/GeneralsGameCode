@@ -107,9 +107,28 @@ const char *const *buildOrderForSide(const AsciiString &side)
 	return america;
 }
 
+Bool isContainerTemplate(const ThingTemplate *tmpl)
+{
+	static const char *const sides[] = { "GLA", "China", "America" };
+	for (Int i = 0; i < 3; ++i)
+	{
+		const char *const *order = buildOrderForSide(sides[i]);
+		Int last = 0;
+		while (order[last + 1] != nullptr)
+		{
+			++last;
+		}
+		if (tmpl->getName().compare(order[last]) == 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 Bool isCompletedContainerStructure(const Object *obj)
 {
-	return obj->isKindOf(KINDOF_STRUCTURE) && obj->getContain() != nullptr &&
+	return isContainerTemplate(obj->getTemplate()) &&
 		!obj->getStatusBits().test(OBJECT_STATUS_UNDER_CONSTRUCTION) &&
 		!obj->getStatusBits().test(OBJECT_STATUS_SOLD) &&
 		!obj->isEffectivelyDead();
@@ -881,7 +900,7 @@ void NetworkAutoStart::updateInGame()
 	{
 		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
 		{
-			if (obj->getControllingPlayer() == local && isCompletedContainerStructure(obj) && !obj->isKindOf(KINDOF_COMMANDCENTER))
+			if (obj->getControllingPlayer() == local && isCompletedContainerStructure(obj))
 			{
 				GameMessage *teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
 				teamMsg->appendBooleanArgument(TRUE);
