@@ -44,7 +44,7 @@
 
 #pragma once
 
-#ifdef __MINGW32__
+#if defined(__MINGW32__) && 0 /* local: mingw-w64 14 ships these in comutil.h */
 
 #include <windows.h>
 #include <ole2.h>
