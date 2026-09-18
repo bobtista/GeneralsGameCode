@@ -55,6 +55,7 @@ public:
 	static Bool setSellContainersFrame(Int frame);
 	static Bool setSellTunnelsFrame(Int frame);
 	static Bool setSurrenderFrame(Int frame);
+	static Bool setQuitFrame(Int frame);
 	static Bool setJoin(AsciiString hostAddress);
 	static Bool setLocalAddress(AsciiString localAddress);
 	static Bool setPlayerName(AsciiString playerName);

@@ -722,6 +722,19 @@ Int parseAutoSurrender(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoQuit(char *args[], int num)
+{
+	Int frame = 0;
+	if (num > 1 && parsePositiveInt(args[1], frame) && NetworkAutoStart::setQuitFrame(frame))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoQuit. Pass a positive logic frame.\n");
+	exit(1);
+	return 1;
+}
+
 Int parseAutoNetworkTimeout(char *args[], int num)
 {
 	Int timeoutSeconds = 0;
@@ -1454,6 +1467,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoSellContainers", parseAutoSellContainers },
 	{ "-autoSellTunnels", parseAutoSellTunnels },
 	{ "-autoSurrender", parseAutoSurrender },
+	{ "-autoQuit", parseAutoQuit },
 #endif
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-noshellmap", parseNoShellMap },

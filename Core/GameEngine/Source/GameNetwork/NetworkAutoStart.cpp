@@ -28,6 +28,7 @@
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "Common/PlayerTemplate.h"
+#include "Common/Recorder.h"
 #include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
 #include "GameClient/InGameUI.h"
@@ -66,6 +67,8 @@ Int s_sellTunnelsFrame = -1;
 Int s_surrenderFrame = -1;
 Bool s_garrisonDone = false;
 Bool s_surrenderDone = false;
+Int s_quitFrame = -1;
+Bool s_quitDone = false;
 Int s_lastSellFrame = -1;
 const char *const TunnelTemplateName = "GLATunnelNetwork";
 
@@ -284,6 +287,17 @@ Bool NetworkAutoStart::setSurrenderFrame(Int frame)
 		return false;
 	}
 	s_surrenderFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::setQuitFrame(Int frame)
+{
+	s_hasArguments = true;
+	if (frame < 1)
+	{
+		return false;
+	}
+	s_quitFrame = frame;
 	return true;
 }
 
@@ -970,6 +984,22 @@ void NetworkAutoStart::updateInGame()
 		printf("NetworkAutoStart frame %d: surrendering with asset transfer\n", frame);
 		fflush(stdout);
 		s_surrenderDone = true;
+	}
+
+	// Same sequence as the Exit button of the quit menu: self destruct with transfer, stop recording, leave the game.
+	if (s_quitFrame > 0 && !s_quitDone && frame >= s_quitFrame)
+	{
+		GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
+		msg->appendBooleanArgument(TRUE);
+		if (TheRecorder != nullptr && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
+		{
+			TheRecorder->stopRecording();
+		}
+		DEBUG_LOG(("NetworkAutoStart frame %d: quitting the game", frame));
+		printf("NetworkAutoStart frame %d: quitting the game\n", frame);
+		fflush(stdout);
+		TheGameLogic->exitGame();
+		s_quitDone = true;
 	}
 }
 
