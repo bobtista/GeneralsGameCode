@@ -53,7 +53,13 @@ public:
 
 	virtual Int getLocalSlotNum() const override
 	{
-		return isInGame() ? m_localSlotNum : -1;
+		DEBUG_ASSERTCRASH(isInGame(), ("Looking for local game slot while not in game"));
+		if (!isInGame())
+		{
+			return -1;
+		}
+
+		return m_localSlotNum;
 	}
 
 	void setLocalSlotNum(Int slotNum) { m_localSlotNum = slotNum; }
