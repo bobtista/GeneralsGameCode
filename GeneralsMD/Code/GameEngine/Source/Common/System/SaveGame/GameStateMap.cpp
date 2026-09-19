@@ -280,6 +280,26 @@ static void buildSnapshotFromGameInfo( GameInfo *sourceInfo )
 	TheSkirmishGameInfo->startGame( sourceInfo->getGameID() );
 }
 
+// TheSuperHackers @bugfix bobtista 19/09/2026 A resumed playback never ran the game start that
+// resolves the recorded slots, so its game info still holds unresolved sides. A snapshot built
+// from it would load no players.
+static Bool gameInfoSlotsResolved( const GameInfo *sourceInfo )
+{
+	if( sourceInfo == nullptr )
+	{
+		return FALSE;
+	}
+	for( Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex )
+	{
+		const GameSlot *slot = sourceInfo->getConstSlot( slotIndex );
+		if( slot != nullptr && slot->isOccupied() && slot->getPlayerTemplate() == PLAYERTEMPLATE_RANDOM )
+		{
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
 // ------------------------------------------------------------------------------------------------
 void GameStateMap::xfer( Xfer *xfer )
 {
@@ -512,11 +532,17 @@ void GameStateMap::xfer( Xfer *xfer )
 		{
 			if( TheRecorder != nullptr && TheRecorder->isPlaybackMode() )
 			{
-				buildSnapshotFromGameInfo( TheRecorder->getGameInfo() );
+				if( gameInfoSlotsResolved( TheRecorder->getGameInfo() ) )
+				{
+					buildSnapshotFromGameInfo( TheRecorder->getGameInfo() );
+				}
 			}
 			else if( TheNetwork != nullptr && TheGameInfo != nullptr )
 			{
-				buildSnapshotFromGameInfo( TheGameInfo );
+				if( gameInfoSlotsResolved( TheGameInfo ) )
+				{
+					buildSnapshotFromGameInfo( TheGameInfo );
+				}
 			}
 		}
 		xfer->xferSnapshot(TheSkirmishGameInfo);
