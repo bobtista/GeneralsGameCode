@@ -33,6 +33,7 @@
 #include "Common/ThingTemplate.h"
 #include "GameClient/InGameUI.h"
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/Module/ProductionUpdate.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/TerrainLogic.h"
 #include "GameNetwork/NetworkInterface.h"
@@ -71,6 +72,10 @@ Int s_quitFrame = -1;
 Bool s_quitDone = false;
 Int s_selectAllFrame = -1;
 Bool s_selectAllDone = false;
+Int s_selectUnitsFrame = -1;
+Bool s_selectUnitsDone = false;
+Int s_trainFrame = -1;
+Bool s_trainDone = false;
 Int s_lastSellFrame = -1;
 const char *const TunnelTemplateName = "GLATunnelNetwork";
 
@@ -311,6 +316,28 @@ Bool NetworkAutoStart::setSelectAllFrame(Int frame)
 		return false;
 	}
 	s_selectAllFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::setSelectUnitsFrame(Int frame)
+{
+	s_hasArguments = true;
+	if (frame < 1)
+	{
+		return false;
+	}
+	s_selectUnitsFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::setTrainFrame(Int frame)
+{
+	s_hasArguments = true;
+	if (frame < 1)
+	{
+		return false;
+	}
+	s_trainFrame = frame;
 	return true;
 }
 
@@ -1021,6 +1048,75 @@ void NetworkAutoStart::updateInGame()
 		printf("NetworkAutoStart frame %d: selecting %d own objects\n", frame, selected);
 		fflush(stdout);
 		s_selectAllDone = true;
+	}
+
+	// Queue five basic infantry at the first own factory that can build them, like clicking the command bar.
+	if (s_trainFrame > 0 && !s_trainDone && frame >= s_trainFrame)
+	{
+		static const char *const infantry[] = { "GLAInfantryRebel", "ChinaInfantryRedGuard", "AmericaInfantryRanger", nullptr };
+		Bool queued = false;
+		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr && !queued; obj = obj->getNextObject())
+		{
+			ProductionUpdateInterface *production = obj->getProductionUpdateInterface();
+			if (obj->getControllingPlayer() != local || obj->isEffectivelyDead() || production == nullptr ||
+				obj->getStatusBits().test(OBJECT_STATUS_UNDER_CONSTRUCTION))
+			{
+				continue;
+			}
+			for (Int i = 0; infantry[i] != nullptr && !queued; ++i)
+			{
+				const ThingTemplate *unit = TheThingFactory->findTemplate(infantry[i]);
+				if (unit == nullptr || TheBuildAssistant->canMakeUnit(obj, unit) != CANMAKE_OK)
+				{
+					continue;
+				}
+				GameMessage *teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
+				teamMsg->appendBooleanArgument(TRUE);
+				teamMsg->appendObjectIDArgument(obj->getID());
+				for (Int n = 0; n < 5; ++n)
+				{
+					GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_QUEUE_UNIT_CREATE);
+					msg->appendIntegerArgument(unit->getTemplateID());
+					msg->appendIntegerArgument(production->requestUniqueUnitID());
+				}
+				DEBUG_LOG(("NetworkAutoStart frame %d: queueing 5 %s at %s id %u", frame, infantry[i], obj->getTemplate()->getName().str(), obj->getID()));
+				printf("NetworkAutoStart frame %d: queueing 5 %s at %s id %u\n", frame, infantry[i], obj->getTemplate()->getName().str(), obj->getID());
+				fflush(stdout);
+				queued = true;
+			}
+		}
+		if (!queued)
+		{
+			printf("NetworkAutoStart frame %d: no factory can train infantry\n", frame);
+			fflush(stdout);
+		}
+		s_trainDone = true;
+	}
+
+	// The same filter as the select all hotkey across the map: mass selectable units that are not contained.
+	if (s_selectUnitsFrame > 0 && !s_selectUnitsDone && frame >= s_selectUnitsFrame)
+	{
+		GameMessage *teamMsg = nullptr;
+		Int selected = 0;
+		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
+		{
+			if (obj->getControllingPlayer() == local && !obj->isContained() && !obj->isEffectivelyDead() &&
+				obj->isMassSelectable() && !obj->isOffMap() && !obj->isKindOf(KINDOF_DOZER) &&
+				!obj->isKindOf(KINDOF_HARVESTER) && !obj->isKindOf(KINDOF_IGNORES_SELECT_ALL))
+			{
+				if (teamMsg == nullptr)
+				{
+					teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
+					teamMsg->appendBooleanArgument(TRUE);
+				}
+				teamMsg->appendObjectIDArgument(obj->getID());
+				++selected;
+			}
+		}
+		DEBUG_LOG(("NetworkAutoStart frame %d: selecting %d units", frame, selected));
+		printf("NetworkAutoStart frame %d: selecting %d units\n", frame, selected);
+		fflush(stdout);
+		s_selectUnitsDone = true;
 	}
 
 	// Same sequence as the Exit button of the quit menu: self destruct with transfer, stop recording, leave the game.

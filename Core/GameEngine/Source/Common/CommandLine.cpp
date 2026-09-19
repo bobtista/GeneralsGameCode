@@ -748,6 +748,32 @@ Int parseAutoSelectAll(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoSelectUnits(char *args[], int num)
+{
+	Int frame = 0;
+	if (num > 1 && parsePositiveInt(args[1], frame) && NetworkAutoStart::setSelectUnitsFrame(frame))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoSelectUnits. Pass a positive logic frame.\n");
+	exit(1);
+	return 1;
+}
+
+Int parseAutoTrain(char *args[], int num)
+{
+	Int frame = 0;
+	if (num > 1 && parsePositiveInt(args[1], frame) && NetworkAutoStart::setTrainFrame(frame))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoTrain. Pass a positive logic frame.\n");
+	exit(1);
+	return 1;
+}
+
 Int parseAutoNetworkTimeout(char *args[], int num)
 {
 	Int timeoutSeconds = 0;
@@ -1482,6 +1508,8 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoSurrender", parseAutoSurrender },
 	{ "-autoQuit", parseAutoQuit },
 	{ "-autoSelectAll", parseAutoSelectAll },
+	{ "-autoSelectUnits", parseAutoSelectUnits },
+	{ "-autoTrain", parseAutoTrain },
 #endif
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-noshellmap", parseNoShellMap },
