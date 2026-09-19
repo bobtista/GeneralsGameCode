@@ -3861,6 +3861,7 @@ void GameLogic::update()
 			ai.close();
 			printf("CRCDUMP_PROBE frame %u partition %08X players %08X ai %08X seed %u\n", m_frame, part.getCRC(), players.getCRC(), ai.getCRC(), GetGameLogicRandomSeedCRC());
 			fflush(stdout);
+			TheAI->probeCrcParts();
 		}
 	}
 

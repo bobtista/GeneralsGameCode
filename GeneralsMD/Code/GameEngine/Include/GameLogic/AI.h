@@ -277,7 +277,8 @@ public:
 	// AI Groups -----------------------------------------------------------------------------------------------
 	AIGroupPtr createGroup(); ///< instantiate a new AI Group
 	void destroyGroup( AIGroup *group );	///< destroy the given AI Group
-	AIGroup *findGroup( UnsignedInt id );	///< return the AI Group with the given ID
+	AIGroup *findGroup( UnsignedInt id );
+	void probeCrcParts();	///< return the AI Group with the given ID
 	Bool doesGroupExist(AIGroup* group) const; ///< return whether the given AI Group exists, i.e. is part of the group list
 
 	// Formation info
