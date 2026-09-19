@@ -4121,6 +4121,9 @@ void Object::crc( Xfer *xfer )
 	* 15: TheSuperHackers @bugfix bobtista 17/09/2026 Carry a container link that outlived its
 	*     container. Retail leaves the link in place when a unit boards a transport on the frame the
 	*     transport is deleted, so the unit stays a contained ghost; a load that drops the link woke it
+	* 16: TheSuperHackers @bugfix bobtista 19/09/2026 Carry the formation offset of a unit that is not in
+	*     a formation. A group move led by a formation member adds every member's stored offset, and
+	*     retail keeps the stale one from an earlier formation; a load that dropped it sent the unit elsewhere
 	*/
 //-------------------------------------------------------------------------------------------------
 void Object::xfer( Xfer *xfer )
@@ -4128,9 +4131,9 @@ void Object::xfer( Xfer *xfer )
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE
-	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 15;
+	const XferVersion currentVersion = (xfer->getXferMode() != XFER_LOAD && xfer->getPurpose() != XFER_PURPOSE_CHECKPOINT) ? 9 : 16;
 #else
-	const XferVersion currentVersion = 15;
+	const XferVersion currentVersion = 16;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -4688,6 +4691,14 @@ void Object::xfer( Xfer *xfer )
 			{
 				m_xferContainedByGhost = getGhostContainer( ghostKey, ghostTemplate, ghostStatus );
 			}
+		}
+	}
+
+	if( version >= 16 )
+	{
+		if( m_formationID == NO_FORMATION_ID )
+		{
+			xfer->xferCoord2D( &m_formationOffset );
 		}
 	}
 }
