@@ -369,6 +369,20 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 
 	AIGroupPtr currentlySelectedGroup = nullptr;
 
+	{
+		static Int probeFrom = -1;
+		if (probeFrom == -1)
+		{
+			const char *env = getenv("GENERALS_GROUPLOG");
+			probeFrom = env != nullptr ? atoi(env) : 0;
+		}
+		if (probeFrom > 0 && getFrame() >= (UnsignedInt)probeFrom)
+		{
+			printf("MSG_PROBE frame %u type %d player %d args %d\n", getFrame(), (Int)msg->getType(), msg->getPlayerIndex(), msg->getArgumentCount());
+			fflush(stdout);
+		}
+	}
+
 	if (isInGame())
 	{
 		if (msg->getType() >= GameMessage::MSG_BEGIN_NETWORK_MESSAGES && msg->getType() <= GameMessage::MSG_END_NETWORK_MESSAGES)

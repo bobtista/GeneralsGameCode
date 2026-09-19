@@ -451,6 +451,19 @@ AIGroupPtr AI::createGroup()
 
 	// add it to the list
 //	DEBUG_LOG(("***AIGROUP %x is being added to m_groupList.", group ));
+	{
+		static Int probeFrom = -1;
+		if (probeFrom == -1)
+		{
+			const char *env = getenv("GENERALS_GROUPLOG");
+			probeFrom = env != nullptr ? atoi(env) : 0;
+		}
+		if (probeFrom > 0 && TheGameLogic->getFrame() >= (UnsignedInt)probeFrom)
+		{
+			printf("GROUP_PROBE frame %u create group %u\n", TheGameLogic->getFrame(), group->getID());
+			fflush(stdout);
+		}
+	}
 #if RETAIL_COMPATIBLE_AIGROUP
 	m_groupList.push_back( group );
 #else
