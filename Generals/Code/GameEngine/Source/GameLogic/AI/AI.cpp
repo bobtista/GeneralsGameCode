@@ -1028,6 +1028,47 @@ void AI::crc( Xfer *xfer )
 
 }
 
+// CRCDUMP_PROBE: break the AI CRC into its parts.
+void AI::probeCrcParts()
+{
+	XferCRC path;
+	path.open("probe");
+	path.xferSnapshot(m_pathfinder);
+	path.close();
+	printf("CRCDUMP_PROBE frame %u ai pathfinder %08X\n", TheGameLogic->getFrame(), path.getCRC());
+	Int index = 0;
+	for (TAiData *aiData = m_aiData; aiData != nullptr; aiData = aiData->m_next, ++index)
+	{
+		XferCRC data;
+		data.open("probe");
+		data.xferSnapshot(aiData);
+		data.close();
+		printf("CRCDUMP_PROBE frame %u ai data %d %08X\n", TheGameLogic->getFrame(), index, data.getCRC());
+	}
+	for (std::list<AIGroup *>::iterator groupIt = m_groupList.begin(); groupIt != m_groupList.end(); ++groupIt)
+	{
+		AIGroup *group = *groupIt;
+		if (group == nullptr)
+		{
+			continue;
+		}
+		XferCRC crc;
+		crc.open("probe");
+		crc.xferSnapshot(group);
+		crc.close();
+		AsciiString members;
+		const VecObjectID &ids = group->getAllIDs();
+		for (VecObjectID::const_iterator it = ids.begin(); it != ids.end(); ++it)
+		{
+			AsciiString one;
+			one.format(" %u", *it);
+			members.concat(one);
+		}
+		printf("CRCDUMP_PROBE frame %u ai group %u count %d crc %08X members%s\n", TheGameLogic->getFrame(), group->getID(), group->getCount(), crc.getCRC(), members.str());
+	}
+	fflush(stdout);
+}
+
 //-----------------------------------------------------------------------------
 void AI::xfer( Xfer *xfer )
 {
