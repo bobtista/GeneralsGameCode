@@ -2015,8 +2015,24 @@ Bool AIUpdateInterface::computeAttackPath( PathfindServicesInterface *pathServic
 /**
  * Destroy the current path, and set it to null
  */
+static Int probePathLogFrom()
+{
+	static Int from = -1;
+	if (from == -1)
+	{
+		const char *env = getenv("GENERALS_PATHLOG");
+		from = env != nullptr ? atoi(env) : 0;
+	}
+	return from;
+}
+
 void AIUpdateInterface::destroyPath()
 {
+	if (probePathLogFrom() > 0 && TheGameLogic->getFrame() >= (UnsignedInt)probePathLogFrom() && m_path != nullptr)
+	{
+		printf("PATH_PROBE frame %u: obj %u destroyPath %p\n", TheGameLogic->getFrame(), getObject()->getID(), m_path);
+		fflush(stdout);
+	}
 	// destroy previous path
 	deleteInstance(m_path);
 	m_path = nullptr;
@@ -3256,11 +3272,23 @@ void AIUpdateInterface::privateMoveAwayFromUnit( Object *unit, CommandSourceType
 		newPath = TheAI->pathfinder()->getMoveAwayFromPath(getObject(), unit, unitPath, obj2, path2);
 	}
 
+	const Bool probe = probePathLogFrom() > 0 && TheGameLogic->getFrame() >= (UnsignedInt)probePathLogFrom();
+	if (probe)
+	{
+		printf("PATH_PROBE frame %u: obj %u '%s' moveAwayFrom unit %u (unitPath %p, obj2 %u, path2 %p) newPath %p oldPath %p\n", TheGameLogic->getFrame(),
+			getObject()->getID(), getObject()->getTemplate()->getName().str(), unit->getID(), unitPath, obj2 ? obj2->getID() : 0, path2, newPath, m_path);
+		fflush(stdout);
+	}
 	if (newPath) {
 		destroyPath();
 		m_path = newPath;
 		wakeUpNow();
 		m_stateMachine->setTemporaryState(AI_MOVE_OUT_OF_THE_WAY, 10*LOGICFRAMES_PER_SECOND);
+		if (probe)
+		{
+			printf("PATH_PROBE frame %u: obj %u after setTemporaryState m_path %p\n", TheGameLogic->getFrame(), getObject()->getID(), m_path);
+			fflush(stdout);
+		}
 		if (m_path)
 		{
 	 		if( !getObject()->isKindOf(KINDOF_NO_COLLIDE))// If I don't collide with things, I don't need to tell them to get out of the way
