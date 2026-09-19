@@ -4105,6 +4105,14 @@ Object *GameLogic::friend_createObject( const ThingTemplate *thing, const Object
 // ------------------------------------------------------------------------------------------------
 void GameLogic::destroyObject( Object *obj )
 {
+	if (obj != nullptr && !obj->isDestroyed() && (obj->getContain() != nullptr || obj->getContainedBy() != nullptr))
+	{
+		printf("DESTROY_PROBE frame %u: destroyObject '%s' id %u (dead %d, contain %d, containedBy %u)\n", m_frame,
+			obj->getTemplate()->getName().str(), obj->getID(), (int)obj->isEffectivelyDead(), obj->getContain() != nullptr ? 1 : 0,
+			obj->getContainedBy() != nullptr ? obj->getContainedBy()->getID() : 0);
+		fflush(stdout);
+	}
+
 	DEBUG_ASSERTCRASH(obj != nullptr, ("destroying null object"));
 
 	// if already flagged for destruction, ignore

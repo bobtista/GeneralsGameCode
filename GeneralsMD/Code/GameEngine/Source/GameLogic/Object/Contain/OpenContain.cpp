@@ -910,6 +910,9 @@ void OpenContain::onCollide( Object *other, const Coord3D *loc, const Coord3D *n
 //-------------------------------------------------------------------------------------------------
 void OpenContain::onDelete()	///< Last possible moment cleanup
 {
+	printf("DESTROY_PROBE frame %u: container '%s' id %u onDelete with %u riders\n", TheGameLogic->getFrame(),
+		getObject()->getTemplate()->getName().str(), getObject()->getID(), (UnsignedInt)m_containList.size());
+	fflush(stdout);
 	// This uses my literal list, and not the gettor, because we don't want to get redirected some place fancy.
 	for(ContainedItemsList::iterator it = m_containList.begin(); it != m_containList.end(); )
 	{
@@ -924,6 +927,9 @@ void OpenContain::onDelete()	///< Last possible moment cleanup
 //-------------------------------------------------------------------------------------------------
 void OpenContain::onDie( const DamageInfo * damageInfo )
 {
+	printf("DESTROY_PROBE frame %u: container '%s' id %u onDie with %u riders\n", TheGameLogic->getFrame(),
+		getObject()->getTemplate()->getName().str(), getObject()->getID(), (UnsignedInt)m_containList.size());
+	fflush(stdout);
 	if (!getOpenContainModuleData()->m_dieMuxData.isDieApplicable(getObject(), damageInfo))
 		return;
 

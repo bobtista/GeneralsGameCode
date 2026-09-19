@@ -573,6 +573,9 @@ void DeliverPayloadStateMachine::loadPostProcess()
 //-------------------------------------------------------------------------------------------------
 StateReturnType ApproachState::onEnter() // Give the move command
 {
+	printf("DELIVER_PROBE frame %u: plane id %u enters ApproachState\n", TheGameLogic->getFrame(), getMachineOwner()->getID());
+	fflush(stdout);
+
 	Object *owner = getMachineOwner();
 	DeliverPayloadAIUpdate *ai = (DeliverPayloadAIUpdate*)owner->getAIUpdateInterface();
 	if( !ai )
@@ -658,6 +661,9 @@ void DeliveringState::loadPostProcess()
 //-------------------------------------------------------------------------------------------------
 StateReturnType DeliveringState::onEnter() // Open the pod bay doors, Hal
 {
+	printf("DELIVER_PROBE frame %u: plane id %u enters DeliveringState\n", TheGameLogic->getFrame(), getMachineOwner()->getID());
+	fflush(stdout);
+
 	Object *owner = getMachineOwner();
 	DeliverPayloadAIUpdate *ai = (DeliverPayloadAIUpdate*)owner->getAIUpdateInterface();
 	if( !ai )
@@ -947,6 +953,9 @@ void ConsiderNewApproachState::loadPostProcess()
 //-------------------------------------------------------------------------------------------------
 StateReturnType ConsiderNewApproachState::onEnter() // Increment local counter o' futility
 {
+	printf("DELIVER_PROBE frame %u: plane id %u enters ConsiderNewApproachState\n", TheGameLogic->getFrame(), getMachineOwner()->getID());
+	fflush(stdout);
+
 	Object *owner = getMachineOwner();
 	DeliverPayloadAIUpdate *ai = (DeliverPayloadAIUpdate*)owner->getAIUpdateInterface();
 	if( !ai )
@@ -1059,6 +1068,9 @@ void RecoverFromOffMapState::loadPostProcess()
 //-------------------------------------------------------------------------------------------------
 StateReturnType RecoverFromOffMapState::onEnter() // Increment local counter o' futility
 {
+	printf("DELIVER_PROBE frame %u: plane id %u enters RecoverFromOffMapState\n", TheGameLogic->getFrame(), getMachineOwner()->getID());
+	fflush(stdout);
+
 	Object *owner = getMachineOwner();
 	DeliverPayloadAIUpdate *ai = (DeliverPayloadAIUpdate*)owner->getAIUpdateInterface();
 	if( !ai )
@@ -1124,6 +1136,9 @@ StateReturnType RecoverFromOffMapState::update() // Success if we should try aga
 //-------------------------------------------------------------------------------------------------
 StateReturnType HeadOffMapState::onEnter() // Give move order out of town
 {
+	printf("DELIVER_PROBE frame %u: plane id %u enters HeadOffMapState\n", TheGameLogic->getFrame(), getMachineOwner()->getID());
+	fflush(stdout);
+
 	Object *owner = getMachineOwner();
 	DeliverPayloadAIUpdate *ai = (DeliverPayloadAIUpdate*)owner->getAIUpdateInterface();
 	if( !ai )
@@ -1218,6 +1233,9 @@ StateReturnType HeadOffMapState::update()
 //-------------------------------------------------------------------------------------------------
 StateReturnType CleanUpState::onEnter() // Delete my successful butt
 {
+	printf("DELIVER_PROBE frame %u: plane id %u enters CleanUpState\n", TheGameLogic->getFrame(), getMachineOwner()->getID());
+	fflush(stdout);
+
 	if( getMachineOwner()->getContain() )
 	{
 		DEBUG_ASSERTCRASH(getMachineOwner()->getContain()->getContainCount() == 0, ("did not drop all items!"));
