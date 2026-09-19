@@ -433,6 +433,16 @@ void TransportContain::onRemoving( Object *rider )
 // ------------------------------------------------------------------------------------------------
 void TransportContain::createPayload()
 {
+	if (getObject()->isDestroyed())
+	{
+		printf("PAYLOAD_PROBE frame %u: createPayload on destroyed '%s' id %u\n", TheGameLogic->getFrame(),
+			getObject()->getTemplate()->getName().str(), getObject()->getID());
+		fflush(stdout);
+		if (getenv("GENERALS_PAYLOAD_BREAK") != nullptr)
+		{
+			::DebugBreak();
+		}
+	}
 	TransportContainModuleData* self = (TransportContainModuleData*)getTransportContainModuleData();
 
 	Int count = self->m_initialPayload.count;
