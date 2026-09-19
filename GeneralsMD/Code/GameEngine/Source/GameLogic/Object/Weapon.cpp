@@ -1910,6 +1910,12 @@ void Weapon::computeBonus(const Object *source, WeaponBonusConditionFlags extraB
 
 	if( source->getContainedBy() )
 	{
+		if (TheGameLogic->findObjectByID(source->getContainedBy()->getID()) != source->getContainedBy())
+		{
+			printf("CONTAIN_PROBE frame %u: computeBonus for '%s' id %u with STALE containedBy %p (contained since frame %u)\n",
+				TheGameLogic->getFrame(), source->getTemplate()->getName().str(), source->getID(), source->getContainedBy(), source->getContainedByFrame());
+			fflush(stdout);
+		}
 		// We may be able to add in our container's flags
 		const ContainModuleInterface *theirContain = source->getContainedBy()->getContain();
 		if( theirContain && theirContain->isWeaponBonusPassedToPassengers() )

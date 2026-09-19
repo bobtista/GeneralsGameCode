@@ -88,6 +88,7 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/BodyModule.h"
+#include "GameLogic/Module/ContainModule.h"
 #include "GameLogic/Module/CreateModule.h"
 #include "GameLogic/Module/DestroyModule.h"
 #include "GameLogic/Module/OpenContain.h"
@@ -2558,6 +2559,22 @@ void GameLogic::processDestroyList()
 	for( ObjectPointerListIterator iterator = m_objectsToDestroy.begin(); iterator != m_objectsToDestroy.end(); iterator++ )
 	{
 		Object* currentObject = (*iterator);
+
+		for( Object *rider = m_objList; rider; rider = rider->getNextObject() )
+		{
+			if (rider->getContainedBy() != currentObject || rider == currentObject)
+			{
+				continue;
+			}
+			ContainModuleInterface *contain = currentObject->getContain();
+			printf("CONTAIN_PROBE frame %u: deleting '%s' id %u (%s, dead %d, listed %d) while '%s' id %u still points at it (since frame %u, rider dead %d destroyed %d)\n",
+				m_frame, currentObject->getTemplate()->getName().str(), currentObject->getID(),
+				contain == nullptr ? "no contain" : contain->isTunnelContain() ? "tunnel" : contain->isGarrisonable() ? "garrison" : contain->isHealContain() ? "heal" : "open",
+				(int)currentObject->isEffectivelyDead(), contain ? (int)contain->isContained(rider) : -1,
+				rider->getTemplate()->getName().str(), rider->getID(), rider->getContainedByFrame(),
+				(int)rider->isEffectivelyDead(), (int)rider->isDestroyed());
+			fflush(stdout);
+		}
 
 #ifdef ALLOW_NONSLEEPY_UPDATES
 		for (std::list<UpdateModulePtr>::iterator it = m_normalUpdates.begin(); it != m_normalUpdates.end(); /* nothing */)
