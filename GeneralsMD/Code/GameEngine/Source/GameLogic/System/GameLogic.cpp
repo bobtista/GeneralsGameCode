@@ -3813,6 +3813,57 @@ void GameLogic::update()
 		TheRecorder->UPDATE();
 	}
 
+	// CRCDUMP_PROBE: per object CRC at the frames named in the GENERALS_CRCDUMP env var (comma separated).
+	{
+		static Bool parsed = false;
+		static std::vector<UnsignedInt> dumpFrames;
+		if (!parsed)
+		{
+			parsed = true;
+			const char *env = getenv("GENERALS_CRCDUMP");
+			if (env != nullptr)
+			{
+				AsciiString list = env;
+				AsciiString token;
+				while (list.nextToken(&token, ","))
+				{
+					dumpFrames.push_back((UnsignedInt)atoi(token.str()));
+				}
+			}
+		}
+		for (size_t i = 0; i < dumpFrames.size(); ++i)
+		{
+			if (dumpFrames[i] != m_frame)
+			{
+				continue;
+			}
+			setFPMode();
+			for (Object *obj = m_objList; obj != nullptr; obj = obj->getNextObject())
+			{
+				XferCRC xfer;
+				xfer.open("probe");
+				xfer.xferSnapshot(obj);
+				xfer.close();
+				printf("CRCDUMP_PROBE frame %u obj %u %s team %s crc %08X\n", m_frame, obj->getID(), obj->getTemplate()->getName().str(),
+					obj->getTeam() != nullptr ? obj->getTeam()->getName().str() : "-", xfer.getCRC());
+			}
+			XferCRC part;
+			part.open("probe");
+			part.xferSnapshot(ThePartitionManager);
+			part.close();
+			XferCRC players;
+			players.open("probe");
+			players.xferSnapshot(ThePlayerList);
+			players.close();
+			XferCRC ai;
+			ai.open("probe");
+			ai.xferSnapshot(TheAI);
+			ai.close();
+			printf("CRCDUMP_PROBE frame %u partition %08X players %08X ai %08X seed %u\n", m_frame, part.getCRC(), players.getCRC(), ai.getCRC(), GetGameLogicRandomSeedCRC());
+			fflush(stdout);
+		}
+	}
+
 	// process client commands
 	{
 		processCommandList( TheCommandList );
