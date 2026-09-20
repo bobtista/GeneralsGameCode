@@ -861,6 +861,20 @@ StateReturnType AIStateMachine::updateStateMachine()
 	{
 		// execute this state
 		StateReturnType status = m_temporaryState->update();
+		{
+			static Int from = -1;
+			if (from == -1)
+			{
+				const char *env = getenv("GENERALS_AILOG");
+				from = env != nullptr ? atoi(env) : 0;
+			}
+			if (from > 0 && TheGameLogic->getFrame() >= (UnsignedInt)from && getOwner()->isKindOf(KINDOF_VEHICLE))
+			{
+				printf("TMPSTATE_PROBE frame %u: obj %u temp state %d update returned %d (frame end %u)\n", TheGameLogic->getFrame(),
+					getOwner()->getID(), (Int)m_temporaryState->getID(), (Int)status, m_temporaryStateFramEnd);
+				fflush(stdout);
+			}
+		}
 		if (m_temporaryStateFramEnd < TheGameLogic->getFrame()) {
 			// ran out of time.
 			if (status == STATE_CONTINUE) {
@@ -1763,6 +1777,22 @@ void AIInternalMoveToState::onExit( StateExitType status )
  * Execute the moveTo behavior towards GoalPosition.
  */
 
+static StateReturnType probeMoveRet(Object *obj, Int site, StateReturnType ret)
+{
+	static Int from = -1;
+	if (from == -1)
+	{
+		const char *env = getenv("GENERALS_AILOG");
+		from = env != nullptr ? atoi(env) : 0;
+	}
+	if (from > 0 && TheGameLogic->getFrame() >= (UnsignedInt)from && obj->isKindOf(KINDOF_VEHICLE) && ret != STATE_CONTINUE)
+	{
+		printf("MOVERET_PROBE frame %u: obj %u site %d ret %d\n", TheGameLogic->getFrame(), obj->getID(), site, (Int)ret);
+		fflush(stdout);
+	}
+	return ret;
+}
+
 StateReturnType AIInternalMoveToState::update()
 {
 
@@ -1779,7 +1809,7 @@ StateReturnType AIInternalMoveToState::update()
 	//If we're deployed, don't move! But keep the state around until we can packup (edge case).
 	//if( obj->testStatus( OBJECT_STATUS_DEPLOYED ) )
 	//{
-	//	return STATE_CONTINUE;
+	//	return probeMoveRet(getMachineOwner(), 1, STATE_CONTINUE);
 	//}
 
 	Path *thePath = ai->getPath();
@@ -1789,7 +1819,7 @@ StateReturnType AIInternalMoveToState::update()
 		m_pathTimestamp = TheGameLogic->getFrame();
 		if (ai->isWaitingForPath()) {
 			/// @todo srj -- find a way to sleep for a number of frames here, if possible
-			return STATE_CONTINUE;
+			return probeMoveRet(getMachineOwner(), 2, STATE_CONTINUE);
 		}
 		if (thePath==nullptr)
 		{
@@ -1798,7 +1828,7 @@ StateReturnType AIInternalMoveToState::update()
 			{
 				blah = blah;
 			}
-			return STATE_FAILURE;
+			return probeMoveRet(getMachineOwner(), 3, STATE_FAILURE);
 		}
 		m_waitingForPath = false;
 		m_pathGoalPosition = m_goalPosition;
@@ -1888,7 +1918,7 @@ StateReturnType AIInternalMoveToState::update()
 				{
 					blah = blah;
 				}
-				return STATE_FAILURE;
+				return probeMoveRet(getMachineOwner(), 4, STATE_FAILURE);
 			}
 
 			// srj sez: must re-set setLocoGoal after computePath, since computePath
@@ -1897,7 +1927,7 @@ StateReturnType AIInternalMoveToState::update()
 				ai->setLocomotorGoalPositionOnPath();
 			else
 			{
-				return STATE_CONTINUE;
+				return probeMoveRet(getMachineOwner(), 5, STATE_CONTINUE);
 			}
 		}
 	}
@@ -1922,7 +1952,7 @@ StateReturnType AIInternalMoveToState::update()
 			if (delta.length() > 4*PATHFIND_CELL_SIZE_F) {
 				//DEBUG_LOG(("AIInternalMoveToState Trying to finish early.  Continuing..."));
 				onPathDistToGoal = ai->getLocomotorDistanceToGoal();
-				return STATE_CONTINUE;
+				return probeMoveRet(getMachineOwner(), 6, STATE_CONTINUE);
 			}
 		}
 		// we have reached the end of the path
@@ -1936,10 +1966,10 @@ StateReturnType AIInternalMoveToState::update()
 		{
 			blah = blah;
 		}
-		return STATE_SUCCESS;
+		return probeMoveRet(getMachineOwner(), 7, STATE_SUCCESS);
 	}
 
-	return STATE_CONTINUE;
+	return probeMoveRet(getMachineOwner(), 8, STATE_CONTINUE);
 }
 
 //-------------------------------------------------------------------------------------------------
