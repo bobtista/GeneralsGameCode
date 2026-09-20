@@ -59,6 +59,7 @@ public:
 	static Bool setSelectAllFrame(Int frame);
 	static Bool setSelectUnitsFrame(Int frame);
 	static Bool setTrainFrame(Int frame);
+	static Bool setJamFrame(Int frame);
 	static Bool setJoin(AsciiString hostAddress);
 	static Bool setLocalAddress(AsciiString localAddress);
 	static Bool setPlayerName(AsciiString playerName);

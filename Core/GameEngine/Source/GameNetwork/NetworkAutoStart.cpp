@@ -76,6 +76,8 @@ Int s_selectUnitsFrame = -1;
 Bool s_selectUnitsDone = false;
 Int s_trainFrame = -1;
 Bool s_trainDone = false;
+Int s_jamFrame = -1;
+Int s_lastJamFrame = -1;
 Int s_lastSellFrame = -1;
 const char *const TunnelTemplateName = "GLATunnelNetwork";
 
@@ -338,6 +340,17 @@ Bool NetworkAutoStart::setTrainFrame(Int frame)
 		return false;
 	}
 	s_trainFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::setJamFrame(Int frame)
+{
+	s_hasArguments = true;
+	if (frame < 1)
+	{
+		return false;
+	}
+	s_jamFrame = frame;
 	return true;
 }
 
@@ -1117,6 +1130,46 @@ void NetworkAutoStart::updateInGame()
 		printf("NetworkAutoStart frame %d: selecting %d units\n", frame, selected);
 		fflush(stdout);
 		s_selectUnitsDone = true;
+	}
+
+	// Every two seconds select every own mobile unit and send the group to the command center, so they jam.
+	if (s_jamFrame > 0 && frame >= s_jamFrame && (s_lastJamFrame < 0 || frame - s_lastJamFrame >= 60))
+	{
+		s_lastJamFrame = frame;
+		GameMessage *teamMsg = nullptr;
+		const Object *center = nullptr;
+		Int selected = 0;
+		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
+		{
+			if (obj->getControllingPlayer() != local || obj->isEffectivelyDead())
+			{
+				continue;
+			}
+			if (center == nullptr && obj->isKindOf(KINDOF_COMMANDCENTER))
+			{
+				center = obj;
+			}
+			if (obj->isContained() || !obj->isMassSelectable() || obj->isKindOf(KINDOF_STRUCTURE) || obj->isKindOf(KINDOF_DOZER))
+			{
+				continue;
+			}
+			if (teamMsg == nullptr)
+			{
+				teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
+				teamMsg->appendBooleanArgument(TRUE);
+			}
+			teamMsg->appendObjectIDArgument(obj->getID());
+			++selected;
+		}
+		if (teamMsg != nullptr && center != nullptr)
+		{
+			Coord3D pos = *center->getPosition();
+			pos.x += 120.0f;
+			GameMessage *moveMsg = TheMessageStream->appendMessage(GameMessage::MSG_DO_MOVETO);
+			moveMsg->appendLocationArgument(pos);
+			printf("NetworkAutoStart frame %d: jamming %d units at %f %f\n", frame, selected, pos.x, pos.y);
+			fflush(stdout);
+		}
 	}
 
 	// Same sequence as the Exit button of the quit menu: self destruct with transfer, stop recording, leave the game.
