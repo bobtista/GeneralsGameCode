@@ -902,6 +902,15 @@ private:
 	Real					m_wallHeight;
 
 	Int						m_moveAlliesDepth;
+#if !RETAIL_COMPATIBLE_PATHFINDING
+	struct MoveAlliesCell
+	{
+		ICoord2D cell;
+		PathfindLayerEnum layer;
+	};
+	enum { MOVE_ALLIES_MAX_DEPTH = 3 };
+	std::vector<MoveAlliesCell> m_moveAlliesCells[MOVE_ALLIES_MAX_DEPTH];	///< one per recursion depth, moveAllies nests
+#endif
 
 
 	// Pathfind queue
