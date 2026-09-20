@@ -10229,18 +10229,42 @@ if (g_UT_startTiming) return false;
 	getRadiusAndCenter(obj, radius, centerInCell);
 	Int numCellsAbove = radius;
 	if (centerInCell) numCellsAbove++;
-	PathNode *node;
 	ObjectID ignoreId = INVALID_ID;
 	if (obj->getAIUpdateInterface()) {
 		ignoreId = obj->getAIUpdateInterface()->getIgnoredObstacleID();
 	}
-	for( node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious() )	{
+
+#if RETAIL_COMPATIBLE_PATHFINDING
+	// The move away orders issued below can recurse back into this unit and destroy the path while it is still
+	// being walked here. The walk then continues on freed nodes and their contents can decide which allies are
+	// ordered to move. Existing retail replays depend on that outcome, so this walk is kept as it is.
+	for (PathNode *node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious())
+	{
 		ICoord2D curCell;
 		worldToCell(node->getPosition(), &curCell);
+		const PathfindLayerEnum layer = node->getLayer();
+#else
+	// TheSuperHackers @bugfix bobtista 20/09/2026 Walk a copy of the path cells, so a move away order that recurses
+	// back into this unit and destroys the path cannot pull the nodes out from under the walk.
+	std::vector<MoveAlliesCell> &cells = m_moveAlliesCells[m_moveAlliesDepth - 1];
+	cells.clear();
+	for (const PathNode *node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious())
+	{
+		MoveAlliesCell entry;
+		worldToCell(node->getPosition(), &entry.cell);
+		entry.layer = node->getLayer();
+		cells.push_back(entry);
+	}
+
+	for (std::vector<MoveAlliesCell>::const_iterator it = cells.begin(); it != cells.end(); ++it)
+	{
+		const ICoord2D &curCell = it->cell;
+		const PathfindLayerEnum layer = it->layer;
+#endif
 		Int i, j;
 		for (i=curCell.x-radius; i<curCell.x+numCellsAbove; i++) {
 			for (j=curCell.y-radius; j<curCell.y+numCellsAbove; j++) {
-				PathfindCell	*cell = getCell(node->getLayer(), i, j);
+				PathfindCell	*cell = getCell(layer, i, j);
 				if (!cell) {
 					continue; // Cell is not on the pathfinding grid
 				}
