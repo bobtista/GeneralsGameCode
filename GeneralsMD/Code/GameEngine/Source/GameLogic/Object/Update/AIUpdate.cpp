@@ -1001,6 +1001,29 @@ void AIUpdateInterface::friend_notifyStateMachineChanged()
 DECLARE_PERF_TIMER(AIUpdateInterface_update)
 UpdateSleepTime AIUpdateInterface::update()
 {
+	{
+		static Int from = -1;
+		if (from == -1)
+		{
+			const char *env = getenv("GENERALS_AILOG");
+			from = env != nullptr ? atoi(env) : 0;
+		}
+		if (from > 0 && TheGameLogic->getFrame() >= (UnsignedInt)from && getObject()->isKindOf(KINDOF_VEHICLE))
+		{
+			Int nodes = 0;
+			if (m_path != nullptr)
+			{
+				for (const PathNode *n = m_path->getFirstNode(); n != nullptr; n = n->getNext())
+				{
+					++nodes;
+				}
+			}
+			printf("AI_PROBE frame %u: obj %u '%s' state %d tmpState %d nodes %d waiting %d blocked %d pos %.3f %.3f goal %.3f %.3f\n", TheGameLogic->getFrame(),
+				getObject()->getID(), getObject()->getTemplate()->getName().str(), (Int)m_stateMachine->getCurrentStateID(), (Int)m_stateMachine->getTemporaryState(),
+				nodes, (Int)m_waitingForPath, (Int)m_isBlocked, getObject()->getPosition()->x, getObject()->getPosition()->y, m_requestedDestination.x, m_requestedDestination.y);
+			fflush(stdout);
+		}
+	}
 	//DEBUG_LOG(("AIUpdateInterface frame %d: %08lx",TheGameLogic->getFrame(),getObject()));
 
 	USE_PERF_TIMER(AIUpdateInterface_update)

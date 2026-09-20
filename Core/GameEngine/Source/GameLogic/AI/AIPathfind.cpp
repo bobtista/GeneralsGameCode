@@ -5758,8 +5758,26 @@ Bool Pathfinder::adjustToPossibleDestination(Object *obj, const LocomotorSet& lo
  * Queues an object to do a pathfind.
  * It will call the object's ai update->doPathfind() during processPathfindQueue().
  */
+static Int probeQueueLogFrom()
+{
+	static Int from = -1;
+	if (from == -1)
+	{
+		const char *env = getenv("GENERALS_QUEUELOG");
+		from = env != nullptr ? atoi(env) : 0;
+	}
+	return from;
+}
+
 Bool Pathfinder::queueForPath(ObjectID id)
 {
+	if (probeQueueLogFrom() > 0 && TheGameLogic->getFrame() >= (UnsignedInt)probeQueueLogFrom())
+	{
+		const Object *qobj = TheGameLogic->findObjectByID(id);
+		printf("QUEUE_PROBE frame %u: queueForPath obj %u '%s' head %d tail %d cells %d\n", TheGameLogic->getFrame(), id,
+			qobj != nullptr ? qobj->getTemplate()->getName().str() : "?", m_queuePRHead, m_queuePRTail, m_cumulativeCellsAllocated);
+		fflush(stdout);
+	}
 #ifdef DEBUG_LOGGING
 	{
 		Object *tmpObj = TheGameLogic->findObjectByID(id);
