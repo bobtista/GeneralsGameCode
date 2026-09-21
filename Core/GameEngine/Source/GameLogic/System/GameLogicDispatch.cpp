@@ -2417,6 +2417,20 @@ bool GameLogic::onLogicCrc(MAYBE_UNUSED GameMessage *msg)
 		UnsignedInt newCRC = msg->getArgument(0)->integer;
 		//DEBUG_LOG(("Saw CRC of %X from player %d.  Our CRC is %X.  Arg count is %d",
 			//newCRC, msgPlayer->getPlayerIndex(), getCRC(), msg->getArgumentCount()));
+		{
+			static Int from = -1;
+			if (from == -1)
+			{
+				const char *env = getenv("GENERALS_CRCLOG");
+				from = env != nullptr ? atoi(env) : 0;
+			}
+			if (from > 0 && m_frame >= (UnsignedInt)from)
+			{
+				printf("CRCMSG_PROBE frame %u: player %d %s crc %08X sim %08X\n", m_frame, msgPlayer->getPlayerIndex(),
+					msg->getArgument(1)->boolean ? "local" : "recorded", newCRC, getCRC());
+				fflush(stdout);
+			}
+		}
 
 		TheRecorder->handleCRCMessage(newCRC, msgPlayer->getPlayerIndex(), (msg->getArgument(1)->boolean));
 	}
