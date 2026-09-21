@@ -1401,7 +1401,16 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			AsciiString playerName;
 			playerName.format("player%d", i);
 			d.setAsciiString(TheKey_playerName, playerName);
-			d.setBool(TheKey_playerIsHuman, slot->isHuman());
+			Bool playerIsHuman = slot->isHuman();
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
+			if (playerIsHuman && NetworkAutoStart::shouldConvertHumansToAI())
+			{
+				playerIsHuman = FALSE;
+				d.setBool(TheKey_playerIsSkirmish, true);
+				d.setInt(TheKey_skirmishDifficulty, DIFFICULTY_HARD);
+			}
+#endif
+			d.setBool(TheKey_playerIsHuman, playerIsHuman);
 			d.setUnicodeString(TheKey_playerDisplayName, slot->getName());
 			const PlayerTemplate* pt;
 			if (slot->getPlayerTemplate() >= 0)
