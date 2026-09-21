@@ -1214,13 +1214,19 @@ void NetworkAutoStart::updateInGame()
 		const Object *center = nullptr;
 		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
 		{
-			if (obj->getControllingPlayer() != local || obj->isEffectivelyDead())
+			if (obj->isEffectivelyDead())
 			{
 				continue;
 			}
-			if (center == nullptr && obj->isKindOf(KINDOF_COMMANDCENTER))
+			// Every ally jams at the lowest numbered allied command center, so both peers pile into one spot.
+			if (obj->isKindOf(KINDOF_COMMANDCENTER) && local->getRelationship(obj->getTeam()) == ALLIES &&
+				(center == nullptr || obj->getControllingPlayer()->getPlayerIndex() < center->getControllingPlayer()->getPlayerIndex()))
 			{
 				center = obj;
+			}
+			if (obj->getControllingPlayer() != local)
+			{
+				continue;
 			}
 			if (obj->isContained() || !obj->isMassSelectable() || obj->isKindOf(KINDOF_STRUCTURE))
 			{
@@ -1230,7 +1236,7 @@ void NetworkAutoStart::updateInGame()
 			{
 				continue;
 			}
-			if (obj->isKindOf(KINDOF_DOZER) || (obj->getID() & 1) != 0)
+			if (obj->isKindOf(KINDOF_DOZER) || (obj->getID() & 3) == 0)
 			{
 				movers.push_back(obj->getID());
 			}
