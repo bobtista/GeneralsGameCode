@@ -10240,7 +10240,7 @@ if (g_UT_startTiming) return false;
 		const AIUpdateInterface *probeAi = obj->getAI();
 		printf("REENTRY_PROBE frame %u: moveAllies depth %d obj %u '%s' path %p idle %d moving %d temp %d (calls by depth %d %d %d, reentries %d)\n",
 			TheGameLogic->getFrame(), m_moveAlliesDepth, obj->getID(), obj->getTemplate()->getName().str(), path,
-			probeAi ? probeAi->isIdle() : -1, probeAi ? probeAi->isMoving() : -1, probeAi ? (Int)probeAi->getStateMachine()->getTemporaryState() : -1,
+			probeAi ? probeAi->isIdle() : -1, probeAi ? probeAi->isMoving() : -1, probeAi ? (Int)probeAi->getLastCommandSource() : -1,
 			m_moveAlliesCalls[0], m_moveAlliesCalls[1], m_moveAlliesCalls[2], m_moveAlliesReentries);
 		fflush(stdout);
 	}
