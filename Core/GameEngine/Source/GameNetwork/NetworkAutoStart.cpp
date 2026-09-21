@@ -1223,7 +1223,6 @@ void NetworkAutoStart::updateInGame()
 			fflush(stdout);
 		}
 	}
-	}
 
 	// Same sequence as the Exit button of the quit menu: self destruct with transfer, stop recording, leave the game.
 	if (s_quitFrame > 0 && !s_quitDone && frame >= s_quitFrame)
