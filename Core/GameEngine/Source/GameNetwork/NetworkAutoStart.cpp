@@ -169,6 +169,23 @@ Bool isCompletedTunnel(const Object *obj)
 		!obj->getStatusBits().test(OBJECT_STATUS_SOLD) &&
 		!obj->isEffectivelyDead();
 }
+// Selects the given own objects and orders the group to the position, like a drag select and a right click.
+void selectAndMove(const std::vector<ObjectID> &ids, const Coord3D &pos)
+{
+	if (ids.empty())
+	{
+		return;
+	}
+	GameMessage *teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
+	teamMsg->appendBooleanArgument(TRUE);
+	for (std::vector<ObjectID>::const_iterator it = ids.begin(); it != ids.end(); ++it)
+	{
+		teamMsg->appendObjectIDArgument(*it);
+	}
+	GameMessage *moveMsg = TheMessageStream->appendMessage(GameMessage::MSG_DO_MOVETO);
+	moveMsg->appendLocationArgument(pos);
+}
+
 UnsignedInt s_hostAddress = 0;
 UnsignedInt s_localAddress = 0;
 AsciiString s_playerName;
@@ -1163,13 +1180,14 @@ void NetworkAutoStart::updateInGame()
 		s_selectUnitsDone = true;
 	}
 
-	// Every two seconds select every own mobile unit and send the group to the command center, so they jam.
+	// Every two seconds park the even numbered units near the command center and shuttle the odd numbered units and
+	// the dozers back and forth through them, so movers keep pathing through idle allies.
 	if (s_jamFrame > 0 && frame >= s_jamFrame && (s_lastJamFrame < 0 || frame - s_lastJamFrame >= 60))
 	{
 		s_lastJamFrame = frame;
-		GameMessage *teamMsg = nullptr;
+		std::vector<ObjectID> parked;
+		std::vector<ObjectID> movers;
 		const Object *center = nullptr;
-		Int selected = 0;
 		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
 		{
 			if (obj->getControllingPlayer() != local || obj->isEffectivelyDead())
@@ -1180,27 +1198,31 @@ void NetworkAutoStart::updateInGame()
 			{
 				center = obj;
 			}
-			if (obj->isContained() || !obj->isMassSelectable() || obj->isKindOf(KINDOF_STRUCTURE) || obj->isKindOf(KINDOF_DOZER))
+			if (obj->isContained() || !obj->isMassSelectable() || obj->isKindOf(KINDOF_STRUCTURE))
 			{
 				continue;
 			}
-			if (teamMsg == nullptr)
+			if (obj->isKindOf(KINDOF_DOZER) || (obj->getID() & 1) != 0)
 			{
-				teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
-				teamMsg->appendBooleanArgument(TRUE);
+				movers.push_back(obj->getID());
 			}
-			teamMsg->appendObjectIDArgument(obj->getID());
-			++selected;
+			else
+			{
+				parked.push_back(obj->getID());
+			}
 		}
-		if (teamMsg != nullptr && center != nullptr)
+		if (center != nullptr)
 		{
-			Coord3D pos = *center->getPosition();
-			pos.x += 120.0f;
-			GameMessage *moveMsg = TheMessageStream->appendMessage(GameMessage::MSG_DO_MOVETO);
-			moveMsg->appendLocationArgument(pos);
-			printf("NetworkAutoStart frame %d: jamming %d units at %f %f\n", frame, selected, pos.x, pos.y);
+			Coord3D spot = *center->getPosition();
+			spot.x += 120.0f;
+			Coord3D target = spot;
+			target.x += ((frame - s_jamFrame) / 120) % 2 == 0 ? 150.0f : -150.0f;
+			selectAndMove(parked, spot);
+			selectAndMove(movers, target);
+			printf("NetworkAutoStart frame %d: parking %d units at %f %f, moving %d through to %f\n", frame, (Int)parked.size(), spot.x, spot.y, (Int)movers.size(), target.x);
 			fflush(stdout);
 		}
+	}
 	}
 
 	// Same sequence as the Exit button of the quit menu: self destruct with transfer, stop recording, leave the game.
