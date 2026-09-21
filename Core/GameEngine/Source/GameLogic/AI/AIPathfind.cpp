@@ -10315,6 +10315,9 @@ if (g_UT_startTiming) return false;
 			moveAlliesAroundCell(obj, curCell, node->getLayer(), radius, numCellsAbove, ignoreId, blockedByAlly);
 			if (ai != nullptr && ai->getPath() != path)
 			{
+				printf("FAILOVER_PROBE frame %u: obj %u '%s' path %p replaced by %p during the moveAllies walk at depth %d, switching to fixed pathfinding\n",
+					TheGameLogic->getFrame(), obj->getID(), obj->getTemplate()->getName().str(), path, ai->getPath(), m_moveAlliesDepth);
+				fflush(stdout);
 				s_useFixedPathfinding = true;
 				return true;
 			}
