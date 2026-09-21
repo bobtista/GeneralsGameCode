@@ -1150,7 +1150,7 @@ void Drawable::updateDrawable(Real timeScale)
 			// TheSuperHackers @bugfix bobtista 15/09/2026 Decouple Drawable fade timing from render updates.
 			m_timeElapsedFade += timeScale;
 
-			if (m_timeElapsedFade >= m_timeToFade)
+			if (m_timeElapsedFade > m_timeToFade)
 			{
 				opacity = m_fadeMode == FADING_IN ? 1.0f : 0.0f;
 				m_fadeMode = FADING_NONE;
