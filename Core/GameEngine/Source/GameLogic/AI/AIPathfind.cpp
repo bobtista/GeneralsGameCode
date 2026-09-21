@@ -10236,10 +10236,11 @@ if (g_UT_startTiming) return false;
 	LatchRestore<const Path *> walkingPath(m_moveAlliesWalking[m_moveAlliesDepth - 1], path);
 	LatchRestore<ObjectID> walkingObj(m_moveAlliesWalker[m_moveAlliesDepth - 1], obj->getID());
 	++m_moveAlliesCalls[m_moveAlliesDepth - 1];
-	if (m_moveAlliesDepth >= 2)
 	{
-		printf("REENTRY_PROBE frame %u: moveAllies depth %d obj %u '%s' path %p (calls by depth %d %d %d, reentries %d)\n",
+		const AIUpdateInterface *probeAi = obj->getAI();
+		printf("REENTRY_PROBE frame %u: moveAllies depth %d obj %u '%s' path %p idle %d moving %d temp %d (calls by depth %d %d %d, reentries %d)\n",
 			TheGameLogic->getFrame(), m_moveAlliesDepth, obj->getID(), obj->getTemplate()->getName().str(), path,
+			probeAi ? probeAi->isIdle() : -1, probeAi ? probeAi->isMoving() : -1, probeAi ? (Int)probeAi->getStateMachine()->getTemporaryState() : -1,
 			m_moveAlliesCalls[0], m_moveAlliesCalls[1], m_moveAlliesCalls[2], m_moveAlliesReentries);
 		fflush(stdout);
 	}
