@@ -1043,6 +1043,7 @@ void AI::probeCrcParts()
 	path.xferSnapshot(m_pathfinder);
 	path.close();
 	printf("CRCDUMP_PROBE frame %u ai pathfinder %08X\n", TheGameLogic->getFrame(), path.getCRC());
+	m_pathfinder->probeCrcFields();
 	Int index = 0;
 	for (TAiData *aiData = m_aiData; aiData != nullptr; aiData = aiData->m_next, ++index)
 	{

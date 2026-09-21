@@ -767,6 +767,7 @@ public:
 	void addWallPiece(Object *wallPiece); // Adds a wall piece.
 	void removeWallPiece(Object *wallPiece);  // Removes a wall piece.
 	Real getWallHeight() {return m_wallHeight;}
+	void probeCrcFields();
 	Bool isPointOnWall(const Coord3D *pos);
 
 	void updateLayer(Object *obj, PathfindLayerEnum layer); ///< Updates object's layer.

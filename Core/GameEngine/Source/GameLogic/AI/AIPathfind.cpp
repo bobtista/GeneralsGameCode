@@ -11267,6 +11267,39 @@ Path *Pathfinder::findSafePath( const Object *obj, const LocomotorSet& locomotor
 }
 
 //-----------------------------------------------------------------------------
+// CRCDUMP_PROBE: every field of Pathfinder::crc, hashed one by one, plus the raw queue contents.
+void Pathfinder::probeCrcFields()
+{
+	XferCRC one;
+	one.open("probe");
+	one.xferUser(&m_extent, sizeof(IRegion2D));
+	printf("CRCDUMP_PROBE frame %u pf extent %08X (%d %d %d %d) mapReady %d tunneling %d ignore %u\n", TheGameLogic->getFrame(), one.getCRC(),
+		m_extent.lo.x, m_extent.lo.y, m_extent.hi.x, m_extent.hi.y, (Int)m_isMapReady, (Int)m_isTunneling, (UnsignedInt)m_ignoreObstacleID);
+	one.close();
+	XferCRC q;
+	q.open("probe");
+	q.xferUser(m_queuedPathfindRequests, sizeof(ObjectID)*PATHFIND_QUEUE_LEN);
+	q.close();
+	printf("CRCDUMP_PROBE frame %u pf queue %08X head %d tail %d walls %d wallHeight %f cells %d\n", TheGameLogic->getFrame(), q.getCRC(),
+		m_queuePRHead, m_queuePRTail, m_numWallPieces, m_wallHeight, m_cumulativeCellsAllocated);
+	printf("CRCDUMP_PROBE frame %u pf queue entries:", TheGameLogic->getFrame());
+	for (Int slot = m_queuePRHead; slot != m_queuePRTail; slot = (slot + 1) % PATHFIND_QUEUE_LEN)
+	{
+		printf(" %u", (UnsignedInt)m_queuedPathfindRequests[slot]);
+	}
+	printf("\n");
+	Int nonZero = 0;
+	for (Int i = 0; i < PATHFIND_QUEUE_LEN; ++i)
+	{
+		if (m_queuedPathfindRequests[i] != INVALID_ID)
+		{
+			++nonZero;
+		}
+	}
+	printf("CRCDUMP_PROBE frame %u pf queue array nonzero %d\n", TheGameLogic->getFrame(), nonZero);
+	fflush(stdout);
+}
+
 void Pathfinder::crc( Xfer *xfer )
 {
 	CRCDEBUG_LOG(("Pathfinder::crc() on frame %d", TheGameLogic->getFrame()));
