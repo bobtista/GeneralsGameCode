@@ -1202,6 +1202,10 @@ void NetworkAutoStart::updateInGame()
 			{
 				continue;
 			}
+			if (obj->isKindOf(KINDOF_DOZER) && !s_trainDone)
+			{
+				continue;
+			}
 			if (obj->isKindOf(KINDOF_DOZER) || (obj->getID() & 1) != 0)
 			{
 				movers.push_back(obj->getID());
