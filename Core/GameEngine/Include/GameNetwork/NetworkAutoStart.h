@@ -46,6 +46,7 @@ public:
 	static Bool setMode(const AsciiString &mode);
 	static Bool setHost(Int expectedPlayers);
 	static Bool setAICount(Int aiPlayers);
+	static Bool setAIAllies(Int aiAllies);
 	static Bool setStartingCash(Int cash);
 	static Int getStartingCash();
 	static Bool setTeamGame();

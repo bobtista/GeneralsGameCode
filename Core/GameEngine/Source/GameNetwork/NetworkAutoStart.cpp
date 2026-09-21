@@ -55,6 +55,7 @@ NetworkAutoStart::Mode s_mode = NetworkAutoStart::MODE_NONE;
 NetworkAutoStart::Role s_role = NetworkAutoStart::ROLE_NONE;
 Int s_expectedPlayers = 0;
 Int s_aiPlayers = 0;
+Int s_aiAllies = 0;
 Int s_startingCash = 0;
 Bool s_teamGame = false;
 AsciiString s_allySide = "China";
@@ -248,6 +249,17 @@ Bool NetworkAutoStart::setTeamGame()
 {
 	s_hasArguments = true;
 	s_teamGame = true;
+	return true;
+}
+
+Bool NetworkAutoStart::setAIAllies(Int aiAllies)
+{
+	s_hasArguments = true;
+	if (aiAllies < 0 || aiAllies >= MAX_SLOTS)
+	{
+		return false;
+	}
+	s_aiAllies = aiAllies;
 	return true;
 }
 
@@ -754,6 +766,7 @@ void NetworkAutoStart::updateGameOptions()
 		// A joining client requests its own preferred faction right after the join, which can undo the
 		// arrangement, so re-apply it whenever a slot deviates.
 		Bool deviates = false;
+		Int aiSeen = 0;
 		for (Int teamIndex = 0; teamIndex < MAX_SLOTS; ++teamIndex)
 		{
 			LANGameSlot *slot = game->getLANSlot(teamIndex);
@@ -769,7 +782,7 @@ void NetworkAutoStart::updateGameOptions()
 					deviates = true;
 				}
 			}
-			else if (slot->isAI() && slot->getTeamNumber() != 1)
+			else if (slot->isAI() && slot->getTeamNumber() != (aiSeen++ < s_aiAllies ? 0 : 1))
 			{
 				deviates = true;
 			}
@@ -777,6 +790,7 @@ void NetworkAutoStart::updateGameOptions()
 		const UnsignedInt teamNow = timeGetTime();
 		if (deviates && (s_lastActionTime == 0 || teamNow - s_lastActionTime >= ActionRetryMilliseconds))
 		{
+			aiSeen = 0;
 			for (Int teamIndex = 0; teamIndex < MAX_SLOTS; ++teamIndex)
 			{
 				LANGameSlot *slot = game->getLANSlot(teamIndex);
@@ -791,10 +805,10 @@ void NetworkAutoStart::updateGameOptions()
 				}
 				else if (slot->isAI())
 				{
-					slot->setTeamNumber(1);
+					slot->setTeamNumber(aiSeen++ < s_aiAllies ? 0 : 1);
 				}
 			}
-			DEBUG_LOG(("NetworkAutoStart arranged a team game: humans on team 0 (host GLA, others %s), AI on team 1", s_allySide.str()));
+			DEBUG_LOG(("NetworkAutoStart arranged a team game: humans on team 0 (host GLA, others %s), %d AI on team 0, the rest on team 1", s_allySide.str(), s_aiAllies));
 			game->resetAccepted();
 			TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
 			lanUpdateSlotList();

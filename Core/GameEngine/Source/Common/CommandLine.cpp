@@ -626,6 +626,18 @@ Int parseAutoNetworkTeamGame(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoNetworkAIAllies(char *args[], int num)
+{
+	Int aiAllies = 0;
+	if (num > 1 && parsePositiveInt(args[1], aiAllies) && NetworkAutoStart::setAIAllies(aiAllies))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoNetworkAIAllies. Pass how many of the AI players join the human team.\n");
+	exit(1);
+}
+
 Int parseAutoNetworkCash(char *args[], int num)
 {
 	Int cash = 0;
@@ -1531,6 +1543,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoNetworkTeamGame", parseAutoNetworkTeamGame },
 	{ "-autoNetworkAllySide", parseAutoNetworkAllySide },
 	{ "-autoNetworkCash", parseAutoNetworkCash },
+	{ "-autoNetworkAIAllies", parseAutoNetworkAIAllies },
 	{ "-autoAIHumans", parseAutoAIHumans },
 	{ "-autoGarrison", parseAutoGarrison },
 	{ "-autoBuild", parseAutoBuild },
