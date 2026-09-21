@@ -4023,6 +4023,9 @@ void Pathfinder::reset()
 	m_isTunneling = false;
 
 	m_moveAlliesDepth = 0;
+	m_moveAlliesWalking[0] = m_moveAlliesWalking[1] = m_moveAlliesWalking[2] = nullptr;
+	m_moveAlliesCalls[0] = m_moveAlliesCalls[1] = m_moveAlliesCalls[2] = 0;
+	m_moveAlliesReentries = 0;
 
 	// pathfind grid cells have not been classified yet
 	m_isMapReady = false;
@@ -10195,6 +10198,21 @@ struct MoveAlliesCell
 };
 #endif
 
+// REENTRY_PROBE: called by AIUpdateInterface::destroyPath before it frees a path.
+void Pathfinder::probePathDestroyed(const Object *obj, const Path *path)
+{
+	for (Int depth = 0; depth < m_moveAlliesDepth; ++depth)
+	{
+		if (m_moveAlliesWalking[depth] == path)
+		{
+			++m_moveAlliesReentries;
+			printf("REENTRY_PROBE frame %u: obj %u '%s' destroys path %p walked by moveAllies at depth %d (current depth %d)\n",
+				TheGameLogic->getFrame(), obj->getID(), obj->getTemplate()->getName().str(), path, depth + 1, m_moveAlliesDepth);
+			fflush(stdout);
+		}
+	}
+}
+
 Bool Pathfinder::moveAllies(Object *obj, Path *path)
 {
 
@@ -10212,6 +10230,15 @@ if (g_UT_startTiming) return false;
 	LatchRestore<Int> recursiveDepth(m_moveAlliesDepth, m_moveAlliesDepth+1);
 	if (m_moveAlliesDepth > 2) {
 		return false;
+	}
+	// REENTRY_PROBE: remember the path under iteration at this depth, so destroyPath can tell when it frees one.
+	LatchRestore<const Path *> walkingPath(m_moveAlliesWalking[m_moveAlliesDepth - 1], path);
+	++m_moveAlliesCalls[m_moveAlliesDepth - 1];
+	if (TheGameLogic->getFrame() % 600 == 0 && m_moveAlliesCalls[0] > 0 && m_moveAlliesDepth == 1)
+	{
+		printf("REENTRY_PROBE frame %u: moveAllies calls by depth %d %d %d, reentries %d\n", TheGameLogic->getFrame(),
+			m_moveAlliesCalls[0], m_moveAlliesCalls[1], m_moveAlliesCalls[2], m_moveAlliesReentries);
+		fflush(stdout);
 	}
 
 	Bool centerInCell;

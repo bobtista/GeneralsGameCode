@@ -689,6 +689,7 @@ public:
 	void removePos( Object *obj);		///< Removes the unit's position cells from the map
 
 	Bool moveAllies(Object *obj, Path *path);
+	void probePathDestroyed(const Object *obj, const Path *path);	///< REENTRY_PROBE
 
 	// NOTE - The object MUST NOT MOVE between the call to createAWall... and removeWall...
 	// or BAD THINGS will happen.  jba.
@@ -902,6 +903,9 @@ private:
 	Real					m_wallHeight;
 
 	Int						m_moveAlliesDepth;
+	const Path *			m_moveAlliesWalking[3];	///< REENTRY_PROBE
+	Int						m_moveAlliesCalls[3];	///< REENTRY_PROBE
+	Int						m_moveAlliesReentries;	///< REENTRY_PROBE
 
 
 	// Pathfind queue

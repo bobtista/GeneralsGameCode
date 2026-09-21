@@ -2017,6 +2017,10 @@ Bool AIUpdateInterface::computeAttackPath( PathfindServicesInterface *pathServic
  */
 void AIUpdateInterface::destroyPath()
 {
+	if (m_path != nullptr && TheAI != nullptr && TheAI->pathfinder() != nullptr)
+	{
+		TheAI->pathfinder()->probePathDestroyed(getObject(), m_path);
+	}
 	// destroy previous path
 	deleteInstance(m_path);
 	m_path = nullptr;
