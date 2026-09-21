@@ -774,6 +774,12 @@ Int parseAutoTrain(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoBuildVehicles(char *args[], int num)
+{
+	NetworkAutoStart::setBuildVehicles();
+	return 1;
+}
+
 Int parseAutoJam(char *args[], int num)
 {
 	Int frame = 0;
@@ -1524,6 +1530,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoSelectUnits", parseAutoSelectUnits },
 	{ "-autoTrain", parseAutoTrain },
 	{ "-autoJam", parseAutoJam },
+	{ "-autoBuildVehicles", parseAutoBuildVehicles },
 #endif
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-noshellmap", parseNoShellMap },

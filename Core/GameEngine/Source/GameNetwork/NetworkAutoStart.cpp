@@ -102,8 +102,25 @@ Int findPlayerTemplateBySide(const char *side)
 }
 
 // The prerequisite comes first; the last entry is the container that gets built s_buildCount times.
+Bool s_buildVehicles = false;
+
 const char *const *buildOrderForSide(const AsciiString &side)
 {
+	static const char *const glaVehicles[] = { "GLASupplyStash", "GLAArmsDealer", nullptr };
+	static const char *const chinaVehicles[] = { "ChinaSupplyCenter", "ChinaWarFactory", nullptr };
+	static const char *const americaVehicles[] = { "AmericaSupplyCenter", "AmericaWarFactory", nullptr };
+	if (s_buildVehicles)
+	{
+		if (side.compareNoCase("GLA") == 0)
+		{
+			return glaVehicles;
+		}
+		if (side.compareNoCase("China") == 0)
+		{
+			return chinaVehicles;
+		}
+		return americaVehicles;
+	}
 	static const char *const gla[] = { "GLABarracks", "GLATunnelNetwork", nullptr };
 	static const char *const china[] = { "ChinaBarracks", "ChinaBunker", nullptr };
 	static const char *const america[] = { "AmericaBarracks", "AmericaFirebase", nullptr };
@@ -340,6 +357,13 @@ Bool NetworkAutoStart::setTrainFrame(Int frame)
 		return false;
 	}
 	s_trainFrame = frame;
+	return true;
+}
+
+Bool NetworkAutoStart::setBuildVehicles()
+{
+	s_hasArguments = true;
+	s_buildVehicles = true;
 	return true;
 }
 
@@ -1067,6 +1091,9 @@ void NetworkAutoStart::updateInGame()
 	if (s_trainFrame > 0 && !s_trainDone && frame >= s_trainFrame)
 	{
 		static const char *const infantry[] = { "GLAInfantryRebel", "ChinaInfantryRedGuard", "AmericaInfantryRanger", nullptr };
+		static const char *const vehicles[] = { "GLAVehicleQuadCannon", "ChinaVehicleBattleMaster", "AmericaVehicleCrusader", nullptr };
+		const char *const *wanted = s_buildVehicles ? vehicles : infantry;
+		const Int howMany = s_buildVehicles ? 8 : 5;
 		Bool queued = false;
 		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr && !queued; obj = obj->getNextObject())
 		{
@@ -1076,9 +1103,9 @@ void NetworkAutoStart::updateInGame()
 			{
 				continue;
 			}
-			for (Int i = 0; infantry[i] != nullptr && !queued; ++i)
+			for (Int i = 0; wanted[i] != nullptr && !queued; ++i)
 			{
-				const ThingTemplate *unit = TheThingFactory->findTemplate(infantry[i]);
+				const ThingTemplate *unit = TheThingFactory->findTemplate(wanted[i]);
 				if (unit == nullptr || TheBuildAssistant->canMakeUnit(obj, unit) != CANMAKE_OK)
 				{
 					continue;
@@ -1086,14 +1113,14 @@ void NetworkAutoStart::updateInGame()
 				GameMessage *teamMsg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP);
 				teamMsg->appendBooleanArgument(TRUE);
 				teamMsg->appendObjectIDArgument(obj->getID());
-				for (Int n = 0; n < 5; ++n)
+				for (Int n = 0; n < howMany; ++n)
 				{
 					GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_QUEUE_UNIT_CREATE);
 					msg->appendIntegerArgument(unit->getTemplateID());
 					msg->appendIntegerArgument(production->requestUniqueUnitID());
 				}
-				DEBUG_LOG(("NetworkAutoStart frame %d: queueing 5 %s at %s id %u", frame, infantry[i], obj->getTemplate()->getName().str(), obj->getID()));
-				printf("NetworkAutoStart frame %d: queueing 5 %s at %s id %u\n", frame, infantry[i], obj->getTemplate()->getName().str(), obj->getID());
+				DEBUG_LOG(("NetworkAutoStart frame %d: queueing %d %s at %s id %u", frame, howMany, wanted[i], obj->getTemplate()->getName().str(), obj->getID()));
+				printf("NetworkAutoStart frame %d: queueing %d %s at %s id %u\n", frame, howMany, wanted[i], obj->getTemplate()->getName().str(), obj->getID());
 				fflush(stdout);
 				queued = true;
 			}

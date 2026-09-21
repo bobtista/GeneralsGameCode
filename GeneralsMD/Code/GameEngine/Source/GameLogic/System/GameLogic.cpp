@@ -108,6 +108,7 @@
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 #include "GameNetwork/LANAPICallbacks.h"
+#include "GameNetwork/NetworkAutoStart.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 
@@ -3795,6 +3796,10 @@ void GameLogic::update()
 	{
 		TheRecorder->UPDATE();
 	}
+
+#if defined(RTS_DEBUG) || defined(RTS_NETWORK_AUTOSTART)
+	NetworkAutoStart::updateInGame();
+#endif
 
 	// process client commands
 	{
