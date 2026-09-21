@@ -166,6 +166,28 @@ AsciiString DebugDescribeObject(const Object *obj)
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
+#include <intrin.h>
+__declspec(noinline) Object *Object::probeContainedBy() const
+{
+	if (m_containedBy == nullptr)
+	{
+		return nullptr;
+	}
+	if (TheGameLogic == nullptr)
+	{
+		return m_containedBy;
+	}
+	if (TheGameLogic->findObjectByID(m_containedBy->getID()) == m_containedBy)
+	{
+		return m_containedBy;
+	}
+	printf("LIMBO_PROBE frame %u: obj %u '%s' containedBy %p (id %u) is not live, caller %p\n", TheGameLogic->getFrame(),
+		getID(), getTemplate()->getName().str(), m_containedBy, m_containedBy->getID(), _ReturnAddress());
+	fflush(stdout);
+	return nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
 Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatusMask, Team *team ) :
 	Thing(tt),
 	m_indicatorColor(0),

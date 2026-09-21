@@ -417,8 +417,9 @@ public:
 	RadarPriorityType getRadarPriority() const;
 
 	// contained-by
-	inline Object *getContainedBy() { return m_containedBy; }
-	inline const Object *getContainedBy() const { return m_containedBy; }
+	Object *getContainedBy() { return probeContainedBy(); }
+	const Object *getContainedBy() const { return probeContainedBy(); }
+	Object *probeContainedBy() const;	///< LIMBO_PROBE: logs and hides a container that is no longer a live object
 	inline UnsignedInt getContainedByFrame() const { return m_containedByFrame; }
 	inline Bool isContained() const { return m_containedBy != nullptr; }
 	void onContainedBy( Object *containedBy );
