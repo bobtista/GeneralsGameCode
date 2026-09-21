@@ -4024,6 +4024,7 @@ void Pathfinder::reset()
 
 	m_moveAlliesDepth = 0;
 	m_moveAlliesWalking[0] = m_moveAlliesWalking[1] = m_moveAlliesWalking[2] = nullptr;
+	m_moveAlliesWalker[0] = m_moveAlliesWalker[1] = m_moveAlliesWalker[2] = INVALID_ID;
 	m_moveAlliesCalls[0] = m_moveAlliesCalls[1] = m_moveAlliesCalls[2] = 0;
 	m_moveAlliesReentries = 0;
 
@@ -10233,6 +10234,7 @@ if (g_UT_startTiming) return false;
 	}
 	// REENTRY_PROBE: remember the path under iteration at this depth, so destroyPath can tell when it frees one.
 	LatchRestore<const Path *> walkingPath(m_moveAlliesWalking[m_moveAlliesDepth - 1], path);
+	LatchRestore<ObjectID> walkingObj(m_moveAlliesWalker[m_moveAlliesDepth - 1], obj->getID());
 	++m_moveAlliesCalls[m_moveAlliesDepth - 1];
 	if (m_moveAlliesDepth >= 2)
 	{
@@ -10318,22 +10320,59 @@ if (g_UT_startTiming) return false;
 					}
 				}
 
+				// REENTRY_PROBE: in nested walks, report every candidate and why it is skipped.
+				const Bool probeNested = m_moveAlliesDepth >= 2;
+				Bool probeOuter = false;
+				if (probeNested)
+				{
+					for (Int d = 0; d < m_moveAlliesDepth - 1; ++d)
+					{
+						if (m_moveAlliesWalker[d] == otherObj->getID())
+						{
+							probeOuter = true;
+						}
+					}
+				}
 				if (!otherObj->getAI() || otherObj->getAI()->isMoving()) {
+					if (probeNested)
+					{
+						printf("REENTRY_PROBE frame %u:   depth %d candidate %u '%s'%s skipped: %s\n", TheGameLogic->getFrame(), m_moveAlliesDepth,
+							otherObj->getID(), otherObj->getTemplate()->getName().str(), probeOuter ? " (OUTER WALKER)" : "", otherObj->getAI() ? "moving" : "no ai");
+						fflush(stdout);
+					}
 					continue;
 				}
 
 #if !(RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING)
 				if (otherObj->getAI()->isAttacking()) {
+					if (probeNested)
+					{
+						printf("REENTRY_PROBE frame %u:   depth %d candidate %u '%s'%s skipped: attacking\n", TheGameLogic->getFrame(), m_moveAlliesDepth,
+							otherObj->getID(), otherObj->getTemplate()->getName().str(), probeOuter ? " (OUTER WALKER)" : "");
+						fflush(stdout);
+					}
 					continue; // Don't move units that are attacking. [8/14/2003]
 				}
 
 				//Kris: Patch 1.01 November 3, 2003
 				//Black Lotus exploit fix -- moving while hacking.
 				if( otherObj->testStatus( OBJECT_STATUS_IS_USING_ABILITY ) || otherObj->getAI()->isBusy() ) {
+					if (probeNested)
+					{
+						printf("REENTRY_PROBE frame %u:   depth %d candidate %u '%s'%s skipped: busy\n", TheGameLogic->getFrame(), m_moveAlliesDepth,
+							otherObj->getID(), otherObj->getTemplate()->getName().str(), probeOuter ? " (OUTER WALKER)" : "");
+						fflush(stdout);
+					}
 					continue; // Packing or unpacking objects for example
 				}
 #endif
 
+				if (probeNested)
+				{
+					printf("REENTRY_PROBE frame %u:   depth %d candidate %u '%s'%s ordered to move away\n", TheGameLogic->getFrame(), m_moveAlliesDepth,
+						otherObj->getID(), otherObj->getTemplate()->getName().str(), probeOuter ? " (OUTER WALKER)" : "");
+					fflush(stdout);
+				}
 				//DEBUG_LOG(("Moving ally"));
 				otherObj->getAI()->aiMoveAwayFromUnit(obj, CMD_FROM_AI);
 			}

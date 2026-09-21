@@ -904,6 +904,7 @@ private:
 
 	Int						m_moveAlliesDepth;
 	const Path *			m_moveAlliesWalking[3];	///< REENTRY_PROBE
+	ObjectID				m_moveAlliesWalker[3];	///< REENTRY_PROBE
 	Int						m_moveAlliesCalls[3];	///< REENTRY_PROBE
 	Int						m_moveAlliesReentries;	///< REENTRY_PROBE
 
