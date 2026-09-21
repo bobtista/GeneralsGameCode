@@ -1127,10 +1127,14 @@ void NetworkAutoStart::updateInGame()
 		}
 		if (!queued)
 		{
-			printf("NetworkAutoStart frame %d: no factory can train infantry\n", frame);
+			printf("NetworkAutoStart frame %d: no factory can train yet, retrying\n", frame);
 			fflush(stdout);
+			s_trainFrame = frame + 300;
 		}
-		s_trainDone = true;
+		else
+		{
+			s_trainDone = true;
+		}
 	}
 
 	// The same filter as the select all hotkey across the map: mass selectable units that are not contained.
