@@ -55,6 +55,7 @@ NetworkAutoStart::Mode s_mode = NetworkAutoStart::MODE_NONE;
 NetworkAutoStart::Role s_role = NetworkAutoStart::ROLE_NONE;
 Int s_expectedPlayers = 0;
 Int s_aiPlayers = 0;
+Int s_startingCash = 0;
 Bool s_teamGame = false;
 AsciiString s_allySide = "China";
 Bool s_convertHumansToAI = false;
@@ -248,6 +249,22 @@ Bool NetworkAutoStart::setTeamGame()
 	s_hasArguments = true;
 	s_teamGame = true;
 	return true;
+}
+
+Bool NetworkAutoStart::setStartingCash(Int cash)
+{
+	s_hasArguments = true;
+	if (cash <= 0)
+	{
+		return false;
+	}
+	s_startingCash = cash;
+	return true;
+}
+
+Int NetworkAutoStart::getStartingCash()
+{
+	return s_startingCash;
 }
 
 Bool NetworkAutoStart::setAllySide(AsciiString side)
@@ -1113,7 +1130,7 @@ void NetworkAutoStart::updateInGame()
 		const char *const *wanted = s_buildVehicles ? vehicles : infantry;
 		const Int howMany = s_buildVehicles ? 8 : 5;
 		Bool queued = false;
-		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr && !queued; obj = obj->getNextObject())
+		for (Object *obj = TheGameLogic->getFirstObject(); obj != nullptr; obj = obj->getNextObject())
 		{
 			ProductionUpdateInterface *production = obj->getProductionUpdateInterface();
 			if (obj->getControllingPlayer() != local || obj->isEffectivelyDead() || production == nullptr ||
@@ -1121,7 +1138,8 @@ void NetworkAutoStart::updateInGame()
 			{
 				continue;
 			}
-			for (Int i = 0; wanted[i] != nullptr && !queued; ++i)
+			Bool queuedHere = false;
+			for (Int i = 0; wanted[i] != nullptr && !queuedHere; ++i)
 			{
 				const ThingTemplate *unit = TheThingFactory->findTemplate(wanted[i]);
 				if (unit == nullptr || TheBuildAssistant->canMakeUnit(obj, unit) != CANMAKE_OK)
@@ -1141,6 +1159,7 @@ void NetworkAutoStart::updateInGame()
 				printf("NetworkAutoStart frame %d: queueing %d %s at %s id %u\n", frame, howMany, wanted[i], obj->getTemplate()->getName().str(), obj->getID());
 				fflush(stdout);
 				queued = true;
+				queuedHere = true;
 			}
 		}
 		if (!queued)
@@ -1149,7 +1168,7 @@ void NetworkAutoStart::updateInGame()
 			fflush(stdout);
 			s_trainFrame = frame + 300;
 		}
-		else if (++s_trainRounds < 2)
+		else if (++s_trainRounds < 3)
 		{
 			s_trainFrame = frame + 600;
 		}

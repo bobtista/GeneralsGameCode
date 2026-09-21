@@ -626,6 +626,18 @@ Int parseAutoNetworkTeamGame(char *args[], int num)
 	return 1;
 }
 
+Int parseAutoNetworkCash(char *args[], int num)
+{
+	Int cash = 0;
+	if (num > 1 && parsePositiveInt(args[1], cash) && NetworkAutoStart::setStartingCash(cash))
+	{
+		return 2;
+	}
+
+	printf("Invalid -autoNetworkCash. Pass the starting cash for the hosted game.\n");
+	exit(1);
+}
+
 Int parseAutoNetworkAllySide(char *args[], int num)
 {
 	if (num > 1 && NetworkAutoStart::setAllySide(args[1]))
@@ -1518,6 +1530,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-autoNetworkTimeout", parseAutoNetworkTimeout },
 	{ "-autoNetworkTeamGame", parseAutoNetworkTeamGame },
 	{ "-autoNetworkAllySide", parseAutoNetworkAllySide },
+	{ "-autoNetworkCash", parseAutoNetworkCash },
 	{ "-autoAIHumans", parseAutoAIHumans },
 	{ "-autoGarrison", parseAutoGarrison },
 	{ "-autoBuild", parseAutoBuild },

@@ -866,6 +866,14 @@ void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 #endif
 		game->setMap(mapName);
     game->setStartingCash( pref.getStartingCash() );
+#if defined(RTS_DEBUG)
+		if (NetworkAutoStart::isEnabled() && NetworkAutoStart::getStartingCash() > 0)
+		{
+			Money startingCash;
+			startingCash.deposit((UnsignedInt)NetworkAutoStart::getStartingCash(), FALSE, FALSE);
+			game->setStartingCash(startingCash);
+		}
+#endif
     game->setSuperweaponRestriction( pref.getSuperweaponRestricted() ? 1 : 0 );
 		AsciiString lowerMap = mapName;
 		lowerMap.toLower();
