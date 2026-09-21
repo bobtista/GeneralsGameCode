@@ -75,6 +75,7 @@ Bool s_selectAllDone = false;
 Int s_selectUnitsFrame = -1;
 Bool s_selectUnitsDone = false;
 Int s_trainFrame = -1;
+Int s_trainRounds = 0;
 Bool s_trainDone = false;
 Int s_jamFrame = -1;
 Int s_lastJamFrame = -1;
@@ -1148,6 +1149,10 @@ void NetworkAutoStart::updateInGame()
 			fflush(stdout);
 			s_trainFrame = frame + 300;
 		}
+		else if (++s_trainRounds < 2)
+		{
+			s_trainFrame = frame + 600;
+		}
 		else
 		{
 			s_trainDone = true;
@@ -1220,7 +1225,10 @@ void NetworkAutoStart::updateInGame()
 			Coord3D spot = *center->getPosition();
 			spot.x += 120.0f;
 			Coord3D target = spot;
-			target.x += ((frame - s_jamFrame) / 120) % 2 == 0 ? 150.0f : -150.0f;
+			if (((frame - s_jamFrame) / 120) % 2 == 0)
+			{
+				target.x += 150.0f;
+			}
 			selectAndMove(parked, spot);
 			selectAndMove(movers, target);
 			printf("NetworkAutoStart frame %d: parking %d units at %f %f, moving %d through to %f\n", frame, (Int)parked.size(), spot.x, spot.y, (Int)movers.size(), target.x);
