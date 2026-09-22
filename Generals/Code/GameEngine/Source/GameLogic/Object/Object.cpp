@@ -39,6 +39,7 @@
 #include "Common/ModuleFactory.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
+#include "Common/TunnelTracker.h"
 #include "Common/Radar.h"
 #include "Common/SpecialPower.h"
 #include "Common/Team.h"
@@ -691,6 +692,30 @@ const Object* Object::getOuterObject() const
 //-------------------------------------------------------------------------------------------------
 void Object::onDestroy()
 {
+	// TRACKER_PROBE: report a destroyed occupant whose container has no contain module, and whether any player's
+	// tunnel tracker still lists it, which onDestroy below will not clean up.
+	if (m_containedBy != nullptr && m_containedBy->getContain() == nullptr)
+	{
+		for (Int probePlayer = 0; probePlayer < ThePlayerList->getPlayerCount(); ++probePlayer)
+		{
+			Player *player = ThePlayerList->getNthPlayer(probePlayer);
+			TunnelTracker *tracker = player != nullptr ? player->getTunnelSystem() : nullptr;
+			if (tracker == nullptr)
+			{
+				continue;
+			}
+			const ContainedItemsList *list = tracker->getContainedItemsList();
+			for (ContainedItemsList::const_iterator it = list->begin(); it != list->end(); ++it)
+			{
+				if (*it == this)
+				{
+					printf("TRACKER_PROBE frame %u: destroying obj %u '%s' still listed in the tunnel tracker of player %d (%u entries)\n",
+						TheGameLogic->getFrame(), getID(), getTemplate()->getName().str(), probePlayer, tracker->getContainCount());
+					fflush(stdout);
+				}
+			}
+		}
+	}
 
 	// This is the old cleanUpContain safeguard.  Say goodbye so they don't try to look us up.
 	if( m_containedBy && m_containedBy->getContain() )
