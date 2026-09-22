@@ -4834,6 +4834,9 @@ StateReturnType AIAttackAimAtTargetState::onEnter()
 		// Returning a failure prevents units from firing while hidden and indestructible.
 		if (!contain)
 		{
+			// destroy this object, because it serves no purpose in its invalid state
+			TheGameLogic->destroyObject(source);
+
 			return STATE_FAILURE;
 		}
 #endif

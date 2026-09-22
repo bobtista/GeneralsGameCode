@@ -4325,6 +4325,9 @@ Object* AIUpdateInterface::getNextMoodTarget( Bool calledByAI, Bool calledDuring
 				// The units are not properly transferred and are left in an invalid state.
 				if (!container->getContain())
 				{
+					// destroy this object, because it serves no purpose in its invalid state
+					TheGameLogic->destroyObject(obj);
+
 					return nullptr;
 				}
 #endif
