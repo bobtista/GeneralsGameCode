@@ -1142,18 +1142,21 @@ void Drawable::updateDrawable(Real timeScale)
 	{
 
 		// handle fading in or out
+		// TheSuperHackers @tweak bobtista 15/09/2026 Decouple Drawable fade timing from render updates.
 		if (m_fadeMode != FADING_NONE)
 		{
-			Real numer = (m_fadeMode == FADING_IN) ? (m_timeElapsedFade) : (m_timeToFade-m_timeElapsedFade);
-
-			Real opacity = numer/(Real)m_timeToFade;
-			// TheSuperHackers @bugfix bobtista 15/09/2026 Decouple Drawable fade timing from render updates.
 			m_timeElapsedFade += timeScale;
 
-			if (m_timeElapsedFade > m_timeToFade)
+			Real opacity;
+			if (m_timeElapsedFade >= m_timeToFade)
 			{
 				opacity = m_fadeMode == FADING_IN ? 1.0f : 0.0f;
 				m_fadeMode = FADING_NONE;
+			}
+			else
+			{
+				Real numer = (m_fadeMode == FADING_IN) ? (m_timeElapsedFade) : (m_timeToFade-m_timeElapsedFade);
+				opacity = numer/(Real)m_timeToFade;
 			}
 			setDrawableOpacity(opacity);
 		}
@@ -1166,11 +1169,10 @@ void Drawable::updateDrawable(Real timeScale)
 
 		if (*dm)
 		{
+			// TheSuperHackers @tweak bobtista 15/09/2026 Decouple decal opacity fade timing from render updates.
 			if (m_decalOpacityFadeRate != 0)
 			{
 				//LERP
-				(*dm)->setTerrainDecalOpacity(m_decalOpacity);
-				// TheSuperHackers @bugfix bobtista 15/09/2026 Decouple decal opacity fade timing from render updates.
 				m_decalOpacity += m_decalOpacityFadeRate * timeScale;
 			}
 			//---------------
@@ -1185,6 +1187,10 @@ void Drawable::updateDrawable(Real timeScale)
 			{
 				m_decalOpacity = 1.0f;
 				m_decalOpacityFadeRate = 0.0f;
+				(*dm)->setTerrainDecalOpacity(m_decalOpacity);
+			}
+			else if (m_decalOpacityFadeRate != 0)
+			{
 				(*dm)->setTerrainDecalOpacity(m_decalOpacity);
 			}
 
