@@ -638,6 +638,21 @@ void Object::onRemovedFrom( Object *removedFrom )
 }
 
 //-------------------------------------------------------------------------------------------------
+void Object::removeFromTunnelContain()
+{
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		TunnelTracker* tracker = ThePlayerList->getNthPlayer(i)->getTunnelSystem();
+		if (tracker && tracker->removeFromContain(this))
+		{
+			break;
+		}
+	}
+
+	onRemovedFrom(nullptr);
+}
+
+//-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 Int Object::getTransportSlotCount() const
 {
@@ -701,16 +716,7 @@ void Object::onDestroy()
 		// surrendering ally. Only call into a container that still exists, and drop the stale link otherwise.
 		if (!TheGameLogic->findObjectByID(m_containedBy->getID()))
 		{
-			for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
-			{
-				TunnelTracker* tracker = ThePlayerList->getNthPlayer(i)->getTunnelSystem();
-				if (tracker && tracker->removeFromContain(this))
-				{
-					break;
-				}
-			}
-
-			onRemovedFrom(nullptr);
+			removeFromTunnelContain();
 		}
 		else
 #endif
