@@ -5567,7 +5567,7 @@ void TintEnvelope::crc( Xfer *xfer )
 /** Xfer Method
 	* Version Info;
 	* 1: Initial version
-	* 2: TheSuperHackers @tweak Serialize sustain counter as float instead of integer
+	* 2: TheSuperHackers @tweak Serialize sustain counter as double instead of integer
 	*/
 // ------------------------------------------------------------------------------------------------
 void TintEnvelope::xfer( Xfer *xfer )
@@ -5607,13 +5607,7 @@ void TintEnvelope::xfer( Xfer *xfer )
 	}
 	else
 	{
-		Real sustainCounter = (Real)m_sustainCounter;
-		xfer->xferReal( &sustainCounter );
-		if( xfer->getXferMode() == XFER_LOAD )
-		{
-			// Restore the exact sentinel from the rounded version 2 float.
-			m_sustainCounter = sustainCounter >= (Real)SUSTAIN_INDEFINITELY ? (double)SUSTAIN_INDEFINITELY : (double)sustainCounter;
-		}
+		xfer->xferDouble( &m_sustainCounter );
 	}
 
 	// affect
