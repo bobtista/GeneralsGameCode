@@ -5602,7 +5602,7 @@ void TintEnvelope::xfer( Xfer *xfer )
 	// sustain counter
 	if (version <= 1)
 	{
-		// TheSuperHackers @info bobtista 23/09/2026 The double counter preserves the integer sentinel exactly.
+		// TheSuperHackers @info bobtista 23/09/2026 The double counter represents SUSTAIN_INDEFINITELY exactly.
 		UnsignedInt sustainCounter = (UnsignedInt)m_sustainCounter;
 		xfer->xferUnsignedInt( &sustainCounter );
 		if( xfer->getXferMode() == XFER_LOAD )
