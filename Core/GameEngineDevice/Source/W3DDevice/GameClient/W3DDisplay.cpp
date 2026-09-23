@@ -2042,7 +2042,7 @@ void W3DDisplay::update()
 	WW3D::Sync(TheGameLogic->hasUpdated());
 
 	// update all views of the world - recomputes data which will affect drawing
-	if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) == D3D_OK)
+	if (WW3D::Get_Render_Backend() != nullptr && !WW3D::Get_Render_Backend()->Is_Device_Lost())
 	{
 		// Checking if we have the device before updating views because the heightmap crashes otherwise while
 		// trying to refresh the visible terrain geometry.
