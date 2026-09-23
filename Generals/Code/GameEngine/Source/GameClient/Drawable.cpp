@@ -5568,11 +5568,6 @@ void TintEnvelope::crc( Xfer *xfer )
 	* Version Info;
 	* 1: Initial version
 	* 2: TheSuperHackers @tweak Serialize sustain counter as float instead of integer
-	*
-	* TheSuperHackers @bugfix bobtista 13/08/2026 Map the indefinite sustain sentinel explicitly in
-	* the version 1 stream. (Real)SUSTAIN_INDEFINITELY rounds up to 4294967296, which is out of range
-	* for UnsignedInt, so converting it back is undefined and yields 0 on MSVC. Assigning that result
-	* back cleared the sustain on save as well as load, releasing envelopes meant to hold indefinitely.
 	*/
 // ------------------------------------------------------------------------------------------------
 void TintEnvelope::xfer( Xfer *xfer )
@@ -5602,17 +5597,23 @@ void TintEnvelope::xfer( Xfer *xfer )
 	// sustain counter
 	if (version <= 1)
 	{
-		const Bool isIndefinite = m_sustainCounter >= (Real)SUSTAIN_INDEFINITELY;
-		UnsignedInt sustainCounter = isIndefinite ? SUSTAIN_INDEFINITELY : (UnsignedInt)m_sustainCounter;
+		// TheSuperHackers @info bobtista 23/09/2026 The double counter preserves the integer sentinel exactly.
+		UnsignedInt sustainCounter = (UnsignedInt)m_sustainCounter;
 		xfer->xferUnsignedInt( &sustainCounter );
 		if( xfer->getXferMode() == XFER_LOAD )
 		{
-			m_sustainCounter = (Real)sustainCounter;
+			m_sustainCounter = sustainCounter;
 		}
 	}
 	else
 	{
-		xfer->xferReal( &m_sustainCounter );
+		Real sustainCounter = (Real)m_sustainCounter;
+		xfer->xferReal( &sustainCounter );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			// Restore the exact sentinel from the rounded version 2 float.
+			m_sustainCounter = sustainCounter >= (Real)SUSTAIN_INDEFINITELY ? (double)SUSTAIN_INDEFINITELY : (double)sustainCounter;
+		}
 	}
 
 	// affect
