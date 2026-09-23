@@ -1155,46 +1155,6 @@ void RecorderClass::loadQueuedReplay()
  * Start playback of the file. Return true or false depending on if the file is
  * a valid replay file or not.
  */
-// TheSuperHackers @feature bobtista 08/08/2026 Play the replay requested on startup, once the client
-// has created the shell layout that the playback returns to when it ends.
-void RecorderClass::loadQueuedReplay()
-{
-	const AsciiString filename = TheGlobalData->m_loadReplayGame;
-	TheWritableGlobalData->m_loadReplayGame.clear();
-
-	ReplayHeader header;
-	header.forPlayback = FALSE;
-	header.filename = filename;
-	if (!readReplayHeader(header))
-	{
-		DEBUG_LOG(("Replay '%s' could not be read", filename.str()));
-		TheGameEngine->setQuitting(TRUE);
-		return;
-	}
-
-	// A replay whose map is missing starts a game that cannot load, so reject it here instead
-	ReplayGameInfo gameInfo;
-	if (!ParseAsciiStringToGameInfo(&gameInfo, header.gameOptions))
-	{
-		DEBUG_LOG(("Replay '%s' contains invalid game options", filename.str()));
-		TheGameEngine->setQuitting(TRUE);
-		return;
-	}
-
-	if (TheMapCache == nullptr || TheMapCache->findMap(gameInfo.getMap()) == nullptr)
-	{
-		DEBUG_LOG(("Replay '%s' requires unavailable map '%s'", filename.str(), gameInfo.getMap().str()));
-		TheGameEngine->setQuitting(TRUE);
-		return;
-	}
-
-	if (!playbackFile(filename))
-	{
-		DEBUG_LOG(("Failed to play replay '%s'", filename.str()));
-		TheGameEngine->setQuitting(TRUE);
-	}
-}
-
 Bool RecorderClass::playbackFile(AsciiString filename)
 {
 	if (!m_doingAnalysis)
