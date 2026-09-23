@@ -5602,18 +5602,23 @@ void TintEnvelope::xfer( Xfer *xfer )
 	// sustain counter
 	if (version <= 1)
 	{
-		// The indefinite sentinel rounds outside UnsignedInt range when stored as Real.
-		const Bool isIndefinite = m_sustainCounter >= (Real)SUSTAIN_INDEFINITELY;
-		UnsignedInt sustainCounter = isIndefinite ? SUSTAIN_INDEFINITELY : (UnsignedInt)m_sustainCounter;
+		// TheSuperHackers @info bobtista 23/09/2026 The double counter preserves the integer sentinel exactly.
+		UnsignedInt sustainCounter = (UnsignedInt)m_sustainCounter;
 		xfer->xferUnsignedInt( &sustainCounter );
 		if( xfer->getXferMode() == XFER_LOAD )
 		{
-			m_sustainCounter = (Real)sustainCounter;
+			m_sustainCounter = sustainCounter;
 		}
 	}
 	else
 	{
-		xfer->xferReal( &m_sustainCounter );
+		Real sustainCounter = (Real)m_sustainCounter;
+		xfer->xferReal( &sustainCounter );
+		if( xfer->getXferMode() == XFER_LOAD )
+		{
+			// Restore the exact sentinel from the rounded version 2 float.
+			m_sustainCounter = sustainCounter >= (Real)SUSTAIN_INDEFINITELY ? (double)SUSTAIN_INDEFINITELY : (double)sustainCounter;
+		}
 	}
 
 	// affect
