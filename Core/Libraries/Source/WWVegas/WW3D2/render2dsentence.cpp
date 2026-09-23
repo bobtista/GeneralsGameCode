@@ -1483,7 +1483,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	CFRelease(font);
 
 	Update_Current_Buffer(char_width);
-	uint16 *curr_buffer_p = BufferList[BufferList.Count() - 1]->Buffer;
+	uint16 *curr_buffer_p = BufferList[BufferList.Count() - 1].Buffer;
 	curr_buffer_p += CurrPixelOffset;
 
 	// TheSuperHackers @bugfix bobtista 28/05/2026 Premultiply RGB by alpha
@@ -1512,7 +1512,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	char_data->Value = ch;
 	char_data->Width = static_cast<short>(char_width);
 	char_data->Advance = static_cast<short>(advance_width);
-	char_data->Buffer = BufferList[BufferList.Count() - 1]->Buffer + CurrPixelOffset;
+	char_data->Buffer = BufferList[BufferList.Count() - 1].Buffer + CurrPixelOffset;
 
 	if (ch < 256) {
 		ASCIICharArray[ch] = char_data;
@@ -1545,7 +1545,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	int char_width = max(1, max(x_origin + left_pad + advance_width, glyph_right) + PixelOverlap);
 
 	Update_Current_Buffer(char_width);
-	uint16 *char_buffer = BufferList[BufferList.Count() - 1]->Buffer + CurrPixelOffset;
+	uint16 *char_buffer = BufferList[BufferList.Count() - 1].Buffer + CurrPixelOffset;
 	::memset(char_buffer, 0, static_cast<size_t>(char_width) * static_cast<size_t>(CharHeight) * sizeof(*char_buffer));
 
 	for (unsigned int row = 0; row < bitmap.rows; ++row) {

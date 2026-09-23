@@ -989,7 +989,7 @@ static AsciiString buildGameInfoAsciiString(const GameInfo& game, const AsciiStr
 	}
 
 	DEBUG_LOG(("GameInfoToAsciiString - portableMap='%s' encodedDir='%s'",
-		TheGameState->realMapPathToPortableMapPath(game->getMap()).str(), newMapName.str()));
+		TheGameState->realMapPathToPortableMapPath(game.getMap()).str(), newMapName.str()));
 
 	AsciiString optionsString;
 #if RTS_GENERALS
