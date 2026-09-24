@@ -358,9 +358,13 @@ Bool FileSystem::isPathInDirectory(const AsciiString& testPath, const AsciiStrin
 		return false;
 	}
 
-	const char pathSep = getNativePathSeparator();
+#ifdef _WIN32
+	const char* pathSep = "\\";
+#else
+	const char* pathSep = "/";
+#endif
 
-	if (basePathNormalized.getCharAt(basePathNormalized.getLength() - 1) != pathSep)
+	if (!basePathNormalized.endsWith(pathSep))
 	{
 		basePathNormalized.concat(pathSep);
 	}
