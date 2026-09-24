@@ -3211,7 +3211,7 @@ void GameLogic::update()
 
 #if defined(RTS_DEBUG)
 	// Save before scripts and object updates so loading does not repeat part of a frame.
-	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_saveAtFrame && getGameMode() != GAME_SHELL)
+	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_saveAtFrame && isInInteractiveGame())
 	{
 		if (TheInGameUI != nullptr && TheInGameUI->getInputEnabled() == FALSE)
 		{
