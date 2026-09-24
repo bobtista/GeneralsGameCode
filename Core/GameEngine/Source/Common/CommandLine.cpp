@@ -759,8 +759,6 @@ Int parseLoadReplay(char *args[], int num)
 	return 1;
 }
 
-// TheSuperHackers @feature bobtista 08/08/2026 Let diagnostic replay playback continue past a CRC
-// mismatch without the UI report and pause that normal playback uses.
 Int parseIgnoreReplaySyncErrors(char *args[], int)
 {
 	TheDebugIgnoreReplaySyncErrors = true;
