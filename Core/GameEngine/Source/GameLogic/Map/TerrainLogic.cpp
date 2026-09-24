@@ -60,8 +60,6 @@
 #include "WWMath/plane.h"
 #include "WWMath/tri.h"
 
-#include <algorithm>
-
 
 // GLOBALS ////////////////////////////////////////////////////////////////////////////////////////
 TerrainLogic *TheTerrainLogic = nullptr;
