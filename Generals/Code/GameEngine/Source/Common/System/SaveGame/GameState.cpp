@@ -832,8 +832,7 @@ AsciiString GameState::getSaveGamePathForRead(const AsciiString& filenameOrPath)
 //-------------------------------------------------------------------------------------------------
 Bool GameState::isInSaveDirectory(const AsciiString& path) const
 {
-	// TheSuperHackers @bugfix bobtista 28/08/2026 Compare case insensitively, because
-	// portableMapPathToRealMapPath lowercases the path it returns.
+	// TheSuperHackers @info Map paths are lowercased, while the save directory can contain uppercase letters.
 	AsciiString lowercasePath = path;
 	AsciiString lowercaseSaveDirectory = getSaveDirectory();
 
