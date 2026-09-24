@@ -590,7 +590,6 @@ void DockUpdate::xfer( Xfer *xfer )
 	// # approach positions
 	xfer->xferInt( &m_numberApproachPositions );
 
-	// # approach position bones
 	if( version >= 2 )
 	{
 		// The saved positions-loaded flag can prevent this count from being recomputed.
