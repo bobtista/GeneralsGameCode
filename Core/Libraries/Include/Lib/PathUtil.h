@@ -24,7 +24,7 @@
 #include <string.h>
 
 // Returns true for a separator the host platform uses to open files.
-inline bool isNativePathSeparator(char ch)
+inline bool isFileSystemPathSeparator(char ch)
 {
 #ifdef _WIN32
 	return ch == '\\' || ch == '/';
@@ -46,14 +46,14 @@ inline bool isAbsolutePath(const char* path)
 		return false;
 	}
 
-	if (isNativePathSeparator(path[0]))
+	if (isFileSystemPathSeparator(path[0]))
 	{
 		return true;
 	}
 
 #ifdef _WIN32
 	const bool hasDriveLetter = (path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z');
-	if (hasDriveLetter && path[1] == ':' && isNativePathSeparator(path[2]))
+	if (hasDriveLetter && path[1] == ':' && isFileSystemPathSeparator(path[2]))
 	{
 		return true;
 	}
