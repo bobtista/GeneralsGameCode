@@ -225,6 +225,18 @@ int main(int argc, char **argv)
 		rts::ClientInstance::setMultiInstance(TRUE);
 		rts::ClientInstance::skipPrimaryInstance();
 	}
+	else
+	{
+		// TheSuperHackers @bugfix bobtista 24/09/2026 Say explicitly that a playable run is a
+		// foreground app. SDL defaults this hint to true on macOS 14 and newer, which skips the
+		// activation it performs in applicationDidFinishLaunching, so the window opened behind
+		// whatever was already frontmost: clicks were swallowed as activation, Escape could not
+		// skip the intro, and macOS drew its own arrow instead of the game cursor until the user
+		// switched away and back. SDL_RaiseWindow alone cannot recover it because the
+		// NSApp activateIgnoringOtherApps it relies on is ignored for a process that is not
+		// already frontmost. Set GGC_NO_FOCUS for automated runs that must not steal focus.
+		SDL_SetHint(SDL_HINT_MAC_BACKGROUND_APP, GgcFlags::Enabled(GgcFlag_NoFocus) ? "1" : "0");
+	}
 
 	GGC_TRACE("calling SDL_Init");
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
