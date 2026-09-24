@@ -546,8 +546,7 @@ void DockUpdate::crc( Xfer *xfer )
 /** Xfer Method
 	* Version Info:
 	* 1: Initial version
-	* 2: TheSuperHackers @bugfix bobtista 14/08/2026 Serialize the approach position bone count, so
-	*    a dock with no waiting bones keeps biasing approach positions toward the caller on load */
+	* 2: Save the approach position bone count. */
 // ------------------------------------------------------------------------------------------------
 void DockUpdate::xfer( Xfer *xfer )
 {
@@ -579,6 +578,7 @@ void DockUpdate::xfer( Xfer *xfer )
 	// # approach position bones
 	if( version >= 2 )
 	{
+		// The saved positions-loaded flag can prevent this count from being recomputed.
 		xfer->xferInt( &m_numberApproachPositionBones );
 	}
 
