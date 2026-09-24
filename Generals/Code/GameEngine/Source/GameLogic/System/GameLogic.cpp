@@ -3210,10 +3210,7 @@ void GameLogic::update()
 	PROFILER_PLOT("LogicFrame", static_cast<int64_t>(now));
 
 #if defined(RTS_DEBUG)
-	// TheSuperHackers @feature bobtista 14/08/2026 Write a save at the requested logic frame and quit.
-	// This runs ahead of the rest of the frame because the engine's own save runs from
-	// TheGameClient->UPDATE(), which precedes TheGameLogic->UPDATE(). The test is >= rather than ==
-	// because the save is deferred while input is disabled, matching when the Save button is usable.
+	// Save before scripts and object updates so loading does not repeat part of a frame.
 	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_saveAtFrame && getGameMode() != GAME_SHELL)
 	{
 		if (TheInGameUI != nullptr && TheInGameUI->getInputEnabled() == FALSE)
