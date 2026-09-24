@@ -3282,40 +3282,37 @@ void W3DView::rotateCameraOneFrame(Real milliseconds)
 
 	if (m_rcInfo.trackObject)
 	{
-		if (m_rcInfo.curFrame <= m_rcInfo.numFrames + m_rcInfo.numHoldFrames)
+		const Object *obj = TheGameLogic->findObjectByID(m_rcInfo.target.targetObjectID);
+		if (obj)
 		{
-			const Object *obj = TheGameLogic->findObjectByID(m_rcInfo.target.targetObjectID);
-			if (obj)
-			{
-				// object has not been destroyed
-				m_rcInfo.target.targetObjectPos = *obj->getPosition();
+			// object has not been destroyed
+			m_rcInfo.target.targetObjectPos = *obj->getPosition();
+		}
+
+		const Vector2 dir(m_rcInfo.target.targetObjectPos.x - m_pos.x, m_rcInfo.target.targetObjectPos.y - m_pos.y);
+		const Real dirLength = dir.Length();
+		if (dirLength>=0.1f)
+		{
+			Real angle = WWMath::Acos(dir.X/dirLength);
+			if (dir.Y<0.0f) {
+				angle = -angle;
 			}
+			// Default camera is rotated 90 degrees, so match.
+			angle -= PI/2;
+			normAngle(angle);
 
-			const Vector2 dir(m_rcInfo.target.targetObjectPos.x - m_pos.x, m_rcInfo.target.targetObjectPos.y - m_pos.y);
-			const Real dirLength = dir.Length();
-			if (dirLength>=0.1f)
+			if (m_rcInfo.curFrame <= m_rcInfo.numFrames)
 			{
-				Real angle = WWMath::Acos(dir.X/dirLength);
-				if (dir.Y<0.0f) {
-					angle = -angle;
-				}
-				// Default camera is rotated 90 degrees, so match.
-				angle -= PI/2;
-				normAngle(angle);
-
-				if (m_rcInfo.curFrame <= m_rcInfo.numFrames)
-				{
-					Real factor = m_rcInfo.ease(m_rcInfo.curFrame/m_rcInfo.numFrames);
-					Real angleDiff = angle - m_angle;
-					normAngle(angleDiff);
-					angleDiff *= factor;
-					View::setAngle(m_angle + angleDiff);
-					m_timeMultiplier = m_rcInfo.startTimeMultiplier + REAL_TO_INT_FLOOR(0.5 + (m_rcInfo.endTimeMultiplier-m_rcInfo.startTimeMultiplier)*factor);
-				}
-				else
-				{
-					View::setAngle(angle);
-				}
+				Real factor = m_rcInfo.ease(m_rcInfo.curFrame/m_rcInfo.numFrames);
+				Real angleDiff = angle - m_angle;
+				normAngle(angleDiff);
+				angleDiff *= factor;
+				View::setAngle(m_angle + angleDiff);
+				m_timeMultiplier = m_rcInfo.startTimeMultiplier + REAL_TO_INT_FLOOR(0.5 + (m_rcInfo.endTimeMultiplier-m_rcInfo.startTimeMultiplier)*factor);
+			}
+			else
+			{
+				View::setAngle(angle);
 			}
 		}
 	}
