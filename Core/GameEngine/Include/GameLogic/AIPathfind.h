@@ -869,8 +869,6 @@ protected:
 
 	bool checkCellOutsideExtents(ICoord2D& cell);
 
-	void moveAlliesAroundCell(Object *obj, const ICoord2D &curCell, PathfindLayerEnum layer, Int radius, Int numCellsAbove, ObjectID ignoreId, Bool blockedByAlly);	///< Order the idle allies around one path cell out of the way
-
 #if defined(RTS_DEBUG)
 	void doDebugIcons() ;
 #endif
@@ -903,14 +901,16 @@ private:
 	Int						m_numWallPieces;
 	Real					m_wallHeight;
 
+	enum { MOVE_ALLIES_MAX_DEPTH = 2 };
 	Int						m_moveAlliesDepth;
+#if !RETAIL_COMPATIBLE_PATHFINDING
 	struct MoveAlliesCell
 	{
 		ICoord2D cell;
 		PathfindLayerEnum layer;
 	};
-	enum { MOVE_ALLIES_MAX_DEPTH = 3 };
-	std::vector<MoveAlliesCell> m_moveAlliesCells[MOVE_ALLIES_MAX_DEPTH];	///< one per recursion depth, moveAllies nests
+	std::vector<MoveAlliesCell> m_moveAlliesCells[MOVE_ALLIES_MAX_DEPTH];	///< Separate snapshots for recursive calls.
+#endif
 
 
 	// Pathfind queue

@@ -10187,70 +10187,6 @@ void Pathfinder::removeUnitFromPathfindMap(  Object *obj )
 	removeGoal(obj);
 }
 
-void Pathfinder::moveAlliesAroundCell(Object *obj, const ICoord2D &curCell, PathfindLayerEnum layer, Int radius, Int numCellsAbove, ObjectID ignoreId, Bool blockedByAlly)
-{
-	Int i, j;
-	for (i=curCell.x-radius; i<curCell.x+numCellsAbove; i++) {
-		for (j=curCell.y-radius; j<curCell.y+numCellsAbove; j++) {
-			PathfindCell	*cell = getCell(layer, i, j);
-			if (!cell) {
-				continue; // Cell is not on the pathfinding grid
-			}
-
-			ObjectID unitId = cell->getPosUnit();
-			if (unitId==INVALID_ID) {
-				continue;
-			}
-
-			if (unitId==obj->getID()) {
-				continue;	// It's us.
-			}
-
-			if (unitId==ignoreId) {
-				continue;	 // It's the one we are ignoring.
-			}
-
-			Object *otherObj = TheGameLogic->findObjectByID(unitId);
-			if (!otherObj) {
-				continue;
-			}
-
-			if (obj->getRelationship(otherObj)!=ALLIES) {
-				continue;  // Only move allies.
-			}
-
-			if (obj->isKindOf(KINDOF_INFANTRY) && otherObj->isKindOf(KINDOF_INFANTRY)) {
-				continue;  // infantry can walk through other infantry, so just let them.
-			}
-			if (obj->isKindOf(KINDOF_INFANTRY) && !otherObj->isKindOf(KINDOF_INFANTRY)) {
-				// If this is a general clear operation, don't let infantry push vehicles.
-				if (!blockedByAlly) {
-					continue;
-				}
-			}
-
-			if (!otherObj->getAI() || otherObj->getAI()->isMoving()) {
-				continue;
-			}
-
-#if !(RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING)
-			if (otherObj->getAI()->isAttacking()) {
-				continue; // Don't move units that are attacking. [8/14/2003]
-			}
-
-			//Kris: Patch 1.01 November 3, 2003
-			//Black Lotus exploit fix -- moving while hacking.
-			if( otherObj->testStatus( OBJECT_STATUS_IS_USING_ABILITY ) || otherObj->getAI()->isBusy() ) {
-				continue; // Packing or unpacking objects for example
-			}
-#endif
-
-			//DEBUG_LOG(("Moving ally"));
-			otherObj->getAI()->aiMoveAwayFromUnit(obj, CMD_FROM_AI);
-		}
-	}
-}
-
 Bool Pathfinder::moveAllies(Object *obj, Path *path)
 {
 
@@ -10266,7 +10202,7 @@ if (g_UT_startTiming) return false;
 		}
 	}
 	LatchRestore<Int> recursiveDepth(m_moveAlliesDepth, m_moveAlliesDepth+1);
-	if (m_moveAlliesDepth > 2) {
+	if (m_moveAlliesDepth > MOVE_ALLIES_MAX_DEPTH) {
 		return false;
 	}
 
@@ -10280,46 +10216,95 @@ if (g_UT_startTiming) return false;
 		ignoreId = obj->getAIUpdateInterface()->getIgnoredObstacleID();
 	}
 
-	const Bool blockedByAlly = path->getBlockedByAlly();
-
 #if RETAIL_COMPATIBLE_PATHFINDING
-	if (!s_useFixedPathfinding)
+	// TheSuperHackers @info Retail replays depend on the original walk, including reads of freed path nodes.
+	for (PathNode *node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious())
 	{
-		// TheSuperHackers @info The move away orders can recurse back into this unit and destroy the path while it is
-		// still being walked here. Retail continues on the freed nodes and their contents decide which allies are
-		// ordered to move, and existing retail replays depend on that. Detect the destroyed path after each node and
-		// switch to the fixed pathfinding instead of reading the freed nodes.
-		const AIUpdateInterface *ai = obj->getAIUpdateInterface();
-		for (PathNode *node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious())
-		{
-			ICoord2D curCell;
-			worldToCell(node->getPosition(), &curCell);
-			moveAlliesAroundCell(obj, curCell, node->getLayer(), radius, numCellsAbove, ignoreId, blockedByAlly);
-			if (ai != nullptr && ai->getPath() != path)
-			{
-				s_useFixedPathfinding = true;
-				return true;
-			}
-		}
+		ICoord2D curCell;
+		worldToCell(node->getPosition(), &curCell);
+		const PathfindLayerEnum layer = node->getLayer();
+#else
+	// TheSuperHackers @bugfix bobtista 20/09/2026 Snapshot the path before move-away orders can destroy it.
+	const Bool blockedByAlly = path->getBlockedByAlly();
+	std::vector<MoveAlliesCell> &cells = m_moveAlliesCells[m_moveAlliesDepth - 1];
+	cells.clear();
+	for (const PathNode *node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious())
+	{
+		MoveAlliesCell entry;
+		worldToCell(node->getPosition(), &entry.cell);
+		entry.layer = node->getLayer();
+		cells.push_back(entry);
 	}
-	else
-#endif
-	{
-		// TheSuperHackers @bugfix bobtista 20/09/2026 Walk a copy of the path cells, so a move away order that recurses
-		// back into this unit and destroys the path cannot pull the nodes out from under the walk.
-		std::vector<MoveAlliesCell> &cells = m_moveAlliesCells[m_moveAlliesDepth - 1];
-		cells.clear();
-		for (const PathNode *node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious())
-		{
-			MoveAlliesCell entry;
-			worldToCell(node->getPosition(), &entry.cell);
-			entry.layer = node->getLayer();
-			cells.push_back(entry);
-		}
 
-		for (std::vector<MoveAlliesCell>::const_iterator it = cells.begin(); it != cells.end(); ++it)
-		{
-			moveAlliesAroundCell(obj, it->cell, it->layer, radius, numCellsAbove, ignoreId, blockedByAlly);
+	for (std::vector<MoveAlliesCell>::const_iterator it = cells.begin(); it != cells.end(); ++it)
+	{
+		const ICoord2D &curCell = it->cell;
+		const PathfindLayerEnum layer = it->layer;
+#endif
+		Int i, j;
+		for (i=curCell.x-radius; i<curCell.x+numCellsAbove; i++) {
+			for (j=curCell.y-radius; j<curCell.y+numCellsAbove; j++) {
+				PathfindCell	*cell = getCell(layer, i, j);
+				if (!cell) {
+					continue; // Cell is not on the pathfinding grid
+				}
+
+				ObjectID unitId = cell->getPosUnit();
+				if (unitId==INVALID_ID) {
+					continue;
+				}
+
+				if (unitId==obj->getID()) {
+					continue;	// It's us.
+				}
+
+				if (unitId==ignoreId) {
+					continue;	 // It's the one we are ignoring.
+				}
+
+				Object *otherObj = TheGameLogic->findObjectByID(unitId);
+				if (!otherObj) {
+					continue;
+				}
+
+				if (obj->getRelationship(otherObj)!=ALLIES) {
+					continue;  // Only move allies.
+				}
+
+				if (obj->isKindOf(KINDOF_INFANTRY) && otherObj->isKindOf(KINDOF_INFANTRY)) {
+					continue;  // infantry can walk through other infantry, so just let them.
+				}
+				if (obj->isKindOf(KINDOF_INFANTRY) && !otherObj->isKindOf(KINDOF_INFANTRY)) {
+					// If this is a general clear operation, don't let infantry push vehicles.
+#if RETAIL_COMPATIBLE_PATHFINDING
+					if (!path->getBlockedByAlly())
+#else
+					if (!blockedByAlly)
+#endif
+					{
+						continue;
+					}
+				}
+
+				if (!otherObj->getAI() || otherObj->getAI()->isMoving()) {
+					continue;
+				}
+
+#if !(RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING)
+				if (otherObj->getAI()->isAttacking()) {
+					continue; // Don't move units that are attacking. [8/14/2003]
+				}
+
+				//Kris: Patch 1.01 November 3, 2003
+				//Black Lotus exploit fix -- moving while hacking.
+				if( otherObj->testStatus( OBJECT_STATUS_IS_USING_ABILITY ) || otherObj->getAI()->isBusy() ) {
+					continue; // Packing or unpacking objects for example
+				}
+#endif
+
+				//DEBUG_LOG(("Moving ally"));
+				otherObj->getAI()->aiMoveAwayFromUnit(obj, CMD_FROM_AI);
+			}
 		}
 	}
 	return true;
