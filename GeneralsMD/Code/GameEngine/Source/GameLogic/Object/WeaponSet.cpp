@@ -297,14 +297,7 @@ void WeaponSet::xfer( Xfer *xfer )
 	}
 #endif
 
-	if (version >= 3)
-	{
-		xfer->xferBool(&m_hasPitchLimit);
-	}
-	else
-	{
-		xfer->xferBool(&m_hasDamageWeapon);
-	}
+	xfer->xferBool(version >= 3 ? &m_hasPitchLimit : &m_hasDamageWeapon);
 	xfer->xferBool(&m_hasDamageWeapon);
 
 #if RTS_GENERALS
