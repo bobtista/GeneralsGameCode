@@ -1286,7 +1286,7 @@ static void renderAIDebug()
 Bool W3DView::updateCameraMovements()
 {
 	Bool didUpdate = false;
-	// TheSuperHackers @bugfix bobtista 14/08/2026 Keep scripted camera movements from speeding up at high render frame rates.
+	// TheSuperHackers @tweak bobtista 14/08/2026 Advance scripted camera movements by elapsed logic time.
 	const Real milliseconds = TheFramePacer->getLogicTimeStepMilliseconds(FramePacer::IgnoreFrozenTime);
 
 	if (hasScriptedState(Scripted_Zoom))

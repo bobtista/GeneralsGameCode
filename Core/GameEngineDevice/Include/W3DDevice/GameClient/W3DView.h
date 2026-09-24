@@ -325,9 +325,9 @@ private:
 	void moveAlongWaypointPath(Real milliseconds); ///< Move camera along path.
 	void getPickRay(const ICoord2D *screen, Vector3 *rayStart, Vector3 *rayEnd);	///<returns a line segment (ray) originating at the given screen position
 	void setupWaypointPath(Bool orient);					///< Calculates distances & angles for moving along a waypoint path.
-	void rotateCameraOneFrame(Real milliseconds);							///< Do one frame of a rotate camera movement.
-	void zoomCameraOneFrame(Real milliseconds);							///< Do one frame of a zoom camera movement.
-	void pitchCameraOneFrame(Real milliseconds);							///< Do one frame of a pitch camera movement.
+	void rotateCameraOneFrame(Real milliseconds);							///< Advance the camera rotate by elapsed logic time.
+	void zoomCameraOneFrame(Real milliseconds);							///< Advance the camera zoom by elapsed logic time.
+	void pitchCameraOneFrame(Real milliseconds);							///< Advance the camera pitch by elapsed logic time.
 	void getAxisAlignedViewRegion(Region3D &axisAlignedRegion);	///< Find 3D Region enclosing all possible drawables.
 	void calcDeltaScroll(Coord2D &screenDelta);
 	bool getDesiredTerrainDrawSize(ICoord2D &dimensions) const;
