@@ -423,7 +423,6 @@ public:
 	inline Bool isContained() const { return m_containedBy != nullptr; }
 	void onContainedBy( Object *containedBy );
 	void onRemovedFrom( Object *removedFrom );
-	void removeFromTunnelContain(); ///< Remove from the tunnel tracker and clear containment without accessing the container.
 	Int getTransportSlotCount() const;
 	void friend_setContainedBy( Object *containedBy );
 	const Object* getEnclosingContainedBy() const; ///< Find the first enclosing container in the containment chain.
@@ -650,6 +649,7 @@ protected:
 	virtual void reactToTransformChange(const Matrix3D* oldMtx, const Coord3D* oldPos, Real oldAngle) override;
 
 private:
+	void removeFromTunnelContain();
 
 	// yes, private. No, really. Private. Don't expose.
 	enum ObjectPrivateStatusBits

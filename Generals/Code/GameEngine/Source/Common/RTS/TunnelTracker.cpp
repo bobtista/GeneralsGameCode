@@ -199,6 +199,7 @@ void TunnelTracker::addToContainList( Object *obj )
 // ------------------------------------------------------------------------
 Bool TunnelTracker::removeFromContain( Object *obj, Bool exposeStealthUnits )
 {
+
 	ContainedItemsList::iterator it = std::find(m_containList.begin(), m_containList.end(), obj);
 	if (it != m_containList.end())
 	{
