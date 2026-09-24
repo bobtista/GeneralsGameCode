@@ -198,27 +198,27 @@ AsciiString GetPreviewFromMap( AsciiString path )
 	return path;
 }
 
-AsciiString GetINIFromMap( AsciiString path )
+AsciiString GetINIFromMap( const AsciiString &path )
 {
 	return GetFileInMapDirectory(path, "map.ini");
 }
 
-AsciiString GetStrFileFromMap( AsciiString path )
+AsciiString GetStrFileFromMap( const AsciiString &path )
 {
 	return GetFileInMapDirectory(path, "map.str");
 }
 
-AsciiString GetSoloINIFromMap( AsciiString path )
+AsciiString GetSoloINIFromMap( const AsciiString &path )
 {
 	return GetFileInMapDirectory(path, "solo.ini");
 }
 
-AsciiString GetAssetUsageFromMap( AsciiString path )
+AsciiString GetAssetUsageFromMap( const AsciiString &path )
 {
 	return GetFileInMapDirectory(path, "assetusage.txt");
 }
 
-AsciiString GetReadmeFromMap( AsciiString path )
+AsciiString GetReadmeFromMap( const AsciiString &path )
 {
 	return GetFileInMapDirectory(path, "readme.txt");
 }
