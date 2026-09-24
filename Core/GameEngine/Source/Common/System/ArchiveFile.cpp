@@ -158,7 +158,6 @@ void ArchiveFile::getFileListInDirectory(const DetailedArchivedDirectoryInfo *di
 		const DetailedArchivedDirectoryInfo *tempDirInfo = &(diriter->second);
 		AsciiString tempdirname;
 		tempdirname = currentDirectory;
-		// TheSuperHackers @fix bobtista 14/08/2026 Avoid adding a separator when either separator is already present.
 		FileSystem::appendPathSeparator(tempdirname);
 		tempdirname.concat(tempDirInfo->m_directoryName);
 		getFileListInDirectory(tempDirInfo, tempdirname, searchName, filenameList, searchSubdirectories);
