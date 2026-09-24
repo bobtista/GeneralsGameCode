@@ -200,8 +200,7 @@ void WeaponSet::crc( Xfer *xfer )
 	* 1: Initial version
 	* 2: TheSuperHackers @tweak Upgrade damage type flags from integer to BitFlags for Generals.
 	*    Zero Hour already had this at version 1.
-	* 3: TheSuperHackers @bugfix bobtista 14/08/2026 Serialize m_hasPitchLimit in the slot that
-	*    repeated m_hasDamageWeapon, so a pitch limited weapon set keeps its limit on load
+	* 3: TheSuperHackers @bugfix bobtista 14/08/2026 Save and load m_hasPitchLimit instead of transferring m_hasDamageWeapon twice.
 	*/
 // ------------------------------------------------------------------------------------------------
 void WeaponSet::xfer( Xfer *xfer )
@@ -290,14 +289,7 @@ void WeaponSet::xfer( Xfer *xfer )
 	}
 #endif
 
-	if (version >= 3)
-	{
-		xfer->xferBool(&m_hasPitchLimit);
-	}
-	else
-	{
-		xfer->xferBool(&m_hasDamageWeapon);
-	}
+	xfer->xferBool(version >= 3 ? &m_hasPitchLimit : &m_hasDamageWeapon);
 	xfer->xferBool(&m_hasDamageWeapon);
 
 #if RTS_GENERALS
