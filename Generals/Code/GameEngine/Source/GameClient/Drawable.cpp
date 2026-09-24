@@ -1361,7 +1361,7 @@ void Drawable::applyPhysicsXform(Matrix3D* mtx)
 {
 	if (m_physicsXform != nullptr)
 	{
-		// TheSuperHackers @tweak bobtista 16/09/2026 Advance physics only on WW Sync frames using the 30 fps constants.
+		// TheSuperHackers @tweak Advance physics only on WW Sync frames using the 30 fps constants.
 		if (WW3D::Get_Sync_Frame_Time() != 0)
 		{
 			m_physicsXform->m_prevTotalPitch = m_physicsXform->m_totalPitch;
