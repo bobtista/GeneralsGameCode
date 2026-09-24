@@ -599,7 +599,7 @@ Bool MapCache::addMap(
 			{
 				// unofficial maps or maps without names
 				// TheSuperHackers @bugfix bobtista 14/09/2026 Handle map filenames with either separator or no separator.
-				AsciiString tempdisplayname = getFileName(fname.str());
+				const AsciiString tempdisplayname = getFileName(fname.str());
 				(*this)[lowerFname].m_displayName.translate(tempdisplayname);
 				if (md.m_numPlayers >= 2)
 				{
@@ -660,7 +660,7 @@ Bool MapCache::addMap(
 	if (!exists || nameLookupTag.isEmpty())
 	{
 		DEBUG_LOG(("Missing TheKey_mapName!"));
-		AsciiString tempdisplayname = getFileName(fname.str());
+		const AsciiString tempdisplayname = getFileName(fname.str());
 		md.m_displayName.translate(tempdisplayname);
 		if (md.m_numPlayers >= 2)
 		{
