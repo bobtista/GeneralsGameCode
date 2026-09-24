@@ -728,7 +728,18 @@ Int parseSaveTo(char *args[], int num)
 		exit(1);
 	}
 
-	TheWritableGlobalData->m_saveToFile = args[1];
+	if (strpbrk(args[1], "/\\:") != nullptr || strcmp(args[1], ".") == 0 || strcmp(args[1], "..") == 0)
+	{
+		printf("-saveto requires a filename without a directory\n");
+		exit(1);
+	}
+
+	AsciiString filename = args[1];
+	if (!filename.endsWithNoCase(".sav"))
+	{
+		filename.concat(".sav");
+	}
+	TheWritableGlobalData->m_saveToFile = filename;
 	return 2;
 }
 
