@@ -200,7 +200,7 @@ void WeaponSet::crc( Xfer *xfer )
 	* 1: Initial version
 	* 2: TheSuperHackers @tweak Upgrade damage type flags from integer to BitFlags for Generals.
 	*    Zero Hour already had this at version 1.
-	* 3: TheSuperHackers @bugfix bobtista 14/08/2026 Save and load m_hasPitchLimit instead of transferring m_hasDamageWeapon twice.
+	* 3: TheSuperHackers @bugfix bobtista 14/08/2026 Now serialize m_hasPitchLimit instead of m_hasDamageWeapon twice
 	*/
 // ------------------------------------------------------------------------------------------------
 void WeaponSet::xfer( Xfer *xfer )
