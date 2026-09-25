@@ -577,7 +577,7 @@ void DockUpdate::xfer( Xfer *xfer )
 
 	if( version >= 2 )
 	{
-		// The saved positions-loaded flag can prevent this count from being recomputed.
+		// # approach position bones
 		xfer->xferInt( &m_numberApproachPositionBones );
 	}
 
