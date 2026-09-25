@@ -414,7 +414,7 @@ bool FileSystem::removeExtension(UnicodeString& path)
 //============================================================================
 void FileSystem::appendPathSeparator(AsciiString& path)
 {
-	if (path.isNotEmpty() && !isPathSeparator(path.getCharAt(path.getLength() - 1)))
+	if (path.isNotEmpty() && !isPathSeparator(path.back()))
 	{
 		path.concat(getNativePathSeparator());
 	}
