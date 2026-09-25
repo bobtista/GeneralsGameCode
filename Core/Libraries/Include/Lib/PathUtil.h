@@ -23,6 +23,15 @@
 #include "BaseType.h"
 #include <string.h>
 
+inline char getNativePathSeparator()
+{
+#ifdef _WIN32
+	return '\\';
+#else
+	return '/';
+#endif
+}
+
 // Returns true for a separator the host platform uses to open files.
 inline bool isFileSystemPathSeparator(char ch)
 {
@@ -60,15 +69,6 @@ inline bool isAbsolutePath(const char* path)
 #endif
 
 	return false;
-}
-
-inline char getNativePathSeparator()
-{
-#ifdef _WIN32
-	return '\\';
-#else
-	return '/';
-#endif
 }
 
 inline const char* getLastPathSeparator(const char* path)
