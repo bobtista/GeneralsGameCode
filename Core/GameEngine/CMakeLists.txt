@@ -486,6 +486,14 @@ set(GAMEENGINE_SRC
 #    Include/GameLogic/ObjectIter.h
 #    Include/GameLogic/ObjectScriptStatusBits.h
 #    Include/GameLogic/ObjectTypes.h
+     Include/GameLogic/Pathfinder/Path.h
+     Include/GameLogic/Pathfinder/PathfindCell.h
+     Include/GameLogic/Pathfinder/PathfindCellInfo.h
+     Include/GameLogic/Pathfinder/PathfindCellList.h
+     Include/GameLogic/Pathfinder/PathfindLayer.h
+     Include/GameLogic/Pathfinder/PathfindZoneManager.h
+     Include/GameLogic/Pathfinder/PathNode.h
+     Include/GameLogic/Pathfinder/ZoneBlock.h
 #    Include/GameLogic/PartitionManager.h
     Include/GameLogic/PolygonTrigger.h
 #    Include/GameLogic/Powers.h
