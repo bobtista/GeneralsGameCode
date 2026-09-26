@@ -3213,6 +3213,15 @@ void GameLogic::update()
 	// Save before scripts and object updates so loading does not repeat part of a frame.
 	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_saveAtFrame && isInInteractiveGame())
 	{
+		if (isInMultiplayerGame() || isInReplayGame())
+		{
+			DEBUG_LOG(("Command line save is not supported in multiplayer or replay games"));
+			TheWritableGlobalData->m_saveAtFrame = 0;
+			TheGameEngine->setExitCode(1);
+			TheGameEngine->setQuitting(TRUE);
+			return;
+		}
+
 		if (TheInGameUI != nullptr && TheInGameUI->getInputEnabled() == FALSE)
 		{
 			// Log once, on the frame that was actually requested
