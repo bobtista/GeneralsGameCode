@@ -3224,10 +3224,12 @@ void GameLogic::update()
 		else
 		{
 			const AsciiString &saveName = TheGlobalData->m_saveToFile;
-			MAYBE_UNUSED const SaveResult saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"), SAVE_FILE_TYPE_NORMAL);
+			const SaveResult saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"), SAVE_FILE_TYPE_NORMAL);
 			DEBUG_LOG(("Command line save to '%s' at frame %d returned %d", saveName.str(), m_frame, (Int)saveResult.saveCode));
 			TheWritableGlobalData->m_saveAtFrame = 0;
+			TheGameEngine->setExitCode(saveResult.saveCode == SC_OK ? 0 : 1);
 			TheGameEngine->setQuitting(TRUE);
+			return;
 		}
 	}
 #endif
