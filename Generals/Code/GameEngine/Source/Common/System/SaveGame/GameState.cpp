@@ -1666,8 +1666,7 @@ void GameState::xfer( Xfer *xfer )
 	// if no label was found, we'll use the map name (just filename, no directory info)
 	if (exists == FALSE || saveGameInfo->mapLabel == AsciiString::TheEmptyString)
 	{
-		const char* p = maxPtr(TheGlobalData->m_mapName.reverseFind('/'), TheGlobalData->m_mapName.reverseFind('\\'));
-		saveGameInfo->mapLabel = p ? p + 1 : TheGlobalData->m_mapName.str();
+		saveGameInfo->mapLabel = getFileName(TheGlobalData->m_mapName.str());
 	}
 
 	// xfer map label
