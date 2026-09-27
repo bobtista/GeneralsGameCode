@@ -627,10 +627,10 @@ protected:
 		Real m_prevTotalYaw;
 		Real m_prevTotalZ;
 
-		UnsignedInt m_syncTime;			///< WW3D sync time of the last calculation, zero before the first one.
+		UnsignedInt m_syncTime;			///< WW3D sync time of the last calculation.
 
 		PhysicsXformInfo() : m_totalPitch(0), m_totalRoll(0), m_totalYaw(0), m_totalZ(0),
-			m_prevTotalPitch(0), m_prevTotalRoll(0), m_prevTotalYaw(0), m_prevTotalZ(0), m_syncTime(0) { }
+			m_prevTotalPitch(0), m_prevTotalRoll(0), m_prevTotalYaw(0), m_prevTotalZ(0), m_syncTime(~0u) { }
 
 		void setPrevTotals()
 		{
