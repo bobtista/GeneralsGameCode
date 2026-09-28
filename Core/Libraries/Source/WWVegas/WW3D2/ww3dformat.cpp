@@ -318,9 +318,6 @@ static bool Backend_Supports_DXTC()
 
 WW3DFormat Get_Valid_Texture_Format(WW3DFormat format, bool is_compression_allowed)
 {
-	int w,h,bits;
-	bool windowed;
-
 	if (!Backend_Supports_DXTC() ||
 		!is_compression_allowed) {
 		switch (format) {
@@ -357,6 +354,8 @@ WW3DFormat Get_Valid_Texture_Format(WW3DFormat format, bool is_compression_allow
 	}
 
 #if !defined(GGC_RENDER_BACKEND_BGFX)
+	int w,h,bits;
+	bool windowed;
 	WW3D::Get_Device_Resolution(w,h,bits,windowed);
 	if (WW3D::Get_Texture_Bitdepth()==16) bits=16;
 

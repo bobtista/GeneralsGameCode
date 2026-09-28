@@ -1215,7 +1215,6 @@ static void Emit_Sorted_Packet_Collector_Diag(const TempIndexStruct* tis, unsign
 		const unsigned segment_start = i;
 		while (i < tri_count)
 		{
-			SortingNodeStruct* fallback_node = overlapping_nodes[tis[i].idx];
 			++fallback_tris;
 			++i;
 			if (i >= tri_count || overlapping_nodes[tis[i].idx]->packet_diag_fallback == BGFX_SORTED_PACKET_FALLBACK_NONE)

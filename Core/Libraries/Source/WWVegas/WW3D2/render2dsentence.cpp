@@ -50,8 +50,11 @@
 #define GGC_RESTORE_INTERFACE_MACRO
 #undef interface
 #endif
+// TheSuperHackers @build bobtista 28/09/2026 MacTypes.h declares its own Byte, which collides with the precompiled BaseTypes.h Byte.
+#define Byte MacTypesByte
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreText/CoreText.h>
+#undef Byte
 #if defined(GGC_RESTORE_INTERFACE_MACRO)
 #define interface struct
 #undef GGC_RESTORE_INTERFACE_MACRO
