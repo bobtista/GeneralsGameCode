@@ -152,7 +152,6 @@ set(WWLIB_SRC
 
 if(WIN32)
     list(APPEND WWLIB_SRC
-        DbgHelpLoader.cpp
         mpu.cpp
         MPU.h
         rcfile.cpp

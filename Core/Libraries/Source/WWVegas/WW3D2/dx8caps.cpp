@@ -1128,7 +1128,6 @@ unsigned DX8Caps::Get_Max_Texture_Height() const
 
 void DX8Caps::Vendor_Specific_Hacks(const void* adapter_id_ptr)
 {
-	const LegacyAdapterIdentifier& adapter_id = *static_cast<const LegacyAdapterIdentifier*>(adapter_id_ptr);
 	if (VendorId==VENDOR_NVIDIA)
     {
 		if (SupportNPatches) {

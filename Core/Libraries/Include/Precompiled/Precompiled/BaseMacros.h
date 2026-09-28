@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <stddef.h>
+
 // This macro serves as a general way to determine the number of elements within an array.
 #ifndef ARRAY_SIZE
 #if (defined(_MSC_VER) && _MSC_VER < 1300) || !defined(__cplusplus)

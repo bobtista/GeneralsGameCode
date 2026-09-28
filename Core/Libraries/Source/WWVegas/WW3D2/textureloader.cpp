@@ -2714,6 +2714,7 @@ void TextureLoadTaskClass::Allocate_CPU_Texture_Staging()
 		unsigned int rows = 0;
 		const bool valid_layout = Get_CPU_Texture_Snapshot_Staging_Layout(Format, width, height, pitch, rows);
 		WWASSERT(valid_layout);
+		(void)valid_layout;
 
 		mip.Width = width;
 		mip.Height = height;

@@ -1902,7 +1902,6 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
         return BGFX_INVALID_HANDLE;
     }
 
-    const TextureBaseClass::TextureMipSnapshot & baseMip = mips[0];
     TextureUploadPlan plan;
     if (!BuildTextureUploadPlan(textureRevision, tex2d, mips, baseMipOnly, &plan))
     {

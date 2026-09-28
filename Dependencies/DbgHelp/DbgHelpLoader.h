@@ -20,6 +20,16 @@
 
 #include "imagehlp_adapter.h"
 
+// TheSuperHackers @build bobtista 28/09/2026 The x64 imagehlp.h maps the 32-bit names to their 64-bit functions,
+// which would give the DbgHelp wrappers below colliding or ambiguous overloads.
+#undef StackWalk
+#undef SymFunctionTableAccess
+#undef SymGetLineFromAddr
+#undef SymGetModuleBase
+#undef SymGetSymFromAddr
+#undef SymLoadModule
+#undef SymUnloadModule
+
 // This static class loads and unloads dbghelp.dll at runtime.
 //
 // The dbghelp functions declared in the DbgHelp namespace below are implemented in this library

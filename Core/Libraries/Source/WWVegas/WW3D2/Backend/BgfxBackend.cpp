@@ -10400,8 +10400,6 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
 
     const bgfx::TransientVertexBuffer vb = g_draw.pendingVB.tvb;
     const bgfx::TransientIndexBuffer  ib = g_draw.pendingIB.tib;
-    const FVFInfoClass & traceFvf = dyn_vb.FVF_Info();
-    const unsigned traceStride = traceFvf.Get_FVF_Size();
     g_draw.activeVertexNormalBias = g_draw.pendingVB.coplanarNormalBias;
     g_draw.pendingVB.valid = false;
     g_draw.pendingIB.valid = false;

@@ -1941,7 +1941,6 @@ unsigned TextureClass::Get_Texture_Memory_Usage() const
 		return static_cast<unsigned>(size);
 	}
 
-	int size=0;
 	if (!Peek_Legacy_Texture2D(*this)) return 0;
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
@@ -1949,6 +1948,7 @@ unsigned TextureClass::Get_Texture_Memory_Usage() const
 		"TextureClass::Get_Texture_Memory_Usage: standalone bgfx cannot query fake-D3D texture levels");
 	return 0;
 #else
+	int size=0;
 	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
 	{
 		LegacySurfaceDesc desc;
@@ -2259,7 +2259,6 @@ void *ZTextureClass::Get_Native_Compatibility_Surface_Level(unsigned int level)
 */
 unsigned ZTextureClass::Get_Texture_Memory_Usage() const
 {
-	int size=0;
 	if (!Peek_Legacy_Texture2D(*this)) return 0;
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	WWASSERT_PRINT(
@@ -2267,6 +2266,7 @@ unsigned ZTextureClass::Get_Texture_Memory_Usage() const
 		"ZTextureClass::Get_Texture_Memory_Usage: standalone bgfx cannot query fake-D3D depth texture levels");
 	return 0;
 #else
+	int size=0;
 	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
 	{
 		LegacySurfaceDesc desc;
