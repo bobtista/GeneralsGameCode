@@ -488,6 +488,10 @@ void GameEngine::init()
 			DEBUG_LOG(("GameEngine::init() - loaded Data\\INI\\Bgfx.ini"));
 		}
 
+		// TheSuperHackers @tweak bobtista 27/09/2026 Widen the camera height limits in code instead of GameData.ini so the INI CRC stays unchanged.
+		TheWritableGlobalData->m_maxCameraHeight = 400.0f;
+		TheWritableGlobalData->m_minCameraHeight = 40.0f;
+
 		// special-case: parse command-line parameters after loading global data
 		CommandLine::parseCommandLineForEngineInit();
 
