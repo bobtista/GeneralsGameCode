@@ -56,6 +56,7 @@
 
 #include "GameClient/Drawable.h"	// For getPosition
 #include "GameClient/GameClient.h"	// For getDrawableByID
+#include "Lib/PathUtil.h"
 
 
 //-------------------------------------------------------------------------------------------------
@@ -796,12 +797,7 @@ AsciiString AudioEventRTS::generateFilenameExtension( AudioType audioTypeToPlay 
 //-------------------------------------------------------------------------------------------------
 void AudioEventRTS::adjustForLocalization(AsciiString &strToAdjust)
 {
-	const char *filename = strToAdjust.reverseFind('\\');
-	if (filename) {
-		filename += 1;
-	} else {
-		filename = strToAdjust.str();
-	}
+	const char *filename = getFileName(strToAdjust.str());
 
 	// try the localized version first so that we're guaranteed to get it
 	// even if the generic data directory holds a version of the file

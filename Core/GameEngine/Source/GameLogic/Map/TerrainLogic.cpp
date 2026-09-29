@@ -59,6 +59,7 @@
 
 #include "WWMath/plane.h"
 #include "WWMath/tri.h"
+#include "Lib/PathUtil.h"
 
 
 // GLOBALS ////////////////////////////////////////////////////////////////////////////////////////
@@ -1145,14 +1146,14 @@ void TerrainLogic::enableWaterGrid( Bool enable )
 			const char *c;
 
 			// create stripped map name
-			c = strrchr( TheGlobalData->m_mapName.str(), '\\' );
+			c = getLastPathSeparator( TheGlobalData->m_mapName.str() );
 			if( c )
 				strippedMapNameOnly.set( c );
 			else
 				strippedMapNameOnly = TheGlobalData->m_mapName;
 
 			// create stripped compare name
-			c = strrchr( TheGlobalData->m_vertexWaterAvailableMaps[ i ].str(), '\\' );
+			c = getLastPathSeparator( TheGlobalData->m_vertexWaterAvailableMaps[ i ].str() );
 			if( c )
 				strippedCompareMapNameOnly.set( c );
 			else

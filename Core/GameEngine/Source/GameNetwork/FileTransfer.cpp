@@ -34,6 +34,7 @@
 #include "GameClient/Shell.h"
 #include "GameNetwork/FileTransfer.h"
 #include "GameNetwork/networkutil.h"
+#include "Lib/PathUtil.h"
 
 //-------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------
@@ -137,7 +138,7 @@ static Bool doFileTransfer( AsciiString filename, MapTransferLoadScreen *ls, Int
 
 AsciiString GetBasePathFromPath( AsciiString path )
 {
-	const char *s = path.reverseFind('\\');
+	const char *s = getLastPathSeparator(path.str());
 	if (s)
 	{
 		Int len = s - path.str();
@@ -153,10 +154,7 @@ AsciiString GetBasePathFromPath( AsciiString path )
 
 AsciiString GetFileFromPath( AsciiString path )
 {
-	const char *s = path.reverseFind('\\');
-	if (s)
-		return s+1;
-	return path;
+	return getFileName(path.str());
 }
 
 AsciiString GetExtensionFromFile( AsciiString fname )
