@@ -1141,23 +1141,9 @@ void TerrainLogic::enableWaterGrid( Bool enable )
 			// the fact that the map Data\CHI01\CHI01.map will turn into Save\CHI01.map when
 			// loading the map from a save game file
 			//
-			AsciiString strippedMapNameOnly;
-			AsciiString strippedCompareMapNameOnly;
-			const char *c;
-
-			// create stripped map name
-			c = getLastPathSeparator( TheGlobalData->m_mapName.str() );
-			if( c )
-				strippedMapNameOnly.set( c );
-			else
-				strippedMapNameOnly = TheGlobalData->m_mapName;
-
-			// create stripped compare name
-			c = getLastPathSeparator( TheGlobalData->m_vertexWaterAvailableMaps[ i ].str() );
-			if( c )
-				strippedCompareMapNameOnly.set( c );
-			else
-				strippedCompareMapNameOnly = TheGlobalData->m_vertexWaterAvailableMaps[ i ];
+			// TheSuperHackers @bugfix bobtista 29/09/2026 Match water settings regardless of path separators.
+			AsciiString strippedMapNameOnly = getFileName( TheGlobalData->m_mapName.str() );
+			AsciiString strippedCompareMapNameOnly = getFileName( TheGlobalData->m_vertexWaterAvailableMaps[ i ].str() );
 
 			// now try this compare
 			if( strippedMapNameOnly.compareNoCase( strippedCompareMapNameOnly.str() ) == 0 )
