@@ -43,6 +43,7 @@
 #include "Common/PlayerTemplate.h"
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/LANAPI.h"
+#include "Lib/PathUtil.h"
 
 
 static GameWindow *parent = nullptr;
@@ -118,16 +119,7 @@ void RefreshGameInfoWindow(GameInfo *gameInfo, UnicodeString gameName)
 	else
 	{
 		// can happen if the map will have to be transferred... so use the leaf name (srj)
-		const char *noPath = gameInfo->getMap().reverseFind('\\');
-		if (noPath)
-		{
-			++noPath;
-		}
-		else
-		{
-			noPath = gameInfo->getMap().str();
-		}
-		map.translate(noPath);
+		map.translate(getFileName(gameInfo->getMap().str()));
 	}
 	GadgetStaticTextSetText(staticTextMapName,map);
 

@@ -31,6 +31,7 @@
 #include "Common/LocalFileSystem.h"
 #include "GameClient/InGameUI.h"
 #include "GameNetwork/IPEnumeration.h"
+#include "Lib/PathUtil.h"
 #include <cstdarg>
 
 
@@ -183,7 +184,7 @@ void outputCRCDumpLines()
 
 static AsciiString getFname(AsciiString path)
 {
-	return path.reverseFind('\\') + 1;
+	return getFileName(path.str());
 }
 
 static void addCRCDebugLineInternal(bool count, const char *fmt, va_list args)
