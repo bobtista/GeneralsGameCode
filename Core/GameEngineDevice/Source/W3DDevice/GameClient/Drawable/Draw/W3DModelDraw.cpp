@@ -67,6 +67,7 @@
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 #include "Common/BitFlagsIO.h"
+#include "Lib/PathUtil.h"
 
 
 //-------------------------------------------------------------------------------------------------
@@ -152,7 +153,7 @@ void LogClass::log(const char *fmt, ...)
 void LogClass::dumpMatrix3D(const Matrix3D *m, AsciiString name, AsciiString fname, Int line)
 {
 	fname.toLower();
-	fname = fname.reverseFind('\\') + 1;
+	fname = getFileName(fname.str());
 	const Real *matrix = (const Real *)m;
 	log("dumpMatrix3D() %s:%d %s",
 		fname.str(), line, name.str());
@@ -166,7 +167,7 @@ void LogClass::dumpReal(Real r, AsciiString name, AsciiString fname, Int line)
 	if (!m_fp || !isValidTimeToCalcLogicStuff())
 		return;
 	fname.toLower();
-	fname = fname.reverseFind('\\') + 1;
+	fname = getFileName(fname.str());
 	log("dumpReal() %s:%d %s %8.8X (%f)",
 		fname.str(), line, name.str(), AS_INT(r), r);
 }

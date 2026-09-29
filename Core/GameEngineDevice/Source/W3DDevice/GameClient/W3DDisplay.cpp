@@ -113,6 +113,7 @@ static void drawFramerateBar();
 #endif
 
 #include "WinMain.h"
+#include "Lib/PathUtil.h"
 
 
 // DEFINE AND ENUMS ///////////////////////////////////////////////////////////
@@ -3358,11 +3359,7 @@ void W3DDisplay::dumpAssetUsage(const char* mapname)
 	DynamicVectorClass<StringClass> names(8000);
 	m_assetManager->Create_Asset_List(names);
 
-	const char* leafname = strrchr(mapname, '\\');
-	if (leafname)
-		++leafname;					// point to first character after the last backslash
-	else
-		leafname = mapname;		// point to the start of the filename
+	const char* leafname = getFileName(mapname);
 
 	char buf[256];
 	int idx = 1;
