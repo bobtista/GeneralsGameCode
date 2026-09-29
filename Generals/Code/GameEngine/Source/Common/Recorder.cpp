@@ -1662,10 +1662,7 @@ AsciiString RecorderClass::getLastReplayFileName()
 			AsciiString players;
 			AsciiString full;
 			AsciiString fullPlusNum;
-			AsciiString mapName = game->getMap();
-			const char *fname = mapName.reverseFind('\\');
-			if (fname)
-				mapName = fname+1;
+			AsciiString mapName = getFileName(game->getMap().str());
 			for (Int i=0; i<MAX_SLOTS; ++i)
 			{
 				GameSlot *slot = game->getSlot(i);
