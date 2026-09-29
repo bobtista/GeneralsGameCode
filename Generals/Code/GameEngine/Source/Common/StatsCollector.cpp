@@ -62,6 +62,7 @@
 #include "GameClient/MapUtil.h"
 #include "GameNetwork/networkutil.h"
 #include "GameNetwork/LANAPICallbacks.h"
+#include "Lib/PathUtil.h"
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
@@ -307,10 +308,7 @@ void StatsCollector::createFileName()
 	curtime = localtime(&longTime);
 	strftime(datestr, 256, "_%b%d_%I%M%p", curtime);
 //	const MapMetaData *m =  TheMapCache->findMap(TheGlobalData->m_mapName);
-	AsciiString name = TheGlobalData->m_mapName;
-	const char *fname = name.reverseFind('\\');
-	if (fname)
-		name = fname+1;
+	AsciiString name = getFileName(TheGlobalData->m_mapName.str());
 	name.truncateBy(4); // ".map"
 	m_statsFileName.clear();
 #if defined(RTS_DEBUG)
