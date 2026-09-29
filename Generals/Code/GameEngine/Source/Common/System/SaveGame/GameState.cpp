@@ -840,7 +840,7 @@ Bool GameState::isInSaveDirectory(const AsciiString& path) const
 // ------------------------------------------------------------------------------------------------
 AsciiString GameState::getMapLeafName(const AsciiString& in) const
 {
-	const char* p = strrchr(in.str(), '\\');
+	const char* p = getLastPathSeparator(in.str());
 	if (p)
 	{
 		//
