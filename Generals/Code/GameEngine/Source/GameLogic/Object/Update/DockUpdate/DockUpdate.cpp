@@ -546,17 +546,13 @@ void DockUpdate::crc( Xfer *xfer )
 /** Xfer Method
 	* Version Info:
 	* 1: Initial version
-	* 2: Save the approach position bone count. */
+	*/
 // ------------------------------------------------------------------------------------------------
 void DockUpdate::xfer( Xfer *xfer )
 {
 
 	// version
-#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
-#else
-	XferVersion currentVersion = 2;
-#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -574,12 +570,6 @@ void DockUpdate::xfer( Xfer *xfer )
 
 	// # approach positions
 	xfer->xferInt( &m_numberApproachPositions );
-
-	if( version >= 2 )
-	{
-		// # approach position bones
-		xfer->xferInt( &m_numberApproachPositionBones );
-	}
 
 	// positions loaded
 	xfer->xferBool( &m_positionsLoaded );
@@ -639,6 +629,12 @@ void DockUpdate::loadPostProcess()
 
 	// call base class
 	UpdateModule::loadPostProcess();
+
+	// TheSuperHackers @bugfix bobtista 30/09/2026 Restore the unsaved approach bone count.
+	if( m_positionsLoaded )
+	{
+		loadDockPositions();
+	}
 
 }
 
