@@ -306,6 +306,9 @@ private:
 	MemoryPoolBlob		*m_firstBlob;								///< head of linked list: first blob for this pool.
 	MemoryPoolBlob		*m_lastBlob;								///< tail of linked list: last blob for this pool. (needed for efficiency)
 	MemoryPoolBlob		*m_firstBlobWithFreeBlocks;	///< first blob in this pool that has at least one unallocated block.
+#ifdef RTS_POISON_FREED_MEMORY
+	Bool							m_poisonEnabled;						///< fill this pool's freed blocks with a poison value
+#endif
 
 private:
 	/// create a new blob with the given number of blocks.
@@ -356,6 +359,11 @@ public:
 
 	/// return the block allocation size of this pool.
 	Int getAllocationSize();
+
+#ifdef RTS_POISON_FREED_MEMORY
+	/// true if this pool fills its freed blocks with a poison value.
+	Bool isPoisonEnabled() { return m_poisonEnabled; }
+#endif
 
 	/// return the number of free (available) blocks in this pool.
 	Int getFreeBlockCount();

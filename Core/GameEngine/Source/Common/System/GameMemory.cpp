@@ -206,6 +206,9 @@ static Int roundUpMemBound(Int i);
 static void *sysAllocateDoNotZero(Int numBytes);
 static void sysFree(void* p);
 static void memset32(void* ptr, Int value, Int bytesToFill);
+#ifdef RTS_POISON_FREED_MEMORY
+static Int poisonValueForBlock(const void* p);
+#endif
 #ifdef MEMORYPOOL_STACKTRACE
 static void doStackDumpOutput(const char* m);
 static void doStackDump(void **stacktrace, int size);
@@ -295,6 +298,20 @@ static void memset32(void* ptr, Int value, Int bytesToFill)
 	for (++bytesToFill; --bytesToFill; )
 		*b++ = (Byte)value;
 }
+
+#ifdef RTS_POISON_FREED_MEMORY
+// ----------------------------------------------------------------------------
+/**
+	poison value for a freed block, derived from the block address. one constant
+	fill value makes two freed pointers compare equal, which lets a walk over a
+	freed linked list end quietly instead of faulting. the 0xDE000000 range is
+	above user address space, so a dereference faults.
+*/
+static Int poisonValueForBlock(const void* p)
+{
+	return (Int)(0xDE000000 | ((((UnsignedInt)p) >> 4) & 0x00FFFFFF));
+}
+#endif
 
 #ifdef MEMORYPOOL_STACKTRACE
 // ----------------------------------------------------------------------------
@@ -427,6 +444,11 @@ private:
 private:
 
 	void* getUserDataNoDbg();
+#if defined(RTS_POISON_FREED_MEMORY) && !defined(MEMORYPOOL_DEBUG)
+public:
+	void poisonUserData(Int size) { ::memset32(getUserDataNoDbg(), poisonValueForBlock(getUserDataNoDbg()), size); }
+private:
+#endif
 #ifdef MEMORYPOOL_BOUNDINGWALL
 	void debugFillInWalls();
 #endif
@@ -1299,6 +1321,11 @@ void MemoryPoolBlob::freeSingleBlock(MemoryPoolSingleBlock *block)
 #endif
 #ifdef MEMORYPOOL_DEBUG
 	block->debugMarkBlockAsFree();
+#elif defined(RTS_POISON_FREED_MEMORY)
+	if (m_owningPool->isPoisonEnabled())
+	{
+		block->poisonUserData(m_owningPool->getAllocationSize());
+	}
 #endif
 #ifdef MEMORYPOOL_INTENSE_VERIFY
 	debugMemoryVerifyBlob();
@@ -1513,6 +1540,9 @@ MemoryPool::MemoryPool() :
 	m_firstBlob(nullptr),
 	m_lastBlob(nullptr),
 	m_firstBlobWithFreeBlocks(nullptr)
+#ifdef RTS_POISON_FREED_MEMORY
+	,m_poisonEnabled(false)
+#endif
 {
 }
 
@@ -1534,6 +1564,10 @@ void MemoryPool::init(MemoryPoolFactory *factory, const char *poolName, Int allo
 	m_firstBlob = nullptr;
 	m_lastBlob = nullptr;
 	m_firstBlobWithFreeBlocks = nullptr;
+#ifdef RTS_POISON_FREED_MEMORY
+	// Restrict the diagnostic to path pools; filling every pool caused an earlier replay mismatch.
+	m_poisonEnabled = (::strcmp(m_poolName, "PathNodePool") == 0 || ::strcmp(m_poolName, "PathPool") == 0);
+#endif
 
 	// go ahead and init the initial block here (will throw on failure)
 	createBlob(m_initialAllocationCount);
