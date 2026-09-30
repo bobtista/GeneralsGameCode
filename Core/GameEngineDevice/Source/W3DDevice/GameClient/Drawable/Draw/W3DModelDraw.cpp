@@ -67,7 +67,6 @@
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 #include "Common/BitFlagsIO.h"
-#include "Lib/PathUtil.h"
 
 
 //-------------------------------------------------------------------------------------------------

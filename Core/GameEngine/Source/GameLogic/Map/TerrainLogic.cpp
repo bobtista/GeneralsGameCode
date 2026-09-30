@@ -59,7 +59,6 @@
 
 #include "WWMath/plane.h"
 #include "WWMath/tri.h"
-#include "Lib/PathUtil.h"
 
 
 // GLOBALS ////////////////////////////////////////////////////////////////////////////////////////
@@ -1141,12 +1140,11 @@ void TerrainLogic::enableWaterGrid( Bool enable )
 			// the fact that the map Data\CHI01\CHI01.map will turn into Save\CHI01.map when
 			// loading the map from a save game file
 			//
-			// TheSuperHackers @bugfix bobtista 29/09/2026 Match water settings regardless of path separators.
-			AsciiString strippedMapNameOnly = getFileName( TheGlobalData->m_mapName.str() );
-			AsciiString strippedCompareMapNameOnly = getFileName( TheGlobalData->m_vertexWaterAvailableMaps[ i ].str() );
+			const char* strippedMapNameOnly = getFileName( TheGlobalData->m_mapName.str() );
+			const char* strippedCompareMapNameOnly = getFileName( TheGlobalData->m_vertexWaterAvailableMaps[ i ].str() );
 
 			// now try this compare
-			if( strippedMapNameOnly.compareNoCase( strippedCompareMapNameOnly.str() ) == 0 )
+			if( _stricmp( strippedMapNameOnly, strippedCompareMapNameOnly ) == 0 )
 			{
 
 				waterSettingIndex = i;
