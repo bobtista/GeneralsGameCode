@@ -60,7 +60,6 @@
 #include "GameLogic/FPUControl.h"
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkDefs.h"
-#include "Lib/PathUtil.h"
 
 
 //-------------------------------------------------------------------------------

@@ -56,7 +56,6 @@
 
 #include "GameClient/Drawable.h"	// For getPosition
 #include "GameClient/GameClient.h"	// For getDrawableByID
-#include "Lib/PathUtil.h"
 
 
 //-------------------------------------------------------------------------------------------------

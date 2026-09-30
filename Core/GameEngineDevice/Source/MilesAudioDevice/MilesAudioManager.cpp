@@ -67,7 +67,6 @@
 
 #include <Utility/interlocked_adapter.h>
 #include "MilesLoader.h"
-#include "Lib/PathUtil.h"
 
 #include <dsound.h>
 

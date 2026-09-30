@@ -37,7 +37,6 @@
 #include "Common/NameKeyGenerator.h"
 #include "Common/WellKnownKeys.h"
 #include "Common/QuotedPrintable.h"
-#include "Lib/PathUtil.h"
 
 
 class MapMetaDataReader
