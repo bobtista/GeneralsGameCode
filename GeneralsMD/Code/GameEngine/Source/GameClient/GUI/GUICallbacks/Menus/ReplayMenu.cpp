@@ -47,7 +47,6 @@
 #include "GameClient/Mouse.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GameWindowTransitions.h"
-#include "Lib/PathUtil.h"
 
 typedef UnicodeString ReplayName;
 typedef UnicodeString TooltipString;

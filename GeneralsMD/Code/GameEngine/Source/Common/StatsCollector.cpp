@@ -62,7 +62,6 @@
 #include "GameClient/MapUtil.h"
 #include "GameNetwork/networkutil.h"
 #include "GameNetwork/LANAPICallbacks.h"
-#include "Lib/PathUtil.h"
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------

@@ -61,7 +61,6 @@
 #include "GameNetwork/GameSpy/GSConfig.h"
 
 #include "Common/STLTypedefs.h"
-#include "Lib/PathUtil.h"
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////

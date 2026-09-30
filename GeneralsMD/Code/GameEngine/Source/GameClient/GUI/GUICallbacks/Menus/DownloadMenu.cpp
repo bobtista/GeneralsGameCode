@@ -59,7 +59,6 @@
 
 #include "GameNetwork/DownloadManager.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
-#include "Lib/PathUtil.h"
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static NameKeyType buttonCancelID = NAMEKEY_INVALID;
@@ -144,7 +143,7 @@ HRESULT DownloadManagerMunkee::downloadFile( AsciiString server, AsciiString use
 	if (staticTextFile)
 	{
 		// just get the filename, not the pathname
-		AsciiString bob = getFileName(file.str());
+		const char* bob = getFileName(file.str());
 
 		UnicodeString fileString;
 		fileString.translate(bob);
