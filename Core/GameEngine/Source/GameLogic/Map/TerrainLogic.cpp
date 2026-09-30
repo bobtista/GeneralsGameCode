@@ -1144,7 +1144,7 @@ void TerrainLogic::enableWaterGrid( Bool enable )
 			const char* strippedCompareMapNameOnly = getFileName( TheGlobalData->m_vertexWaterAvailableMaps[ i ].str() );
 
 			// now try this compare
-			if( _stricmp( strippedMapNameOnly, strippedCompareMapNameOnly ) == 0 )
+			if( stricmp( strippedMapNameOnly, strippedCompareMapNameOnly ) == 0 )
 			{
 
 				waterSettingIndex = i;
