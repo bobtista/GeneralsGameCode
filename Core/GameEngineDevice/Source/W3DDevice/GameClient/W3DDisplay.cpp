@@ -111,7 +111,6 @@ static void drawFramerateBar();
 #endif
 
 #include "WinMain.h"
-#include "Lib/PathUtil.h"
 
 
 // DEFINE AND ENUMS ///////////////////////////////////////////////////////////
