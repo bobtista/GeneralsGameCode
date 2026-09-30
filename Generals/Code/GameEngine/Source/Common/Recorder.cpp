@@ -49,7 +49,6 @@
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
 #include "Common/version.h"
-#include "Lib/PathUtil.h"
 #include <Utility/bit_adapter.h>
 
 constexpr const char s_genrep[] = "GENREP";
