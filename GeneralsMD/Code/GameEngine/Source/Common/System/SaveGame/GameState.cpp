@@ -58,7 +58,6 @@
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/SidesList.h"
 #include "GameLogic/TerrainLogic.h"
-#include "Lib/PathUtil.h"
 
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////////////////////////

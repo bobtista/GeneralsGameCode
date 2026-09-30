@@ -59,7 +59,6 @@
 #include "Common/MultiplayerSettings.h"
 #include "GameClient/GameText.h"
 #include "GameNetwork/GUIUtil.h"
-#include "Lib/PathUtil.h"
 
 
 extern char *LANnextScreen;
@@ -951,8 +950,7 @@ void updateGameOptions()
 		}
 		else
 		{
-			AsciiString s = getFileName(TheLAN->GetMyGame()->getMap().str());
-			mapDisplayName.format(L"%hs", s.str());
+			mapDisplayName.format(L"%hs", getFileName(TheLAN->GetMyGame()->getMap().str()));
 		}
 		UnicodeString old = GadgetStaticTextGetText(textEntryMapDisplay);
 		if(old.compare(mapDisplayName) != 0)

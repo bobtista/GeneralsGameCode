@@ -68,7 +68,6 @@
 
 #include <Utility/interlocked_adapter.h>
 #include "MilesLoader.h"
-#include "Lib/PathUtil.h"
 
 
 enum { INFINITE_LOOP_COUNT = 1000000 };

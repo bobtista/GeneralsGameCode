@@ -34,7 +34,6 @@
 #include "GameClient/Shell.h"
 #include "GameNetwork/FileTransfer.h"
 #include "GameNetwork/networkutil.h"
-#include "Lib/PathUtil.h"
 
 //-------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------
@@ -152,14 +151,9 @@ AsciiString GetBasePathFromPath( AsciiString path )
 	return AsciiString::TheEmptyString;
 }
 
-AsciiString GetFileFromPath( AsciiString path )
-{
-	return getFileName(path.str());
-}
-
 AsciiString GetExtensionFromFile( AsciiString fname )
 {
-	const char *s = fname.reverseFind('.');
+	const char *s = getExtension(fname.str());
 	if (s)
 		return s+1;
 	return fname;
@@ -167,7 +161,7 @@ AsciiString GetExtensionFromFile( AsciiString fname )
 
 AsciiString GetBaseFileFromFile( AsciiString fname )
 {
-	const char *s = fname.reverseFind('.');
+	const char *s = getExtension(fname.str());
 	if (s)
 	{
 		Int len = s - fname.str();
@@ -183,7 +177,7 @@ AsciiString GetBaseFileFromFile( AsciiString fname )
 
 AsciiString GetPreviewFromMap( AsciiString path )
 {
-	AsciiString fname = GetBaseFileFromFile(GetFileFromPath(path));
+	AsciiString fname = GetBaseFileFromFile(getFileName(path.str()));
 	AsciiString base = GetBasePathFromPath(path);
 
 	AsciiString out;
