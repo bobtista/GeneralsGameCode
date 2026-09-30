@@ -60,7 +60,6 @@
 #include "GameClient/Shell.h"
 #include "GameLogic/GameLogic.h"
 #include "GameClient/GameWindowTransitions.h"
-#include "Lib/PathUtil.h"
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static NameKeyType buttonBackKey					= NAMEKEY_INVALID;
