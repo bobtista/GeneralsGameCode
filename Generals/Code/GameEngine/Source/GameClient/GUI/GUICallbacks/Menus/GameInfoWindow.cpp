@@ -43,7 +43,6 @@
 #include "Common/PlayerTemplate.h"
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/LANAPI.h"
-#include "Lib/PathUtil.h"
 
 
 static GameWindow *parent = nullptr;

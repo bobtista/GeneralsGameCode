@@ -63,7 +63,6 @@
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
-#include "Lib/PathUtil.h"
 
 void WOLDisplaySlotList();
 
@@ -909,9 +908,8 @@ void WOLDisplayGameOptions()
 	}
 	else
 	{
-		AsciiString s = getFileName(TheGameSpyInfo->getCurrentStagingRoom()->getMap().str());
 		UnicodeString mapDisplay;
-		mapDisplay.translate(s);
+		mapDisplay.translate(getFileName(TheGameSpyInfo->getCurrentStagingRoom()->getMap().str()));
 		GadgetStaticTextSetText(textEntryMapDisplay, mapDisplay);
 	}
 	WOLPositionStartSpots();
