@@ -29,6 +29,10 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include <map>
+#include <string>
+#include <Utility/stdio_adapter.h>
+
 #include "Common/AudioAffect.h"
 #include "Common/AudioHandleSpecialValues.h"
 #include "Common/BuildAssistant.h"
@@ -300,6 +304,47 @@ Bool GameLogic::isInSinglePlayerGame()
 }
 
 
+Bool g_resetLookupProbe = FALSE;
+const Object* g_resetProbeObj = nullptr;
+static const char* s_resetProbePhase = "";
+static std::string s_resetProbeModuleName = "-";
+static std::map<std::string, Int>* s_resetProbeCounts = nullptr;
+static Int s_resetProbeHits = 0;
+static Int s_resetProbeMisses = 0;
+
+void resetProbeSetContext(const char* phase, const BehaviorModule* module)
+{
+	if (!g_resetLookupProbe)
+		return;
+	s_resetProbePhase = phase;
+	if (module)
+	{
+		AsciiString name = TheNameKeyGenerator->keyToName(module->getModuleNameKey());
+		s_resetProbeModuleName = name.str();
+	}
+	else
+	{
+		s_resetProbeModuleName = "-";
+	}
+}
+
+void resetLookupProbe(ObjectID id, const Object* found)
+{
+	if (found)
+		++s_resetProbeHits;
+	else
+		++s_resetProbeMisses;
+	char buf[512];
+	snprintf(buf, sizeof(buf), "%s owner=%s module=%s hit=%d found=%s",
+		s_resetProbePhase,
+		g_resetProbeObj ? g_resetProbeObj->getTemplate()->getName().str() : "-",
+		s_resetProbeModuleName.c_str(),
+		found ? 1 : 0,
+		found ? found->getTemplate()->getName().str() : "-");
+	if (s_resetProbeCounts)
+		++(*s_resetProbeCounts)[std::string(buf)];
+}
+
 //-------------------------------------------------------------------------------------------------
 /** Destroy all objects immediately */
 //-------------------------------------------------------------------------------------------------
@@ -420,11 +465,12 @@ void GameLogic::reset()
 	m_thingTemplateBuildableOverrides.clear();
 	m_controlBarOverrides.clear();
 
-	// set the hash to be rather large. We need to optimize this value later.
-//	m_objHash.clear();
-//	m_objHash.resize(OBJ_HASH_SIZE);
-	m_objVector.clear();
-	m_objVector.resize(OBJ_HASH_SIZE, nullptr);
+	const Bool oldOrder = getenv("GENERALS_HASH_OLDORDER") != nullptr;
+	if (oldOrder)
+	{
+		m_objVector.clear();
+		m_objVector.resize(OBJ_HASH_SIZE, nullptr);
+	}
 
 	m_pauseFrame = 0;
 	m_pauseSound = FALSE;
@@ -437,8 +483,36 @@ void GameLogic::reset()
 
 	setFPMode();
 
+	Int probeObjects = 0;
+	for (Object* o = m_objList; o; o = o->getNextObject())
+		++probeObjects;
+	std::map<std::string, Int> probeCounts;
+	s_resetProbeCounts = &probeCounts;
+	s_resetProbeHits = 0;
+	s_resetProbeMisses = 0;
+	g_resetLookupProbe = TRUE;
+
 	// destroy all objects
 	destroyAllObjectsImmediate();
+
+	resetProbeSetContext("", nullptr);
+	g_resetLookupProbe = FALSE;
+	g_resetProbeObj = nullptr;
+	s_resetProbeCounts = nullptr;
+	if (probeObjects > 0)
+	{
+		printf("RESETPROBE begin order=%s frame=%u crcMismatch=%d objects=%d lookups=%d hits=%d misses=%d\n",
+			oldOrder ? "old" : "new", m_frame, (TheRecorder && TheRecorder->sawCRCMismatch()) ? 1 : 0,
+			probeObjects, s_resetProbeHits + s_resetProbeMisses, s_resetProbeHits, s_resetProbeMisses);
+		for (std::map<std::string, Int>::const_iterator pit = probeCounts.begin(); pit != probeCounts.end(); ++pit)
+			printf("RESETPROBE %5d %s\n", pit->second, pit->first.c_str());
+		printf("RESETPROBE end\n");
+		fflush(stdout);
+	}
+
+	// set the hash to be rather large. We need to optimize this value later.
+	m_objVector.clear();
+	m_objVector.resize(OBJ_HASH_SIZE, nullptr);
 
 	m_nextObjID = (ObjectID)1;
 
@@ -2612,7 +2686,17 @@ void GameLogic::processDestroyList()
 		// remove object from lookup table
 		removeObjectFromLookupTable( currentObject );
 
+		if (g_resetLookupProbe)
+		{
+			g_resetProbeObj = currentObject;
+			resetProbeSetContext("~Object", nullptr);
+		}
 		Object::friend_deleteInstance(currentObject);//actual delete
+		if (g_resetLookupProbe)
+		{
+			g_resetProbeObj = nullptr;
+			resetProbeSetContext("processDestroyList", nullptr);
+		}
 
 #if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
 		TheAI->pathfinder()->m_classifyFenceZeroInit = false;
@@ -4094,13 +4178,20 @@ void GameLogic::destroyObject( Object *obj )
 	if (!obj || obj->isDestroyed())
 		return;
 
+	if (g_resetLookupProbe)
+		g_resetProbeObj = obj;
+
 	// run the object onDestroy event if provided
 	for (BehaviorModule** m = obj->getBehaviorModules(); *m; ++m)
 	{
 		DestroyModuleInterface* destroy = (*m)->getDestroy();
 		if (destroy)
+		{
+			resetProbeSetContext("destroyModule", *m);
 			destroy->onDestroy();
+		}
 	}
+	resetProbeSetContext("destroyObject", nullptr);
 
 	// mark object as destroyed
 	obj->setStatus( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_DESTROYED ) );
@@ -4118,7 +4209,9 @@ void GameLogic::destroyObject( Object *obj )
 	m_objectsToDestroy.push_back(obj);
 
 	// run any on destroy logic internal to the object
+	resetProbeSetContext("Object::onDestroy", nullptr);
 	obj->onDestroy();
+	resetProbeSetContext("destroyObject", nullptr);
 
 	// remove wall pieces from the pathfinder
 	if( obj->isKindOf( KINDOF_WALK_ON_TOP_OF_WALL ) )
