@@ -568,9 +568,11 @@ Object::~Object()
 	// delete any modules present
 	for (BehaviorModule** b = m_behaviors; *b; ++b)
 	{
+		resetProbeSetContext("~Module", *b);
 		deleteInstance(*b);
 		*b = nullptr;	// in case other modules call findModule from their dtor!
 	}
+	resetProbeSetContext("~Object", nullptr);
 
 	delete [] m_behaviors;
 	m_behaviors = nullptr;
@@ -731,8 +733,10 @@ void Object::onDestroy()
 	//
 	for (BehaviorModule** b = m_behaviors; *b; ++b)
 	{
+		resetProbeSetContext("onDelete", *b);
 		(*b)->onDelete();
 	}
+	resetProbeSetContext("Object::onDestroy", nullptr);
 
 	//Have to remove ourself from looking as well.  RebuildHoleWorkers definitely hit here.
 	handlePartitionCellMaintenance();

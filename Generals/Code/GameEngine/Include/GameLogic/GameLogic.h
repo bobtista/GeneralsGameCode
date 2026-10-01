@@ -52,6 +52,7 @@
 // forward declarations
 class AudioEventRTS;
 class Object;
+class BehaviorModule;
 class Drawable;
 class Player;
 class ThingTemplate;
@@ -498,6 +499,11 @@ inline Bool GameLogic::isInReplayGame() { return (m_gameMode == GAME_REPLAY); }
 inline Bool GameLogic::isInInternetGame() { return (m_gameMode == GAME_INTERNET); }
 inline Bool GameLogic::isInShellGame() { return (m_gameMode == GAME_SHELL); }
 
+extern Bool g_resetLookupProbe;
+extern const Object* g_resetProbeObj;
+void resetProbeSetContext(const char* phase, const BehaviorModule* module);
+void resetLookupProbe(ObjectID id, const Object* found);
+
 inline Object* GameLogic::findObjectByID( ObjectID id )
 {
 	if( id == INVALID_ID )
@@ -505,8 +511,14 @@ inline Object* GameLogic::findObjectByID( ObjectID id )
 
 	ObjectPtrHash::iterator it = m_objHash.find(id);
 	if (it == m_objHash.end())
+	{
+		if (g_resetLookupProbe)
+			resetLookupProbe(id, nullptr);
 		return nullptr;
+	}
 
+	if (g_resetLookupProbe)
+		resetLookupProbe(id, (*it).second);
 	return (*it).second;
 }
 
