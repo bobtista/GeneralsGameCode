@@ -495,8 +495,9 @@ void GameLogic::reset()
 	s_resetProbeCounts = nullptr;
 	if (probeObjects > 0)
 	{
-		printf("RESETPROBE begin order=%s objects=%d lookups=%d hits=%d misses=%d\n",
-			oldOrder ? "old" : "new", probeObjects, s_resetProbeHits + s_resetProbeMisses, s_resetProbeHits, s_resetProbeMisses);
+		printf("RESETPROBE begin order=%s frame=%u crcMismatch=%d objects=%d lookups=%d hits=%d misses=%d\n",
+			oldOrder ? "old" : "new", m_frame, (TheRecorder && TheRecorder->sawCRCMismatch()) ? 1 : 0,
+			probeObjects, s_resetProbeHits + s_resetProbeMisses, s_resetProbeHits, s_resetProbeMisses);
 		for (std::map<std::string, Int>::const_iterator pit = probeCounts.begin(); pit != probeCounts.end(); ++pit)
 			printf("RESETPROBE %5d %s\n", pit->second, pit->first.c_str());
 		printf("RESETPROBE end\n");
