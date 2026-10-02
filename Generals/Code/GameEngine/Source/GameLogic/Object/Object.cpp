@@ -640,6 +640,176 @@ void Object::onRemovedFrom( Object *removedFrom )
 }
 
 #if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
+#include <stdio.h>
+#include <stdlib.h>
+#include <vector>
+
+static Bool strandedIsLive(const Object* p)
+{
+	for (Object* o = TheGameLogic->getFirstObject(); o; o = o->getNextObject())
+	{
+		if (o == p)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+static Int strandedTrackerOf(const Object* obj)
+{
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		TunnelTracker* t = ThePlayerList->getNthPlayer(i)->getTunnelSystem();
+		if (!t)
+			continue;
+		const ContainedItemsList* l = t->getContainedItemsList();
+		if (std::find(l->begin(), l->end(), obj) != l->end())
+			return i;
+	}
+	return -1;
+}
+
+static Int s_strandedGuardFires = 0;
+
+void StrandedProbe(Object* trigger, const Object* broken, const char* site)
+{
+	++s_strandedGuardFires;
+	const UnsignedInt frame = TheGameLogic->getFrame();
+	printf("STRANDED_GUARD n=%d frame=%u site=%s trigger=%u tmpl=%s broken=%p brokenLive=%d\n", s_strandedGuardFires, frame, site,
+		(UnsignedInt)trigger->getID(), trigger->getTemplate()->getName().str(), (const void*)broken, (Int)strandedIsLive(broken));
+
+	Int nSame = 0, nMismatch = 0, nDead = 0, nScan = 0, nDangling = 0;
+	std::vector<Object*> mismatch;
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		Player* player = ThePlayerList->getNthPlayer(i);
+		TunnelTracker* t = player->getTunnelSystem();
+		if (!t)
+			continue;
+		const ContainedItemsList* l = t->getContainedItemsList();
+		for (ContainedItemsList::const_iterator it = l->begin(); it != l->end(); ++it)
+		{
+			Object* obj = *it;
+			if (!strandedIsLive(obj))
+			{
+				++nDead;
+				printf("STRANDED_TRACKER frame=%u player=%d entry=%p live=0\n", frame, i, (void*)obj);
+				continue;
+			}
+			const Object* cb = obj->getContainedBy();
+			const Player* ctrl = obj->getControllingPlayer();
+			const Bool same = (cb == broken);
+			const Bool mis = (ctrl != player);
+			if (same)
+				++nSame;
+			if (mis)
+			{
+				++nMismatch;
+				mismatch.push_back(obj);
+			}
+			printf("STRANDED_TRACKER frame=%u player=%d entry=%p live=1 id=%u tmpl=%s ctrl=%d same=%d mismatch=%d cb=%p cbLive=%d destroyed=%d\n",
+				frame, i, (void*)obj, (UnsignedInt)obj->getID(), obj->getTemplate()->getName().str(), ctrl ? ctrl->getPlayerIndex() : -1,
+				(Int)same, (Int)mis, (const void*)cb, cb ? (Int)strandedIsLive(cb) : -1, (Int)obj->isDestroyed());
+		}
+	}
+	for (Object* o = TheGameLogic->getFirstObject(); o; o = o->getNextObject())
+	{
+		const Object* cb = o->getContainedBy();
+		if (!cb)
+			continue;
+		if (cb == broken)
+		{
+			++nScan;
+			printf("STRANDED_SCAN frame=%u id=%u tmpl=%s inTracker=%d\n", frame, (UnsignedInt)o->getID(), o->getTemplate()->getName().str(), strandedTrackerOf(o));
+		}
+		if (!strandedIsLive(cb))
+		{
+			++nDangling;
+			printf("STRANDED_DANGLING frame=%u id=%u tmpl=%s cb=%p sameAsBroken=%d inTracker=%d\n", frame, (UnsignedInt)o->getID(), o->getTemplate()->getName().str(),
+				(const void*)cb, (Int)(cb == broken), strandedTrackerOf(o));
+		}
+	}
+	printf("STRANDED_SUMMARY n=%d frame=%u trackerSame=%d trackerMismatch=%d trackerDeadEntries=%d scanSame=%d scanDangling=%d\n",
+		s_strandedGuardFires, frame, nSame, nMismatch, nDead, nScan, nDangling);
+
+	static const Bool destroyAll = getenv("GENERALS_STRANDED_DESTROYALL") != nullptr;
+	if (destroyAll)
+	{
+		for (std::vector<Object*>::iterator it = mismatch.begin(); it != mismatch.end(); ++it)
+		{
+			Object* obj = *it;
+			if (obj == trigger || obj->isDestroyed())
+				continue;
+			printf("STRANDED_DESTROY frame=%u id=%u tmpl=%s\n", frame, (UnsignedInt)obj->getID(), obj->getTemplate()->getName().str());
+			obj->friend_removeFromTunnelContain();
+			TheGameLogic->destroyObject(obj);
+		}
+	}
+	fflush(stdout);
+}
+
+void StrandedResetProbe()
+{
+	if (!ThePlayerList || !TheGameLogic)
+		return;
+	Int nMismatch = 0, nDead = 0;
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		Player* player = ThePlayerList->getNthPlayer(i);
+		TunnelTracker* t = player->getTunnelSystem();
+		if (!t)
+			continue;
+		const ContainedItemsList* l = t->getContainedItemsList();
+		for (ContainedItemsList::const_iterator it = l->begin(); it != l->end(); ++it)
+		{
+			if (!strandedIsLive(*it))
+				++nDead;
+			else if ((*it)->getControllingPlayer() != player)
+				++nMismatch;
+		}
+	}
+	printf("STRANDED_RESET frame=%u guardFires=%d trackerMismatch=%d trackerDeadEntries=%d\n", TheGameLogic->getFrame(), s_strandedGuardFires, nMismatch, nDead);
+	fflush(stdout);
+	s_strandedGuardFires = 0;
+}
+
+static Int s_strandedLastMismatch = -1;
+
+void StrandedPeriodicProbe()
+{
+	Int nMismatch = 0, nDead = 0, nCbDead = 0;
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		Player* player = ThePlayerList->getNthPlayer(i);
+		TunnelTracker* t = player->getTunnelSystem();
+		if (!t)
+			continue;
+		const ContainedItemsList* l = t->getContainedItemsList();
+		for (ContainedItemsList::const_iterator it = l->begin(); it != l->end(); ++it)
+		{
+			if (!strandedIsLive(*it))
+			{
+				++nDead;
+				continue;
+			}
+			if ((*it)->getControllingPlayer() != player)
+			{
+				++nMismatch;
+				const Object* cb = (*it)->getContainedBy();
+				if (cb && !strandedIsLive(cb))
+					++nCbDead;
+			}
+		}
+	}
+	if (nMismatch != s_strandedLastMismatch)
+	{
+		printf("STRANDED_PERIODIC frame=%u trackerMismatch=%d mismatchWithDeadContainer=%d trackerDeadEntries=%d\n", TheGameLogic->getFrame(), nMismatch, nCbDead, nDead);
+		fflush(stdout);
+		s_strandedLastMismatch = nMismatch;
+	}
+}
+#endif
+
+#if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
 void Object::friend_removeFromTunnelContain()
 {
 	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)

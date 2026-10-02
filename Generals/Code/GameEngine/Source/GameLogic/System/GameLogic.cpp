@@ -405,6 +405,9 @@ void GameLogic::init()
 //-------------------------------------------------------------------------------------------------
 /** Reset the game logic systems */
 //-------------------------------------------------------------------------------------------------
+void StrandedResetProbe();
+void StrandedPeriodicProbe();
+
 void GameLogic::reset()
 {
 	m_thingTemplateBuildableOverrides.clear();
@@ -428,6 +431,8 @@ void GameLogic::reset()
 	pauseGameInput(FALSE);
 
 	setFPMode();
+
+	StrandedResetProbe();
 
 	// destroy all objects
 	destroyAllObjectsImmediate();
@@ -3398,6 +3403,11 @@ void GameLogic::update()
 				obj->checkDisabledStatus();
 			}
 		}
+	}
+
+	if (m_frame % 30 == 0)
+	{
+		StrandedPeriodicProbe();
 	}
 
 	// increment world time

@@ -4799,6 +4799,8 @@ void AIAttackAimAtTargetState::loadPostProcess()
 }
 
 //----------------------------------------------------------------------------------------------------------
+void StrandedProbe(Object* trigger, const Object* broken, const char* site);
+
 StateReturnType AIAttackAimAtTargetState::onEnter()
 {
 	// contained by AIAttackState, so no separate timer
@@ -4833,6 +4835,7 @@ StateReturnType AIAttackAimAtTargetState::onEnter()
 		// The units are not properly transferred and are left in an invalid state.
 		if (!contain)
 		{
+			StrandedProbe(source, containedBy, "AIAttackAimAtTargetState::onEnter");
 			source->friend_removeFromTunnelContain();
 
 			// destroy this object, because it serves no purpose in its invalid state

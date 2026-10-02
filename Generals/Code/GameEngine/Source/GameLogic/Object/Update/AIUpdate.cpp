@@ -4275,6 +4275,8 @@ void AIUpdateInterface::setNextMoodCheckTime( UnsignedInt frame )
 /**
  * Return the next object that our mood suggests we should attack.
  */
+void StrandedProbe(Object* trigger, const Object* broken, const char* site);
+
 Object* AIUpdateInterface::getNextMoodTarget( Bool calledByAI, Bool calledDuringIdle )
 {
 	Object *obj = getObject();
@@ -4325,6 +4327,7 @@ Object* AIUpdateInterface::getNextMoodTarget( Bool calledByAI, Bool calledDuring
 				// The units are not properly transferred and are left in an invalid state.
 				if (!container->getContain())
 				{
+					StrandedProbe(obj, container, "AIUpdateInterface::getNextMoodTarget");
 					obj->friend_removeFromTunnelContain();
 
 					// destroy this object, because it serves no purpose in its invalid state
