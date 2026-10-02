@@ -43,10 +43,12 @@ public:
 	TunnelTracker();
 	// contain list access
 	void iterateContained( ContainIterateFunc func, void *userData, Bool reverse );
-	UnsignedInt getContainCount() const { return m_containListSize; }
+	UnsignedInt getContainCount() const { probeRead("getContainCount"); return m_containListSize; }
 	UnsignedInt getHeroUnitsContained() const { return m_heroUnitsContained; }
 	Int getContainMax() const;
-	const ContainedItemsList* getContainedItemsList() const { return &m_containList; }
+	const ContainedItemsList* getContainedItemsList() const { probeRead("getContainedItemsList"); return &m_containList; }
+	void probeRead(const char* fn) const;
+	Bool probeHasEntry(const Object* obj) const;
 	void swapContainedItemsList(ContainedItemsList& newList);
 
 	Bool isValidContainerFor(const Object* obj, Bool checkCapacity) const;

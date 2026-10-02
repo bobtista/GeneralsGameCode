@@ -405,6 +405,10 @@ void GameLogic::init()
 //-------------------------------------------------------------------------------------------------
 /** Reset the game logic systems */
 //-------------------------------------------------------------------------------------------------
+void TunnelTrackerProbe_summary(const char* when);
+void TunnelTrackerProbe_clear();
+extern Bool g_probeInReset;
+
 void GameLogic::reset()
 {
 	m_thingTemplateBuildableOverrides.clear();
@@ -421,8 +425,15 @@ void GameLogic::reset()
 
 	setFPMode();
 
+	TunnelTrackerProbe_summary("beforeReset");
+	g_probeInReset = TRUE;
+
 	// destroy all objects
 	destroyAllObjectsImmediate();
+
+	TunnelTrackerProbe_summary("afterTeardown");
+	g_probeInReset = FALSE;
+	TunnelTrackerProbe_clear();
 
 	// set the hash to be rather large. We need to optimize this value later.
 	m_objHash.clear();

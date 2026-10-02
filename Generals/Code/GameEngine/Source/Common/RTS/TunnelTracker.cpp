@@ -47,6 +47,107 @@
 #include "GameLogic/Module/TunnelContain.h"
 
 
+
+// ------------------------------------------------------------------------
+// TRACKER PROBE: detect reads of tunnel tracker lists holding pointers to deleted objects
+#include "Common/Player.h"
+#include "Common/PlayerList.h"
+#include "Common/ThingTemplate.h"
+#include <stdio.h>
+#include <set>
+#include <map>
+#include <string>
+static std::set<const void*> s_probeStale;
+static std::set<const void*> s_probeReused;
+static std::map<std::string, Int> s_probeReads;
+Bool g_probeInReset = FALSE;
+
+static Int probeTrackerPlayer(const TunnelTracker* t)
+{
+	if (!ThePlayerList)
+		return -1;
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		if (ThePlayerList->getNthPlayer(i)->getTunnelSystem() == t)
+			return i;
+	}
+	return -1;
+}
+
+Bool TunnelTracker::probeHasEntry(const Object* obj) const
+{
+	return std::find(m_containList.begin(), m_containList.end(), obj) != m_containList.end();
+}
+
+void TunnelTracker::probeRead(const char* fn) const
+{
+	if (s_probeStale.empty())
+		return;
+	Int stale = 0;
+	Int reused = 0;
+	for (ContainedItemsList::const_iterator it = m_containList.begin(); it != m_containList.end(); ++it)
+	{
+		if (s_probeStale.count(*it))
+			++stale;
+		if (s_probeReused.count(*it))
+			++reused;
+	}
+	if (stale == 0)
+		return;
+	std::string key = std::string(g_probeInReset ? "reset:" : "play:") + fn;
+	Int n = ++s_probeReads[key];
+	if (n <= 20)
+	{
+		printf("TRACKER_READ frame=%u phase=%s fn=%s player=%d listSize=%d stale=%d reused=%d n=%d\n",
+			TheGameLogic->getFrame(), g_probeInReset ? "reset" : "play", fn, probeTrackerPlayer(this), (Int)m_containList.size(), stale, reused, n);
+		fflush(stdout);
+	}
+}
+
+void TunnelTrackerProbe_onObjectDeleted(Object* obj)
+{
+	if (!ThePlayerList || !TheGameLogic)
+		return;
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		TunnelTracker* t = ThePlayerList->getNthPlayer(i)->getTunnelSystem();
+		if (t && t->probeHasEntry(obj))
+		{
+			s_probeStale.insert(obj);
+			s_probeReused.erase(obj);
+			printf("TRACKER_STALE_LEFT frame=%u phase=%s player=%d entry=%p id=%u tmpl=%s listSize=%u\n",
+				TheGameLogic->getFrame(), g_probeInReset ? "reset" : "play", i, (void*)obj, (UnsignedInt)obj->getID(),
+				obj->getTemplate() ? obj->getTemplate()->getName().str() : "?", t->getContainCount());
+			fflush(stdout);
+		}
+	}
+}
+
+void TunnelTrackerProbe_onObjectCreated(Object* obj)
+{
+	if (TheGameLogic && s_probeStale.count(obj))
+	{
+		s_probeReused.insert(obj);
+		printf("TRACKER_REUSE_ALLOC frame=%u entry=%p\n", TheGameLogic->getFrame(), (void*)obj);
+		fflush(stdout);
+	}
+}
+
+void TunnelTrackerProbe_summary(const char* when)
+{
+	printf("TRACKER_SUMMARY when=%s frame=%u staleEntries=%d reusedEntries=%d\n", when, TheGameLogic->getFrame(), (Int)s_probeStale.size(), (Int)s_probeReused.size());
+	for (std::map<std::string, Int>::const_iterator it = s_probeReads.begin(); it != s_probeReads.end(); ++it)
+		printf("TRACKER_SUMMARY_READS when=%s fn=%s count=%d\n", when, it->first.c_str(), it->second);
+	fflush(stdout);
+}
+
+void TunnelTrackerProbe_clear()
+{
+	s_probeStale.clear();
+	s_probeReused.clear();
+	s_probeReads.clear();
+}
+
 // ------------------------------------------------------------------------
 TunnelTracker::TunnelTracker()
 {
@@ -70,6 +171,7 @@ TunnelTracker::~TunnelTracker()
 // ------------------------------------------------------------------------
 void TunnelTracker::iterateContained( ContainIterateFunc func, void *userData, Bool reverse )
 {
+	probeRead("iterateContained");
 	if (reverse)
 	{
 		// note that this has to be smart enough to handle items in the list being deleted
@@ -115,6 +217,7 @@ Int TunnelTracker::getContainMax() const
 // ------------------------------------------------------------------------
 void TunnelTracker::swapContainedItemsList(ContainedItemsList& newList)
 {
+	probeRead("swapContainedItemsList");
 	m_containList.swap(newList);
 	m_containListSize = (Int)m_containList.size();
 }
@@ -199,6 +302,12 @@ void TunnelTracker::addToContainList( Object *obj )
 // ------------------------------------------------------------------------
 Bool TunnelTracker::removeFromContain( Object *obj, Bool exposeStealthUnits )
 {
+	probeRead("removeFromContain");
+	if (s_probeStale.count(obj) && probeHasEntry(obj))
+	{
+		printf("TRACKER_ALIAS_MATCH frame=%u fn=removeFromContain entry=%p reused=%d\n", TheGameLogic->getFrame(), (void*)obj, (Int)s_probeReused.count(obj));
+		fflush(stdout);
+	}
 
 	ContainedItemsList::iterator it = std::find(m_containList.begin(), m_containList.end(), obj);
 	if (it != m_containList.end())
@@ -222,6 +331,12 @@ Bool TunnelTracker::removeFromContain( Object *obj, Bool exposeStealthUnits )
 // ------------------------------------------------------------------------
 Bool TunnelTracker::isInContainer( Object *obj )
 {
+	probeRead("isInContainer");
+	if (s_probeStale.count(obj) && probeHasEntry(obj))
+	{
+		printf("TRACKER_ALIAS_MATCH frame=%u fn=isInContainer entry=%p reused=%d\n", TheGameLogic->getFrame(), (void*)obj, (Int)s_probeReused.count(obj));
+		fflush(stdout);
+	}
 	return (std::find(m_containList.begin(), m_containList.end(), obj) != m_containList.end()) ;
 }
 
@@ -241,6 +356,7 @@ void TunnelTracker::onTunnelCreated( const Object *newTunnel )
 // ------------------------------------------------------------------------
 void TunnelTracker::onTunnelDestroyed( const Object *deadTunnel )
 {
+	probeRead("onTunnelDestroyed");
 #if RETAIL_COMPATIBLE_CRC
 
 	DEBUG_ASSERTLOG(static_cast<Int>(m_tunnelCount) > 0 && m_tunnelCount == m_tunnelIDs.size(),
@@ -334,6 +450,7 @@ void TunnelTracker::destroyObject( Object *obj, void * )
 #if RETAIL_COMPATIBLE_CRC || PRESERVE_TUNNEL_HEAL_STACKING
 void TunnelTracker::healObjects(Real frames)
 {
+	probeRead("healObjects");
 	iterateContained(healObject, &frames, FALSE);
 }
 #else
@@ -438,6 +555,7 @@ void TunnelTracker::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void TunnelTracker::xfer( Xfer *xfer )
 {
+	probeRead("xfer");
 
 	// version
 #if RETAIL_COMPATIBLE_XFER_SAVE

@@ -45,6 +45,10 @@
 #include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
 #include "Common/TunnelTracker.h"
+#include <stdio.h>
+#include <stdlib.h>
+void TunnelTrackerProbe_onObjectDeleted(Object* obj);
+void TunnelTrackerProbe_onObjectCreated(Object* obj);
 #include "Common/Upgrade.h"
 #include "Common/WellKnownKeys.h"
 #include "Common/Xfer.h"
@@ -201,6 +205,8 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 	m_formationID(NO_FORMATION_ID),
 	m_isReceivingDifficultyBonus(FALSE)
 {
+	TunnelTrackerProbe_onObjectCreated(this);
+
 #if defined(RTS_DEBUG)
 	m_hasDiedAlready = false;
 #endif
@@ -516,6 +522,8 @@ void Object::initObject()
 //-------------------------------------------------------------------------------------------------
 Object::~Object()
 {
+	TunnelTrackerProbe_onObjectDeleted(this);
+
 
 	// tell the AI the building is gone
 	/// @todo Generalize the notion of objects entering and leaving the world, so we don't have to special case this
@@ -640,6 +648,14 @@ void Object::onRemovedFrom( Object *removedFrom )
 //-------------------------------------------------------------------------------------------------
 void Object::removeFromTunnelContain()
 {
+	static const Bool skip = getenv("GENERALS_SKIP_TRACKER_CLEANUP") != nullptr;
+	printf("STRANDED3308 frame=%u id=%u tmpl=%s skipTracker=%d\n", TheGameLogic->getFrame(), (UnsignedInt)getID(), getTemplate()->getName().str(), (Int)skip);
+	fflush(stdout);
+	if (skip)
+	{
+		onRemovedFrom(nullptr);
+		return;
+	}
 	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
 	{
 		TunnelTracker* tracker = ThePlayerList->getNthPlayer(i)->getTunnelSystem();
