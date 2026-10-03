@@ -47,6 +47,7 @@
 #include "Common/TunnelTracker.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 void TunnelTrackerProbe_onObjectDeleted(Object* obj);
 void TunnelTrackerProbe_onObjectCreated(Object* obj);
 #include "Common/Upgrade.h"
@@ -721,8 +722,49 @@ const Object* Object::getOuterObject() const
 //-------------------------------------------------------------------------------------------------
 /** Run from GameLogic::destroyObject */
 //-------------------------------------------------------------------------------------------------
+static Int probeTrackersListing(const Object* obj, char* buf, Int bufSize)
+{
+	Int n = 0;
+	buf[0] = 0;
+	if (!ThePlayerList)
+		return 0;
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		TunnelTracker* t = ThePlayerList->getNthPlayer(i)->getTunnelSystem();
+		if (t && t->probeHasEntry(obj))
+		{
+			Int len = (Int)strlen(buf);
+			_snprintf(buf + len, bufSize - len, "%s%d", n ? "," : "", i);
+			++n;
+		}
+	}
+	return n;
+}
+
 void Object::onDestroy()
 {
+	char probeBefore[64];
+	const Int probeListed = probeTrackersListing(this, probeBefore, sizeof(probeBefore));
+	const char* probeBranch = "noContainer";
+	Int probeContainerOwner = -1;
+	UnsignedInt probeContainerID = 0;
+	const char* probeContainerTmpl = "-";
+	Int probeContainerDestroyed = -1;
+	if (probeListed > 0 && m_containedBy)
+	{
+		if (!m_containedBy->getContain())
+			probeBranch = "nullContain";
+		else if (!TheGameLogic->findObjectByID(m_containedBy->getID()))
+			probeBranch = "unregistered3308";
+		else
+		{
+			probeBranch = "normal";
+			probeContainerID = (UnsignedInt)m_containedBy->getID();
+			probeContainerTmpl = m_containedBy->getTemplate()->getName().str();
+			probeContainerOwner = m_containedBy->getControllingPlayer() ? m_containedBy->getControllingPlayer()->getPlayerIndex() : -1;
+			probeContainerDestroyed = (Int)m_containedBy->isDestroyed();
+		}
+	}
 
 	// This is the old cleanUpContain safeguard.  Say goodbye so they don't try to look us up.
 	if( m_containedBy && m_containedBy->getContain() )
@@ -739,6 +781,18 @@ void Object::onDestroy()
 		{
 			m_containedBy->getContain()->removeFromContain(this);
 		}
+	}
+
+	if (probeListed > 0)
+	{
+		char probeAfter[64];
+		probeTrackersListing(this, probeAfter, sizeof(probeAfter));
+		printf("ONDESTROY_PROBE frame=%u id=%u tmpl=%s ctrl=%d branch=%s trackersBefore=%s trackersAfter=%s container=%u containerTmpl=%s containerOwner=%d containerDestroyed=%d effDead=%d
+",
+			TheGameLogic->getFrame(), (UnsignedInt)getID(), getTemplate()->getName().str(),
+			getControllingPlayer() ? getControllingPlayer()->getPlayerIndex() : -1, probeBranch, probeBefore, probeAfter[0] ? probeAfter : "none",
+			probeContainerID, probeContainerTmpl, probeContainerOwner, probeContainerDestroyed, (Int)isEffectivelyDead());
+		fflush(stdout);
 	}
 
 	//

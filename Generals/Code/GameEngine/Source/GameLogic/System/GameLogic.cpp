@@ -37,6 +37,8 @@
 #include "Common/GameAudio.h"
 #include "Common/GameEngine.h"
 #include "Common/GameState.h"
+#include <stdlib.h>
+#include <string.h>
 #include "Common/GameUtility.h"
 #include "Common/INI.h"
 #include "Common/LatchRestore.h"
@@ -3219,6 +3221,31 @@ void GameLogic::update()
 	TheGameClient->setFrame(now);
 
 	PROFILER_PLOT("LogicFrame", static_cast<int64_t>(now));
+
+	{
+		static const char* probeSaveFrames = getenv("GENERALS_PROBE_SAVE_FRAMES");
+		if (probeSaveFrames)
+		{
+			char buf[256];
+			strncpy(buf, probeSaveFrames, sizeof(buf) - 1);
+			buf[sizeof(buf) - 1] = 0;
+			for (char* tok = strtok(buf, ","); tok; tok = strtok(nullptr, ","))
+			{
+				if ((UnsignedInt)atoi(tok) == m_frame)
+				{
+					AsciiString name;
+					name.format("probe_%u.sav", m_frame);
+					printf("PROBE_SAVE_BEGIN frame=%u file=%s
+", m_frame, name.str());
+					fflush(stdout);
+					const SaveResult r = TheGameState->saveGame(name, UnicodeString(L"probe save"), SAVE_FILE_TYPE_NORMAL);
+					printf("PROBE_SAVE_END frame=%u code=%d
+", m_frame, (Int)r.saveCode);
+					fflush(stdout);
+				}
+			}
+		}
+	}
 
 	// update (execute) scripts
 	{

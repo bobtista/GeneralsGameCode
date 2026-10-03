@@ -581,7 +581,17 @@ void TunnelTracker::xfer( Xfer *xfer )
 		for( it = m_containList.begin(); it != m_containList.end(); ++it )
 		{
 
+			const Bool probeStale = s_probeStale.count(*it) != 0;
+			const Bool probeReused = s_probeReused.count(*it) != 0;
 			objectID = (*it)->getID();
+			{
+				Object* probeFound = TheGameLogic->findObjectByID(objectID);
+				printf("TRACKER_XFER_SAVE frame=%u player=%d entry=%p stale=%d reused=%d writtenID=%u (0x%08X) lookup=%p lookupIsEntry=%d lookupTmpl=%s
+",
+					TheGameLogic->getFrame(), probeTrackerPlayer(this), (void*)*it, (Int)probeStale, (Int)probeReused, (UnsignedInt)objectID, (UnsignedInt)objectID,
+					(void*)probeFound, (Int)(probeFound == *it), probeFound ? probeFound->getTemplate()->getName().str() : "null");
+				fflush(stdout);
+			}
 			xfer->xferObjectID( &objectID );
 
 		}
