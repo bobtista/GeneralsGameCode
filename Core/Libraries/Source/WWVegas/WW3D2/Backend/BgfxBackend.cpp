@@ -3326,6 +3326,25 @@ static void UpdateDramaLighting()
     g_draw.dramaDim[3] = g_draw.dramaAmbientDim;
 }
 
+// TheSuperHackers @bugfix Every pass using vs_scene_composite reads u_postTexelSize.z as
+// its V-flip flag, and uniforms persist between submits, so each submit sets it explicitly.
+// Render-target to render-target passes (bloom, SSAO, smudge copy) keep the target's native
+// orientation (flip = false) so the chain stays consistent for the composite to sample; a
+// pass that presents a render target to the swapchain (composite, point-shadow viz) flips
+// it on bottom-left-origin renderers.
+static void SetFullscreenPassFlip(bool flip, float texelX = 0.0f, float texelY = 0.0f)
+{
+    if (!bgfx::isValid(g_uniforms.uPostTexelSize))
+        return;
+    const float texel[4] = { texelX, texelY, flip ? 1.0f : 0.0f, 0.0f };
+    bgfx::setUniform(g_uniforms.uPostTexelSize, texel);
+}
+
+static bool RenderTargetOriginIsBottomLeft()
+{
+    return bgfx::getCaps()->originBottomLeft;
+}
+
 // TheSuperHackers @feature bobtista 23/06/2026 Debug blit: when GGC_POINT_SHADOW_VIZ is set,
 // draw the point shadow map R32F texture into a quarter-width corner quad at the top-left of
 // the screen (clear of the bottom command bar) so developers can confirm the shadow map has
@@ -3362,6 +3381,7 @@ static void SubmitPointShadowViz()
     bgfx::setViewTransform(kBgfxPointShadowVizView, identity, identity);
     bgfx::setTexture(0, g_uniforms.sTex0, g_device.pointShadowTex,
                      BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+    SetFullscreenPassFlip(RenderTargetOriginIsBottomLeft());
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_DEPTH_TEST_ALWAYS);
     bgfx::submit(kBgfxPointShadowVizView, g_device.copyProgram);
@@ -3894,7 +3914,6 @@ static void SubmitSSAO()
     bx::mtxInverse(invProj, g_frame.cameraProj);
     float ssaoParams[4];
     GetSSAOParams(ssaoParams);
-    const float texel[4] = { 1.0f / static_cast<float>(w), 1.0f / static_cast<float>(h), 0.0f, 0.0f };
 
     bgfx::setViewTransform(kBgfxSsaoView, identity, identity);
     bgfx::setViewRect(kBgfxSsaoView, 0, 0, w, h);
@@ -3903,7 +3922,7 @@ static void SubmitSSAO()
     bgfx::setUniform(g_uniforms.uSsaoInvProj, invProj);
     bgfx::setUniform(g_uniforms.uSsaoProj, g_frame.cameraProj);
     bgfx::setUniform(g_uniforms.uSsaoParams, ssaoParams);
-    bgfx::setUniform(g_uniforms.uPostTexelSize, texel);
+    SetFullscreenPassFlip(false, 1.0f / static_cast<float>(w), 1.0f / static_cast<float>(h));
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(fullscreenState);
     bgfx::submit(kBgfxSsaoView, g_device.ssaoProgram);
@@ -3914,6 +3933,7 @@ static void SubmitSSAO()
     bgfx::setViewClear(kBgfxSsaoBlurHView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     bgfx::setTexture(0, g_uniforms.sTex0, g_device.ssaoTex, sampleFlags);
     bgfx::setUniform(g_uniforms.uBloomBlurDir, dirH);
+    SetFullscreenPassFlip(false);
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(fullscreenState);
     bgfx::submit(kBgfxSsaoBlurHView, g_device.bloomBlurProgram);
@@ -3924,6 +3944,7 @@ static void SubmitSSAO()
     bgfx::setViewClear(kBgfxSsaoBlurVView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     bgfx::setTexture(0, g_uniforms.sTex0, g_device.ssaoBlurTex, sampleFlags);
     bgfx::setUniform(g_uniforms.uBloomBlurDir, dirV);
+    SetFullscreenPassFlip(false);
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(fullscreenState);
     bgfx::submit(kBgfxSsaoBlurVView, g_device.bloomBlurProgram);
@@ -3967,6 +3988,7 @@ static void SubmitBloom(const float * bloomParams)
     bgfx::setViewClear(kBgfxBloomBrightView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor, sampleFlags);
     bgfx::setUniform(g_uniforms.uBloomParams, bloomUniform);
+    SetFullscreenPassFlip(false);
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(fullscreenState);
     bgfx::submit(kBgfxBloomBrightView, g_device.bloomBrightProgram);
@@ -3977,6 +3999,7 @@ static void SubmitBloom(const float * bloomParams)
     bgfx::setViewClear(kBgfxBloomBlurHView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     bgfx::setTexture(0, g_uniforms.sTex0, g_device.bloomBrightTex, sampleFlags);
     bgfx::setUniform(g_uniforms.uBloomBlurDir, dirH);
+    SetFullscreenPassFlip(false);
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(fullscreenState);
     bgfx::submit(kBgfxBloomBlurHView, g_device.bloomBlurProgram);
@@ -3987,6 +4010,7 @@ static void SubmitBloom(const float * bloomParams)
     bgfx::setViewClear(kBgfxBloomBlurVView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     bgfx::setTexture(0, g_uniforms.sTex0, g_device.bloomBlurTex, sampleFlags);
     bgfx::setUniform(g_uniforms.uBloomBlurDir, dirV);
+    SetFullscreenPassFlip(false);
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(fullscreenState);
     bgfx::submit(kBgfxBloomBlurVView, g_device.bloomBlurProgram);
@@ -4032,10 +4056,15 @@ static void SubmitSceneComposite()
     // Texel size of the (supersampled) scene color the composite samples.
     const float texW = g_device.sceneRenderWidth > 0 ? static_cast<float>(g_device.sceneRenderWidth) : static_cast<float>(g_device.width);
     const float texH = g_device.sceneRenderHeight > 0 ? static_cast<float>(g_device.sceneRenderHeight) : static_cast<float>(g_device.height);
+    // TheSuperHackers @bugfix 30/07/2026 .z carries the V-flip flag for the
+    // composite. Render targets are bottom-left origin on GLES and WebGL but top-left on
+    // DX11 and Metal, so without it the whole 3D scene comes out of this pass upside down
+    // on those renderers, while the UI - drawn straight to the backbuffer - stays the right
+    // way up. The cap decides it, so DX11 and Metal pass 0.0 and are unaffected.
     const float postTexelSize[4] = {
         1.0f / texW,
         1.0f / texH,
-        0.0f,
+        RenderTargetOriginIsBottomLeft() ? 1.0f : 0.0f,
         0.0f
     };
     if (bgfx::isValid(g_uniforms.uPostParams))
@@ -11955,6 +11984,7 @@ bool BgfxBackend::Begin_Smudge_Distortion(float tactical_width_fraction,
 
     bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor,
                      BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+    SetFullscreenPassFlip(false);
     bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
     bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_DEPTH_TEST_ALWAYS);
     bgfx::submit(kBgfxSmudgeCopyView, g_device.copyProgram);
