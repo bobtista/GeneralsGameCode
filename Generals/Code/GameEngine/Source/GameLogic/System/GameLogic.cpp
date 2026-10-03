@@ -3235,12 +3235,10 @@ void GameLogic::update()
 				{
 					AsciiString name;
 					name.format("probe_%u.sav", m_frame);
-					printf("PROBE_SAVE_BEGIN frame=%u file=%s
-", m_frame, name.str());
+					printf("PROBE_SAVE_BEGIN frame=%u file=%s\n", m_frame, name.str());
 					fflush(stdout);
 					const SaveResult r = TheGameState->saveGame(name, UnicodeString(L"probe save"), SAVE_FILE_TYPE_NORMAL);
-					printf("PROBE_SAVE_END frame=%u code=%d
-", m_frame, (Int)r.saveCode);
+					printf("PROBE_SAVE_END frame=%u code=%d\n", m_frame, (Int)r.saveCode);
 					fflush(stdout);
 				}
 			}

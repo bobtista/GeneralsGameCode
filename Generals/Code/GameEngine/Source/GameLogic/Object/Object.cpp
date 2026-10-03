@@ -787,8 +787,7 @@ void Object::onDestroy()
 	{
 		char probeAfter[64];
 		probeTrackersListing(this, probeAfter, sizeof(probeAfter));
-		printf("ONDESTROY_PROBE frame=%u id=%u tmpl=%s ctrl=%d branch=%s trackersBefore=%s trackersAfter=%s container=%u containerTmpl=%s containerOwner=%d containerDestroyed=%d effDead=%d
-",
+		printf("ONDESTROY_PROBE frame=%u id=%u tmpl=%s ctrl=%d branch=%s trackersBefore=%s trackersAfter=%s container=%u containerTmpl=%s containerOwner=%d containerDestroyed=%d effDead=%d\n",
 			TheGameLogic->getFrame(), (UnsignedInt)getID(), getTemplate()->getName().str(),
 			getControllingPlayer() ? getControllingPlayer()->getPlayerIndex() : -1, probeBranch, probeBefore, probeAfter[0] ? probeAfter : "none",
 			probeContainerID, probeContainerTmpl, probeContainerOwner, probeContainerDestroyed, (Int)isEffectivelyDead());
