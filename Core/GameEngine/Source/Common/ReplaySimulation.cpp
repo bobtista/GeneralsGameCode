@@ -20,6 +20,8 @@
 
 #include "Common/ReplaySimulation.h"
 
+#include <stdlib.h>
+
 #include "Common/GameEngine.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/Recorder.h"
@@ -83,6 +85,7 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 		DWORD startTimeMillis = GetTickCount();
 		if (TheRecorder->simulateReplay(filename))
 		{
+			bool mismatchCounted = false;
 			UnsignedInt totalTimeSec = TheRecorder->getPlaybackFrameCount() / LOGICFRAMES_PER_SECOND;
 			while (TheRecorder->isPlaybackInProgress())
 			{
@@ -99,8 +102,20 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 				TheGameLogic->UPDATE();
 				if (TheRecorder->sawCRCMismatch())
 				{
-					numErrors++;
-					break;
+					static const bool continueOnMismatch = getenv("GENERALS_CONTINUE_ON_MISMATCH") != nullptr;
+					if (!continueOnMismatch)
+					{
+						numErrors++;
+						break;
+					}
+					if (!mismatchCounted)
+					{
+						numErrors++;
+						mismatchCounted = true;
+						TheGameLogic->setGamePaused(FALSE, FALSE, FALSE);
+						printf("CONTINUE_PAST_MISMATCH frame=%u\n", TheGameLogic->getFrame());
+						fflush(stdout);
+					}
 				}
 			}
 			UnsignedInt gameTimeSec = TheGameLogic->getFrame() / LOGICFRAMES_PER_SECOND;

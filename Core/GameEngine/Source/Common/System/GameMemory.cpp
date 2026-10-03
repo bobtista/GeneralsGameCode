@@ -206,8 +206,15 @@ static Int roundUpMemBound(Int i);
 static void *sysAllocateDoNotZero(Int numBytes);
 static void sysFree(void* p);
 static void memset32(void* ptr, Int value, Int bytesToFill);
+#include <stdlib.h>
+#define RTS_POISON_FREED_MEMORY 1
 #if defined(RTS_POISON_FREED_MEMORY) && !defined(MEMORYPOOL_DEBUG)
 static const Int GARBAGE_FILL_VALUE = 0xdeadbeef;
+static bool poisonFreedMemoryEnabled()
+{
+	static const bool enabled = getenv("GENERALS_POISON_FREED") != nullptr;
+	return enabled;
+}
 #endif
 #ifdef MEMORYPOOL_STACKTRACE
 static void doStackDumpOutput(const char* m);
@@ -277,7 +284,10 @@ static void sysFree(void* p)
 			theTotalSystemAllocationInBytes -= ::GlobalSize(p);
 		}
 #elif defined(RTS_POISON_FREED_MEMORY)
-		::memset32(p, GARBAGE_FILL_VALUE, ::GlobalSize(p));
+		if (poisonFreedMemoryEnabled())
+		{
+			::memset32(p, GARBAGE_FILL_VALUE, ::GlobalSize(p));
+		}
 #endif
 		::GlobalFree(p);
 	}
@@ -1310,7 +1320,10 @@ void MemoryPoolBlob::freeSingleBlock(MemoryPoolSingleBlock *block)
 #ifdef MEMORYPOOL_DEBUG
 	block->debugMarkBlockAsFree();
 #elif defined(RTS_POISON_FREED_MEMORY)
-	block->poisonUserData(m_owningPool->getAllocationSize());
+	if (poisonFreedMemoryEnabled())
+	{
+		block->poisonUserData(m_owningPool->getAllocationSize());
+	}
 #endif
 #ifdef MEMORYPOOL_INTENSE_VERIFY
 	debugMemoryVerifyBlob();
