@@ -2714,16 +2714,16 @@ GameWindow *GameWindowManager::winCreateFromScript( AsciiString filenameString,
 	resetWindowDefaults();
 
 	//
-	// get the filename from the parameter, if it doesn't contain a '\' it is
-	// a it is assumed to be a filename only, which we will prefix a "window\"
-	// directory to, otherwise it is assumed to be an absolute path.  When using
-	// a filename only make sure the current directory is set to the right
-	// place for the window files subdirectory
+	// Prefix bare filenames with the window directory. Keep supplied paths unchanged.
 	//
-	if( strchr( filename, '\\' ) == nullptr )
+	if( getLastPathSeparator( filename ) == nullptr )
+	{
 		snprintf( filepath, ARRAY_SIZE(filepath), "Window\\%s", filename );
+	}
 	else
+	{
 		strlcpy(filepath, filename, ARRAY_SIZE(filepath));
+	}
 
   // Open the input file
 	inFile = TheFileSystem->openFile(filepath, File::READ);
