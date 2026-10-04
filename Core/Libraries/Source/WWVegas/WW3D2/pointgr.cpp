@@ -923,8 +923,8 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
 	Renderer::Set_Transform(RB_TRANSFORM_VIEW,identity);
 
-	DX8Wrapper::Set_Material(PointMaterial);
-	DX8Wrapper::Set_Shader(Shader);
+	Renderer::Set_Material(PointMaterial);
+	Renderer::Set_Shader(Shader);
 	DX8Wrapper::Set_Texture(0,Texture);
 
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
@@ -1853,8 +1853,8 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
 		Renderer::Set_Transform(RB_TRANSFORM_VIEW,identity);
 
-		DX8Wrapper::Set_Material(PointMaterial);
-		DX8Wrapper::Set_Shader(Shader);
+		Renderer::Set_Material(PointMaterial);
+		Renderer::Set_Shader(Shader);
 		DX8Wrapper::Set_Texture(0,Texture);
 
 		// Enable sorting if the primitives are translucent and alpha testing is not enabled.

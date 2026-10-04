@@ -2080,13 +2080,13 @@ if (_skip_drawobject_render) {
 		m_lineRenderer->Enable_Texturing(FALSE);
 	}
 
-	DX8Wrapper::Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 
-	DX8Wrapper::Set_Material(m_vertexMaterialClass);
-	DX8Wrapper::Set_Shader(m_shaderClass);
+	Renderer::Set_Material(m_vertexMaterialClass);
+	Renderer::Set_Shader(m_shaderClass);
 	DX8Wrapper::Set_Texture(0, nullptr);
 	DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
-	DX8Wrapper::Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 	Int count=0;
 	Int i;
 	bool linesToRender = false;
@@ -2341,7 +2341,7 @@ if (pMapObj->isSelected()) {
 		if (m_feedbackIndexCount>0) {
  			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
-			DX8Wrapper::Set_Shader(m_shaderClass);
+			Renderer::Set_Shader(m_shaderClass);
 			DX8Wrapper::Draw_Triangles(	0, m_feedbackIndexCount/3, 0,	m_feedbackVertexCount);
 			DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
  			DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
@@ -2356,7 +2356,7 @@ if (pMapObj->isSelected()) {
 		if (m_feedbackIndexCount>0) {
  			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
-			DX8Wrapper::Set_Shader(SC_OPAQUE_Z);
+			Renderer::Set_Shader(SC_OPAQUE_Z);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
 			DX8Wrapper::Draw_Triangles(	0, m_feedbackIndexCount/3, 0,	m_feedbackVertexCount);
 		}
@@ -2365,7 +2365,7 @@ if (pMapObj->isSelected()) {
 		if (m_feedbackIndexCount>0) {
  			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
-			DX8Wrapper::Set_Shader(ShaderClass::_PresetAlpha2DShader);
+			Renderer::Set_Shader(ShaderClass::_PresetAlpha2DShader);
 			DX8Wrapper::Draw_Triangles(	0, m_feedbackIndexCount/3, 0,	m_feedbackVertexCount);
 		}
 	}
@@ -2377,7 +2377,7 @@ if (pMapObj->isSelected()) {
 		if (m_feedbackIndexCount>0) {
  			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
-			DX8Wrapper::Set_Shader(SC_OPAQUE_Z);
+			Renderer::Set_Shader(SC_OPAQUE_Z);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);	// we want a solid ramp
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING, FALSE);				// disable lighting
 			DX8Wrapper::Draw_Triangles(	0, m_feedbackIndexCount/3, 0,	m_feedbackVertexCount);
@@ -2391,7 +2391,7 @@ if (pMapObj->isSelected()) {
 		if (m_feedbackIndexCount>0) {
  			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
-			DX8Wrapper::Set_Shader(m_shaderClass);
+			Renderer::Set_Shader(m_shaderClass);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, D3DCULL_NONE);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_SOLID);	// we want a solid ramp
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING, FALSE);				// disable lighting
@@ -2409,7 +2409,7 @@ if (pMapObj->isSelected()) {
 		if (m_feedbackIndexCount>0) {
  			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
-			DX8Wrapper::Set_Shader(m_shaderClass);
+			Renderer::Set_Shader(m_shaderClass);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, D3DCULL_NONE);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_SOLID);	// we want a solid ramp
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING, FALSE);				// disable lighting

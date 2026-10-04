@@ -901,13 +901,13 @@ Try improving the fit to vertical surfaces like cliffs.
 	Matrix3D tm(1);	///set to identity
 	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
 
-	DX8Wrapper::Set_Material(m_vertexMaterialClass);
-	DX8Wrapper::Set_Shader(m_shaderClass);
+	Renderer::Set_Material(m_vertexMaterialClass);
+	Renderer::Set_Shader(m_shaderClass);
 
 	DX8Wrapper::Set_Vertex_Buffer(m_vertexBuffer);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS,8);
 	//Force apply of render states so we can override them.
-	DX8Wrapper::Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 
 	if (TheTerrainRenderObject->getShroud())
 	{
@@ -1321,7 +1321,7 @@ void TestWaterUpdate()
 				Real ydiff=terrainPointEnd.y - terrainPointStart.y;
 				if (sqrt (xdiff * xdiff + ydiff * ydiff) <= waveTypeInfo[currentWaveType].m_finalWidth)
 				{	TheDisplay->drawLine(mouseAnchor.x, mouseAnchor.y, screenPoint.x, screenPoint.y,1,0xffccccff);
-					DX8Wrapper::Invalidate_Cached_Render_States();
+					Renderer::Invalidate_Cached_Render_States();
 					ShaderClass::Invalidate();
 				}
 
