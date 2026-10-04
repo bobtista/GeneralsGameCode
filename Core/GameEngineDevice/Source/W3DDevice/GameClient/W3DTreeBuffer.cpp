@@ -1625,13 +1625,13 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		}
 	}
 
-	DX8Wrapper::Set_Index_Buffer(ib_access,0);
-	DX8Wrapper::Set_Vertex_Buffer(vb_access);
+	Renderer::Set_Index_Buffer(ib_access,0);
+	Renderer::Set_Vertex_Buffer(vb_access);
 
 	Matrix3D tm(1);
 	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
 
-	DX8Wrapper::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
+	Renderer::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
 #endif
 
 
@@ -1713,8 +1713,8 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		if (m_curNumTreeIndices[bNdx]==0) {
 			break;
 		}
-		DX8Wrapper::Set_Index_Buffer(m_indexTree[bNdx],0);
-		DX8Wrapper::Set_Vertex_Buffer(m_vertexTree[bNdx]);
+		Renderer::Set_Index_Buffer(m_indexTree[bNdx],0);
+		Renderer::Set_Vertex_Buffer(m_vertexTree[bNdx]);
 		// Render the waving grass
 		Renderer::Apply_Render_State_Changes();
 		if (m_dwTreeVertexShader) {
@@ -1723,7 +1723,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			DX8Wrapper::_Get_D3D_Device8()->SetTextureStageState(1,  D3DTSS_TEXCOORDINDEX, 1);
 			DX8Wrapper::_Get_D3D_Device8()->SetTextureStageState(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 		}
-		DX8Wrapper::Draw_Triangles(	0, m_curNumTreeIndices[bNdx]/3, 0,	m_curNumTreeVertices[bNdx]);
+		Renderer::Draw_Triangles(	0, m_curNumTreeIndices[bNdx]/3, 0,	m_curNumTreeVertices[bNdx]);
 	}
 
 	DX8Wrapper::Set_Vertex_Shader(DX8_FVF_XYZNDUV1);

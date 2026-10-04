@@ -491,7 +491,7 @@ void W3DSnowManager::renderAsQuads(RenderInfoClass &rinfo, Int cubeOriginX, Int 
 	Matrix4x4 identity(true);
 	Renderer::Set_Transform(RB_TRANSFORM_VIEW,identity);
 
-	DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
+	Renderer::Set_Index_Buffer(m_indexBuffer,0);
 
 	Int y=cubeOriginY;	//loop counter.
 	Int cubeOriginXRemainder = cubeOriginX;	//loop counter - adjusted when not all particles fit into render buffer.
@@ -569,8 +569,8 @@ flush_particles:
 		//Render any particles that may be queued up.
 		if (numberInBatch)
 		{
-			DX8Wrapper::Set_Vertex_Buffer(vb_access);
-			DX8Wrapper::Draw_Triangles(	0,numberInBatch*2, 0, numberInBatch*4);
+			Renderer::Set_Vertex_Buffer(vb_access);
+			Renderer::Draw_Triangles(	0,numberInBatch*2, 0, numberInBatch*4);
 			totalPart -= numberInBatch;
 		}
 	}
