@@ -54,6 +54,7 @@
 #include "Common/Recorder.h"
 #include "Common/StatsCollector.h"
 #include "Common/ThingFactory.h"
+#include "Common/TunnelTracker.h"
 #include "Common/Team.h"
 #include "Common/ThingTemplate.h"
 #include "GameClient/Water.h"
