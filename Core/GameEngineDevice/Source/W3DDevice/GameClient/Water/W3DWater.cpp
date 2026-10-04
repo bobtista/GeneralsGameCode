@@ -1650,7 +1650,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				m_alphaClippingTexture->Set_Mag_Filter(TextureClass::FILTER_TYPE_NONE);
 				m_alphaClippingTexture->Set_Mip_Mapping(TextureClass::FILTER_TYPE_NONE);
 
-				DX8Wrapper::Set_Texture(0,m_alphaClippingTexture);
+				Renderer::Set_Texture(0,m_alphaClippingTexture);
 
 				//TODO: Will have to make sure that the shader system is not resetting my stage 1 setup
 				//while rendering the scene
@@ -1792,8 +1792,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	matWW3D._44=1.0f;
 
 	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);	//position the water surface
-	DX8Wrapper::Set_Texture(0,nullptr);	//we'll be setting our own textures, so reset W3D
-	DX8Wrapper::Set_Texture(1,nullptr);	//we'll be setting our own textures, so reset W3D
+	Renderer::Set_Texture(0,nullptr);	//we'll be setting our own textures, so reset W3D
+	Renderer::Set_Texture(1,nullptr);	//we'll be setting our own textures, so reset W3D
 
 
 	Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
@@ -2067,7 +2067,7 @@ void WaterRenderObjClass::renderSky()
 
 	Renderer::Set_Shader(m_shader2);
 
-	DX8Wrapper::Set_Texture(0,setting->skyTexture);
+	Renderer::Set_Texture(0,setting->skyTexture);
 
 	//draw an infinite sky plane
 	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,4);
@@ -2171,7 +2171,7 @@ void WaterRenderObjClass::renderSkyBody(Matrix3D *mat)
 //	DX8Wrapper::Set_Shader(ShaderClass::/*_PresetAdditiveShader*//*_PresetOpaqueShader*/_PresetAlphaShader);
 //	DX8Wrapper::Set_Texture(0,setting->skyBodyTexture);
 
-	DX8Wrapper::Set_Texture(0,m_alphaClippingTexture);
+	Renderer::Set_Texture(0,m_alphaClippingTexture);
 
 	//draw an infinite sky plane
 	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,4);
@@ -2377,8 +2377,8 @@ void WaterRenderObjClass::renderWaterMesh()
 	setupFlatWaterShader();
 #else
 	//DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-	DX8Wrapper::Set_Texture(0,setting->waterTexture);
-	DX8Wrapper::Set_Texture(1,setting->waterTexture);
+	Renderer::Set_Texture(0,setting->waterTexture);
+	Renderer::Set_Texture(1,setting->waterTexture);
 
 	Renderer::Set_Light(0,*m_meshLight);
 	Renderer::Clear_Light(1);
@@ -2432,8 +2432,8 @@ void WaterRenderObjClass::renderWaterMesh()
 
 	m_vertexBufferD3DOffset += mx*my;	//advance past vertices already in buffer
 
-	DX8Wrapper::Set_Texture(0,nullptr);
-	DX8Wrapper::Set_Texture(1,nullptr);
+	Renderer::Set_Texture(0,nullptr);
+	Renderer::Set_Texture(1,nullptr);
 	ShaderClass::Invalidate();
 	m_shaderClass.Set_Cull_Mode(oldCullMode);	//water should be visible from both sides
 
@@ -2896,7 +2896,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
 	DX8Wrapper::Set_Index_Buffer(ib_access,0);
 	DX8Wrapper::Set_Vertex_Buffer(vb_access);
-	DX8Wrapper::Set_Texture(0,m_riverTexture);	//set to blue
+	Renderer::Set_Texture(0,m_riverTexture);	//set to blue
 
 	setupJbaWaterShader();
 
@@ -2934,7 +2934,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 void WaterRenderObjClass::setupFlatWaterShader()
 {
 
-	DX8Wrapper::Set_Texture(0,m_riverTexture);
+	Renderer::Set_Texture(0,m_riverTexture);
 	if (!TheWaterTransparency->m_additiveBlend)
 		Renderer::Set_Shader(ShaderClass::_PresetAlphaShader);
 	else
@@ -3377,7 +3377,7 @@ void WaterRenderObjClass::renderSkyBody(Matrix3D *mat)
 	Renderer::Set_Shader(ShaderClass::/*_PresetAdditiveShader*//*_PresetOpaqueShader*/_PresetAlphaShader);
 //	DX8Wrapper::Set_Texture(0,setting->skyBodyTexture);
 
-	DX8Wrapper::Set_Texture(0,m_alphaClippingTexture);
+	Renderer::Set_Texture(0,m_alphaClippingTexture);
 
 	//draw an infinite sky plane
 	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,4);
