@@ -29,6 +29,7 @@
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"
+#include <stdio.h>
 #include "Common/file.h"
 #include "Common/FileSystem.h"
 #include "Common/GameEngine.h"
@@ -792,7 +793,10 @@ void GameState::loadQueuedSaveGame()
 	// this hides the shell, keeping the menu screens on the stack for when the game ends
 	TheGameLogic->prepareNewGame( GAME_SINGLE_PLAYER, DIFFICULTY_NORMAL, 0 );
 
-	if( loadGame( gameInfo ) != SC_OK )
+	const SaveCode probeLoadCode = loadGame( gameInfo );
+	printf("PROBE_LOAD file=%s code=%d frame=%u\n", gameInfo.filename.str(), (Int)probeLoadCode, TheGameLogic->getFrame());
+	fflush(stdout);
+	if( probeLoadCode != SC_OK )
 	{
 		DEBUG_LOG(("Failed to load save game '%s'", gameInfo.filename.str()));
 		if( TheGameLogic->isInGame() )

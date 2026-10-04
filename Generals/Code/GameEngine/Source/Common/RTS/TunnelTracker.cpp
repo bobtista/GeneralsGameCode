@@ -656,6 +656,9 @@ void TunnelTracker::loadPostProcess()
 	{
 
 		obj = TheGameLogic->findObjectByID( *it );
+		printf("TRACKER_LOAD player=%d id=%u found=%d tmpl=%s\n", probeTrackerPlayer(this), (UnsignedInt)*it, (Int)(obj != nullptr),
+			obj ? obj->getTemplate()->getName().str() : "null");
+		fflush(stdout);
 		if( obj == nullptr )
 		{
 

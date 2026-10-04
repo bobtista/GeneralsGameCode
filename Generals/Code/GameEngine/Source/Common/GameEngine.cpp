@@ -542,6 +542,13 @@ void GameEngine::init()
 		//TheShell->push( "Menus/MainMenu.wnd" );
 
 		// This allows us to run a map from the command line
+		{
+			const char* probeMap = getenv("GENERALS_PROBE_MAP");
+			if (probeMap)
+			{
+				TheWritableGlobalData->m_initialFile = probeMap;
+			}
+		}
 		if (TheGlobalData->m_initialFile.isEmpty() == FALSE)
 		{
 			AsciiString fname = TheGlobalData->m_initialFile;

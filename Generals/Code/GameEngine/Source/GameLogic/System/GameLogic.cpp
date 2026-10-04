@@ -407,6 +407,111 @@ void GameLogic::init()
 //-------------------------------------------------------------------------------------------------
 /** Reset the game logic systems */
 //-------------------------------------------------------------------------------------------------
+
+static Player* probePickPlayer(Player* exclude)
+{
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		Player* p = ThePlayerList->getNthPlayer(i);
+		if (p == exclude || p == ThePlayerList->getNeutralPlayer() || p == ThePlayerList->getLocalPlayer() || !p->getTunnelSystem())
+			continue;
+		return p;
+	}
+	return exclude ? ThePlayerList->getLocalPlayer() : nullptr;
+}
+
+static void probeScenario(UnsignedInt frame)
+{
+	static const char* env = getenv("GENERALS_PROBE_SCENARIO");
+	if (!env)
+		return;
+	static const UnsignedInt base = (UnsignedInt)atoi(env);
+	static Player* playerA = nullptr;
+	static Player* playerB = nullptr;
+	static ObjectID tunnelID = INVALID_ID;
+	static ObjectID unitIDs[3] = { INVALID_ID, INVALID_ID, INVALID_ID };
+
+	if (frame == base)
+	{
+		playerA = probePickPlayer(nullptr);
+		playerB = probePickPlayer(playerA);
+		if (!playerA || !playerB)
+		{
+			printf("SCENARIO no players\n");
+			fflush(stdout);
+			return;
+		}
+		Coord3D pos;
+		pos.zero();
+		for (Object* o = TheGameLogic->getFirstObject(); o; o = o->getNextObject())
+		{
+			if (o->getControllingPlayer() == playerA)
+			{
+				pos = *o->getPosition();
+				break;
+			}
+		}
+		pos.x += 120.0f;
+		pos.y += 120.0f;
+		Object* tunnel = TheBuildAssistant->buildObjectNow(nullptr, TheThingFactory->findTemplate("GLATunnelNetwork"), &pos, 0.0f, playerA);
+		if (!tunnel || !tunnel->getContain())
+		{
+			printf("SCENARIO tunnel creation failed\n");
+			fflush(stdout);
+			return;
+		}
+		tunnelID = tunnel->getID();
+		for (Int i = 0; i < 3; ++i)
+		{
+			Coord3D upos = pos;
+			upos.x += 60.0f + 10.0f * i;
+			Object* unit = TheBuildAssistant->buildObjectNow(nullptr, TheThingFactory->findTemplate("GLAInfantryRebel"), &upos, 0.0f, playerA);
+			if (unit)
+			{
+				unitIDs[i] = unit->getID();
+				tunnel->getContain()->addToContain(unit);
+			}
+		}
+		printf("SCENARIO frame=%u playerA=%d(%s) playerB=%d(%s) tunnel=%u units=%u,%u,%u trackerA=%u containedBy0=%d\n", frame,
+			playerA->getPlayerIndex(), playerA->getSide().str(), playerB->getPlayerIndex(), playerB->getSide().str(),
+			(UnsignedInt)tunnelID, (UnsignedInt)unitIDs[0], (UnsignedInt)unitIDs[1], (UnsignedInt)unitIDs[2],
+			playerA->getTunnelSystem()->getContainCount(),
+			TheGameLogic->findObjectByID(unitIDs[0]) ? (Int)(TheGameLogic->findObjectByID(unitIDs[0])->getContainedBy() == tunnel) : -1);
+		fflush(stdout);
+	}
+	else if (frame == base + 30 && playerA && playerB)
+	{
+		playerB->transferAssetsFromThat(playerA);
+		Object* u = TheGameLogic->findObjectByID(unitIDs[0]);
+		printf("SCENARIO frame=%u transferred unit0Ctrl=%d trackerA=%u trackerB=%u\n", frame,
+			(u && u->getControllingPlayer()) ? u->getControllingPlayer()->getPlayerIndex() : -1,
+			playerA->getTunnelSystem()->getContainCount(), playerB->getTunnelSystem()->getContainCount());
+		fflush(stdout);
+	}
+	else if (frame == base + 60)
+	{
+		Object* t = TheGameLogic->findObjectByID(tunnelID);
+		printf("SCENARIO frame=%u killTunnel found=%d\n", frame, (Int)(t != nullptr));
+		fflush(stdout);
+		if (t)
+			t->kill();
+	}
+	else if (frame == base + 390)
+	{
+		printf("SCENARIO frame=%u tunnelAlive=%d\n", frame, (Int)(TheGameLogic->findObjectByID(tunnelID) != nullptr));
+		fflush(stdout);
+	}
+	else if (frame == base + 420)
+	{
+		Object* u = TheGameLogic->findObjectByID(unitIDs[0]);
+		printf("SCENARIO frame=%u destroyUnit0 found=%d\n", frame, (Int)(u != nullptr));
+		fflush(stdout);
+		if (u)
+			TheGameLogic->destroyObject(u);
+	}
+}
+
+
 void TunnelTrackerProbe_summary(const char* when);
 void TunnelTrackerProbe_clear();
 extern Bool g_probeInReset;
@@ -3221,6 +3326,18 @@ void GameLogic::update()
 	TheGameClient->setFrame(now);
 
 	PROFILER_PLOT("LogicFrame", static_cast<int64_t>(now));
+
+	probeScenario(m_frame);
+
+	{
+		static const char* probeQuit = getenv("GENERALS_PROBE_QUIT_FRAME");
+		if (probeQuit && m_frame == (UnsignedInt)atoi(probeQuit))
+		{
+			printf("PROBE_QUIT frame=%u\n", m_frame);
+			fflush(stdout);
+			TheGameEngine->setQuitting(TRUE);
+		}
+	}
 
 	{
 		static const char* probeSaveFrames = getenv("GENERALS_PROBE_SAVE_FRAMES");
