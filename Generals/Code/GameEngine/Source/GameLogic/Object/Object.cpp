@@ -44,7 +44,9 @@
 #include "Common/Team.h"
 #include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
+#if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
 #include "Common/TunnelTracker.h"
+#endif
 #include "Common/Upgrade.h"
 #include "Common/WellKnownKeys.h"
 #include "Common/Xfer.h"
@@ -637,6 +639,7 @@ void Object::onRemovedFrom( Object *removedFrom )
 	m_containedByFrame = 0;
 }
 
+#if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
 //-------------------------------------------------------------------------------------------------
 void Object::removeFromTunnelContain()
 {
@@ -651,6 +654,7 @@ void Object::removeFromTunnelContain()
 
 	onRemovedFrom(nullptr);
 }
+#endif
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
