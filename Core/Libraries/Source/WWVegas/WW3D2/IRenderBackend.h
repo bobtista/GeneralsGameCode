@@ -330,6 +330,17 @@ struct RenderBackendScreenVertex
     float v1;
 };
 
+// Maps world X and Y to texture U and V as ((xy + offset) * scale) + bias.
+struct RenderBackendWorldProjection
+{
+    float offset_x;
+    float offset_y;
+    float scale_x;
+    float scale_y;
+    float bias_u;
+    float bias_v;
+};
+
 struct RenderBackendViewport
 {
     unsigned int x;
@@ -1085,6 +1096,10 @@ public:
     virtual void Set_Object_Shroud_Alpha_Mask_Texture(TextureBaseClass * texture) {}
     virtual void Set_Shroud_Texture_Params(float offset_x, float offset_y,
                                            float scale_x, float scale_y) {}
+    // Generates the stage's texture coordinates from world position, using the view transform current at the call.
+    virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) {}
+    // Returns the stage to the mesh texture coordinates with the stage's own index.
+    virtual void Clear_Texture_Projection(unsigned stage) {}
     // Some backends need object shroud material passes delayed until after all
     // opaque object base draws so the multiplicative pass cannot be overwritten
     // by another FVF container's later base pass.

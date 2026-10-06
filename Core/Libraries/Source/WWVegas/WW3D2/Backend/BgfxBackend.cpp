@@ -11909,6 +11909,45 @@ void BgfxBackend::Set_Shroud_Texture_Params(float offset_x, float offset_y,
     g_draw.shroudTextureParamsValid = true;
 }
 
+void BgfxBackend::Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection)
+{
+    Matrix4x4 view;
+    Get_Transform(RB_TRANSFORM_VIEW, view);
+
+    const Matrix4x4 offset(
+        1.0f, 0.0f, 0.0f, projection.offset_x,
+        0.0f, 1.0f, 0.0f, projection.offset_y,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
+    const Matrix4x4 scale(
+        projection.scale_x, 0.0f, 0.0f, 0.0f,
+        0.0f, projection.scale_y, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
+    const Matrix4x4 bias(
+        1.0f, 0.0f, 0.0f, projection.bias_u,
+        0.0f, 1.0f, 0.0f, projection.bias_v,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
+
+    Set_Texture_Coord_Source(stage, RB_TEXCOORD_CAMERA_SPACE_POSITION, 0);
+    Set_Texture_Transform_Mode(stage, 2, false);
+    Set_Texture_Transform(stage, bias * (scale * (offset * view.Inverse())));
+
+    // The shroud shader samples from world position directly, so it takes the
+    // projection itself instead of the camera-space matrix.
+    if (g_views.shroudTexturePassActive && g_views.shroudTexturePassStage == stage)
+    {
+        Set_Shroud_Texture_Params(projection.offset_x, projection.offset_y, projection.scale_x, projection.scale_y);
+    }
+}
+
+void BgfxBackend::Clear_Texture_Projection(unsigned stage)
+{
+    Set_Texture_Coord_Source(stage, RB_TEXCOORD_MESH_UV, stage);
+    Set_Texture_Transform_Mode(stage, 0, false);
+}
+
 void BgfxBackend::Override_Terrain_Blend(bool enable)
 {
     g_draw.texcoordSelect[1] = enable ? 1.0f : 0.0f;

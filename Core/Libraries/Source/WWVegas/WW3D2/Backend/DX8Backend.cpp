@@ -46,6 +46,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <d3dx8core.h>
+#include <d3dx8math.h>
 #include "BgfxRenderProfile.h"
 
 // TheSuperHackers @build bobtista 15/06/2026 GGCRenderProfile is referenced by the
@@ -2030,6 +2031,34 @@ void DX8Backend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigne
         stage,
         static_cast<D3DTEXTURESTAGESTATETYPE>(state),
         value);
+}
+
+void DX8Backend::Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection)
+{
+    D3DXMATRIX view;
+    DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, view);
+
+    D3DXMATRIX inverse_view;
+    float determinant;
+    D3DXMatrixInverse(&inverse_view, &determinant, &view);
+
+    D3DXMATRIX offset;
+    D3DXMATRIX scale;
+    D3DXMATRIX bias;
+    D3DXMatrixTranslation(&offset, projection.offset_x, projection.offset_y, 0);
+    D3DXMatrixScaling(&scale, projection.scale_x, projection.scale_y, 1);
+    D3DXMatrixTranslation(&bias, projection.bias_u, projection.bias_v, 0);
+    const D3DXMATRIX texture = ((inverse_view * offset) * scale) * bias;
+
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+    DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE)(D3DTS_TEXTURE0 + stage), texture);
+}
+
+void DX8Backend::Clear_Texture_Projection(unsigned stage)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, stage);
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 }
 
 void DX8Backend::Configure_Custom_Edging_Cloud_Texture_Stages()
