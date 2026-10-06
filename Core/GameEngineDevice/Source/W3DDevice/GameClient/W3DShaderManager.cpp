@@ -1258,8 +1258,6 @@ Int ShroudTextureShader::set(Int stage)
 #endif
 	}
 	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
-
-	W3DShaderManager_SetCameraSpaceTexcoord2(stage);
 	WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_EQUAL);
 
 	//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
@@ -1267,8 +1265,25 @@ Int ShroudTextureShader::set(Int stage)
 	W3DShroud *shroud;
 	if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 	{
-		///@todo: All this code really only need to be done once per camera/view.  Find a way to optimize it out.
-		W3DShaderManager_SetShroudTextureTransform(stage, shroud);
+		//We need to make all world coordinates be relative to the heightmap data origin since that
+		//is where the shroud begins.
+		Real width=shroud->getCellWidth();
+		Real height=shroud->getCellHeight();
+
+		RenderBackendWorldProjection projection;
+		projection.offset_x = 0;
+		projection.offset_y = 0;
+		if (TheTerrainRenderObject->getMap())
+		{
+			//subtract origin position from all coordinates.  Origin is shifted by 1 cell width/height to allow for unused border texels.
+			projection.offset_x = -(float)shroud->getDrawOriginX() + width;
+			projection.offset_y = -(float)shroud->getDrawOriginY() + height;
+		}
+		projection.scale_x = 1.0f/(width*shroud->getTextureWidth());
+		projection.scale_y = 1.0f/(height*shroud->getTextureHeight());
+		projection.bias_u = 0;
+		projection.bias_v = 0;
+		WW3D::Get_Render_Backend()->Set_World_Texture_Projection(stage, projection);
 	}
 	m_stageOfSet=stage;
 	return TRUE;
@@ -1279,7 +1294,7 @@ void ShroudTextureShader::reset()
 	WW3D::Get_Render_Backend()->Set_Shroud_Texture_Pass_Active(false, m_stageOfSet);
 	WW3D::Get_Render_Backend()->Set_Texture(m_stageOfSet,nullptr);
 	WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_LESS_EQUAL);
-	W3DShaderManager_ResetMeshTexcoord(m_stageOfSet, m_stageOfSet);
+	WW3D::Get_Render_Backend()->Clear_Texture_Projection(m_stageOfSet);
 }
 
 ///Shroud layer rendering shader
@@ -1394,14 +1409,6 @@ Int MaskTextureShader::set(Int pass)
 	WW3D::Get_Render_Backend()->Set_Shader(shader);
 	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
 
-	Matrix4x4 curView;
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, curView);
-
-	W3DShaderManager_SetCameraSpaceTexcoord2(0);
-
-	//Get inverse view matrix so we can transform camera space points back to world space
-	Matrix4x4 inv = curView.Inverse();
-
 	Coord3D centerPos;
 	centerPos.zero();
 
@@ -1418,34 +1425,30 @@ Int MaskTextureShader::set(Int pass)
 		TheTacticalView->screenToTerrain(&screenPos,&centerPos);
 	}
 
-	Matrix4x4 offset = W3DShaderManager_MakeTextureTranslation(-centerPos.x, -centerPos.y, 0);
-
-	//shift coordinates so center of projection falls at uv 0.5,0.5
-	Matrix4x4 offsetTextureCenter = W3DShaderManager_MakeTextureTranslation(0.5f, 0.5f, 0);
+	RenderBackendWorldProjection projection;
+	projection.offset_x = -centerPos.x;
+	projection.offset_y = -centerPos.y;
 
 	Real worldTexelWidth=(1.0f-fadeLevel)*25.0f;	//9 worked well for circle but weird shape requires more stretch to cover.
 	Real worldTexelHeight=(1.0f-fadeLevel)*25.0f;
 
 	///@todo: Fix this to work with non 128x128 textures.
-	// TheSuperHackers @bugfix bobtista 17/07/2026 Reverse the factor order for this port's
-	// column-vector Matrix4x4, exactly like the shroud texture transform
-	// (W3DShaderManager_SetShroudTextureTransform): the view-inverse must be the rightmost
-	// (first-applied) factor. Retail's row-vector order left the crossfade mask misprojected,
-	// so the circle-wipe did not track the screen-center terrain point or scale with fade.
 	if (worldTexelWidth != 0 && worldTexelHeight != 0)
 	{
-		Real widthScale = 1.0f/(worldTexelWidth*128.0f);
-		Real heightScale = 1.0f/(worldTexelHeight*128.0f);
-		Matrix4x4 scale = W3DShaderManager_MakeTextureScale(widthScale, heightScale, 1);
-		curView = offsetTextureCenter*(scale*(offset*inv));
+		projection.scale_x = 1.0f/(worldTexelWidth*128.0f);
+		projection.scale_y = 1.0f/(worldTexelHeight*128.0f);
+		projection.bias_u = 0.5f;	//shift coordinates so center of projection falls at uv 0.5,0.5
+		projection.bias_v = 0.5f;
 	}
 	else
 	{
-		Matrix4x4 scale = W3DShaderManager_MakeTextureScale(0, 0, 1);	//scaling by 0 will set uv coordinates to 0,0
-		curView = scale*(offset*inv);
+		projection.scale_x = 0;	//scaling by 0 will set uv coordinates to 0,0
+		projection.scale_y = 0;
+		projection.bias_u = 0;
+		projection.bias_v = 0;
 	}
 
-	W3DShaderManager_SetTextureTransform(0, curView);
+	WW3D::Get_Render_Backend()->Set_World_Texture_Projection(0, projection);
 
 	return TRUE;
 }
@@ -1453,7 +1456,7 @@ Int MaskTextureShader::set(Int pass)
 void MaskTextureShader::reset()
 {
 	WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-	W3DShaderManager_ResetMeshTexcoord(0, 0);
+	WW3D::Get_Render_Backend()->Clear_Texture_Projection(0);
 }
 
 /*===========================================================================================*/

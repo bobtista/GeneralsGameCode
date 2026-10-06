@@ -247,6 +247,8 @@ public:
                                             unsigned argument_index,
                                             RenderBackendTextureArgument arg) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
+    virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) override;
+    virtual void Clear_Texture_Projection(unsigned stage) override;
     virtual CullMode Get_Cull_Mode() const override;
     virtual void Set_Cull_Mode(CullMode mode) override;
 
