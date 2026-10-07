@@ -145,10 +145,10 @@ BOOL CWdumpApp::InitInstance()
 
 	if(NoWindow) {
 		if(cmdInfo.m_nShellCommand == CWDumpCommandLineInfo::FileOpen) {
-			const char *c = strrchr(cmdInfo.m_strFileName, '\\');
+			const char *c = getLastPathSeparator(cmdInfo.m_strFileName);
 			if(c == nullptr)
 				c = (LPCTSTR) cmdInfo.m_strFileName;
-			if(*c == '\\')
+			if(isPathSeparator(*c))
 				c++;
 
 			Filename = c;

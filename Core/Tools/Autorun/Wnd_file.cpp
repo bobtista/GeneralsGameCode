@@ -46,6 +46,7 @@
 #include <sys/stat.h>
 #include "Wnd_File.h"
 #include "WinFix.h"
+#include "Lib/PathUtil.h"
 //#include "autorun.h"
 
 
@@ -124,7 +125,7 @@ void Msg( int line, const char *filename, const char *fmt, ... )
 	//----------------------------------------------------------------------
 	// Make filename.
 	//----------------------------------------------------------------------
-	const char *temp = strrchr( filename, '\\' );
+	const char *temp = getLastPathSeparator( filename );
 	if ( temp != nullptr || temp[0] != '\0' ) {
 		temp++;
 		strcpy( szFile, temp );
@@ -206,7 +207,7 @@ void Msg( int line, const char *filename, const wchar_t *fmt, UINT codepage, ...
 	//----------------------------------------------------------------------
 	// Make filename.
 	//----------------------------------------------------------------------
-	const char *temp = strrchr( filename, '\\' );
+	const char *temp = getLastPathSeparator( filename );
 	if ( temp != nullptr || temp[0] != '\0' ) {
 		temp++;
 		length = strlen( temp );
@@ -280,7 +281,7 @@ void Delete_Msg_File ()
 	//----------------------------------------------------------------------
 //	strcat( strcpy( DebugFile, ".\\" ), DEBUG_FILE );
 	GetWindowsDirectory( DebugFile, MAX_PATH );
-	if ( DebugFile[ strlen( DebugFile )-1 ] != '\\' ) {
+	if ( !isPathSeparator( DebugFile[ strlen( DebugFile )-1 ] ) ) {
 		strcat( DebugFile, "\\" );
 	}
 	strcat( DebugFile, DEBUG_FILE );
