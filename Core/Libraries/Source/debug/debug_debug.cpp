@@ -1228,7 +1228,7 @@ Debug::FrameHashEntry* Debug::AddFrameEntry(unsigned addr, unsigned type,
   else
   {
     // no, just add file name (without path though)
-    e->fileOrGroup=fileOrGroup?strrchr(fileOrGroup,'\\'):nullptr;
+    e->fileOrGroup=fileOrGroup?getLastPathSeparator(fileOrGroup):nullptr;
     e->fileOrGroup=e->fileOrGroup?e->fileOrGroup+1:fileOrGroup;
   }
 
@@ -1265,7 +1265,7 @@ const char *Debug::AddLogGroup(const char *fileOrGroup, const char *descr)
   char help[200];
 
   // do we need to strip down fileOrGroup?
-  const char *p=strrchr(fileOrGroup,'\\');
+  const char *p=getLastPathSeparator(fileOrGroup);
   const char *q=strchr(p?p:fileOrGroup,'.');
   if (p||q)
   {
