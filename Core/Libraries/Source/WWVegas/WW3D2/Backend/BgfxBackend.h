@@ -314,6 +314,8 @@ public:
     virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) override;
     virtual void Set_Object_Shroud_Texture_Pass_Active(bool active) override;
     virtual void Set_Object_Shroud_Alpha_Mask_Texture(TextureBaseClass * texture) override;
+    virtual void Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
+                           unsigned short min_vertex_index, unsigned short vertex_count) override;
     virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) override;
     virtual void Clear_Texture_Projection(unsigned stage) override;
     virtual void Set_Shroud_Texture_Params(float offset_x, float offset_y,

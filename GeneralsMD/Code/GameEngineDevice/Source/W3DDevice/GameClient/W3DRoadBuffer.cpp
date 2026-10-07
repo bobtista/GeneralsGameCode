@@ -158,7 +158,7 @@ RoadType::~RoadType()
 //=============================================================================
 void RoadType::applyTexture()
 {
- 	W3DShaderManager::setTexture(0,m_roadTexture);
+ 	WW3D::Get_Render_Backend()->Set_Texture(0,m_roadTexture);
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
 	// through the IRenderBackend abstraction.
 	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexRoad,0);
@@ -3313,34 +3313,12 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 		}
 	}
 	Int stacking;
-	W3DShaderManager::ShaderTypes st=W3DShaderManager::ST_ROAD_BASE; //set default shader
-	if (cloudTexture) {
-		st=W3DShaderManager::ST_ROAD_BASE_NOISE1;
-		if (noiseTexture)
-			st=W3DShaderManager::ST_ROAD_BASE_NOISE12;
-	}
-	else
-	if (noiseTexture)
-		st=W3DShaderManager::ST_ROAD_BASE_NOISE2;
-
-	Int devicePasses = 1;	//assume regular rendering
- 	//Find number of passes required to render current shader
-	devicePasses=W3DShaderManager::getShaderPasses(st);
-
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @info bobtista 16/07/2026 Keep roads on the single base pass. The
-	// original reason (no TCI_CAMERASPACEPOSITION emulation) is obsolete - the backend
-	// emulates it now - but the gate stays because cloud shadows and the sun shadow already
-	// reach roads single-pass through the uber shader's cloud path; running the NOISE
-	// multipass as well would apply the cloud texture twice, and the NOISE12 second pass
-	// needs the unemulated ALPHAREPLICATE argument modifier. The lightmap (noise2) stage is
-	// equally unavailable for terrain on this backend.
-	st = W3DShaderManager::ST_ROAD_BASE;
-	devicePasses = 1;
-#endif
-
-	W3DShaderManager::setTexture(1,cloudTexture);	//cloud
-	W3DShaderManager::setTexture(2,noiseTexture);	//noise/lightmap
+	RenderBackendRoadDraw road;
+	road.cloud_texture = cloudTexture;
+	road.cloud_projection = W3DShaderManager::getCloudProjection();
+	road.light_map_texture = noiseTexture;
+	road.light_map_projection = W3DShaderManager::getLightMapProjection();
+	road.trilinear_filtering = TheGlobalData && TheGlobalData->m_trilinearTerrainTex;
 
 
 	Bool loadBuffers = false;
@@ -3368,19 +3346,14 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 			} else {
 				m_roadTypes[i].applyTexture();
 			}
-			for (Int pass=0; pass < devicePasses; pass++)
-			{
-				if (!wireframe)
-		 			W3DShaderManager::setShader(st, pass);
-				//Draw all this road type.
+			//Draw all this road type.
+			if (wireframe)
 				WW3D::Get_Render_Backend()->Draw_Triangles(	0, m_roadTypes[i].getNumIndices()/3, 0,	m_roadTypes[i].getNumVertices());
+			else
+				WW3D::Get_Render_Backend()->Draw_Road(road, 0, m_roadTypes[i].getNumIndices()/3, 0,	m_roadTypes[i].getNumVertices());
 #ifdef LOG_STATS
-				polys += m_roadTypes[i].getNumIndices()/3;
+			polys += m_roadTypes[i].getNumIndices()/3;
 #endif
-			}
-
-			if (!wireframe)	//shader was applied at least once?
- 				W3DShaderManager::resetShader(st);
 		}
 	}
 #ifdef LOG_STATS

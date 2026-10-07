@@ -34,6 +34,7 @@
 #pragma once
 
 #include "WW3D2/texture.h"
+#include "WW3D2/IRenderBackend.h"
 enum FilterTypes CPP_11(: Int);
 enum FilterModes CPP_11(: Int);
 enum CustomScenePassModes CPP_11(: Int);
@@ -88,6 +89,8 @@ public:
 	static Int getShaderPasses(ShaderTypes shader);	///<rendering passes required for shader
 	static Int setShader(ShaderTypes shader, Int pass);	///<enable specific shader pass.
 	static Int setShroudTex(Int stage);	///<Set shroud in a texture stage.
+	static RenderBackendWorldProjection getCloudProjection();	///<World projection of the scrolling cloud texture.
+	static RenderBackendWorldProjection getLightMapProjection();	///<World projection of the light map texture.
 	static void resetShader(ShaderTypes shader);	///<make sure W3D2 gets restored to normal
 	///Specify all textures (up to 8) which can be accessed by the shaders.
 	static void setTexture(Int stage,TextureClass* texture) {m_Textures[stage]=texture;}

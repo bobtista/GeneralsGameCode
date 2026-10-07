@@ -11909,6 +11909,44 @@ void BgfxBackend::Set_Shroud_Texture_Params(float offset_x, float offset_y,
     g_draw.shroudTextureParamsValid = true;
 }
 
+void BgfxBackend::Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
+                            unsigned short min_vertex_index, unsigned short vertex_count)
+{
+    // The uber shader projects the cloud map as (world * stretch) + scroll and the light map as
+    // world * stretch, so neither takes a world offset.
+    Set_Cloud_Shadow_Params(road.cloud_texture != nullptr, road.cloud_projection.bias_u, road.cloud_projection.bias_v,
+                            road.cloud_projection.scale_x, road.cloud_texture);
+    Set_Light_Map_Params(road.light_map_texture != nullptr, road.light_map_projection.scale_x, road.light_map_texture);
+
+    Override_Terrain_Blend(false);
+    Apply_Render_State_Changes();
+
+    Set_Depth_Func(RB_CMP_LESS_EQUAL);
+    Set_Depth_Write_Enable(false);
+    Set_Lighting_Enable(false);
+
+    Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+    Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
+    Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+    Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+    Set_Texture_Alpha_Argument(0, 2, RB_TEXARG_DIFFUSE);
+    Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
+    Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+
+    Set_Alpha_Blend_Enable(true);
+    Override_Alpha_Blend_Enable(true);
+    Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
+
+    Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+    Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
+
+    Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
+
+    ShaderClass::Invalidate();
+    Clear_Texture_Projection(0);
+    Clear_Texture_Projection(1);
+}
+
 void BgfxBackend::Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection)
 {
     Matrix4x4 view;
