@@ -2585,6 +2585,26 @@ void W3DShaderManager::pushLightMapToBackend(Bool enabled, TextureClass * noiseT
 	WW3D::Get_Render_Backend()->Set_Light_Map_Params(enabled ? true : false, stretch, noiseTex);
 }
 
+RenderBackendWorldProjection W3DShaderManager::getLightMapProjection()
+{
+	RenderBackendWorldProjection projection;
+	projection.offset_x = 0;
+	projection.offset_y = 0;
+	projection.scale_x = (float)(1.0 / (63.0 * MAP_XY_FACTOR / 2.0));
+	projection.scale_y = projection.scale_x;
+	projection.bias_u = 0;
+	projection.bias_v = 0;
+	return projection;
+}
+
+RenderBackendWorldProjection W3DShaderManager::getCloudProjection()
+{
+	RenderBackendWorldProjection projection = getLightMapProjection();
+	projection.bias_u = terrainShader2Stage.m_xOffset;
+	projection.bias_v = terrainShader2Stage.m_yOffset;
+	return projection;
+}
+
 // W3DShaderManager::getShaderPasses =======================================================
 /** Return number of renderig passes required in perform the desired shader on current
 	hardware.  App will need to re-render the polygons this many times to complete the

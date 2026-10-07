@@ -341,6 +341,15 @@ struct RenderBackendWorldProjection
     float bias_v;
 };
 
+struct RenderBackendRoadDraw
+{
+    TextureClass * cloud_texture;
+    RenderBackendWorldProjection cloud_projection;
+    TextureClass * light_map_texture;
+    RenderBackendWorldProjection light_map_projection;
+    bool trilinear_filtering;
+};
+
 struct RenderBackendViewport
 {
     unsigned int x;
@@ -1096,6 +1105,11 @@ public:
     virtual void Set_Object_Shroud_Alpha_Mask_Texture(TextureBaseClass * texture) {}
     virtual void Set_Shroud_Texture_Params(float offset_x, float offset_y,
                                            float scale_x, float scale_y) {}
+    // Draws the bound road geometry as texture(stage 0, mesh UV) * cloud * light map * vertex color,
+    // alpha blended (source alpha, inverse source alpha), depth test less-or-equal, no depth write,
+    // unlit. Draws keep their submission order.
+    virtual void Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
+                           unsigned short min_vertex_index, unsigned short vertex_count) {}
     // Generates the stage's texture coordinates from world position, using the view transform current at the call.
     virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) {}
     // Returns the stage to the mesh texture coordinates with the stage's own index.
