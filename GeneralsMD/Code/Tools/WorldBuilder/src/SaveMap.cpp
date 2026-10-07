@@ -131,7 +131,7 @@ void SaveMap::populateMapListbox( Bool systemMaps )
 		snprintf(dirBuf, ARRAY_SIZE(dirBuf), "%sMaps\\", TheGlobalData->getPath_UserData().str());
 	int len = strlen(dirBuf);
 
-	if (len > 0 && dirBuf[len - 1] != '\\') {
+	if (len > 0 && !isPathSeparator(dirBuf[len - 1])) {
 		dirBuf[len++] = '\\';
 		dirBuf[len] = 0;
 	}
@@ -171,7 +171,7 @@ void SaveMap::populateMapListbox( Bool systemMaps )
 			fileBuf[len-4] = 0;
 		}
 		while (len>0) {
-			if (fileBuf[len] == '\\') {
+			if (isPathSeparator(fileBuf[len])) {
 				len++;
 				break;
 			}
