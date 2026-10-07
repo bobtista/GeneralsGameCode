@@ -11912,6 +11912,15 @@ void BgfxBackend::Set_Shroud_Texture_Params(float offset_x, float offset_y,
 void BgfxBackend::Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
                             unsigned short min_vertex_index, unsigned short vertex_count)
 {
+    // The road's cloud and light map apply to this draw only. Restore the previous ground maps afterwards,
+    // so they do not leak into later draws.
+    float saved_cloud_params[4];
+    float saved_light_map_params[4];
+    memcpy(saved_cloud_params, g_draw.cloudParams, sizeof(saved_cloud_params));
+    memcpy(saved_light_map_params, g_draw.lightMapParams, sizeof(saved_light_map_params));
+    const bgfx::TextureHandle saved_cloud_texture = g_draw.cloudTex;
+    const bgfx::TextureHandle saved_light_map_texture = g_draw.lightMapTex;
+
     // The uber shader projects the cloud map as (world * stretch) + scroll and the light map as
     // world * stretch, so neither takes a world offset.
     Set_Cloud_Shadow_Params(road.cloud_texture != nullptr, road.cloud_projection.bias_u, road.cloud_projection.bias_v,
@@ -11945,6 +11954,11 @@ void BgfxBackend::Draw_Road(const RenderBackendRoadDraw & road, unsigned short s
     ShaderClass::Invalidate();
     Clear_Texture_Projection(0);
     Clear_Texture_Projection(1);
+
+    memcpy(g_draw.cloudParams, saved_cloud_params, sizeof(saved_cloud_params));
+    memcpy(g_draw.lightMapParams, saved_light_map_params, sizeof(saved_light_map_params));
+    g_draw.cloudTex = saved_cloud_texture;
+    g_draw.lightMapTex = saved_light_map_texture;
 }
 
 void BgfxBackend::Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection)
