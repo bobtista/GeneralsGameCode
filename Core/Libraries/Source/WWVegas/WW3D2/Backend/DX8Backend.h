@@ -247,6 +247,10 @@ public:
                                             unsigned argument_index,
                                             RenderBackendTextureArgument arg) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
+    virtual void Create_Effect_Resources(bool allow_pixel_shaders) override;
+    virtual void Release_Effect_Resources() override;
+    virtual void Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
+                           unsigned short min_vertex_index, unsigned short vertex_count) override;
     virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) override;
     virtual void Clear_Texture_Projection(unsigned stage) override;
     virtual CullMode Get_Cull_Mode() const override;
@@ -369,5 +373,9 @@ public:
 private:
     explicit DX8Backend(bool lite);
 
+    void Set_Road_Pixel_Shader_State(const RenderBackendRoadDraw & road);
+    void Set_Road_Stage_State(const RenderBackendRoadDraw & road, int pass);
+
     bool Lite;
+    unsigned long RoadPixelShader;
 };

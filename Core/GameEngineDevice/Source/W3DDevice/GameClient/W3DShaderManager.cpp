@@ -2490,6 +2490,8 @@ void W3DShaderManager::init()
 		}
 	}
 
+	WW3D::Get_Render_Backend()->Create_Effect_Resources(getChipset() >= DC_GENERIC_PIXEL_SHADER_1_1);
+
 	W3DShaderInterface **shaders;
 
 	for (i=0; MasterShaderList[i] != nullptr; i++)
@@ -2528,6 +2530,7 @@ void W3DShaderManager::shutdown()
 	m_renderingToTexture = false;
 	m_currentShader = ST_INVALID;
 	m_currentFilter = FT_NULL_FILTER;
+	WW3D::Get_Render_Backend()->Release_Effect_Resources();
 	//release any assets associated with a shader (vertex/pixel shaders, textures, etc.)
 	Int i=0;
 	for (; i<W3DShaderManager::ST_MAX; i++) {
