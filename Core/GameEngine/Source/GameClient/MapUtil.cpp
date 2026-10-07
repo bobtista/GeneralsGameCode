@@ -1156,7 +1156,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 	for(Int i = 0; i < portableName.getLength(); ++i)
 	{
 		char c = portableName.getCharAt(i);
-		if (c == '\\' || c == ':')
+		if (isPathSeparator(c) || c == ':')
 			tempName.concat('_');
 		else
 			tempName.concat(c);

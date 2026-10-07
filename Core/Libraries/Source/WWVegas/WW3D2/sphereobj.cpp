@@ -1176,7 +1176,7 @@ SpherePrototypeClass::SpherePrototypeClass(SphereRenderObjClass *sphere)
 	//
 	if (sphere->SphereTexture != nullptr) {
 		StringClass name = sphere->SphereTexture->Get_Full_Path();
-		const char *filename = ::strrchr (name, '\\');
+		const char *filename = getLastPathSeparator (name);
 		if (filename != nullptr) {
 			filename ++;
 		} else {
