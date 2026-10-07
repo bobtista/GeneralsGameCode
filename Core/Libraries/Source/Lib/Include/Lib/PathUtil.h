@@ -48,6 +48,11 @@ inline bool isPathSeparator(char ch)
 	return ch == '/' || ch == '\\';
 }
 
+inline bool isPathSeparator(wchar_t ch)
+{
+	return ch == L'/' || ch == L'\\';
+}
+
 inline bool isAbsolutePath(const char* path)
 {
 	if (path == nullptr)
