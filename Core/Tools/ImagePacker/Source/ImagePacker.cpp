@@ -831,7 +831,7 @@ void ImagePacker::addImage( char *path )
 	for( i = len - 1; i >= 0; i-- )
 	{
 
-		if( path[ i ] == '\\' )
+		if( isPathSeparator( path[ i ] ) )
 		{
 			c = &path[ i + 1 ];
 			break;
