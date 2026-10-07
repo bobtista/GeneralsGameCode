@@ -341,6 +341,7 @@ struct RenderBackendWorldProjection
     float bias_v;
 };
 
+// Inputs of a road draw. A null texture leaves its term out.
 struct RenderBackendRoadDraw
 {
     TextureClass * cloud_texture;
@@ -1105,9 +1106,11 @@ public:
     virtual void Set_Object_Shroud_Alpha_Mask_Texture(TextureBaseClass * texture) {}
     virtual void Set_Shroud_Texture_Params(float offset_x, float offset_y,
                                            float scale_x, float scale_y) {}
-    // Draws the bound road geometry as texture(stage 0, mesh UV) * cloud * light map * vertex color,
-    // alpha blended (source alpha, inverse source alpha), depth test less-or-equal, no depth write,
-    // unlit. Draws keep their submission order.
+    // Creates the resources that effect draws need. Without pixel shaders, effects use texture stages only.
+    virtual void Create_Effect_Resources(bool allow_pixel_shaders) {}
+    virtual void Release_Effect_Resources() {}
+    // Draws the bound geometry as texture(stage 0) * cloud * light map * vertex color, alpha blended over
+    // the frame with depth test less-or-equal, no depth write and no lighting.
     virtual void Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
                            unsigned short min_vertex_index, unsigned short vertex_count) {}
     // Generates the stage's texture coordinates from world position, using the view transform current at the call.
