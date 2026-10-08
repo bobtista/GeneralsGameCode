@@ -3314,10 +3314,7 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 	}
 	Int stacking;
 	RenderBackendRoadDraw road;
-	road.cloud_texture = cloudTexture;
-	road.cloud_projection = W3DShaderManager::getCloudProjection();
-	road.light_map_texture = noiseTexture;
-	road.light_map_projection = W3DShaderManager::getLightMapProjection();
+	road.maps = W3DShaderManager::getGroundMaps(cloudTexture, noiseTexture);
 	road.trilinear_filtering = TheGlobalData && TheGlobalData->m_trilinearTerrainTex;
 
 

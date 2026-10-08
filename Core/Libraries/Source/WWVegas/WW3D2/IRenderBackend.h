@@ -341,14 +341,34 @@ struct RenderBackendWorldProjection
     float bias_v;
 };
 
-// Inputs of a road draw. A null texture leaves its term out.
-struct RenderBackendRoadDraw
+// The cloud shadow and light map multiplied into ground effects. A null texture leaves its term out.
+struct RenderBackendGroundMaps
 {
     TextureClass * cloud_texture;
     RenderBackendWorldProjection cloud_projection;
     TextureClass * light_map_texture;
     RenderBackendWorldProjection light_map_projection;
+};
+
+struct RenderBackendRoadDraw
+{
+    RenderBackendGroundMaps maps;
     bool trilinear_filtering;
+};
+
+enum RenderBackendTerrainFiltering
+{
+    RB_TERRAIN_FILTER_POINT,
+    RB_TERRAIN_FILTER_BILINEAR,
+    RB_TERRAIN_FILTER_TRILINEAR
+};
+
+// Inputs of a terrain draw. The atlas holds the base tile at UV0 and the blend tile at UV1.
+struct RenderBackendTerrainDraw
+{
+    TextureClass * atlas_texture;
+    RenderBackendGroundMaps maps;
+    RenderBackendTerrainFiltering filtering;
 };
 
 struct RenderBackendViewport
@@ -1113,6 +1133,11 @@ public:
     // the frame with depth test less-or-equal, no depth write and no lighting.
     virtual void Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
                            unsigned short min_vertex_index, unsigned short vertex_count) {}
+    // Draws each vertex buffer with the bound index buffer as
+    // lerp(atlas(uv0), atlas(uv1), diffuse.a) * diffuse.rgb * cloud * light map, opaque, with the depth state of the
+    // current shader.
+    virtual void Draw_Terrain(const RenderBackendTerrainDraw & terrain, VertexBufferClass * const * vertex_buffers,
+                              unsigned int vertex_buffer_count, unsigned short polygon_count, unsigned short vertex_count) {}
     // Generates the stage's texture coordinates from world position, using the view transform current at the call.
     virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) {}
     // Returns the stage to the mesh texture coordinates with the stage's own index.

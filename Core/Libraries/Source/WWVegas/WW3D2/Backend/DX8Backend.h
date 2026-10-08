@@ -251,6 +251,8 @@ public:
     virtual void Release_Effect_Resources() override;
     virtual void Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
                            unsigned short min_vertex_index, unsigned short vertex_count) override;
+    virtual void Draw_Terrain(const RenderBackendTerrainDraw & terrain, VertexBufferClass * const * vertex_buffers,
+                              unsigned int vertex_buffer_count, unsigned short polygon_count, unsigned short vertex_count) override;
     virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) override;
     virtual void Clear_Texture_Projection(unsigned stage) override;
     virtual CullMode Get_Cull_Mode() const override;
@@ -375,7 +377,13 @@ private:
 
     void Set_Road_Pixel_Shader_State(const RenderBackendRoadDraw & road);
     void Set_Road_Stage_State(const RenderBackendRoadDraw & road, int pass);
+    void Set_Terrain_Pixel_Shader_State(const RenderBackendTerrainDraw & terrain);
+    void Set_Terrain_Stage_State(const RenderBackendTerrainDraw & terrain, int pass);
+    void Release_Terrain_Pixel_Shaders();
 
     bool Lite;
     unsigned long RoadPixelShader;
+    unsigned long TerrainPixelShader;
+    unsigned long TerrainOneMapPixelShader;
+    unsigned long TerrainTwoMapsPixelShader;
 };
