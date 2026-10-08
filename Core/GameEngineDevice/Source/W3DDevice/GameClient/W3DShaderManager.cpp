@@ -1505,14 +1505,6 @@ public:
 	virtual Int shutdown() override;			///<release resources used by shader
 } flatTerrainShaderPixelShader;
 
-///8 stage terrain shader which only works on certain Nvidia cards.
-class TerrainShader8Stage : public W3DShaderInterface
-{
-	virtual Int set(Int pass) override;		///<setup shader for the specified rendering pass.
-	virtual void reset() override;		///<do any custom resetting necessary to bring W3D in sync.
-	virtual Int init() override;			///<perform any one time initialization and validation
-} terrainShader8Stage;
-
 //Offsets into constant register pool used by vertex shader
 #define CV_WORLDVIEWPROJ_0	0	//4 vectors for transform of world->clip space.
 
@@ -1533,7 +1525,6 @@ class TerrainShaderPixelShader : public W3DShaderInterface
 W3DShaderInterface *TerrainShaderList[]=
 {
 	&terrainShaderPixelShader,
-	&terrainShader8Stage,
 	&terrainShader2Stage,
 	nullptr
 };
@@ -1734,142 +1725,6 @@ Int TerrainShader2Stage::set(Int pass)
 	}
 
 	return TRUE;
-}
-
-Int TerrainShader8Stage::init()
-{
-	ChipsetType res;
-
-	//this shader will also use the 2Stage shader for some of the passes so initialize it too.
-	if (terrainShader2Stage.init() && (res=W3DShaderManager::getChipset()) >= DC_TNT && res <= DC_GEFORCE2)
-	{
-		W3DShaders[W3DShaderManager::ST_TERRAIN_BASE]=&terrainShader8Stage;
-		W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE]=1;
-		W3DShaders[W3DShaderManager::ST_TERRAIN_BASE_NOISE1]=&terrainShader8Stage;
-		W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE1]=2;
-		W3DShaders[W3DShaderManager::ST_TERRAIN_BASE_NOISE2]=&terrainShader8Stage;
-		W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE2]=2;
-		W3DShaders[W3DShaderManager::ST_TERRAIN_BASE_NOISE12]=&terrainShader8Stage;
-		W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE12]=2;
-		return TRUE;
-	}
-
-	return FALSE;
-}
-
-Int TerrainShader8Stage::set(Int pass)
-{
-	if (pass == 0)
-	{
-		WW3D::Get_Render_Backend()->Override_Terrain_Blend(true);
-
-		//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
-
-		W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_CLAMP);
-		W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
-		W3DShaderManager_SetTerrainBaseSamplers();
-
-		W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(0));
-		W3DShaderManager_BindStageTexture(1, W3DShaderManager::getShaderTexture(1));
-
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(0, 2, RB_TEXARG_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
-
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(1, 1, RB_TEXARG_DIFFUSE | RB_TEXARG_COMPLEMENT | RB_TEXARG_ALPHAREPLICATE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(1, 2, RB_TEXARG_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(1, RB_TEXOP_ADD);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(1, 1, RB_TEXARG_TFACTOR | RB_TEXARG_COMPLEMENT);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(1, 2, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(1, RB_TEXOP_ADD);
-
-		W3DShaderManager_BindStageTexture(2, nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 2);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(2, 1, RB_TEXARG_TEXTURE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(2, 2, RB_TEXARG_TEXTURE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(2, RB_TEXOP_MODULATE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(2, 1, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(2, 2, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(2, RB_TEXOP_MODULATE);
-
-		W3DShaderManager_BindStageTexture(3, nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(3, RB_TEXCOORD_MESH_UV, 3);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(3, 1, RB_TEXARG_DIFFUSE | RB_TEXARG_ALPHAREPLICATE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(3, 2, RB_TEXARG_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(3, RB_TEXOP_SELECTARG1);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(3, 1, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(3, 2, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(3, RB_TEXOP_SELECTARG1);
-
-		W3DShaderManager_BindStageTexture(4, nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(4, RB_TEXCOORD_MESH_UV, 4);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(4, 1, RB_TEXARG_CURRENT);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(4, 2, RB_TEXARG_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(4, RB_TEXOP_MODULATE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(4, 1, RB_TEXARG_CURRENT);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(4, 2, RB_TEXARG_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(4, RB_TEXOP_MODULATE);
-
-		W3DShaderManager_BindStageTexture(5, nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(5, RB_TEXCOORD_MESH_UV, 5);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(5, 1, RB_TEXARG_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(5, 2, RB_TEXARG_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(5, RB_TEXOP_ADD);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(5, 1, RB_TEXARG_TFACTOR | RB_TEXARG_COMPLEMENT);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(5, 2, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(5, RB_TEXOP_ADD);
-
-		W3DShaderManager_BindStageTexture(6, nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(6, RB_TEXCOORD_MESH_UV, 6);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(6, 1, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(6, 2, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(6, RB_TEXOP_MODULATE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(6, 1, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(6, 2, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(6, RB_TEXOP_MODULATE);
-
-		W3DShaderManager_BindStageTexture(7, nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(7, RB_TEXCOORD_MESH_UV, 7);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(7, 1, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(7, 2, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(7, RB_TEXOP_SELECTARG1);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(7, 1, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(7, 2, RB_TEXARG_TFACTOR);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(7, RB_TEXOP_SELECTARG1);
-	}
-	else
-	{
-		//setup cloud noise/pass
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(2, RB_TEXOP_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(2, RB_TEXOP_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(3, RB_TEXOP_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(3, RB_TEXOP_DISABLE);
-		WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();
-
-		terrainShader2Stage.set(2);
-	}
-	return TRUE;
-}
-
-void TerrainShader8Stage::reset()
-	{
-		WW3D::Get_Render_Backend()->Override_Terrain_Blend(false);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(2, RB_TEXOP_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(2, RB_TEXOP_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(3, RB_TEXOP_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(3, RB_TEXOP_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(4, RB_TEXOP_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(4, RB_TEXOP_DISABLE);
-
-	W3DShaderManager_BindStageTexture(0, nullptr);
-	W3DShaderManager_BindStageTexture(1, nullptr);
-	WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();
 }
 
 Int TerrainShaderPixelShader::shutdown()
