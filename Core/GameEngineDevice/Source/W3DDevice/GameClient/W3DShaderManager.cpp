@@ -2443,7 +2443,7 @@ void W3DShaderManager::pushLightMapToBackend(Bool enabled, TextureClass * noiseT
 	WW3D::Get_Render_Backend()->Set_Light_Map_Params(enabled ? true : false, stretch, noiseTex);
 }
 
-RenderBackendWorldProjection W3DShaderManager::getLightMapProjection()
+static RenderBackendWorldProjection getLightMapProjection()
 {
 	RenderBackendWorldProjection projection;
 	projection.offset_x = 0;
@@ -2455,12 +2455,22 @@ RenderBackendWorldProjection W3DShaderManager::getLightMapProjection()
 	return projection;
 }
 
-RenderBackendWorldProjection W3DShaderManager::getCloudProjection()
+static RenderBackendWorldProjection getCloudProjection()
 {
 	RenderBackendWorldProjection projection = getLightMapProjection();
 	projection.bias_u = terrainShader2Stage.m_xOffset;
 	projection.bias_v = terrainShader2Stage.m_yOffset;
 	return projection;
+}
+
+RenderBackendGroundMaps W3DShaderManager::getGroundMaps(TextureClass *cloudTexture, TextureClass *lightMapTexture)
+{
+	RenderBackendGroundMaps maps;
+	maps.cloud_texture = cloudTexture;
+	maps.cloud_projection = getCloudProjection();
+	maps.light_map_texture = lightMapTexture;
+	maps.light_map_projection = getLightMapProjection();
+	return maps;
 }
 
 // W3DShaderManager::getShaderPasses =======================================================

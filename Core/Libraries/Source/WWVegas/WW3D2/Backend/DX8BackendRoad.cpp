@@ -24,59 +24,11 @@
 #include "DX8Backend.h"
 
 #include "WW3D2/dx8wrapper.h"
-#include "WWLib/ffactory.h"
-#include "WWLib/wwfile.h"
-
-#include <vector>
-
-static DWORD Load_Pixel_Shader(const char * filename)
-{
-    file_auto_ptr file(_TheFileFactory, filename);
-    if (!file->Is_Available() || !file->Open())
-    {
-        return 0;
-    }
-
-    const int size = file->Size();
-    std::vector<DWORD> code((size + sizeof(DWORD) - 1) / sizeof(DWORD));
-    const int read = code.empty() ? 0 : file->Read(&code[0], size);
-    file->Close();
-    if (read != size || code.empty())
-    {
-        return 0;
-    }
-
-    DWORD handle = 0;
-    if (FAILED(DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader(&code[0], &handle)))
-    {
-        return 0;
-    }
-    return handle;
-}
-
-void DX8Backend::Create_Effect_Resources(bool allow_pixel_shaders)
-{
-    Release_Effect_Resources();
-
-    if (allow_pixel_shaders)
-    {
-        RoadPixelShader = Load_Pixel_Shader("shaders\\roadnoise2.pso");
-    }
-}
-
-void DX8Backend::Release_Effect_Resources()
-{
-    if (RoadPixelShader)
-    {
-        DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(RoadPixelShader);
-        RoadPixelShader = 0;
-    }
-}
 
 void DX8Backend::Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
                            unsigned short min_vertex_index, unsigned short vertex_count)
 {
-    const bool has_cloud_and_light_map = road.cloud_texture && road.light_map_texture;
+    const bool has_cloud_and_light_map = road.maps.cloud_texture && road.maps.light_map_texture;
 
     if (RoadPixelShader && has_cloud_and_light_map)
     {
@@ -134,8 +86,8 @@ void DX8Backend::Set_Road_Pixel_Shader_State(const RenderBackendRoadDraw & road)
 
     Set_Texture_Address_Mode(2, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
 
-    Set_Texture(1, road.cloud_texture);
-    Set_Texture(2, road.light_map_texture);
+    Set_Texture(1, road.maps.cloud_texture);
+    Set_Texture(2, road.maps.light_map_texture);
 
     DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(RoadPixelShader);
 
@@ -143,9 +95,9 @@ void DX8Backend::Set_Road_Pixel_Shader_State(const RenderBackendRoadDraw & road)
 
     Set_Texture_Min_Mag_Filter(2, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 
-    Set_World_Texture_Projection(1, road.cloud_projection);
+    Set_World_Texture_Projection(1, road.maps.cloud_projection);
 
-    Set_World_Texture_Projection(2, road.light_map_projection);
+    Set_World_Texture_Projection(2, road.maps.light_map_projection);
 }
 
 void DX8Backend::Set_Road_Stage_State(const RenderBackendRoadDraw & road, int pass)
@@ -172,7 +124,7 @@ void DX8Backend::Set_Road_Stage_State(const RenderBackendRoadDraw & road, int pa
     {
         Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 
-        if (road.cloud_texture || road.light_map_texture)
+        if (road.maps.cloud_texture || road.maps.light_map_texture)
         {
             //second texture unit will contain a noise pass
             if (road.trilinear_filtering)
@@ -189,19 +141,19 @@ void DX8Backend::Set_Road_Stage_State(const RenderBackendRoadDraw & road, int pa
             DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_CURRENT );
             DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
 
-            if (road.cloud_texture)
+            if (road.maps.cloud_texture)
             {
                 //cloud map, the light map follows in pass 1 when there is one.
-                Set_Texture(1, road.cloud_texture);
+                Set_Texture(1, road.maps.cloud_texture);
                 Set_Texture_Min_Mag_Filter(1, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
-                Set_World_Texture_Projection(1, road.cloud_projection);
+                Set_World_Texture_Projection(1, road.maps.cloud_projection);
             }
             else
             {
                 //light map
-                Set_Texture(1, road.light_map_texture);
+                Set_Texture(1, road.maps.light_map_texture);
                 Set_Texture_Min_Mag_Filter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
-                Set_World_Texture_Projection(1, road.light_map_projection);
+                Set_World_Texture_Projection(1, road.maps.light_map_projection);
             }
         }
         else
@@ -219,13 +171,13 @@ void DX8Backend::Set_Road_Stage_State(const RenderBackendRoadDraw & road, int pa
         else
             Set_Texture_Mip_Filter(1, RB_TEXTURE_SAMPLE_POINT);
 
-        Set_Texture(1, road.light_map_texture);
+        Set_Texture(1, road.maps.light_map_texture);
 
         Set_Texture_Min_Mag_Filter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 
         // TheSuperHackers @info bobtista 06/10/2026 Retail set the light map matrix on stage 0 instead of
         // stage 1, so stage 1 keeps the cloud projection from pass 0.
-        Set_World_Texture_Projection(1, road.cloud_projection);
+        Set_World_Texture_Projection(1, road.maps.cloud_projection);
 
         Set_Texture_Address_Mode(1, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
 

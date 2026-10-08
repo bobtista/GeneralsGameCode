@@ -11909,23 +11909,48 @@ void BgfxBackend::Set_Shroud_Texture_Params(float offset_x, float offset_y,
     g_draw.shroudTextureParamsValid = true;
 }
 
+// The ground maps of an effect apply to its own draws only. The previous ground maps are restored afterwards,
+// so they do not leak into later draws.
+struct SavedGroundMaps
+{
+    float cloud_params[4];
+    float light_map_params[4];
+    bgfx::TextureHandle cloud_texture;
+    bgfx::TextureHandle light_map_texture;
+};
+
+static SavedGroundMaps Save_Ground_Maps()
+{
+    SavedGroundMaps saved;
+    memcpy(saved.cloud_params, g_draw.cloudParams, sizeof(saved.cloud_params));
+    memcpy(saved.light_map_params, g_draw.lightMapParams, sizeof(saved.light_map_params));
+    saved.cloud_texture = g_draw.cloudTex;
+    saved.light_map_texture = g_draw.lightMapTex;
+    return saved;
+}
+
+static void Restore_Ground_Maps(const SavedGroundMaps & saved)
+{
+    memcpy(g_draw.cloudParams, saved.cloud_params, sizeof(saved.cloud_params));
+    memcpy(g_draw.lightMapParams, saved.light_map_params, sizeof(saved.light_map_params));
+    g_draw.cloudTex = saved.cloud_texture;
+    g_draw.lightMapTex = saved.light_map_texture;
+}
+
+void BgfxBackend::Set_Ground_Maps(const RenderBackendGroundMaps & maps)
+{
+    // The uber shader projects the cloud map as (world * stretch) + scroll and the light map as
+    // world * stretch, so neither takes a world offset.
+    Set_Cloud_Shadow_Params(maps.cloud_texture != nullptr, maps.cloud_projection.bias_u, maps.cloud_projection.bias_v,
+                            maps.cloud_projection.scale_x, maps.cloud_texture);
+    Set_Light_Map_Params(maps.light_map_texture != nullptr, maps.light_map_projection.scale_x, maps.light_map_texture);
+}
+
 void BgfxBackend::Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
                             unsigned short min_vertex_index, unsigned short vertex_count)
 {
-    // The road's cloud and light map apply to this draw only. Restore the previous ground maps afterwards,
-    // so they do not leak into later draws.
-    float saved_cloud_params[4];
-    float saved_light_map_params[4];
-    memcpy(saved_cloud_params, g_draw.cloudParams, sizeof(saved_cloud_params));
-    memcpy(saved_light_map_params, g_draw.lightMapParams, sizeof(saved_light_map_params));
-    const bgfx::TextureHandle saved_cloud_texture = g_draw.cloudTex;
-    const bgfx::TextureHandle saved_light_map_texture = g_draw.lightMapTex;
-
-    // The uber shader projects the cloud map as (world * stretch) + scroll and the light map as
-    // world * stretch, so neither takes a world offset.
-    Set_Cloud_Shadow_Params(road.cloud_texture != nullptr, road.cloud_projection.bias_u, road.cloud_projection.bias_v,
-                            road.cloud_projection.scale_x, road.cloud_texture);
-    Set_Light_Map_Params(road.light_map_texture != nullptr, road.light_map_projection.scale_x, road.light_map_texture);
+    const SavedGroundMaps saved = Save_Ground_Maps();
+    Set_Ground_Maps(road.maps);
 
     Override_Terrain_Blend(false);
     Apply_Render_State_Changes();
@@ -11955,10 +11980,88 @@ void BgfxBackend::Draw_Road(const RenderBackendRoadDraw & road, unsigned short s
     Clear_Texture_Projection(0);
     Clear_Texture_Projection(1);
 
-    memcpy(g_draw.cloudParams, saved_cloud_params, sizeof(saved_cloud_params));
-    memcpy(g_draw.lightMapParams, saved_light_map_params, sizeof(saved_light_map_params));
-    g_draw.cloudTex = saved_cloud_texture;
-    g_draw.lightMapTex = saved_light_map_texture;
+    Restore_Ground_Maps(saved);
+}
+
+static RenderBackendTextureSampleFilter Terrain_Min_Mag_Filter(RenderBackendTerrainFiltering filtering)
+{
+    return filtering != RB_TERRAIN_FILTER_POINT ? RB_TEXTURE_SAMPLE_LINEAR : RB_TEXTURE_SAMPLE_POINT;
+}
+
+void BgfxBackend::Draw_Terrain(const RenderBackendTerrainDraw & terrain, VertexBufferClass * const * vertex_buffers,
+                               unsigned int vertex_buffer_count, unsigned short polygon_count, unsigned short vertex_count)
+{
+    const SavedGroundMaps saved = Save_Ground_Maps();
+    Set_Ground_Maps(terrain.maps);
+
+    // Bind every terrain stage, so 2D atlas bindings from earlier passes cannot leak into the terrain draw.
+    Set_Texture(0, terrain.atlas_texture);
+    Set_Texture(1, terrain.atlas_texture);
+    Set_Texture(2, terrain.maps.cloud_texture);
+    Set_Texture(3, terrain.maps.light_map_texture);
+
+    // The uber shader blends the two atlas tiles by vertex alpha in its terrain branch.
+    Override_Terrain_Blend(true);
+    Apply_Render_State_Changes();
+
+    Bind_Texture_Immediate(0, terrain.atlas_texture);
+    Bind_Texture_Immediate(1, terrain.atlas_texture);
+    Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_WRAP);
+    Set_Texture_Address_Mode(1, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_WRAP);
+    Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+    Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
+
+    const RenderBackendTextureSampleFilter min_mag_filter = Terrain_Min_Mag_Filter(terrain.filtering);
+    const RenderBackendTextureSampleFilter stage0_mip_filter =
+        terrain.filtering == RB_TERRAIN_FILTER_TRILINEAR ? RB_TEXTURE_SAMPLE_LINEAR : RB_TEXTURE_SAMPLE_POINT;
+    Set_Texture_Sample_Filter(0, min_mag_filter, min_mag_filter, stage0_mip_filter);
+    Set_Texture_Sample_Filter(1, min_mag_filter, min_mag_filter, RB_TEXTURE_SAMPLE_LINEAR);
+
+    if (terrain.maps.cloud_texture && terrain.maps.light_map_texture)
+    {
+        Set_Texture_Address_Mode(2, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
+        Set_Texture_Address_Mode(3, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
+        Bind_Texture_Immediate(2, terrain.maps.cloud_texture);
+        Bind_Texture_Immediate(3, terrain.maps.light_map_texture);
+        Set_Texture_Min_Mag_Filter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
+        Set_Texture_Min_Mag_Filter(3, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
+        Set_World_Texture_Projection(2, terrain.maps.cloud_projection);
+        Set_World_Texture_Projection(3, terrain.maps.light_map_projection);
+    }
+    else if (terrain.maps.cloud_texture)
+    {
+        Set_Texture_Address_Mode(2, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
+        Bind_Texture_Immediate(2, terrain.maps.cloud_texture);
+        Set_Texture_Min_Mag_Filter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
+        Set_World_Texture_Projection(2, terrain.maps.cloud_projection);
+    }
+    else if (terrain.maps.light_map_texture)
+    {
+        Set_Texture_Address_Mode(2, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
+        Bind_Texture_Immediate(2, terrain.maps.light_map_texture);
+        Set_Texture_Min_Mag_Filter(2, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
+        Set_World_Texture_Projection(2, terrain.maps.light_map_projection);
+    }
+    Set_Pixel_Shader(0);
+
+    for (unsigned int i = 0; i < vertex_buffer_count; ++i)
+    {
+        Set_Vertex_Buffer(vertex_buffers[i], 0);
+        Draw_Triangles(0, polygon_count, 0, vertex_count);
+    }
+
+    Override_Terrain_Blend(false);
+    Bind_Texture_Immediate(2, nullptr);
+    Bind_Texture_Immediate(3, nullptr);
+    Bind_Texture_Immediate(0, nullptr);
+    Bind_Texture_Immediate(1, nullptr);
+    Clear_Texture_Projection(0);
+    Clear_Texture_Projection(1);
+    Clear_Texture_Projection(2);
+    Clear_Texture_Projection(3);
+    Invalidate_Cached_Render_States();
+
+    Restore_Ground_Maps(saved);
 }
 
 void BgfxBackend::Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection)

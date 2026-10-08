@@ -87,7 +87,7 @@ protected:
 	Int m_numExtraBlendTiles;		///<number of blend tiles in m_extraBlendTilePositions.
 	Int	m_numVisibleExtraBlendTiles; ///<number rendered last frame.
 	Int m_extraBlendTilePositionsSize; //<total size of array including unused memory.
-	RenderVertexBufferClass **m_vertexBufferTiles; ///<collection of smaller vertex buffers that make up 1 heightmap
+	VertexBufferClass **m_vertexBufferTiles; ///<collection of smaller vertex buffers that make up 1 heightmap
 	VERTEX_FORMAT *m_vertexBufferBackup; ///< In memory copy of the vertex buffer data for quick update of dynamic lighting.
 	Int m_originX; ///<  Origin point in the grid.  Slides around.
 	Int m_originY; ///< Origin point in the grid.  Slides around.

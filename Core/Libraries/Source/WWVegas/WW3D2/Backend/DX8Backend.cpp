@@ -190,7 +190,7 @@ static bool EnsureProfilerSwizzleShader()
 }
 }
 
-DX8Backend::DX8Backend(bool lite) : Lite(lite), RoadPixelShader(0)
+DX8Backend::DX8Backend(bool lite) : Lite(lite), RoadPixelShader(0), TerrainPixelShader(0), TerrainOneMapPixelShader(0), TerrainTwoMapsPixelShader(0)
 {
 }
 

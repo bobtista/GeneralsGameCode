@@ -158,7 +158,7 @@ Int HeightMapRenderObjClass::freeMapResources()
 
 RenderVertexBufferClass *HeightMapRenderObjClass::getVertexBufferTile(Int x, Int y)
 {
-	return m_vertexBufferTiles[y*m_numVBTilesX+x];
+	return static_cast<RenderVertexBufferClass *>(m_vertexBufferTiles[y*m_numVBTilesX+x]);
 }
 
 //=============================================================================
@@ -1326,7 +1326,7 @@ Int HeightMapRenderObjClass::initHeightData(Int x, Int y, WorldHeightMap *pMap, 
 		m_x=x;
 		m_y=y;
 
-		m_vertexBufferTiles = NEW RenderVertexBufferClass*[m_numVertexBufferTiles];
+		m_vertexBufferTiles = NEW VertexBufferClass*[m_numVertexBufferTiles];
 		m_vertexBufferBackup = NEW VERTEX_FORMAT [m_numVertexBufferTiles * HEIGHTMAP_VERTEX_NUM];
 
 		for (i=0; i<m_numVertexBufferTiles; i++) {
@@ -1890,7 +1890,6 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	//USE_PERF_TIMER(Terrain_Render)
 
 	Int i,j,devicePasses;
-	W3DShaderManager::ShaderTypes st;
 	const Bool doCloud = useCloud();
 
 	if (doCloud)
@@ -2003,68 +2002,36 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 		WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
 		WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
 
- 		st=W3DShaderManager::ST_TERRAIN_BASE; //set default shader
-
- 		//set correct shader based on current settings
- 		if (!ShaderClass::Is_Backface_Culling_Inverted())
- 		{
- 			//not reflection pass
- 			if (TheGlobalData->m_useLightMap && doCloud)
- 			{	st=W3DShaderManager::ST_TERRAIN_BASE_NOISE12;
- 			}
- 			else
- 			if (TheGlobalData->m_useLightMap)
- 			{
- 				//lightmap only
- 				st=W3DShaderManager::ST_TERRAIN_BASE_NOISE2;
- 			}
- 			else
- 			if (doCloud)
- 			{
- 				//cloudmap only
- 				st=W3DShaderManager::ST_TERRAIN_BASE_NOISE1;
- 			}
- 		}
- 		else
- 		{
- 			//reflection pass, just do base texture
- 			st=W3DShaderManager::ST_TERRAIN_BASE;
- 		}
-
- 		//Find number of passes required to render current shader
- 		devicePasses=W3DShaderManager::getShaderPasses(st);
-
- 		if (m_disableTextures)
- 			devicePasses=1;	//force to 1 lighting-only pass
-		// TheSuperHackers @bugfix bobtista 23/04/2026 Force single-pass
-		// terrain when using the shader pipeline. The legacy multipass
-		// path relies on fixed-function camera-space texcoord generation
-		// that the uber shader does not emulate. Cloud shadowing is already
-		// handled in a single pass via pushCloudShadowToBackend.
-		if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
-		{
-			devicePasses = 1;
-		}
-
- 		//Specify all textures that this shader may need.
- 		W3DShaderManager::setTexture(0,m_stageZeroTexture);
- 		W3DShaderManager::setTexture(1,m_stageZeroTexture);
- 		W3DShaderManager::setTexture(2,m_stageTwoTexture);	//cloud
- 		W3DShaderManager::setTexture(3,m_stageThreeTexture);//noise
-
-		// TheSuperHackers @bugfix bobtista 22/04/2026 Explicitly bind
-		// terrain textures to the shader pipeline so 2D-UI atlas bindings
-		// from the previous pass cannot leak into the 3D terrain draw.
-		if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
-		{
-			WW3D::Get_Render_Backend()->Set_Texture(0, m_stageZeroTexture);
-			WW3D::Get_Render_Backend()->Set_Texture(1, m_stageZeroTexture);
-			WW3D::Get_Render_Backend()->Set_Texture(2, m_stageTwoTexture);
-			WW3D::Get_Render_Backend()->Set_Texture(3, m_stageThreeTexture);
-		}
+		//Textured terrain is drawn by the backend below, so only the lighting-only pass uses the pass loop.
+		devicePasses = m_disableTextures ? 1 : 0;
 		//Disable writes to destination alpha channel (if there is one)
 		if (WW3D::Get_Render_Backend()->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8)
 			WW3D::Get_Render_Backend()->Set_Color_Write_Enable(true, true, true, false);
+	}
+
+	if (!doMultiPassWireFrame && !m_disableTextures)
+	{
+		RenderBackendTerrainDraw terrain;
+		terrain.atlas_texture = m_stageZeroTexture;
+		if (ShaderClass::Is_Backface_Culling_Inverted())
+		{
+			//reflection pass, just do base texture
+			terrain.maps = W3DShaderManager::getGroundMaps(nullptr, nullptr);
+		}
+		else
+		{
+			terrain.maps = W3DShaderManager::getGroundMaps(doCloud ? m_stageTwoTexture : nullptr,
+				TheGlobalData->m_useLightMap ? m_stageThreeTexture : nullptr);
+		}
+		if (TheGlobalData->m_trilinearTerrainTex)
+			terrain.filtering = RB_TERRAIN_FILTER_TRILINEAR;
+		else if (TheGlobalData->m_bilinearTerrainTex)
+			terrain.filtering = RB_TERRAIN_FILTER_BILINEAR;
+		else
+			terrain.filtering = RB_TERRAIN_FILTER_POINT;
+
+		const UnsignedInt vertexBufferCount = Is_Hidden() == 0 ? m_numVBTilesX*m_numVBTilesY : 0;
+		WW3D::Get_Render_Backend()->Draw_Terrain(terrain, m_vertexBufferTiles, vertexBufferCount, HEIGHTMAP_POLYGON_NUM, HEIGHTMAP_VERTEX_NUM);
 	}
 
 	Int pass;
@@ -2076,9 +2043,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  			if (m_disableTextures ) {
  				WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaque2DShader);
  				WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-   			} else {
- 				W3DShaderManager::setShader(st, pass);
-			}
+   			}
 		}
 
 		for (j=0; j<m_numVBTilesY; j++)
@@ -2094,9 +2059,6 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 
 	if (!doMultiPassWireFrame)
 	{
-		if (pass)	//shader was applied at least once?
- 			W3DShaderManager::resetShader(st);
-
 		//Draw feathered shorelines
 		renderShoreLines(&rinfo.Camera);
 
