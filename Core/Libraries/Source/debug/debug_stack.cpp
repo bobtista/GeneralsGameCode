@@ -171,8 +171,7 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr, char *buf, unsigned buf
   char symbolBuffer[512];
   GetModuleFileName((HMODULE)modBase,symbolBuffer,sizeof(symbolBuffer));
 
-  char *p=getLastPathSeparator(symbolBuffer); // use filename only, strip off path
-  p=p?p+1:symbolBuffer;
+  const char *p=getFileName(symbolBuffer); // use filename only, strip off path
   *buf++=' ';
   strcpy(buf,p);
   buf+=strlen(buf);
@@ -199,8 +198,7 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr, char *buf, unsigned buf
   if (!gDbg._SymGetLineFromAddr((HANDLE)GetCurrentProcessId(),addr,&displacement,&line))
     return;
 
-  p=getLastPathSeparator(line.FileName); // use filename only, strip off path
-  p=p?p+1:line.FileName;
+  p=getFileName(line.FileName); // use filename only, strip off path
 
   if ((unsigned int)(bufEnd-buf)<strlen(p)+16)
     return;
@@ -253,9 +251,7 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr,
   {
     GetModuleFileName((HMODULE)modBase,symbolBuffer,sizeof(symbolBuffer));
 
-    char *p=getLastPathSeparator(symbolBuffer); // use filename only, strip off path
-    p=p?p+1:symbolBuffer;
-    strlcpy(bufMod,p,sizeMod);
+    strlcpy(bufMod,getFileName(symbolBuffer),sizeMod); // use filename only, strip off path
   }
   if (relMod)
     *relMod=addr-modBase;
@@ -289,9 +285,7 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr,
       strcpy(bufFile,"(unknown)");
     else
     {
-      char *p=getLastPathSeparator(line.FileName); // use filename only, strip off path
-      p=p?p+1:line.FileName;
-      strlcpy(bufFile,p,sizeFile);
+      strlcpy(bufFile,getFileName(line.FileName),sizeFile); // use filename only, strip off path
       if (linePtr)
         *linePtr=line.LineNumber;
       if (relLine)

@@ -125,11 +125,7 @@ void Msg( int line, const char *filename, const char *fmt, ... )
 	//----------------------------------------------------------------------
 	// Make filename.
 	//----------------------------------------------------------------------
-	const char *temp = getLastPathSeparator( filename );
-	if ( temp != nullptr || temp[0] != '\0' ) {
-		temp++;
-		strcpy( szFile, temp );
-	}
+	strcpy( szFile, getFileName( filename ) );
 
 	//----------------------------------------------------------------------
 	// format message with header
@@ -207,12 +203,9 @@ void Msg( int line, const char *filename, const wchar_t *fmt, UINT codepage, ...
 	//----------------------------------------------------------------------
 	// Make filename.
 	//----------------------------------------------------------------------
-	const char *temp = getLastPathSeparator( filename );
-	if ( temp != nullptr || temp[0] != '\0' ) {
-		temp++;
-		length = strlen( temp );
-		mbstowcs( szFile, temp, length );
-	}
+	const char *temp = getFileName( filename );
+	length = strlen( temp );
+	mbstowcs( szFile, temp, length );
 
 	//----------------------------------------------------------------------
 	// format message with header

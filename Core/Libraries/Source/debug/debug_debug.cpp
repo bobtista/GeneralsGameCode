@@ -1228,8 +1228,7 @@ Debug::FrameHashEntry* Debug::AddFrameEntry(unsigned addr, unsigned type,
   else
   {
     // no, just add file name (without path though)
-    e->fileOrGroup=fileOrGroup?getLastPathSeparator(fileOrGroup):nullptr;
-    e->fileOrGroup=e->fileOrGroup?e->fileOrGroup+1:fileOrGroup;
+    e->fileOrGroup=getFileName(fileOrGroup);
   }
 
   // add to hash
