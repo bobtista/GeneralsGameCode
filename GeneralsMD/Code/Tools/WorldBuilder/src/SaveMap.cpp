@@ -129,12 +129,7 @@ void SaveMap::populateMapListbox( Bool systemMaps )
 		strcpy(dirBuf, ".\\Maps\\");
 	else
 		snprintf(dirBuf, ARRAY_SIZE(dirBuf), "%sMaps\\", TheGlobalData->getPath_UserData().str());
-	int len = strlen(dirBuf);
-
-	if (len > 0 && !isPathSeparator(dirBuf[len - 1])) {
-		dirBuf[len++] = '\\';
-		dirBuf[len] = 0;
-	}
+	appendPathSeparator(dirBuf, ARRAY_SIZE(dirBuf));
 	CListBox *pList = (CListBox *)this->GetDlgItem(IDC_SAVE_LIST);
 	if (pList == nullptr) return;
 	pList->ResetContent();
