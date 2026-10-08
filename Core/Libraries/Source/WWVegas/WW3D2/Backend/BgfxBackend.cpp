@@ -13754,23 +13754,15 @@ void SubmitEngineDraw(unsigned short start_index,
     // pre-reassignment engine view let elision skip uploads the shroud view never saw
     // (shroud overlay inheriting lit state) and let later engine draws reuse guard
     // entries whose values actually played in the shroud view.
-    // Detect shroud pass: legacy setup uses TCI_CAMERASPACEPOSITION + depth func
-    // EQUAL to render a multiplicative shroud overlay. Both conditions must
-    // be true to avoid false positives from other effects that set TCI bits.
+    // Detect the shroud overlay: an explicit shroud pass on stage 0, drawn at equal depth with
+    // the world projection. Its world-space params come from Set_World_Texture_Projection.
     bool shroudDetected = false;
     {
         unsigned depthFunc = g_draw.depthFunc;
         const unsigned stg = 0;
         unsigned tci = g_draw.texcoordIndex[stg];
-        float shroudParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-        // Projected terrain receivers and cloud/noise stages also use
-        // TCI_CAMERASPACEPOSITION. Only the actual shroud overlay uses the
-        // stage-0 multiplicative sprite path that needs this world-space
-        // shortcut; projector receivers must keep the normal texture matrix.
         const bool explicitShroudPass =
             g_views.shroudTexturePassActive && g_views.shroudTexturePassStage == stg;
-        const bool legacyShroudSignature =
-            g_draw.tssOps0[0] > 2.5f && g_draw.tssOps0[0] < 3.5f;
         if (explicitShroudPass)
         {
             // Shroud setup is explicit backend state. It must not inherit a
@@ -13778,47 +13770,15 @@ void SubmitEngineDraw(unsigned short start_index,
             g_draw.stencilEnabled = false;
         }
         if (depthFunc == static_cast<unsigned>(RB_CMP_EQUAL)
-            && (explicitShroudPass || (!g_draw.stencilEnabled && legacyShroudSignature)))
+            && explicitShroudPass
+            && (tci & kTexcoordGenCameraPosition)
+            && g_draw.shroudTextureParamsValid)
         {
-            if (tci & kTexcoordGenCameraPosition)
+            shroudDetected = true;
+            g_draw.texcoordSelect[2] = 1.0f;
+            if (bgfx::isValid(g_uniforms.uShroudParams))
             {
-                shroudDetected = true;
-                g_draw.texcoordSelect[2] = 1.0f;
-                if (g_draw.shroudTextureParamsValid)
-                {
-                    std::memcpy(shroudParams, g_draw.shroudTextureParams, sizeof(shroudParams));
-                }
-                else
-                {
-                    // Legacy fallback for call sites that only expose the cached
-                    // texture matrix. Dedicated shroud setup paths provide
-                    // direct world-space params; decomposing camera-space
-                    // matrices is fragile across compatibility layers.
-                    auto texMtx = MakeIdentityLegacyCacheMatrix();
-                    FixedFunctionState::Transform_Matrix(kTextureTransformStage0 + stg, texMtx);
-                    auto viewMtx = MakeIdentityLegacyCacheMatrix();
-                    FixedFunctionState::Transform_Matrix(kTransformView, viewMtx);
-                    auto ts = MakeIdentityLegacyCacheMatrix();
-                    for (int rr = 0; rr < 4; rr++)
-                    {
-                        for (int cc = 0; cc < 4; cc++)
-                        {
-                            ts.m[rr][cc] = 0;
-                            for (int k = 0; k < 4; k++)
-                            {
-                                ts.m[rr][cc] += viewMtx.m[rr][k] * texMtx.m[k][cc];
-                            }
-                        }
-                    }
-                    shroudParams[0] = (ts.m[0][0] != 0.0f) ? ts.m[3][0] / ts.m[0][0] : 0.0f;
-                    shroudParams[1] = (ts.m[1][1] != 0.0f) ? ts.m[3][1] / ts.m[1][1] : 0.0f;
-                    shroudParams[2] = ts.m[0][0];
-                    shroudParams[3] = ts.m[1][1];
-                }
-                if (bgfx::isValid(g_uniforms.uShroudParams))
-                {
-                    bgfx::setUniform(g_uniforms.uShroudParams, shroudParams);
-                }
+                bgfx::setUniform(g_uniforms.uShroudParams, g_draw.shroudTextureParams);
             }
         }
         if (!shroudDetected)
@@ -13844,7 +13804,7 @@ void SubmitEngineDraw(unsigned short start_index,
             || depthFunc == static_cast<unsigned>(RB_CMP_EQUAL)
             || shroudDetected)
         {
-            LogBgfxShroudPass("shroud-candidate", submitView, polygon_count, depthFunc, tci, shroudDetected, shroudParams);
+            LogBgfxShroudPass("shroud-candidate", submitView, polygon_count, depthFunc, tci, shroudDetected, g_draw.shroudTextureParams);
         }
     }
 
