@@ -119,6 +119,22 @@ inline char* getFileName(char* path)
 	return const_cast<char*>(getFileName(static_cast<const char*>(path)));
 }
 
+inline bool appendPathSeparator(char* path, size_t size)
+{
+	const size_t len = strlen(path);
+	if (len == 0 || isPathSeparator(path[len - 1]))
+	{
+		return true;
+	}
+	if (len + 1 >= size)
+	{
+		return false;
+	}
+	path[len] = getNativePathSeparator();
+	path[len + 1] = '\0';
+	return true;
+}
+
 inline const char* getExtension(const char* path)
 {
 	const char* lastDot = strrchr(path, '.');
