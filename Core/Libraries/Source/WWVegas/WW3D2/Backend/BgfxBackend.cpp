@@ -11983,6 +11983,32 @@ void BgfxBackend::Draw_Road(const RenderBackendRoadDraw & road, unsigned short s
     Restore_Ground_Maps(saved);
 }
 
+void BgfxBackend::Begin_Shroud_Overlay(const RenderBackendShroud & shroud)
+{
+    // The overlay reuses the vertex buffers of the base draws, so it must not take the terrain branch.
+    Override_Terrain_Blend(false);
+
+    VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
+    Set_Material(vmat);
+    REF_PTR_RELEASE(vmat);
+    Bind_Texture_Immediate(0, shroud.texture);
+    Set_Shroud_Texture_Pass_Active(true, 0);
+
+    Set_Shader(ShaderClass::_PresetMultiplicativeSpriteShader);
+    Apply_Render_State_Changes();
+    Set_Depth_Func(RB_CMP_EQUAL);
+
+    Set_World_Texture_Projection(0, shroud.projection);
+}
+
+void BgfxBackend::End_Shroud_Overlay()
+{
+    Set_Shroud_Texture_Pass_Active(false, 0);
+    Set_Texture(0, nullptr);
+    Set_Depth_Func(RB_CMP_LESS_EQUAL);
+    Clear_Texture_Projection(0);
+}
+
 static RenderBackendTextureSampleFilter Terrain_Min_Mag_Filter(RenderBackendTerrainFiltering filtering)
 {
     return filtering != RB_TERRAIN_FILTER_POINT ? RB_TEXTURE_SAMPLE_LINEAR : RB_TEXTURE_SAMPLE_POINT;

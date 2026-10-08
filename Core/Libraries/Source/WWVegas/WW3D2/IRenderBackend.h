@@ -356,6 +356,13 @@ struct RenderBackendRoadDraw
     bool trilinear_filtering;
 };
 
+// The shroud darkening ground and objects. A null texture means no shroud.
+struct RenderBackendShroud
+{
+    TextureClass * texture;
+    RenderBackendWorldProjection projection;
+};
+
 enum RenderBackendTerrainFiltering
 {
     RB_TERRAIN_FILTER_POINT,
@@ -1138,6 +1145,10 @@ public:
     // current shader.
     virtual void Draw_Terrain(const RenderBackendTerrainDraw & terrain, VertexBufferClass * const * vertex_buffers,
                               unsigned int vertex_buffer_count, unsigned short polygon_count, unsigned short vertex_count) {}
+    // Draws until End_Shroud_Overlay multiply the frame by the shroud at the drawn world position. Only pixels
+    // at the depth of the drawn geometry change. Depth is not written.
+    virtual void Begin_Shroud_Overlay(const RenderBackendShroud & shroud) {}
+    virtual void End_Shroud_Overlay() {}
     // Generates the stage's texture coordinates from world position, using the view transform current at the call.
     virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) {}
     // Returns the stage to the mesh texture coordinates with the stage's own index.

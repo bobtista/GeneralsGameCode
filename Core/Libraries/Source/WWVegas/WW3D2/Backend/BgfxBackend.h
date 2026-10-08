@@ -318,6 +318,8 @@ public:
                            unsigned short min_vertex_index, unsigned short vertex_count) override;
     virtual void Draw_Terrain(const RenderBackendTerrainDraw & terrain, VertexBufferClass * const * vertex_buffers,
                               unsigned int vertex_buffer_count, unsigned short polygon_count, unsigned short vertex_count) override;
+    virtual void Begin_Shroud_Overlay(const RenderBackendShroud & shroud) override;
+    virtual void End_Shroud_Overlay() override;
     virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) override;
     virtual void Clear_Texture_Projection(unsigned stage) override;
     virtual void Set_Shroud_Texture_Params(float offset_x, float offset_y,
