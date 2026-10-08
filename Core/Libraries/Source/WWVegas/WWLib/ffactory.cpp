@@ -237,14 +237,7 @@ FileClass * SimpleFileFactoryClass::Get_File( char const *filename )
 	// concatenated which may not produce reasonable results.
 	StringClass stripped_name(true);
 	if (IsStripPath) {
-		const char * ptr = getLastPathSeparator( filename );
-
-		if (ptr != nullptr) {
-			ptr++;
-			stripped_name = ptr;
-		} else {
-			stripped_name = filename;
-		}
+		stripped_name = getFileName( filename );
 	} else {
 		stripped_name = filename;
 	}
