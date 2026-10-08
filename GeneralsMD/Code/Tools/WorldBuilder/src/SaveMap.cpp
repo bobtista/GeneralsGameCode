@@ -170,14 +170,7 @@ void SaveMap::populateMapListbox( Bool systemMaps )
 			// strip of the .map
 			fileBuf[len-4] = 0;
 		}
-		while (len>0) {
-			if (isPathSeparator(fileBuf[len])) {
-				len++;
-				break;
-			}
-			len--;
-		}
-		pEdit->SetWindowText(&fileBuf[len]);
+		pEdit->SetWindowText(getFileName(fileBuf));
 		pEdit->SetSel(0, 1000, true);
 		pEdit->SetFocus();
 	}

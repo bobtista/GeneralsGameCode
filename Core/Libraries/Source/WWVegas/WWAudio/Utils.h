@@ -76,15 +76,5 @@ class MMSLockClass
 __inline LPCTSTR
 Get_Filename_From_Path (LPCTSTR path)
 {
-	// Find the last occurrence of the directory deliminator
-	LPCTSTR filename = getLastPathSeparator (path);
-	if (filename != nullptr) {
-		// Increment past the directory deliminator
-		filename ++;
-	} else {
-		filename = path;
-	}
-
-	// Return the filename part of the path
-	return filename;
+	return getFileName (path);
 }
