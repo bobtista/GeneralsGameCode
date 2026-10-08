@@ -278,6 +278,7 @@ if(GGC_RENDER_BACKEND STREQUAL "dx8")
         ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8Backend.h
         ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8BackendEffects.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8BackendRoad.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8BackendShroud.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8BackendTerrain.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.h

@@ -879,8 +879,7 @@ void W3DShroudMaterialPassClass::Install_Materials() const
 {
 	if (TheTerrainRenderObject->getShroud())
 	{
-		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
-		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
+		W3DShaderManager::beginShroudOverlay();
 		if (WW3D::Get_Render_Backend())
 		{
 			if (m_isTransparentObjectPass)
@@ -901,7 +900,10 @@ void W3DShroudMaterialPassClass::UnInstall_Materials() const
 		WW3D::Get_Render_Backend()->Set_Object_Shroud_Texture_Pass_Active(false);
 		WW3D::Get_Render_Backend()->Set_Object_Shroud_Alpha_Mask_Texture(nullptr);
 	}
-	W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
+	if (TheTerrainRenderObject->getShroud())
+	{
+		W3DShaderManager::endShroudOverlay();
+	}
 }
 
 //-----------------------------------------------------------------------------

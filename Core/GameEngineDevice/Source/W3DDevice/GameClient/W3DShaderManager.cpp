@@ -1230,6 +1230,31 @@ Int ShroudTextureShader::init()
 	return TRUE;
 }
 
+//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
+//is 1/128 the size of full texture. (assuming 128x128 vid-mem texture).
+static RenderBackendWorldProjection getShroudProjection(W3DShroud *shroud)
+{
+	//We need to make all world coordinates be relative to the heightmap data origin since that
+	//is where the shroud begins.
+	Real width=shroud->getCellWidth();
+	Real height=shroud->getCellHeight();
+
+	RenderBackendWorldProjection projection;
+	projection.offset_x = 0;
+	projection.offset_y = 0;
+	if (TheTerrainRenderObject->getMap())
+	{
+		//subtract origin position from all coordinates.  Origin is shifted by 1 cell width/height to allow for unused border texels.
+		projection.offset_x = -(float)shroud->getDrawOriginX() + width;
+		projection.offset_y = -(float)shroud->getDrawOriginY() + height;
+	}
+	projection.scale_x = 1.0f/(width*shroud->getTextureWidth());
+	projection.scale_y = 1.0f/(height*shroud->getTextureHeight());
+	projection.bias_u = 0;
+	projection.bias_v = 0;
+	return projection;
+}
+
 //Setup a texture projection in the given stage that applies our shroud.
 Int ShroudTextureShader::set(Int stage)
 {
@@ -1260,30 +1285,10 @@ Int ShroudTextureShader::set(Int stage)
 	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
 	WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_EQUAL);
 
-	//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
-	//is 1/128 the size of full texture. (assuming 128x128 vid-mem texture).
 	W3DShroud *shroud;
 	if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 	{
-		//We need to make all world coordinates be relative to the heightmap data origin since that
-		//is where the shroud begins.
-		Real width=shroud->getCellWidth();
-		Real height=shroud->getCellHeight();
-
-		RenderBackendWorldProjection projection;
-		projection.offset_x = 0;
-		projection.offset_y = 0;
-		if (TheTerrainRenderObject->getMap())
-		{
-			//subtract origin position from all coordinates.  Origin is shifted by 1 cell width/height to allow for unused border texels.
-			projection.offset_x = -(float)shroud->getDrawOriginX() + width;
-			projection.offset_y = -(float)shroud->getDrawOriginY() + height;
-		}
-		projection.scale_x = 1.0f/(width*shroud->getTextureWidth());
-		projection.scale_y = 1.0f/(height*shroud->getTextureHeight());
-		projection.bias_u = 0;
-		projection.bias_v = 0;
-		WW3D::Get_Render_Backend()->Set_World_Texture_Projection(stage, projection);
+		WW3D::Get_Render_Backend()->Set_World_Texture_Projection(stage, getShroudProjection(shroud));
 	}
 	m_stageOfSet=stage;
 	return TRUE;
@@ -2461,6 +2466,35 @@ static RenderBackendWorldProjection getCloudProjection()
 	projection.bias_u = terrainShader2Stage.m_xOffset;
 	projection.bias_v = terrainShader2Stage.m_yOffset;
 	return projection;
+}
+
+void W3DShaderManager::beginShroudOverlay()
+{
+	W3DShroud *shroud = TheTerrainRenderObject->getShroud();
+#if defined(RTS_DEBUG)
+	if (TheGlobalData && TheGlobalData->m_fogOfWarOn)
+	{
+		setTexture(0, shroud->getShroudTexture());
+		setShader(ST_SHROUD_TEXTURE, 0);
+		return;
+	}
+#endif
+	RenderBackendShroud overlay;
+	overlay.texture = shroud->getShroudTexture();
+	overlay.projection = getShroudProjection(shroud);
+	WW3D::Get_Render_Backend()->Begin_Shroud_Overlay(overlay);
+}
+
+void W3DShaderManager::endShroudOverlay()
+{
+#if defined(RTS_DEBUG)
+	if (TheGlobalData && TheGlobalData->m_fogOfWarOn)
+	{
+		resetShader(ST_SHROUD_TEXTURE);
+		return;
+	}
+#endif
+	WW3D::Get_Render_Backend()->End_Shroud_Overlay();
 }
 
 RenderBackendGroundMaps W3DShaderManager::getGroundMaps(TextureClass *cloudTexture, TextureClass *lightMapTexture)
