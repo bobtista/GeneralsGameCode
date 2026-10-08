@@ -402,17 +402,7 @@ Filename_From_Asset_Name (LPCTSTR asset_name)
 CString
 Get_Filename_From_Path (LPCTSTR path)
 {
-	// Find the last occurrence of the directory deliminator
-	LPCTSTR filename = getLastPathSeparator (path);
-	if (filename != nullptr) {
-		// Increment past the directory deliminator
-		filename ++;
-	} else {
-		filename = path;
-	}
-
-	// Return the filename part of the path
-	return CString (filename);
+	return CString (getFileName (path));
 }
 
 
