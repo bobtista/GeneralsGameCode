@@ -15,6 +15,8 @@ set(WW3D2_SRC
     assetstatus.h
     Backend/RenderBackend.cpp
     Backend/RenderBackend.h
+    Backend/RenderBackendWater.cpp
+    Backend/RenderBackendWater.h
     bitmaphandler.cpp
     bitmaphandler.h
     bmp2d.cpp

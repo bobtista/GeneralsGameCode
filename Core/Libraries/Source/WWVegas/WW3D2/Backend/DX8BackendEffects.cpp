@@ -76,6 +76,8 @@ void DX8Backend::Create_Effect_Resources(bool allow_pixel_shaders)
         {
             Release_Terrain_Pixel_Shaders();
         }
+
+        Create_Water_Shaders(*this, WaterShaders);
     }
 }
 
@@ -83,6 +85,7 @@ void DX8Backend::Release_Effect_Resources()
 {
     Delete_Pixel_Shader(RoadPixelShader);
     Release_Terrain_Pixel_Shaders();
+    Release_Water_Shaders(*this, WaterShaders);
 }
 
 void DX8Backend::Release_Terrain_Pixel_Shaders()
@@ -90,4 +93,10 @@ void DX8Backend::Release_Terrain_Pixel_Shaders()
     Delete_Pixel_Shader(TerrainPixelShader);
     Delete_Pixel_Shader(TerrainOneMapPixelShader);
     Delete_Pixel_Shader(TerrainTwoMapsPixelShader);
+}
+
+void DX8Backend::Draw_Water(const RenderBackendWaterDraw & water, unsigned short start_index, unsigned short polygon_count,
+                            unsigned short min_vertex_index, unsigned short vertex_count)
+{
+    Draw_Water_Stages(*this, WaterShaders, water, start_index, polygon_count, min_vertex_index, vertex_count);
 }

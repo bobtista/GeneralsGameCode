@@ -192,6 +192,9 @@ static bool EnsureProfilerSwizzleShader()
 
 DX8Backend::DX8Backend(bool lite) : Lite(lite), RoadPixelShader(0), TerrainPixelShader(0), TerrainOneMapPixelShader(0), TerrainTwoMapsPixelShader(0)
 {
+    WaterShaders.water_pixel_shader = 0;
+    WaterShaders.river_pixel_shader = 0;
+    WaterShaders.white_texture = nullptr;
 }
 
 DX8Backend::~DX8Backend()

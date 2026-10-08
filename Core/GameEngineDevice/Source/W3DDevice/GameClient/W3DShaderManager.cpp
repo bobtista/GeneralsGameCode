@@ -2468,6 +2468,26 @@ static RenderBackendWorldProjection getCloudProjection()
 	return projection;
 }
 
+RenderBackendShroud W3DShaderManager::getShroud()
+{
+	RenderBackendShroud shroud;
+	shroud.texture = nullptr;
+	shroud.projection.offset_x = 0;
+	shroud.projection.offset_y = 0;
+	shroud.projection.scale_x = 0;
+	shroud.projection.scale_y = 0;
+	shroud.projection.bias_u = 0;
+	shroud.projection.bias_v = 0;
+
+	W3DShroud *terrainShroud = TheTerrainRenderObject ? TheTerrainRenderObject->getShroud() : nullptr;
+	if (terrainShroud)
+	{
+		shroud.texture = terrainShroud->getShroudTexture();
+		shroud.projection = getShroudProjection(terrainShroud);
+	}
+	return shroud;
+}
+
 void W3DShaderManager::beginShroudOverlay()
 {
 	W3DShroud *shroud = TheTerrainRenderObject->getShroud();

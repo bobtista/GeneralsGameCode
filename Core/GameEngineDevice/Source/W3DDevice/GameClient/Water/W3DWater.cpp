@@ -76,16 +76,6 @@
 
 
 
-// TheSuperHackers @refactor bobtista 19/04/2026 Helper to bind
-// a texture to both D3D8 and WW3D::Get_Render_Backend() so bgfx's texture cache stays
-// in sync. For raw D3D8 textures without a TextureClass*, pass nullptr for
-// tex to clear the bgfx cache (prevents stale texture artifacts).
-static inline void W3DWater_BindTexture(unsigned stage, TextureClass * tex)
-{
-	if (WW3D::Get_Render_Backend() != nullptr)
-		WW3D::Get_Render_Backend()->Bind_Texture_Immediate(stage, tex);
-}
-
 static inline bool W3DWater_UseBackendWater()
 {
 	return WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Has_Shader_Pipeline();
@@ -127,107 +117,6 @@ static inline Real W3DWater_GetBgfxShoreAlpha(Real x, Real y, Real waterZ, Real 
 	return alpha * alpha * (3.0f - 2.0f * alpha);
 }
 
-static void W3DWater_FillWhiteTexture(TextureClass *texture)
-{
-	if (texture == nullptr)
-	{
-		return;
-	}
-
-	TextureClass::MutableTextureMipView mip = texture->Begin_Mip_Write(0);
-	if (!mip.Is_Valid())
-	{
-		return;
-	}
-
-	if (mip.Format == WW3D_FORMAT_A4R4G4B4)
-	{
-		*reinterpret_cast<UnsignedShort *>(mip.Data) = 0xffff;
-	}
-	else if (mip.Format == WW3D_FORMAT_A8R8G8B8)
-	{
-		*reinterpret_cast<UnsignedInt *>(mip.Data) = 0xffffffff;
-	}
-	texture->End_Mip_Write(0);
-}
-
-static inline void W3DWater_SetTextureTransform(unsigned stage, const Matrix4x4 & matrix)
-{
-	if (WW3D::Get_Render_Backend() != nullptr)
-		WW3D::Get_Render_Backend()->Set_Texture_Transform(stage, matrix);
-}
-
-static inline Matrix4x4 W3DWater_MakeScaleTextureMatrix(float sx, float sy, float sz)
-{
-	return Matrix4x4(
-		sx, 0.0f, 0.0f, 0.0f,
-		0.0f, sy, 0.0f, 0.0f,
-		0.0f, 0.0f, sz, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f);
-}
-
-static inline Matrix4x4 W3DWater_MakeTranslationTextureMatrix(float x, float y, float z)
-{
-	return Matrix4x4(
-		1.0f, 0.0f, 0.0f, x,
-		0.0f, 1.0f, 0.0f, y,
-		0.0f, 0.0f, 1.0f, z,
-		0.0f, 0.0f, 0.0f, 1.0f);
-}
-
-static inline void W3DWater_SetNoiseTextureTransform(unsigned stage, float repeat, float origin)
-{
-	if (WW3D::Get_Render_Backend() == nullptr)
-		return;
-
-	Matrix4x4 view;
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
-	const Matrix4x4 destMatrix =
-		W3DWater_MakeTranslationTextureMatrix(origin, origin, 0.0f) *
-		W3DWater_MakeScaleTextureMatrix(repeat, repeat, 1.0f) *
-		view.Inverse();
-	W3DWater_SetTextureTransform(stage, destMatrix);
-}
-
-static inline void W3DWater_DisableTextureTransform(unsigned stage)
-{
-	if (WW3D::Get_Render_Backend() != nullptr)
-		WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(stage, 0, false);
-}
-
-static inline void W3DWater_SetCameraSpaceTexcoord2(unsigned stage, unsigned uv_index)
-{
-	if (WW3D::Get_Render_Backend() != nullptr) {
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(stage, RB_TEXCOORD_CAMERA_SPACE_POSITION, uv_index);
-		WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(stage, 2, false);
-	}
-}
-
-static inline void W3DWater_ResetMeshTexcoord(unsigned stage, unsigned uv_index)
-{
-	if (WW3D::Get_Render_Backend() != nullptr) {
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(stage, RB_TEXCOORD_MESH_UV, uv_index);
-		WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(stage, 0, false);
-	}
-}
-
-static inline void W3DWater_SetStageAddress2D(unsigned stage, RenderBackendTextureAddressMode address_mode)
-{
-	WW3D::Get_Render_Backend()->Set_Texture_Address_Mode(stage, address_mode, address_mode, RB_TEXTURE_ADDRESS_WRAP);
-}
-
-static inline void W3DWater_SetStageMinMagFilter(unsigned stage,
-	RenderBackendTextureSampleFilter min_filter,
-	RenderBackendTextureSampleFilter mag_filter)
-{
-	WW3D::Get_Render_Backend()->Set_Texture_Min_Mag_Filter(stage, min_filter, mag_filter);
-}
-
-static inline void W3DWater_SetStageMipFilter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
-{
-	WW3D::Get_Render_Backend()->Set_Texture_Mip_Filter(stage, mip_filter);
-}
-
 #define MIPMAP_BUMP_TEXTURE
 
 // DEFINES ////////////////////////////////////////////////////////////////////////////////////////
@@ -255,7 +144,6 @@ static inline void W3DWater_SetStageMipFilter(unsigned stage, RenderBackendTextu
 
 #define SEA_BUMP_SCALE		(0.06f)		//scales the du/dv offsets stored in bump map (~ amount to perturb)
 #define BUMP_SIZE (50.f)
-#define REFLECTION_FACTOR 0.1f
 
 #define PATCH_WIDTH (PATCH_SIZE-1)	//internal defines
 #define PATCH_UV_SCALE	((Real)PATCH_UV_TILES/(Real)PATCH_WIDTH)
@@ -359,69 +247,25 @@ void doSkyBoxSet(Bool startDraw)
 #define NOISE_REPEAT_FACTOR ((float)(1.0f/(16.0f)))
 
 
-static Bool wireframeForDebug = 0;
-
-void WaterRenderObjClass::setupJbaWaterShader()
+//-------------------------------------------------------------------------------------------------
+/** Fill the water draw inputs shared by all water surfaces. */
+//-------------------------------------------------------------------------------------------------
+void WaterRenderObjClass::fillWaterDraw(RenderBackendWaterDraw &water)
 {
-	if (!TheWaterTransparency->m_additiveBlend)
-		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAlphaShader);
-	else
-		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAdditiveShader);
-
-	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
-	REF_PTR_RELEASE(vmat);
-	m_riverTexture->Get_Filter().Set_Mag_Filter(TextureFilterClass::FILTER_TYPE_BEST);
-	m_riverTexture->Get_Filter().Set_Min_Filter(TextureFilterClass::FILTER_TYPE_BEST);
-	m_riverTexture->Get_Filter().Set_Mip_Mapping(TextureFilterClass::FILTER_TYPE_BEST);
-
-
-//	Setting *setting=&m_settings[m_tod];
-
-
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of view and projection matrices
-	WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, RB_TEXOP_ADD);
-	if (!m_riverAlphaEdge->Is_Initialized())
-		m_riverAlphaEdge->Init();
-	W3DWater_BindTexture(3, m_riverAlphaEdge);
-	W3DWater_SetStageAddress2D(3, RB_TEXTURE_ADDRESS_WRAP);
-	WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
-	WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 0);
-	WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(3, RB_TEXCOORD_MESH_UV, 1);
-
-	Bool doSparkles = true;
-
-	if (m_riverWaterPixelShader && doSparkles) {
-		if (!m_waterSparklesTexture->Is_Initialized())
-			m_waterSparklesTexture->Init();
-		W3DWater_BindTexture(1, m_waterSparklesTexture);
-
-		if (!m_waterNoiseTexture->Is_Initialized())
-			m_waterNoiseTexture->Init();
-		W3DWater_BindTexture(2, m_waterNoiseTexture);
-
-		W3DWater_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
-
-		// Two output coordinates are used.
-		W3DWater_SetCameraSpaceTexcoord2(2, 0);
-		W3DWater_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
-
-		W3DWater_SetNoiseTextureTransform(2, NOISE_REPEAT_FACTOR, m_riverVOrigin);
-
-	}
-	W3DWater_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
-	W3DWater_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
-	W3DWater_SetStageMinMagFilter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
-	W3DWater_SetStageMinMagFilter(3, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
-	if (m_riverWaterPixelShader){
-		const float reflectionFactor[4] = { REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f };
-		WW3D::Get_Render_Backend()->Set_Pixel_Shader_Constant(0, &reflectionFactor, 1);
-		WW3D::Get_Render_Backend()->Set_Pixel_Shader(m_riverWaterPixelShader);
-	}
+	water.water_texture = m_riverTexture;
+	water.sparkle_texture = m_waterSparklesTexture;
+	water.noise_texture = m_waterNoiseTexture;
+	water.noise_projection.offset_x = 0;
+	water.noise_projection.offset_y = 0;
+	water.noise_projection.scale_x = NOISE_REPEAT_FACTOR;
+	water.noise_projection.scale_y = NOISE_REPEAT_FACTOR;
+	water.noise_projection.bias_u = m_riverVOrigin;
+	water.noise_projection.bias_v = m_riverVOrigin;
+	water.edge_texture = m_riverAlphaEdge;
+	water.shroud = W3DShaderManager::getShroud();
+	water.additive = TheWaterTransparency->m_additiveBlend;
+	water.soft_edge = false;
 }
-
-
-
 
 //-------------------------------------------------------------------------------------------------
 /** Destructor. Releases w3d assets. */
@@ -435,7 +279,6 @@ WaterRenderObjClass::~WaterRenderObjClass()
 	REF_PTR_RELEASE (m_skyBox);
 
 	REF_PTR_RELEASE (m_riverTexture);
-	REF_PTR_RELEASE (m_whiteTexture);
 	REF_PTR_RELEASE (m_waterNoiseTexture);
 	REF_PTR_RELEASE (m_riverAlphaEdge);
 	REF_PTR_RELEASE (m_waterSparklesTexture);
@@ -499,12 +342,8 @@ WaterRenderObjClass::WaterRenderObjClass()
 
 	m_riverVOrigin=0;
 	m_riverTexture=nullptr;
-	m_whiteTexture=nullptr;
 	m_waterNoiseTexture=nullptr;
 	m_riverAlphaEdge=nullptr;
-	m_waterPixelShader=0;
-	m_riverWaterPixelShader=0;
-	m_trapezoidWaterPixelShader=0;
 	m_waterSparklesTexture=nullptr;
 	m_riverXOffset=0;
 	m_riverYOffset=0;
@@ -669,19 +508,6 @@ void WaterRenderObjClass::ReleaseResources()
 
 	if (m_waterTrackSystem)
 		m_waterTrackSystem->ReleaseResources();
-
-	if (m_waterPixelShader)
-		WW3D::Get_Render_Backend()->Delete_Pixel_Shader(m_waterPixelShader);
-
-	if (m_trapezoidWaterPixelShader)
-		WW3D::Get_Render_Backend()->Delete_Pixel_Shader(m_trapezoidWaterPixelShader);
-
-	if (m_riverWaterPixelShader)
-		WW3D::Get_Render_Backend()->Delete_Pixel_Shader(m_riverWaterPixelShader);
-
-	m_waterPixelShader = 0;
-	m_trapezoidWaterPixelShader=0;
-	m_riverWaterPixelShader=0;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -725,17 +551,6 @@ void WaterRenderObjClass::ReAcquireResources()
 	if (m_waterTrackSystem)
 		m_waterTrackSystem->ReAcquireResources();
 
-	if (W3DShaderManager::getChipset() >= DC_GENERIC_PIXEL_SHADER_1_1)
-	{
-		unsigned long legacyHandle = 0;
-		if (WW3D::Get_Render_Backend()->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_RIVER_WATER, &legacyHandle))
-			m_riverWaterPixelShader = legacyHandle;
-		if (WW3D::Get_Render_Backend()->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_REFLECTIVE_WATER, &legacyHandle))
-			m_waterPixelShader = legacyHandle;
-		if (WW3D::Get_Render_Backend()->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_TRAPEZOID_WATER, &legacyHandle))
-			m_trapezoidWaterPixelShader = legacyHandle;
-	}
-
 	//W3D Invalidate textures after losing the device and since we peek at the textures directly, it won't
 	//know to reinit them for us.  Do it here manually:
 	if (m_riverTexture && !m_riverTexture->Is_Initialized())
@@ -746,10 +561,6 @@ void WaterRenderObjClass::ReAcquireResources()
 		m_riverAlphaEdge->Init();
 	if (m_waterSparklesTexture && !m_waterSparklesTexture->Is_Initialized())
 		m_waterSparklesTexture->Init();
-	if (m_whiteTexture && !m_whiteTexture->Is_Initialized())
-	{	m_whiteTexture->Init();
-		W3DWater_FillWhiteTexture(m_whiteTexture);
-	}
 }
 
 void WaterRenderObjClass::load()
@@ -852,10 +663,6 @@ Int WaterRenderObjClass::init(Real waterLevel, Real dx, Real dy, SceneClass *par
 	}
 
 	m_riverTexture=WW3DAssetManager::Get_Instance()->Get_Texture(TheWaterTransparency->m_standingWaterTexture.str());
-
-	//For some reason setting a null texture does not result in 0xffffffff for pixel shaders so using explicit "white" texture.
-	m_whiteTexture=MSGNEW("TextureClass") TextureClass(1, 1, WW3D_FORMAT_A4R4G4B4, MIP_LEVELS_1);
-	W3DWater_FillWhiteTexture(m_whiteTexture);
 
 	m_waterNoiseTexture=WW3DAssetManager::Get_Instance()->Get_Texture("Noise0000.tga");
 	m_riverAlphaEdge=WW3DAssetManager::Get_Instance()->Get_Texture("TWAlphaEdge.tga");
@@ -1999,56 +1806,22 @@ void WaterRenderObjClass::renderWaterMesh()
 	m_shaderClass.Set_Cull_Mode(ShaderClass::CULL_MODE_ENABLE);	//water should be visible from both sides
 
 	WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
-	setupFlatWaterShader();
 
 	if (m_waterMeshIndexBuffer == nullptr)
 	{
 		return;
 	}
 
-	// TheSuperHackers @bugfix bobtista 17/07/2026 Mark the deforming grid mesh as a water
-	// draw like the trapezoid and river paths do. Retail applied WATER_MESH_OPACITY to this
-	// very material; on the shader pipeline the override doubles as the routing marker that
-	// sends the draw to the water view, so without it the grid rendered in the earlier
-	// engine view and the flat trapezoid layer and wakes composited over it. Set after the
-	// index-buffer check so the one-shot override is always consumed by the draw below.
-	WW3D::Get_Render_Backend()->Override_Alpha_Blend_Enable(true);
-	WW3D::Get_Render_Backend()->Override_Material_Opacity(WATER_MESH_OPACITY);
 	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_waterMeshIndexBuffer,0);
 	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
 
-
-	if (TheTerrainRenderObject->getShroud() && !m_trapezoidWaterPixelShader)
-	{
-		//we have a shroud to apply and can't do it inside the pixel shader.
-		//so do it in stage1
-		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
-		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 1);
-
-		//modulate with shroud texture
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);	//stage 1 texture
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);	//previous stage texture
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);
-
-		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
-		//write to the zbuffer.  Change to LESSEQUAL.
-		WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_LESS_EQUAL);
-		WW3D::Get_Render_Backend()->Draw_Strip(0,m_numIndices-2,0,mx*my);
-		WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_EQUAL);
-		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
-	}
-	else
-	{
-		WW3D::Get_Render_Backend()->Draw_Strip(0,m_numIndices-2,0,mx*my);
-	}
+	RenderBackendWaterDraw water;
+	fillWaterDraw(water);
+	water.surface = RB_WATER_GRID;
+	WW3D::Get_Render_Backend()->Draw_Water(water, 0,m_numIndices-2,0,mx*my);
 
 	Debug_Statistics::Record_DX8_Polys_And_Vertices(m_numIndices-2,mx*my,ShaderClass::_PresetOpaqueShader);
-	if (m_trapezoidWaterPixelShader) WW3D::Get_Render_Backend()->Set_Pixel_Shader(0);
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-	WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
-	ShaderClass::Invalidate();
 	m_shaderClass.Set_Cull_Mode(oldCullMode);	//water should be visible from both sides
 
 	// restore shader to old mask
@@ -2510,135 +2283,11 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
 	WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
 	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
-	WW3D::Get_Render_Backend()->Set_Texture(0,m_riverTexture);	//set to blue
-
-	setupJbaWaterShader();
-	{
-		ShaderClass waterShader = ShaderClass::_PresetAlphaShader;
-		waterShader.Set_Cull_Mode(ShaderClass::CULL_MODE_DISABLE);
-		waterShader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Shader(waterShader);
-	}
-	WW3D::Get_Render_Backend()->Override_Alpha_Blend_Enable(true);
-	WW3D::Get_Render_Backend()->Override_Material_Opacity(WATER_MESH_OPACITY);
-
-	//In additive blending we need to use the alpha at the edges of river to darken
-	//rgb instead.
-	if (TheWaterTransparency->m_additiveBlend)
-		WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_ONE);
-
-	if (m_riverWaterPixelShader) WW3D::Get_Render_Backend()->Set_Pixel_Shader(m_riverWaterPixelShader);
-	CullMode cull = WW3D::Get_Render_Backend()->Get_Cull_Mode();
-	WW3D::Get_Render_Backend()->Set_Cull_Mode(RB_CULL_NONE);
-
-
-
-	if (wireframeForDebug) {
-		WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_WIREFRAME);
-	}
-	WW3D::Get_Render_Backend()->Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);
-	if (wireframeForDebug) {
-		WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_SOLID);
-	}
-
-	if (m_riverWaterPixelShader) WW3D::Get_Render_Backend()->Set_Pixel_Shader(0);
-
-	//restore blend mode to what W3D expects.
-	// TheSuperHackers @fix bobtista 20/04/2026 The flat water path below
-	// resets blend factors for both additive and non-additive modes, but
-	// this JBA path only reset for additive. On bgfx the DESTALPHA blend
-	// that Override_Material_Opacity() sets then leaked into subsequent
-	// draws (e.g. the small faction-emblem quad on the command-center
-	// bib), producing a black rectangle there. Match the flat water path
-	// so non-additive JBA water restores SRC_ALPHA/INV_SRC_ALPHA.
-	if (TheWaterTransparency->m_additiveBlend)
-		WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ONE);
-	else
-		WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
-
-	WW3D::Get_Render_Backend()->Set_Cull_Mode(cull);
-
-
-}
-
-void WaterRenderObjClass::setupFlatWaterShader()
-{
-	WW3D::Get_Render_Backend()->Set_Texture(0,m_riverTexture);
-	if (!TheWaterTransparency->m_additiveBlend)
-		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAlphaShader);
-	else
-		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAdditiveShader);
-
-	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
-	REF_PTR_RELEASE(vmat);
-	m_riverTexture->Get_Filter().Set_Mag_Filter(TextureFilterClass::FILTER_TYPE_BEST);
-	m_riverTexture->Get_Filter().Set_Min_Filter(TextureFilterClass::FILTER_TYPE_BEST);
-	m_riverTexture->Get_Filter().Set_Mip_Mapping(TextureFilterClass::FILTER_TYPE_BEST);
-
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of view and projection matrices
-
-	//Setup shroud to render in same pass as water
-	if (m_trapezoidWaterPixelShader)
-	{	if (TheTerrainRenderObject->getShroud() && TheTerrainRenderObject->getShroud()->getShroudTexture())
-		{
-			TextureClass *shroudTexture = TheTerrainRenderObject->getShroud()->getShroudTexture();
-			W3DShaderManager::setTexture(0, shroudTexture);
-			//Use stage 3 to apply the shroud
-			W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 3);
-			W3DWater_BindTexture(3, shroudTexture);
-			//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
-			//write to the zbuffer.  Change to LESSEQUAL.
-			WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_LESS_EQUAL);
-		}
-		else
-		{
-			//Assume no shroud, so stage 3 will be null texture but using actual white because
-			//pixel shader on GF4 generates random colors with SetTexture(3,nullptr).
-			if (!m_whiteTexture->Is_Initialized())
-			{	m_whiteTexture->Init();
-				W3DWater_FillWhiteTexture(m_whiteTexture);
-			}
-			W3DWater_BindTexture(3, m_whiteTexture);
-		}
-	}
-
-	WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, RB_TEXOP_ADD);
-	WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
-	W3DWater_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_WRAP);
-	WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 0);
-
-	Bool doSparkles = true;
-
-	if (m_trapezoidWaterPixelShader && doSparkles) {
-
-		if (!m_waterSparklesTexture->Is_Initialized())
-			m_waterSparklesTexture->Init();
-
-		W3DWater_BindTexture(1, m_waterSparklesTexture);
-
-		if (!m_waterNoiseTexture->Is_Initialized())
-			m_waterNoiseTexture->Init();
-
-		W3DWater_BindTexture(2, m_waterNoiseTexture);
-
-		W3DWater_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
-
-		// Two output coordinates are used.
-		W3DWater_SetCameraSpaceTexcoord2(2, 0);
-		W3DWater_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
-
-		W3DWater_SetNoiseTextureTransform(2, NOISE_REPEAT_FACTOR, m_riverVOrigin);
-
-	}
-	W3DWater_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
-	W3DWater_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
-	W3DWater_SetStageMinMagFilter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
-	if (m_trapezoidWaterPixelShader){
-		const float reflectionFactor[4] = { REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f };
-		WW3D::Get_Render_Backend()->Set_Pixel_Shader_Constant(0, &reflectionFactor, 1);
-		WW3D::Get_Render_Backend()->Set_Pixel_Shader(m_trapezoidWaterPixelShader);
-	}
+	RenderBackendWaterDraw water;
+	fillWaterDraw(water);
+	water.surface = RB_WATER_RIVER;
+	water.shroud.texture = nullptr;
+	WW3D::Get_Render_Backend()->Draw_Water(water, 0,rectangleCount*2, 0,	(rectangleCount+1)*2);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2964,79 +2613,12 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
 		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
 
-		setupFlatWaterShader();
-		{
-			ShaderClass waterShader = ShaderClass::_PresetAlphaShader;
-			waterShader.Set_Cull_Mode(ShaderClass::CULL_MODE_DISABLE);
-			waterShader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
-			WW3D::Get_Render_Backend()->Set_Shader(waterShader);
-		}
-		if (m_trapezoidWaterPixelShader)
-		{
-			WW3D::Get_Render_Backend()->Set_Pixel_Shader(m_trapezoidWaterPixelShader);
-		}
-		WW3D::Get_Render_Backend()->Override_Alpha_Blend_Enable(true);
-		WW3D::Get_Render_Backend()->Override_Material_Opacity(WATER_MESH_OPACITY);
-
-		// TheSuperHackers @bugfix bobtista 22/06/2026 The shoreline pass authors the
-		// back-buffer alpha gradient on the dx8 reference (renderShoreLines), so the
-		// soft-water DESTALPHA edge reads a real gradient there just like the original.
-		// Keep bgfx on source-alpha water: the dest-alpha mask is heightmap-only and
-		// treats mesh rocks as deep water, which paints opaque blue collars around them.
-		if (WW3D::Get_Render_Backend()->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
-			&& TheGlobalData->m_showSoftWaterEdge
-			&& TheWaterTransparency->m_transparentWaterDepth !=0
-			&& !WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
-		{
-			if (TheWaterTransparency->m_additiveBlend)
-			{
-				WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_ONE);
-			}
-			else
-			{
-				WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
-			}
-		}
-
-		CullMode cull = WW3D::Get_Render_Backend()->Get_Cull_Mode();
-		WW3D::Get_Render_Backend()->Set_Cull_Mode(RB_CULL_NONE);
-
-		WW3D::Get_Render_Backend()->Draw_Triangles(	0,totalRectangleCount*2, 0,	batchVertexCount);
-
-		if (m_trapezoidWaterPixelShader)
-		{
-			WW3D::Get_Render_Backend()->Set_Pixel_Shader(0);
-		}
-		//Restore alpha blend to default values since we may have changed them to feather edges.
-		if (!TheWaterTransparency->m_additiveBlend)
-		{
-			WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
-		}
-		else
-		{
-			WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ONE);
-		}
-
-		if (TheTerrainRenderObject->getShroud())
-		{
-			if (m_trapezoidWaterPixelShader)
-			{
-				W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
-				W3DWater_BindTexture(3, nullptr);
-				WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_EQUAL);
-			}
-			else
-			{
-				W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
-				W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
-				WW3D::Get_Render_Backend()->Set_Cull_Mode(RB_CULL_NONE);
-				WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_LESS_EQUAL);
-				WW3D::Get_Render_Backend()->Draw_Triangles(	0,totalRectangleCount*2, 0,	batchVertexCount);
-				WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_EQUAL);
-				W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
-			}
-		}
-		WW3D::Get_Render_Backend()->Set_Cull_Mode(cull);
+		RenderBackendWaterDraw water;
+		fillWaterDraw(water);
+		water.surface = RB_WATER_STANDING;
+		//If video card supports it and it's enabled, feather the water edge using destination alpha
+		water.soft_edge = WW3D::Get_Render_Backend()->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8 && TheGlobalData->m_showSoftWaterEdge && TheWaterTransparency->m_transparentWaterDepth !=0;
+		WW3D::Get_Render_Backend()->Draw_Water(water, 0,totalRectangleCount*2, 0,	batchVertexCount);
 
 		batchStart = batchEnd;
 	}

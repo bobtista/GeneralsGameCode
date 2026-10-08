@@ -90,6 +90,7 @@ public:
 	static Int setShader(ShaderTypes shader, Int pass);	///<enable specific shader pass.
 	static Int setShroudTex(Int stage);	///<Set shroud in a texture stage.
 	static RenderBackendGroundMaps getGroundMaps(TextureClass *cloudTexture, TextureClass *lightMapTexture);	///<cloud and light map inputs of ground effects.
+	static RenderBackendShroud getShroud();	///<terrain shroud input of effects, with a null texture when there is no shroud.
 	static void beginShroudOverlay();	///<draws until endShroudOverlay are darkened by the terrain shroud.
 	static void endShroudOverlay();
 	static void resetShader(ShaderTypes shader);	///<make sure W3D2 gets restored to normal

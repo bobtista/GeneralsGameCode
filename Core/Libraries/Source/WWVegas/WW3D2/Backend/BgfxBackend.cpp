@@ -1593,6 +1593,9 @@ BgfxBackend::BgfxBackend()
     , m_deviceCreated(false)
     , m_curRenderDevice(-1)
 {
+    m_waterShaders.water_pixel_shader = 0;
+    m_waterShaders.river_pixel_shader = 0;
+    m_waterShaders.white_texture = nullptr;
     WWDEBUG_SAY(("[BgfxBackend] Backend constructed."));
 }
 
@@ -12007,6 +12010,27 @@ void BgfxBackend::End_Shroud_Overlay()
     Set_Texture(0, nullptr);
     Set_Depth_Func(RB_CMP_LESS_EQUAL);
     Clear_Texture_Projection(0);
+}
+
+void BgfxBackend::Create_Effect_Resources(bool allow_pixel_shaders)
+{
+    Release_Effect_Resources();
+
+    if (allow_pixel_shaders)
+    {
+        Create_Water_Shaders(*this, m_waterShaders);
+    }
+}
+
+void BgfxBackend::Release_Effect_Resources()
+{
+    Release_Water_Shaders(*this, m_waterShaders);
+}
+
+void BgfxBackend::Draw_Water(const RenderBackendWaterDraw & water, unsigned short start_index, unsigned short polygon_count,
+                             unsigned short min_vertex_index, unsigned short vertex_count)
+{
+    Draw_Water_Stages(*this, m_waterShaders, water, start_index, polygon_count, min_vertex_index, vertex_count);
 }
 
 static RenderBackendTextureSampleFilter Terrain_Min_Mag_Filter(RenderBackendTerrainFiltering filtering)
