@@ -26,6 +26,7 @@
 #pragma once
 
 #include "IRenderBackend.h"
+#include "RenderBackendWater.h"
 #include "rddesc.h"
 #include "WWMath/vector3.h"
 
@@ -320,6 +321,10 @@ public:
                               unsigned int vertex_buffer_count, unsigned short polygon_count, unsigned short vertex_count) override;
     virtual void Begin_Shroud_Overlay(const RenderBackendShroud & shroud) override;
     virtual void End_Shroud_Overlay() override;
+    virtual void Create_Effect_Resources(bool allow_pixel_shaders) override;
+    virtual void Release_Effect_Resources() override;
+    virtual void Draw_Water(const RenderBackendWaterDraw & water, unsigned short start_index, unsigned short polygon_count,
+                            unsigned short min_vertex_index, unsigned short vertex_count) override;
     virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) override;
     virtual void Clear_Texture_Projection(unsigned stage) override;
     virtual void Set_Shroud_Texture_Params(float offset_x, float offset_y,
@@ -485,6 +490,8 @@ public:
 
 private:
     void Set_Ground_Maps(const RenderBackendGroundMaps & maps);
+
+    RenderBackendWaterShaders m_waterShaders;
 
     int m_textureBitDepth;
     RenderBackendMSAAMode m_msaaMode;

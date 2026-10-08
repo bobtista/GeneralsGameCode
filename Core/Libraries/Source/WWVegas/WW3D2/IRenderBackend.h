@@ -378,6 +378,29 @@ struct RenderBackendTerrainDraw
     RenderBackendTerrainFiltering filtering;
 };
 
+enum RenderBackendWaterSurface
+{
+    RB_WATER_STANDING,
+    RB_WATER_RIVER,
+    RB_WATER_GRID
+};
+
+// Inputs of a water draw. The water and sparkle textures use UV0. The noise texture is projected from world
+// position. The edge texture is used by rivers only and uses UV1. The shroud is used by standing water and the
+// grid only.
+struct RenderBackendWaterDraw
+{
+    RenderBackendWaterSurface surface;
+    TextureClass * water_texture;
+    TextureClass * sparkle_texture;
+    TextureClass * noise_texture;
+    RenderBackendWorldProjection noise_projection;
+    TextureClass * edge_texture;
+    RenderBackendShroud shroud;
+    bool additive;
+    bool soft_edge;
+};
+
 struct RenderBackendViewport
 {
     unsigned int x;
@@ -1149,6 +1172,11 @@ public:
     // at the depth of the drawn geometry change. Depth is not written.
     virtual void Begin_Shroud_Overlay(const RenderBackendShroud & shroud) {}
     virtual void End_Shroud_Overlay() {}
+    // Draws the bound geometry as water blended over the frame, with depth test less-or-equal and no culling.
+    // The grid draws a strip, the other surfaces draw triangles. Soft edge blends standing water by the
+    // destination alpha.
+    virtual void Draw_Water(const RenderBackendWaterDraw & water, unsigned short start_index, unsigned short polygon_count,
+                            unsigned short min_vertex_index, unsigned short vertex_count) {}
     // Generates the stage's texture coordinates from world position, using the view transform current at the call.
     virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) {}
     // Returns the stage to the mesh texture coordinates with the stage's own index.

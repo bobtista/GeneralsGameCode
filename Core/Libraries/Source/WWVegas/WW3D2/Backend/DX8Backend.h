@@ -26,6 +26,7 @@
 #pragma once
 
 #include "IRenderBackend.h"
+#include "RenderBackendWater.h"
 
 class DX8Backend : public IRenderBackend
 {
@@ -255,6 +256,8 @@ public:
                               unsigned int vertex_buffer_count, unsigned short polygon_count, unsigned short vertex_count) override;
     virtual void Begin_Shroud_Overlay(const RenderBackendShroud & shroud) override;
     virtual void End_Shroud_Overlay() override;
+    virtual void Draw_Water(const RenderBackendWaterDraw & water, unsigned short start_index, unsigned short polygon_count,
+                            unsigned short min_vertex_index, unsigned short vertex_count) override;
     virtual void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection) override;
     virtual void Clear_Texture_Projection(unsigned stage) override;
     virtual CullMode Get_Cull_Mode() const override;
@@ -388,4 +391,5 @@ private:
     unsigned long TerrainPixelShader;
     unsigned long TerrainOneMapPixelShader;
     unsigned long TerrainTwoMapsPixelShader;
+    RenderBackendWaterShaders WaterShaders;
 };

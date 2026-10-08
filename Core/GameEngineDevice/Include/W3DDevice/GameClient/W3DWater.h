@@ -48,6 +48,7 @@
 #define CV_PATCH_SCALE_OFFSET 10
 
 class PolygonTrigger;
+struct RenderBackendWaterDraw;
 class WaterTracksRenderSystem;
 // TheSuperHackers @build bobtista 01/06/2026 RenderIndexBufferClass is a type
 // alias on the dx8 backend; include the shared header.
@@ -191,11 +192,7 @@ protected:
 
 	Real m_riverVOrigin;
 	TextureClass *m_riverTexture;
-	TextureClass *m_whiteTexture;		///< a texture containing only white used for null pixel shader stages.
 	TextureClass *m_waterNoiseTexture;
-	unsigned long m_waterPixelShader;			///< backend legacy water shader handle
-	unsigned long m_riverWaterPixelShader;		///< backend legacy river shader handle
-	unsigned long m_trapezoidWaterPixelShader;	///< backend legacy trapezoid-water shader handle
 	TextureClass *m_waterSparklesTexture;
 	Real m_riverXOffset;
 	Real m_riverYOffset;
@@ -245,8 +242,7 @@ protected:
 	///bounding box of frustum clipped polygon plane
 	Bool getClippedWaterPlane(CameraClass *cam, AABoxClass *box);
 
-	void setupFlatWaterShader();
-	void setupJbaWaterShader();
+	void fillWaterDraw(RenderBackendWaterDraw &water);	///<fill the inputs shared by all water surfaces
 
 	//Methods used for GeForce3 specific water
 	bool generateIndexBuffer(int sizeX, int sizeY);	///<Generate water strip index buffer
