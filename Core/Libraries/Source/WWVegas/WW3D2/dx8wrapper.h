@@ -427,6 +427,12 @@ public:
 			IDirect3DSurface8* pDestinationSurface,
 			CONST POINT* pDestPointsArray
 	);
+	static void _Copy_DX8_Surface(
+			IDirect3DSurface8* dest_surface,
+			const RECT& dest_rect,
+			IDirect3DSurface8* src_surface,
+			const RECT& src_rect
+	);
 
 	static void _Update_Texture(TextureClass *system, TextureClass *video);
 	static void Flush_DX8_Resource_Manager(unsigned int bytes=0);

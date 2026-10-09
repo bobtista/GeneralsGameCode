@@ -2542,7 +2542,12 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	// Copy the surface to the texture
 	IDirect3DSurface8 *tex_surface = nullptr;
 	texture->GetSurfaceLevel(0, &tex_surface);
-	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(tex_surface, nullptr, nullptr, surface, nullptr, nullptr, D3DX_FILTER_BOX, 0));
+	RECT rect;
+	rect.left=0;
+	rect.top=0;
+	rect.right=surface_desc.Width;
+	rect.bottom=surface_desc.Height;
+	_Copy_DX8_Surface(tex_surface, rect, surface, rect);
 	tex_surface->Release();
 
 	// Create mipmaps if needed
@@ -2553,6 +2558,81 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 
 	return texture;
 
+}
+
+static bool Is_Compressed_Format(WW3DFormat format)
+{
+	switch (format)
+	{
+	case WW3D_FORMAT_DXT1:
+	case WW3D_FORMAT_DXT2:
+	case WW3D_FORMAT_DXT3:
+	case WW3D_FORMAT_DXT4:
+	case WW3D_FORMAT_DXT5:
+		return true;
+	default:
+		return false;
+	}
+}
+
+// Copies the source rect to the destination rect without scaling. Destination pixels outside the
+// source rect are cleared to transparent black. Both surfaces must have the same uncompressed format.
+void DX8Wrapper::_Copy_DX8_Surface
+(
+	IDirect3DSurface8* dest_surface,
+	const RECT& dest_rect,
+	IDirect3DSurface8* src_surface,
+	const RECT& src_rect
+)
+{
+	D3DSURFACE_DESC dest_desc;
+	D3DSURFACE_DESC src_desc;
+	DX8_ErrorCode(dest_surface->GetDesc(&dest_desc));
+	DX8_ErrorCode(src_surface->GetDesc(&src_desc));
+	const WW3DFormat format=D3DFormat_To_WW3DFormat(dest_desc.Format);
+
+	if (dest_desc.Format!=src_desc.Format || Is_Compressed_Format(format))
+	{
+		WWASSERT_PRINT(0,"DX8Wrapper::_Copy_DX8_Surface - Unsupported surface format");
+		return;
+	}
+
+	const unsigned bpp=Get_Bytes_Per_Pixel(format);
+	const unsigned width=dest_rect.right-dest_rect.left;
+	const unsigned height=dest_rect.bottom-dest_rect.top;
+	const unsigned copy_width=MIN(width,unsigned(src_rect.right-src_rect.left));
+	const unsigned copy_height=MIN(height,unsigned(src_rect.bottom-src_rect.top));
+
+	D3DLOCKED_RECT dest_lock;
+	D3DLOCKED_RECT src_lock;
+	HRESULT res=dest_surface->LockRect(&dest_lock,&dest_rect,0);
+	if (FAILED(res))
+	{
+		DX8_ErrorCode(res);
+		return;
+	}
+	res=src_surface->LockRect(&src_lock,&src_rect,D3DLOCK_READONLY);
+	if (FAILED(res))
+	{
+		DX8_ErrorCode(res);
+		dest_surface->UnlockRect();
+		return;
+	}
+
+	for (unsigned y=0; y<height; ++y)
+	{
+		unsigned char* dest_row=static_cast<unsigned char*>(dest_lock.pBits)+y*dest_lock.Pitch;
+		unsigned row_copy_width=0;
+		if (y<copy_height)
+		{
+			row_copy_width=copy_width;
+			memcpy(dest_row,static_cast<const unsigned char*>(src_lock.pBits)+y*src_lock.Pitch,copy_width*bpp);
+		}
+		memset(dest_row+row_copy_width*bpp,0,(width-row_copy_width)*bpp);
+	}
+
+	DX8_ErrorCode(src_surface->UnlockRect());
+	DX8_ErrorCode(dest_surface->UnlockRect());
 }
 
 /*!
