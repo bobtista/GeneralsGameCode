@@ -16,9 +16,10 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 10/04/2026 Abstract W3D-facing rendering
-// interface so WW3D2 rendering can be re-targeted to other backends while the
-// existing DX8 path stays as the reference implementation.
+// TheSuperHackers @refactor bobtista 08/10/2026 Static rendering interface so WW3D2
+// rendering can be re-targeted to other backends. The build links exactly one
+// backend, and that backend defines the methods below. The DX8 backend is the
+// reference implementation.
 
 #pragma once
 
@@ -44,25 +45,26 @@ struct RenderBackendViewport
 // caller migrates, at which point the method it needs moves here.
 //
 // Method names intentionally match the existing DX8Wrapper names so migrating a
-// caller is a mechanical DX8Wrapper::X(...) -> Get_Render_Backend()->X(...)
-// rewrite.
+// caller is a mechanical DX8Wrapper::X(...) -> Renderer::X(...) rewrite.
 
-class IRenderBackend
+class Renderer
 {
 public:
-    virtual ~IRenderBackend() {}
+    // Initialized in WW3D::Init and shut down in WW3D::Shutdown.
+    static bool Init(void * window, bool lite);
+    static void Shutdown();
 
-    virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate = true, bool uselimit = true) = 0;
+    static void Set_Gamma(float gamma, float bright, float contrast, bool calibrate = true, bool uselimit = true);
 
-    virtual void Begin_Scene() = 0;
-    virtual void End_Scene(bool flip_frame = true) = 0;
-    virtual void Flip_To_Primary() = 0;
-    virtual void Clear(bool clear_color, bool clear_z_stencil,
-                       const Vector3 & color,
-                       float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) = 0;
-    virtual void Set_Viewport(const RenderBackendViewport & viewport) = 0;
-    virtual void Invalidate_Cached_Render_States() = 0;
+    static void Begin_Scene();
+    static void End_Scene(bool flip_frame = true);
+    static void Flip_To_Primary();
+    static void Clear(bool clear_color, bool clear_z_stencil,
+                      const Vector3 & color,
+                      float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0);
+    static void Set_Viewport(const RenderBackendViewport & viewport);
+    static void Invalidate_Cached_Render_States();
 
-    virtual void Set_Ambient(const Vector3 & color) = 0;
-    virtual void Set_Light_Environment(LightEnvironmentClass * light_env) = 0;
+    static void Set_Ambient(const Vector3 & color);
+    static void Set_Light_Environment(LightEnvironmentClass * light_env);
 };
