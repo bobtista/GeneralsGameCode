@@ -1094,6 +1094,10 @@ target_link_libraries(g_gameengine PUBLIC
     g_wwvegas
 )
 
+target_link_libraries(g_gameengine INTERFACE
+    $<LINK_ONLY:g_gameenginedevice>
+)
+
 target_precompile_headers(g_gameengine PRIVATE
     [["Precompiled/BasePrecomp.h"]] # Must be first
 )
