@@ -2548,11 +2548,123 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	// Create mipmaps if needed
 	if (mip_level_count!=MIP_LEVELS_1)
 	{
-		DX8_ErrorCode(D3DXFilterTexture(texture, nullptr, 0, D3DX_FILTER_BOX));
+		_Generate_DX8_Mip_Levels(texture);
 	}
 
 	return texture;
 
+}
+
+static const unsigned* Get_Mip_Channel_Masks(WW3DFormat format)
+{
+	static const unsigned argb8888[4]={0xff000000,0x00ff0000,0x0000ff00,0x000000ff};
+	static const unsigned argb1555[4]={0x8000,0x7c00,0x03e0,0x001f};
+	static const unsigned rgb565[4]={0,0xf800,0x07e0,0x001f};
+	static const unsigned argb4444[4]={0xf000,0x0f00,0x00f0,0x000f};
+
+	switch (format)
+	{
+	case WW3D_FORMAT_A8R8G8B8:
+	case WW3D_FORMAT_X8R8G8B8:
+		return argb8888;
+	case WW3D_FORMAT_A1R5G5B5:
+	case WW3D_FORMAT_X1R5G5B5:
+		return argb1555;
+	case WW3D_FORMAT_R5G6B5:
+		return rgb565;
+	case WW3D_FORMAT_A4R4G4B4:
+	case WW3D_FORMAT_X4R4G4B4:
+		return argb4444;
+	default:
+		return nullptr;
+	}
+}
+
+static unsigned Read_Mip_Pixel(const unsigned char* bits, unsigned bpp)
+{
+	return bpp==4 ? *reinterpret_cast<const unsigned*>(bits) : *reinterpret_cast<const unsigned short*>(bits);
+}
+
+// Generates all mip levels below level 0 with a 2x2 box filter, rounding each channel to nearest.
+void DX8Wrapper::_Generate_DX8_Mip_Levels(IDirect3DTexture8* texture)
+{
+	const unsigned level_count=texture->GetLevelCount();
+	for (unsigned level=1; level<level_count; ++level)
+	{
+		D3DSURFACE_DESC src_desc;
+		D3DSURFACE_DESC dest_desc;
+		DX8_ErrorCode(texture->GetLevelDesc(level-1,&src_desc));
+		DX8_ErrorCode(texture->GetLevelDesc(level,&dest_desc));
+
+		const WW3DFormat format=D3DFormat_To_WW3DFormat(src_desc.Format);
+		const unsigned* masks=Get_Mip_Channel_Masks(format);
+		if (masks==nullptr)
+		{
+			WWASSERT_PRINT(0,"DX8Wrapper::_Generate_DX8_Mip_Levels - Unsupported texture format");
+			return;
+		}
+		const unsigned bpp=Get_Bytes_Per_Pixel(format);
+
+		D3DLOCKED_RECT src_lock;
+		D3DLOCKED_RECT dest_lock;
+		HRESULT res=texture->LockRect(level-1,&src_lock,nullptr,D3DLOCK_READONLY);
+		if (FAILED(res))
+		{
+			DX8_ErrorCode(res);
+			return;
+		}
+		res=texture->LockRect(level,&dest_lock,nullptr,0);
+		if (FAILED(res))
+		{
+			DX8_ErrorCode(res);
+			texture->UnlockRect(level-1);
+			return;
+		}
+
+		for (unsigned y=0; y<dest_desc.Height; ++y)
+		{
+			const unsigned src_y0=MIN(2*y,src_desc.Height-1);
+			const unsigned src_y1=MIN(2*y+1,src_desc.Height-1);
+			const unsigned char* src_row0=static_cast<const unsigned char*>(src_lock.pBits)+src_y0*src_lock.Pitch;
+			const unsigned char* src_row1=static_cast<const unsigned char*>(src_lock.pBits)+src_y1*src_lock.Pitch;
+			unsigned char* dest_row=static_cast<unsigned char*>(dest_lock.pBits)+y*dest_lock.Pitch;
+
+			for (unsigned x=0; x<dest_desc.Width; ++x)
+			{
+				const unsigned src_x0=MIN(2*x,src_desc.Width-1)*bpp;
+				const unsigned src_x1=MIN(2*x+1,src_desc.Width-1)*bpp;
+				const unsigned p0=Read_Mip_Pixel(src_row0+src_x0,bpp);
+				const unsigned p1=Read_Mip_Pixel(src_row0+src_x1,bpp);
+				const unsigned p2=Read_Mip_Pixel(src_row1+src_x0,bpp);
+				const unsigned p3=Read_Mip_Pixel(src_row1+src_x1,bpp);
+
+				unsigned pixel=0;
+				for (unsigned c=0; c<4; ++c)
+				{
+					const unsigned mask=masks[c];
+					if (mask==0)
+					{
+						continue;
+					}
+					const unsigned lsb=mask&(~mask+1);
+					const unsigned sum=(p0&mask)/lsb+(p1&mask)/lsb+(p2&mask)/lsb+(p3&mask)/lsb;
+					pixel|=((sum+2)/4)*lsb;
+				}
+
+				if (bpp==4)
+				{
+					*reinterpret_cast<unsigned*>(dest_row+x*bpp)=pixel;
+				}
+				else
+				{
+					*reinterpret_cast<unsigned short*>(dest_row+x*bpp)=static_cast<unsigned short>(pixel);
+				}
+			}
+		}
+
+		DX8_ErrorCode(texture->UnlockRect(level));
+		DX8_ErrorCode(texture->UnlockRect(level-1));
+	}
 }
 
 /*!

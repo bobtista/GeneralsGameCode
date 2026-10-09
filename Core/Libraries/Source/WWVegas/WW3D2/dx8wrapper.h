@@ -427,6 +427,7 @@ public:
 			IDirect3DSurface8* pDestinationSurface,
 			CONST POINT* pDestPointsArray
 	);
+	static void _Generate_DX8_Mip_Levels(IDirect3DTexture8* texture);
 
 	static void _Update_Texture(TextureClass *system, TextureClass *video);
 	static void Flush_DX8_Resource_Manager(unsigned int bytes=0);
