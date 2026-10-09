@@ -36,9 +36,8 @@
 #include "GameClient/View.h"
 #include "GameClient/Display.h"
 #include "WW3D2/texture.h"
-#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/RenderBufferTypes.h"
-#include "WW3D2/RenderBackend.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
@@ -94,7 +93,7 @@ void W3DSmudgeManager::ReAcquireResources()
 	surface_desc.Width = TheDisplay ? TheDisplay->getWidth() : 0;
 	surface_desc.Height = TheDisplay ? TheDisplay->getHeight() : 0;
 #else
-	if (!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Get_Back_Buffer_Description(0, surface_desc))
+	if (!Renderer::Is_Initialized() || !Renderer::Get_Back_Buffer_Description(0, surface_desc))
 		return;
 
 	m_backgroundTexture = MSGNEW("TextureClass") TextureClass(surface_desc.Width,surface_desc.Height,surface_desc.Format,MIP_LEVELS_1,TextureClass::POOL_DEFAULT, true);
@@ -144,12 +143,12 @@ void W3DSmudgeManager::ReAcquireResources()
 /*Copies a portion of the current render target into a specified buffer*/
 Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int height)
 {
-	if (buf == nullptr || bufSize <= 0 || width <= 0 || height <= 0 || WW3D::Get_Render_Backend() == nullptr) {
+	if (buf == nullptr || bufSize <= 0 || width <= 0 || height <= 0 || !Renderer::Is_Initialized()) {
 		return 0;
 	}
 
 	RenderBackendImage image;
-	if (!WW3D::Get_Render_Backend()->Capture_Back_Buffer_Image(0, image)) {
+	if (!Renderer::Capture_Back_Buffer_Image(0, image)) {
 		return 0;
 	}
 
@@ -210,15 +209,15 @@ Bool W3DSmudgeManager::testHardwareSupport()
 		}
 
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Material(vmat);
+		Renderer::Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);	//no need to keep a reference since it's a preset.
 
 		ShaderClass shader=ShaderClass::_PresetOpaqueShader;
 		shader.Set_Depth_Compare(ShaderClass::PASS_ALWAYS);
 		shader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Shader(shader);
-		WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of view and projection matrices
+		Renderer::Set_Shader(shader);
+		Renderer::Set_Texture(0,nullptr);
+		Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		RenderBackendScreenVertex v[4];
 
@@ -258,7 +257,7 @@ Bool W3DSmudgeManager::testHardwareSupport()
 			v[i].v1 = 0.0f;
 		}
 
-		if (WW3D::Get_Render_Backend() == nullptr || !WW3D::Get_Render_Backend()->Draw_Screen_Quad(v, 4, false))
+		if (!Renderer::Is_Initialized() || !Renderer::Draw_Screen_Quad(v, 4, false))
 		{
 			m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
 			return FALSE;
@@ -273,8 +272,8 @@ Bool W3DSmudgeManager::testHardwareSupport()
 			return FALSE;
 		}
 
-		if (WW3D::Get_Render_Backend() == nullptr ||
-			!WW3D::Get_Render_Backend()->Bind_View_Capture_Texture(RB_VIEW_CAPTURE_TACTICAL, 0))
+		if (!Renderer::Is_Initialized() ||
+			!Renderer::Bind_View_Capture_Texture(RB_VIEW_CAPTURE_TACTICAL, 0))
 		{
 			m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
 			return FALSE;
@@ -288,7 +287,7 @@ Bool W3DSmudgeManager::testHardwareSupport()
 		v[2].diffuse = 0xffffffff;
 		v[3].diffuse = 0xffffffff;
 
-		if (!WW3D::Get_Render_Backend()->Draw_Screen_Quad(v, 4, false))
+		if (!Renderer::Draw_Screen_Quad(v, 4, false))
 		{
 			m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
 			return FALSE;
@@ -336,7 +335,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	surface_desc.Width = TheDisplay->getWidth();
 	surface_desc.Height = TheDisplay->getHeight();
 #else
-	if (!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Get_Back_Buffer_Description(0, surface_desc))
+	if (!Renderer::Is_Initialized() || !Renderer::Get_Back_Buffer_Description(0, surface_desc))
 		return;
 #endif
 
@@ -446,7 +445,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	}
 
 #if !defined(GGC_RENDER_BACKEND_BGFX)
-	if (m_backgroundTexture == nullptr || WW3D::Get_Render_Backend() == nullptr)
+	if (m_backgroundTexture == nullptr || !Renderer::Is_Initialized())
 	{
 		return;
 	}
@@ -459,10 +458,10 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	// leaks ~78 MB/s of virtual address space — exhausting the 2 GB 32-bit
 	// limit in ~14 s of gameplay (silent stall at frame ~300). bgfx and any
 	// backend without the direct copy fall through to the image readback path.
-	if (!WW3D::Get_Render_Backend()->Copy_Back_Buffer_To_Texture(0, m_backgroundTexture))
+	if (!Renderer::Copy_Back_Buffer_To_Texture(0, m_backgroundTexture))
 	{
 		RenderBackendImage back_buffer_image;
-		if (!WW3D::Get_Render_Backend()->Capture_Back_Buffer_Image(0, back_buffer_image))
+		if (!Renderer::Capture_Back_Buffer_Image(0, back_buffer_image))
 		{
 			return;
 		}
@@ -476,33 +475,33 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 		m_backgroundTexture->Update_Surface_Level_From_Surface(0, image);
 	}
 #else
-	if (!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Begin_Smudge_Distortion(texClampX, texClampY))
+	if (!Renderer::Is_Initialized() || !Renderer::Begin_Smudge_Distortion(texClampX, texClampY))
 		return;
 
 	bgfxSmudgeActive = TRUE;
 #endif
 
 	Matrix4x4 identity(true);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,identity);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,identity);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_PROJECTION,proj);
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
-	//WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaqueSpriteShader);
+	Renderer::Set_Index_Buffer(m_indexBuffer,0);
+	//Renderer::Set_Shader(ShaderClass::_PresetOpaqueSpriteShader);
 
-	WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAlphaShader);
+	Renderer::Set_Shader(ShaderClass::_PresetAlphaShader);
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,bgfxSmudgeActive ? nullptr : m_backgroundTexture);
+	Renderer::Set_Texture(0,bgfxSmudgeActive ? nullptr : m_backgroundTexture);
 	//Need these states in case texture is non-power-of-2
-	WW3D::Get_Render_Backend()->Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP);
-	WW3D::Get_Render_Backend()->Set_Texture_Sample_Filter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_NONE);
+	Renderer::Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP);
+	Renderer::Set_Texture_Sample_Filter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_NONE);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 
 		// Disable reading texture alpha since it's undefined.
-	WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG2);
+	Renderer::Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG2);
 
 	Int smudgesRemaining=count;
 	setIt=m_usedSmudgeSetList.begin();	//first smudge set that needs rendering.
@@ -575,16 +574,16 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 		}
 
 flushSmudges:
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+		Renderer::Set_Vertex_Buffer(vb_access);
 
-		WW3D::Get_Render_Backend()->Draw_Triangles(0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);
+		Renderer::Draw_Triangles(0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);
 
 		smudgesRemaining -= smudgesInRenderBatch;
 	}
 
-	WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
-	WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
+	Renderer::Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+	Renderer::Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
 
 	if (bgfxSmudgeActive)
-		WW3D::Get_Render_Backend()->End_Smudge_Distortion();
+		Renderer::End_Smudge_Distortion();
 }

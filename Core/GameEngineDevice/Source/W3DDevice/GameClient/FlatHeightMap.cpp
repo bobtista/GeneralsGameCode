@@ -82,7 +82,7 @@
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/renderdebugstats.h"
 #include "WW3D2/Renderer.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
 #include "W3DDevice/GameClient/W3DPoly.h"
@@ -491,19 +491,19 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
 	// through the IRenderBackend abstraction.
-	WW3D::Get_Render_Backend()->Set_Light_Environment(rinfo.light_environment);
+	Renderer::Set_Light_Environment(rinfo.light_environment);
 
 	// Force shaders to update.
 	m_stageTwoTexture->restore();
-	WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-	WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
+	Renderer::Set_Texture(0,nullptr);
+	Renderer::Set_Texture(1,nullptr);
 	ShaderClass::Invalidate();
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Transform);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);
 
 
-	WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
-	WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
+	Renderer::Set_Material(m_vertexMaterialClass);
+	Renderer::Set_Shader(m_shaderClass);
 
  	st=W3DShaderManager::ST_FLAT_TERRAIN_BASE; //set default shader
 
@@ -534,7 +534,7 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 
 	// TheSuperHackers @bugfix bobtista 24/04/2026 Same rationale as HeightMap:
 	// shader pipeline cannot emulate legacy camera-space texcoord generation.
-	if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+	if (Renderer::Has_Shader_Pipeline())
 	{
 		devicePasses = 1;
 	}
@@ -551,7 +551,7 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  	W3DShaderManager::setTexture(3,m_stageThreeTexture);//noise
 	//Disable writes to destination alpha channel (if there is one)
 	if (Renderer::Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8) {
-		WW3D::Get_Render_Backend()->Set_Color_Write_Enable(true, true, true, false);
+		Renderer::Set_Color_Write_Enable(true, true, true, false);
 	}
 
 	Int pass;
@@ -562,8 +562,8 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  	for (pass=0; pass<devicePasses; pass++) {
 		Bool disableTex = m_disableTextures;
 		if (m_disableTextures ) {
-			WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaque2DShader);
-			WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
+			Renderer::Set_Shader(ShaderClass::_PresetOpaque2DShader);
+			Renderer::Set_Texture(0,nullptr);
 		} else {
 			W3DShaderManager::setShader(st, pass);
 		}
@@ -602,13 +602,13 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	renderShoreLines(&rinfo.Camera);
 
 #ifdef DO_ROADS
-	WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-	WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
+	Renderer::Set_Texture(0,nullptr);
+	Renderer::Set_Texture(1,nullptr);
 	m_stageTwoTexture->restore();
 
 	ShaderClass::Invalidate();
 	if (!ShaderClass::Is_Backface_Culling_Inverted()) {
-		WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Material(m_vertexMaterialClass);
 		if (Scene) {
 			RTS3DScene *pMyScene = (RTS3DScene *)Scene;
 			RefRenderObjListIterator pDynamicLightsIterator(pMyScene->getDynamicLights());
@@ -618,17 +618,17 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	}
 #endif
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-	WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
+	Renderer::Set_Texture(0,nullptr);
+	Renderer::Set_Texture(1,nullptr);
 	m_stageTwoTexture->restore();
 
 	drawScorches();
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-	WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
+	Renderer::Set_Texture(0,nullptr);
+	Renderer::Set_Texture(1,nullptr);
 	m_stageTwoTexture->restore();
 	ShaderClass::Invalidate();
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 
 	m_bridgeBuffer->drawBridges(&rinfo.Camera, m_disableTextures, m_stageTwoTexture);
 
@@ -636,18 +636,18 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 		TheTerrainTracksRenderObjClassSystem->flush();
 
 	ShaderClass::Invalidate();
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 
 	m_waypointBuffer->drawWaypoints(rinfo);
 
 	m_bibBuffer->renderBibs();
 #endif
 	// We do some custom blending, so tell the shader class to reset everything.
-	WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-	WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
+	Renderer::Set_Texture(0,nullptr);
+	Renderer::Set_Texture(1,nullptr);
 	m_stageTwoTexture->restore();
 	ShaderClass::Invalidate();
-	WW3D::Get_Render_Backend()->Set_Material(nullptr);
+	Renderer::Set_Material(nullptr);
 	W3DShaderManager::pushCloudShadowToBackend(false, nullptr);
 
 }

@@ -39,7 +39,7 @@
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DTerrainParticles.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 
 
 // The shader pipeline renders these authored hull-contact foam systems smaller and dimmer than
@@ -184,7 +184,7 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 	UnsignedInt pointCount = 0;
 
 	// TheSuperHackers @tweak bobtista 11/09/2026 The additive particle compensations below only apply to the shader pipeline backend.
-	const Bool useShaderPipeline = (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Has_Shader_Pipeline());
+	const Bool useShaderPipeline = (Renderer::Is_Initialized() && Renderer::Has_Shader_Pipeline());
 
 	ParticleSystemManager::ParticleSystemList &particleSysList = TheParticleSystemManager->getAllParticleSystems();
 	for( ParticleSystemManager::ParticleSystemListIt it = particleSysList.begin(); it != particleSysList.end(); ++it)

@@ -14,7 +14,7 @@
 // bring-up/teardown, extracted verbatim from DX8Wrapper's device-dependent
 // init/shutdown so the bgfx backend can drive the device lifecycle without
 // compiling dx8wrapper.cpp. These touch only WW3D engine subsystems; the
-// backend's own WW3D::Get_Render_Backend() Initialize/Shutdown and the DX8Wrapper-internal
+// backend's own Renderer:: Initialize/Shutdown and the DX8Wrapper-internal
 // caps + default-render-state setup stay with their owners.
 namespace WW3DDeviceInit
 {

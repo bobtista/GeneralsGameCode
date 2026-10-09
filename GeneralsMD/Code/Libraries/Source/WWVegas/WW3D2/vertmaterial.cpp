@@ -46,7 +46,7 @@
 #include "WWLib/INI.h"
 #include "WWLib/XSTRAW.h"
 #include "ww3d.h"
-#include "RenderBackend.h"
+#include "Renderer.h"
 
 
 static unsigned int unique=1;
@@ -928,13 +928,13 @@ void VertexMaterialClass::Apply() const
 {
 	int i;
 
-	WW3D::Get_Render_Backend()->Apply_Material_State(Make_Render_Backend_Material_State(Material));
+	Renderer::Apply_Material_State(Make_Render_Backend_Material_State(Material));
 
 	if (WW3D::Is_Coloring_Enabled())
-		WW3D::Get_Render_Backend()->Set_Lighting_Enable(false);
+		Renderer::Set_Lighting_Enable(false);
 	else
-		WW3D::Get_Render_Backend()->Set_Lighting_Enable(UseLighting);
-	WW3D::Get_Render_Backend()->Set_Material_Color_Source(Convert_Color_Source(AmbientColorSource),
+		Renderer::Set_Lighting_Enable(UseLighting);
+	Renderer::Set_Material_Color_Source(Convert_Color_Source(AmbientColorSource),
 		Convert_Color_Source(DiffuseColorSource),
 		Convert_Color_Source(EmissiveColorSource));
 
@@ -943,8 +943,8 @@ void VertexMaterialClass::Apply() const
 		if (Mapper[i]) {
 			Mapper[i]->Apply(UVSource[i]);
 		} else {
-			WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(i, RB_TEXCOORD_MESH_UV, UVSource[i]);
-			WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(i, 0, false);
+			Renderer::Set_Texture_Coord_Source(i, RB_TEXCOORD_MESH_UV, UVSource[i]);
+			Renderer::Set_Texture_Transform_Mode(i, 0, false);
 		}
 	}
 }
@@ -961,17 +961,17 @@ void VertexMaterialClass::Apply_Null()
 		1.0f									// power
 	};
 
-	WW3D::Get_Render_Backend()->Set_Lighting_Enable(false);
-	WW3D::Get_Render_Backend()->Apply_Material_State(Make_Render_Backend_Material_State(default_settings));
+	Renderer::Set_Lighting_Enable(false);
+	Renderer::Apply_Material_State(Make_Render_Backend_Material_State(default_settings));
 
-	WW3D::Get_Render_Backend()->Set_Material_Color_Source(RB_MATERIAL_COLOR_SOURCE_MATERIAL,
+	Renderer::Set_Material_Color_Source(RB_MATERIAL_COLOR_SOURCE_MATERIAL,
 		RB_MATERIAL_COLOR_SOURCE_MATERIAL,
 		RB_MATERIAL_COLOR_SOURCE_MATERIAL);
 
 	// set to default values if no mappers
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++) {
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(i, RB_TEXCOORD_MESH_UV, i);
-		WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(i, 0, false);
+		Renderer::Set_Texture_Coord_Source(i, RB_TEXCOORD_MESH_UV, i);
+		Renderer::Set_Texture_Transform_Mode(i, 0, false);
 	}
 }
 

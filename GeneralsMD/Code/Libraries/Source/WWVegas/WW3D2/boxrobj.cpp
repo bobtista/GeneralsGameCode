@@ -98,8 +98,7 @@
 #include "coltest.h"
 #include "inttest.h"
 #include "ww3dcolor.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8fvf.h"
@@ -506,14 +505,14 @@ void BoxRenderObjClass::render_box(RenderInfoClass & rinfo,const Vector3 & cente
 		/*
 		** Apply the shader and material
 		*/
-		WW3D::Get_Render_Backend()->Set_Material(_BoxMaterial);
-		WW3D::Get_Render_Backend()->Set_Shader(_BoxShader);
-		WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
+		Renderer::Set_Material(_BoxMaterial);
+		Renderer::Set_Shader(_BoxShader);
+		Renderer::Set_Texture(0,nullptr);
 
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ibaccess, 0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vbaccess);
+		Renderer::Set_Index_Buffer(ibaccess, 0);
+		Renderer::Set_Vertex_Buffer(vbaccess);
 
-		WW3D::Get_Render_Backend()->Draw_Triangles(buffer_type, 0, NUM_BOX_FACES, 0, NUM_BOX_VERTS);
+		Renderer::Draw_Triangles(buffer_type, 0, NUM_BOX_FACES, 0, NUM_BOX_VERTS);
 	}
 }
 
@@ -703,7 +702,7 @@ void AABoxRenderObjClass::Render(RenderInfoClass & rinfo)
 {
 	Matrix3D temp(1);
 	temp.Translate(Transform.Get_Translation());
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,temp);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,temp);
 	render_box(rinfo,ObjSpaceCenter,ObjSpaceExtent);
 }
 
@@ -1087,7 +1086,7 @@ int OBBoxRenderObjClass::Class_ID() const
  *=============================================================================================*/
 void OBBoxRenderObjClass::Render(RenderInfoClass & rinfo)
 {
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Transform);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);
 	render_box(rinfo,ObjSpaceCenter,ObjSpaceExtent);
 }
 

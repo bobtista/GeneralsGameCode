@@ -13,8 +13,6 @@ set(WW3D2_SRC
     #assetmgr.h
     assetstatus.cpp
     assetstatus.h
-    Backend/RenderBackend.cpp
-    Backend/RenderBackend.h
     Backend/RenderBackendWater.cpp
     Backend/RenderBackendWater.h
     bitmaphandler.cpp
@@ -159,7 +157,8 @@ set(WW3D2_SRC
     proto.h
     proxy.h
     rddesc.h
-    RenderBackend.h
+    Renderer.cpp
+    Renderer.h
     #render2d.cpp
     #render2d.h
     render2dsentence.cpp
@@ -380,10 +379,14 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
 endif()
 
 # Propagate the active backend's compile define to every translation unit
-# that pulls in WW3D2, so that RenderBackend.cpp and any future callers can
+# that pulls in WW3D2, so that Renderer.cpp and any future callers can
 # #if on GGC_RENDER_BACKEND_DX8 / _BGFX.
 if(DEFINED GGC_RENDER_BACKEND_COMPILE_DEFINE)
     target_compile_definitions(corei_ww3d2 INTERFACE ${GGC_RENDER_BACKEND_COMPILE_DEFINE})
+endif()
+
+if(GGC_RENDERER_VIRTUAL)
+    target_compile_definitions(corei_ww3d2 INTERFACE GGC_RENDERER_VIRTUAL=1)
 endif()
 
 if (MSVC AND NOT IS_VS6_BUILD)

@@ -63,8 +63,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/assetmgr.h"
 #include "WW3D2/dx8fvf.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/vertexbuffer.h"
@@ -528,9 +527,9 @@ void WaterTracksRenderSystem::drawBatch(Int firstVertex, Int trackCount, Texture
 		return;
 	}
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,texture);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_batchIndexBuffer,firstVertex);
-	WW3D::Get_Render_Backend()->Draw_Triangles(0,trackCount*2,0,trackCount*WATER_STRIP_X*WATER_STRIP_Y);
+	Renderer::Set_Texture(0,texture);
+	Renderer::Set_Index_Buffer(m_batchIndexBuffer,firstVertex);
+	Renderer::Draw_Triangles(0,trackCount*2,0,trackCount*WATER_STRIP_X*WATER_STRIP_Y);
 }
 
 //=============================================================================
@@ -965,20 +964,20 @@ Try improving the fit to vertical surfaces like cliffs.
 	diffuseLight=REAL_TO_INT(shadeB) | (REAL_TO_INT(shadeG) << 8) | (REAL_TO_INT(shadeR) << 16);
 
 	Matrix3D tm(1);	///set to identity
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
 
-	WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
-	WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
+	Renderer::Set_Material(m_vertexMaterialClass);
+	Renderer::Set_Shader(m_shaderClass);
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexBuffer);
-	WW3D::Get_Render_Backend()->Set_Z_Bias(8);
+	Renderer::Set_Vertex_Buffer(m_vertexBuffer);
+	Renderer::Set_Z_Bias(8);
 	//Force apply of render states so we can override them.
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 	// TheSuperHackers @bugfix bobtista 28/04/2026 Water-track wave quads
 	// are submitted after the water surface in legacy draw order. bgfx
 	// executes views by id, so keep them in the water view instead of the
 	// earlier opaque world view where the water pass would cover them.
-	WW3D::Get_Render_Backend()->Begin_Water_Overlay();
+	Renderer::Begin_Water_Overlay();
 
 	if (TheTerrainRenderObject->getShroud())
 	{
@@ -986,14 +985,14 @@ Try improving the fit to vertical surfaces like cliffs.
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 1);
 
 		//modulate with shroud texture
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);	//stage 1 texture
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);	//previous stage texture
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);
+		Renderer::Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);	//stage 1 texture
+		Renderer::Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);	//previous stage texture
+		Renderer::Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
+		Renderer::Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);
 
 		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 		//write to the zbuffer.  Change to LESSEQUAL.
-		WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_LESS_EQUAL);
+		Renderer::Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	}
 
 	WaterTracksObj *mod=m_usedModules;
@@ -1042,13 +1041,13 @@ Try improving the fit to vertical surfaces like cliffs.
 
 	drawBatch(batchFirstVertex,batchTrackCount,batchTexture);
 
-	WW3D::Get_Render_Backend()->Set_Z_Bias(0);
-	WW3D::Get_Render_Backend()->End_Water_Overlay();
+	Renderer::Set_Z_Bias(0);
+	Renderer::End_Water_Overlay();
 
 	if (TheTerrainRenderObject->getShroud())
 	{
 		//we used the shroud shader, so reset it.
-		WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_EQUAL);
+		Renderer::Set_Depth_Func(RB_CMP_EQUAL);
 		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 	}
 }
@@ -1443,7 +1442,7 @@ void TestWaterUpdate()
 				Real ydiff=terrainPointEnd.y - terrainPointStart.y;
 				if (sqrt (xdiff * xdiff + ydiff * ydiff) <= waveTypeInfo[currentWaveType].m_finalWidth)
 				{	TheDisplay->drawLine(mouseAnchor.x, mouseAnchor.y, screenPoint.x, screenPoint.y,1,0xffccccff);
-					WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();
+					Renderer::Invalidate_Cached_Render_States();
 					ShaderClass::Invalidate();
 				}
 

@@ -42,8 +42,7 @@
 #include "WWLib/realcrc.h"
 #include "ww3dcolor.h"
 #include "meshmdl.h"
-#include "WW3D2/RenderBackend.h"
-#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/Renderer.h"
 
 
 /**************************************************************************************************
@@ -841,13 +840,13 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 		// HY: Earth and beyond uses a different fallback from Renegade with regards to bump environment maps
 		// we keep the pass but change it to an unbumped environment
 		if ( (Shader[pass].Get_Primary_Gradient() == ShaderClass::GRADIENT_BUMPENVMAP) &&
-			  (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Supports_Bump_Envmap() == false) )
+			  (!Renderer::Is_Initialized() || Renderer::Supports_Bump_Envmap() == false) )
 		{
 			kill_pass = true;
 		}
 
 		if ( (Shader[pass].Get_Primary_Gradient() == ShaderClass::GRADIENT_BUMPENVMAPLUMINANCE) &&
-			  (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Supports_Bump_Envmap_Luminance() == false) )
+			  (!Renderer::Is_Initialized() || Renderer::Supports_Bump_Envmap_Luminance() == false) )
 		{
 			kill_pass = true;
 		}
@@ -943,7 +942,7 @@ void MeshMatDescClass::Configure_Material(VertexMaterialClass * mtl,int pass,boo
 
 bool MeshMatDescClass::Do_Mappers_Need_Normals()
 {
-	if (WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_NPatches() && WW3D::Get_NPatches_Level()>1) return true;
+	if (Renderer::Is_Initialized() && Renderer::Supports_NPatches() && WW3D::Get_NPatches_Level()>1) return true;
 
 	for (int pass=0; pass<PassCount; pass++) {
 		/*

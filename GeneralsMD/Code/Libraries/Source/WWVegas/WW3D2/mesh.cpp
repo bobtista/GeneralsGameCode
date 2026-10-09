@@ -89,8 +89,7 @@
 #include "mesh.h"
 #include <assert.h>
 #include "w3d_file.h"
-#include "WW3D2/RenderBackend.h"
-#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "assetmgr.h"
 #include "w3derr.h"
 #include "WWDebug/wwdebug.h"
@@ -864,7 +863,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 	Vector3 oldEmissive(-1,-1,-1);
 
 	if (LightEnvironment != nullptr) {
-		WW3D::Get_Render_Backend()->Set_Light_Environment(LightEnvironment);
+		Renderer::Set_Light_Environment(LightEnvironment);
 	}
 
 	if (Model->Get_Flag(MeshModelClass::SKIN)) {
@@ -890,10 +889,10 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 		}
 		pass->Set_Context_Texture(Model->Peek_Single_Texture(0, 0), 0);
 		pass->Install_Materials();
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib, 0);
+		Renderer::Set_Index_Buffer(ib, 0);
 
 		SNAPSHOT_SAY(("Set_World_Identity"));
-		WW3D::Get_Render_Backend()->Set_World_Identity();
+		Renderer::Set_World_Identity();
 
 		DX8PolygonRendererListIterator it(&Model->PolygonRendererList);
 		while (!it.Is_Done()) {
@@ -987,10 +986,10 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 			pass->Set_Context_Texture(Model->Peek_Single_Texture(0, 0), 0);
 			pass->Install_Materials();
 
-			WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, Get_Transform());
-			WW3D::Get_Render_Backend()->Set_Index_Buffer(dynamic_ib, vertex_offset);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD, Get_Transform());
+			Renderer::Set_Index_Buffer(dynamic_ib, vertex_offset);
 
-			WW3D::Get_Render_Backend()->Draw_Triangles(
+			Renderer::Draw_Triangles(
 				0,
 				temp_apt.Count(),
 				min_v,
@@ -1022,10 +1021,10 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 		}
 		pass->Set_Context_Texture(Model->Peek_Single_Texture(0, 0), 0);
 		pass->Install_Materials();
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib, 0);
+		Renderer::Set_Index_Buffer(ib, 0);
 
 		SNAPSHOT_SAY(("Set_World_Transform"));
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, Transform);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD, Transform);
 
 		DX8PolygonRendererListIterator it(&Model->PolygonRendererList);
 		while (!it.Is_Done()) {

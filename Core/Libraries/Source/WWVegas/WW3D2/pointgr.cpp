@@ -87,8 +87,7 @@
 #include "camera.h"
 #include "dx8fvf.h"
 #include "sortingrenderer.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "renderbufferclasses.h"
 #include "BgfxRenderProfile.h"
 #include "GgcRuntimeFlags.h"
@@ -900,7 +899,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Get the world and view matrices
 	Matrix4x4 view;
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
+	Renderer::Get_Transform(RB_TRANSFORM_VIEW, view);
 
 	// Transform the point locations from worldspace to camera space if needed
 	// (i.e. if they are not already in camera space):
@@ -950,12 +949,12 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	// so set world and view matrices to identity and render
 
 	Matrix4x4 identity(true);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,identity);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW, identity);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW, identity);
 
-	WW3D::Get_Render_Backend()->Set_Material(PointMaterial);
-	WW3D::Get_Render_Backend()->Set_Shader(Shader);
-	WW3D::Get_Render_Backend()->Set_Texture(0,Texture);
+	Renderer::Set_Material(PointMaterial);
+	Renderer::Set_Shader(Shader);
+	Renderer::Set_Texture(0,Texture);
 
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 	// TheSuperHackers @bugfix stephanmeesters 30/06/2026 However, do not apply sorting to ground-aligned particles.
@@ -1012,7 +1011,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	current = 0;
 	if (sort)
 	{
-		WW3D::Get_Render_Backend()->Set_Point_Group_Render_Active(true);
+		Renderer::Set_Point_Group_Render_Active(true);
 	}
 	while (current<vnum)
 	{
@@ -1046,8 +1045,8 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 			}
 		}
 
-		WW3D::Get_Render_Backend()->Set_Index_Buffer (indexbuffer, 0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer (PointVerts);
+		Renderer::Set_Index_Buffer (indexbuffer, 0);
+		Renderer::Set_Vertex_Buffer (PointVerts);
 
 		if ( sort )
 		{
@@ -1055,18 +1054,18 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		}
 		else
 		{
-			WW3D::Get_Render_Backend()->Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
+			Renderer::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
 		}
 
 		current+=delta;
 	}
 	if (sort)
 	{
-		WW3D::Get_Render_Backend()->Set_Point_Group_Render_Active(false);
+		Renderer::Set_Point_Group_Render_Active(false);
 	}
 
 	// restore the matrices
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,view);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,view);
 }
 
 
@@ -1290,7 +1289,7 @@ void PointGroupClass::Update_Arrays(
 				Matrix4x4 view;
 				Vector4 result;
 				if (!Billboard) {
-					WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
+					Renderer::Get_Transform(RB_TRANSFORM_VIEW, view);
 				}
 
 				// Scale vertex offsets and add them to point locations to get vertex locations
@@ -1788,7 +1787,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 		// Get the world and view matrices
 		Matrix4x4 view;
-		WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
+		Renderer::Get_Transform(RB_TRANSFORM_VIEW, view);
 
 
 
@@ -1797,7 +1796,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 	// per layer. GGC_NO_VOLUME_MERGE forces the legacy per-layer path. The DX8
 	// fixed-function path keeps the original per-layer loop byte-identical.
 	static const bool s_volumeMergeDisabled = GgcFlags::Enabled(GgcFlag_NoVolumeMerge);
-	const bool mergeVolume = WW3D::Get_Render_Backend()->Has_Shader_Pipeline() && !s_volumeMergeDisabled;
+	const bool mergeVolume = Renderer::Has_Shader_Pipeline() && !s_volumeMergeDisabled;
 	if (mergeVolume)
 	{
 		s_volMergeCount = 0;
@@ -1943,12 +1942,12 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		// so set world and view matrices to identity and render
 
 		Matrix4x4 identity(true);
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,identity);
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW, identity);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
+		Renderer::Set_Transform(RB_TRANSFORM_VIEW, identity);
 
-		WW3D::Get_Render_Backend()->Set_Material(PointMaterial);
-		WW3D::Get_Render_Backend()->Set_Shader(Shader);
-		WW3D::Get_Render_Backend()->Set_Texture(0,Texture);
+		Renderer::Set_Material(PointMaterial);
+		Renderer::Set_Shader(Shader);
+		Renderer::Set_Texture(0,Texture);
 
 		// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 		// TheSuperHackers @info Volumetric particles, both billboarded and ground-aligned, must have sorting enabled to
@@ -2002,7 +2001,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		current = 0;
 		if (sort)
 		{
-			WW3D::Get_Render_Backend()->Set_Point_Group_Render_Active(true);
+			Renderer::Set_Point_Group_Render_Active(true);
 		}
 		while (current<vnum)
 		{
@@ -2038,8 +2037,8 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 				}
 			}
 
-			WW3D::Get_Render_Backend()->Set_Index_Buffer (indexbuffer, 0);
-			WW3D::Get_Render_Backend()->Set_Vertex_Buffer (PointVerts);
+			Renderer::Set_Index_Buffer (indexbuffer, 0);
+			Renderer::Set_Vertex_Buffer (PointVerts);
 
 			/// @todo lorenzen sez: precompute these params, above
 
@@ -2047,14 +2046,14 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 			if ( sort )
 					SortingRendererClass::Insert_Triangles (0, delta / verticesperprimitive, 0, delta);
 			else
-				WW3D::Get_Render_Backend()->Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
+				Renderer::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
 
 
 			current+=delta;
 		}
 		if (sort)
 		{
-			WW3D::Get_Render_Backend()->Set_Point_Group_Render_Active(false);
+			Renderer::Set_Point_Group_Render_Active(false);
 		}
 
 
@@ -2070,7 +2069,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		const int vpp = s_volMergeVerticesPerPrimitive;
 		if (s_volMergeSort)
 		{
-			WW3D::Get_Render_Backend()->Set_Point_Group_Render_Active(true);
+			Renderer::Set_Point_Group_Render_Active(true);
 		}
 		int mergedCurrent = 0;
 		while (mergedCurrent < s_volMergeCount)
@@ -2095,24 +2094,24 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 					vb += fvfinfo.Get_FVF_Size();
 				}
 			}
-			WW3D::Get_Render_Backend()->Set_Index_Buffer(s_volMergeIndexBuffer, 0);
-			WW3D::Get_Render_Backend()->Set_Vertex_Buffer(PointVerts);
+			Renderer::Set_Index_Buffer(s_volMergeIndexBuffer, 0);
+			Renderer::Set_Vertex_Buffer(PointVerts);
 			if (s_volMergeSort)
 			{
 				SortingRendererClass::Insert_Triangles(0, mergedDelta / vpp, 0, mergedDelta);
 			}
 			else
 			{
-				WW3D::Get_Render_Backend()->Draw_Triangles(0, mergedDelta / vpp, 0, mergedDelta);
+				Renderer::Draw_Triangles(0, mergedDelta / vpp, 0, mergedDelta);
 			}
 			mergedCurrent += mergedDelta;
 		}
 		if (s_volMergeSort)
 		{
-			WW3D::Get_Render_Backend()->Set_Point_Group_Render_Active(false);
+			Renderer::Set_Point_Group_Render_Active(false);
 		}
 	}
 
 	// restore the matrices
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,view);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,view);
 }

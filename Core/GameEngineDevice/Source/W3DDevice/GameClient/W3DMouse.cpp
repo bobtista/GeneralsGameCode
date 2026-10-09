@@ -29,7 +29,7 @@
 
 
 #include "Common/GameMemory.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/rendobj.h"
 #include "WW3D2/hanim.h"
 #include "WW3D2/camera.h"
@@ -142,9 +142,9 @@ W3DMouse::~W3DMouse()
 	// hardware cursor hide through the IRenderBackend cursor API instead
 	// of touching the legacy device directly. Null guard is defensive
 	// against unusual destruction orderings.
-	if (WW3D::Get_Render_Backend() != nullptr)
+	if (Renderer::Is_Initialized())
 	{
-		WW3D::Get_Render_Backend()->Show_Hardware_Cursor(false);
+		Renderer::Show_Hardware_Cursor(false);
 		Win32Mouse::setCursor(ARROW); //enable default windows cursor
 	}
 
@@ -430,9 +430,9 @@ void W3DMouse::setCursor( MouseCursor cursor )
 		// previous code grabbed the legacy device directly.
 		Bool doImageChange=FALSE;
 
-		if (WW3D::Get_Render_Backend() != nullptr)
+		if (Renderer::Is_Initialized())
 		{
-			WW3D::Get_Render_Backend()->Show_Hardware_Cursor(false);
+			Renderer::Show_Hardware_Cursor(false);
 			if (cursor != m_currentHardwareCursor)
 			{	if (!isThread)
 				{	releaseHardwareCursorTextures(m_currentHardwareCursor);
@@ -451,10 +451,10 @@ void W3DMouse::setCursor( MouseCursor cursor )
 			m_currentHotSpot = m_cursorInfo[cursor].hotSpotPosition;
 			m_currentFMS = m_cursorInfo[cursor].fps/1000.0f;
 			m_currentAnimFrame = 0;	//reset animation when cursor changes
-			WW3D::Get_Render_Backend()->Set_Hardware_Cursor_Image(
+			Renderer::Set_Hardware_Cursor_Image(
 				m_currentHotSpot.x, m_currentHotSpot.y,
 				m_currentHardwareImage[(Int)m_currentAnimFrame]);
-			WW3D::Get_Render_Backend()->Show_Hardware_Cursor(true);
+			Renderer::Show_Hardware_Cursor(true);
 			m_currentHardwareFrame=(Int)m_currentAnimFrame;
 			m_currentHardwareCursor = cursor;
 			m_lastAnimTime=timeGetTime();
@@ -527,8 +527,8 @@ void W3DMouse::draw()
 		// cursor API.
 		// Called from update thread or rendering loop. Tells the backend where
 		// to draw the hardware cursor.
-		if (WW3D::Get_Render_Backend() != nullptr)
-		{	WW3D::Get_Render_Backend()->Show_Hardware_Cursor(true);
+		if (Renderer::Is_Initialized())
+		{	Renderer::Show_Hardware_Cursor(true);
 
 			if (TheDisplay && !TheDisplay->getWindowed())
 			{
@@ -537,7 +537,7 @@ void W3DMouse::draw()
 
 				::GetCursorPos( &ptCursor );
 				::ScreenToClient( ApplicationHWnd, &ptCursor );
-				WW3D::Get_Render_Backend()->Set_Hardware_Cursor_Position(ptCursor.x, ptCursor.y);
+				Renderer::Set_Hardware_Cursor_Position(ptCursor.x, ptCursor.y);
 			}
 			//Check if animated cursor and new frame
 			if (m_currentFrames > 1)
@@ -550,7 +550,7 @@ void W3DMouse::draw()
 				if ((Int)m_currentAnimFrame != m_currentHardwareFrame)
 				{
 					m_currentHardwareFrame=(Int)m_currentAnimFrame;
-					WW3D::Get_Render_Backend()->Set_Hardware_Cursor_Image(
+					Renderer::Set_Hardware_Cursor_Image(
 						m_currentHotSpot.x, m_currentHotSpot.y,
 						m_currentHardwareImage[m_currentHardwareFrame]);
 				}

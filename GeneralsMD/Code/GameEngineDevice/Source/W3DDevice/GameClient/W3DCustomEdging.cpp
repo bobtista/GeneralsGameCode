@@ -56,8 +56,7 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -360,55 +359,55 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 	}
 	TextureClass *edgeTex = pMap->getEdgeTerrainTexture();
 	// Setup the vertex buffer, shader & texture.
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexEdging,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexEdging);
-	WW3D::Get_Render_Backend()->Set_Shader(detailAlphaTestShader);
+	Renderer::Set_Index_Buffer(m_indexEdging,0);
+	Renderer::Set_Vertex_Buffer(m_vertexEdging);
+	Renderer::Set_Shader(detailAlphaTestShader);
 #ifdef RTS_DEBUG
-	//WW3D::Get_Render_Backend()->Set_Shader(detailShader); // shows clipping.
+	//Renderer::Set_Shader(detailShader); // shows clipping.
 #endif
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,terrainTexture);
-	WW3D::Get_Render_Backend()->Set_Texture(1,edgeTex);
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Set_Texture(0,terrainTexture);
+	Renderer::Set_Texture(1,edgeTex);
+	Renderer::Apply_Render_State_Changes();
 
-	WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x7B, RB_CMP_LESS_EQUAL);
-	WW3D::Get_Render_Backend()->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
+	Renderer::Override_Alpha_Test(true, 0x7B, RB_CMP_LESS_EQUAL);
+	Renderer::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,edgeTex);
-	WW3D::Get_Render_Backend()->Set_Texture(1, nullptr);
+	Renderer::Set_Texture(0,edgeTex);
+	Renderer::Set_Texture(1, nullptr);
 	// Draw the custom edge.
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 
-	WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x84, RB_CMP_GREATER_EQUAL);
-	WW3D::Get_Render_Backend()->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
+	Renderer::Override_Alpha_Test(true, 0x84, RB_CMP_GREATER_EQUAL);
+	Renderer::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 
 #if 0 // Dumps out unmasked data.
-	WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(false);
-	WW3D::Get_Render_Backend()->Set_Alpha_Test_Enable(false);	//test pixels if transparent(clipped) before rendering.
-	WW3D::Get_Render_Backend()->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
+	Renderer::Set_Alpha_Blend_Enable(false);
+	Renderer::Set_Alpha_Test_Enable(false);	//test pixels if transparent(clipped) before rendering.
+	Renderer::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 #endif
-	WW3D::Get_Render_Backend()->Set_Texture(1, nullptr);
+	Renderer::Set_Texture(1, nullptr);
 	if (cloudTexture) {
-		WW3D::Get_Render_Backend()->Set_Shader(detailOpaqueShader);
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
-		WW3D::Get_Render_Backend()->Set_Texture(1,edgeTex);
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
-		WW3D::Get_Render_Backend()->Set_Texture(0,cloudTexture);
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
-		WW3D::Get_Render_Backend()->Configure_Custom_Edging_Cloud_Texture_Stages();
-		WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
-		WW3D::Get_Render_Backend()->Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
-		WW3D::Get_Render_Backend()->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
+		Renderer::Set_Shader(detailOpaqueShader);
+		Renderer::Apply_Render_State_Changes();
+		Renderer::Set_Texture(1,edgeTex);
+		Renderer::Apply_Render_State_Changes();
+		Renderer::Set_Texture(0,cloudTexture);
+		Renderer::Apply_Render_State_Changes();
+		Renderer::Configure_Custom_Edging_Cloud_Texture_Stages();
+		Renderer::Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
+		Renderer::Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
+		Renderer::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 	}
 	if (noiseTexture) {
-		WW3D::Get_Render_Backend()->Set_Texture(1, nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture(0,noiseTexture);
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
-		WW3D::Get_Render_Backend()->Set_Texture(1,edgeTex);
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+		Renderer::Set_Texture(1, nullptr);
+		Renderer::Set_Texture(0,noiseTexture);
+		Renderer::Apply_Render_State_Changes();
+		Renderer::Set_Texture(1,edgeTex);
+		Renderer::Apply_Render_State_Changes();
 
-		WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
-		WW3D::Get_Render_Backend()->Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
-		WW3D::Get_Render_Backend()->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
+		Renderer::Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
+		Renderer::Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
+		Renderer::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 	}
 }

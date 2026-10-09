@@ -51,8 +51,7 @@
 #include "vertexbuffer.h"
 #include "indexbuffer.h"
 #include "dx8fvf.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "GgcRuntimeFlags.h"
 #include "w3d_file.h"
 
@@ -234,11 +233,11 @@ void SegLineRendererClass::Render
 {
 	const bool diagSegline = GgcFlags::Enabled(GgcFlag_SeglineDiag);
 	Matrix4x4 view;
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW,view);
+	Renderer::Get_Transform(RB_TRANSFORM_VIEW,view);
 
 	Matrix4x4 identity(true);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,identity);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW, identity);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW, identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
@@ -1229,25 +1228,25 @@ void SegLineRendererClass::Render
 			}
 		}
 
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(Verts);
-		WW3D::Get_Render_Backend()->Set_Material(mat);
-		WW3D::Get_Render_Backend()->Set_Texture(0,Texture);
-		WW3D::Get_Render_Backend()->Set_Shader(shader);
+		Renderer::Set_Index_Buffer(ib_access,0);
+		Renderer::Set_Vertex_Buffer(Verts);
+		Renderer::Set_Material(mat);
+		Renderer::Set_Texture(0,Texture);
+		Renderer::Set_Shader(shader);
 
 		if (sorting) {
-			WW3D::Get_Render_Backend()->Set_Streak_Render_Active(true);
+			Renderer::Set_Streak_Render_Active(true);
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,tidx,0,vnum);
-			WW3D::Get_Render_Backend()->Set_Streak_Render_Active(false);
+			Renderer::Set_Streak_Render_Active(false);
 		} else {
-			WW3D::Get_Render_Backend()->Draw_Triangles(0,tidx,0,vnum);
+			Renderer::Draw_Triangles(0,tidx,0,vnum);
 		}
 
 		REF_PTR_RELEASE(mat);
 
 	}
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,view);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,view);
 
 }
 

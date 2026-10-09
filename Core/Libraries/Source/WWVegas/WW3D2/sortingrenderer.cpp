@@ -46,8 +46,7 @@
 #include "dllist.h"
 #include "FixedFunctionState.h"
 #include "RenderBufferTypes.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "vertmaterial.h"
 #include "texture.h"
 #include "statistics.h"
@@ -381,7 +380,7 @@ void SortingRendererClass::Insert_Triangles(
 {
 	GGC_RPROFILE(SORTED_INSERT);
 	if (!WW3D::Is_Sorting_Enabled()) {
-		WW3D::Get_Render_Backend()->Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
+		Renderer::Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
 		return;
 	}
 
@@ -393,7 +392,7 @@ void SortingRendererClass::Insert_Triangles(
 
 	SortingNodeStruct* state=Get_Sorting_Struct();
 
-	WW3D::Get_Render_Backend()->Capture_Legacy_Render_State_For_Sorted_Draw(state->sorting_state);
+	Renderer::Capture_Legacy_Render_State_For_Sorted_Draw(state->sorting_state);
 
  	WWASSERT(
 		((state->sorting_state.index_buffer_type==BUFFER_TYPE_SORTING || state->sorting_state.index_buffer_type==BUFFER_TYPE_DYNAMIC_SORTING) &&
@@ -404,7 +403,7 @@ void SortingRendererClass::Insert_Triangles(
 	state->polygon_count=polygon_count;
 	state->min_vertex_index=min_vertex_index;
 	state->vertex_count=vertex_count;
-	if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline() && Sorted_Packet_Collector_Diag_Enabled())
+	if (Renderer::Has_Shader_Pipeline() && Sorted_Packet_Collector_Diag_Enabled())
 	{
 		state->packet_diag_source = static_cast<unsigned char>(Classify_Sorted_Packet_Diag_Source(state->sorting_state));
 		state->packet_diag_fallback = static_cast<unsigned char>(Classify_Sorted_Packet_Diag_Fallback(state->sorting_state));
@@ -662,10 +661,10 @@ static void Apply_Render_State(SortingNodeStruct* state)
 {
 	if (Sorted_Batch_State_Packet_Cache_Disabled())
 	{
-		WW3D::Get_Render_Backend()->Apply_Sorted_Batch_State(Make_Render_Backend_Sorted_State(state->sorting_state));
+		Renderer::Apply_Sorted_Batch_State(Make_Render_Backend_Sorted_State(state->sorting_state));
 		return;
 	}
-	WW3D::Get_Render_Backend()->Apply_Sorted_Batch_State(state->render_backend_state);
+	Renderer::Apply_Sorted_Batch_State(state->render_backend_state);
 }
 
 static bool Should_Log_Sort_Effect_Diag()
@@ -737,7 +736,7 @@ static bool Render_State_Matches(const RenderStateStruct& left, const RenderStat
 		return false;
 	}
 
-	for (int texture_index=0; texture_index<WW3D::Get_Render_Backend()->Get_Max_Texture_Stages(); ++texture_index)
+	for (int texture_index=0; texture_index<Renderer::Get_Max_Texture_Stages(); ++texture_index)
 	{
 		if (left.Textures[texture_index] != right.Textures[texture_index])
 		{
@@ -818,7 +817,7 @@ static bool Render_State_Matches_Except_Stage0_Texture_And_World(const RenderSta
 	{
 		return false;
 	}
-	for (int texture_index=1; texture_index<WW3D::Get_Render_Backend()->Get_Max_Texture_Stages(); ++texture_index)
+	for (int texture_index=1; texture_index<Renderer::Get_Max_Texture_Stages(); ++texture_index)
 	{
 		if (left.Textures[texture_index] != right.Textures[texture_index])
 		{
@@ -855,7 +854,7 @@ static bool Sorted_Texture_Array_Merge_Enabled()
 	// variance, nothing regressed. Opt out with GGC_BGFX_NO_SORTED_TEXTURE_ARRAY
 	// or -bgfxNoSortedTextureArray.
 	static const bool enabled = !GgcFlags::Enabled(GgcFlag_BgfxNoSortedTextureArray)
-		&& WW3D::Get_Render_Backend()->Has_Shader_Pipeline();
+		&& Renderer::Has_Shader_Pipeline();
 	return enabled;
 }
 
@@ -898,7 +897,7 @@ static unsigned Sorted_State_Break_Mask(const RenderStateStruct& left, const Ren
 	{
 		mask |= 1u << BGFX_SORTED_PACKET_BREAK_MATERIAL;
 	}
-	for (int texture_index = 0; texture_index < WW3D::Get_Render_Backend()->Get_Max_Texture_Stages(); ++texture_index)
+	for (int texture_index = 0; texture_index < Renderer::Get_Max_Texture_Stages(); ++texture_index)
 	{
 		if (left.Textures[texture_index] != right.Textures[texture_index])
 		{
@@ -933,7 +932,7 @@ static unsigned Sorted_State_Break_Mask(const RenderStateStruct& left, const Ren
 static unsigned Sorted_State_Texture_Break_Mask(const RenderStateStruct& left, const RenderStateStruct& right)
 {
 	unsigned mask = 0;
-	for (int texture_index = 0; texture_index < WW3D::Get_Render_Backend()->Get_Max_Texture_Stages(); ++texture_index)
+	for (int texture_index = 0; texture_index < Renderer::Get_Max_Texture_Stages(); ++texture_index)
 	{
 		if (left.Textures[texture_index] != right.Textures[texture_index])
 		{
@@ -1000,7 +999,7 @@ static unsigned long long Sort_Node_State_Key(const RenderStateStruct& rs)
 	hash = Sort_Fnv1a(&rs.sorted_draw_flags, sizeof(rs.sorted_draw_flags), hash);
 	const void* material = rs.material;
 	hash = Sort_Fnv1a(&material, sizeof(material), hash);
-	for (int texture_index = 0; texture_index < WW3D::Get_Render_Backend()->Get_Max_Texture_Stages(); ++texture_index)
+	for (int texture_index = 0; texture_index < Renderer::Get_Max_Texture_Stages(); ++texture_index)
 	{
 		const void* texture = rs.Textures[texture_index];
 		hash = Sort_Fnv1a(&texture, sizeof(texture), hash);
@@ -1034,7 +1033,7 @@ static unsigned sorted_packet_diag_segment_key_count;
 
 static void Emit_Sorted_Packet_Collector_Diag(const TempIndexStruct* tis, unsigned tri_count, unsigned draw_runs)
 {
-	if (!WW3D::Get_Render_Backend()->Has_Shader_Pipeline() || !Sorted_Packet_Collector_Diag_Enabled())
+	if (!Renderer::Has_Shader_Pipeline() || !Sorted_Packet_Collector_Diag_Enabled())
 	{
 		return;
 	}
@@ -1406,18 +1405,18 @@ static void Draw_Sorted_Run(unsigned start_index,
 	// TheSuperHackers @refactor bobtista 10/07/2026 Shader-pipeline backends
 	// take the whole run as one packet submit; the legacy per-call sequence
 	// below remains for DX8 and for the packet-submit kill switch.
-	if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+	if (Renderer::Has_Shader_Pipeline())
 	{
 		bool submitted = false;
 		if (Sorted_Batch_State_Packet_Cache_Disabled())
 		{
-			submitted = WW3D::Get_Render_Backend()->Submit_Sorted_Packet(
+			submitted = Renderer::Submit_Sorted_Packet(
 				Make_Render_Backend_Sorted_State(state->sorting_state),
 				start_index*3, count_to_render, overlapping_vertex_count, array_page);
 		}
 		else
 		{
-			submitted = WW3D::Get_Render_Backend()->Submit_Sorted_Packet(
+			submitted = Renderer::Submit_Sorted_Packet(
 				state->render_backend_state,
 				start_index*3, count_to_render, overlapping_vertex_count, array_page);
 		}
@@ -1429,24 +1428,24 @@ static void Draw_Sorted_Run(unsigned start_index,
 	}
 	if (array_page >= 0)
 	{
-		WW3D::Get_Render_Backend()->Set_Sorted_Texture_Array_Page(array_page);
+		Renderer::Set_Sorted_Texture_Array_Page(array_page);
 	}
 	Apply_Render_State(state);
-	if (!WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+	if (!Renderer::Has_Shader_Pipeline())
 	{
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(dyn_ib_access, 0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(dyn_vb_access);
+		Renderer::Set_Index_Buffer(dyn_ib_access, 0);
+		Renderer::Set_Vertex_Buffer(dyn_vb_access);
 	}
 	Log_Sort_Effect_Diag("draw-run", start_index, count_to_render, state);
 
-	WW3D::Get_Render_Backend()->Draw_Triangles(
+	Renderer::Draw_Triangles(
 		start_index*3,
 		count_to_render,
 		0,
 		overlapping_vertex_count);
 	if (array_page >= 0)
 	{
-		WW3D::Get_Render_Backend()->Set_Sorted_Texture_Array_Page(-1);
+		Renderer::Set_Sorted_Texture_Array_Page(-1);
 	}
 }
 
@@ -1464,7 +1463,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 	{
 		unsigned vertexAllocCount = overlapping_vertex_count;
-		if (!WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+		if (!Renderer::Has_Shader_Pipeline())
 		{
 			if (DynamicVBAccessClass::Get_Default_Vertex_Count() < DEFAULT_SORTING_VERTEX_COUNT)
 				vertexAllocCount = DEFAULT_SORTING_VERTEX_COUNT;	//make sure that we force the DX8 dynamic vertex buffer to maximum size
@@ -1631,7 +1630,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			GGC_RPROFILE(SORT_POOL_SORT);
 			Sort(tis, tis + overlapping_polygon_count);
 
-			if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline() && !Sort_Coalesce_Disabled())
+			if (Renderer::Has_Shader_Pipeline() && !Sort_Coalesce_Disabled())
 			{
 				const bool diag = Should_Log_Sort_Effect_Diag();
 				const unsigned runs_before = diag ? Count_Sorted_Runs(tis, overlapping_polygon_count) : 0;
@@ -1649,7 +1648,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 					}
 				}
 			}
-			if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline() && Sorted_Packet_Collector_Diag_Enabled())
+			if (Renderer::Has_Shader_Pipeline() && Sorted_Packet_Collector_Diag_Enabled())
 			{
 				Emit_Sorted_Packet_Collector_Diag(tis, overlapping_polygon_count, Count_Sorted_Runs(tis, overlapping_polygon_count));
 			}
@@ -1663,7 +1662,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 			// route bgfx submits through the dedicated sort view
 			// id for the rest of this flush. No-op on DX8Backend.
-			WW3D::Get_Render_Backend()->Begin_Sorted_Batch_Pass();
+			Renderer::Begin_Sorted_Batch_Pass();
 
 			unsigned chunkOffset = 0;
 			while (chunkOffset < overlapping_polygon_count)
@@ -1686,11 +1685,11 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 				// Set index buffer and render!
 
-				WW3D::Get_Render_Backend()->Set_Index_Buffer(dyn_ib_access, 0); // Override with this buffer (do something to prevent need for this!)
-				WW3D::Get_Render_Backend()->Set_Vertex_Buffer(dyn_vb_access); // Override with this buffer (do something to prevent need for this!)
+				Renderer::Set_Index_Buffer(dyn_ib_access, 0); // Override with this buffer (do something to prevent need for this!)
+				Renderer::Set_Vertex_Buffer(dyn_vb_access); // Override with this buffer (do something to prevent need for this!)
 				Log_Sort_Effect_Diag("buffers-set", 0, overlapping_polygon_count, overlapping_nodes[0]);
 
-				WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+				Renderer::Apply_Render_State_Changes();
 
 				unsigned count_to_render=1;
 				unsigned start_index=0;
@@ -1768,7 +1767,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 			// sort flush complete, resume routing bgfx submits
 			// through the main engine view id.
-			WW3D::Get_Render_Backend()->End_Sorted_Batch_Pass();
+			Renderer::End_Sorted_Batch_Pass();
 			if (Sorted_Array_Dbg_Enabled())
 			{
 				if ((++s_sortedArrayDbgFlushes % 200) == 0)
@@ -1813,8 +1812,8 @@ void SortingRendererClass::Flush()
 	WWPROFILE("SortingRenderer::Flush");
 	Matrix4x4 old_view;
 	Matrix4x4 old_world;
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, old_view);
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_WORLD, old_world);
+	Renderer::Get_Transform(RB_TRANSFORM_VIEW, old_view);
+	Renderer::Get_Transform(RB_TRANSFORM_WORLD, old_world);
 	static const bool s_probeNoSortFlush = GgcFlags::Enabled(GgcFlag_ProbeNoSortFlush);
 	if (s_probeNoSortFlush) {
 		while (!sorted_list.empty()) {
@@ -1834,8 +1833,8 @@ void SortingRendererClass::Flush()
 		total_sorting_vertices=0;
 		DynamicIBAccessClass::_Reset(false);
 		DynamicVBAccessClass::_Reset(false);
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,old_view);
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,old_world);
+		Renderer::Set_Transform(RB_TRANSFORM_VIEW,old_view);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,old_world);
 		return;
 	}
 
@@ -1857,43 +1856,43 @@ void SortingRendererClass::Flush()
 		}
 		else {
 			Apply_Render_State(state);
-			WW3D::Get_Render_Backend()->Set_Vertex_Buffer(state->sorting_state.vertex_buffers[0], 0);
-			WW3D::Get_Render_Backend()->Set_Index_Buffer(state->sorting_state.index_buffer,
+			Renderer::Set_Vertex_Buffer(state->sorting_state.vertex_buffers[0], 0);
+			Renderer::Set_Index_Buffer(state->sorting_state.index_buffer,
 				state->sorting_state.index_base_offset);
-			WW3D::Get_Render_Backend()->Set_Index_Buffer_Index_Offset(state->sorting_state.vba_offset);
+			Renderer::Set_Index_Buffer_Index_Offset(state->sorting_state.vba_offset);
 
 			// Restore legacy DX8 render state: the backend calls above can
 			// mutate vba_offset/iba_offset in the DX8 render-state cache.
 			// Re-applying the saved state fixes this for the DX8 draw path;
 			// bgfx treats this as a no-op.
-			WW3D::Get_Render_Backend()->Restore_Legacy_Render_State_For_Sorted_Draw(state->sorting_state);
+			Renderer::Restore_Legacy_Render_State_For_Sorted_Draw(state->sorting_state);
 
 			// Use the sort view for transforms to avoid stomping view 1.
-			WW3D::Get_Render_Backend()->Begin_Sorted_Batch_Pass();
+			Renderer::Begin_Sorted_Batch_Pass();
 
-			WW3D::Get_Render_Backend()->Draw_Triangles(state->start_index, state->polygon_count, state->min_vertex_index, state->vertex_count);
-			WW3D::Get_Render_Backend()->End_Sorted_Batch_Pass();
-			WW3D::Get_Render_Backend()->Release_Legacy_Render_State_For_Sorted_Draw();
+			Renderer::Draw_Triangles(state->start_index, state->polygon_count, state->min_vertex_index, state->vertex_count);
+			Renderer::End_Sorted_Batch_Pass();
+			Renderer::Release_Legacy_Render_State_For_Sorted_Draw();
 			Release_Refs(state);
 			clean_list.push_front(state);
 		}
 	}
 
-	bool old_enable=WW3D::Get_Render_Backend()->Is_Triangle_Draw_Enabled();
-	WW3D::Get_Render_Backend()->Set_Triangle_Draw_Enabled(_EnableTriangleDraw);
+	bool old_enable=Renderer::Is_Triangle_Draw_Enabled();
+	Renderer::Set_Triangle_Draw_Enabled(_EnableTriangleDraw);
 	Flush_Sorting_Pool();
-	WW3D::Get_Render_Backend()->Set_Triangle_Draw_Enabled(old_enable);
+	Renderer::Set_Triangle_Draw_Enabled(old_enable);
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(nullptr, 0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(nullptr, 0);
+	Renderer::Set_Index_Buffer(nullptr, 0);
+	Renderer::Set_Vertex_Buffer(nullptr, 0);
 	total_sorting_vertices=0;
 
 	DynamicIBAccessClass::_Reset(false);
 	DynamicVBAccessClass::_Reset(false);
 
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,old_view);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,old_world);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,old_view);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,old_world);
 
 }
 

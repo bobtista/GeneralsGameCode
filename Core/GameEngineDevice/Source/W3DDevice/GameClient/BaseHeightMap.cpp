@@ -82,8 +82,7 @@
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/Renderer.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/vertexbuffer.h"
 #include "WW3D2/renderdebugstats.h"
@@ -309,8 +308,8 @@ BaseHeightMapRenderObjClass::BaseHeightMapRenderObjClass()
 #else
 	m_shroud = NEW W3DShroud;
 #endif
-	if (WW3D::Get_Render_Backend() != nullptr) {
-		WW3D::Get_Render_Backend()->Set_Device_Cleanup_Hook(this);
+	if (Renderer::Is_Initialized()) {
+		Renderer::Set_Device_Cleanup_Hook(this);
 	}
 }
 
@@ -1456,7 +1455,7 @@ RenderObjClass *	 BaseHeightMapRenderObjClass::Clone() const
 //=============================================================================
 void BaseHeightMapRenderObjClass::loadRoadsAndBridges(W3DTerrainLogic *pTerrainLogic, Bool saveGame)
 {
-	if (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Is_Device_Lost())
+	if (Renderer::Is_Initialized() && Renderer::Is_Device_Lost())
 		return;	//device not ready to render anything
 
 #ifdef DO_ROADS
@@ -2317,21 +2316,21 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 	ShaderClass unlitShader=ShaderClass::_PresetOpaque2DShader;
 	unlitShader.Set_Depth_Compare(ShaderClass::PASS_LEQUAL);
-	WW3D::Get_Render_Backend()->Set_Shader(unlitShader);
+	Renderer::Set_Shader(unlitShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	WW3D::Get_Render_Backend()->Set_Texture(0,m_destAlphaTexture);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
+	Renderer::Set_Texture(0,m_destAlphaTexture);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
 	//Enabled writes to destination alpha only
-	WW3D::Get_Render_Backend()->Set_Color_Write_Enable(false, false, false, true);
-	WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
-	WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
-	WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
-	WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
-	WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
-	WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
-	WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
+	Renderer::Set_Color_Write_Enable(false, false, false, true);
+	Renderer::Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+	Renderer::Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+	Renderer::Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
+	Renderer::Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+	Renderer::Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
+	Renderer::Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+	Renderer::Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 
 
 	while (j != m_numShoreLineTiles)
@@ -2346,7 +2345,7 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 			DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
 			UnsignedShort *ib=lockib.Get_Index_Array();
 			if (!ib || !vb)
-			{	WW3D::Get_Render_Backend()->Set_Color_Write_Enable(true, true, true, false);
+			{	Renderer::Set_Color_Write_Enable(true, true, true, false);
 				return;
 			}
 
@@ -2444,9 +2443,9 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 		if (indexCount > 0 && vertexCount > 0)
 		{
-			WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-			WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
-			WW3D::Get_Render_Backend()->Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
+			Renderer::Set_Index_Buffer(ib_access,0);
+			Renderer::Set_Vertex_Buffer(vb_access);
+			Renderer::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 			m_numVisibleShoreLineTiles += indexCount/6;
 		}
 
@@ -2455,7 +2454,7 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 	}
 
 	//Disable writes to destination alpha
-	WW3D::Get_Render_Backend()->Set_Color_Write_Enable(true, true, true, false);
+	Renderer::Set_Color_Write_Enable(true, true, true, false);
 	ShaderClass::Invalidate();
 }
 
@@ -2511,21 +2510,21 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 
 	ShaderClass unlitShader=ShaderClass::_PresetOpaque2DShader;
 	unlitShader.Set_Depth_Compare(ShaderClass::PASS_LEQUAL);
-	WW3D::Get_Render_Backend()->Set_Shader(unlitShader);
+	Renderer::Set_Shader(unlitShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	WW3D::Get_Render_Backend()->Set_Texture(0,m_destAlphaTexture);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
+	Renderer::Set_Texture(0,m_destAlphaTexture);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
 	//Enabled writes to destination alpha only
-	WW3D::Get_Render_Backend()->Set_Color_Write_Enable(false, false, false, true);
-	WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
-	WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
-	WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
-	WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
-	WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
-	WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
-	WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
+	Renderer::Set_Color_Write_Enable(false, false, false, true);
+	Renderer::Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+	Renderer::Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+	Renderer::Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
+	Renderer::Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+	Renderer::Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
+	Renderer::Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+	Renderer::Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 
 	Bool isDone=FALSE;
 	Int lastRenderedTile=0;
@@ -2542,7 +2541,7 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 			DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
 			UnsignedShort *ib=lockib.Get_Index_Array();
 			if (!ib || !vb)
-			{	WW3D::Get_Render_Backend()->Set_Color_Write_Enable(true, true, true, false);
+			{	Renderer::Set_Color_Write_Enable(true, true, true, false);
 				return;
 			}
 
@@ -2795,9 +2794,9 @@ flushVertexBuffer1:
 
 		if (indexCount > 0 && vertexCount > 0)
 		{
-			WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-			WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
-			WW3D::Get_Render_Backend()->Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
+			Renderer::Set_Index_Buffer(ib_access,0);
+			Renderer::Set_Vertex_Buffer(vb_access);
+			Renderer::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 			m_numVisibleShoreLineTiles += indexCount/6;
 		}
 
@@ -2806,7 +2805,7 @@ flushVertexBuffer1:
 	}
 
 	//Disable writes to destination alpha
-	WW3D::Get_Render_Backend()->Set_Color_Write_Enable(true, true, true, false);
+	Renderer::Set_Color_Write_Enable(true, true, true, false);
 	ShaderClass::Invalidate();
 }
 
@@ -2826,8 +2825,8 @@ void BaseHeightMapRenderObjClass::renderTrees(CameraClass * camera)
 	if (m_map==nullptr) return;
 	if (Scene==nullptr) return;
 	if (m_treeBuffer) {
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Transform);
-		WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);
+		Renderer::Set_Material(m_vertexMaterialClass);
 		RTS3DScene *pMyScene = (RTS3DScene *)Scene;
 		RefRenderObjListIterator pDynamicLightsIterator(pMyScene->getDynamicLights());
 		m_treeBuffer->drawTrees(camera, &pDynamicLightsIterator);

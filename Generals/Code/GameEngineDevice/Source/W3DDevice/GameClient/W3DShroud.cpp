@@ -32,7 +32,7 @@
 #include "WWLib/simplevec.h"
 #include "WW3D2/dx8wrapper.h"
 #include "WWMath/vector2i.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/surfaceclass.h"
 #include "Common/MapObject.h"
 #include "Common/PerfTimer.h"
@@ -468,7 +468,7 @@ void W3DShroud::render(CameraClass *cam)
 	// raw _Get_D3D_Device8()->TestCooperativeLevel() check with the abstracted
 	// device-lost flag on IRenderBackend. Same intent: skip rendering this
 	// frame if the device isn't ready.
-	if (WW3D::Get_Render_Backend()->Is_Device_Lost())
+	if (Renderer::Is_Device_Lost())
 		return;	//device not ready to render anything
 
 #if defined(RTS_DEBUG)
@@ -653,9 +653,9 @@ void W3DShroud::render(CameraClass *cam)
 	// TheSuperHackers @feature bobtista 17/04/2026 Push shroud pixel data to
 	// the bgfx backend so it can mirror the POOL_DEFAULT destination texture.
 	// m_shroudData is the system-memory copy of the visible shroud.
-	if (WW3D::Get_Render_Backend() != nullptr && m_shroudData != nullptr && m_pDstTexture != nullptr)
+	if (Renderer::Is_Initialized() && m_shroudData != nullptr && m_pDstTexture != nullptr)
 	{
-		WW3D::Get_Render_Backend()->Capture_Shroud_Texture(
+		Renderer::Capture_Shroud_Texture(
 			m_pDstTexture,
 			m_shroudData,
 			m_dstTextureWidth, m_dstTextureHeight,

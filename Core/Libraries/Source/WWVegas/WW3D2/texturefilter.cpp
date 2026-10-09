@@ -38,8 +38,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "texturefilter.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 
 const char* const TextureFilterClass::TextureFilterModeString[] = {
 	"None",
@@ -101,12 +100,12 @@ TextureFilterClass::TextureFilterClass(MipCountType mip_level_count)
 */
 void TextureFilterClass::Apply(unsigned int stage)
 {
-	WW3D::Get_Render_Backend()->Set_Texture_Sample_Filter(
+	Renderer::Set_Texture_Sample_Filter(
 		stage,
 		_MinTextureFilters[stage][TextureMinFilter],
 		_MagTextureFilters[stage][TextureMagFilter],
 		_MipMapFilters[stage][MipMapFilter]);
-	WW3D::Get_Render_Backend()->Set_Texture_Address_Mode(
+	Renderer::Set_Texture_Address_Mode(
 		stage,
 		TextureAddressToBackend(Get_U_Addr_Mode()),
 		TextureAddressToBackend(Get_V_Addr_Mode()),
@@ -167,14 +166,14 @@ void TextureFilterClass::_Init_Filters(TextureFilterMode texture_filter, Anisotr
 
 	case TEXTURE_FILTER_BILINEAR:
 
-		if ((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MIN_LINEAR))) {
+		if ((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MIN_LINEAR))) {
 			_MinTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_LINEAR;
 		}
 		else {
 			_MinTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_POINT;
 		}
 
-		if ((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MAG_LINEAR))) {
+		if ((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MAG_LINEAR))) {
 			_MagTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_LINEAR;
 		}
 		else {
@@ -186,21 +185,21 @@ void TextureFilterClass::_Init_Filters(TextureFilterMode texture_filter, Anisotr
 
 	case TEXTURE_FILTER_TRILINEAR:
 
-		if ((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MIN_LINEAR))) {
+		if ((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MIN_LINEAR))) {
 			_MinTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_LINEAR;
 		}
 		else {
 			_MinTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_POINT;
 		}
 
-		if ((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MAG_LINEAR))) {
+		if ((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MAG_LINEAR))) {
 			_MagTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_LINEAR;
 		}
 		else {
 			_MagTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_POINT;
 		}
 
-		if ((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MIP_LINEAR))) {
+		if ((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MIP_LINEAR))) {
 			_MipMapFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_LINEAR;
 		}
 		else {
@@ -212,32 +211,32 @@ void TextureFilterClass::_Init_Filters(TextureFilterMode texture_filter, Anisotr
 
 	case TEXTURE_FILTER_ANISOTROPIC:
 
-		if (((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MIN_ANISOTROPIC)) || (WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MAG_ANISOTROPIC)))) {
+		if (((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MIN_ANISOTROPIC)) || (Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MAG_ANISOTROPIC)))) {
 			// Set the Anisotropic filtering level for all stages
 			_Set_Max_Anisotropy(anisotropy_level);
 		}
 
-		if ((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MIN_ANISOTROPIC))) {
+		if ((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MIN_ANISOTROPIC))) {
 			_MinTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_ANISOTROPIC;
 		}
-		else if ((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MIN_LINEAR))) {
+		else if ((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MIN_LINEAR))) {
 			_MinTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_LINEAR;
 		}
 		else {
 			_MinTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_POINT;
 		}
 
-		if ((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MAG_ANISOTROPIC))) {
+		if ((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MAG_ANISOTROPIC))) {
 			_MagTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_ANISOTROPIC;
 		}
-		else if ((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MAG_LINEAR))) {
+		else if ((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MAG_LINEAR))) {
 			_MagTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_LINEAR;
 		}
 		else {
 			_MagTextureFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_POINT;
 		}
 
-		if ((WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Filter(RB_TEXTURE_FILTER_MIP_LINEAR))) {
+		if ((Renderer::Is_Initialized() && Renderer::Supports_Texture_Filter(RB_TEXTURE_FILTER_MIP_LINEAR))) {
 			_MipMapFilters[0][FILTER_TYPE_BEST]=RB_TEXTURE_SAMPLE_LINEAR;
 		}
 		else {
@@ -308,7 +307,7 @@ void TextureFilterClass::Set_Mip_Mapping(FilterType mipmap)
 void TextureFilterClass::_Set_Max_Anisotropy(AnisotropicFilterMode mode)
 {
 	for (int stage = 0; stage < RB_MAX_TEXTURE_STAGES; ++stage)
-		WW3D::Get_Render_Backend()->Set_Texture_Max_Anisotropy(stage, mode);
+		Renderer::Set_Texture_Max_Anisotropy(stage, mode);
 }
 
 //**********************************************************************************************

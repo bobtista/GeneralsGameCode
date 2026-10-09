@@ -80,8 +80,7 @@
 // camera's view + projection matrices through the active render backend
 // instead of straight to DX8Wrapper, so the bgfx backend can capture
 // them. The dx8 backend forwards to DX8Wrapper unchanged.
-#include "WW3D2/RenderBackend.h"
-#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/Renderer.h"
 
 
 /***********************************************************************************************
@@ -756,8 +755,8 @@ void CameraClass::Apply()
 
 	Matrix4x4 d3dprojection;
 	Get_D3D_Projection_Matrix(&d3dprojection);
-	WW3D::Get_Render_Backend()->Set_Projection_Transform_With_Z_Bias(d3dprojection,ZNear,ZFar);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,CameraInvTransform);
+	Renderer::Set_Projection_Transform_With_Z_Bias(d3dprojection,ZNear,ZFar);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,CameraInvTransform);
 }
 
 void CameraClass::Set_Clip_Planes(float znear,float zfar)

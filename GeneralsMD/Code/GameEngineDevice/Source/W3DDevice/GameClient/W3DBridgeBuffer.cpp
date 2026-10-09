@@ -65,7 +65,7 @@
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -132,9 +132,9 @@ void W3DBridge::renderBridge(Bool wireframe)
 {
 	if (m_visible && m_numPolygons && m_numVertex) {
 		if (!wireframe) {
-			WW3D::Get_Render_Backend()->Set_Texture(0, m_bridgeTexture);
+			Renderer::Set_Texture(0, m_bridgeTexture);
 		}
-		WW3D::Get_Render_Backend()->Draw_Triangles(m_firstIndex, m_numPolygons, m_firstVertex, m_numVertex);
+		Renderer::Draw_Triangles(m_firstIndex, m_numPolygons, m_firstVertex, m_numVertex);
 	}
 }
 
@@ -247,7 +247,7 @@ Bool W3DBridge::load(BodyDamageType curDamageState)
 	strlcat(right, ".BRIDGE_RIGHT", ARRAY_SIZE(right));
 
 	m_bridgeTexture = pMgr->Get_Texture(textureFile,  MIP_LEVELS_3);
-	if (m_bridgeTexture != nullptr && WW3D::Get_Render_Backend()->Has_Shader_Pipeline()) {
+	if (m_bridgeTexture != nullptr && Renderer::Has_Shader_Pipeline()) {
 		// Bridge textures are compact atlases whose lower mips can collapse
 		// black padding into visible deck pixels under bgfx/Metal. Keep the
 		// authored level-0 texels stable; the bgfx backend binds a one-mip
@@ -1175,19 +1175,19 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
 	// through the IRenderBackend abstraction.
-	WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterial);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBridge,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexBridge,0);
-	WW3D::Get_Render_Backend()->Set_Shader(detailAlphaShader);
-	if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline()) {
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
-		WW3D::Get_Render_Backend()->Clear_Texture_Transform(0);
-		WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(0, 0, false);
-		WW3D::Get_Render_Backend()->Set_Texture_Mip_Filter(0, RB_TEXTURE_SAMPLE_NONE);
+	Renderer::Set_Material(m_vertexMaterial);
+	Renderer::Set_Index_Buffer(m_indexBridge,0);
+	Renderer::Set_Vertex_Buffer(m_vertexBridge,0);
+	Renderer::Set_Shader(detailAlphaShader);
+	if (Renderer::Has_Shader_Pipeline()) {
+		Renderer::Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+		Renderer::Clear_Texture_Transform(0);
+		Renderer::Set_Texture_Transform_Mode(0, 0, false);
+		Renderer::Set_Texture_Mip_Filter(0, RB_TEXTURE_SAMPLE_NONE);
 	}
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 
-	if (!wireframe && cloudTexture && !WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+	if (!wireframe && cloudTexture && !Renderer::Has_Shader_Pipeline())
 	{
 		W3DShaderManager::setTexture(1,cloudTexture);
 		W3DShaderManager::setShader(W3DShaderManager::ST_CLOUD_TEXTURE,1);
@@ -1204,12 +1204,12 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 
 	if (!wireframe && TheTerrainRenderObject->getShroud())
 	{
-		WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();
-		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaqueShader);
-		WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterial);
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBridge,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexBridge,0);
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+		Renderer::Invalidate_Cached_Render_States();
+		Renderer::Set_Shader(ShaderClass::_PresetOpaqueShader);
+		Renderer::Set_Material(m_vertexMaterial);
+		Renderer::Set_Index_Buffer(m_indexBridge,0);
+		Renderer::Set_Vertex_Buffer(m_vertexBridge,0);
+		Renderer::Apply_Render_State_Changes();
 		W3DShaderManager::beginShroudOverlay();
 		for (curBridge=0; curBridge<m_numBridges; curBridge++) {
 			if (m_bridges[curBridge].isEnabled() && m_bridges[curBridge].isVisible()) {

@@ -56,8 +56,7 @@
 #include "WWLib/WWFILE.h"
 #include "WWLib/inisup.h"
 #include "ww3dcolor.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "sortingrenderer.h"
@@ -919,7 +918,7 @@ void DazzleRenderObjClass::Render(RenderInfoClass & rinfo)
 
 	if (	Is_Not_Hidden_At_All() &&
 			_dazzle_rendering_enabled &&
-			(!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Is_Render_To_Texture())	)
+			(!Renderer::Is_Initialized() || !Renderer::Is_Render_To_Texture())	)
 	{
 		// First check if the dazzle is blinking and is "off"
 		bool is_on = true;
@@ -944,8 +943,8 @@ void DazzleRenderObjClass::Render(RenderInfoClass & rinfo)
 //			visibility = _VisibilityHandler->Compute_Dazzle_Visibility(rinfo,this,position);
 
 			Matrix4x4 view_transform,projection_transform;
-			WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view_transform);
-			WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_PROJECTION, projection_transform);
+			Renderer::Get_Transform(RB_TRANSFORM_VIEW, view_transform);
+			Renderer::Get_Transform(RB_TRANSFORM_PROJECTION, projection_transform);
 			Vector3 camera_loc(rinfo.Camera.Get_Position());
 			Vector3 camera_dir(-view_transform[2][0],-view_transform[2][1],-view_transform[2][2]);
 //			const Matrix3D& cam = rinfo.Camera.Get_Transform();
@@ -1021,9 +1020,9 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 	Matrix4x4 view_transform;
 	Matrix4x4 world_transform;
 	Matrix4x4 projection_transform;
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view_transform);
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_WORLD, world_transform);
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_PROJECTION, projection_transform);
+	Renderer::Get_Transform(RB_TRANSFORM_VIEW, view_transform);
+	Renderer::Get_Transform(RB_TRANSFORM_WORLD, world_transform);
+	Renderer::Get_Transform(RB_TRANSFORM_PROJECTION, projection_transform);
 	old_view_transform=view_transform;
 	old_world_transform=world_transform;
 	old_projection_transform=projection_transform;
@@ -1217,7 +1216,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 		return;
 	}
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+	Renderer::Set_Vertex_Buffer(vb_access);
 
 	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,poly_count*3);
 	{
@@ -1235,41 +1234,41 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 		}
 	}
 
-	WW3D::Get_Render_Backend()->Set_World_Identity();
-	WW3D::Get_Render_Backend()->Set_View_Identity();
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_PROJECTION,Matrix4x4(true));
+	Renderer::Set_World_Identity();
+	Renderer::Set_View_Identity();
+	Renderer::Set_Transform(RB_TRANSFORM_PROJECTION,Matrix4x4(true));
 
 	// Route dazzle draws to the sort view so they render AFTER water
 	// and other overlay effects. Otherwise they land on the opaque view
 	// and get hidden behind the DESTALPHA water pass.
-	WW3D::Get_Render_Backend()->Begin_Effect_Overlay();
+	Renderer::Begin_Effect_Overlay();
 
 	if (halo_poly_count) {
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access, dazzle_vertex_count);
-		WW3D::Get_Render_Backend()->Set_Shader(default_halo_shader);
-		WW3D::Get_Render_Backend()->Set_Texture(0,types[type]->Get_Halo_Texture());
-		WW3D::Get_Render_Backend()->Draw_Triangles(0, halo_poly_count, 0, vertex_count);
+		Renderer::Set_Index_Buffer(ib_access, dazzle_vertex_count);
+		Renderer::Set_Shader(default_halo_shader);
+		Renderer::Set_Texture(0,types[type]->Get_Halo_Texture());
+		Renderer::Draw_Triangles(0, halo_poly_count, 0, vertex_count);
 	}
 
 	if (dazzle_poly_count) {
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access, 0);
-		WW3D::Get_Render_Backend()->Set_Shader(default_dazzle_shader);
-		WW3D::Get_Render_Backend()->Set_Texture(0,types[type]->Get_Dazzle_Texture());
-		WW3D::Get_Render_Backend()->Draw_Triangles(0, dazzle_poly_count, 0, vertex_count);
+		Renderer::Set_Index_Buffer(ib_access, 0);
+		Renderer::Set_Shader(default_dazzle_shader);
+		Renderer::Set_Texture(0,types[type]->Get_Dazzle_Texture());
+		Renderer::Draw_Triangles(0, dazzle_poly_count, 0, vertex_count);
 	}
 
 	if (lensflare_poly_count) {
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access, dazzle_vertex_count+halo_vertex_count);
-		WW3D::Get_Render_Backend()->Set_Shader(default_dazzle_shader);
-		WW3D::Get_Render_Backend()->Set_Texture(0,lensflare->Get_Texture());
-		WW3D::Get_Render_Backend()->Draw_Triangles(0, lensflare_poly_count, 0, vertex_count);
+		Renderer::Set_Index_Buffer(ib_access, dazzle_vertex_count+halo_vertex_count);
+		Renderer::Set_Shader(default_dazzle_shader);
+		Renderer::Set_Texture(0,lensflare->Get_Texture());
+		Renderer::Draw_Triangles(0, lensflare_poly_count, 0, vertex_count);
 	}
 
-	WW3D::Get_Render_Backend()->End_Effect_Overlay();
+	Renderer::End_Effect_Overlay();
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_PROJECTION,old_projection_transform);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,old_view_transform);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,old_world_transform);
+	Renderer::Set_Transform(RB_TRANSFORM_PROJECTION,old_projection_transform);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,old_view_transform);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,old_world_transform);
 }
 
 // ----------------------------------------------------------------------------
@@ -1475,7 +1474,7 @@ void DazzleLayerClass::Render(CameraClass* camera)
 
 	camera->Apply();
 
-	WW3D::Get_Render_Backend()->Set_Material(nullptr);
+	Renderer::Set_Material(nullptr);
 
 	for (unsigned type=0;type<type_count;++type) {
 		if (!types[type]) continue;

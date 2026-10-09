@@ -37,7 +37,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
 #include "WW3D2/dx8wrapper.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -261,18 +261,18 @@ Bool W3DProjectedShadowManager::ReAcquireResources()
 
 	DEBUG_ASSERTCRASH(m_dynamicRenderTarget == nullptr, ("Acquire of existing shadow render target"));
 
-	// TheSuperHackers @refactor bobtista 10/04/2026 route the high-level Create_Render_Target through WW3D::Get_Render_Backend(). The
+	// TheSuperHackers @refactor bobtista 10/04/2026 route the high-level Create_Render_Target through Renderer::. The
 	// raw m_pDev->CreateIndexBuffer / CreateVertexBuffer calls below stay on
 	// the IDirect3DDevice8 device pointer because they need a substantial
 	// allocation abstraction we don't have yet.
 	m_renderTargetHasAlpha=TRUE;
-	if ((m_dynamicRenderTarget=WW3D::Get_Render_Backend()->Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_A8R8G8B8)) == nullptr)
+	if ((m_dynamicRenderTarget=Renderer::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_A8R8G8B8)) == nullptr)
 	{
 			m_renderTargetHasAlpha=FALSE;
 
 			//failed to get a render target with alpha.
 			//try again without.
-			m_dynamicRenderTarget=WW3D::Get_Render_Backend()->Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_UNKNOWN);
+			m_dynamicRenderTarget=Renderer::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_UNKNOWN);
 	}
 
 	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
@@ -637,15 +637,15 @@ static void RenderVBTile(TextureClass *text, Real ox, Real oy, Real ou, Real ov,
 	}
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route the
-	// high-level binding/draw calls and the blend state through WW3D::Get_Render_Backend().
+	// high-level binding/draw calls and the blend state through Renderer::.
 	//
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
-	WW3D::Get_Render_Backend()->Set_Texture(0, text);
-	WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
-	WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(true);
+	Renderer::Set_Index_Buffer(ib_access,0);
+	Renderer::Set_Vertex_Buffer(vb_access);
+	Renderer::Set_Texture(0, text);
+	Renderer::Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
+	Renderer::Set_Alpha_Blend_Enable(true);
 	ShaderClass::Invalidate();	//invalidate to force shader to reset since we directly changed states
-	WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
+	Renderer::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
 }
 
 //Debug code used to draw some dummy polygons.
@@ -661,12 +661,12 @@ void TestBlendRender(RenderInfoClass & rinfo)
 	}
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaqueShader);
+	Renderer::Set_Shader(ShaderClass::_PresetOpaqueShader);
 
 	Matrix3D tm(1);	//identity
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
 
 	//grass
 	RenderVBTile(grass,580.0f,480.0f,0.0f,0.0f);	RenderVBTile(grass,590.0f,480.0f,0.25f,0.0f);
@@ -701,26 +701,26 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 	if (!m_pDev)	return;	//no D3D Device to render
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 the high-level Set_Material/Set_Texture/Set_Shader/Apply_Render_State_Changes
-	// calls below are routed through WW3D::Get_Render_Backend(). The raw m_pDev->X() calls
+	// calls below are routed through Renderer::. The raw m_pDev->X() calls
 	// later in this function (SetIndices, SetStreamSource, SetVertexShader,
 	// SetRenderState, DrawIndexedPrimitive) remain on IDirect3DDevice8 because
 	// they belong to the deeply-coupled inner rendering loop.
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	WW3D::Get_Render_Backend()->Set_Texture(0,texture->getTexture());
+	Renderer::Set_Texture(0,texture->getTexture());
 
 //	DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);	//good for debugging, draws without alpha
 	switch (type)
 	{
 		case SHADOW_DECAL:
-			WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetMultiplicativeShader);
+			Renderer::Set_Shader(ShaderClass::_PresetMultiplicativeShader);
 			break;
 		case SHADOW_ALPHA_DECAL:
-			WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAlphaShader);
+			Renderer::Set_Shader(ShaderClass::_PresetAlphaShader);
 			break;
 		case SHADOW_ADDITIVE_DECAL:
-			WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAdditiveShader);
+			Renderer::Set_Shader(ShaderClass::_PresetAdditiveShader);
 			break;
 	}
 
@@ -728,7 +728,7 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 //	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_GREATEREQUAL);
 	//_PresetAlphaSpriteShader
 
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of view and projection matrices
+	Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 //Alpha Blended Shadows
 //	m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA );
@@ -1411,7 +1411,7 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 
 					//terrain is always visible and affected by all shadows so must render
 					projector->Peek_Material_Pass()->Install_Materials();
-					WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of view and projection matrices
+					Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 					if (renderProjectedTerrainShadow(shadow, aaBox))
 						projectionCount++;
 					projector->Peek_Material_Pass()->UnInstall_Materials();

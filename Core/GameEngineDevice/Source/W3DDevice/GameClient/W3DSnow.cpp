@@ -21,8 +21,7 @@
 #include "W3DDevice/GameClient/W3DSnow.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "GameClient/View.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/vertexbuffer.h"
 #include "WW3D2/rinfo.h"
@@ -200,18 +199,18 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	m_heightTraveled=m_time*m_velocity+cameraOffset;	//height that snow flake traveled this frame.
 
 	Matrix4x4 identity(true);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
 
-	WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAlphaShader);
+	Renderer::Set_Shader(ShaderClass::_PresetAlphaShader);
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
 
 	if (!m_indexBuffer)
 		ReAcquireResources();
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,m_snowTexture);
+	Renderer::Set_Texture(0,m_snowTexture);
 	renderAsQuads(rinfo,cubeOriginX,cubeOriginY,cubeDimX,cubeDimY);
 }
 
@@ -251,9 +250,9 @@ void W3DSnowManager::renderAsQuads(RenderInfoClass &rinfo, Int cubeOriginX, Int 
 	}
 
 	Matrix4x4 identity(true);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,identity);
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
+	Renderer::Set_Index_Buffer(m_indexBuffer,0);
 
 	Int y=cubeOriginY;	//loop counter.
 	Int cubeOriginXRemainder = cubeOriginX;	//loop counter - adjusted when not all particles fit into render buffer.
@@ -331,8 +330,8 @@ flush_particles:
 		//Render any particles that may be queued up.
 		if (numberInBatch)
 		{
-			WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
-			WW3D::Get_Render_Backend()->Draw_Triangles(	0,numberInBatch*2, 0, numberInBatch*4);
+			Renderer::Set_Vertex_Buffer(vb_access);
+			Renderer::Draw_Triangles(	0,numberInBatch*2, 0, numberInBatch*4);
 			totalPart -= numberInBatch;
 		}
 	}

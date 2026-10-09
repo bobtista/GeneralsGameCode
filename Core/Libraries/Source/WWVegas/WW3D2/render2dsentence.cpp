@@ -39,8 +39,7 @@
 #include "texture.h"
 #include "WWDebug/wwprofile.h"
 #include "WWDebug/wwmemlog.h"
-#include "IRenderBackend.h"
-#include "RenderBackend.h"
+#include "Renderer.h"
 #if !defined(__APPLE__)
 #include "WW3D2/ww3d.h"
 #endif
@@ -757,7 +756,7 @@ Render2DSentenceClass::Allocate_New_Surface (const WCHAR *text, bool justCalcExt
 		//	The font does not fit the search range, so use the smallest texture that fits, limited to
 		//	the largest texture the device supports.
 		//
-		const int max_device_size = WW3D::Get_Render_Backend ()->Get_Max_Texture_Size ();
+		const int max_device_size = Renderer::Get_Max_Texture_Size ();
 		while (max_pow2 > TextureSizeMinPow2 && (1 << max_pow2) > max_device_size) {
 			max_pow2 --;
 		}

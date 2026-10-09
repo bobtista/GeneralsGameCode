@@ -34,7 +34,7 @@
 #pragma once
 
 #include "WW3D2/texture.h"
-#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/Renderer.h"
 enum FilterTypes CPP_11(: Int);
 enum FilterModes CPP_11(: Int);
 enum CustomScenePassModes CPP_11(: Int);
@@ -81,7 +81,7 @@ public:
 	static void shutdown();	///<release resources used by shaders
 	static void updateCloud();	///<update the cloud position once every render frame.
 	static void pushCloudShadowToBackend(Bool enabled, TextureClass * cloudTex);
-	static void pushLightMapToBackend(Bool enabled, TextureClass * noiseTex);	///<push cloud scroll + stretch + texture to WW3D::Get_Render_Backend() (bgfx modulates in uber shader).
+	static void pushLightMapToBackend(Bool enabled, TextureClass * noiseTex);	///<push cloud scroll + stretch + texture to Renderer (bgfx modulates in uber shader).
 
 	static ChipsetType getChipset();	///<return current device chipset.
 	static GraphicsVenderID getCurrentVendor() {return m_currentVendor;}	///<return current card vendor.

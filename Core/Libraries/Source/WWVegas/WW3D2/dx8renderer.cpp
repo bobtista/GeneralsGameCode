@@ -51,8 +51,7 @@
 #include "dx8rendererdebugger.h"
 #include "GgcRuntimeFlags.h"
 #include "WW3D2/RenderBufferTypes.h"
-#include "WW3D2/RenderBackend.h"
-#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WWDebug/wwdebug.h"
 #include "WWDebug/wwprofile.h"
@@ -359,8 +358,8 @@ void DX8RigidFVFCategoryContainer::Render_Delayed_Procedural_Material_Passes()
 	if (!Any_Delayed_Passes_To_Render()) return;
 	AnyDelayedPassesToRender=false;
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vertex_buffer, 0);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(index_buffer, 0);
+	Renderer::Set_Vertex_Buffer(vertex_buffer, 0);
+	Renderer::Set_Index_Buffer(index_buffer, 0);
 
 	SNAPSHOT_SAY(("DX8RigidFVFCategoryContainer::Render_Delayed_Procedural_Material_Passes()"));
 
@@ -780,8 +779,8 @@ void DX8RigidFVFCategoryContainer::Render()
 	if (!Anything_To_Render()) return;
 	AnythingToRender=false;
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vertex_buffer, 0);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(index_buffer, 0);
+	Renderer::Set_Vertex_Buffer(vertex_buffer, 0);
+	Renderer::Set_Index_Buffer(index_buffer, 0);
 
 	SNAPSHOT_SAY(("DX8RigidFVFCategoryContainer::Render()"));
 	for (unsigned p=0;p<passes;++p) {
@@ -833,7 +832,7 @@ public:
 		npatch_enable(false),
 		allocated_polygon_array(false)
 	{
-		if (WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_NPatches() && mmc->Needs_Vertex_Normals()) {
+		if (Renderer::Is_Initialized() && Renderer::Supports_NPatches() && mmc->Needs_Vertex_Normals()) {
 			if (mmc->Get_Flag(MeshGeometryClass::ALLOW_NPATCHES)) {
 				npatch_enable=true;
 			}
@@ -987,7 +986,7 @@ void DX8RigidFVFCategoryContainer::Add_Mesh(MeshModelClass* mmc_)
 			vertex_buffer=NEW_REF(RenderVertexBufferClass,(
 				FVF,
 				vb_size,
-				(WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_NPatches() && WW3D::Get_NPatches_Level()>1) ? RenderVertexBufferClass::USAGE_NPATCHES : RenderVertexBufferClass::USAGE_DEFAULT));
+				(Renderer::Is_Initialized() && Renderer::Supports_NPatches() && WW3D::Get_NPatches_Level()>1) ? RenderVertexBufferClass::USAGE_NPATCHES : RenderVertexBufferClass::USAGE_DEFAULT));
 		}
 	}
 
@@ -1161,7 +1160,7 @@ void DX8FVFCategoryContainer::Generate_Texture_Categories(Vertex_Split_Table& sp
 		else {
 			index_buffer=NEW_REF(RenderIndexBufferClass,(
 				ib_size,
-				(WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_NPatches() && WW3D::Get_NPatches_Level()>1) ? RenderIndexBufferClass::USAGE_NPATCHES : RenderIndexBufferClass::USAGE_DEFAULT));
+				(Renderer::Is_Initialized() && Renderer::Supports_NPatches() && WW3D::Get_NPatches_Level()>1) ? RenderIndexBufferClass::USAGE_NPATCHES : RenderIndexBufferClass::USAGE_DEFAULT));
 		}
 	}
 
@@ -1246,7 +1245,7 @@ void DX8SkinFVFCategoryContainer::Render()
 	}
 	AnythingToRender=false;
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(nullptr, 0);	// Free up the reference to the current vertex buffer
+	Renderer::Set_Vertex_Buffer(nullptr, 0);	// Free up the reference to the current vertex buffer
 														// (in case it is the dynamic, which may have to be resized)
 
 	//'Generals' customization to allow more than 65535 vertices
@@ -1368,9 +1367,9 @@ void DX8SkinFVFCategoryContainer::Render()
 		// state happens to be identity at this point in the frame; on
 		// the bgfx path we need to explicitly push identity so the
 		// backend does not inherit the last rigid mesh's transform.
-		WW3D::Get_Render_Backend()->Set_World_Identity();
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb);
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(index_buffer, 0);
+		Renderer::Set_World_Identity();
+		Renderer::Set_Vertex_Buffer(vb);
+		Renderer::Set_Index_Buffer(index_buffer, 0);
 
 		//Flush the meshes which fit in the vertex buffer, applying all texture variations
 		for (unsigned pass=0;pass<passes;++pass) {
@@ -1654,7 +1653,7 @@ void DX8TextureCategoryClass::Render()
 		for (unsigned i=0;i<MeshMatDescClass::MAX_TEX_STAGES;++i)
 		{
 			SNAPSHOT_SAY(("Set_Texture(%d,%s)",i,Peek_Texture(i) ? Peek_Texture(i)->Get_Texture_Name().str() : "null"));
-			WW3D::Get_Render_Backend()->Set_Texture(i, Peek_Texture(i));
+			Renderer::Set_Texture(i, Peek_Texture(i));
 		}
 
 	#ifdef WWDEBUG
@@ -1663,7 +1662,7 @@ void DX8TextureCategoryClass::Render()
 
 	SNAPSHOT_SAY(("Set_Material(%s)",Peek_Material() ? Peek_Material()->Get_Name() : "null"));
 	VertexMaterialClass *vmaterial=(VertexMaterialClass *)Peek_Material();	//ugly cast from const but we'll restore it after changes so okay. -MW
-	WW3D::Get_Render_Backend()->Set_Material(vmaterial);
+	Renderer::Set_Material(vmaterial);
 
 	SNAPSHOT_SAY(("Set_Shader(%x)",Get_Shader().Get_Bits()));
 	ShaderClass theShader = Get_Shader();
@@ -1676,19 +1675,19 @@ void DX8TextureCategoryClass::Render()
 	//this will cause sorting errors on this mesh.
 	//theAlphaShader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
 
-	WW3D::Get_Render_Backend()->Set_Shader(theShader);
+	Renderer::Set_Shader(theShader);
 
 	if (m_gForceMultiply && theShader.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_ZERO) {
 		theShader.Set_Dst_Blend_Func(ShaderClass::DSTBLEND_SRC_COLOR);
 		theShader.Set_Src_Blend_Func(ShaderClass::SRCBLEND_ZERO);
-		WW3D::Get_Render_Backend()->Set_Shader(theShader);
+		Renderer::Set_Shader(theShader);
 		//VertexMaterialClass *material = VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		//WW3D::Get_Render_Backend()->Set_Material(material);
+		//Renderer::Set_Material(material);
 		//REF_PTR_RELEASE(material);
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+		Renderer::Apply_Render_State_Changes();
 		// Override SRCBLEND to DESTCOLOR for multiply mode. DESTBLEND
 		// stays at whatever ShaderClass set (typically SRCCOLOR).
-		WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_SRC_COLOR);
+		Renderer::Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_SRC_COLOR);
 	}
 
 
@@ -1705,7 +1704,7 @@ void DX8TextureCategoryClass::Render()
 	static const bool s_instancingReorder = !GgcFlags::Enabled(GgcFlag_BgfxInstancingNoReorder);
 	if (s_instancingEnabled
 		&& s_instancingReorder
-		&& WW3D::Get_Render_Backend()->Supports_Instancing()
+		&& Renderer::Supports_Instancing()
 		&& render_task_head != nullptr)
 	{
 		unsigned count = 0;
@@ -1789,7 +1788,7 @@ void DX8TextureCategoryClass::Render()
 					// Disable texturing on all stages and passes.
 					for (i = 0; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 					{
-						WW3D::Get_Render_Backend()->Set_Texture(i, nullptr);
+						Renderer::Set_Texture(i, nullptr);
 					}
 					break;
 
@@ -1799,11 +1798,11 @@ void DX8TextureCategoryClass::Render()
 					if (pass == mesh->Peek_Model()->Get_Pass_Count() - 1) {
 						for (i = 0; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 						{
-							WW3D::Get_Render_Backend()->Set_Texture(i, Peek_Texture(i));
+							Renderer::Set_Texture(i, Peek_Texture(i));
 						}
 					} else {
 						for (i = 0; i < RB_MAX_TEXTURE_STAGES; i++) {
-							WW3D::Get_Render_Backend()->Set_Texture(i, nullptr);
+							Renderer::Set_Texture(i, nullptr);
 						}
 					}
 					break;
@@ -1811,17 +1810,17 @@ void DX8TextureCategoryClass::Render()
 				case MeshGeometryClass::PRELIT_LIGHTMAP_MULTI_TEXTURE:
 
 					// Disable texturing on all but the zeroth stage of each pass.
-					WW3D::Get_Render_Backend()->Set_Texture(0, Peek_Texture(0));
+					Renderer::Set_Texture(0, Peek_Texture(0));
 					for (i = 1; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 					{
-						WW3D::Get_Render_Backend()->Set_Texture(i, nullptr);
+						Renderer::Set_Texture(i, nullptr);
 					}
 					break;
 
 				default:
 					for (i = 0; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 					{
-						WW3D::Get_Render_Backend()->Set_Texture(i, Peek_Texture(i));
+						Renderer::Set_Texture(i, Peek_Texture(i));
 					}
 					break;
 			}
@@ -1835,7 +1834,7 @@ void DX8TextureCategoryClass::Render()
 		LightEnvironmentClass * lenv = mesh->Get_Lighting_Environment();
 		if (lenv != nullptr) {
 			SNAPSHOT_SAY(("LightEnvironment, lights: %d",lenv->Get_Light_Count()));
-			WW3D::Get_Render_Backend()->Set_Light_Environment(lenv);
+			Renderer::Set_Light_Environment(lenv);
 		}
 		else {
 			SNAPSHOT_SAY(("No light environment"));
@@ -1883,23 +1882,23 @@ void DX8TextureCategoryClass::Render()
 
 		if (identity) {
 			SNAPSHOT_SAY(("Set_World_Identity"));
-			WW3D::Get_Render_Backend()->Set_World_Identity();
+			Renderer::Set_World_Identity();
 		}
 		else {
 			SNAPSHOT_SAY(("Set_World_Transform"));
-			WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, *world_transform);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD, *world_transform);
 		}
 
 
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
-			WW3D::Get_Render_Backend()->Set_Normalize_Normals(true);
+			Renderer::Set_Normalize_Normals(true);
 //--------------------------------------------------------------------
 		/*
 		** Render mesh using either sorting or immediate pipeline
 		*/
 			const bool coplanarNormalBias = mesh->Peek_Model()->Get_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS) != 0;
-			WW3D::Get_Render_Backend()->Set_Normal_Bias(coplanarNormalBias ? 0.02f : 0.0f);
+			Renderer::Set_Normal_Bias(coplanarNormalBias ? 0.02f : 0.0f);
 
 		//(gth) this if statement's contents are not tabbed to avoid perforce merge problems...
 		if (!DX8RendererDebugger::Is_Enabled() || !mesh->Is_Disabled_By_Debugger()) {
@@ -1939,16 +1938,16 @@ void DX8TextureCategoryClass::Render()
 						theAlphaShader = theShader;	//keep using additive blending.
 					}
 					vmaterial->Set_Opacity(mesh->Get_Alpha_Override());
-					WW3D::Get_Render_Backend()->Set_Shader(theAlphaShader);
-					WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
-					WW3D::Get_Render_Backend()->Set_Alpha_Test_Reference((int)((float)0x60*mesh->Get_Alpha_Override()));
+					Renderer::Set_Shader(theAlphaShader);
+					Renderer::Apply_Render_State_Changes();
+					Renderer::Set_Alpha_Test_Reference((int)((float)0x60*mesh->Get_Alpha_Override()));
 
 					renderer->Render(mesh->Get_Base_Vertex_Offset());
 
-					WW3D::Get_Render_Backend()->Set_Alpha_Test_Reference(0x60);
+					Renderer::Set_Alpha_Test_Reference(0x60);
 					vmaterial->Set_Opacity(oldOpacity);	//restore previous value
 					vmaterial->Set_Diffuse(oldDiffuse.X,oldDiffuse.Y,oldDiffuse.Z);
-					WW3D::Get_Render_Backend()->Set_Shader(theShader);	//restore previous value
+					Renderer::Set_Shader(theShader);	//restore previous value
 				}
 				else
 					renderer->Render(mesh->Get_Base_Vertex_Offset());
@@ -1957,8 +1956,8 @@ void DX8TextureCategoryClass::Render()
 				{	oldMapper->Set_LastUsedSyncTime(oldUVOffsetSyncTime);
 					oldMapper->Set_Current_UV_Offset(oldUVOffset);
 				}
-				WW3D::Get_Render_Backend()->Set_Material(nullptr);	//force a reset of vertex material since we secretly changed opacity
-				WW3D::Get_Render_Backend()->Set_Material(vmaterial);	//restore previous material.
+				Renderer::Set_Material(nullptr);	//force a reset of vertex material since we secretly changed opacity
+				Renderer::Set_Material(vmaterial);	//restore previous material.
 			}
 			else
 			{
@@ -1972,7 +1971,7 @@ void DX8TextureCategoryClass::Render()
 					&& !mesh->Peek_Model()->Get_Flag(MeshModelClass::SKIN)
 					&& !((!!mesh->Peek_Model()->Get_Flag(MeshGeometryClass::SORT)) && WW3D::Is_Sorting_Enabled());
 				if (s_instancingEnabled
-					&& WW3D::Get_Render_Backend()->Supports_Instancing()
+					&& Renderer::Supports_Instancing()
 					&& currentInstancingEligible)
 				{
 					PolyRenderTaskClass * nextScan = prt->Get_Next_Visible();
@@ -2003,15 +2002,15 @@ void DX8TextureCategoryClass::Render()
 							}
 							batchCount++;
 						}
-						if (batchCount >= 2 && WW3D::Get_Render_Backend()->Begin_Instanced_Batch(batchCount))
+						if (batchCount >= 2 && Renderer::Begin_Instanced_Batch(batchCount))
 						{
-							WW3D::Get_Render_Backend()->Add_Instance((const float *)world_transform);
+							Renderer::Add_Instance((const float *)world_transform);
 							unsigned added = 1;
 							while (added < batchCount)
 							{
 								PolyRenderTaskClass * batchPrt = prt->Get_Next_Visible();
 								MeshClass * bMesh = batchPrt->Peek_Mesh();
-								WW3D::Get_Render_Backend()->Add_Instance((const float *)&bMesh->Get_Transform());
+								Renderer::Add_Instance((const float *)&bMesh->Get_Transform());
 								added++;
 								prt->Set_Next_Visible(batchPrt->Get_Next_Visible());
 								delete batchPrt;
@@ -2027,11 +2026,11 @@ void DX8TextureCategoryClass::Render()
 			}
 		}
 		if (coplanarNormalBias) {
-			WW3D::Get_Render_Backend()->Set_Normal_Bias(0.0f);
+			Renderer::Set_Normal_Bias(0.0f);
 		}
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
-			WW3D::Get_Render_Backend()->Set_Normalize_Normals(false);
+			Renderer::Set_Normalize_Normals(false);
 //--------------------------------------------------------------------
 
 
@@ -2305,8 +2304,8 @@ void DX8MeshRendererClass::Flush()
 		Render_FVF_Category_Container_List_Delayed_Passes(*texture_category_container_lists_rigid[i]);
 	}
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(nullptr, 0);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(nullptr, 0);
+	Renderer::Set_Vertex_Buffer(nullptr, 0);
+	Renderer::Set_Index_Buffer(nullptr, 0);
 }
 
 
@@ -2322,7 +2321,7 @@ void DX8MeshRendererClass::Render_Decal_Meshes()
 	DecalMeshClass * decal_mesh = visible_decal_meshes;
 	if (!decal_mesh) return;
 
-	WW3D::Get_Render_Backend()->Set_Z_Bias(8);
+	Renderer::Set_Z_Bias(8);
 
 	while (decal_mesh != nullptr) {
 		decal_mesh->Render();
@@ -2330,7 +2329,7 @@ void DX8MeshRendererClass::Render_Decal_Meshes()
 	}
 	visible_decal_meshes = nullptr;
 
-	WW3D::Get_Render_Backend()->Set_Z_Bias(0);
+	Renderer::Set_Z_Bias(0);
 }
 
 // ----------------------------------------------------------------------------

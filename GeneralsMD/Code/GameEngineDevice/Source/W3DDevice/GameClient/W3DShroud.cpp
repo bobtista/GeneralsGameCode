@@ -32,7 +32,7 @@
 #include "WWLib/simplevec.h"
 #include "WWMath/vector2i.h"
 #include "GgcRuntimeFlags.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/surfaceclass.h"
 #include "Common/MapObject.h"
 #include "Common/PerfTimer.h"
@@ -530,8 +530,8 @@ void W3DShroud::render(CameraClass *cam)
 		return; //nothing to update from.  Must be in reset state.
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Skip the frame via the abstracted device-lost
-	// flag; WW3D::Get_Render_Backend() can be null before the backend exists or during reset.
-	if (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Is_Device_Lost())
+	// flag; Renderer:: can be null before the backend exists or during reset.
+	if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost())
 		return;	//device not ready to render anything
 
 #if defined(RTS_DEBUG)
@@ -703,7 +703,7 @@ void W3DShroud::render(CameraClass *cam)
 		SurfaceClass::SurfaceDescription dst_desc;
 		pDestSurface->Get_Description(dst_desc);
 		const UnsignedShort *src = &m_shroudData[srcRect.left + srcRect.top*m_numCellsX];
-		WW3D::Get_Render_Backend()->Upload_Texture_Region(
+		Renderer::Upload_Texture_Region(
 			m_pDstTexture,
 			0,
 			static_cast<unsigned int>(dstPoint.x),
@@ -722,8 +722,8 @@ void W3DShroud::render(CameraClass *cam)
 	// DX8 only needs the surface copy above when the shroud changed. Bgfx cannot
 	// sample the DX8 destination surface, so keep its mirror synchronized with the
 	// current render window even when no individual shroud cell changed this frame.
-	const Bool shouldCaptureForBgfx = WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Has_Shader_Pipeline();
-	if (WW3D::Get_Render_Backend() != nullptr && m_shroudData != nullptr && m_pDstTexture != nullptr && (m_shroudDirty || shouldCaptureForBgfx))
+	const Bool shouldCaptureForBgfx = Renderer::Is_Initialized() && Renderer::Has_Shader_Pipeline();
+	if (Renderer::Is_Initialized() && m_shroudData != nullptr && m_pDstTexture != nullptr && (m_shroudDirty || shouldCaptureForBgfx))
 	{
 		m_shroudDirty = FALSE;
 		m_dirtyMinX = m_numCellsX;
@@ -801,7 +801,7 @@ void W3DShroud::render(CameraClass *cam)
 		// playable area with it. The terrain beyond the map boundary samples
 		// that border ring, and the bgfx mirror previously left it white,
 		// rendering the map edge fully lit instead of fading to black.
-		WW3D::Get_Render_Backend()->Capture_Shroud_Texture(
+		Renderer::Capture_Shroud_Texture(
 			m_pDstTexture,
 			m_shroudData,
 			m_dstTextureWidth, m_dstTextureHeight,
@@ -880,13 +880,13 @@ void W3DShroudMaterialPassClass::Install_Materials() const
 	if (TheTerrainRenderObject->getShroud())
 	{
 		W3DShaderManager::beginShroudOverlay();
-		if (WW3D::Get_Render_Backend())
+		if (Renderer::Is_Initialized())
 		{
 			if (m_isTransparentObjectPass)
 			{
-				WW3D::Get_Render_Backend()->Set_Object_Shroud_Alpha_Mask_Texture(m_contextTexture);
+				Renderer::Set_Object_Shroud_Alpha_Mask_Texture(m_contextTexture);
 			}
-			WW3D::Get_Render_Backend()->Set_Object_Shroud_Texture_Pass_Active(m_isTransparentObjectPass);
+			Renderer::Set_Object_Shroud_Texture_Pass_Active(m_isTransparentObjectPass);
 		}
 	}
 }
@@ -895,10 +895,10 @@ void W3DShroudMaterialPassClass::Install_Materials() const
 ///Restore render states that W3D doesn't know about.
 void W3DShroudMaterialPassClass::UnInstall_Materials() const
 {
-	if (WW3D::Get_Render_Backend())
+	if (Renderer::Is_Initialized())
 	{
-		WW3D::Get_Render_Backend()->Set_Object_Shroud_Texture_Pass_Active(false);
-		WW3D::Get_Render_Backend()->Set_Object_Shroud_Alpha_Mask_Texture(nullptr);
+		Renderer::Set_Object_Shroud_Texture_Pass_Active(false);
+		Renderer::Set_Object_Shroud_Alpha_Mask_Texture(nullptr);
 	}
 	if (TheTerrainRenderObject->getShroud())
 	{

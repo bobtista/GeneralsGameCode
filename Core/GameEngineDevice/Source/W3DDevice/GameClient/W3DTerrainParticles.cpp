@@ -25,7 +25,7 @@
 #include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/dx8wrapper.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/statistics.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/vertmaterial.h"
@@ -256,10 +256,10 @@ void W3DTerrainParticles::flushBatch()
 			       m_numIndices * sizeof(UnsignedShort));
 		}
 
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(indexAccess, 0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vertexAccess);
+		Renderer::Set_Index_Buffer(indexAccess, 0);
+		Renderer::Set_Vertex_Buffer(vertexAccess);
 		DX8_RECORD_TERRAIN_PARTICLE_BATCH(m_numIndices / 3);
-		WW3D::Get_Render_Backend()->Draw_Triangles(0,
+		Renderer::Draw_Triangles(0,
 		                           m_numIndices / 3,
 		                           0,
 		                           m_numVertices);
@@ -319,18 +319,18 @@ void W3DTerrainParticles::updateSettings()
 	}
 	m_shader.Set_Cull_Mode(ShaderClass::CULL_MODE_ENABLE);
 
-	WW3D::Get_Render_Backend()->Set_World_Identity();
+	Renderer::Set_World_Identity();
 	RefCountPtr<VertexMaterialClass> material;
 	material.Assign_No_Add_Ref(VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE));
-	WW3D::Get_Render_Backend()->Set_Material(material.Peek());
-	WW3D::Get_Render_Backend()->Set_Shader(m_shader);
-	WW3D::Get_Render_Backend()->Set_Texture(0, m_texture.Peek());
+	Renderer::Set_Material(material.Peek());
+	Renderer::Set_Shader(m_shader);
+	Renderer::Set_Texture(0, m_texture.Peek());
 
 	// To prevent visual glitches on overdraw, we clamp the texture to a transparent black pixel.
 	if (m_texture)
 	{
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
-		WW3D::Get_Render_Backend()->Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_BORDER, RB_TEXTURE_ADDRESS_BORDER, RB_TEXTURE_ADDRESS_WRAP);
+		Renderer::Apply_Render_State_Changes();
+		Renderer::Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_BORDER, RB_TEXTURE_ADDRESS_BORDER, RB_TEXTURE_ADDRESS_WRAP);
 	}
 }
 

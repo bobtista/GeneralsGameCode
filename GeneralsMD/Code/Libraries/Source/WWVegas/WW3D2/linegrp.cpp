@@ -42,8 +42,7 @@
 #include "texture.h"
 #include "vertmaterial.h"
 #include "ww3dcolor.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "WWMath/wwmath.h"
 #include "rinfo.h"
 #include "camera.h"
@@ -259,9 +258,9 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 	}
 
 	VertexMaterialClass * linemat = VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(linemat);
-	WW3D::Get_Render_Backend()->Set_Shader(Shader);
-	WW3D::Get_Render_Backend()->Set_Texture(0, Texture);
+	Renderer::Set_Material(linemat);
+	Renderer::Set_Shader(Shader);
+	Renderer::Set_Texture(0, Texture);
 	REF_PTR_RELEASE(linemat);
 
 	WWASSERT(StartLineLoc && StartLineLoc->Get_Array());
@@ -283,10 +282,10 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Save off the view matrix
 	Matrix4x4 view;
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
+	Renderer::Get_Transform(RB_TRANSFORM_VIEW, view);
 
 	Matrix4x4 identity(true);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, identity);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD, identity);
 
 	// if the points are in world space, transform the offsets
 	if (Get_Flag(TRANSFORM)) {
@@ -298,7 +297,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 			Matrix3D::Transform_Vector(xform_mat, offset[i], &offset[i]);
 		}
 	} else {
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW, identity);
+		Renderer::Set_Transform(RB_TRANSFORM_VIEW, identity);
 	}
 
 	int num_tris=0;
@@ -467,17 +466,17 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 		}
 	}
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(iba, 0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vba);
+	Renderer::Set_Index_Buffer(iba, 0);
+	Renderer::Set_Vertex_Buffer(vba);
 
 	if (sort) {
 		SortingRendererClass::Insert_Triangles(0, num_tris, 0, num_vertices);
 	} else {
-		WW3D::Get_Render_Backend()->Draw_Triangles(0, num_tris, 0, num_vertices);
+		Renderer::Draw_Triangles(0, num_tris, 0, num_vertices);
 	}
 
 	// restore the matrices
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW, view);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW, view);
 }
 
 int LineGroupClass::Get_Polygon_Count()

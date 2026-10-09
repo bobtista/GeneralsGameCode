@@ -58,8 +58,7 @@
 #include "W3DDevice/GameClient/W3DGameClient.h"
 #include "W3DDevice/GameClient/W3DParticleSys.h"
 #include "W3DDevice/GameLogic/W3DGameLogic.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 
 // TheSuperHackers @feature bobtista 15/06/2026 LOCAL DEV AID (uncommitted): request
 // a bgfx scene-framebuffer rebuild so the HDR hotkey can toggle RGBA8<->RGBA16F live.
@@ -325,10 +324,10 @@ void SDL3GameEngine::applyPendingWindowResize()
 	// size, not the full window: the camera aspect, 2D coordinate range and mouse bounds must match
 	// the content rect, with the bars left to the backend. The backend has already recomputed the
 	// content rect this frame (in Begin_Scene), so read it back as the target resolution.
-	if (WW3D::Get_Render_Backend() != NULL && WW3D::Get_Render_Backend()->Is_Present_Letterbox_Active())
+	if (Renderer::Is_Initialized() && Renderer::Is_Present_Letterbox_Active())
 	{
-		const Int contentW = WW3D::Get_Render_Backend()->Get_Present_Content_Width();
-		const Int contentH = WW3D::Get_Render_Backend()->Get_Present_Content_Height();
+		const Int contentW = Renderer::Get_Present_Content_Width();
+		const Int contentH = Renderer::Get_Present_Content_Height();
 		if (contentW > 0 && contentH > 0)
 		{
 			newWidth = contentW;
@@ -421,7 +420,7 @@ void SDL3GameEngine::updatePresentMode()
 	// TheSuperHackers @feature bobtista 08/06/2026 Letterboxing the present to a fixed 16:9
 	// keeps every player's viewable area identical regardless of window/display aspect; the
 	// plumbing is kept intact but is not auto-forced for multiplayer.
-	if (WW3D::Get_Render_Backend() == NULL)
+	if (!Renderer::Is_Initialized())
 	{
 		return;
 	}
@@ -434,7 +433,7 @@ void SDL3GameEngine::updatePresentMode()
 	}
 
 	m_letterboxActive = wantLetterbox;
-	WW3D::Get_Render_Backend()->Set_Present_Letterbox(wantLetterbox != FALSE, 16.0f, 9.0f);
+	Renderer::Set_Present_Letterbox(wantLetterbox != FALSE, 16.0f, 9.0f);
 
 	// Resync the engine display resolution, UI layout and mouse bounds to the new content rect on the
 	// next frame, once the backend has recomputed the letterbox layout in Begin_Scene.

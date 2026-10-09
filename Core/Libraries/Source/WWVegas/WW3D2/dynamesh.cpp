@@ -42,8 +42,7 @@
 #include "rinfo.h"
 #include "camera.h"
 #include "dx8fvf.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 
 
 
@@ -252,8 +251,8 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	/*
 	** Set vertex and index buffers
 	*/
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(dynamic_vb);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(dynamic_ib,0);
+	Renderer::Set_Vertex_Buffer(dynamic_vb);
+	Renderer::Set_Index_Buffer(dynamic_ib,0);
 
 	/*
 	** Draw dynamesh, one pass at a time
@@ -305,26 +304,26 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 
 		// Set the DX8 state to the first triangle's state
 		if (texture_array0) {
-			WW3D::Get_Render_Backend()->Set_Texture(0,texture_array0[0]);
+			Renderer::Set_Texture(0,texture_array0[0]);
 		} else {
-			WW3D::Get_Render_Backend()->Set_Texture(0,MatDesc->Peek_Single_Texture(pass, 0));
+			Renderer::Set_Texture(0,MatDesc->Peek_Single_Texture(pass, 0));
 		}
 
 		if (texture_array1) {
-			WW3D::Get_Render_Backend()->Set_Texture(1,texture_array1[0]);
+			Renderer::Set_Texture(1,texture_array1[0]);
 		} else {
-			WW3D::Get_Render_Backend()->Set_Texture(1,MatDesc->Peek_Single_Texture(pass, 1));
+			Renderer::Set_Texture(1,MatDesc->Peek_Single_Texture(pass, 1));
 		}
 
 		if (material_array) {
-			WW3D::Get_Render_Backend()->Set_Material(material_array[tris[0].I]);
+			Renderer::Set_Material(material_array[tris[0].I]);
 		} else {
-			WW3D::Get_Render_Backend()->Set_Material(MatDesc->Peek_Single_Material(pass));
+			Renderer::Set_Material(MatDesc->Peek_Single_Material(pass));
 		}
 		if (shader_array) {
-			WW3D::Get_Render_Backend()->Set_Shader(shader_array[0]);
+			Renderer::Set_Shader(shader_array[0]);
 		} else {
-			WW3D::Get_Render_Backend()->Set_Shader(MatDesc->Get_Single_Shader(pass));
+			Renderer::Set_Shader(MatDesc->Get_Single_Shader(pass));
 		}
 
 		SphereClass sphere;
@@ -336,7 +335,7 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 				SortingRendererClass::Insert_Triangles(sphere,0, DynamicMeshPNum, 0, DynamicMeshVNum);
 			}
 			else {
-				WW3D::Get_Render_Backend()->Draw_Triangles(0, DynamicMeshPNum, 0, DynamicMeshVNum);
+				Renderer::Draw_Triangles(0, DynamicMeshPNum, 0, DynamicMeshVNum);
 			}
 			continue;
 		}
@@ -376,7 +375,7 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 						1 + max_vert_idx - min_vert_idx);
 				}
 				else {
-					WW3D::Get_Render_Backend()->Draw_Triangles(
+					Renderer::Draw_Triangles(
 						(start_tri_idx * 3),
 						(1 + cur_tri_idx - start_tri_idx),
 						min_vert_idx,
@@ -385,10 +384,10 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 				start_tri_idx = next_tri_idx;
 				min_vert_idx = DynamicMeshVNum - 1;
 				max_vert_idx = 0;
-				if (texture_changed) WW3D::Get_Render_Backend()->Set_Texture(0,texture_array0[next_tri_idx]);
-				if (texture1_changed) WW3D::Get_Render_Backend()->Set_Texture(1,texture_array1[next_tri_idx]);
-				if (material_changed) WW3D::Get_Render_Backend()->Set_Material(material_array[tris[next_tri_idx].I]);
-				if (shader_changed) WW3D::Get_Render_Backend()->Set_Shader(shader_array[next_tri_idx]);
+				if (texture_changed) Renderer::Set_Texture(0,texture_array0[next_tri_idx]);
+				if (texture1_changed) Renderer::Set_Texture(1,texture_array1[next_tri_idx]);
+				if (material_changed) Renderer::Set_Material(material_array[tris[next_tri_idx].I]);
+				if (shader_changed) Renderer::Set_Shader(shader_array[next_tri_idx]);
 			}
 
 			cur_tri_idx = next_tri_idx;
@@ -434,7 +433,7 @@ void DynamicMeshClass::Render(RenderInfoClass & rinfo)
 		const FrustumClass & frustum = rinfo.Camera.Get_Frustum();
 
 		if (CollisionMath::Overlap_Test(frustum, Get_Bounding_Box()) != CollisionMath::OUTSIDE) {
-			WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, Transform);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD, Transform);
 			Model->Render(rinfo);
 		}
 	}

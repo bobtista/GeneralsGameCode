@@ -61,8 +61,7 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8renderer.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #if defined(GGC_RENDER_BACKEND_BGFX)
 // TheSuperHackers @refactor bobtista 08/06/2026 On bgfx builds g_device owns the windowed/bit-depth
 // device state; Set_Render_Device/Init mirror DX8Wrapper's IsWindowed/BitDepth into it.
@@ -735,7 +734,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	// TheSuperHackers @refactor bobtista 11/04/2026 Initialize the render backend's per-window
 	// context BEFORE the subsystem _Init() calls below: their static-buffer Write locks mirror
 	// data into the backend caches, which requires a fully initialized backend.
-	WW3D::Get_Render_Backend()->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
+	Renderer::Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
 
    /*
 	** Initialize any other subsystems inside of WW3D
@@ -795,13 +794,13 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	// TheSuperHackers @refactor bobtista 10/04/2026 Tear down the render
 	// backend's rendering context before the D3D device is released so any
 	// backend-owned resources get released first.
-	if (WW3D::Get_Render_Backend() != nullptr)
+	if (Renderer::Is_Initialized())
 	{
 		// Symmetric counterpart to the Initialize call in
 		// Do_Onetime_Device_Dependent_Inits. The backend object outlives
 		// this teardown; it is destroyed in WW3D::Shutdown via
 		// Shutdown_Render_Backend.
-		WW3D::Get_Render_Backend()->Shutdown();
+		Renderer::Shutdown_Context();
 	}
 
 	/*
@@ -2347,10 +2346,10 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 	DX8CALL(SetViewport(pViewport));
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @fix bobtista 19/04/2026 Notify WW3D::Get_Render_Backend() so bgfx
+	// TheSuperHackers @fix bobtista 19/04/2026 Notify Renderer:: so bgfx
 	// view rects stay in sync with the D3D8 viewport. CameraClass::Apply()
-	// calls this directly, bypassing WW3D::Get_Render_Backend()->Set_Viewport().
-	if (WW3D::Get_Render_Backend() != nullptr && pViewport != nullptr)
+	// calls this directly, bypassing Renderer::Set_Viewport().
+	if (Renderer::Is_Initialized() && pViewport != nullptr)
 	{
 		RenderBackendViewport rbvp;
 		rbvp.x      = pViewport->X;
@@ -2359,7 +2358,7 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 		rbvp.height = pViewport->Height;
 		rbvp.min_z  = pViewport->MinZ;
 		rbvp.max_z  = pViewport->MaxZ;
-		WW3D::Get_Render_Backend()->Set_Viewport(rbvp);
+		Renderer::Set_Viewport(rbvp);
 	}
 #endif
 }
@@ -2513,8 +2512,8 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 	// Draw_Triangles args (start_index=0, min_vertex_index=0) and sets
 	// an internal skip flag so the outer BgfxBackend::Draw_Triangles
 	// does not emit a stale second submit. No-op on DX8Backend.
-	if (WW3D::Get_Render_Backend() != nullptr) {
-		WW3D::Get_Render_Backend()->Submit_Sorted_Draw(dyn_vb_access, dyn_ib_access,
+	if (Renderer::Is_Initialized()) {
+		Renderer::Submit_Sorted_Draw(dyn_vb_access, dyn_ib_access,
 			polygon_count, vertex_count);
 	}
 }

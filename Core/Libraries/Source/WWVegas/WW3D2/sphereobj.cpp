@@ -90,8 +90,7 @@
 #include "indexbuffer.h"
 #include "sortingrenderer.h"
 #include "visrasterizer.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 
 static bool Sphere_Array_Valid = false;
 
@@ -471,9 +470,9 @@ void SphereRenderObjClass::render_sphere()
 	} else {
 		SphereShader.Set_Texturing (ShaderClass::TEXTURING_DISABLE);
 	}
-	WW3D::Get_Render_Backend()->Set_Shader(SphereShader);
-	WW3D::Get_Render_Backend()->Set_Texture(0,SphereTexture);
-	WW3D::Get_Render_Backend()->Set_Material(SphereMaterial);
+	Renderer::Set_Shader(SphereShader);
+	Renderer::Set_Texture(0,SphereTexture);
+	Renderer::Set_Material(SphereMaterial);
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (SphereShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (SphereShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
@@ -520,13 +519,13 @@ void SphereRenderObjClass::render_sphere()
 		}
 	}
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(ib,0);
+	Renderer::Set_Vertex_Buffer(vb);
+	Renderer::Set_Index_Buffer(ib,0);
 
 	if (sort) {
 		SortingRendererClass::Insert_Triangles(Get_Bounding_Sphere(), 0, mesh.face_ct, 0, mesh.Vertex_ct);
 	} else {
-		WW3D::Get_Render_Backend()->Draw_Triangles(0,mesh.face_ct,0,mesh.Vertex_ct);
+		Renderer::Draw_Triangles(0,mesh.face_ct,0,mesh.Vertex_ct);
 	}
 
 }
@@ -662,7 +661,7 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 		// Camera Align
 		if (Flags & USE_CAMERA_ALIGN) {
 			Matrix4x4 view,ident(true);
-			WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
+			Renderer::Get_Transform(RB_TRANSFORM_VIEW, view);
 
 			Vector4 wpos(Transform[0][3],Transform[1][3],Transform[2][3],1);
 			Vector4 cpos;
@@ -673,12 +672,12 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 							1.0f, 0.0f, 0.0f, cpos.Z);
 
 			tm.Scale(real_scale);
-			WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,ident);
-			WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW, tm);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD,ident);
+			Renderer::Set_Transform(RB_TRANSFORM_VIEW, tm);
 			render_sphere();
-			WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW, view);
+			Renderer::Set_Transform(RB_TRANSFORM_VIEW, view);
 		} else {
-			WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,temp);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD,temp);
 			render_sphere();
 		}
 	}

@@ -58,7 +58,7 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/vertmaterial.h"
 class DebugHintObject : public RenderObjClass
 {
@@ -243,18 +243,18 @@ void DebugHintObject::Render(RenderInfoClass & rinfo)
 	{
 		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
 		// through the IRenderBackend abstraction.
-		WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
-		WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
-		WW3D::Get_Render_Backend()->Set_Texture(0, nullptr);
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexBufferTile,0);
+		Renderer::Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Shader(m_shaderClass);
+		Renderer::Set_Texture(0, nullptr);
+		Renderer::Set_Index_Buffer(m_indexBuffer,0);
+		Renderer::Set_Vertex_Buffer(m_vertexBufferTile,0);
 
 		Matrix3D tm = Transform;
 		Vector3 vec(m_myLoc.x, m_myLoc.y, m_myLoc.z);
 		tm.Set_Translation(vec);
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, tm);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD, tm);
 
-		WW3D::Get_Render_Backend()->Draw_Triangles(	0, 1, 0, 3);
+		Renderer::Draw_Triangles(	0, 1, 0, 3);
 	}
 }
 #endif // RTS_DEBUG

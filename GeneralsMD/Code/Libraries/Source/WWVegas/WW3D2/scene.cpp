@@ -69,8 +69,7 @@
 #include "Renderer.h"
 #include "rinfo.h"
 #include "dx8renderer.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "sortingrenderer.h"
 #include "coltest.h"
 
@@ -202,7 +201,7 @@ void SceneClass::Render(RenderInfoClass & rinfo)
 	// Any stuff that needs to get done before anything else
 	Pre_Render_Processing(rinfo);
 
-	WW3D::Get_Render_Backend()->Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
+	Renderer::Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
 
 	if (Get_Extra_Pass_Polygon_Mode()==EXTRA_PASS_DISABLE) {
 		Customized_Render(rinfo);
@@ -211,21 +210,21 @@ void SceneClass::Render(RenderInfoClass & rinfo)
 		bool old_enable=WW3D::Is_Texturing_Enabled();
 
 		// TheSuperHackers @refactor bobtista 21/04/2026 Route fill mode +
-		// Z-bias through WW3D::Get_Render_Backend() so bgfx sees the state.
-		WW3D::Get_Render_Backend()->Set_Z_Bias(0);
+		// Z-bias through Renderer:: so bgfx sees the state.
+		Renderer::Set_Z_Bias(0);
 		Customized_Render(rinfo);
 		switch (Get_Extra_Pass_Polygon_Mode()) {
 		case EXTRA_PASS_LINE:
 			WW3D::Enable_Texturing(false);
-			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_WIREFRAME);
-			WW3D::Get_Render_Backend()->Set_Z_Bias(7);
+			Renderer::Set_Fill_Mode(RB_FILL_WIREFRAME);
+			Renderer::Set_Z_Bias(7);
 			Customized_Render(rinfo);
 			break;
 		case EXTRA_PASS_CLEAR_LINE:
 			Renderer::Clear(true, false, Vector3(0.0f,0.0f,0.0f));	// Clear color but not z
 			WW3D::Enable_Texturing(false);
-			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_WIREFRAME);
-			WW3D::Get_Render_Backend()->Set_Z_Bias(7);
+			Renderer::Set_Fill_Mode(RB_FILL_WIREFRAME);
+			Renderer::Set_Z_Bias(7);
 			Customized_Render(rinfo);
 			break;
 		}
@@ -487,10 +486,10 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 	// derived classes should use light environment
 	WWASSERT(rinfo.light_environment==nullptr);
 	// Turn off lights in case we have none
-	WW3D::Get_Render_Backend()->Clear_Light(0);
-	WW3D::Get_Render_Backend()->Clear_Light(1);
-	WW3D::Get_Render_Backend()->Clear_Light(2);
-	WW3D::Get_Render_Backend()->Clear_Light(3);
+	Renderer::Clear_Light(0);
+	Renderer::Clear_Light(1);
+	Renderer::Clear_Light(2);
+	Renderer::Clear_Light(3);
 
 // (gth) WWShade only works with light environments.  We need to upgrade LightEnvironment to
 // support real point lights, etc.  It will likely just evolve into "the n most important" lights
@@ -501,7 +500,7 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 	{
 		if (count<4)
 		{
-			WW3D::Get_Render_Backend()->Set_Light(count,*(LightClass*)it.Peek_Obj());
+			Renderer::Set_Light(count,*(LightClass*)it.Peek_Obj());
 		} else
 		{
 			// Simple scene only supports 4 global lights

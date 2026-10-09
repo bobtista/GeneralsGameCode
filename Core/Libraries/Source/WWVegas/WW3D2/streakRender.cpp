@@ -38,8 +38,7 @@
 #include "WW3D2/vertexbuffer.h"
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/dx8fvf.h"
-#include "WW3D2/RenderBackend.h"
-#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/w3d_file.h"
 
 
@@ -318,11 +317,11 @@ void StreakRendererClass::RenderStreak
 )
 {
 	Matrix4x4 view;
-	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW,view);
+	Renderer::Get_Transform(RB_TRANSFORM_VIEW,view);
 
 	Matrix4x4 identity(true);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,identity);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW, identity);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW, identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
@@ -1312,7 +1311,7 @@ void StreakRendererClass::RenderStreak
 
 		VertexMaterialClass *mat;
 		mat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Material(mat);
+		Renderer::Set_Material(mat);
 		REF_PTR_RELEASE(mat);
 
 		// If Texture is non-null enable texturing in shader - otherwise disable.
@@ -1376,25 +1375,25 @@ void StreakRendererClass::RenderStreak
 		}
 
 
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(Verts);
-		WW3D::Get_Render_Backend()->Set_Texture(0,Texture);
-		WW3D::Get_Render_Backend()->Set_Shader(shader);
+		Renderer::Set_Index_Buffer(ib_access,0);
+		Renderer::Set_Vertex_Buffer(Verts);
+		Renderer::Set_Texture(0,Texture);
+		Renderer::Set_Shader(shader);
 
 		if (sorting)
 		{
-			WW3D::Get_Render_Backend()->Set_Streak_Render_Active(true);
+			Renderer::Set_Streak_Render_Active(true);
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,triangleIndex,0,vnum);
-			WW3D::Get_Render_Backend()->Set_Streak_Render_Active(false);
+			Renderer::Set_Streak_Render_Active(false);
 		}
 		else
 		{
-			WW3D::Get_Render_Backend()->Draw_Triangles(0,triangleIndex,0,vnum);
+			Renderer::Draw_Triangles(0,triangleIndex,0,vnum);
 		}
 
 	}
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,view);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,view);
 
 }
 

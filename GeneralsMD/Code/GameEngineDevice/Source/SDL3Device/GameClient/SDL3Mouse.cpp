@@ -28,8 +28,7 @@
 #include "GameClient/InGameUI.h"
 #include "WW3D2/assetmgr.h"
 #include "WW3D2/ddsfile.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/surfaceclass.h"
 #include "WW3D2/texture.h"
 
@@ -352,12 +351,12 @@ static void GetLetterboxContentRect(Int windowWidth, Int windowHeight, Int *offs
 	*offsetY = 0;
 	*contentWidth = windowWidth;
 	*contentHeight = windowHeight;
-	if (WW3D::Get_Render_Backend() != NULL && WW3D::Get_Render_Backend()->Is_Present_Letterbox_Active())
+	if (Renderer::Is_Initialized() && Renderer::Is_Present_Letterbox_Active())
 	{
-		*offsetX = WW3D::Get_Render_Backend()->Get_Present_Offset_X();
-		*offsetY = WW3D::Get_Render_Backend()->Get_Present_Offset_Y();
-		const Int cw = WW3D::Get_Render_Backend()->Get_Present_Content_Width();
-		const Int ch = WW3D::Get_Render_Backend()->Get_Present_Content_Height();
+		*offsetX = Renderer::Get_Present_Offset_X();
+		*offsetY = Renderer::Get_Present_Offset_Y();
+		const Int cw = Renderer::Get_Present_Content_Width();
+		const Int ch = Renderer::Get_Present_Content_Height();
 		if (cw > 0 && ch > 0)
 		{
 			*contentWidth = cw;

@@ -26,6 +26,8 @@ endif()
 
 message(STATUS "WW3D2 render backend: ${GGC_RENDER_BACKEND}")
 
+option(GGC_RENDERER_VIRTUAL "Dispatch Renderer calls through the IRenderBackend interface" OFF)
+
 # Non-DX8 backends require a modern toolchain. We do NOT want to silently
 # pick a broken build configuration, so fail early with a useful message.
 if(NOT GGC_RENDER_BACKEND STREQUAL "dx8")

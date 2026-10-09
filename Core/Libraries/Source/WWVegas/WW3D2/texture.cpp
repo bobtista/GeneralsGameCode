@@ -62,8 +62,7 @@
 #include "meshmatdesc.h"
 #include "texturethumbnail.h"
 #include "WWDebug/wwprofile.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "DXTUtils.h"
 #include <algorithm>
 #include <cstring>
@@ -424,12 +423,12 @@ TextureBaseClass::~TextureBaseClass()
 	// this TextureBaseClass* address; if the memory is reallocated for
 	// a different texture later, the old handle would be served for the
 	// new object (ABA). Releasing the cache entry here closes that window.
-	if (WW3D::Get_Render_Backend() != nullptr)
+	if (Renderer::Is_Initialized())
 	{
-		WW3D::Get_Render_Backend()->Release_Cached_Texture(this);
+		Renderer::Release_Cached_Texture(this);
 		//: also release the backend-neutral resource.
 		if (m_backendHandle != kInvalidRenderResource) {
-			WW3D::Get_Render_Backend()->Destroy_Resource(m_backendHandle);
+			Renderer::Destroy_Resource(m_backendHandle);
 			m_backendHandle = kInvalidRenderResource;
 		}
 	}
@@ -522,7 +521,7 @@ void TextureBaseClass::Invalidate()
 	// units) rebuilds white after a resolution change. There is no device-loss to recover from on
 	// bgfx, so skip the invalidation entirely. The DX8 reference backend (Has_Shader_Pipeline()
 	// false) is unaffected and keeps the original release-on-reset behavior.
-	if (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Has_Shader_Pipeline()) {
+	if (Renderer::Is_Initialized() && Renderer::Has_Shader_Pipeline()) {
 		return;
 	}
 
@@ -538,11 +537,11 @@ void TextureBaseClass::Invalidate()
 		return;
 	}
 
-	if (WW3D::Get_Render_Backend() != nullptr)
+	if (Renderer::Is_Initialized())
 	{
-		WW3D::Get_Render_Backend()->Release_Cached_Texture(this);
+		Renderer::Release_Cached_Texture(this);
 		if (m_backendHandle != kInvalidRenderResource) {
-			WW3D::Get_Render_Backend()->Destroy_Resource(m_backendHandle);
+			Renderer::Destroy_Resource(m_backendHandle);
 			m_backendHandle = kInvalidRenderResource;
 		}
 	}
@@ -883,7 +882,7 @@ unsigned TextureBaseClass::Get_Reduction() const
 void TextureBaseClass::Apply_Null(unsigned int stage)
 {
 	// This function sets the render states for a "null" texture
-	WW3D::Get_Render_Backend()->Bind_Texture_Immediate(stage, nullptr);
+	Renderer::Bind_Texture_Immediate(stage, nullptr);
 }
 
 // ----------------------------------------------------------------------------
@@ -1201,7 +1200,7 @@ TextureClass::TextureClass
 		// If requesting bumpmap format that isn't available we'll just return the surface in whatever color
 		// format the texture file is in. (This is illegal case, the format support should always be queried
 		// before creating a bump texture!)
-		if (!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Supports_Texture_Format(TextureFormat))
+		if (!Renderer::Is_Initialized() || !Renderer::Supports_Texture_Format(TextureFormat))
 		{
 			TextureFormat=WW3D_FORMAT_UNKNOWN;
 		}
@@ -1534,11 +1533,11 @@ void TextureClass::Apply(unsigned int stage)
 	// Set texture itself
 	if (WW3D::Is_Texturing_Enabled())
 	{
-		WW3D::Get_Render_Backend()->Bind_Texture_Immediate(stage, this);
+		Renderer::Bind_Texture_Immediate(stage, this);
 	}
 	else
 	{
-		WW3D::Get_Render_Backend()->Bind_Texture_Immediate(stage, nullptr);
+		Renderer::Bind_Texture_Immediate(stage, nullptr);
 	}
 
 	Filter.Apply(stage);
@@ -1713,9 +1712,9 @@ void TextureClass::End_Mip_Write(unsigned int level)
 #endif
 	}
 
-	if (WW3D::Get_Render_Backend() != nullptr)
+	if (Renderer::Is_Initialized())
 	{
-		WW3D::Get_Render_Backend()->Invalidate_Cached_Texture(this);
+		Renderer::Invalidate_Cached_Texture(this);
 	}
 }
 
@@ -1779,8 +1778,8 @@ void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const S
 #endif
 	}
 
-	if (WW3D::Get_Render_Backend() != nullptr) {
-		WW3D::Get_Render_Backend()->Invalidate_Cached_Texture(this);
+	if (Renderer::Is_Initialized()) {
+		Renderer::Invalidate_Cached_Texture(this);
 	}
 }
 
@@ -1866,9 +1865,9 @@ bool TextureClass::Generate_Mip_Levels()
 					{
 						Generate_Legacy_Texture_Mips(*this);
 					}
-				if (WW3D::Get_Render_Backend() != nullptr)
+				if (Renderer::Is_Initialized())
 				{
-					WW3D::Get_Render_Backend()->Invalidate_Cached_Texture(this);
+					Renderer::Invalidate_Cached_Texture(this);
 				}
 				return true;
 			}
@@ -2043,14 +2042,14 @@ TextureClass* Load_Texture(ChunkLoadClass & cload)
 
 				case W3DTEXTURE_TYPE_BUMPMAP:
 				{
-					if (WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Bump_Envmap())
+					if (Renderer::Is_Initialized() && Renderer::Supports_Bump_Envmap())
 					{
 						// No mipmaps to bumpmap for now
 						mipcount=MIP_LEVELS_1;
 
-						if (WW3D::Get_Render_Backend()->Supports_Texture_Format(WW3D_FORMAT_U8V8)) format=WW3D_FORMAT_U8V8;
-						else if (WW3D::Get_Render_Backend()->Supports_Texture_Format(WW3D_FORMAT_X8L8V8U8)) format=WW3D_FORMAT_X8L8V8U8;
-						else if (WW3D::Get_Render_Backend()->Supports_Texture_Format(WW3D_FORMAT_L6V5U5)) format=WW3D_FORMAT_L6V5U5;
+						if (Renderer::Supports_Texture_Format(WW3D_FORMAT_U8V8)) format=WW3D_FORMAT_U8V8;
+						else if (Renderer::Supports_Texture_Format(WW3D_FORMAT_X8L8V8U8)) format=WW3D_FORMAT_X8L8V8U8;
+						else if (Renderer::Supports_Texture_Format(WW3D_FORMAT_L6V5U5)) format=WW3D_FORMAT_L6V5U5;
 					}
 					break;
 				}
@@ -2183,7 +2182,7 @@ ZTextureClass::ZTextureClass
 */
 void ZTextureClass::Apply(unsigned int stage)
 {
-	WW3D::Get_Render_Backend()->Bind_Texture_Immediate(stage, this);
+	Renderer::Bind_Texture_Immediate(stage, this);
 }
 
 //**********************************************************************************************
@@ -2386,7 +2385,7 @@ CubeTextureClass::CubeTextureClass
 		// If requesting bumpmap format that isn't available we'll just return the surface in whatever color
 		// format the texture file is in. (This is illegal case, the format support should always be queried
 		// before creating a bump texture!)
-		if (!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Supports_Texture_Format(TextureFormat))
+		if (!Renderer::Is_Initialized() || !Renderer::Supports_Texture_Format(TextureFormat))
 		{
 			TextureFormat=WW3D_FORMAT_UNKNOWN;
 		}
@@ -2614,7 +2613,7 @@ VolumeTextureClass::VolumeTextureClass
 		// If requesting bumpmap format that isn't available we'll just return the surface in whatever color
 		// format the texture file is in. (This is illegal case, the format support should always be queried
 		// before creating a bump texture!)
-		if (!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Supports_Texture_Format(TextureFormat))
+		if (!Renderer::Is_Initialized() || !Renderer::Supports_Texture_Format(TextureFormat))
 		{
 			TextureFormat=WW3D_FORMAT_UNKNOWN;
 		}

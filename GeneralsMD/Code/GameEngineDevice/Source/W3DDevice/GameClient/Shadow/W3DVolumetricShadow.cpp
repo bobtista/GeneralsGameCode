@@ -50,7 +50,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
 #include "WW3D2/Renderer.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
@@ -131,7 +131,7 @@ static void LogVolumetricShadowPath(const char *event,
 			DrawableTemplateName(draw),
 			renderedCount,
 			TheGlobalData != nullptr && TheGlobalData->m_useShadowVolumes ? 1 : 0,
-			WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Has_Stencil() ? 1 : 0,
+			Renderer::Is_Initialized() && Renderer::Has_Stencil() ? 1 : 0,
 			shadowInfo != nullptr ? shadowInfo->m_sizeX : 0.0f,
 			shadowInfo != nullptr ? shadowInfo->m_sizeY : 0.0f,
 			reason != nullptr ? reason : "");
@@ -141,7 +141,7 @@ static void LogVolumetricShadowPath(const char *event,
 
 static bool ShouldSkipBgfxStaticVolumeShadow(const Drawable *draw)
 {
-	if (WW3D::Get_Render_Backend() == nullptr)
+	if (!Renderer::Is_Initialized())
 		return false;
 
 #if !defined(GGC_BGFX_RENDERER_METAL)
@@ -181,7 +181,7 @@ static bool ShouldSkipBgfxStaticVolumeShadow(const Drawable *draw)
 
 static bool BgfxUseShadowVolumeZFail()
 {
-	if (WW3D::Get_Render_Backend() == nullptr || !WW3D::Get_Render_Backend()->Needs_Closed_Shadow_Volumes())
+	if (!Renderer::Is_Initialized() || !Renderer::Needs_Closed_Shadow_Volumes())
 		return false;
 
 	const char *algo = GgcFlags::StringValue(GgcFlag_BgfxStencilAlgo);
@@ -227,7 +227,7 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 #endif
 
 // TheSuperHackers @refactor bobtista 15/04/2026 Wrap the dynamic shadow volume buffers in
-// W3D classes so WW3D::Get_Render_Backend() draws route through the bgfx capture hooks. Forward declaration.
+// W3D classes so Renderer:: draws route through the bgfx capture hooks. Forward declaration.
 static int EarClip2D(const float * xy, int N, short * out_indices);
 
 RenderVertexBufferClass * shadowVertexBuffer = nullptr;
@@ -248,7 +248,7 @@ static int ShadowDynamicVertexCapacity()
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	return SHADOW_VOLUME_BGFX_VERTEX_CAPACITY;
 #else
-	if (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Needs_Closed_Shadow_Volumes())
+	if (Renderer::Is_Initialized() && Renderer::Needs_Closed_Shadow_Volumes())
 		return SHADOW_VOLUME_BGFX_VERTEX_CAPACITY;
 	return SHADOW_VERTEX_SIZE;
 #endif
@@ -259,7 +259,7 @@ static int ShadowDynamicIndexCapacity()
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	return SHADOW_VOLUME_BGFX_INDEX_CAPACITY;
 #else
-	if (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Needs_Closed_Shadow_Volumes())
+	if (Renderer::Is_Initialized() && Renderer::Needs_Closed_Shadow_Volumes())
 		return SHADOW_VOLUME_BGFX_INDEX_CAPACITY;
 	return SHADOW_INDEX_SIZE;
 #endif
@@ -1487,7 +1487,7 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	Geometry *geometry;
 	Int numVerts, numPolys, numIndex;
 
-	if (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Is_Device_Lost())
+	if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost())
 		return;
 
 	geometry = m_shadowVolume[lightIndex][ meshIndex ];
@@ -1507,14 +1507,14 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	if( numVerts == 0 || numPolys == 0 )
 		return;
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, *meshXform);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD, *meshXform);
 
 	W3DBufferManager::W3DVertexBufferSlot *vbSlot=m_shadowVolumeVB[lightIndex][ meshIndex ];
 	if (!vbSlot)
 		return;
 	if (vbSlot->m_VB->m_renderVertexBuffer != lastActiveVertexBuffer)
 	{	lastActiveVertexBuffer=vbSlot->m_VB->m_renderVertexBuffer;
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vbSlot->m_VB->m_renderVertexBuffer, 0);
+		Renderer::Set_Vertex_Buffer(vbSlot->m_VB->m_renderVertexBuffer, 0);
 	}
 
 	DEBUG_ASSERTCRASH(vbSlot->m_size >= numVerts,("Overflowing Shadow Vertex Buffer Slot"));
@@ -1525,14 +1525,14 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 
 	DEBUG_ASSERTCRASH(ibSlot->m_size >= numIndex,("Overflowing Shadow Index Buffer Slot"));
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(ibSlot->m_IB->m_renderIndexBuffer, vbSlot->m_start);
+	Renderer::Set_Index_Buffer(ibSlot->m_IB->m_renderIndexBuffer, vbSlot->m_start);
 
-	if (WW3D::Get_Render_Backend()->Is_Triangle_Draw_Enabled())
+	if (Renderer::Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
-		WW3D::Get_Render_Backend()->Set_Shadow_Volume_Shader_Active(true);
-		WW3D::Get_Render_Backend()->Draw_Triangles(ibSlot->m_start, numPolys, 0, numVerts);
-		WW3D::Get_Render_Backend()->Set_Shadow_Volume_Shader_Active(false);
+		Renderer::Set_Shadow_Volume_Shader_Active(true);
+		Renderer::Draw_Triangles(ibSlot->m_start, numPolys, 0, numVerts);
+		Renderer::Set_Shadow_Volume_Shader_Active(false);
 	}
 
 	// No Set_*_Buffer(nullptr) cleanup here: static shadow volume VBs
@@ -1548,7 +1548,7 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 	SHADOW_DYNAMIC_VOLUME_VERTEX* pvVertices;
 	UnsignedShort *pvIndices;
 
-	if (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Is_Device_Lost())
+	if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost())
 		return;
 
 	geometry = m_shadowVolume[lightIndex][ meshIndex ];
@@ -1622,29 +1622,29 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 	}
 
 	// TheSuperHackers @refactor bobtista 15/04/2026 route through
-	// WW3D::Get_Render_Backend() so DX8Wrapper flushes cached stencil/blend state
+	// Renderer:: so DX8Wrapper flushes cached stencil/blend state
 	// before the shadow draw. Clear texture stages to prevent stale
 	// terrain textures from bleeding onto the stencil volume verts.
-	WW3D::Get_Render_Backend()->Set_Texture(0, nullptr);
-	WW3D::Get_Render_Backend()->Set_Texture(1, nullptr);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(shadowIndexBuffer, nShadowStartBatchVertex);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, *meshXform);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(shadowVertexBuffer, 0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
+	Renderer::Set_Texture(0, nullptr);
+	Renderer::Set_Texture(1, nullptr);
+	Renderer::Set_Index_Buffer(shadowIndexBuffer, nShadowStartBatchVertex);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD, *meshXform);
+	Renderer::Set_Vertex_Buffer(shadowVertexBuffer, 0);
+	Renderer::Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
 	lastActiveVertexBuffer = shadowVertexBuffer;
 
-	if (WW3D::Get_Render_Backend()->Is_Triangle_Draw_Enabled())
+	if (Renderer::Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
-		WW3D::Get_Render_Backend()->Set_Shadow_Volume_Shader_Active(true);
-		WW3D::Get_Render_Backend()->Draw_Triangles(nShadowStartBatchIndex, numPolys, 0, numVerts);
-		WW3D::Get_Render_Backend()->Set_Shadow_Volume_Shader_Active(false);
+		Renderer::Set_Shadow_Volume_Shader_Active(true);
+		Renderer::Draw_Triangles(nShadowStartBatchIndex, numPolys, 0, numVerts);
+		Renderer::Set_Shadow_Volume_Shader_Active(false);
 	}
 
 	// Release engine refs on the shadow ring buffers so the next
 	// AppendLockClass (which asserts !Engine_Refs) can proceed.
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(nullptr, 0);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(nullptr, 0);
+	Renderer::Set_Vertex_Buffer(nullptr, 0);
+	Renderer::Set_Index_Buffer(nullptr, 0);
 
 	nShadowVertsInBuf += numVerts;
 	nShadowStartBatchVertex=nShadowVertsInBuf;
@@ -1692,7 +1692,7 @@ void W3DVolumetricShadow::RenderMeshVolumeBounds(Int meshIndex, Int lightIndex, 
 
 	static Vector3 verts[8];
 
-	if (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Is_Device_Lost())
+	if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost())
 		return;
 
 	Vector3 meshPosition;
@@ -1778,23 +1778,23 @@ void W3DVolumetricShadow::RenderMeshVolumeBounds(Int meshIndex, Int lightIndex, 
 		}
 	}
 
-	WW3D::Get_Render_Backend()->Set_Texture(0, nullptr);
-	WW3D::Get_Render_Backend()->Set_Texture(1, nullptr);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(shadowIndexBuffer, nShadowStartBatchVertex);
+	Renderer::Set_Texture(0, nullptr);
+	Renderer::Set_Texture(1, nullptr);
+	Renderer::Set_Index_Buffer(shadowIndexBuffer, nShadowStartBatchVertex);
 
 	//todo: replace this with mesh transform
 	Matrix3D mWorld(true);	//identity since boxes are pre-transformed to world space.
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, mWorld);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD, mWorld);
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(shadowVertexBuffer, 0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
+	Renderer::Set_Vertex_Buffer(shadowVertexBuffer, 0);
+	Renderer::Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
 
-	WW3D::Get_Render_Backend()->Set_Shadow_Volume_Shader_Active(true);
-	WW3D::Get_Render_Backend()->Draw_Triangles(nShadowStartBatchIndex, numPolys, 0, numVerts);
-	WW3D::Get_Render_Backend()->Set_Shadow_Volume_Shader_Active(false);
+	Renderer::Set_Shadow_Volume_Shader_Active(true);
+	Renderer::Draw_Triangles(nShadowStartBatchIndex, numPolys, 0, numVerts);
+	Renderer::Set_Shadow_Volume_Shader_Active(false);
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(nullptr, 0);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(nullptr, 0);
+	Renderer::Set_Vertex_Buffer(nullptr, 0);
+	Renderer::Set_Index_Buffer(nullptr, 0);
 
 	nShadowVertsInBuf += numVerts;
 	nShadowStartBatchVertex=nShadowVertsInBuf;
@@ -1876,7 +1876,7 @@ W3DVolumetricShadow::~W3DVolumetricShadow()
 
 Bool W3DVolumetricShadow::shouldUseClosedShadowVolume() const
 {
-	if (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Needs_Closed_Shadow_Volumes())
+	if (Renderer::Is_Initialized() && Renderer::Needs_Closed_Shadow_Volumes())
 		return TRUE;
 
 	return FALSE;
@@ -1979,7 +1979,7 @@ void W3DVolumetricShadow::Update()
 			//sure shadow goes under ground.
 			Real airborneZOffset = fabs(pos.Z - TheTerrainRenderObject->getMinHeight()) + SHADOW_EXTRUSION_BUFFER;
 #if defined(GGC_BGFX_RENDERER_METAL)
-			if (WW3D::Get_Render_Backend() != nullptr)
+			if (Renderer::Is_Initialized())
 			{
 				// TheSuperHackers @bugfix bobtista 14/06/2026 Metal ignores hardware
 				// depth clamp, so open stencil volumes extruded to the map minimum turn
@@ -1988,9 +1988,9 @@ void W3DVolumetricShadow::Update()
 				airborneZOffset = fabs(pos.Z - groundHeight) + SHADOW_EXTRUSION_BUFFER;
 			}
 #else
-			if (WW3D::Get_Render_Backend() != nullptr
+			if (Renderer::Is_Initialized()
 				&& m_shadowLengthScale > 10.0f
-				&& WW3D::Get_Render_Backend()->Needs_Closed_Shadow_Volumes())
+				&& Renderer::Needs_Closed_Shadow_Volumes())
 			{
 				airborneZOffset = fabs(pos.Z - groundHeight) - SHADOW_EXTRUSION_BUFFER;
 				if (airborneZOffset < 0.0f)
@@ -3375,7 +3375,7 @@ void W3DVolumetricShadow::constructVolumeVB( Vector3 *lightPosObject,Real shadow
 	#endif
 		}
 
-		if (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Needs_Closed_Shadow_Volumes())
+		if (Renderer::Is_Initialized() && Renderer::Needs_Closed_Shadow_Volumes())
 		{
 			for (i = 0; i < geomMesh->GetNumPolygon(); ++i)
 			{
@@ -3872,7 +3872,7 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
 
-	WW3D::Get_Render_Backend()->Apply_Stencil_Shadow_Darken(
+	Renderer::Apply_Stencil_Shadow_Darken(
 		TheW3DShadowManager->getShadowColor(),
 		~TheW3DShadowManager->getStencilShadowMask(),
 		0x1,
@@ -3882,10 +3882,10 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 		height);
 
 #if !defined(GGC_RENDER_BACKEND_BGFX)
-	WW3D::Get_Render_Backend()->Set_Shade_Mode(RB_SHADE_GOURAUD);
-	WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(false);
+	Renderer::Set_Shade_Mode(RB_SHADE_GOURAUD);
+	Renderer::Set_Alpha_Blend_Enable(false);
 	// turn off the stencil buffer
-	WW3D::Get_Render_Backend()->Set_Stencil_Enable(false);
+	Renderer::Set_Stencil_Enable(false);
 #endif
 
 }
@@ -3917,7 +3917,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 	if (m_shadowList && TheGlobalData->m_useShadowVolumes && !TheGlobalData->m_bgfxShadowMaps)
 	{
 
-		if (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Is_Device_Lost())
+		if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost())
 			return;	//need device to render anything.
 
  		//According to Nvidia there's a D3D bug that happens if you don't start with a
@@ -3927,74 +3927,74 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Material(vmat);
+		Renderer::Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);
 
-		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaqueShader);
-		WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);	//turn off textures
-		WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);	//turn off textures
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of view and projection matrices
+		Renderer::Set_Shader(ShaderClass::_PresetOpaqueShader);
+		Renderer::Set_Texture(0,nullptr);	//turn off textures
+		Renderer::Set_Texture(1,nullptr);	//turn off textures
+		Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		// turn off z writing
-		WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_LESS_EQUAL);
-	  WW3D::Get_Render_Backend()->Set_Depth_Test_Enable(true);
-		WW3D::Get_Render_Backend()->Set_Depth_Write_Enable(false);
-		WW3D::Get_Render_Backend()->Set_Alpha_Test_Enable(false);
-		WW3D::Get_Render_Backend()->Set_Fog_Enable(false);
+		Renderer::Set_Depth_Func(RB_CMP_LESS_EQUAL);
+	  Renderer::Set_Depth_Test_Enable(true);
+		Renderer::Set_Depth_Write_Enable(false);
+		Renderer::Set_Alpha_Test_Enable(false);
+		Renderer::Set_Fog_Enable(false);
 
 
 		// setup the TMU to default
-		WW3D::Get_Render_Backend()->Set_Shade_Mode(RB_SHADE_FLAT);
-		WW3D::Get_Render_Backend()->Set_Lighting_Enable(false);
-		WW3D::Get_Render_Backend()->Configure_Shadow_Volume_Fill_Texture_Stages();
-		WW3D::Get_Render_Backend()->Bind_Texture_Immediate(0, nullptr);
-		WW3D::Get_Render_Backend()->Bind_Texture_Immediate(1, nullptr);
+		Renderer::Set_Shade_Mode(RB_SHADE_FLAT);
+		Renderer::Set_Lighting_Enable(false);
+		Renderer::Configure_Shadow_Volume_Fill_Texture_Stages();
+		Renderer::Bind_Texture_Immediate(0, nullptr);
+		Renderer::Bind_Texture_Immediate(1, nullptr);
 
 		DWORD oldColorWriteEnable=0x12345678;
 
 	#ifdef SV_DEBUG
-		WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(true);
-		WW3D::Get_Render_Backend()->Set_Stencil_Enable(false);
-		WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ZERO);
-		WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_LESS_EQUAL);
+		Renderer::Set_Alpha_Blend_Enable(true);
+		Renderer::Set_Stencil_Enable(false);
+		Renderer::Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ZERO);
+		Renderer::Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	#else
 		//disable writes to color buffer
-		if (WW3D::Get_Render_Backend()->Supports_Color_Write_Mask())
-		{	oldColorWriteEnable = WW3D::Get_Render_Backend()->Get_Color_Write_Mask();
-			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(0);
+		if (Renderer::Supports_Color_Write_Mask())
+		{	oldColorWriteEnable = Renderer::Get_Color_Write_Mask();
+			Renderer::Set_Color_Write_Mask(0);
 		}
 		else
 		{
 			//device does not support disabling writes to color buffer so fake it through alpha blending
-			WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_ONE);
-			WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(true);
+			Renderer::Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_ONE);
+			Renderer::Set_Alpha_Blend_Enable(true);
 		}
-		WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
+		Renderer::Set_Stencil_Enable(true);
 	#endif
 		// TheSuperHackers @refactor bobtista 15/04/2026 Route stencil + cull state through
-		// WW3D::Get_Render_Backend() so the bgfx capture hooks observe the values the DX8 path applies.
+		// Renderer:: so the bgfx capture hooks observe the values the DX8 path applies.
 		if (TheW3DShadowManager->getStencilShadowMask() == 0x80808080)
-			WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_NOT_EQUAL);
+			Renderer::Set_Stencil_Func(RB_CMP_NOT_EQUAL);
 		else
-			WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_GREATER_EQUAL);
-		WW3D::Get_Render_Backend()->Set_Stencil_Ref(0x80808080);
-		WW3D::Get_Render_Backend()->Set_Stencil_Mask(TheW3DShadowManager->getStencilShadowMask());
-		WW3D::Get_Render_Backend()->Set_Stencil_Write_Mask(0xffffffff);
+			Renderer::Set_Stencil_Func(RB_CMP_GREATER_EQUAL);
+		Renderer::Set_Stencil_Ref(0x80808080);
+		Renderer::Set_Stencil_Mask(TheW3DShadowManager->getStencilShadowMask());
+		Renderer::Set_Stencil_Write_Mask(0xffffffff);
 		const bool bgfxZFailVolumes = BgfxUseShadowVolumeZFail();
 		const bool bgfxSwapZFailOps = BgfxSwapShadowVolumeZFailOps();
-		WW3D::Get_Render_Backend()->Set_Stencil_ZFail_Op(bgfxZFailVolumes
+		Renderer::Set_Stencil_ZFail_Op(bgfxZFailVolumes
 			? (bgfxSwapZFailOps ? RB_STENCIL_OP_DECR : RB_STENCIL_OP_INCR)
 			: RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Pass_Op(bgfxZFailVolumes
+		Renderer::Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Pass_Op(bgfxZFailVolumes
 			? RB_STENCIL_OP_KEEP
 			: (bgfxSwapZFailOps
 				? RB_STENCIL_OP_DECR_SAT
 				: (BgfxUseSaturatedShadowVolumeIncrement() ? RB_STENCIL_OP_INCR_SAT : RB_STENCIL_OP_INCR)));
 
-		WW3D::Get_Render_Backend()->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
+		Renderer::Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
 
-		WW3D::Get_Render_Backend()->Set_Cull_Mode(RB_CULL_CW);
+		Renderer::Set_Cull_Mode(RB_CULL_CW);
 
 
 		lastActiveVertexBuffer=nullptr;	//reset
@@ -4025,7 +4025,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		}
 
 		// Set vertex format to that used by static shadow volumes
-		WW3D::Get_Render_Backend()->Set_Vertex_Shader(W3DBufferManager::getDX8Format(W3DBufferManager::VBM_FVF_XYZ));
+		Renderer::Set_Vertex_Shader(W3DBufferManager::getDX8Format(W3DBufferManager::VBM_FVF_XYZ));
 
 		//Empty queue of static shadow volumes to render.
 		W3DBufferManager::W3DVertexBuffer *nextVb;
@@ -4042,10 +4042,10 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		}
 
 		// change the stencil op to decrement
-		WW3D::Get_Render_Backend()->Set_Stencil_ZFail_Op(bgfxZFailVolumes
+		Renderer::Set_Stencil_ZFail_Op(bgfxZFailVolumes
 			? (bgfxSwapZFailOps ? RB_STENCIL_OP_INCR : RB_STENCIL_OP_DECR)
 			: RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Pass_Op(bgfxZFailVolumes
+		Renderer::Set_Stencil_Pass_Op(bgfxZFailVolumes
 			? RB_STENCIL_OP_KEEP
 			: (bgfxSwapZFailOps
 				? (BgfxUseSaturatedShadowVolumeIncrement() ? RB_STENCIL_OP_INCR_SAT : RB_STENCIL_OP_INCR)
@@ -4056,7 +4056,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		// stencil buffer and render
 		//
 
-		WW3D::Get_Render_Backend()->Set_Cull_Mode(RB_CULL_CCW);
+		Renderer::Set_Cull_Mode(RB_CULL_CCW);
 
 		for (nextVb=TheW3DBufferManager->getNextVertexBuffer(nullptr,W3DBufferManager::VBM_FVF_XYZ);nextVb != nullptr; nextVb=TheW3DBufferManager->getNextVertexBuffer(nextVb,W3DBufferManager::VBM_FVF_XYZ))
 		{
@@ -4068,7 +4068,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 			}
 		}
 
-		WW3D::Get_Render_Backend()->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
+		Renderer::Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
 		//flush any dynamic shadow volumes
 		shadowDynamicTask=m_dynamicShadowVolumesToRender;
 		while (shadowDynamicTask)
@@ -4085,14 +4085,14 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 			nextVb->m_renderTaskList=nullptr;
 		}
 
-		WW3D::Get_Render_Backend()->Set_Cull_Mode(RB_CULL_CW);
+		Renderer::Set_Cull_Mode(RB_CULL_CW);
 
 
 		// restore the captured DWORD mask via the new DWORD
 		// variant Set_Color_Write_Mask (the boolean Set_Color_Write_Enable
 		// would need to re-decode the bitmask).
 		if (oldColorWriteEnable != 0x12345678)
-			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(oldColorWriteEnable);
+			Renderer::Set_Color_Write_Mask(oldColorWriteEnable);
 
 		//
 		// render the big transparent square of shadows in the stencil buffer
@@ -4104,11 +4104,11 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		LogVolumetricShadowPath("renderShadows-end", nullptr, nullptr, nullptr,
 			numRenderedShadows, "volumes");
 
-		WW3D::Get_Render_Backend()->Set_Shade_Mode(RB_SHADE_GOURAUD);
-		WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(false);
-		WW3D::Get_Render_Backend()->Set_Lighting_Enable(false);
+		Renderer::Set_Shade_Mode(RB_SHADE_GOURAUD);
+		Renderer::Set_Alpha_Blend_Enable(false);
+		Renderer::Set_Lighting_Enable(false);
 
-		WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();
+		Renderer::Invalidate_Cached_Render_States();
 	}
 	else
 	if (forceStencilFill)
@@ -4120,17 +4120,17 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Material(vmat);
+		Renderer::Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);
-		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaqueShader);
-		WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of view and projection matrices
+		Renderer::Set_Shader(ShaderClass::_PresetOpaqueShader);
+		Renderer::Set_Texture(0,nullptr);
+		Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		renderStencilShadows();
 		LogVolumetricShadowPath("renderShadows-end", nullptr, nullptr, nullptr,
 			0, "forceStencilFill");
 
-		WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();
+		Renderer::Invalidate_Cached_Render_States();
 	}
 
 }
@@ -4284,9 +4284,9 @@ void W3DVolumetricShadowManager::reset()
 // ============================================================================
 W3DVolumetricShadow* W3DVolumetricShadowManager::addShadow(RenderObjClass *robj, Shadow::ShadowTypeInfo *shadowInfo, Drawable *draw)
 {
-	// TheSuperHackers @bugfix bobtista 05/06/2026 Guard WW3D::Get_Render_Backend(), which can be
+	// TheSuperHackers @bugfix bobtista 05/06/2026 Guard Renderer::, which can be
 	// null before the backend exists or during a device-lost/reset window.
-	if (!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Has_Stencil() || !robj || !TheGlobalData->m_useShadowVolumes)
+	if (!Renderer::Is_Initialized() || !Renderer::Has_Stencil() || !robj || !TheGlobalData->m_useShadowVolumes)
 	{
 		LogVolumetricShadowPath("addShadow-skip", robj, draw, shadowInfo, 0,
 			"no-stencil-no-robj-or-disabled");

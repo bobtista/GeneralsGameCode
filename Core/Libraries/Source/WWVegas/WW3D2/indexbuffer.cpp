@@ -43,8 +43,7 @@
 #include "dx8indexbuffer.h"
 #include "dx8wrapper.h"
 #endif
-#include "WW3D2/RenderBackend.h"
-#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WWMath/sphere.h"
 #include "WWLib/thread.h"
@@ -336,8 +335,8 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 			(index_buffer->Type() == BUFFER_TYPE_STATIC || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
 			const unsigned int total_bytes = index_buffer->Get_Index_Count() * sizeof(unsigned short);
 			index_buffer->Update_CPU_Buffer_Data(0, indices, total_bytes);
-			if (WW3D::Get_Render_Backend() != NULL) {
-				WW3D::Get_Render_Backend()->Upload_Index_Buffer_Data(index_buffer, indices, total_bytes);
+			if (Renderer::Is_Initialized()) {
+				Renderer::Upload_Index_Buffer_Data(index_buffer, indices, total_bytes);
 			}
 		}
 	switch (index_buffer->Type()) {
@@ -409,8 +408,8 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 			(index_buffer->Type() == BUFFER_TYPE_STATIC || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
 			const unsigned int size_bytes = AppendIndexRange * sizeof(unsigned short);
 			index_buffer->Update_CPU_Buffer_Data(AppendStartIndex * sizeof(unsigned short), indices, size_bytes);
-			if (WW3D::Get_Render_Backend() != NULL) {
-				WW3D::Get_Render_Backend()->Upload_Index_Buffer_Sub_Range(index_buffer, indices, AppendStartIndex, size_bytes);
+			if (Renderer::Is_Initialized()) {
+				Renderer::Upload_Index_Buffer_Sub_Range(index_buffer, indices, AppendStartIndex, size_bytes);
 			}
 		}
 	switch (index_buffer->Type()) {
@@ -445,8 +444,8 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	RENDER_BUFFER_THREAD_ASSERT();
 	WWASSERT(index_count);
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
-	if (WW3D::Get_Render_Backend() != nullptr && !WW3D::Get_Render_Backend()->Requires_Legacy_Buffer_Resources()) {
-		m_backendHandle = WW3D::Get_Render_Backend()->Register_Index_Buffer_Resource(this);
+	if (Renderer::Is_Initialized() && !Renderer::Requires_Legacy_Buffer_Resources()) {
+		m_backendHandle = Renderer::Register_Index_Buffer_Resource(this);
 		return;
 	}
 
@@ -455,7 +454,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	return;
 #else
 	unsigned usage_flags=BuildLegacyBufferUsage(usage);
-	if (!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Supports_Hardware_Transform_And_Lighting()) {
+	if (!Renderer::Is_Initialized() || !Renderer::Supports_Hardware_Transform_And_Lighting()) {
 		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
 	}
 
@@ -470,8 +469,8 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 
 	if (SUCCEEDED(ret)) {
 		//: populate backend-neutral handle.
-		if (WW3D::Get_Render_Backend() != nullptr) {
-			m_backendHandle = WW3D::Get_Render_Backend()->Register_Index_Buffer_Resource(this);
+		if (Renderer::Is_Initialized()) {
+			m_backendHandle = Renderer::Register_Index_Buffer_Resource(this);
 		}
 		return;
 	}
@@ -498,8 +497,8 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 
 	if (SUCCEEDED(ret)) {
 		WWDEBUG_SAY(("...Index buffer creation successful"));
-		if (WW3D::Get_Render_Backend() != nullptr) {
-			m_backendHandle = WW3D::Get_Render_Backend()->Register_Index_Buffer_Resource(this);
+		if (Renderer::Is_Initialized()) {
+			m_backendHandle = Renderer::Register_Index_Buffer_Resource(this);
 		}
 	}
 
@@ -513,8 +512,8 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 DX8IndexBufferClass::~DX8IndexBufferClass()
 {
 	//: release backend-neutral handle before the legacy resource.
-	if (m_backendHandle != kInvalidRenderResource && WW3D::Get_Render_Backend() != nullptr) {
-		WW3D::Get_Render_Backend()->Destroy_Resource(m_backendHandle);
+	if (m_backendHandle != kInvalidRenderResource && Renderer::Is_Initialized()) {
+		Renderer::Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
 	}
 	if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(this)) {
@@ -533,15 +532,15 @@ RenderIndexBufferClass::RenderIndexBufferClass(unsigned short index_count_, Usag
 	RENDER_BUFFER_THREAD_ASSERT();
 	WWASSERT(index_count);
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
-	if (WW3D::Get_Render_Backend() != nullptr) {
-		m_backendHandle = WW3D::Get_Render_Backend()->Register_Index_Buffer_Resource(this);
+	if (Renderer::Is_Initialized()) {
+		m_backendHandle = Renderer::Register_Index_Buffer_Resource(this);
 	}
 }
 
 RenderIndexBufferClass::~RenderIndexBufferClass()
 {
-	if (m_backendHandle != kInvalidRenderResource && WW3D::Get_Render_Backend() != nullptr) {
-		WW3D::Get_Render_Backend()->Destroy_Resource(m_backendHandle);
+	if (m_backendHandle != kInvalidRenderResource && Renderer::Is_Initialized()) {
+		Renderer::Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
 	}
 }
@@ -649,9 +648,9 @@ DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_ac
 #endif
 		{
 			const unsigned int ib_bytes = DynamicIBAccess->Get_Index_Count() * sizeof(unsigned short);
-			if (WW3D::Get_Render_Backend() != NULL) {
+			if (Renderer::Is_Initialized()) {
 				Indices = static_cast<unsigned short *>(
-					WW3D::Get_Render_Backend()->Begin_Dynamic_Index_Write(DynamicIBAccess, ib_bytes));
+					Renderer::Begin_Dynamic_Index_Write(DynamicIBAccess, ib_bytes));
 			}
 			if (Indices != NULL) {
 				DirectBackendWrite = true;
@@ -680,12 +679,12 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 		// TheSuperHackers @refactor bobtista 11/04/2026
 		// write-side capture for bgfx backend. Copy locked sub-range
 		// into a bgfx transient IB before Unlock.
-		if (WW3D::Get_Render_Backend() != NULL && Indices != NULL) {
+		if (Renderer::Is_Initialized() && Indices != NULL) {
 			const unsigned int total_bytes = DynamicIBAccess->Get_Index_Count() * sizeof(unsigned short);
 			if (DirectBackendWrite) {
-				WW3D::Get_Render_Backend()->End_Dynamic_Index_Write(DynamicIBAccess, Indices, total_bytes);
+				Renderer::End_Dynamic_Index_Write(DynamicIBAccess, Indices, total_bytes);
 			} else {
-				WW3D::Get_Render_Backend()->Capture_Dynamic_Index_Data(DynamicIBAccess, Indices, total_bytes);
+				Renderer::Capture_Dynamic_Index_Data(DynamicIBAccess, Indices, total_bytes);
 			}
 		}
 #if !defined(GGC_RENDER_BACKEND_BGFX)
@@ -727,7 +726,7 @@ void DynamicIBAccessClass::Allocate_Backend_Dynamic_Buffer()
 	// Create a new vb if one doesn't exist currently
 	if (!_DynamicBackendIndexBuffer) {
 		unsigned usage=RenderIndexBufferClass::USAGE_DYNAMIC;
-		if (WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_NPatches()) {
+		if (Renderer::Is_Initialized() && Renderer::Supports_NPatches()) {
 			usage|=RenderIndexBufferClass::USAGE_NPATCHES;
 		}
 

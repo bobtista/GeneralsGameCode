@@ -45,8 +45,7 @@
 #include "dx8wrapper.h"
 #endif
 #include "dx8fvf.h"
-#include "WW3D2/RenderBackend.h"
-#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WWLib/thread.h"
 #include "WW3D2/ww3dcolor.h"
@@ -317,8 +316,8 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 			(VertexBuffer->Type() == BUFFER_TYPE_STATIC || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
 			const unsigned int total_bytes = VertexBuffer->Get_Vertex_Count() * VertexBuffer->FVF_Info().Get_FVF_Size();
 			VertexBuffer->Update_CPU_Buffer_Data(0, Vertices, total_bytes);
-			if (WW3D::Get_Render_Backend() != NULL) {
-				WW3D::Get_Render_Backend()->Upload_Vertex_Buffer_Data(VertexBuffer, Vertices, total_bytes);
+			if (Renderer::Is_Initialized()) {
+				Renderer::Upload_Vertex_Buffer_Data(VertexBuffer, Vertices, total_bytes);
 			}
 		}
 	switch (VertexBuffer->Type()) {
@@ -409,8 +408,8 @@ VertexBufferClass::AppendLockClass::~AppendLockClass()
 			const unsigned int fvf_size = VertexBuffer->FVF_Info().Get_FVF_Size();
 			const unsigned int size_bytes = AppendIndexRange * fvf_size;
 			VertexBuffer->Update_CPU_Buffer_Data(AppendStartIndex * fvf_size, Vertices, size_bytes);
-			if (WW3D::Get_Render_Backend() != NULL) {
-				WW3D::Get_Render_Backend()->Upload_Vertex_Buffer_Sub_Range(VertexBuffer, Vertices, AppendStartIndex, size_bytes);
+			if (Renderer::Is_Initialized()) {
+				Renderer::Upload_Vertex_Buffer_Sub_Range(VertexBuffer, Vertices, AppendStartIndex, size_bytes);
 			}
 		}
 	switch (VertexBuffer->Type()) {
@@ -564,8 +563,8 @@ DX8VertexBufferClass::~DX8VertexBufferClass()
 #endif
 	// TheSuperHackers @refactor bobtista 21/04/2026 — release
 	// the backend-neutral handle before the legacy resource goes away.
-	if (m_backendHandle != kInvalidRenderResource && WW3D::Get_Render_Backend() != nullptr) {
-		WW3D::Get_Render_Backend()->Destroy_Resource(m_backendHandle);
+	if (m_backendHandle != kInvalidRenderResource && Renderer::Is_Initialized()) {
+		Renderer::Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
 	}
 	if (LegacyVertexBuffer *legacy = Legacy_Vertex_Buffer(this)) {
@@ -583,15 +582,15 @@ RenderVertexBufferClass::RenderVertexBufferClass(unsigned FVF, unsigned short ve
 {
 	RENDER_BUFFER_THREAD_ASSERT();
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
-	if (WW3D::Get_Render_Backend() != nullptr) {
-		m_backendHandle = WW3D::Get_Render_Backend()->Register_Vertex_Buffer_Resource(this);
+	if (Renderer::Is_Initialized()) {
+		m_backendHandle = Renderer::Register_Vertex_Buffer_Resource(this);
 	}
 }
 
 RenderVertexBufferClass::~RenderVertexBufferClass()
 {
-	if (m_backendHandle != kInvalidRenderResource && WW3D::Get_Render_Backend() != nullptr) {
-		WW3D::Get_Render_Backend()->Destroy_Resource(m_backendHandle);
+	if (m_backendHandle != kInvalidRenderResource && Renderer::Is_Initialized()) {
+		Renderer::Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
 	}
 }
@@ -624,8 +623,8 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 	WWDEBUG_SAY(("Current vertex buffer count: %d",_DX8VertexBufferCount));
 #endif
 
-	if (WW3D::Get_Render_Backend() != nullptr && !WW3D::Get_Render_Backend()->Requires_Legacy_Buffer_Resources()) {
-		m_backendHandle = WW3D::Get_Render_Backend()->Register_Vertex_Buffer_Resource(this);
+	if (Renderer::Is_Initialized() && !Renderer::Requires_Legacy_Buffer_Resources()) {
+		m_backendHandle = Renderer::Register_Vertex_Buffer_Resource(this);
 		return;
 	}
 
@@ -635,7 +634,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 #else
 	unsigned usage_flags=BuildLegacyBufferUsage(usage);
 	// New Code
-	if (!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Supports_Hardware_Transform_And_Lighting()) {
+	if (!Renderer::Is_Initialized() || !Renderer::Supports_Hardware_Transform_And_Lighting()) {
 		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
 	}
 
@@ -649,8 +648,8 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 	VertexBuffer = new_vertex_buffer;
 	if (SUCCEEDED(ret)) {
 		//: populate backend-neutral handle.
-		if (WW3D::Get_Render_Backend() != nullptr) {
-			m_backendHandle = WW3D::Get_Render_Backend()->Register_Vertex_Buffer_Resource(this);
+		if (Renderer::Is_Initialized()) {
+			m_backendHandle = Renderer::Register_Vertex_Buffer_Resource(this);
 		}
 		return;
 	}
@@ -680,8 +679,8 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 
 	if (SUCCEEDED(ret)) {
 		WWDEBUG_SAY(("...Vertex buffer creation successful"));
-		if (WW3D::Get_Render_Backend() != nullptr) {
-			m_backendHandle = WW3D::Get_Render_Backend()->Register_Vertex_Buffer_Resource(this);
+		if (Renderer::Is_Initialized()) {
+			m_backendHandle = Renderer::Register_Vertex_Buffer_Resource(this);
 		}
 	}
 
@@ -991,7 +990,7 @@ void DynamicVBAccessClass::Allocate_Backend_Dynamic_Buffer()
 	// Create a new vb if one doesn't exist currently
 	if (!_DynamicBackendVertexBuffer) {
 		unsigned usage=RenderVertexBufferClass::USAGE_DYNAMIC;
-		if (WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_NPatches()) {
+		if (Renderer::Is_Initialized() && Renderer::Supports_NPatches()) {
 			usage|=RenderVertexBufferClass::USAGE_NPATCHES;
 		}
 
@@ -1085,9 +1084,9 @@ DynamicVBAccessClass::WriteLockClass::WriteLockClass(DynamicVBAccessClass* dynam
 		{
 			const unsigned int vb_bytes = DynamicVBAccess->Get_Vertex_Count() *
 				DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size();
-			if (WW3D::Get_Render_Backend() != NULL) {
+			if (Renderer::Is_Initialized()) {
 				Vertices = static_cast<VertexFormatXYZNDUV2 *>(
-					WW3D::Get_Render_Backend()->Begin_Dynamic_Vertex_Write(DynamicVBAccess, vb_bytes));
+					Renderer::Begin_Dynamic_Vertex_Write(DynamicVBAccess, vb_bytes));
 			}
 			if (Vertices != NULL) {
 				DirectBackendWrite = true;
@@ -1125,13 +1124,13 @@ DynamicVBAccessClass::WriteLockClass::~WriteLockClass()
 		// write-side capture for bgfx backend. Copy the locked sub-range
 		// into a bgfx transient VB before we Unlock. DX8Backend inherits
 		// an empty default so this is a no-op in the dx8 build.
-		if (WW3D::Get_Render_Backend() != NULL && Vertices != NULL) {
+		if (Renderer::Is_Initialized() && Vertices != NULL) {
 			const unsigned int total_bytes = DynamicVBAccess->Get_Vertex_Count() *
 				DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size();
 			if (DirectBackendWrite) {
-				WW3D::Get_Render_Backend()->End_Dynamic_Vertex_Write(DynamicVBAccess, Vertices, total_bytes);
+				Renderer::End_Dynamic_Vertex_Write(DynamicVBAccess, Vertices, total_bytes);
 			} else {
-				WW3D::Get_Render_Backend()->Capture_Dynamic_Vertex_Data(DynamicVBAccess, Vertices, total_bytes);
+				Renderer::Capture_Dynamic_Vertex_Data(DynamicVBAccess, Vertices, total_bytes);
 			}
 		}
 #if !defined(GGC_RENDER_BACKEND_BGFX)

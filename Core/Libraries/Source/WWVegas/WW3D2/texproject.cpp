@@ -84,7 +84,7 @@
 #include "matpass.h"
 #include "bwrender.h"
 #include "assetmgr.h"
-#include "RenderBackend.h"
+#include "Renderer.h"
 
 
 // DEBUG DEBUG
@@ -1136,7 +1136,7 @@ bool TexProjectClass::Compute_Texture
 		/*
 		** Set the render target
 		*/
-		WW3D::Get_Render_Backend()->Set_Render_Target_With_Z(rtarget, ztarget);
+		Renderer::Set_Render_Target_With_Z(rtarget, ztarget);
 
 		/*
 		** Set up the camera
@@ -1165,9 +1165,9 @@ bool TexProjectClass::Compute_Texture
 		WW3D::Activate_Snapshot(snapshot);	// End_Render() ends the shapsnot, so restore the state
 
 		// TheSuperHackers @fix bobtista 21/04/2026 Route the end-of-RTT-pass target clear through
-		// WW3D::Get_Render_Backend() so the bgfx renderToTexture flag is reset and later draws are not
+		// Renderer:: so the bgfx renderToTexture flag is reset and later draws are not
 		// misrouted to the RTT view.
-		WW3D::Get_Render_Backend()->Set_Render_Target_With_Z(nullptr, nullptr);
+		Renderer::Set_Render_Target_With_Z(nullptr, nullptr);
 		return renderResult == WW3D_ERROR_OK;
 	}
 

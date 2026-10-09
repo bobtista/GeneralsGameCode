@@ -20,7 +20,7 @@
 #include "Common/GlobalData.h"
 #include "GameClient/GameText.h"
 #include "GameClient/InGameUI.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/surfaceclass.h"
@@ -186,7 +186,7 @@ void W3D_TakeCompressedScreenshot(ScreenshotFormat format, Int jpegQuality)
 	}
 	strlcat(pathname, leafname, ARRAY_SIZE(pathname));
 
-	if (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Request_Native_Screen_Shot(pathname))
+	if (Renderer::Is_Initialized() && Renderer::Request_Native_Screen_Shot(pathname))
 	{
 		UnicodeString ufileName;
 		ufileName.translate(leafname);

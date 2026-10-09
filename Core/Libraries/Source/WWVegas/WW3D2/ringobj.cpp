@@ -94,8 +94,7 @@
 #include "sortingrenderer.h"
 #include "WWMath/Vector3i.h"
 #include "visrasterizer.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 
 
 static bool Ring_Array_Valid = false;
@@ -533,9 +532,9 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 	} else {
 		RingShader.Set_Texturing (ShaderClass::TEXTURING_DISABLE);
 	}
-	WW3D::Get_Render_Backend()->Set_Shader(RingShader);
-	WW3D::Get_Render_Backend()->Set_Texture(0,RingTexture);
-	WW3D::Get_Render_Backend()->Set_Material(RingMaterial);
+	Renderer::Set_Shader(RingShader);
+	Renderer::Set_Texture(0,RingTexture);
+	Renderer::Set_Material(RingMaterial);
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (RingShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (RingShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
@@ -588,13 +587,13 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 		}
 	}
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(ib,0);
+	Renderer::Set_Vertex_Buffer(vb);
+	Renderer::Set_Index_Buffer(ib,0);
 
 	if (sort) {
 		SortingRendererClass::Insert_Triangles(Get_Bounding_Sphere(), 0, ring.face_ct, 0, ring.Vertex_ct);
 	} else {
-		WW3D::Get_Render_Backend()->Draw_Triangles(0, ring.face_ct, 0, ring.Vertex_ct);
+		Renderer::Draw_Triangles(0, ring.face_ct, 0, ring.Vertex_ct);
 	}
 
 }
@@ -722,9 +721,9 @@ void RingRenderObjClass::Render(RenderInfoClass & rinfo)
 
 			Matrix3D temp;
 			temp.Look_At(obj_position, obj_position + camera_z_vector, 0.0f);
-			WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, temp);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD, temp);
 		} else {
-			WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, Transform);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD, Transform);
 		}
 
 		//

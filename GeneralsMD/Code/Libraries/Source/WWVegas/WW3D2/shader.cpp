@@ -44,8 +44,7 @@
 #include "ww3d.h"
 #include "w3d_file.h"
 #include "WWDebug/wwdebug.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include <Utility/bit_adapter.h>
 
 
@@ -414,7 +413,7 @@ void ShaderClass::Apply()
 	unsigned long diff;
 
 	auto supports_texture_op = [](RenderBackendTextureOpCapability capability) -> bool {
-		return WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Op(capability);
+		return Renderer::Is_Initialized() && Renderer::Supports_Texture_Op(capability);
 	};
 
 	if (ShaderDirty)
@@ -461,10 +460,10 @@ void ShaderClass::Apply()
 
 		if(sf != RB_BLEND_ONE || df != RB_BLEND_ZERO)
 		{
-			WW3D::Get_Render_Backend()->Set_Blend_Factors(sf, df);
+			Renderer::Set_Blend_Factors(sf, df);
 			blendOn = true;
 		}
-		WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(blendOn);
+		Renderer::Set_Alpha_Blend_Enable(blendOn);
 
 		bool alphaTest = false;
 
@@ -474,16 +473,16 @@ void ShaderClass::Apply()
 
 			if(sf == RB_BLEND_INV_SRC_ALPHA)
 			{
-				WW3D::Get_Render_Backend()->Set_Alpha_Test(true, 0xff - alphareference, RB_CMP_LESS_EQUAL);
+				Renderer::Set_Alpha_Test(true, 0xff - alphareference, RB_CMP_LESS_EQUAL);
 			}
 			else
 			{
-				WW3D::Get_Render_Backend()->Set_Alpha_Test(true, alphareference, RB_CMP_GREATER_EQUAL);
+				Renderer::Set_Alpha_Test(true, alphareference, RB_CMP_GREATER_EQUAL);
 			}
 			blendAlpha = true;
 			alphaTest = true;
 		}
-		WW3D::Get_Render_Backend()->Set_Alpha_Test_Enable(alphaTest);
+		Renderer::Set_Alpha_Test_Enable(alphaTest);
 
 		diff &= ~(ShaderClass::MASK_COLORMASK | ShaderClass::MASK_SRCBLEND | ShaderClass::MASK_DSTBLEND | ShaderClass::MASK_ALPHATEST);
 		if(!diff)
@@ -494,10 +493,10 @@ void ShaderClass::Apply()
 	{
 		// Whenever fog is enabled or disabled, the entire shader is invalidated. This is why we
 		// can defer the "fog enabled" check inside the "fog settings changed" check.
-			if (WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Fog() && WW3D::Get_Render_Backend()->Get_Fog_Enable()) {
+			if (Renderer::Is_Initialized() && Renderer::Supports_Fog() && Renderer::Get_Fog_Enable()) {
 
 			bool fm = false;
-			unsigned int fogColor = WW3D::Get_Render_Backend()->Get_Fog_Color();
+			unsigned int fogColor = Renderer::Get_Fog_Color();
 
 			switch(Get_Fog_Func())
 			{
@@ -517,15 +516,15 @@ void ShaderClass::Apply()
 				break;
 			}
 
-				WW3D::Get_Render_Backend()->Set_Fog_Enable(fm);
+				Renderer::Set_Fog_Enable(fm);
 
 				if(fm)
 				{
-					WW3D::Get_Render_Backend()->Set_Fog_Color(fogColor);
+					Renderer::Set_Fog_Color(fogColor);
 				}
 
 			} else {
-				WW3D::Get_Render_Backend()->Set_Fog_Enable(false);
+				Renderer::Set_Fog_Enable(false);
 			}
 
 		diff &= ~(ShaderClass::MASK_FOG);
@@ -551,7 +550,7 @@ void ShaderClass::Apply()
 	RenderBackendTextureArgument SecaArg1 = RB_TEXARG_TEXTURE;
 	RenderBackendTextureArgument SecaArg2 = RB_TEXARG_CURRENT;
 
-	bool voodoo3 = WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Is_Legacy_Voodoo3();
+	bool voodoo3 = Renderer::Is_Initialized() && Renderer::Is_Legacy_Voodoo3();
 	int pri_mask=ShaderClass::MASK_PRIGRADIENT|ShaderClass::MASK_TEXTURING;
 	int sec_mask=ShaderClass::MASK_POSTDETAILALPHAFUNC|ShaderClass::MASK_POSTDETAILCOLORFUNC|ShaderClass::MASK_TEXTURING;
 
@@ -936,8 +935,8 @@ void ShaderClass::Apply()
 			if ((PricOp==RB_TEXOP_SELECTARG1)&&(PricArg1==RB_TEXARG_DIFFUSE)) {
 				WWDEBUG_SAY(("Wasted Stage 0 in shader-vertex diffuse only"));
 				// set stage 0 to disable
-				WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(0, RB_TEXOP_DISABLE);
-				WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, RB_TEXOP_DISABLE);
+				Renderer::Set_Texture_Color_Operation(0, RB_TEXOP_DISABLE);
+				Renderer::Set_Texture_Alpha_Operation(0, RB_TEXOP_DISABLE);
 				// set stage 1 to accept diffuse
 				if (SeccArg2==RB_TEXARG_CURRENT) SeccArg2=RB_TEXARG_DIFFUSE;
 				if (SecaArg2==RB_TEXARG_CURRENT) SecaArg2=RB_TEXARG_DIFFUSE;
@@ -945,20 +944,20 @@ void ShaderClass::Apply()
 				kill_stage_2=true;
 			} else {
 				// set stage 0 to pass through what it needs
-				WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
-				WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(0, 1, tex_arg);
-				WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
-				WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(0, 1, tex_arg);
+				Renderer::Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
+				Renderer::Set_Texture_Color_Argument(0, 1, tex_arg);
+				Renderer::Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
+				Renderer::Set_Texture_Alpha_Argument(0, 1, tex_arg);
 
 					// set stage 2 to do the diffuse op
-					WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(2, PricOp);
-					WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(2, 1, RB_TEXARG_CURRENT);
-					WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(2, 2, RB_TEXARG_DIFFUSE);
-					WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(2, PriaOp);
-					WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(2, 1, RB_TEXARG_CURRENT);
-					WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(2, 2, RB_TEXARG_DIFFUSE);
-						WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 0);
-					WW3D::Get_Render_Backend()->Bind_Texture_Immediate(2,nullptr);
+					Renderer::Set_Texture_Color_Operation(2, PricOp);
+					Renderer::Set_Texture_Color_Argument(2, 1, RB_TEXARG_CURRENT);
+					Renderer::Set_Texture_Color_Argument(2, 2, RB_TEXARG_DIFFUSE);
+					Renderer::Set_Texture_Alpha_Operation(2, PriaOp);
+					Renderer::Set_Texture_Alpha_Argument(2, 1, RB_TEXARG_CURRENT);
+					Renderer::Set_Texture_Alpha_Argument(2, 2, RB_TEXARG_DIFFUSE);
+						Renderer::Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 0);
+					Renderer::Bind_Texture_Immediate(2,nullptr);
 				kill_stage_2=false;
 				ShaderDirty=true;
 			}
@@ -972,24 +971,24 @@ void ShaderClass::Apply()
 				cOp=aOp=RB_TEXOP_SELECTARG2;
 			}
 #endif
-			WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(0, PricOp);
-			WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(0, 1, PricArg1);
-			WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(0, 2, PricArg2);
-			WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, PriaOp);
-			WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(0, 1, PriaArg1);
-			WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(0, 2, PriaArg2);
+			Renderer::Set_Texture_Color_Operation(0, PricOp);
+			Renderer::Set_Texture_Color_Argument(0, 1, PricArg1);
+			Renderer::Set_Texture_Color_Argument(0, 2, PricArg2);
+			Renderer::Set_Texture_Alpha_Operation(0, PriaOp);
+			Renderer::Set_Texture_Alpha_Argument(0, 1, PriaArg1);
+			Renderer::Set_Texture_Alpha_Argument(0, 2, PriaArg2);
 			kill_stage_2=true;
 		}
 		diff &= ~(ShaderClass::MASK_PRIGRADIENT);
 	}
 
 	if (diff & sec_mask) {
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(1, SeccOp);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(1, 1, SeccArg1);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(1, 2, SeccArg2);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(1, SecaOp);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(1, 1, SecaArg1);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(1, 2, SecaArg2);
+		Renderer::Set_Texture_Color_Operation(1, SeccOp);
+		Renderer::Set_Texture_Color_Argument(1, 1, SeccArg1);
+		Renderer::Set_Texture_Color_Argument(1, 2, SeccArg2);
+		Renderer::Set_Texture_Alpha_Operation(1, SecaOp);
+		Renderer::Set_Texture_Alpha_Argument(1, 1, SecaArg1);
+		Renderer::Set_Texture_Alpha_Argument(1, 2, SecaArg2);
 		diff &= ~(ShaderClass::MASK_POSTDETAILCOLORFUNC);
 		diff &= ~(ShaderClass::MASK_POSTDETAILALPHAFUNC);
 		diff &= ~(ShaderClass::MASK_TEXTURING);
@@ -999,41 +998,41 @@ void ShaderClass::Apply()
 		// by this compatibility path.
 		if (voodoo3 && kill_stage_2) {
 			if ((SeccOp!=RB_TEXOP_DISABLE)&&(SecaOp!=RB_TEXOP_DISABLE)) {
-				WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(2, RB_TEXOP_SELECTARG1);
-				WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(2, 1, RB_TEXARG_CURRENT);
-				WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(2, RB_TEXOP_SELECTARG1);
-				WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(2, 1, RB_TEXARG_CURRENT);
+				Renderer::Set_Texture_Color_Operation(2, RB_TEXOP_SELECTARG1);
+				Renderer::Set_Texture_Color_Argument(2, 1, RB_TEXARG_CURRENT);
+				Renderer::Set_Texture_Alpha_Operation(2, RB_TEXOP_SELECTARG1);
+				Renderer::Set_Texture_Alpha_Argument(2, 1, RB_TEXARG_CURRENT);
 			} else {
-				WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(2, RB_TEXOP_DISABLE);
-				WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(2, RB_TEXOP_DISABLE);
+				Renderer::Set_Texture_Color_Operation(2, RB_TEXOP_DISABLE);
+				Renderer::Set_Texture_Alpha_Operation(2, RB_TEXOP_DISABLE);
 			}
-				WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 0);
-			WW3D::Get_Render_Backend()->Bind_Texture_Immediate(2,nullptr);
+				Renderer::Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 0);
+			Renderer::Bind_Texture_Immediate(2,nullptr);
 		}
 
 	if(!diff)
 		return;
 
-	WW3D::Get_Render_Backend()->Set_Specular_Enable(Get_Secondary_Gradient());
+	Renderer::Set_Specular_Enable(Get_Secondary_Gradient());
 
 	// DEPTH COMPARE FUNCTION
-	WW3D::Get_Render_Backend()->Set_Depth_Func(static_cast<CompareFunc>(int(Get_Depth_Compare())+1));
+	Renderer::Set_Depth_Func(static_cast<CompareFunc>(int(Get_Depth_Compare())+1));
 
 	// DEPTH MASK
-	WW3D::Get_Render_Backend()->Set_Depth_Write_Enable(Get_Depth_Mask());
+	Renderer::Set_Depth_Write_Enable(Get_Depth_Mask());
 
 		// CULLMODE
-		WW3D::Get_Render_Backend()->Set_Cull_Mode(Get_Cull_Mode() ? _PolygonCullMode : RB_CULL_NONE);
+		Renderer::Set_Cull_Mode(Get_Cull_Mode() ? _PolygonCullMode : RB_CULL_NONE);
 
 	// NPATCHES
 	if (diff&ShaderClass::MASK_NPATCHENABLE) {
 		float level=1.0f;
 		if (Get_NPatch_Enable()) level=float(WW3D::Get_NPatches_Level());
-		WW3D::Get_Render_Backend()->Set_Patch_Segments(level);
+		Renderer::Set_Patch_Segments(level);
 	}
 
 	// Enable/disable alpha test
-	WW3D::Get_Render_Backend()->Set_Alpha_Test_Enable(Get_Alpha_Test() == ShaderClass::ALPHATEST_ENABLE);
+	Renderer::Set_Alpha_Test_Enable(Get_Alpha_Test() == ShaderClass::ALPHATEST_ENABLE);
 
 	// Enable/disable stencil test
 	// Not supported yet

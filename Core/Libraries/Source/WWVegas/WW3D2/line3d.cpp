@@ -57,8 +57,7 @@
 #include "vertexbuffer.h"
 #include "indexbuffer.h"
 #include "dx8fvf.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 
 // 12 Triangles for index buffer
 const unsigned short Indices[]=
@@ -269,13 +268,13 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 		return;
 	}
 
-	WW3D::Get_Render_Backend()->Set_Shader(Shader);
-	WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
+	Renderer::Set_Shader(Shader);
+	Renderer::Set_Texture(0,nullptr);
 	VertexMaterialClass *vm=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vm);
+	Renderer::Set_Material(vm);
 	REF_PTR_RELEASE(vm);
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Transform);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);
 
 	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,8);
 	{
@@ -301,9 +300,9 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 			mem[i]=Indices[i];
 	}
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(ib,0);
-	WW3D::Get_Render_Backend()->Draw_Triangles(0,36/3,0,8);
+	Renderer::Set_Vertex_Buffer(vb);
+	Renderer::Set_Index_Buffer(ib,0);
+	Renderer::Draw_Triangles(0,36/3,0,8);
 }
 
 /**************************************************************************

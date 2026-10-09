@@ -56,8 +56,7 @@
 #include "GameClient/View.h"
 #include "W3DDevice/GameClient/TerrainTex.h"
 #include "W3DDevice/GameClient/HeightMap.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/camera.h"
 
 
@@ -765,18 +764,18 @@ void W3DTerrainBackground::drawVisiblePolys(RenderInfoClass & rinfo, Bool disabl
 		return;
 	}
 	// Setup the vertex buffer, shader & texture.
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexTerrain,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexTerrain);
+	Renderer::Set_Index_Buffer(m_indexTerrain,0);
+	Renderer::Set_Vertex_Buffer(m_vertexTerrain);
   if (!disableTextures) {
 		if (m_terrainTexture4X) {
-			WW3D::Get_Render_Backend()->Set_Texture(1, m_terrainTexture4X);
+			Renderer::Set_Texture(1, m_terrainTexture4X);
 		}	else if (m_terrainTexture2X) {
-			WW3D::Get_Render_Backend()->Set_Texture(1, m_terrainTexture2X);
+			Renderer::Set_Texture(1, m_terrainTexture2X);
 		}	else {
-			WW3D::Get_Render_Backend()->Set_Texture(1, m_terrainTexture);
+			Renderer::Set_Texture(1, m_terrainTexture);
 		}
 	}
-	WW3D::Get_Render_Backend()->Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
+	Renderer::Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
 #else
 	if (m_curNumTerrainIndices == 0) {
 		return;
@@ -785,17 +784,17 @@ void W3DTerrainBackground::drawVisiblePolys(RenderInfoClass & rinfo, Bool disabl
 		return;
 	}
 	// Setup the vertex buffer, shader & texture.
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexTerrain,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexTerrain);
+	Renderer::Set_Index_Buffer(m_indexTerrain,0);
+	Renderer::Set_Vertex_Buffer(m_vertexTerrain);
   if (!disableTextures) {
 		if (m_terrainTexture4X) {
-			WW3D::Get_Render_Backend()->Set_Texture(0, m_terrainTexture4X);
+			Renderer::Set_Texture(0, m_terrainTexture4X);
 		}	else if (m_terrainTexture2X) {
-			WW3D::Get_Render_Backend()->Set_Texture(0, m_terrainTexture2X);
+			Renderer::Set_Texture(0, m_terrainTexture2X);
 		}	else {
-			WW3D::Get_Render_Backend()->Set_Texture(0, m_terrainTexture);
+			Renderer::Set_Texture(0, m_terrainTexture);
 		}
 	}
-	WW3D::Get_Render_Backend()->Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
+	Renderer::Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
 #endif
 }

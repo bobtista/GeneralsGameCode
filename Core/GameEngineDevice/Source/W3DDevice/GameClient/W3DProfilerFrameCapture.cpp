@@ -20,8 +20,7 @@
 
 #include "../../../Include/W3DDevice/GameClient/W3DProfilerFrameCapture.h"
 
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/ww3d.h"
 
 W3DProfilerFrameCapture::W3DProfilerFrameCapture()
@@ -52,13 +51,13 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 		return;
 	}
 
-	if (WW3D::Get_Render_Backend() == nullptr)
+	if (!Renderer::Is_Initialized())
 		return;
 
 	m_lastCapturePixels.resize(PROFILER_FRAME_IMAGE_SIZE * PROFILER_FRAME_IMAGE_SIZE * 4);
 	UnsignedInt capturedWidth = 0;
 	UnsignedInt capturedHeight = 0;
-	if (!WW3D::Get_Render_Backend()->Capture_Back_Buffer_RGBA(
+	if (!Renderer::Capture_Back_Buffer_RGBA(
 			displayWidth,
 			displayHeight,
 			PROFILER_FRAME_IMAGE_SIZE,
