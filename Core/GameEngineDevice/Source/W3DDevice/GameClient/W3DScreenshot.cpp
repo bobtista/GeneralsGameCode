@@ -24,6 +24,7 @@
 #if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/surfaceclass.h"
+#include "WW3D2/texturecompatibilityinterop.h"
 #endif
 #include "WWLib/mpsc_intrusive_queue.h"
 #include <stb_image_write.h>
@@ -211,8 +212,8 @@ void W3D_TakeCompressedScreenshot(ScreenshotFormat format, Int jpegQuality)
 		return;
 	}
 
-	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format)));
-	DX8Wrapper::_Copy_DX8_Rects(surface->Peek_D3D_Surface(), nullptr, 0, surfaceCopy->Peek_D3D_Surface(), nullptr);
+	SurfaceClass* surfaceCopy = Create_Legacy_Surface_Wrapper(DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format));
+	DX8Wrapper::_Copy_DX8_Rects(Peek_Legacy_Surface(*surface), nullptr, 0, Peek_Legacy_Surface(*surfaceCopy), nullptr);
 
 	surface->Release_Ref();
 	surface = nullptr;
