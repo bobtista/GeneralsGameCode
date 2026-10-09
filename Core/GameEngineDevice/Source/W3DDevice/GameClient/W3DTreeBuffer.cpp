@@ -1651,14 +1651,11 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	DX8Wrapper::Apply_Render_State_Changes();
 
 	if (m_dwTreeVertexShader) {
-		D3DXMATRIX matProj, matView, matWorld;
+		D3DMATRIX matProj, matView, matWorld;
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_WORLD, matWorld);
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, matView);
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_PROJECTION, matProj);
-		D3DXMATRIX mat;
-		D3DXMatrixMultiply( &mat, &matView, &matProj );
-		D3DXMatrixMultiply( &mat, &matWorld, &mat );
-		D3DXMatrixTranspose( &mat, &mat );
+		const Matrix4x4 mat = To_Matrix4x4(matProj) * To_Matrix4x4(matView) * To_Matrix4x4(matWorld);
 
 		// c4  - Composite World-View-Projection Matrix
 		DX8Wrapper::_Get_D3D_Device8()->SetVertexShaderConstant(  4, &mat,  4 );

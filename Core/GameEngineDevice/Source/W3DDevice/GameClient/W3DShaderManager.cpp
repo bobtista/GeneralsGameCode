@@ -1247,14 +1247,10 @@ Int ShroudTextureShader::set(Int stage)
 	if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 	{
 		///@todo: All this code really only need to be done once per camera/view.  Find a way to optimize it out.
-		D3DXMATRIX curView;
+		D3DMATRIX curView;
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
-
-		D3DXMATRIX scale,offset;
+		const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 		//We need to make all world coordinates be relative to the heightmap data origin since that
 		//is where the shroud begins.
@@ -1271,12 +1267,13 @@ Int ShroudTextureShader::set(Int stage)
 			yoffset = -(float)shroud->getDrawOriginY() + height;
 		}
 
-		D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
+		const Matrix3D offset(Vector3(xoffset, yoffset, 0.0f));
 
 		width = 1.0f/(width*shroud->getTextureWidth());
 		height = 1.0f/(height*shroud->getTextureHeight());
-		D3DXMatrixScaling(&scale, width, height, 1);
-		curView = (inv * offset) * scale;
+		Matrix3D scale(true);
+		scale.Scale(width, height, 1.0f);
+		To_D3DMATRIX(curView, scale * (offset * inv));
 		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), curView);
 	}
 	m_stageOfSet=stage;
@@ -1341,14 +1338,10 @@ Int FlatShroudTextureShader::set(Int stage)
 	if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 	{
 		///@todo: All this code really only need to be done once per camera/view.  Find a way to optimize it out.
-		D3DXMATRIX curView;
+		D3DMATRIX curView;
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
-
-		D3DXMATRIX scale,offset;
+		const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 		//We need to make all world coordinates be relative to the heightmap data origin since that
 		//is where the shroud begins.
@@ -1365,12 +1358,13 @@ Int FlatShroudTextureShader::set(Int stage)
 			yoffset = -(float)shroud->getDrawOriginY() + height;
 		}
 
-		D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
+		const Matrix3D offset(Vector3(xoffset, yoffset, 0.0f));
 
 		width = 1.0f/(width*shroud->getTextureWidth());
 		height = 1.0f/(height*shroud->getTextureHeight());
-		D3DXMatrixScaling(&scale, width, height, 1);
-		curView = (inv * offset) * scale;
+		Matrix3D scale(true);
+		scale.Scale(width, height, 1.0f);
+		To_D3DMATRIX(curView, scale * (offset * inv));
 		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), curView);
 	}
 	m_stageOfSet=stage;
@@ -1431,19 +1425,15 @@ Int MaskTextureShader::set(Int pass)
 	DX8Wrapper::Set_Shader(shader);
 	DX8Wrapper::Apply_Render_State_Changes();
 
-	D3DXMATRIX curView;
+	D3DMATRIX curView;
 	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
 	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-	D3DXMATRIX inv;
-	float det;
-
 	//Get inverse view matrix so we can transform camera space points back to world space
-	D3DXMatrixInverse(&inv, &det, &curView);
+	const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
-	D3DXMATRIX scale,offset,offsetTextureCenter;
 	Coord3D centerPos;
 	centerPos.zero();
 
@@ -1460,9 +1450,9 @@ Int MaskTextureShader::set(Int pass)
 		TheTacticalView->screenToTerrain(&screenPos,&centerPos);
 	}
 
-	D3DXMatrixTranslation(&offset, -centerPos.x, -centerPos.y,0);
+	const Matrix3D offset(Vector3(-centerPos.x, -centerPos.y, 0.0f));
 
-	D3DXMatrixTranslation(&offsetTextureCenter, 0.5f, 0.5f, 0);	//shift coordinates so center of projection falls at uv 0.5,0.5
+	const Matrix3D offsetTextureCenter(Vector3(0.5f, 0.5f, 0.0f));	//shift coordinates so center of projection falls at uv 0.5,0.5
 
 	Real worldTexelWidth=(1.0f-fadeLevel)*25.0f;	//9 worked well for circle but weird shape requires more stretch to cover.
 	Real worldTexelHeight=(1.0f-fadeLevel)*25.0f;
@@ -1472,13 +1462,15 @@ Int MaskTextureShader::set(Int pass)
 	{
 		Real widthScale = 1.0f/(worldTexelWidth*128.0f);
 		Real heightScale = 1.0f/(worldTexelHeight*128.0f);
-		D3DXMatrixScaling(&scale, widthScale, heightScale, 1);
-		curView = ((inv * offset) * scale)*offsetTextureCenter;
+		Matrix3D scale(true);
+		scale.Scale(widthScale, heightScale, 1.0f);
+		To_D3DMATRIX(curView, offsetTextureCenter * (scale * (offset * inv)));
 	}
 	else
 	{
-		D3DXMatrixScaling(&scale, 0, 0, 1);	//scaling by 0 will set uv coordinates to 0,0
-		curView = ((inv * offset) * scale);
+		Matrix3D scale(true);
+		scale.Scale(0.0f, 0.0f, 1.0f);	//scaling by 0 will set uv coordinates to 0,0
+		To_D3DMATRIX(curView, scale * (offset * inv));
 	}
 
 	DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE0, curView);
@@ -1511,8 +1503,8 @@ public:
 	virtual void reset() override;		///<do any custom resetting necessary to bring W3D in sync.
 
 	void updateCloud();
-	void updateNoise1 (D3DXMATRIX *destMatrix,D3DXMATRIX *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise1 (i.e clouds)
-	void updateNoise2 (D3DXMATRIX *destMatrix,D3DXMATRIX *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise2 (i.e lightmap)
+	void updateNoise1 (D3DMATRIX *destMatrix,const Matrix4x4 *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise1 (i.e clouds)
+	void updateNoise2 (D3DMATRIX *destMatrix,const Matrix4x4 *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise2 (i.e lightmap)
 } terrainShader2Stage;
 
 ///regular terrain shader that should work on all multi-texture video cards (slowest version)
@@ -1627,27 +1619,23 @@ void TerrainShader2Stage::updateCloud()
 	m_yOffset -= (Int)m_yOffset;
 }
 
-void TerrainShader2Stage::updateNoise1(D3DXMATRIX *destMatrix,D3DXMATRIX *curViewInverse, Bool doUpdate)
+void TerrainShader2Stage::updateNoise1(D3DMATRIX *destMatrix,const Matrix4x4 *curViewInverse, Bool doUpdate)
 {
 	#define STRETCH_FACTOR ((float)(1/(63.0*MAP_XY_FACTOR/2))) /* covers 63/2 tiles */
 
-	D3DXMATRIX scale;
+	Matrix3D scale(true);
+	scale.Scale(STRETCH_FACTOR, STRETCH_FACTOR, 1.0f);
 
-	D3DXMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
-	*destMatrix = *curViewInverse * scale;
-
-	D3DXMATRIX offset;
-	D3DXMatrixTranslation(&offset, m_xOffset, m_yOffset,0);
-	*destMatrix *= offset;
+	const Matrix3D offset(Vector3(m_xOffset, m_yOffset, 0.0f));
+	To_D3DMATRIX(*destMatrix, offset * (scale * *curViewInverse));
 }
 
-void TerrainShader2Stage::updateNoise2(D3DXMATRIX *destMatrix,D3DXMATRIX *curViewInverse, Bool doUpdate)
+void TerrainShader2Stage::updateNoise2(D3DMATRIX *destMatrix,const Matrix4x4 *curViewInverse, Bool doUpdate)
 {
 
-	D3DXMATRIX scale;
-
-	D3DXMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
-	*destMatrix = *curViewInverse * scale;
+	Matrix3D scale(true);
+	scale.Scale(STRETCH_FACTOR, STRETCH_FACTOR, 1.0f);
+	To_D3DMATRIX(*destMatrix, scale * *curViewInverse);
 }
 
 Int TerrainShader2Stage::set(Int pass)
@@ -1712,7 +1700,7 @@ Int TerrainShader2Stage::set(Int pass)
 			break;
 		case 2:
 			// Noise/cloud pass
-			D3DXMATRIX curView;
+			D3DMATRIX curView;
 			DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
 			//these states apply to all noise/cloud combination passes
@@ -1732,9 +1720,7 @@ Int TerrainShader2Stage::set(Int pass)
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_ZERO);
 
-			D3DXMATRIX inv;
-			float det;
-			D3DXMatrixInverse(&inv, &det, &curView);
+			const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 			if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_TERRAIN_BASE_NOISE12)
 			{
@@ -2060,12 +2046,10 @@ Int TerrainShaderPixelShader::set(Int pass)
 
 	if (W3DShaderManager::getCurrentShader() >= W3DShaderManager::ST_TERRAIN_BASE_NOISE1)
 	{
-		D3DXMATRIX curView;
+		D3DMATRIX curView;
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
+		const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 		DX8Wrapper::Set_DX8_Texture_Stage_State(2,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
@@ -2185,13 +2169,10 @@ Int CloudTextureShader::init()
 /**Setup a certain texture stage to project our cloud texture*/
 Int CloudTextureShader::set(Int stage)
 {
-	D3DXMATRIX curView;
+	D3DMATRIX curView;
 	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-	D3DXMATRIX inv;
-	float det;
-
-	D3DXMatrixInverse(&inv, &det, &curView);
+	const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 	//Get a texture matrix that applies the current cloud position
 	terrainShader2Stage.updateNoise1(&curView,&inv,false);	//update curView with texture matrix
@@ -2320,12 +2301,10 @@ Int RoadShaderPixelShader::set(Int pass)
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
 
-	D3DXMATRIX curView;
+	D3DMATRIX curView;
 	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-	D3DXMATRIX inv;
-	float det;
-	D3DXMatrixInverse(&inv, &det, &curView);
+	const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex)
 	{	DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
@@ -2436,12 +2415,10 @@ Int RoadShader2Stage::set(Int pass)
 		if (W3DShaderManager::getCurrentShader() >= W3DShaderManager::ST_ROAD_BASE_NOISE1)
 		{
 			//second texture unit will contain a noise pass
-			D3DXMATRIX curView;
+			D3DMATRIX curView;
 			DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-			D3DXMATRIX inv;
-			float det;
-			D3DXMatrixInverse(&inv, &det, &curView);
+			const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 			if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex)
 				DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
@@ -2504,12 +2481,10 @@ Int RoadShader2Stage::set(Int pass)
 	else
 	{
 		//pass 1, apply additional noise pass
-		D3DXMATRIX curView;
+		D3DMATRIX curView;
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
+		const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 		if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex)
 			DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
@@ -3253,14 +3228,10 @@ Int W3DShaderManager::setShroudTex(Int stage)
 		DX8Wrapper::Set_DX8_Texture_Stage_State( stage, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 		DX8Wrapper::Set_DX8_Texture_Stage_State( stage, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2 );
 
-		D3DXMATRIX curView;
+		D3DMATRIX curView;
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
-
-		D3DXMATRIX scale,offset;
+		const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 		//We need to make all world coordinates be relative to the heightmap data origin since that
 		//is where the shroud begins.
@@ -3277,12 +3248,13 @@ Int W3DShaderManager::setShroudTex(Int stage)
 			yoffset = -(float)shroud->getDrawOriginY() + height;
 		}
 
-		D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
+		const Matrix3D offset(Vector3(xoffset, yoffset, 0.0f));
 
 		width = 1.0f/(width*shroud->getTextureWidth());
 		height = 1.0f/(height*shroud->getTextureHeight());
-		D3DXMatrixScaling(&scale, width, height, 1);
-		curView = (inv * offset) * scale;
+		Matrix3D scale(true);
+		scale.Scale(width, height, 1.0f);
+		To_D3DMATRIX(curView, scale * (offset * inv));
 		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), curView);
 		return TRUE;
 	}
@@ -3372,14 +3344,10 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				W3DShroud *shroud;
 				if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 				{
-					D3DXMATRIX curView;
+					D3DMATRIX curView;
 					DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-					D3DXMATRIX inv;
-					float det;
-					D3DXMatrixInverse(&inv, &det, &curView);
-
-					D3DXMATRIX scale,offset;
+					const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 					//We need to make all world coordinates be relative to the heightmap data origin since that
 					//is where the shroud begins.
@@ -3396,12 +3364,13 @@ Int FlatTerrainShader2Stage::set(Int pass)
 						yoffset = -(float)shroud->getDrawOriginY() + height;
 					}
 
-					D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
+					const Matrix3D offset(Vector3(xoffset, yoffset, 0.0f));
 
 					width = 1.0f/(width*shroud->getTextureWidth());
 					height = 1.0f/(height*shroud->getTextureHeight());
-					D3DXMatrixScaling(&scale, width, height, 1);
-					curView = (inv * offset) * scale;
+					Matrix3D scale(true);
+					scale.Scale(width, height, 1.0f);
+					To_D3DMATRIX(curView, scale * (offset * inv));
 					DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0), curView);
 				}
 			}	else {
@@ -3425,7 +3394,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			break;
 		case 1:
 			// Noise/cloud pass
-			D3DXMATRIX curView;
+			D3DMATRIX curView;
 			DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
 			//these states apply to all noise/cloud combination passes
@@ -3445,9 +3414,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_ZERO);
 
-			D3DXMATRIX inv;
-			float det;
-			D3DXMatrixInverse(&inv, &det, &curView);
+			const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 			if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12)
 			{
@@ -3643,14 +3610,10 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
 		//is 1/128 the size of full texture. (assuming 128x128 vid-mem texture).
 		{
-			D3DXMATRIX curView;
+			D3DMATRIX curView;
 			DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-			D3DXMATRIX inv;
-			float det;
-			D3DXMatrixInverse(&inv, &det, &curView);
-
-			D3DXMATRIX scale,offset;
+			const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 			//We need to make all world coordinates be relative to the heightmap data origin since that
 			//is where the shroud begins.
@@ -3667,12 +3630,13 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 				yoffset = -(float)shroud->getDrawOriginY() + height;
 			}
 
-			D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
+			const Matrix3D offset(Vector3(xoffset, yoffset, 0.0f));
 
 			width = 1.0f/(width*shroud->getTextureWidth());
 			height = 1.0f/(height*shroud->getTextureHeight());
-			D3DXMatrixScaling(&scale, width, height, 1);
-			curView = (inv * offset) * scale;
+			Matrix3D scale(true);
+			scale.Scale(width, height, 1.0f);
+			To_D3DMATRIX(curView, scale * (offset * inv));
 			DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+curStage), curView);
 		}
 		DX8Wrapper::Set_DX8_Texture_Stage_State( curStage, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
@@ -3688,12 +3652,10 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 						W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12);
 	if (doNoise1) {
 		// Cloud pass.
-		D3DXMATRIX curView;
+		D3DMATRIX curView;
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
+		const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 		DX8Wrapper::Set_DX8_Texture_Stage_State(curStage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
@@ -3715,12 +3677,10 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 						W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12);
 	if (doNoise2)
 	{
-		D3DXMATRIX curView;
+		D3DMATRIX curView;
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
+		const Matrix4x4 inv = To_Matrix4x4(curView).Inverse();
 
 		DX8Wrapper::Set_DX8_Texture_Stage_State(curStage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
