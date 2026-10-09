@@ -2477,51 +2477,6 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 
 IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 (
-	const char *filename,
-	MipCountType mip_level_count
-)
-{
-	DX8_THREAD_ASSERT();
-	DX8_Assert();
-	IDirect3DTexture8 *texture = nullptr;
-
-	// NOTE: If the original image format is not supported as a texture format, it will
-	// automatically be converted to an appropriate format.
-	// NOTE: It is possible to get the size and format of the original image file from this
-	// function as well, so if we later want to second-guess D3DX's format conversion decisions
-	// we can do so after this function is called..
-	unsigned result = D3DXCreateTextureFromFileExA(
-		_Get_D3D_Device8(),
-		filename,
-		D3DX_DEFAULT,
-		D3DX_DEFAULT,
-		mip_level_count,//create_mipmaps ? 0 : 1,
-		0,
-		D3DFMT_UNKNOWN,
-		D3DPOOL_MANAGED,
-		D3DX_FILTER_BOX,
-		D3DX_FILTER_BOX,
-		0,
-		nullptr,
-		nullptr,
-		&texture);
-
-	if (result != D3D_OK) {
-		return MissingTexture::_Get_Missing_Texture();
-	}
-
-	// Make sure texture wasn't paletted!
-	D3DSURFACE_DESC desc;
-	texture->GetLevelDesc(0,&desc);
-	if (desc.Format==D3DFMT_P8) {
-		texture->Release();
-		return MissingTexture::_Get_Missing_Texture();
-	}
-	return texture;
-}
-
-IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
-(
 	IDirect3DSurface8 *surface,
 	MipCountType mip_level_count
 )
