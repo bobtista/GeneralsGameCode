@@ -90,8 +90,7 @@ extern "C" int GGC_GetBgfxSunShadowCullBox(float * center3, float * radius);
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "W3DDevice/GameClient/W3DProjectedShadow.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/matinfo.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -1103,11 +1102,11 @@ void W3DTreeBuffer::freeTreeBuffers()
 	}
 
 	if (m_dwTreePixelShader)
-		WW3D::Get_Render_Backend()->Delete_Pixel_Shader(m_dwTreePixelShader);
+		Renderer::Delete_Pixel_Shader(m_dwTreePixelShader);
 	m_dwTreePixelShader = 0;
 
 	if (m_dwTreeVertexShader)
-		WW3D::Get_Render_Backend()->Delete_Vertex_Shader(m_dwTreeVertexShader);
+		Renderer::Delete_Vertex_Shader(m_dwTreeVertexShader);
 	m_dwTreeVertexShader = 0;
 }
 
@@ -1214,8 +1213,8 @@ void W3DTreeBuffer::allocateTreeBuffers()
 
 	HRESULT hr;
 	const DWORD *declaration = reinterpret_cast<const DWORD *>(
-		WW3D::Get_Render_Backend() != nullptr ?
-			WW3D::Get_Render_Backend()->Get_Legacy_Vertex_Shader_Declaration(RB_LEGACY_VERTEX_DECL_XYZNDUV1) :
+		Renderer::Is_Initialized() ?
+			Renderer::Get_Legacy_Vertex_Shader_Declaration(RB_LEGACY_VERTEX_DECL_XYZNDUV1) :
 			nullptr);
 	hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\Trees.vso", declaration, 0, true, &m_dwTreeVertexShader);
 	if (FAILED(hr))
@@ -1617,8 +1616,8 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 //#define DEBUG_TEXTURE 1
 #ifdef DEBUG_TEXTURE // Draw the combined texture for debugging. jba. [4/21/2003]
 	// Setup the vertex buffer, shader & texture.
-	WW3D::Get_Render_Backend()->Set_Shader(detailAlphaShader);
-	WW3D::Get_Render_Backend()->Set_Texture(0,m_treeTexture);
+	Renderer::Set_Shader(detailAlphaShader);
+	Renderer::Set_Texture(0,m_treeTexture);
 	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC, 6);
 	//draw an infinite sky plane
 	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC, DX8_FVF_XYZNDUV2, 4);
@@ -1670,48 +1669,48 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		}
 	}
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+	Renderer::Set_Index_Buffer(ib_access,0);
+	Renderer::Set_Vertex_Buffer(vb_access);
 
 	Matrix3D tm(1);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
 
-	WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
+	Renderer::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
 #endif
 
 
 	if (m_curNumTreeIndices[0] == 0) {
 		return;
 	}
-	WW3D::Get_Render_Backend()->Set_Shader(detailAlphaShader);
+	Renderer::Set_Shader(detailAlphaShader);
 
-		WW3D::Get_Render_Backend()->Set_Texture(0,m_treeTexture);
-		WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
+		Renderer::Set_Texture(0,m_treeTexture);
+		Renderer::Set_Texture(1,nullptr);
+		Renderer::Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+		Renderer::Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
 	// Draw all the trees.
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 	W3DShaderManager::setShroudTex(1);
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 
 	if (m_dwTreeVertexShader) {
 		Matrix4x4 worldTransform;
 		Matrix4x4 viewTransform;
 		Matrix4x4 projectionTransform;
-		WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_WORLD, worldTransform);
-		WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, viewTransform);
-		WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_PROJECTION, projectionTransform);
+		Renderer::Get_Transform(RB_TRANSFORM_WORLD, worldTransform);
+		Renderer::Get_Transform(RB_TRANSFORM_VIEW, viewTransform);
+		Renderer::Get_Transform(RB_TRANSFORM_PROJECTION, projectionTransform);
 		Matrix4x4 mat = projectionTransform * viewTransform * worldTransform;
 
 		// c4  - Composite World-View-Projection Matrix
-		WW3D::Get_Render_Backend()->Set_Vertex_Shader_Constant(  4, &mat,  4 );
+		Renderer::Set_Vertex_Shader_Constant(  4, &mat,  4 );
 		Vector4 noSway(0,0,0,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Shader_Constant(  8, &noSway,  1 );
+		Renderer::Set_Vertex_Shader_Constant(  8, &noSway,  1 );
 
 		// c8 - c8+MAX_SWAY_TYPES - the sway amount.
 		for	(i=0; i<MAX_SWAY_TYPES; i++) {
 			Vector4 sway4(swayFactor[i].X, swayFactor[i].Y, swayFactor[i].Z, 0);
-			WW3D::Get_Render_Backend()->Set_Vertex_Shader_Constant(  9+i, &sway4,  1 );
+			Renderer::Set_Vertex_Shader_Constant(  9+i, &sway4,  1 );
 		}
 
 		W3DShroud *shroud;
@@ -1725,19 +1724,19 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			xoffset = -(float)shroud->getDrawOriginX() + width;
 			yoffset = -(float)shroud->getDrawOriginY() + height;
 			Vector4 offset(xoffset, yoffset, 0, 0);
-			WW3D::Get_Render_Backend()->Set_Vertex_Shader_Constant(  32, &offset,  1 );
+			Renderer::Set_Vertex_Shader_Constant(  32, &offset,  1 );
 			width = 1.0f/(width*shroud->getTextureWidth());
 			height = 1.0f/(height*shroud->getTextureHeight());
 			offset.Set(width, height, 1, 1);
-			WW3D::Get_Render_Backend()->Set_Vertex_Shader_Constant(  33, &offset,  1 );
+			Renderer::Set_Vertex_Shader_Constant(  33, &offset,  1 );
 
 		} else {
 			Vector4 offset(0,0,0,0);
-			WW3D::Get_Render_Backend()->Set_Vertex_Shader_Constant(  32, &offset,  1 );
-			WW3D::Get_Render_Backend()->Set_Vertex_Shader_Constant(  33, &offset,  1 );
+			Renderer::Set_Vertex_Shader_Constant(  32, &offset,  1 );
+			Renderer::Set_Vertex_Shader_Constant(  33, &offset,  1 );
 		}
 
-		WW3D::Get_Render_Backend()->Set_Vertex_Shader(m_dwTreeVertexShader);
+		Renderer::Set_Vertex_Shader(m_dwTreeVertexShader);
 
 		// TheSuperHackers @refactor bobtista 14/04/2026 Push
 		// the same constants we just gave the DX8 vertex shader into
@@ -1766,12 +1765,12 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 				shroudScaleVec[0]  = 1.0f / (cw * shroud2->getTextureWidth());
 				shroudScaleVec[1]  = 1.0f / (ch * shroud2->getTextureHeight());
 			}
-			WW3D::Get_Render_Backend()->Set_Tree_Shader_Constants(swayTable, shroudOffsetVec, shroudScaleVec);
-			WW3D::Get_Render_Backend()->Set_Tree_Vertex_Shader_Active(true);
+			Renderer::Set_Tree_Shader_Constants(swayTable, shroudOffsetVec, shroudScaleVec);
+			Renderer::Set_Tree_Vertex_Shader_Active(true);
 		}
 
 	} else {
-		WW3D::Get_Render_Backend()->Set_Vertex_Shader(DX8_FVF_XYZNDUV1);
+		Renderer::Set_Vertex_Shader(DX8_FVF_XYZNDUV1);
 	}
 
 
@@ -1780,23 +1779,23 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		if (m_curNumTreeIndices[bNdx]==0) {
 			break;
 		}
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexTree[bNdx],0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexTree[bNdx],0);
+		Renderer::Set_Index_Buffer(m_indexTree[bNdx],0);
+		Renderer::Set_Vertex_Buffer(m_vertexTree[bNdx],0);
 		// Render the waving grass
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+		Renderer::Apply_Render_State_Changes();
 			if (m_dwTreeVertexShader) {
-				WW3D::Get_Render_Backend()->Set_Vertex_Shader(m_dwTreeVertexShader);
-				WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
-				WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
-				WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(1, 0, false);
+				Renderer::Set_Vertex_Shader(m_dwTreeVertexShader);
+				Renderer::Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+				Renderer::Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
+				Renderer::Set_Texture_Transform_Mode(1, 0, false);
 			}
-		WW3D::Get_Render_Backend()->Draw_Triangles(	0, m_curNumTreeIndices[bNdx]/3, 0,	m_curNumTreeVertices[bNdx]);
+		Renderer::Draw_Triangles(	0, m_curNumTreeIndices[bNdx]/3, 0,	m_curNumTreeVertices[bNdx]);
 	}
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Shader(DX8_FVF_XYZNDUV1);
-	WW3D::Get_Render_Backend()->Set_Pixel_Shader(0);
-	WW3D::Get_Render_Backend()->Set_Tree_Vertex_Shader_Active(false);
-	WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();	//code above mucks around with W3D states so make sure we reset
+	Renderer::Set_Vertex_Shader(DX8_FVF_XYZNDUV1);
+	Renderer::Set_Pixel_Shader(0);
+	Renderer::Set_Tree_Vertex_Shader_Active(false);
+	Renderer::Invalidate_Cached_Render_States();	//code above mucks around with W3D states so make sure we reset
 
 }
 

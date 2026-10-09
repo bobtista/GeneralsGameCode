@@ -42,8 +42,7 @@
 #include "WWDebug/wwdebug.h"
 #include "WWLib/TARGA.h"
 #include "WW3D2/ww3dcolor.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 
  /*
 	WW3D_FORMAT_UNKNOWN=0,
@@ -298,7 +297,7 @@ void Get_WW3D_Format(WW3DFormat& src_format,unsigned& src_bpp,const Targa& targa
 
 static bool Backend_Supports_Texture_Format(WW3DFormat format)
 {
-	return WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Format(format);
+	return Renderer::Is_Initialized() && Renderer::Supports_Texture_Format(format);
 }
 
 static bool Backend_Supports_DXTC()

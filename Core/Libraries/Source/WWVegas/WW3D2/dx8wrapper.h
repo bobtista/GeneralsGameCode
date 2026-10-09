@@ -74,7 +74,7 @@
 // warning inside DX8Backend.cpp / dx8wrapper.cpp and the rest of WW3D2,
 // which legitimately call DX8Wrapper directly. VC6 tools get a no-op.
 #if defined(_MSC_VER) && _MSC_VER >= 1400 && !defined(GGC_ALLOW_DX8WRAPPER)
-#  define GGC_RB_DEPRECATED __declspec(deprecated("migrate to WW3D::Get_Render_Backend() equivalent"))
+#  define GGC_RB_DEPRECATED __declspec(deprecated("migrate to the Renderer equivalent"))
 #else
 #  define GGC_RB_DEPRECATED
 #endif

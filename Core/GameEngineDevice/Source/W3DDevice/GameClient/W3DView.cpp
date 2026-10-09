@@ -91,8 +91,7 @@
 #include "W3DDevice/GameClient/W3DCustomScene.h"
 
 #include "WW3D2/dx8renderer.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/light.h"
 #include "WW3D2/predlod.h"
 #include "WW3D2/ww3d.h"

@@ -66,7 +66,7 @@
 #include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/vertexbuffer.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/light.h"
 #include "WW3D2/matpass.h"
 #include "WW3D2/shader.h"
@@ -165,7 +165,7 @@ static void SceneDiagWrite(Bool drawTerrainOnly, Int numPotentialOccluders, Int 
 		"mainVisible=%d mainDirect=%d mainDelayed=%d "
 		"renderOne=%d renderOneDrawable=%d renderOneNoDrawable=%d renderHiddenSkip=%d renderClear=%d renderFogged=%d renderShrouded=%d\n",
 		frame,
-		WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Has_Stencil() ? 1 : 0,
+		Renderer::Is_Initialized() && Renderer::Has_Stencil() ? 1 : 0,
 		drawTerrainOnly,
 		numPotentialOccluders,
 		numPotentialOccludees,
@@ -775,7 +775,7 @@ static Bool ShouldSubpixelCullMesh(RenderInfoClass &rinfo, Drawable *draw, const
 	{
 		return FALSE;
 	}
-	if (WW3D::Get_Render_Backend() == nullptr || !WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+	if (!Renderer::Is_Initialized() || !Renderer::Has_Shader_Pipeline())
 	{
 		return FALSE;
 	}
@@ -1070,8 +1070,8 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 					const Bool scheduleClearPass =
 						draw
 						&& draw->isKindOf(KINDOF_STRUCTURE)
-						&& WW3D::Get_Render_Backend()
-						&& WW3D::Get_Render_Backend()->Requires_Delayed_Object_Shroud_Pass();
+						&& Renderer::Is_Initialized()
+						&& Renderer::Requires_Delayed_Object_Shroud_Pass();
 					if (SceneDiagEnabled())
 					{
 						g_sceneDiag.renderOneClear++;
@@ -1099,7 +1099,7 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 							g_sceneDiag.renderOneShrouded++;
 						}
 					}
-					if (WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Requires_Delayed_Object_Shroud_Pass())
+					if (Renderer::Is_Initialized() && Renderer::Requires_Delayed_Object_Shroud_Pass())
 					{
 						robj->Render(rinfo);
 						rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);
@@ -1286,7 +1286,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 	GGC_RPROFILE(RENDER_TOTAL);
 	//USE_PERF_TIMER(NonTerrainRender)
 	SceneDiagReset();
-	WW3D::Get_Render_Backend()->Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
+	Renderer::Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
 
 	//Override the behind building selection if it's not available on current hardware (needs stencil).
 	TheWritableGlobalData->m_enableBehindBuildingMarkers = TheWritableGlobalData->m_enableBehindBuildingMarkers && Renderer::Has_Stencil();
@@ -1317,8 +1317,8 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//a projected alpha texture which will later be used to determine where
 			//wireframe should be visible.
 			///@todo: Clearing to black may not be needed if the scene already did the clear.
-			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(RB_COLOR_ALPHA);
-			WW3D::Get_Render_Backend()->Set_Z_Bias(0);
+			Renderer::Set_Color_Write_Mask(RB_COLOR_ALPHA);
+			Renderer::Set_Z_Bias(0);
 			//Since all objects will be rendered with same material, disable resetting until all are done.
 			m_maskMaterialPass->setAllowUninstall(FALSE);
 
@@ -1327,7 +1327,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			m_maskMaterialPass->setAllowUninstall(TRUE);
 			m_maskMaterialPass->UnInstall_Materials();
 
-			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(RB_COLOR_RGB);
+			Renderer::Set_Color_Write_Mask(RB_COLOR_RGB);
 
 			ShaderClass::Invalidate();
 		}
@@ -1341,9 +1341,9 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//a projected alpha texture which will later be used to determine where
 			//wireframe should be visible.
 			///@todo: Clearing to black may not be needed if the scene already did the clear.
-			WW3D::Get_Render_Backend()->Clear(true, false, Vector3(0.0f,0.0f,0.0f),1.0f);	// Clear color but not z
-			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(RB_COLOR_ALPHA);
-			WW3D::Get_Render_Backend()->Set_Z_Bias(0);
+			Renderer::Clear(true, false, Vector3(0.0f,0.0f,0.0f),1.0f);	// Clear color but not z
+			Renderer::Set_Color_Write_Mask(RB_COLOR_ALPHA);
+			Renderer::Set_Z_Bias(0);
 
 			//We're only filling the z-buffer so ignore normal textures and state changes to speed things up.
 			m_customPassMode = SCENE_PASS_ALPHA_MASK;
@@ -1355,10 +1355,10 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			m_maskMaterialPass->setAllowUninstall(TRUE);
 			m_maskMaterialPass->UnInstall_Materials();
 
-			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(RB_COLOR_RGB);
+			Renderer::Set_Color_Write_Mask(RB_COLOR_RGB);
 			WW3D::Enable_Coloring(0xff008000);
 			WW3D::Enable_Texturing(false);
-			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_WIREFRAME);
+			Renderer::Set_Fill_Mode(RB_FILL_WIREFRAME);
 
 			//Move maximum z-buffer value in a little to shift all z-values closer
 			//and thus forcing line to appear on top of previous pass.
@@ -1369,7 +1369,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 
 				Customized_Render(rinfo);	//render wireframe where z-test passes
 			Flush(rinfo);
-			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_SOLID);
+			Renderer::Set_Fill_Mode(RB_FILL_SOLID);
 
 			rinfo.Camera.Set_Zbuffer_Range(nearZ, farZ);
 			rinfo.Camera.Apply();
@@ -1384,32 +1384,32 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//old W3D custom rendering code.
 
 			//Disable writes to color buffer to save memory bandwidth - we only need Z.
-			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(0);
-			WW3D::Get_Render_Backend()->Set_Z_Bias(0);
+			Renderer::Set_Color_Write_Mask(0);
+			Renderer::Set_Z_Bias(0);
 			Customized_Render(rinfo);
 			Flush(rinfo);
 			//Re-enable writes to color buffer.
-			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(RB_COLOR_RGB);
+			Renderer::Set_Color_Write_Mask(RB_COLOR_RGB);
 
 			switch (Get_Extra_Pass_Polygon_Mode()) {
 			case EXTRA_PASS_LINE:
 				WW3D::Enable_Texturing(false);
-				WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_WIREFRAME);
-				WW3D::Get_Render_Backend()->Set_Z_Bias(WIREFRAME_OVERLAY_ZBIAS);
+				Renderer::Set_Fill_Mode(RB_FILL_WIREFRAME);
+				Renderer::Set_Z_Bias(WIREFRAME_OVERLAY_ZBIAS);
 				Customized_Render(rinfo);
 				break;
 			case EXTRA_PASS_CLEAR_LINE:
 				Renderer::Clear(true, false, Vector3(0.0f,0.0f,0.0f), 0.0f);	// Clear color but not z
 				WW3D::Enable_Texturing(false);
 				WW3D::Enable_Coloring(0xff008000);
-				WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_WIREFRAME);
-				WW3D::Get_Render_Backend()->Set_Z_Bias(WIREFRAME_OVERLAY_ZBIAS);
+				Renderer::Set_Fill_Mode(RB_FILL_WIREFRAME);
+				Renderer::Set_Z_Bias(WIREFRAME_OVERLAY_ZBIAS);
 				Customized_Render(rinfo);
 				break;
 			}
 			Flush(rinfo);
-			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_SOLID);
-			WW3D::Get_Render_Backend()->Set_Z_Bias(0);
+			Renderer::Set_Fill_Mode(RB_FILL_SOLID);
+			Renderer::Set_Z_Bias(0);
 			WW3D::Enable_Texturing(old_enable);
 			WW3D::Enable_Coloring(0);
 			ShaderClass::Invalidate();
@@ -1651,73 +1651,73 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
     v[2].color = color;
     v[3].color = color;
 
-	// TheSuperHackers @refactor bobtista 10/04/2026 Route shader/material state through WW3D::Get_Render_Backend().
-	WW3D::Get_Render_Backend()->Set_Shader(PlayerColorShader);
+	// TheSuperHackers @refactor bobtista 10/04/2026 Route shader/material state through Renderer::.
+	Renderer::Set_Shader(PlayerColorShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update all render states
+	Renderer::Apply_Render_State_Changes();	//force update all render states
 
 	// Set stencil states
-	WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
-	WW3D::Get_Render_Backend()->Set_Depth_Test_Enable(true);
+	Renderer::Set_Stencil_Enable(true);
+	Renderer::Set_Depth_Test_Enable(true);
 	DWORD	oldColorWriteEnable=0x12345678;
 	if (clear)
 	{
 		//we want to clear the stencil buffer to some known value wherever a player index is stored
 		Int occludedMask=TheW3DShadowManager->getStencilShadowMask();
-		WW3D::Get_Render_Backend()->Set_Stencil_Ref(0x80808080);
-		WW3D::Get_Render_Backend()->Set_Stencil_Mask(occludedMask);	//isolate bits containing occluder|playerIndex
-		WW3D::Get_Render_Backend()->Set_Stencil_Write_Mask(0xffffffff);
-		WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_LESS);	//only draw to pixels that match the reference value
-		WW3D::Get_Render_Backend()->Set_Stencil_ZFail_Op(RB_STENCIL_OP_REPLACE);
-		WW3D::Get_Render_Backend()->Set_Stencil_Pass_Op(RB_STENCIL_OP_REPLACE);	//pixels which had occluded player colors, get MSB set.
-		WW3D::Get_Render_Backend()->Set_Stencil_Fail_Op(RB_STENCIL_OP_ZERO);	//pixels which had no occluded player colors are cleared.
-		WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_NEVER);	//fail all access to the frame buffer to improve memory bandwidth
+		Renderer::Set_Stencil_Ref(0x80808080);
+		Renderer::Set_Stencil_Mask(occludedMask);	//isolate bits containing occluder|playerIndex
+		Renderer::Set_Stencil_Write_Mask(0xffffffff);
+		Renderer::Set_Stencil_Func(RB_CMP_LESS);	//only draw to pixels that match the reference value
+		Renderer::Set_Stencil_ZFail_Op(RB_STENCIL_OP_REPLACE);
+		Renderer::Set_Stencil_Pass_Op(RB_STENCIL_OP_REPLACE);	//pixels which had occluded player colors, get MSB set.
+		Renderer::Set_Stencil_Fail_Op(RB_STENCIL_OP_ZERO);	//pixels which had no occluded player colors are cleared.
+		Renderer::Set_Depth_Func(RB_CMP_NEVER);	//fail all access to the frame buffer to improve memory bandwidth
 
 		//disable writes to color buffer
-		if (WW3D::Get_Render_Backend()->Supports_Color_Write_Mask())
+		if (Renderer::Supports_Color_Write_Mask())
 		{
-			oldColorWriteEnable = WW3D::Get_Render_Backend()->Get_Color_Write_Mask();
-			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(0);
+			oldColorWriteEnable = Renderer::Get_Color_Write_Mask();
+			Renderer::Set_Color_Write_Mask(0);
 		}
 		else
 		{
 			//device does not support disabling writes to color buffer so fake it through alpha blending
-			WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(true);
-			WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_ONE);
+			Renderer::Set_Alpha_Blend_Enable(true);
+			Renderer::Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_ONE);
 		}
 	}
 	else
 	{
-		WW3D::Get_Render_Backend()->Set_Stencil_Ref(stencilRef);
-		WW3D::Get_Render_Backend()->Set_Stencil_Mask(0xffffffff);
-		WW3D::Get_Render_Backend()->Set_Stencil_Write_Mask(0xffffffff);
-		WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_EQUAL);
-		WW3D::Get_Render_Backend()->Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Pass_Op(RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Ref(stencilRef);
+		Renderer::Set_Stencil_Mask(0xffffffff);
+		Renderer::Set_Stencil_Write_Mask(0xffffffff);
+		Renderer::Set_Stencil_Func(RB_CMP_EQUAL);
+		Renderer::Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Pass_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
 
 		//Make occluded pixels transparent
-		WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(true);
-		WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
+		Renderer::Set_Alpha_Blend_Enable(true);
+		Renderer::Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 	}
 
-	if (WW3D::Get_Render_Backend()->Is_Triangle_Draw_Enabled())
+	if (Renderer::Is_Triangle_Draw_Enabled())
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	{
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Explicitly route the player-color stencil wash
 	// to the effect-overlay view; the backend's bounds+stencil heuristic also caught UI quads.
-		WW3D::Get_Render_Backend()->Begin_Effect_Overlay();
+		Renderer::Begin_Effect_Overlay();
 
 		Matrix4x4 view,proj;
 		Matrix4x4 identity(true);
 
-		WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW,view);
-		WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_PROJECTION,proj);
-		WW3D::Get_Render_Backend()->Set_World_Identity();
-		WW3D::Get_Render_Backend()->Set_View_Identity();
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_PROJECTION,identity);
+		Renderer::Get_Transform(RB_TRANSFORM_VIEW,view);
+		Renderer::Get_Transform(RB_TRANSFORM_PROJECTION,proj);
+		Renderer::Set_World_Identity();
+		Renderer::Set_View_Identity();
+		Renderer::Set_Transform(RB_TRANSFORM_PROJECTION,identity);
 
 		const Real displayHalfWidth = (Real)TheDisplay->getWidth() * 0.5f;
 		const Real displayHalfHeight = (Real)TheDisplay->getHeight() * -0.5f;
@@ -1760,26 +1760,26 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 			}
 		}
 
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb);
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib,0);
-		WW3D::Get_Render_Backend()->Draw_Triangles(0,2,0,4);
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,view);
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
+		Renderer::Set_Vertex_Buffer(vb);
+		Renderer::Set_Index_Buffer(ib,0);
+		Renderer::Draw_Triangles(0,2,0,4);
+		Renderer::Set_Transform(RB_TRANSFORM_VIEW,view);
+		Renderer::Set_Transform(RB_TRANSFORM_PROJECTION,proj);
 
-		WW3D::Get_Render_Backend()->End_Effect_Overlay();
+		Renderer::End_Effect_Overlay();
 	}
 #else
-		WW3D::Get_Render_Backend()->Draw_Screen_Color_Quad(color, xpos, ypos, width, height);
+		Renderer::Draw_Screen_Color_Quad(color, xpos, ypos, width, height);
 #endif
 
 	// turn off the stencil buffer
-	WW3D::Get_Render_Backend()->Set_Stencil_Enable(false);
-	WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(false);	//restore shader state
-	WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ZERO);
-	WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_ALWAYS);
+	Renderer::Set_Stencil_Enable(false);
+	Renderer::Set_Alpha_Blend_Enable(false);	//restore shader state
+	Renderer::Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ZERO);
+	Renderer::Set_Depth_Func(RB_CMP_ALWAYS);
 
 	if (oldColorWriteEnable != 0x12345678)
-		WW3D::Get_Render_Backend()->Set_Color_Write_Mask(oldColorWriteEnable);
+		Renderer::Set_Color_Write_Mask(oldColorWriteEnable);
 
 }
 
@@ -1835,16 +1835,16 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 			lastPlayerObject[index]++;	//increment to next object
 		}
 
-		WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
-		WW3D::Get_Render_Backend()->Set_Depth_Test_Enable(true);
-		WW3D::Get_Render_Backend()->Set_Stencil_Mask(0xffffffff);
-		WW3D::Get_Render_Backend()->Set_Stencil_Write_Mask(0xffffffff);
+		Renderer::Set_Stencil_Enable(true);
+		Renderer::Set_Depth_Test_Enable(true);
+		Renderer::Set_Stencil_Mask(0xffffffff);
+		Renderer::Set_Stencil_Write_Mask(0xffffffff);
 		//Always store player index into stencil unless it is occluded by another
 		//player's potentially occluded objects.
-		WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_ALWAYS);
-		WW3D::Get_Render_Backend()->Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Pass_Op(RB_STENCIL_OP_REPLACE);
+		Renderer::Set_Stencil_Func(RB_CMP_ALWAYS);
+		Renderer::Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Pass_Op(RB_STENCIL_OP_REPLACE);
 
 		//Find out which player indices are actually used and remap them to
 		//a color index.  Render all objects using the same color index at once.
@@ -1874,7 +1874,7 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 				Int thisPlayerColorIndex=playerColorIndex[k];
 
 				//Store this object's color index into bits 3-6 of stencil buffer
-				WW3D::Get_Render_Backend()->Set_Stencil_Ref(thisPlayerColorIndex<<3);
+				Renderer::Set_Stencil_Ref(thisPlayerColorIndex<<3);
 
 				//Render all of this player's objects for which we care when they are occluded.
 				RenderObjClass **renderList=&playerObjects[k][0];
@@ -1887,13 +1887,13 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 						TheDX8MeshRenderer.Flush();	//render all the submitted meshes using current stencil function
 						SHD_FLUSH;
 						//Disable writing to color buffer since translucent objects are rendered at end of frame.
-						WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_NEVER);	//never allow frame buffer writes.
-						WW3D::Get_Render_Backend()->Set_Stencil_Fail_Op(RB_STENCIL_OP_REPLACE);	//always replace existing stencil value
+						Renderer::Set_Stencil_Func(RB_CMP_NEVER);	//never allow frame buffer writes.
+						Renderer::Set_Stencil_Fail_Op(RB_STENCIL_OP_REPLACE);	//always replace existing stencil value
 						renderOneObject(rinfo, (*renderList), localPlayerIndex);
 						TheDX8MeshRenderer.Flush();	//render all the submitted meshes using current stencil function
 						SHD_FLUSH;
-						WW3D::Get_Render_Backend()->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
-						WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_ALWAYS);
+						Renderer::Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
+						Renderer::Set_Stencil_Func(RB_CMP_ALWAYS);
 					}
 					else
 					{
@@ -1908,7 +1908,7 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 		//Stencil buffer is now filled with color indices of potentially occluded objects.  We now draw
 		//non-occluder or occludee objects such as small rocks, shrubs, etc. which we don't care about
 		//but need to render here so that they don't interfere with building occlusion.
-		WW3D::Get_Render_Backend()->Set_Stencil_Enable(false);	//these objects are not stored in stencil
+		Renderer::Set_Stencil_Enable(false);	//these objects are not stored in stencil
 		RenderObjClass **nonOccluderOrOccludeeList=m_nonOccludersOrOccludees;
 		for (k=0; k<m_numNonOccluderOrOccludee; k++)
 		{
@@ -1919,15 +1919,15 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 
 		//Stencil buffer is now filled with color indices of potentially occluded objects.  We now draw
 		//occluder objects so they cover up and modify stencil MSB wherever they are in front of other objects.
-		WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
-		WW3D::Get_Render_Backend()->Set_Depth_Test_Enable(true);
-		WW3D::Get_Render_Backend()->Set_Stencil_Ref(0xffffffff);
-		WW3D::Get_Render_Backend()->Set_Stencil_Mask(0xffffffff);	//isolate lowest player color
-		WW3D::Get_Render_Backend()->Set_Stencil_Write_Mask(0x80);	//only write to MSB
-		WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_ALWAYS);	//check if player colors stored in pixel
-		WW3D::Get_Render_Backend()->Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Pass_Op(RB_STENCIL_OP_REPLACE);
+		Renderer::Set_Stencil_Enable(true);
+		Renderer::Set_Depth_Test_Enable(true);
+		Renderer::Set_Stencil_Ref(0xffffffff);
+		Renderer::Set_Stencil_Mask(0xffffffff);	//isolate lowest player color
+		Renderer::Set_Stencil_Write_Mask(0x80);	//only write to MSB
+		Renderer::Set_Stencil_Func(RB_CMP_ALWAYS);	//check if player colors stored in pixel
+		Renderer::Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Pass_Op(RB_STENCIL_OP_REPLACE);
 
 		//Render all potential occluders on top of already rendered potential occludees.
 		RenderObjClass **occluderList=m_potentialOccluders;
@@ -1962,7 +1962,7 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 			TheW3DShadowManager->setStencilShadowMask(0x80808080);	//msb indicates occluded player pixels so ignore it when filling screen with shadow
 		}
 
-		WW3D::Get_Render_Backend()->Set_Stencil_Enable(false);
+		Renderer::Set_Stencil_Enable(false);
 	}
 	else
 	if (m_numNonOccluderOrOccludee || m_numPotentialOccluders || m_numPotentialOccludees)
@@ -2003,7 +2003,7 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 	//Reset scene ambient because we sometimes mess around with it to make objects
 	//glow, etc. when processing drawables.  This is a good place to do it because this
 	//function gets called right after we flush regular render objects.
-	WW3D::Get_Render_Backend()->Set_Ambient(this->Get_Ambient_Light());
+	Renderer::Set_Ambient(this->Get_Ambient_Light());
 }
 
 /*Version which does not require stencil buffer*/
@@ -2021,15 +2021,15 @@ void RTS3DScene::flushOccludedObjects(RenderInfoClass & rinfo)
 		if (Renderer::Has_Stencil())	//just in case we have shadows, disable them over occluded pixels.
 		{
 			//Set all stencil pixels of potentially occluded objects to 128.
-			WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
-			WW3D::Get_Render_Backend()->Set_Depth_Test_Enable(true);
-			WW3D::Get_Render_Backend()->Set_Stencil_Ref(128);
-			WW3D::Get_Render_Backend()->Set_Stencil_Mask(0xffffffff);
-			WW3D::Get_Render_Backend()->Set_Stencil_Write_Mask(0xffffffff);
-			WW3D::Get_Render_Backend()->Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
-			WW3D::Get_Render_Backend()->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
-			WW3D::Get_Render_Backend()->Set_Stencil_Pass_Op(RB_STENCIL_OP_REPLACE);
-			WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_ALWAYS);
+			Renderer::Set_Stencil_Enable(true);
+			Renderer::Set_Depth_Test_Enable(true);
+			Renderer::Set_Stencil_Ref(128);
+			Renderer::Set_Stencil_Mask(0xffffffff);
+			Renderer::Set_Stencil_Write_Mask(0xffffffff);
+			Renderer::Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
+			Renderer::Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
+			Renderer::Set_Stencil_Pass_Op(RB_STENCIL_OP_REPLACE);
+			Renderer::Set_Stencil_Func(RB_CMP_ALWAYS);
 		}
 
 		//First draw all the solid colored models
@@ -2057,8 +2057,8 @@ void RTS3DScene::flushOccludedObjects(RenderInfoClass & rinfo)
 		//Now draw the normal models so they cover up the colored models on any pixels that
 		//Normal models will clear stencil value from 128 back to 0 where the object pixels are
 		//not occluded but will leave  128 in stencil where still occluded.
-		if (WW3D::Get_Render_Backend()->Has_Stencil())
-			WW3D::Get_Render_Backend()->Set_Stencil_Ref(0);
+		if (Renderer::Has_Stencil())
+			Renderer::Set_Stencil_Ref(0);
 
 		for (i=0; i<m_occludedObjectsCount; i++)
 		{
@@ -2069,14 +2069,14 @@ void RTS3DScene::flushOccludedObjects(RenderInfoClass & rinfo)
 		//Flush all the submitted translucent objects.
 		TheDX8MeshRenderer.Flush();
 		m_occludedObjectsCount = 0;
-		WW3D::Get_Render_Backend()->Set_Stencil_Enable(false);
+		Renderer::Set_Stencil_Enable(false);
 		TheW3DShadowManager->setStencilShadowMask(0x80808080);	//upper MSB always contains flag indicating occluded player color.
 	}
 
 	//Reset scene ambient because we sometimes mess around with it to make objects
 	//glow, etc. when processing drawables.  This is a good place to do it because this
 	//function gets called right after we flush regular render objects.
-	WW3D::Get_Render_Backend()->Set_Ambient(this->Get_Ambient_Light());
+	Renderer::Set_Ambient(this->Get_Ambient_Light());
 }
 
 void RTS3DScene::flushTranslucentObjects(RenderInfoClass & rinfo)
@@ -2108,7 +2108,7 @@ void RTS3DScene::flushTranslucentObjects(RenderInfoClass & rinfo)
 	//Reset scene ambient because we sometimes mess around with it to make objects
 	//glow, etc. when processing drawables.  This is a good place to do it because this
 	//function gets called right after we flush regular render objects.
-	WW3D::Get_Render_Backend()->Set_Ambient(this->Get_Ambient_Light());
+	Renderer::Set_Ambient(this->Get_Ambient_Light());
 }
 
 //=============================================================================

@@ -12,7 +12,7 @@
 
 #include "always.h"
 #include "WWDebug/wwdebug.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "RenderBufferTypes.h"
 
 // ----------------------------------------------------------------------------

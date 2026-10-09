@@ -51,7 +51,7 @@
 #include "Common/GlobalData.h"
 #include "GameLogic/GameLogic.h"
 #include "Common/MapObject.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 // TheSuperHackers @build bobtista 30/05/2026 Restore DynamicVBAccess/DynamicIBAccess,
 // BUFFER_TYPE_DYNAMIC and ShaderClass declarations needed by the RTS_DEBUG path after
 // the "neutral dynamic buffer type at draw sites" refactor removed transitive includes.
@@ -223,13 +223,13 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 	if (m_numDebugIcons==0) return;
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
 	// through the IRenderBackend abstraction.
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 
-	WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
-	WW3D::Get_Render_Backend()->Set_Texture(0, nullptr);
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Set_Material(m_vertexMaterialClass);
+	Renderer::Set_Texture(0, nullptr);
+	Renderer::Apply_Render_State_Changes();
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Transform);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);
 
 	Int numRect = m_numDebugIcons;
 	static Real offset = 30;
@@ -310,10 +310,10 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 		}
 		}
 		if (numVertex == 0) break;
-		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass(SC_ALPHA));
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
-		WW3D::Get_Render_Backend()->Draw_Triangles(	0,curIndex/3, 0,	numVertex);	//draw a quad, 2 triangles, 4 verts
+		Renderer::Set_Shader(ShaderClass(SC_ALPHA));
+		Renderer::Set_Index_Buffer(ib_access,0);
+		Renderer::Set_Vertex_Buffer(vb_access);
+		Renderer::Draw_Triangles(	0,curIndex/3, 0,	numVertex);	//draw a quad, 2 triangles, 4 verts
 	}
 
 	if (anyVanished) {

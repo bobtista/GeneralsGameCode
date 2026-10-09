@@ -30,9 +30,8 @@
 #include "dx8wrapper.h"
 #endif
 #include "ffactory.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "missingtexture.h"
-#include "RenderBackend.h"
 #include "surfaceclass.h"
 #include "texture.h"
 #include "textureloader.h"
@@ -168,17 +167,17 @@ void TextureCompatibilityInterop::Set_Legacy_Base_Texture(TextureBaseClass &text
 	// wrapper around the legacy pointer or creates a parallel bgfx texture via
 	// the peek path. Skip when native_texture is null; that's a release, not a
 	// load.
-	if (texture.Get_Native_Compatibility_Texture() != nullptr && WW3D::Get_Render_Backend() != nullptr) {
+	if (texture.Get_Native_Compatibility_Texture() != nullptr && Renderer::Is_Initialized()) {
 		if (texture.m_backendHandle != kInvalidRenderResource) {
-			WW3D::Get_Render_Backend()->Destroy_Resource(texture.m_backendHandle);
+			Renderer::Destroy_Resource(texture.m_backendHandle);
 		}
-		texture.m_backendHandle = WW3D::Get_Render_Backend()->Register_Texture_Resource(&texture);
-	} else if (texture.Get_Native_Compatibility_Texture() == nullptr && WW3D::Get_Render_Backend() != nullptr) {
+		texture.m_backendHandle = Renderer::Register_Texture_Resource(&texture);
+	} else if (texture.Get_Native_Compatibility_Texture() == nullptr && Renderer::Is_Initialized()) {
 		if (texture.m_backendHandle != kInvalidRenderResource) {
-			WW3D::Get_Render_Backend()->Destroy_Resource(texture.m_backendHandle);
+			Renderer::Destroy_Resource(texture.m_backendHandle);
 			texture.m_backendHandle = kInvalidRenderResource;
 		}
-		WW3D::Get_Render_Backend()->Release_Cached_Texture(&texture);
+		Renderer::Release_Cached_Texture(&texture);
 	}
 }
 

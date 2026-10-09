@@ -82,8 +82,7 @@
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/Renderer.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/vertexbuffer.h"
 #include "WW3D2/renderdebugstats.h"
@@ -1932,19 +1931,19 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	}
 #endif
 
-	WW3D::Get_Render_Backend()->Set_Light_Environment(rinfo.light_environment);
+	Renderer::Set_Light_Environment(rinfo.light_environment);
 
 	// Force shaders to update.
 	m_stageTwoTexture->restore();
-	WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-	WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
+	Renderer::Set_Texture(0,nullptr);
+	Renderer::Set_Texture(1,nullptr);
 	ShaderClass::Invalidate();
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Transform);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);
 
 	//Apply the shader and material
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
+	Renderer::Set_Index_Buffer(m_indexBuffer,0);
 
 	Bool doMultiPassWireFrame=FALSE;
 
@@ -1970,29 +1969,29 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 			{
 				//wireframe pass
 				//Set to vertex diffuse lighting
-				WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
+				Renderer::Set_Material(m_vertexMaterialClass);
 				//Set shader to non-textured solid color from vertex
-				WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaqueSolidShader);
+				Renderer::Set_Shader(ShaderClass::_PresetOpaqueSolidShader);
 				devicePasses=1;	//one pass solid, next in wireframe.
-				WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
-				WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(0, 2, RB_TEXARG_TFACTOR);
-				WW3D::Get_Render_Backend()->Set_Texture_Factor(0xff808080);
+				Renderer::Apply_Render_State_Changes();
+				Renderer::Set_Texture_Color_Argument(0, 2, RB_TEXARG_TFACTOR);
+				Renderer::Set_Texture_Factor(0xff808080);
 				doMultiPassWireFrame=TRUE;
 				renderTerrainPass(&rinfo.Camera);
-				WW3D::Get_Render_Backend()->Set_Texture_Factor(0xff008000);
+				Renderer::Set_Texture_Factor(0xff008000);
 				return;
 			}
 	}
 	else
 	{
-		WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
-		WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
+		Renderer::Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Shader(m_shaderClass);
 
 		//Textured terrain is drawn by the backend below, so only the lighting-only pass uses the pass loop.
 		devicePasses = m_disableTextures ? 1 : 0;
 		//Disable writes to destination alpha channel (if there is one)
-		if (WW3D::Get_Render_Backend()->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8)
-			WW3D::Get_Render_Backend()->Set_Color_Write_Enable(true, true, true, false);
+		if (Renderer::Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8)
+			Renderer::Set_Color_Write_Enable(true, true, true, false);
 	}
 
 	if (!doMultiPassWireFrame && !m_disableTextures)
@@ -2017,7 +2016,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 			terrain.filtering = RB_TERRAIN_FILTER_POINT;
 
 		const UnsignedInt vertexBufferCount = Is_Hidden() == 0 ? m_numVBTilesX*m_numVBTilesY : 0;
-		WW3D::Get_Render_Backend()->Draw_Terrain(terrain, m_vertexBufferTiles, vertexBufferCount, HEIGHTMAP_POLYGON_NUM, HEIGHTMAP_VERTEX_NUM);
+		Renderer::Draw_Terrain(terrain, m_vertexBufferTiles, vertexBufferCount, HEIGHTMAP_POLYGON_NUM, HEIGHTMAP_VERTEX_NUM);
 	}
 
 	Int pass;
@@ -2027,17 +2026,17 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 		if (!doMultiPassWireFrame)	//multi-pass wireframe doesn't use regular shaders.
 		{
  			if (m_disableTextures ) {
- 				WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaque2DShader);
- 				WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
+ 				Renderer::Set_Shader(ShaderClass::_PresetOpaque2DShader);
+ 				Renderer::Set_Texture(0,nullptr);
    			}
 		}
 
 		for (j=0; j<m_numVBTilesY; j++)
 			for (i=0; i<m_numVBTilesX; i++)
 			{
-				WW3D::Get_Render_Backend()->Set_Vertex_Buffer(getVertexBufferTile(i, j));
+				Renderer::Set_Vertex_Buffer(getVertexBufferTile(i, j));
 				if (Is_Hidden() == 0) {
-					WW3D::Get_Render_Backend()->Draw_Triangles(0, HEIGHTMAP_POLYGON_NUM, 0, HEIGHTMAP_VERTEX_NUM);
+					Renderer::Draw_Triangles(0, HEIGHTMAP_POLYGON_NUM, 0, HEIGHTMAP_VERTEX_NUM);
 				}
 
 			}
@@ -2057,13 +2056,13 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 		Int xCoordMin = m_map->getDrawOrgX();
 		Int xCoordMax = m_x+m_map->getDrawOrgX()-1;
 #ifdef DO_ROADS
-		WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
+		Renderer::Set_Texture(0,nullptr);
+		Renderer::Set_Texture(1,nullptr);
 		m_stageTwoTexture->restore();
 
 		ShaderClass::Invalidate();
 		if (!ShaderClass::Is_Backface_Culling_Inverted()) {
-			WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
+			Renderer::Set_Material(m_vertexMaterialClass);
 			if (Scene) {
 				RTS3DScene *pMyScene = (RTS3DScene *)Scene;
 				RefRenderObjListIterator pDynamicLightsIterator(pMyScene->getDynamicLights());
@@ -2075,17 +2074,17 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	if (m_propBuffer) {
 		m_propBuffer->drawProps(rinfo);
 	}
-		WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
+		Renderer::Set_Texture(0,nullptr);
+		Renderer::Set_Texture(1,nullptr);
 		m_stageTwoTexture->restore();
 
 		drawScorches();
 
-		WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
+		Renderer::Set_Texture(0,nullptr);
+		Renderer::Set_Texture(1,nullptr);
 		m_stageTwoTexture->restore();
 		ShaderClass::Invalidate();
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+		Renderer::Apply_Render_State_Changes();
 
 		m_bridgeBuffer->drawBridges(&rinfo.Camera, m_disableTextures, doCloud?m_stageTwoTexture:nullptr);
 
@@ -2100,7 +2099,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 		}
 
 		ShaderClass::Invalidate();
-		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+		Renderer::Apply_Render_State_Changes();
 	}
 	else
 			m_bridgeBuffer->drawBridges(&rinfo.Camera, m_disableTextures, m_stageTwoTexture);
@@ -2111,11 +2110,11 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	m_bibBuffer->renderBibs();
 
 	// We do some custom blending, so tell the shader class to reset everything.
-	WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);
-	WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
+	Renderer::Set_Texture(0,nullptr);
+	Renderer::Set_Texture(1,nullptr);
 	m_stageTwoTexture->restore();
 	ShaderClass::Invalidate();
-	WW3D::Get_Render_Backend()->Set_Material(nullptr);
+	Renderer::Set_Material(nullptr);
 }
 
 
@@ -2123,18 +2122,18 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 ///Performs additional terrain rendering pass, blending in the black shroud texture.
 void HeightMapRenderObjClass::renderTerrainPass(CameraClass *pCamera)
 {
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
 
 	//Apply the shader and material
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
+	Renderer::Set_Index_Buffer(m_indexBuffer,0);
 
 	for (Int j=0; j<m_numVBTilesY; j++)
 		for (Int i=0; i<m_numVBTilesX; i++)
 		{
-			WW3D::Get_Render_Backend()->Set_Vertex_Buffer(getVertexBufferTile(i, j));
+			Renderer::Set_Vertex_Buffer(getVertexBufferTile(i, j));
 			if (Is_Hidden() == 0) {
-				WW3D::Get_Render_Backend()->Draw_Triangles(0, HEIGHTMAP_POLYGON_NUM, 0, HEIGHTMAP_VERTEX_NUM);
+				Renderer::Draw_Triangles(0, HEIGHTMAP_POLYGON_NUM, 0, HEIGHTMAP_VERTEX_NUM);
 			}
 		}
 }
@@ -2297,23 +2296,23 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 			maxBlendTiles += 16;	//enlarge by 16 to reduce trashing.
 
 		ShaderClass::Invalidate();	//invalidate to force shader to reset since we directly changed states
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+		Renderer::Set_Index_Buffer(ib_access,0);
+		Renderer::Set_Vertex_Buffer(vb_access);
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Material(vmat);
+		Renderer::Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);
 		ShaderClass shader=ShaderClass::_PresetOpaqueShader;
 		shader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);	//disable writes to z
-		WW3D::Get_Render_Backend()->Set_Shader(shader);
+		Renderer::Set_Shader(shader);
 
 		if (TheGlobalData->m_use3WayTerrainBlends == 2)
 		{
 			shader.Set_Primary_Gradient(ShaderClass::GRADIENT_DISABLE);	//disable lighting.
 			shader.Set_Texturing(ShaderClass::TEXTURING_DISABLE);		//disable texturing.
-			WW3D::Get_Render_Backend()->Set_Shader(shader);
-			WW3D::Get_Render_Backend()->Set_Texture(0,nullptr);	//debug mode which draws terrain tiles in white.
+			Renderer::Set_Shader(shader);
+			Renderer::Set_Texture(0,nullptr);	//debug mode which draws terrain tiles in white.
 			if (Is_Hidden() == 0) {
-				WW3D::Get_Render_Backend()->Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
+				Renderer::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 				m_numVisibleExtraBlendTiles += indexCount/6;
 			}
 		}
@@ -2346,7 +2345,7 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 			// TheSuperHackers @bugfix bobtista 24/04/2026 Same rationale as
 			// the main terrain pass: shader pipeline cannot emulate the
 			// fixed-function camera-space texcoord generation.
-			if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+			if (Renderer::Has_Shader_Pipeline())
 			{
 				devicePasses = 1;
 			}
@@ -2354,17 +2353,17 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 			for (Int pass=0; pass < devicePasses; pass++)
 			{
 				W3DShaderManager::setShader(st, pass);
-				if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+				if (Renderer::Has_Shader_Pipeline())
 				{
-					WW3D::Get_Render_Backend()->Set_Projected_Decal_Mode(RB_PROJECTED_DECAL_ALPHA);
+					Renderer::Set_Projected_Decal_Mode(RB_PROJECTED_DECAL_ALPHA);
 				}
 				if (Is_Hidden() == 0) {
-					WW3D::Get_Render_Backend()->Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
+					Renderer::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 					m_numVisibleExtraBlendTiles += indexCount/6;
 				}
-				if (WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+				if (Renderer::Has_Shader_Pipeline())
 				{
-					WW3D::Get_Render_Backend()->Set_Projected_Decal_Mode(RB_PROJECTED_DECAL_NONE);
+					Renderer::Set_Projected_Decal_Mode(RB_PROJECTED_DECAL_NONE);
 				}
 			}
 			W3DShaderManager::resetShader(st);

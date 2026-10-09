@@ -37,7 +37,7 @@
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
@@ -104,7 +104,7 @@ struct SHADOW_DECAL_VERTEX	//vertex structure passed to D3D
 #define SHADOW_DECAL_FVF	RENDER_VERTEX_FORMAT_XYZDUV1
 
 // TheSuperHackers @refactor bobtista 16/04/2026 wrap the
-// decal shadow buffers in W3D classes so WW3D::Get_Render_Backend() can capture them.
+// decal shadow buffers in W3D classes so Renderer:: can capture them.
 RenderVertexBufferClass * shadowDecalVertexBuffer = nullptr;
 RenderIndexBufferClass  * shadowDecalIndexBuffer  = nullptr;
 // TheSuperHackers @bugfix bobtista 31/05/2026 The projected decal list draws from its own
@@ -388,13 +388,13 @@ Bool W3DProjectedShadowManager::ReAcquireResources()
 	DEBUG_ASSERTCRASH(m_dynamicRenderTarget == nullptr, ("Acquire of existing shadow render target"));
 
 	m_renderTargetHasAlpha=TRUE;
-	if ((m_dynamicRenderTarget=WW3D::Get_Render_Backend()->Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_A8R8G8B8)) == nullptr)
+	if ((m_dynamicRenderTarget=Renderer::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_A8R8G8B8)) == nullptr)
 	{
 			m_renderTargetHasAlpha=FALSE;
 
 			//failed to get a render target with alpha.
 			//try again without.
-			m_dynamicRenderTarget=WW3D::Get_Render_Backend()->Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_UNKNOWN);
+			m_dynamicRenderTarget=Renderer::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_UNKNOWN);
 	}
 
 	DEBUG_ASSERTCRASH(shadowDecalIndexBuffer == nullptr && shadowDecalVertexBuffer == nullptr, ("ReAcquireResources not released in W3DProjectedShadowManager"));
@@ -505,7 +505,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 		SHADOW_VOLUME_VERTEX* pvVertices;
 		UnsignedShort *pvIndices;
 
-		if (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Is_Device_Lost())
+		if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost())
 			return 0;
 
 		//Get terrain cell index for area with shadow
@@ -625,29 +625,29 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 		// state flushes on Draw_Triangles. The caller has just installed the
 		// TexProjectClass material pass; keep its projected texture stages
 		// intact so bgfx can render building floor emblems onto the terrain.
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(shadowIndexBuffer, nShadowStartBatchVertex);
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, reinterpret_cast<const Matrix4x4&>(mWorld));
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(shadowVertexBuffer, 0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Shader(SHADOW_VOLUME_FVF);
-		WW3D::Get_Render_Backend()->Override_Terrain_Blend(false);
+		Renderer::Set_Index_Buffer(shadowIndexBuffer, nShadowStartBatchVertex);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD, reinterpret_cast<const Matrix4x4&>(mWorld));
+		Renderer::Set_Vertex_Buffer(shadowVertexBuffer, 0);
+		Renderer::Set_Vertex_Shader(SHADOW_VOLUME_FVF);
+		Renderer::Override_Terrain_Blend(false);
 
 		Int numPolys = (endX - startX)*(endY - startY)*2;	//2 triangles per cell
 
-		WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0, RB_CMP_ALWAYS);	//should reject background pixels
-		WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
-		WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_ALWAYS);
-		WW3D::Get_Render_Backend()->Set_Stencil_Ref(0x1);
-		WW3D::Get_Render_Backend()->Set_Stencil_Mask(0xffffffff);
-		WW3D::Get_Render_Backend()->Set_Stencil_Write_Mask(0xffffffff);
-		WW3D::Get_Render_Backend()->Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
-		WW3D::Get_Render_Backend()->Set_Stencil_Pass_Op(RB_STENCIL_OP_INCR);
+		Renderer::Override_Alpha_Test(true, 0, RB_CMP_ALWAYS);	//should reject background pixels
+		Renderer::Set_Stencil_Enable(true);
+		Renderer::Set_Stencil_Func(RB_CMP_ALWAYS);
+		Renderer::Set_Stencil_Ref(0x1);
+		Renderer::Set_Stencil_Mask(0xffffffff);
+		Renderer::Set_Stencil_Write_Mask(0xffffffff);
+		Renderer::Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Pass_Op(RB_STENCIL_OP_INCR);
 
-		WW3D::Get_Render_Backend()->Set_Lighting_Enable(false);
-		WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
+		Renderer::Set_Lighting_Enable(false);
+		Renderer::Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 
 
-		if (WW3D::Get_Render_Backend()->Is_Triangle_Draw_Enabled())
+		if (Renderer::Is_Triangle_Draw_Enabled())
 		{
 			Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
 			// TheSuperHackers @bugfix bobtista 01/05/2026 Submit projected
@@ -655,12 +655,12 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 			// flat receiver quads through the shadow-volume path drops the
 			// projector texture entirely; the normal uber path has the texture
 			// transform and blend state needed for floor emblems.
-			WW3D::Get_Render_Backend()->Draw_Triangles(nShadowStartBatchIndex, numPolys, 0, numVerts);
+			Renderer::Draw_Triangles(nShadowStartBatchIndex, numPolys, 0, numVerts);
 		}
 
-		WW3D::Get_Render_Backend()->Override_Alpha_Test(false, 0, RB_CMP_ALWAYS);	//disable atest
-		WW3D::Get_Render_Backend()->Set_Stencil_Enable(false);
-		WW3D::Get_Render_Backend()->Set_Lighting_Enable(true);
+		Renderer::Override_Alpha_Test(false, 0, RB_CMP_ALWAYS);	//disable atest
+		Renderer::Set_Stencil_Enable(false);
+		Renderer::Set_Lighting_Enable(true);
 
 		nShadowVertsInBuf += numVerts;
 		nShadowStartBatchVertex=nShadowVertsInBuf;
@@ -697,32 +697,32 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 			nShadowDecalStartBatchIndex);
 	}
 
-	if (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Is_Device_Lost())
+	if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost())
 		return;	//no D3D Device to render
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	WW3D::Get_Render_Backend()->Set_Texture(0,texture->getTexture());
+	Renderer::Set_Texture(0,texture->getTexture());
 	// Decal textures are authored with transparent/black padding outside the
 	// useful image. The load path marks them clamp, but bgfx samples from the
 	// current stage state at submit time, so make the intended state explicit.
-	WW3D::Get_Render_Backend()->Set_Texture_Clamp_Mode(0, true, true);
+	Renderer::Set_Texture_Clamp_Mode(0, true, true);
 
 	switch (type)
 	{
 		case SHADOW_DECAL:
-			WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetMultiplicativeShader);
+			Renderer::Set_Shader(ShaderClass::_PresetMultiplicativeShader);
 			break;
 		case SHADOW_ALPHA_DECAL:
-			WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAlphaShader);
+			Renderer::Set_Shader(ShaderClass::_PresetAlphaShader);
 			break;
 		case SHADOW_ADDITIVE_DECAL:
-			WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAdditiveShader);
+			Renderer::Set_Shader(ShaderClass::_PresetAdditiveShader);
 			break;
 	}
 
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of view and projection matrices
+	Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 	// TheSuperHackers @bugfix bobtista 16/04/2026 TFACTOR removed.
 	// _PresetMultiplicativeShader uses COLORARG2=DIFFUSE (vertex color), not
@@ -731,13 +731,13 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 	// making the square boundary visible. The shadow shape comes from the
 	// texture alone via multiplicative blend.
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(shadowDecalIndexBuffer, nShadowDecalStartBatchVertex);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, reinterpret_cast<const Matrix4x4&>(mWorld));
+	Renderer::Set_Index_Buffer(shadowDecalIndexBuffer, nShadowDecalStartBatchVertex);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD, reinterpret_cast<const Matrix4x4&>(mWorld));
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(shadowDecalVertexBuffer, 0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Shader(SHADOW_DECAL_FVF);
+	Renderer::Set_Vertex_Buffer(shadowDecalVertexBuffer, 0);
+	Renderer::Set_Vertex_Shader(SHADOW_DECAL_FVF);
 
-	if (WW3D::Get_Render_Backend()->Is_Triangle_Draw_Enabled())
+	if (Renderer::Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(nShadowDecalPolysInBatch,nShadowDecalVertsInBatch,ShaderClass::_PresetOpaqueShader);
 		// TheSuperHackers @bugfix bobtista 30/04/2026 Skip only the
@@ -748,15 +748,15 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 		const bool isDefaultBlobShadowDecal = projectedDecalMode == RB_PROJECTED_DECAL_BLOB_SHADOW;
 		if (isDefaultBlobShadowDecal && ShouldSkipDefaultBlobShadows())
 		{
-			WW3D::Get_Render_Backend()->Skip_Next_Bgfx_Submit();
+			Renderer::Skip_Next_Bgfx_Submit();
 		}
-		WW3D::Get_Render_Backend()->Set_Projected_Decal_Mode(projectedDecalMode);
-		WW3D::Get_Render_Backend()->Draw_Triangles(nShadowDecalStartBatchIndex, nShadowDecalPolysInBatch, 0, nShadowDecalVertsInBatch);
-		WW3D::Get_Render_Backend()->Set_Projected_Decal_Mode(RB_PROJECTED_DECAL_NONE);
+		Renderer::Set_Projected_Decal_Mode(projectedDecalMode);
+		Renderer::Draw_Triangles(nShadowDecalStartBatchIndex, nShadowDecalPolysInBatch, 0, nShadowDecalVertsInBatch);
+		Renderer::Set_Projected_Decal_Mode(RB_PROJECTED_DECAL_NONE);
 	}
 
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(nullptr, 0);
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(nullptr, 0);
+	Renderer::Set_Vertex_Buffer(nullptr, 0);
+	Renderer::Set_Index_Buffer(nullptr, 0);
 	nShadowDecalStartBatchVertex=nShadowDecalVertsInBuf;
 	nShadowDecalStartBatchIndex=nShadowDecalIndicesInBuf;
 	nShadowDecalPolysInBatch=0;	//reset number of polys in texture batch
@@ -785,7 +785,7 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 
 	if (TheTerrainRenderObject)
 	{
-		if (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Is_Device_Lost()) {
+		if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost()) {
 			return;
 		}
 
@@ -1140,7 +1140,7 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 
 	if (TheTerrainRenderObject)
 	{
-		if (!WW3D::Get_Render_Backend() || WW3D::Get_Render_Backend()->Is_Device_Lost()) {
+		if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost()) {
 			return;
 		}
 
@@ -1474,9 +1474,9 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 					TexProjectClass *projector=shadow->getShadowProjector();
 
 					//terrain is always visible and affected by all shadows so must render
-					WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();
+					Renderer::Invalidate_Cached_Render_States();
 					projector->Peek_Material_Pass()->Install_Materials();
-					WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of view and projection matrices
+					Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 					if (renderProjectedTerrainShadow(shadow, aaBox))
 						projectionCount++;
 					projector->Peek_Material_Pass()->UnInstall_Materials();
@@ -2317,7 +2317,7 @@ void W3DProjectedShadow::updateTexture(Vector3 &lightPos)
 
 			//Need to copy generated texture into permanent texture.
 #if defined(GGC_RENDER_BACKEND_BGFX)
-			WW3D::Get_Render_Backend()->Copy_Render_Target_To_Texture(
+			Renderer::Copy_Render_Target_To_Texture(
 				m_shadowTexture[0]->getTexture(),
 				TheW3DProjectedShadowManager->getRenderTarget());
 #else
@@ -2328,7 +2328,7 @@ void W3DProjectedShadow::updateTexture(Vector3 &lightPos)
 			oldSurface->Copy(0,0,0,0,DEFAULT_RENDER_TARGET_WIDTH,DEFAULT_RENDER_TARGET_HEIGHT,newSurface);
 			REF_PTR_RELEASE(newSurface);
 			REF_PTR_RELEASE(oldSurface);
-			WW3D::Get_Render_Backend()->Copy_Render_Target_To_Texture(m_shadowTexture[0]->getTexture(), TheW3DProjectedShadowManager->getRenderTarget());
+			Renderer::Copy_Render_Target_To_Texture(m_shadowTexture[0]->getTexture(), TheW3DProjectedShadowManager->getRenderTarget());
 #endif
 			m_shadowProjector->Set_Texture(m_shadowTexture[0]->getTexture());
 			m_shadowTexture[0]->updateBounds(TheW3DShadowManager->getLightPosWorld(0),m_robj);	//update local shadow bounds

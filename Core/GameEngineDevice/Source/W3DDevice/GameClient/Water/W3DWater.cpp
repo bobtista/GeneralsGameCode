@@ -43,8 +43,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/scene.h"
 #include "WW3D2/Renderer.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/renderdebugstats.h"
 #include "WW3D2/statistics.h"
 #include "WW3D2/light.h"
@@ -78,7 +77,7 @@
 
 static inline bool W3DWater_UseBackendWater()
 {
-	return WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Has_Shader_Pipeline();
+	return Renderer::Is_Initialized() && Renderer::Has_Shader_Pipeline();
 }
 
 static inline UnsignedInt W3DWater_ScaleDiffuseAlpha(UnsignedInt diffuse, Real scale)
@@ -996,7 +995,7 @@ void WaterRenderObjClass::renderMirror(CameraClass *cam)
 	Matrix3D	OldCameraMatrix=cam->Get_Transform();
 
 
-	WW3D::Get_Render_Backend()->Set_Render_Target_With_Z((TextureClass*)m_pReflectionTexture);
+	Renderer::Set_Render_Target_With_Z((TextureClass*)m_pReflectionTexture);
 
 	// Clear the backbuffer
 	if (WW3D::Begin_Render(false,true,Vector3(0.0f,0.0f,0.0f)) == WW3D_ERROR_OK)	//clearing only z-buffer since background always filled with clouds
@@ -1033,11 +1032,11 @@ void WaterRenderObjClass::renderMirror(CameraClass *cam)
 		WW3D::End_Render(false);
 	}
 
-	// TheSuperHackers @fix bobtista 21/04/2026 Route through WW3D::Get_Render_Backend()
+	// TheSuperHackers @fix bobtista 21/04/2026 Route through Renderer::
 	// so the bgfx backend's renderToTexture flag gets reset. Same pattern as
 	// TexProjectClass::Compute_Texture. The old direct-device bypass left
 	// renderToTexture stuck at true after the reflection pass.
-	WW3D::Get_Render_Backend()->Set_Render_Target_With_Z(nullptr, nullptr);
+	Renderer::Set_Render_Target_With_Z(nullptr, nullptr);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1163,8 +1162,8 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 
 	//Clean up after any pixel shaders.
 	// Force render state apply so that the null texture releases the shroud reference count.
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
-	WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();
+	Renderer::Apply_Render_State_Changes();
+	Renderer::Invalidate_Cached_Render_States();
 
 	if (m_waterTrackSystem)
 		m_waterTrackSystem->flush(rinfo);
@@ -1341,66 +1340,66 @@ void WaterRenderObjClass::drawSeaBatch(RenderInfoClass & rinfo)
 		}
 
 		Matrix3D tm(1);
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
-		WW3D::Get_Render_Backend()->Set_Texture(0,m_settings[m_tod].waterTexture);
-		WW3D::Get_Render_Backend()->Set_Texture(1,nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture(2,nullptr);
-		WW3D::Get_Render_Backend()->Set_Texture(3,nullptr);
-		WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Argument(0, 2, RB_TEXARG_DIFFUSE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
-		WW3D::Get_Render_Backend()->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
-		WW3D::Get_Render_Backend()->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
+		Renderer::Set_Index_Buffer(ib_access,0);
+		Renderer::Set_Vertex_Buffer(vb_access);
+		Renderer::Set_Texture(0,m_settings[m_tod].waterTexture);
+		Renderer::Set_Texture(1,nullptr);
+		Renderer::Set_Texture(2,nullptr);
+		Renderer::Set_Texture(3,nullptr);
+		Renderer::Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+		Renderer::Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
+		Renderer::Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+		Renderer::Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+		Renderer::Set_Texture_Alpha_Argument(0, 2, RB_TEXARG_DIFFUSE);
+		Renderer::Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
+		Renderer::Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+		Renderer::Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 		{
 			ShaderClass waterShader = ShaderClass::_PresetAlphaShader;
 			waterShader.Set_Cull_Mode(ShaderClass::CULL_MODE_DISABLE);
 			waterShader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
-			WW3D::Get_Render_Backend()->Set_Shader(waterShader);
+			Renderer::Set_Shader(waterShader);
 		}
-		WW3D::Get_Render_Backend()->Override_Alpha_Blend_Enable(true);
-		if (WW3D::Get_Render_Backend()->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
+		Renderer::Override_Alpha_Blend_Enable(true);
+		if (Renderer::Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
 			&& TheGlobalData->m_showSoftWaterEdge
 			&& TheWaterTransparency->m_transparentWaterDepth !=0
-			&& !WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+			&& !Renderer::Has_Shader_Pipeline())
 		{
 			if (TheWaterTransparency->m_additiveBlend)
 			{
-				WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_ONE);
+				Renderer::Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_ONE);
 			}
 			else
 			{
-				WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
+				Renderer::Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
 			}
 		}
-		WW3D::Get_Render_Backend()->Set_Cull_Mode(RB_CULL_NONE);
-		WW3D::Get_Render_Backend()->Draw_Triangles(0,batchTriangleCount,0,batchVertexCount);
+		Renderer::Set_Cull_Mode(RB_CULL_NONE);
+		Renderer::Draw_Triangles(0,batchTriangleCount,0,batchVertexCount);
 
 		if (TheTerrainRenderObject->getShroud())
 		{
 			W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
 			W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
-			WW3D::Get_Render_Backend()->Set_Cull_Mode(RB_CULL_NONE);
-			WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_LESS_EQUAL);
-			WW3D::Get_Render_Backend()->Draw_Triangles(0,batchTriangleCount,0,batchVertexCount);
-			WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_EQUAL);
+			Renderer::Set_Cull_Mode(RB_CULL_NONE);
+			Renderer::Set_Depth_Func(RB_CMP_LESS_EQUAL);
+			Renderer::Draw_Triangles(0,batchTriangleCount,0,batchVertexCount);
+			Renderer::Set_Depth_Func(RB_CMP_EQUAL);
 			W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 		}
 
 		if (!TheWaterTransparency->m_additiveBlend)
 		{
-			WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
+			Renderer::Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 		}
 		else
 		{
-			WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ONE);
+			Renderer::Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ONE);
 		}
-		WW3D::Get_Render_Backend()->Clear_State_Overrides();
+		Renderer::Clear_State_Overrides();
 		batchStart = batchEnd;
 	}
 }
@@ -1496,7 +1495,7 @@ void WaterRenderObjClass::renderSky()
 
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
 
 	ShaderClass m_shader2=ShaderClass::_PresetOpaqueShader;
@@ -1504,9 +1503,9 @@ void WaterRenderObjClass::renderSky()
 	m_shader2.Set_Depth_Compare(ShaderClass::PASS_ALWAYS);	//no need to check against z-buffer, sky always rendered first.
 	m_shader2.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);	//sky is always behind everything so no need to update z-buffer
 
-	WW3D::Get_Render_Backend()->Set_Shader(m_shader2);
+	Renderer::Set_Shader(m_shader2);
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,setting->skyTexture);
+	Renderer::Set_Texture(0,setting->skyTexture);
 
 	//draw an infinite sky plane
 	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,4);
@@ -1545,14 +1544,14 @@ void WaterRenderObjClass::renderSky()
 		}
 	}
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+	Renderer::Set_Index_Buffer(m_indexBuffer,0);
+	Renderer::Set_Vertex_Buffer(vb_access);
 
 	Matrix3D tm(1);
 	tm.Set_Translation(Vector3(0,0,0));
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
 
-	WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
+	Renderer::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1592,11 +1591,11 @@ void WaterRenderObjClass::renderSkyBody(Matrix3D *mat)
 	tm.Adjust_Translation(Vector3(SKYBODY_X,SKYBODY_Y,SKYBODY_HEIGHT));
 
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
 
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
 
 	ShaderClass m_shader2=ShaderClass::_PresetAlphaShader;
@@ -1604,13 +1603,13 @@ void WaterRenderObjClass::renderSkyBody(Matrix3D *mat)
 	m_shader2.Set_Depth_Compare(ShaderClass::PASS_ALWAYS);	//no need to check against z-buffer, sky always rendered first.
 	m_shader2.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);	//sky is always behind everything so no need to update z-buffer
 
-	WW3D::Get_Render_Backend()->Set_Shader(m_shader2);
+	Renderer::Set_Shader(m_shader2);
 
 
-//	WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::/*_PresetAdditiveShader*//*_PresetOpaqueShader*/_PresetAlphaShader);
-//	WW3D::Get_Render_Backend()->Set_Texture(0,setting->skyBodyTexture);
+//	Renderer::Set_Shader(ShaderClass::/*_PresetAdditiveShader*//*_PresetOpaqueShader*/_PresetAlphaShader);
+//	Renderer::Set_Texture(0,setting->skyBodyTexture);
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,m_alphaClippingTexture);
+	Renderer::Set_Texture(0,m_alphaClippingTexture);
 
 	//draw an infinite sky plane
 	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,4);
@@ -1649,10 +1648,10 @@ void WaterRenderObjClass::renderSkyBody(Matrix3D *mat)
 		}
 	}
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+	Renderer::Set_Index_Buffer(m_indexBuffer,0);
+	Renderer::Set_Vertex_Buffer(vb_access);
 
-	WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
+	Renderer::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
 }
 
 //Defines for procedural water animation.
@@ -1795,8 +1794,8 @@ void WaterRenderObjClass::renderWaterMesh()
 
 	}
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Transform);	//position the water surface
-	WW3D::Get_Render_Backend()->Set_Material(m_meshVertexMaterialClass);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);	//position the water surface
+	Renderer::Set_Material(m_meshVertexMaterialClass);
 
 	ShaderClass::CullModeType oldCullMode=m_shaderClass.Get_Cull_Mode();
 
@@ -1805,20 +1804,20 @@ void WaterRenderObjClass::renderWaterMesh()
 
 	m_shaderClass.Set_Cull_Mode(ShaderClass::CULL_MODE_ENABLE);	//water should be visible from both sides
 
-	WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
+	Renderer::Set_Shader(m_shaderClass);
 
 	if (m_waterMeshIndexBuffer == nullptr)
 	{
 		return;
 	}
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_waterMeshIndexBuffer,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+	Renderer::Set_Index_Buffer(m_waterMeshIndexBuffer,0);
+	Renderer::Set_Vertex_Buffer(vb_access);
 
 	RenderBackendWaterDraw water;
 	fillWaterDraw(water);
 	water.surface = RB_WATER_GRID;
-	WW3D::Get_Render_Backend()->Draw_Water(water, 0,m_numIndices-2,0,mx*my);
+	Renderer::Draw_Water(water, 0,m_numIndices-2,0,mx*my);
 
 	Debug_Statistics::Record_DX8_Polys_And_Vertices(m_numIndices-2,mx*my,ShaderClass::_PresetOpaqueShader);
 
@@ -2089,7 +2088,7 @@ Real WaterRenderObjClass::getWaterHeight(Real x, Real y)
 //-------------------------------------------------------------------------------------------------
 void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 {
-	WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();	///@todo: Figure out why rivers don't draw without reset of all states.
+	Renderer::Invalidate_Cached_Render_States();	///@todo: Figure out why rivers don't draw without reset of all states.
 
 	Int rectangleCount = pTrig->getNumPoints()/2;
 	rectangleCount--;
@@ -2280,14 +2279,14 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 
 	Matrix3D tm(1);
 
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
+	Renderer::Set_Index_Buffer(ib_access,0);
+	Renderer::Set_Vertex_Buffer(vb_access);
 	RenderBackendWaterDraw water;
 	fillWaterDraw(water);
 	water.surface = RB_WATER_RIVER;
 	water.shroud.texture = nullptr;
-	WW3D::Get_Render_Backend()->Draw_Water(water, 0,rectangleCount*2, 0,	(rectangleCount+1)*2);
+	Renderer::Draw_Water(water, 0,rectangleCount*2, 0,	(rectangleCount+1)*2);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2609,16 +2608,16 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 
 		Matrix3D tm(1);
 
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
+		Renderer::Set_Index_Buffer(ib_access,0);
+		Renderer::Set_Vertex_Buffer(vb_access);
 
 		RenderBackendWaterDraw water;
 		fillWaterDraw(water);
 		water.surface = RB_WATER_STANDING;
 		//If video card supports it and it's enabled, feather the water edge using destination alpha
-		water.soft_edge = WW3D::Get_Render_Backend()->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8 && TheGlobalData->m_showSoftWaterEdge && TheWaterTransparency->m_transparentWaterDepth !=0;
-		WW3D::Get_Render_Backend()->Draw_Water(water, 0,totalRectangleCount*2, 0,	batchVertexCount);
+		water.soft_edge = Renderer::Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8 && TheGlobalData->m_showSoftWaterEdge && TheWaterTransparency->m_transparentWaterDepth !=0;
+		Renderer::Draw_Water(water, 0,totalRectangleCount*2, 0,	batchVertexCount);
 
 		batchStart = batchEnd;
 	}
@@ -2650,12 +2649,12 @@ void WaterRenderObjClass::renderSkyBody(Matrix3D *mat)
 	V3=-vRight-vUp;
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	WW3D::Get_Render_Backend()->Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::/*_PresetAdditiveShader*//*_PresetOpaqueShader*/_PresetAlphaShader);
-//	WW3D::Get_Render_Backend()->Set_Texture(0,setting->skyBodyTexture);
+	Renderer::Set_Shader(ShaderClass::/*_PresetAdditiveShader*//*_PresetOpaqueShader*/_PresetAlphaShader);
+//	Renderer::Set_Texture(0,setting->skyBodyTexture);
 
-	WW3D::Get_Render_Backend()->Set_Texture(0,m_alphaClippingTexture);
+	Renderer::Set_Texture(0,m_alphaClippingTexture);
 
 	//draw an infinite sky plane
 	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,4);
@@ -2694,15 +2693,15 @@ void WaterRenderObjClass::renderSkyBody(Matrix3D *mat)
 		}
 	}
 
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+	Renderer::Set_Index_Buffer(m_indexBuffer,0);
+	Renderer::Set_Vertex_Buffer(vb_access);
 
 	Matrix3D tm(1);
 	//set position of skybody in world
 //	tm.Set_Translation(Vector3(40,0,0));
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
 
-	WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
+	Renderer::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
 }
 #endif
 

@@ -57,7 +57,7 @@
 #include "WW3D2/assetmgr.h"
 #include "WW3D2/dx8fvf.h"
 #include "WW3D2/renderbufferclasses.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/scene.h"
 #include "GameLogic/TerrainLogic.h"
 #include "GameLogic/Object.h"
@@ -905,14 +905,14 @@ Try improving the fit to vertical surfaces like cliffs.
 		ShaderClass::Invalidate();
 		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
 		// through the IRenderBackend abstraction.
-		WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
-		WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexBuffer,0);
+		Renderer::Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Shader(m_shaderClass);
+		Renderer::Set_Index_Buffer(m_indexBuffer,0);
+		Renderer::Set_Vertex_Buffer(m_vertexBuffer,0);
 
 		trackStartIndex=0;
 		mod=m_usedModules;
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,mod->Transform);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,mod->Transform);
 
 		// TheSuperHackers @perf bobtista 03/06/2026 Coalesce per-module track draws into one
 		// Draw_Triangles per stage-zero texture; the grouped index buffer reproduces the strip
@@ -933,7 +933,7 @@ Try improving the fit to vertical surfaces like cliffs.
 		// draws when a very large scene would overflow that range.
 		// GGC_NO_TRACK_BATCH=1 forces the per-module path for A/B verification.
 		static const bool s_trackBatchDisabled = GgcFlags::Enabled(GgcFlag_NoTrackBatch);
-		if (!s_trackBatchDisabled && WW3D::Get_Render_Backend()->Has_Shader_Pipeline() && totalVerts > 0 && totalTris*3 <= 65535)
+		if (!s_trackBatchDisabled && Renderer::Has_Shader_Pipeline() && totalVerts > 0 && totalTris*3 <= 65535)
 		{
 			RenderIndexBufferClass *groupIndexBuffer=NEW_REF(RenderIndexBufferClass,((UnsignedShort)(totalTris*3)));
 			{
@@ -973,8 +973,8 @@ Try improving the fit to vertical surfaces like cliffs.
 				}
 			}
 
-			WW3D::Get_Render_Backend()->Set_Index_Buffer(groupIndexBuffer,0);
-			WW3D::Get_Render_Backend()->Set_Index_Buffer_Index_Offset(0);
+			Renderer::Set_Index_Buffer(groupIndexBuffer,0);
+			Renderer::Set_Index_Buffer_Index_Offset(0);
 
 			Int drawStartTri=0;
 			for (TerrainTracksRenderObjClass *drawMod=m_usedModules; drawMod; drawMod=drawMod->m_nextSystem)
@@ -993,14 +993,14 @@ Try improving the fit to vertical surfaces like cliffs.
 						sumMod->m_groupedThisFlush=false;
 					}
 				}
-				WW3D::Get_Render_Backend()->Set_Texture(0,groupTexture);
-				WW3D::Get_Render_Backend()->Draw_Triangles((UnsignedShort)(drawStartTri*3),(UnsignedShort)groupTris,0,(UnsignedShort)totalVerts);
+				Renderer::Set_Texture(0,groupTexture);
+				Renderer::Draw_Triangles((UnsignedShort)(drawStartTri*3),(UnsignedShort)groupTris,0,(UnsignedShort)totalVerts);
 				drawStartTri += groupTris;
 			}
 
 			REF_PTR_RELEASE(groupIndexBuffer);
 			// Restore the shared per-module index buffer for the next flush.
-			WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
+			Renderer::Set_Index_Buffer(m_indexBuffer,0);
 		}
 		else
 		{
@@ -1008,9 +1008,9 @@ Try improving the fit to vertical surfaces like cliffs.
 			{
 				if (mod->m_activeEdgeCount >= 2 && mod->Is_Really_Visible())
 				{
-					WW3D::Get_Render_Backend()->Set_Texture(0,mod->m_stageZeroTexture);
-					WW3D::Get_Render_Backend()->Set_Index_Buffer_Index_Offset(trackStartIndex);
-					WW3D::Get_Render_Backend()->Draw_Triangles(	0,(mod->m_activeEdgeCount-1)*2, 0, mod->m_activeEdgeCount*2);
+					Renderer::Set_Texture(0,mod->m_stageZeroTexture);
+					Renderer::Set_Index_Buffer_Index_Offset(trackStartIndex);
+					Renderer::Draw_Triangles(	0,(mod->m_activeEdgeCount-1)*2, 0, mod->m_activeEdgeCount*2);
 
 					trackStartIndex += mod->m_activeEdgeCount*2;
 				}

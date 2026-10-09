@@ -53,8 +53,7 @@
 #endif
 #include "missingtexture.h"
 #include "WWLib/TARGA.h"
-#include "RenderBackend.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include "WWDebug/wwmemlog.h"
 #include "dx8texturelegacytypes.h"
 #include "texturecompatibilityinterop.h"
@@ -640,7 +639,7 @@ static bool Is_Format_Compressed(WW3DFormat texture_format,bool allow_compressio
 	// Verify that the user isn't requesting compressed texture without hardware support
 
 	bool compressed=false;
-	const bool supports_compression = WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Compressed_Textures();
+	const bool supports_compression = Renderer::Is_Initialized() && Renderer::Supports_Compressed_Textures();
 	if (texture_format!=WW3D_FORMAT_UNKNOWN) {
 		if (!supports_compression || !allow_compression) {
 			WWASSERT(texture_format!=WW3D_FORMAT_DXT1);
@@ -675,9 +674,9 @@ static const unsigned DEFAULT_MAX_TEXTURE_ASPECT = 8;
 
 static RenderBackendTextureLimits Get_Backend_Texture_Limits()
 {
-	if (WW3D::Get_Render_Backend())
+	if (Renderer::Is_Initialized())
 	{
-		RenderBackendTextureLimits limits = WW3D::Get_Render_Backend()->Get_Texture_Limits();
+		RenderBackendTextureLimits limits = Renderer::Get_Texture_Limits();
 		if (limits.max_width == 0) limits.max_width = DEFAULT_MAX_TEXTURE_DIMENSION;
 		if (limits.max_height == 0) limits.max_height = DEFAULT_MAX_TEXTURE_DIMENSION;
 		if (limits.max_volume_extent == 0) limits.max_volume_extent = DEFAULT_MAX_TEXTURE_DIMENSION;
@@ -1588,8 +1587,8 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 			texture->Height = mips[0].Height;
 			texture->Set_CPU_Texture_Snapshot(std::move(mips));
 			texture->LastAccessed = WW3D::Get_Sync_Time();
-			if (WW3D::Get_Render_Backend() != nullptr) {
-				WW3D::Get_Render_Backend()->Invalidate_Cached_Texture(texture);
+			if (Renderer::Is_Initialized()) {
+				Renderer::Invalidate_Cached_Texture(texture);
 			}
 			return;
 		}
@@ -1603,8 +1602,8 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 		texture->Set_CPU_Texture_Snapshot(std::move(mips));
 		texture->Mark_Missing_Texture(true);
 		texture->LastAccessed = WW3D::Get_Sync_Time();
-		if (WW3D::Get_Render_Backend() != nullptr) {
-			WW3D::Get_Render_Backend()->Invalidate_Cached_Texture(texture);
+		if (Renderer::Is_Initialized()) {
+			Renderer::Invalidate_Cached_Texture(texture);
 		}
 		return;
 	}
@@ -1984,9 +1983,9 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 		Texture->Initialized = true;
 		Texture->Mark_Missing_Texture(true);
 		Texture->LastAccessed = WW3D::Get_Sync_Time();
-		if (WW3D::Get_Render_Backend() != nullptr)
+		if (Renderer::Is_Initialized())
 		{
-			WW3D::Get_Render_Backend()->Invalidate_Cached_Texture(Texture);
+			Renderer::Invalidate_Cached_Texture(Texture);
 		}
 		return;
 	}
@@ -2749,8 +2748,8 @@ void TextureLoadTaskClass::Commit_CPU_Texture_Staging(bool initialize)
 		Texture->Initialized = true;
 	}
 	Texture->LastAccessed = WW3D::Get_Sync_Time();
-	if (WW3D::Get_Render_Backend() != nullptr) {
-		WW3D::Get_Render_Backend()->Invalidate_Cached_Texture(texture);
+	if (Renderer::Is_Initialized()) {
+		Renderer::Invalidate_Cached_Texture(texture);
 	}
 	UseCPUTextureSnapshotStaging = false;
 }

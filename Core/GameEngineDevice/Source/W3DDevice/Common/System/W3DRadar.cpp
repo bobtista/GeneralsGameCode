@@ -54,8 +54,7 @@
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/surfaceclass.h"
-#include "WW3D2/RenderBackend.h"
-#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WWMath/vector2i.h"
 
 #include <cstring>
@@ -123,7 +122,7 @@ static WW3DFormat findFormat(const WW3DFormat formats[])
 	for( Int i = 0; formats[ i ] != WW3D_FORMAT_UNKNOWN; i++ )
 	{
 
-		if( WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Format( formats[ i ] ) )
+		if( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( formats[ i ] ) )
 		{
 
 			return formats[ i ];

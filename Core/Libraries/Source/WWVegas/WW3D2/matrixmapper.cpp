@@ -51,7 +51,7 @@
 
 
 #include "matrixmapper.h"
-#include "RenderBackend.h"
+#include "Renderer.h"
 
 
 /***********************************************************************************************
@@ -233,9 +233,9 @@ void MatrixMapperClass::Apply(int uv_array_index)
 		/*
 		** Orthographic projection
 		*/
-		WW3D::Get_Render_Backend()->Set_Texture_Transform(Stage, ViewToPixel);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_POSITION);
-		WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(Stage, 2, false);
+		Renderer::Set_Texture_Transform(Stage, ViewToPixel);
+		Renderer::Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_POSITION);
+		Renderer::Set_Texture_Transform_Mode(Stage, 2, false);
 		break;
 	case PERSPECTIVE_PROJECTION:
 		/*
@@ -244,9 +244,9 @@ void MatrixMapperClass::Apply(int uv_array_index)
 		m[0]=ViewToPixel[0];
 		m[1]=ViewToPixel[1];
 		m[2]=ViewToPixel[3];
-		WW3D::Get_Render_Backend()->Set_Texture_Transform(Stage, m);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_POSITION);
-		WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(Stage, 3, true);
+		Renderer::Set_Texture_Transform(Stage, m);
+		Renderer::Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_POSITION);
+		Renderer::Set_Texture_Transform_Mode(Stage, 3, true);
 		break;
 	case DEPTH_GRADIENT:
 		/*
@@ -257,9 +257,9 @@ void MatrixMapperClass::Apply(int uv_array_index)
 		*/
 		m[0].Set(0,0,0,GradientUCoord);
 		m[1]=ViewToPixel[2];
-		WW3D::Get_Render_Backend()->Set_Texture_Transform(Stage, m);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_POSITION);
-		WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(Stage, 2, false);
+		Renderer::Set_Texture_Transform(Stage, m);
+		Renderer::Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_POSITION);
+		Renderer::Set_Texture_Transform_Mode(Stage, 2, false);
 		break;
 	case NORMAL_GRADIENT:
 		/*
@@ -270,9 +270,9 @@ void MatrixMapperClass::Apply(int uv_array_index)
 		*/
 		m[0].Set(0,0,0,GradientUCoord);
 		m[1].Set(ViewSpaceProjectionNormal.X,ViewSpaceProjectionNormal.Y,ViewSpaceProjectionNormal.Z, 0);
-		WW3D::Get_Render_Backend()->Set_Texture_Transform(Stage, m);
-		WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_NORMAL);
-		WW3D::Get_Render_Backend()->Set_Texture_Transform_Mode(Stage, 2, false);
+		Renderer::Set_Texture_Transform(Stage, m);
+		Renderer::Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_NORMAL);
+		Renderer::Set_Texture_Transform_Mode(Stage, 2, false);
 		break;
 	}
 

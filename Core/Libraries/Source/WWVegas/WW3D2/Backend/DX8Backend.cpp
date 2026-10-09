@@ -769,7 +769,7 @@ void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calib
 
 // -- Frame lifecycle ---------------------------------------------------------
 //
-// TheSuperHackers @refactor bobtista 11/04/2026 The WW3D::Get_Render_Backend() Begin/End_Scene pair is
+// TheSuperHackers @refactor bobtista 11/04/2026 The Renderer:: Begin/End_Scene pair is
 // a parallel per-frame hook alongside ww3d.cpp's direct DX8Wrapper::Begin_Scene/End_Scene calls.
 
 void DX8Backend::Begin_Scene()

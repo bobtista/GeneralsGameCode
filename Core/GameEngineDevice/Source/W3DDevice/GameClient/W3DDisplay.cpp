@@ -100,8 +100,7 @@ static void drawFramerateBar();
 #include "WW3D2/renderdebugstats.h"
 #include "WW3D2/ww3dformat.h"
 #include "WW3D2/agg_def.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/render2dsentence.h"
 #include "WW3D2/sortingrenderer.h"
 #include "WW3D2/textureloader.h"
@@ -141,7 +140,7 @@ static RectClass makeAtlasSafeUVRect(const Image *image)
 	// TheSuperHackers @bugfix bobtista 17/07/2026 Only inset atlas sub-rects on the shader
 	// pipeline. The legacy fixed-function backend sampled the raw UV rect in retail; applying
 	// the half-texel inset there shifted UI sampling on the DX8 build.
-	if (WW3D::Get_Render_Backend() == nullptr || !WW3D::Get_Render_Backend()->Has_Shader_Pipeline())
+	if (!Renderer::Is_Initialized() || !Renderer::Has_Shader_Pipeline())
 	{
 		return uvRect;
 	}
@@ -740,7 +739,7 @@ Bool W3DDisplay::setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt
 		// with a clean slate.
 		WW3DAssetManager::Get_Instance()->Free_All_FontChars_Glyph_Caches();
 
-		WW3D::Get_Render_Backend()->Begin_Scene();
+		Renderer::Begin_Scene();
 		return TRUE;
 	}
 
@@ -1158,9 +1157,9 @@ void W3DDisplay::init()
 		}
 		WW3D::Set_Texture_Bitdepth(getBitDepth());
 
-		// TheSuperHackers @fix bobtista 21/04/2026 Legacy half-pixel UV bias causes sub-pixel misalignment on shader backends (visible stripes on UI atlases from half-texel sampling offsets). Call this AFTER Set_Render_Device because the render backend is only constructed by Do_Onetime_Device_Dependent_Inits which Set_Render_Device triggers — calling earlier would read WW3D::Get_Render_Backend()=nullptr and incorrectly enable the bias on bgfx.
+		// TheSuperHackers @fix bobtista 21/04/2026 Legacy half-pixel UV bias causes sub-pixel misalignment on shader backends (visible stripes on UI atlases from half-texel sampling offsets). Call this AFTER Set_Render_Device because the render backend is only constructed by Do_Onetime_Device_Dependent_Inits which Set_Render_Device triggers — calling earlier would read Renderer::=nullptr and incorrectly enable the bias on bgfx.
 		const bool shaderPipeline =
-			(WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Has_Shader_Pipeline());
+			(Renderer::Is_Initialized() && Renderer::Has_Shader_Pipeline());
 		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE keeps text aligned on the legacy fixed-function backend.
 
 		//Check if level was never set and default to setting most suitable for system.
@@ -2141,7 +2140,7 @@ void W3DDisplay::update()
 	WW3D::Sync(TheGameLogic->hasUpdated());
 
 	// update all views of the world - recomputes data which will affect drawing
-	if (WW3D::Get_Render_Backend() != nullptr && !WW3D::Get_Render_Backend()->Is_Device_Lost())
+	if (Renderer::Is_Initialized() && !Renderer::Is_Device_Lost())
 	{
 		// Checking if we have the device before updating views because the heightmap crashes otherwise while
 		// trying to refresh the visible terrain geometry.
@@ -2302,7 +2301,7 @@ AGAIN:
 	do {
 
 		// update all views of the world - recomputes data which will affect drawing
-		const Bool renderDeviceReady = (WW3D::Get_Render_Backend() != nullptr && !WW3D::Get_Render_Backend()->Is_Device_Lost());
+		const Bool renderDeviceReady = (Renderer::Is_Initialized() && !Renderer::Is_Device_Lost());
 		if (renderDeviceReady)
 		{
 			// TheSuperHackers @info The views are updated in W3DDisplay::update, except in the repeated passes
@@ -3453,34 +3452,34 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 	// the BGR0 frames FFmpeg produces on little-endian macOS. Avoid 16-bit
 	// R5G6B5 here; it is both slower in swscale and currently renders with
 	// swapped-looking colors through the bgfx texture path.
-	if ( WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+	if ( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
 	{
 		format = VideoBuffer::TYPE_X8R8G8B8;
 	}
 #endif
 
-	WW3DFormat displayFormat = WW3D::Get_Render_Backend()->Get_Back_Buffer_Format();
+	WW3DFormat displayFormat = Renderer::Get_Back_Buffer_Format();
 
-	if ( format == VideoBuffer::TYPE_UNKNOWN && WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Format( displayFormat ))
+	if ( format == VideoBuffer::TYPE_UNKNOWN && Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( displayFormat ))
 	{
 		format = W3DVideoBuffer::W3DFormatToType( displayFormat );
 	}
 
 	if ( format == VideoBuffer::TYPE_UNKNOWN )
 	{
-		if ( WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+		if ( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_X8R8G8B8;
 		}
-		else if ( WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Format( WW3D_FORMAT_R8G8B8 ))
+		else if ( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( WW3D_FORMAT_R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_R8G8B8;
 		}
-		else if ( WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Format( WW3D_FORMAT_R5G6B5 ))
+		else if ( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( WW3D_FORMAT_R5G6B5 ))
 		{
 			format = VideoBuffer::TYPE_R5G6B5;
 		}
-		else if ( WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
+		else if ( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
 		{
 			format = VideoBuffer::TYPE_X1R5G5B5;
 		}

@@ -25,8 +25,7 @@
 #include "W3DDevice/GameClient/TerrainTex.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "WW3D2/dx8wrapper.h"
-#include "WW3D2/IRenderBackend.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 
 W3DScorch::W3DScorch(bool deduplicateScorches)
   : m_vertexScorch(nullptr)
@@ -124,12 +123,12 @@ void W3DScorch::drawScorches(WorldHeightMap& map)
 	{
 		return;
 	}
-	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexScorch, 0);
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexScorch);
-	WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetAlphaShader);
+	Renderer::Set_Index_Buffer(m_indexScorch, 0);
+	Renderer::Set_Vertex_Buffer(m_vertexScorch);
+	Renderer::Set_Shader(ShaderClass::_PresetAlphaShader);
 
-	WW3D::Get_Render_Backend()->Set_Texture(0, m_scorchTexture);
-	WW3D::Get_Render_Backend()->Draw_Triangles(0, m_curNumScorchIndices / 3, 0, m_curNumScorchVertices);
+	Renderer::Set_Texture(0, m_scorchTexture);
+	Renderer::Draw_Triangles(0, m_curNumScorchIndices / 3, 0, m_curNumScorchVertices);
 }
 
 static Real getMapHeight(WorldHeightMap& map, Int x, Int y)
@@ -236,8 +235,8 @@ W3DScorch::WriteScorchResult W3DScorch::writeScorchToBuffer(const TScorch& scorc
 			// TheSuperHackers @fix bobtista 20/04/2026 Corner cells of the scorch grid overshoot the
 			// atlas tile and sample the neighboring scorch; zero vertex alpha outside the unit radius
 			// on the shader-pipeline path so those fragments render transparent.
-			const Bool useBgfxAlphaMask = (WW3D::Get_Render_Backend() != nullptr
-				&& WW3D::Get_Render_Backend()->Has_Shader_Pipeline());
+			const Bool useBgfxAlphaMask = (Renderer::Is_Initialized()
+				&& Renderer::Has_Shader_Pipeline());
 			if (useBgfxAlphaMask)
 			{
 				const Real dx = (X - loc.X) / radius;

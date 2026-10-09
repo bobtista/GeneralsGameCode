@@ -48,7 +48,7 @@
 #include "WWLib/wwstring.h"
 #include "WWMath/vector3.h"
 #include "texturefilter.h"
-#include "IRenderBackend.h"
+#include "Renderer.h"
 #include <vector>
 
 class TextureLoader;
@@ -258,7 +258,7 @@ private:
 
 		// TheSuperHackers @refactor bobtista 21/04/2026 backend-neutral
 	// resource handle. Populated by the asset loader after it calls
-	// WW3D::Get_Render_Backend()->Create_Texture(). Parallel to the native compatibility
+	// Renderer::Create_Texture(). Parallel to the native compatibility
 	// state used by legacy/reference builds so existing compatibility code keeps
 	// working. Readers that want to stay backend-neutral should prefer
 	// m_backendHandle.

@@ -33,7 +33,7 @@
 #include <WW3D2/rinfo.h>
 #include <WW3D2/camera.h>
 #include "WW3D2/dx8wrapper.h"
-#include "WW3D2/RenderBackend.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/shader.h"
 #include "Common/GlobalData.h"
 #include "Common/MapObject.h"
@@ -323,11 +323,11 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 		// routing the fade blend-op overrides through the new interface API.
 
 		//Apply the shader and material
-		WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
-		WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
-		WW3D::Get_Render_Backend()->Set_Texture(0, nullptr);
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
-		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexBufferCircle, 0);
+		Renderer::Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Shader(m_shaderClass);
+		Renderer::Set_Texture(0, nullptr);
+		Renderer::Set_Index_Buffer(m_indexBuffer,0);
+		Renderer::Set_Vertex_Buffer(m_vertexBufferCircle, 0);
 		setIndex = true;
 
 		Vector3 vec(0.95f, 0.67f, 0);
@@ -335,8 +335,8 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 
 		tm.Set_Translation(vec);
 
-		WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);
-		WW3D::Get_Render_Backend()->Draw_Triangles(	0,NUM_TRI, 0,	(m_numTriangles*3));
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
+		Renderer::Draw_Triangles(	0,NUM_TRI, 0,	(m_numTriangles*3));
 	}
 
 
@@ -346,9 +346,9 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 	}
 
 	if (!setIndex) {
-		WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
-		WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexBuffer,0);
-		WW3D::Get_Render_Backend()->Set_Texture(0, nullptr);
+		Renderer::Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Index_Buffer(m_indexBuffer,0);
+		Renderer::Set_Texture(0, nullptr);
 	}
 
 	tm.Make_Identity();
@@ -356,32 +356,32 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 	Int clr = 255*intensity;
 	Int diffuse = (0xff<<24)|(clr<<16)|(clr<<8)|clr;	 // b g<<8 r<<16 a<<24.
 	updateScreenVB(diffuse);
-	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);
-	WW3D::Get_Render_Backend()->Set_Shader(ShaderClass(SC_ADD));
-	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexBufferScreen, 0);
-	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
+	Renderer::Set_Shader(ShaderClass(SC_ADD));
+	Renderer::Set_Vertex_Buffer(m_vertexBufferScreen, 0);
+	Renderer::Apply_Render_State_Changes();
 	switch (fade) {
 		default:
 		case ScriptEngine::FADE_ADD:
-			WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	(2*3));
+			Renderer::Draw_Triangles(	0,2, 0,	(2*3));
 			break;
 		case ScriptEngine::FADE_SUBTRACT:
 			// TheSuperHackers @refactor bobtista 10/04/2026 Route the remaining
 			// blend-op override through the IRenderBackend extension.
-			WW3D::Get_Render_Backend()->Set_Blend_Op(RB_BLEND_OP_REV_SUBTRACT);
-			WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	(2*3));
-			WW3D::Get_Render_Backend()->Set_Blend_Op(RB_BLEND_OP_ADD);
+			Renderer::Set_Blend_Op(RB_BLEND_OP_REV_SUBTRACT);
+			Renderer::Draw_Triangles(	0,2, 0,	(2*3));
+			Renderer::Set_Blend_Op(RB_BLEND_OP_ADD);
 			break;
 		case ScriptEngine::FADE_SATURATE:
 			// 4x multiply
-			WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_SRC_COLOR);
-			WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	(2*3));
-			WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	(2*3));
+			Renderer::Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_SRC_COLOR);
+			Renderer::Draw_Triangles(	0,2, 0,	(2*3));
+			Renderer::Draw_Triangles(	0,2, 0,	(2*3));
 			break;
 		case ScriptEngine::FADE_MULTIPLY:
 			// Straight multiply
-			WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_SRC_COLOR);
-			WW3D::Get_Render_Backend()->Draw_Triangles(	0,2, 0,	(2*3));
+			Renderer::Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_SRC_COLOR);
+			Renderer::Draw_Triangles(	0,2, 0,	(2*3));
 			break;
 	}
 	ShaderClass::Invalidate();

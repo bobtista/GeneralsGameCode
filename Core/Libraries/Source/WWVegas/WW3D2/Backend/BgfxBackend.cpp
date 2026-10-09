@@ -10457,7 +10457,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     // World is the current g_frame.sortWorld if we are inside a sort batch,
     // otherwise the regular g_frame.world (rigid FVF category with sorting=true
     // has no batch-wrapped Apply_Render_State - it uses the per-mesh world
-    // set by the caller via WW3D::Get_Render_Backend()->Set_Transform).
+    // set by the caller via Renderer::Set_Transform).
     const uint64_t earlyState = GetEffectiveDrawState();
     const bool localModelSortedDraw = IsSortedLocalModelEffectDraw(earlyState);
     const bgfx::ViewId submitView = localModelSortedDraw ? kBgfxEngineView : kBgfxEngineSortView;
