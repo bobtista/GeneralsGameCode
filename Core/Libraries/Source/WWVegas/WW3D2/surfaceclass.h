@@ -104,12 +104,6 @@ class SurfaceClass : public RefCountClass
 		// support for copying from a byte array
 		void Copy(const Vector2i &min, const Vector2i &max, const unsigned char *other);
 
-		// copies the contents of one surface to another, stretches
-		void Stretch_Copy(
-			unsigned int dstx, unsigned int dsty, unsigned int dstwidth, unsigned int dstheight,
-			unsigned int srcx, unsigned int srcy, unsigned int srcwidth, unsigned int srcheight,
-			const SurfaceClass *source);
-
 		// finds the bounding box of non-zero pixels, used in font3d
 		void FindBB(Vector2i *min,Vector2i*max);
 

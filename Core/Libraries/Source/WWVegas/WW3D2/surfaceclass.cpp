@@ -479,47 +479,6 @@ void SurfaceClass::Copy(
 }
 
 /***********************************************************************************************
- * SurfaceClass::Copy -- Copies a region from one surface to another                           *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- *                                                                                             *
- * INPUT:                                                                                      *
- *                                                                                             *
- * OUTPUT:                                                                                     *
- *                                                                                             *
- * WARNINGS:                                                                                   *
- *                                                                                             *
- * HISTORY:                                                                                    *
- *   2/13/2001  hy : Created.                                                                  *
- *=============================================================================================*/
-void SurfaceClass::Stretch_Copy(
-	unsigned int dstx, unsigned int dsty, unsigned int dstwidth, unsigned int dstheight,
-	unsigned int srcx, unsigned int srcy, unsigned int srcwidth, unsigned int srcheight,
-	const SurfaceClass *other)
-{
-	WWASSERT(other);
-
-	SurfaceDescription sd,osd;
-	Get_Description(sd);
-	const_cast <SurfaceClass*>(other)->Get_Description(osd);
-
-	RECT src;
-	src.left=srcx;
-	src.right=srcx+srcwidth;
-	src.top=srcy;
-	src.bottom=srcy+srcheight;
-
-	RECT dest;
-	dest.left=dstx;
-	dest.right=dstx+dstwidth;
-	dest.top=dsty;
-	dest.bottom=dsty+dstheight;
-
-	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(D3DSurface,nullptr,&dest,other->D3DSurface,nullptr,&src,D3DX_FILTER_TRIANGLE ,0));
-}
-
-/***********************************************************************************************
  * SurfaceClass::FindBB -- Finds the bounding box of non zero pixels in the region             *
  *                                                                                             *
  *                                                                                             *
