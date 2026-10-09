@@ -87,7 +87,7 @@ void Renderer::Clear(bool clear_color, bool clear_z_stencil,
     DX8Wrapper::Clear(clear_color, clear_z_stencil, color, dest_alpha, z, stencil);
 }
 
-void Renderer::Set_Viewport(const RenderBackendViewport & viewport)
+void Renderer::Set_Viewport(const RenderViewport & viewport)
 {
     D3DVIEWPORT8 vp;
     vp.X      = viewport.x;

@@ -29,7 +29,7 @@
 class LightEnvironmentClass;
 class Vector3;
 
-struct RenderBackendViewport
+struct RenderViewport
 {
     unsigned int x;
     unsigned int y;
@@ -62,7 +62,7 @@ public:
     static void Clear(bool clear_color, bool clear_z_stencil,
                       const Vector3 & color,
                       float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0);
-    static void Set_Viewport(const RenderBackendViewport & viewport);
+    static void Set_Viewport(const RenderViewport & viewport);
     static void Invalidate_Cached_Render_States();
 
     static void Set_Ambient(const Vector3 & color);
