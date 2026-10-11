@@ -103,6 +103,11 @@ inline const char* getFileName(const char* path)
 	return lastSeparator ? lastSeparator + 1 : path;
 }
 
+inline char* getFileName(char* path)
+{
+	return const_cast<char*>(getFileName(static_cast<const char*>(path)));
+}
+
 inline const char* getExtension(const char* path)
 {
 	const char* lastDot = strrchr(path, '.');
