@@ -76,6 +76,11 @@ inline bool isAbsolutePath(const char* path)
 	return false;
 }
 
+inline const char* getFirstPathSeparator(const char* path)
+{
+	return path ? strpbrk(path, "/\\") : nullptr;
+}
+
 inline const char* getLastPathSeparator(const char* path)
 {
 	return path ? maxPtr(strrchr(path, '/'), strrchr(path, '\\')) : nullptr;
