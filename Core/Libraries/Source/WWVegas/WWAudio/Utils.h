@@ -40,8 +40,6 @@
 #include "mss.h"
 #pragma warning (pop)
 
-#include "Lib/PathUtil.h"
-
 /////////////////////////////////////////////////////////////////////////////
 //
 // Macros
@@ -67,14 +65,3 @@ class MMSLockClass
 
 	static CRITICAL_SECTION _MSSLockCriticalSection;
 };
-
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Get_Filename_From_Path
-//
-__inline LPCTSTR
-Get_Filename_From_Path (LPCTSTR path)
-{
-	return getFileName (path);
-}
