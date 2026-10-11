@@ -2174,11 +2174,12 @@ void GameLogic::loadMapINI( AsciiString mapName )
 	}
 
 	// back up over the ".map" extension and to the first directory separator
-	char *extension = filename + length - 4;
-	while ((extension > filename) && (*extension != '\\') && (*extension != '/')) {
-		--extension;
+	char *separator = getLastPathSeparator(filename);
+	if (separator) {
+		*separator = 0;
+	} else {
+		filename[0] = 0;
 	}
-	*extension = 0;
 
 
 	char fullFledgeFilename[_MAX_PATH];
