@@ -491,7 +491,8 @@ void AssaultTransportAIUpdate::crc( Xfer *xfer )
 /** Xfer method
 	* Version Info:
 	* 1: Initial version
-	* 2: TheSuperHackers @bugfix bobtista 14/08/2026 Save m_newMember and m_newOccupantsAreNewMembers. */
+	* 2: TheSuperHackers @bugfix bobtista 14/08/2026 Save m_newMember and m_newOccupantsAreNewMembers.
+	*/
 //-------------------------------------------------------------------------------------------------
 void AssaultTransportAIUpdate::xfer( Xfer *xfer )
 {
