@@ -1826,7 +1826,7 @@ bool Prepare_Directories(const char *rootdir, const char *filename)
 	char newdir[256];
 
 	const char *cptr=filename;
-	while((cptr=strpbrk(cptr,"\\/")) != nullptr)
+	while((cptr=getFirstPathSeparator(cptr)) != nullptr)
 	{
 		strlcpy(tempstr,filename,cptr-filename + 1);
 		snprintf(newdir, ARRAY_SIZE(newdir), "%s\\%s", rootdir, tempstr);
