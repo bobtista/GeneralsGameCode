@@ -21,6 +21,7 @@
 #pragma once
 
 #include "BaseType.h"
+#include "Utility/stringex.h"
 #include <string.h>
 
 inline char getNativePathSeparator()
@@ -81,14 +82,19 @@ inline const char* getFirstPathSeparator(const char* path)
 	return path ? strpbrk(path, "/\\") : nullptr;
 }
 
+inline const wchar_t* getFirstPathSeparator(const wchar_t* path)
+{
+	return path ? wcspbrk(path, L"/\\") : nullptr;
+}
+
 inline const char* getLastPathSeparator(const char* path)
 {
-	return path ? maxPtr(strrchr(path, '/'), strrchr(path, '\\')) : nullptr;
+	return path ? strrpbrk(path, "/\\") : nullptr;
 }
 
 inline const wchar_t* getLastPathSeparator(const wchar_t* path)
 {
-	return path ? maxPtr(wcsrchr(path, L'/'), wcsrchr(path, L'\\')) : nullptr;
+	return path ? wcsrpbrk(path, L"/\\") : nullptr;
 }
 
 inline char* getLastPathSeparator(char* path)
