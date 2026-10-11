@@ -5364,6 +5364,12 @@ void AIUpdateInterface::loadPostProcess()
 		}
 	}
 
+	// TheSuperHackers @bugfix bobtista 11/10/2026 The pathfind queue is not saved, so queue the pending request again.
+	if (m_waitingForPath && getPath() == nullptr)
+	{
+		TheAI->pathfinder()->queueForPath(getObject()->getID());
+	}
+
 }
 
 // ------------------------------------------------------------------------------------------------
