@@ -712,6 +712,9 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 			TheGameLogic->clearGameData( FALSE );
 		TheGameEngine->reset();
 
+		// TheSuperHackers @bugfix bobtista 11/10/2026 A failed load skips the clear at the end of GameStateMap::xfer.
+		TheGameLogic->setLoadingSave( FALSE );
+
 		return SC_INVALID_DATA;	// you can't use a naked "throw" outside of a catch statement!
 
 	}
