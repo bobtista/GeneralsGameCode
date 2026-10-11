@@ -4041,13 +4041,18 @@ void Player::crc( Xfer *xfer )
 	* 6: Store m_unitsShouldHunt, set to true after the script "Tell player to hunt" is called.
 	* 7: added Preorder flag
 	* 8: Save m_disabledSciences & m_hiddenSciences. jba.
+	* 9: TheSuperHackers @bugfix bobtista 11/10/2026 Save m_attackedFrame
 	*/
 // ------------------------------------------------------------------------------------------------
 void Player::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 8;
+#else
+	const XferVersion currentVersion = 9;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -4388,6 +4393,12 @@ void Player::xfer( Xfer *xfer )
 	}
 	// attacked by
 	xfer->xferUser( m_attackedBy, sizeof( Bool ) * MAX_PLAYER_COUNT );
+
+	// attacked frame
+	if( version >= 9 )
+	{
+		xfer->xferUnsignedInt( &m_attackedFrame );
+	}
 
 	// cash bounty percent
 	xfer->xferReal( &m_cashBountyPercent );
