@@ -1821,8 +1821,6 @@ public:
 // other will always require a transpose.
 
 struct _D3DMATRIX;
-struct D3DXMATRIX;
 
 extern void To_D3DMATRIX(_D3DMATRIX& dxm, const Matrix3D& m);
 extern _D3DMATRIX To_D3DMATRIX(const Matrix3D& m);
-extern D3DXMATRIX To_D3DXMATRIX(const Matrix3D& m);

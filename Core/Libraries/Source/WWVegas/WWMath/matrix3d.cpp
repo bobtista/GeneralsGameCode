@@ -67,7 +67,6 @@
 
 #include "WWLib/win.h"
 #include <d3d8types.h>
-#include <d3dx8math.h>
 
 // some static matrices which are sometimes useful
 const Matrix3D Matrix3D::Identity
@@ -1318,13 +1317,6 @@ void To_D3DMATRIX(_D3DMATRIX& dxm, const Matrix3D& m)
 _D3DMATRIX To_D3DMATRIX(const Matrix3D& m)
 {
 	_D3DMATRIX dxm;
-	To_D3DMATRIX(dxm, m);
-	return dxm;
-}
-
-D3DXMATRIX To_D3DXMATRIX(const Matrix3D& m)
-{
-	D3DXMATRIX dxm;
 	To_D3DMATRIX(dxm, m);
 	return dxm;
 }
