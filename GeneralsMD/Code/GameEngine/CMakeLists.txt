@@ -1170,6 +1170,10 @@ target_link_libraries(z_gameengine PUBLIC
     z_wwvegas
 )
 
+target_link_libraries(z_gameengine INTERFACE
+    $<LINK_ONLY:z_gameenginedevice>
+)
+
 target_precompile_headers(z_gameengine PRIVATE
     [["Precompiled/BasePrecomp.h"]] # Must be first
 )
