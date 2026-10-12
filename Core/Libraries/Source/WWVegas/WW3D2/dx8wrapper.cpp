@@ -2564,12 +2564,11 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	// Copy the surface to the texture
 	IDirect3DSurface8 *tex_surface = nullptr;
 	texture->GetSurfaceLevel(0, &tex_surface);
-	RECT rect;
-	rect.left=0;
-	rect.top=0;
-	rect.right=surface_desc.Width;
-	rect.bottom=surface_desc.Height;
-	_Copy_DX8_Surface(tex_surface, rect, surface, rect);
+	D3DSURFACE_DESC tex_surface_desc;
+	tex_surface->GetDesc(&tex_surface_desc);
+	const RECT dest_rect={0,0,LONG(tex_surface_desc.Width),LONG(tex_surface_desc.Height)};
+	const RECT src_rect={0,0,LONG(surface_desc.Width),LONG(surface_desc.Height)};
+	_Copy_DX8_Surface(tex_surface, dest_rect, surface, src_rect);
 	tex_surface->Release();
 
 	// Create mipmaps if needed
@@ -2598,7 +2597,8 @@ static bool Is_Compressed_Format(WW3DFormat format)
 }
 
 // Copies the source rect to the destination rect without scaling. Destination pixels outside the
-// source rect are cleared to transparent black. Both surfaces must have the same uncompressed format.
+// source rect are cleared to transparent black. Both surfaces must have the same format, and it must be
+// uncompressed unless both rects have the same size.
 void DX8Wrapper::_Copy_DX8_Surface
 (
 	IDirect3DSurface8* dest_surface,
@@ -2612,6 +2612,15 @@ void DX8Wrapper::_Copy_DX8_Surface
 	DX8_ErrorCode(dest_surface->GetDesc(&dest_desc));
 	DX8_ErrorCode(src_surface->GetDesc(&src_desc));
 	const WW3DFormat format=D3DFormat_To_WW3DFormat(dest_desc.Format);
+
+	if (dest_desc.Format==src_desc.Format
+		&& dest_rect.right-dest_rect.left==src_rect.right-src_rect.left
+		&& dest_rect.bottom-dest_rect.top==src_rect.bottom-src_rect.top)
+	{
+		const POINT dest_point={dest_rect.left,dest_rect.top};
+		_Copy_DX8_Rects(src_surface,&src_rect,1,dest_surface,&dest_point);
+		return;
+	}
 
 	if (dest_desc.Format!=src_desc.Format || Is_Compressed_Format(format))
 	{
