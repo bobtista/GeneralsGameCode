@@ -2655,6 +2655,8 @@ void DX8Wrapper::_Copy_DX8_Surface
 
 	DX8_ErrorCode(src_surface->UnlockRect());
 	DX8_ErrorCode(dest_surface->UnlockRect());
+}
+
 static const unsigned* Get_Mip_Channel_Masks(WW3DFormat format)
 {
 	static const unsigned argb8888[4]={0xff000000,0x00ff0000,0x0000ff00,0x000000ff};
