@@ -8866,6 +8866,7 @@ void ScriptEngine::setGlobalDifficulty( GameDifficulty difficulty )
 	* 4: current music track info
 	* 5: add ChooseVictimAlwaysUsesNormal
 	* 6: TheSuperHackers @tweak Serialize m_letterBoxActive
+	* 7: TheSuperHackers @bugfix Serialize m_objectCounts
 	*/
 // ------------------------------------------------------------------------------------------------
 void ScriptEngine::xfer( Xfer *xfer )
@@ -8876,7 +8877,7 @@ void ScriptEngine::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 5;
 #else
-	const XferVersion currentVersion = 6;
+	const XferVersion currentVersion = 7;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -9345,6 +9346,38 @@ void ScriptEngine::xfer( Xfer *xfer )
 		if (xfer->getXferMode() == XFER_LOAD)
 		{
 			m_letterBoxActive = FALSE;
+		}
+	}
+
+	if (version >= 7)
+	{
+		for (i = 0; i < MAX_PLAYER_COUNT; ++i)
+		{
+			UnsignedShort objectCountSize = (UnsignedShort)m_objectCounts[i].size();
+			xfer->xferUnsignedShort(&objectCountSize);
+
+			if (xfer->getXferMode() == XFER_SAVE)
+			{
+				for (ObjectTypeCount::const_iterator it = m_objectCounts[i].begin(); it != m_objectCounts[i].end(); ++it)
+				{
+					AsciiString objectTypeName = it->first;
+					Int count = it->second;
+					xfer->xferAsciiString(&objectTypeName);
+					xfer->xferInt(&count);
+				}
+			}
+			else
+			{
+				m_objectCounts[i].clear();
+				for (UnsignedShort j = 0; j < objectCountSize; ++j)
+				{
+					AsciiString objectTypeName;
+					Int count = 0;
+					xfer->xferAsciiString(&objectTypeName);
+					xfer->xferInt(&count);
+					m_objectCounts[i][objectTypeName] = count;
+				}
+			}
 		}
 	}
 
