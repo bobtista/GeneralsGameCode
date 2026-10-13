@@ -18,7 +18,7 @@
 
 #include "stringex_memcchr_common.h"
 
-#if defined(_M_IX86) || defined(_M_X64) || defined(__SSE2__)
+#if defined(__SSE2__) || defined(_M_X64) || (defined(_MSC_VER) && defined(_M_IX86))
 #include <emmintrin.h>
 #if defined(_MSC_VER)
 #include <intrin.h>
