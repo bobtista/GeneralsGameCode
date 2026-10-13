@@ -2173,7 +2173,7 @@ void GameLogic::loadMapINI( AsciiString mapName )
 		return;
 	}
 
-	// back up over the ".map" extension and to the first directory separator
+	// cut the map file name off to get the map directory
 	char *separator = getLastPathSeparator(filename);
 	if (separator) {
 		*separator = 0;
