@@ -441,6 +441,8 @@ protected:
 	Object						*m_callingObject;					///< Object that is calling script, used for THIS_OBJECT
 	Team							*m_conditionTeam;				///< Team that is being used to evaluate conditions, used for THIS_TEAM
 	Object						*m_conditionObject;				///< Unit that is being used to evaluate conditions, used for THIS_OBJECT
+	UnsignedInt				m_xferConditionTeamID;		///< m_conditionTeam read by a load, resolved in loadPostProcess
+	ObjectID					m_xferConditionObjectID;	///< m_conditionObject read by a load, resolved in loadPostProcess
 	VecNamedRequests	m_namedObjects;
 	Bool							m_firstUpdate;
 	Player						*m_currentPlayer;

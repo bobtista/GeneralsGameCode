@@ -441,6 +441,8 @@ m_callingTeam(nullptr),
 m_callingObject(nullptr),
 m_conditionTeam(nullptr),
 m_conditionObject(nullptr),
+m_xferConditionTeamID(TEAM_ID_INVALID),
+m_xferConditionObjectID(INVALID_ID),
 m_currentPlayer(nullptr),
 m_skirmishHumanPlayer(nullptr),
 m_fade(FADE_NONE),
@@ -5284,6 +5286,8 @@ void ScriptEngine::reset()
 	m_callingObject = nullptr;
 	m_conditionTeam = nullptr;
 	m_conditionObject = nullptr;
+	m_xferConditionTeamID = TEAM_ID_INVALID;
+	m_xferConditionObjectID = INVALID_ID;
 	m_currentPlayer = nullptr;
 	m_skirmishHumanPlayer = nullptr;
 	m_frameObjectCountChanged = 0;
@@ -8866,6 +8870,7 @@ void ScriptEngine::setGlobalDifficulty( GameDifficulty difficulty )
 	* 4: current music track info
 	* 5: add ChooseVictimAlwaysUsesNormal
 	* 6: TheSuperHackers @tweak Serialize m_letterBoxActive
+	* 7: TheSuperHackers @bugfix Serialize m_conditionTeam and m_conditionObject
 	*/
 // ------------------------------------------------------------------------------------------------
 void ScriptEngine::xfer( Xfer *xfer )
@@ -8876,7 +8881,7 @@ void ScriptEngine::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 5;
 #else
-	const XferVersion currentVersion = 6;
+	const XferVersion currentVersion = 7;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -9348,6 +9353,17 @@ void ScriptEngine::xfer( Xfer *xfer )
 		}
 	}
 
+	if (version >= 7)
+	{
+		TeamID conditionTeamID = m_conditionTeam ? m_conditionTeam->getID() : TEAM_ID_INVALID;
+		xfer->xferUser(&conditionTeamID, sizeof(TeamID));
+		m_xferConditionTeamID = conditionTeamID;
+
+		ObjectID conditionObjectID = m_conditionObject ? m_conditionObject->getID() : INVALID_ID;
+		xfer->xferObjectID(&conditionObjectID);
+		m_xferConditionObjectID = conditionObjectID;
+	}
+
 	if( xfer->getXferMode() == XFER_LOAD ) {
 		// We are doing a load.  If there is no fade active, do a black fade in to start.
 		if (m_fade == FADE_NONE) {
@@ -9381,6 +9397,11 @@ void ScriptEngine::loadPostProcess()
 	}
 
 	rts::enableLetterBox(isLetterBoxActive());
+
+	// TheSuperHackers @bugfix bobtista 13/10/2026 Restore the condition team and object after a load.
+	// They stay set after a script is evaluated, and "<This Team>" and "<This Object>" fall back to them.
+	m_conditionTeam = TheTeamFactory->findTeamByID(m_xferConditionTeamID);
+	m_conditionObject = TheGameLogic->findObjectByID(m_xferConditionObjectID);
 
 }
 
