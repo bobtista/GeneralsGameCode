@@ -4023,10 +4023,6 @@ void Pathfinder::reset()
 	m_isTunneling = false;
 
 	m_moveAlliesDepth = 0;
-	m_moveAlliesWalking[0] = m_moveAlliesWalking[1] = m_moveAlliesWalking[2] = nullptr;
-	m_moveAlliesWalker[0] = m_moveAlliesWalker[1] = m_moveAlliesWalker[2] = INVALID_ID;
-	m_moveAlliesCalls[0] = m_moveAlliesCalls[1] = m_moveAlliesCalls[2] = 0;
-	m_moveAlliesReentries = 0;
 
 	// pathfind grid cells have not been classified yet
 	m_isMapReady = false;
@@ -10191,29 +10187,6 @@ void Pathfinder::removeUnitFromPathfindMap(  Object *obj )
 	removeGoal(obj);
 }
 
-#if !RETAIL_COMPATIBLE_CRC
-struct MoveAlliesCell
-{
-	ICoord2D cell;
-	PathfindLayerEnum layer;
-};
-#endif
-
-// REENTRY_PROBE: called by AIUpdateInterface::destroyPath before it frees a path.
-void Pathfinder::probePathDestroyed(const Object *obj, const Path *path)
-{
-	for (Int depth = 0; depth < m_moveAlliesDepth; ++depth)
-	{
-		if (m_moveAlliesWalking[depth] == path)
-		{
-			++m_moveAlliesReentries;
-			printf("REENTRY_PROBE frame %u: obj %u '%s' destroys path %p walked by moveAllies at depth %d (current depth %d)\n",
-				TheGameLogic->getFrame(), obj->getID(), obj->getTemplate()->getName().str(), path, depth + 1, m_moveAlliesDepth);
-			fflush(stdout);
-		}
-	}
-}
-
 Bool Pathfinder::moveAllies(Object *obj, Path *path)
 {
 
@@ -10232,59 +10205,24 @@ if (g_UT_startTiming) return false;
 	if (m_moveAlliesDepth > 2) {
 		return false;
 	}
-	// REENTRY_PROBE: remember the path under iteration at this depth, so destroyPath can tell when it frees one.
-	LatchRestore<const Path *> walkingPath(m_moveAlliesWalking[m_moveAlliesDepth - 1], path);
-	LatchRestore<ObjectID> walkingObj(m_moveAlliesWalker[m_moveAlliesDepth - 1], obj->getID());
-	++m_moveAlliesCalls[m_moveAlliesDepth - 1];
-	{
-		const AIUpdateInterface *probeAi = obj->getAI();
-		printf("REENTRY_PROBE frame %u: moveAllies depth %d obj %u '%s' path %p idle %d moving %d temp %d (calls by depth %d %d %d, reentries %d)\n",
-			TheGameLogic->getFrame(), m_moveAlliesDepth, obj->getID(), obj->getTemplate()->getName().str(), path,
-			probeAi ? probeAi->isIdle() : -1, probeAi ? probeAi->isMoving() : -1, probeAi ? (Int)probeAi->getLastCommandSource() : -1,
-			m_moveAlliesCalls[0], m_moveAlliesCalls[1], m_moveAlliesCalls[2], m_moveAlliesReentries);
-		fflush(stdout);
-	}
 
 	Bool centerInCell;
 	Int radius;
 	getRadiusAndCenter(obj, radius, centerInCell);
 	Int numCellsAbove = radius;
 	if (centerInCell) numCellsAbove++;
+	PathNode *node;
 	ObjectID ignoreId = INVALID_ID;
 	if (obj->getAIUpdateInterface()) {
 		ignoreId = obj->getAIUpdateInterface()->getIgnoredObstacleID();
 	}
-
-#if RETAIL_COMPATIBLE_CRC
-	// The move away orders issued below can recurse back into this unit and destroy the path while it is still
-	// being walked here. The walk then continues on freed nodes and their contents can decide which allies are
-	// ordered to move. Existing retail replays depend on that outcome, so this walk is kept as it is.
-	for (PathNode *node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious())
-	{
+	for( node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious() )	{
 		ICoord2D curCell;
 		worldToCell(node->getPosition(), &curCell);
-		const PathfindLayerEnum layer = node->getLayer();
-#else
-	// TheSuperHackers @bugfix bobtista 20/09/2026 Walk a copy of the path cells, so a move away order that recurses
-	// back into this unit and destroys the path cannot pull the nodes out from under the walk.
-	std::vector<MoveAlliesCell> cells;
-	for (const PathNode *node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious())
-	{
-		MoveAlliesCell entry;
-		worldToCell(node->getPosition(), &entry.cell);
-		entry.layer = node->getLayer();
-		cells.push_back(entry);
-	}
-
-	for (std::vector<MoveAlliesCell>::const_iterator it = cells.begin(); it != cells.end(); ++it)
-	{
-		const ICoord2D &curCell = it->cell;
-		const PathfindLayerEnum layer = it->layer;
-#endif
 		Int i, j;
 		for (i=curCell.x-radius; i<curCell.x+numCellsAbove; i++) {
 			for (j=curCell.y-radius; j<curCell.y+numCellsAbove; j++) {
-				PathfindCell	*cell = getCell(layer, i, j);
+				PathfindCell	*cell = getCell(node->getLayer(), i, j);
 				if (!cell) {
 					continue; // Cell is not on the pathfinding grid
 				}
@@ -10321,59 +10259,22 @@ if (g_UT_startTiming) return false;
 					}
 				}
 
-				// REENTRY_PROBE: in nested walks, report every candidate and why it is skipped.
-				const Bool probeNested = m_moveAlliesDepth >= 2;
-				Bool probeOuter = false;
-				if (probeNested)
-				{
-					for (Int d = 0; d < m_moveAlliesDepth - 1; ++d)
-					{
-						if (m_moveAlliesWalker[d] == otherObj->getID())
-						{
-							probeOuter = true;
-						}
-					}
-				}
 				if (!otherObj->getAI() || otherObj->getAI()->isMoving()) {
-					if (probeNested)
-					{
-						printf("REENTRY_PROBE frame %u:   depth %d candidate %u '%s'%s skipped: %s\n", TheGameLogic->getFrame(), m_moveAlliesDepth,
-							otherObj->getID(), otherObj->getTemplate()->getName().str(), probeOuter ? " (OUTER WALKER)" : "", otherObj->getAI() ? "moving" : "no ai");
-						fflush(stdout);
-					}
 					continue;
 				}
 
 #if !(RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING)
 				if (otherObj->getAI()->isAttacking()) {
-					if (probeNested)
-					{
-						printf("REENTRY_PROBE frame %u:   depth %d candidate %u '%s'%s skipped: attacking\n", TheGameLogic->getFrame(), m_moveAlliesDepth,
-							otherObj->getID(), otherObj->getTemplate()->getName().str(), probeOuter ? " (OUTER WALKER)" : "");
-						fflush(stdout);
-					}
 					continue; // Don't move units that are attacking. [8/14/2003]
 				}
 
 				//Kris: Patch 1.01 November 3, 2003
 				//Black Lotus exploit fix -- moving while hacking.
 				if( otherObj->testStatus( OBJECT_STATUS_IS_USING_ABILITY ) || otherObj->getAI()->isBusy() ) {
-					if (probeNested)
-					{
-						printf("REENTRY_PROBE frame %u:   depth %d candidate %u '%s'%s skipped: busy\n", TheGameLogic->getFrame(), m_moveAlliesDepth,
-							otherObj->getID(), otherObj->getTemplate()->getName().str(), probeOuter ? " (OUTER WALKER)" : "");
-						fflush(stdout);
-					}
 					continue; // Packing or unpacking objects for example
 				}
 #endif
 
-				if (probeNested)
-				{
-					printf("REENTRY_PROBE frame %u:   depth %d candidate %u '%s'%s ordered to move away\n", TheGameLogic->getFrame(), m_moveAlliesDepth,
-						otherObj->getID(), otherObj->getTemplate()->getName().str(), probeOuter ? " (OUTER WALKER)" : "");
-					fflush(stdout);
-				}
 				//DEBUG_LOG(("Moving ally"));
 				otherObj->getAI()->aiMoveAwayFromUnit(obj, CMD_FROM_AI);
 			}

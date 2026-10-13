@@ -2017,10 +2017,6 @@ Bool AIUpdateInterface::computeAttackPath( PathfindServicesInterface *pathServic
  */
 void AIUpdateInterface::destroyPath()
 {
-	if (m_path != nullptr && TheAI != nullptr && TheAI->pathfinder() != nullptr)
-	{
-		TheAI->pathfinder()->probePathDestroyed(getObject(), m_path);
-	}
 	// destroy previous path
 	deleteInstance(m_path);
 	m_path = nullptr;
@@ -3227,11 +3223,6 @@ void AIUpdateInterface::privateMoveAwayFromUnit( Object *unit, CommandSourceType
 		return;
 
 	ObjectID id = unit->getID();
-	if (m_stateMachine->getTemporaryState() == AI_MOVE_OUT_OF_THE_WAY && (m_moveOutOfWay1 == id || m_moveOutOfWay2 == id)) {
-		printf("REENTRY_PROBE frame %u:   obj %u '%s' moveAwayFrom %u ignored, already moving out of its way\n", TheGameLogic->getFrame(),
-			getObject()->getID(), getObject()->getTemplate()->getName().str(), id);
-		fflush(stdout);
-	}
 	if (m_stateMachine->getTemporaryState() == AI_MOVE_OUT_OF_THE_WAY) {
 		if (m_moveOutOfWay1 == id) {
 			if (m_isBlocked) {
@@ -3263,12 +3254,6 @@ void AIUpdateInterface::privateMoveAwayFromUnit( Object *unit, CommandSourceType
 	if (newPath==nullptr && !canPathThroughUnits())	{
 		setCanPathThroughUnits(TRUE);
 		newPath = TheAI->pathfinder()->getMoveAwayFromPath(getObject(), unit, unitPath, obj2, path2);
-	}
-	if (newPath == nullptr)
-	{
-		printf("REENTRY_PROBE frame %u:   obj %u '%s' moveAwayFrom %u found no path (oldPath %p)\n", TheGameLogic->getFrame(),
-			getObject()->getID(), getObject()->getTemplate()->getName().str(), unit->getID(), m_path);
-		fflush(stdout);
 	}
 
 	if (newPath) {
