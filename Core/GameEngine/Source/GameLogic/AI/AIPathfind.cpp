@@ -10290,20 +10290,6 @@ if (g_UT_startTiming) return false;
 					continue;	 // It's the one we are ignoring.
 				}
 
-#if 1 // PR3332 test: force the skip on
-				// TheSuperHackers @bugfix bobtista 13/10/2026 Do not order a unit whose moveAllies call is still walking its path. The order destroys that path.
-				Bool isOuterCaller = false;
-				for (Int k = 0; k < m_moveAlliesDepth - 1; ++k) {
-					if (m_moveAlliesObjects[k] == unitId) {
-						isOuterCaller = true;
-						break;
-					}
-				}
-				if (isOuterCaller) {
-					pr3332SkipProbe(obj, unitId, m_moveAlliesDepth);
-					continue;
-				}
-#endif
 
 				Object *otherObj = TheGameLogic->findObjectByID(unitId);
 				if (!otherObj) {
@@ -10340,6 +10326,20 @@ if (g_UT_startTiming) return false;
 				}
 #endif
 
+#if 1 // PR3332 test: force the skip on
+				// TheSuperHackers @bugfix bobtista 13/10/2026 Do not order a unit whose moveAllies call is still walking its path. The order destroys that path.
+				Bool isOuterCaller = false;
+				for (Int k = 0; k < m_moveAlliesDepth - 1; ++k) {
+					if (m_moveAlliesObjects[k] == unitId) {
+						isOuterCaller = true;
+						break;
+					}
+				}
+				if (isOuterCaller) {
+					pr3332SkipProbe(obj, unitId, m_moveAlliesDepth);
+					continue;
+				}
+#endif
 				//DEBUG_LOG(("Moving ally"));
 				otherObj->getAI()->aiMoveAwayFromUnit(obj, CMD_FROM_AI);
 			}
