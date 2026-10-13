@@ -901,7 +901,11 @@ private:
 	Int						m_numWallPieces;
 	Real					m_wallHeight;
 
+	enum { MOVE_ALLIES_MAX_DEPTH = 2 };
 	Int						m_moveAlliesDepth;
+#if 1 // PR3332 test: force the skip on
+	ObjectID			m_moveAlliesObjects[MOVE_ALLIES_MAX_DEPTH];	///< Object of each active moveAllies call, by depth.
+#endif
 
 
 	// Pathfind queue
