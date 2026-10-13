@@ -5986,8 +5986,10 @@ Path *Pathfinder::getAircraftPath( const Object *obj, const Coord3D *to )
  * Process some path requests in the pathfind queue.
  */
 //DECLARE_PERF_TIMER(processPathfindQueue)
+static void pr3332CheckPending();
 void Pathfinder::processPathfindQueue()
 {
+	pr3332CheckPending();
 	//USE_PERF_TIMER(processPathfindQueue)
 	if (!m_isMapReady) {
 		return;
@@ -10187,6 +10189,51 @@ void Pathfinder::removeUnitFromPathfindMap(  Object *obj )
 	removeGoal(obj);
 }
 
+// PR3332 test probe: log every skip, then how far both units moved 150 frames later.
+#include <process.h>
+struct Pr3332Pending { UnsignedInt frame; ObjectID walker; ObjectID skipped; Coord3D walkerPos; Coord3D skippedPos; };
+static Pr3332Pending s_pr3332Pending[64];
+static Int s_pr3332NumPending = 0;
+static void pr3332Log(const char *line)
+{
+	char name[64];
+	snprintf(name, sizeof(name), "pr3332_probe_%d.txt", _getpid());
+	FILE *f = fopen(name, "a");
+	if (f) { fputs(line, f); fclose(f); }
+}
+static void pr3332SkipProbe(const Object *walker, ObjectID skippedId, Int depth)
+{
+	const Object *skipped = TheGameLogic->findObjectByID(skippedId);
+	char line[256];
+	snprintf(line, sizeof(line), "SKIP frame %u depth %d walker %u %s skipped %u %s\n", TheGameLogic->getFrame(), depth,
+		walker->getID(), walker->getTemplate()->getName().str(), skippedId, skipped ? skipped->getTemplate()->getName().str() : "?");
+	pr3332Log(line);
+	if (skipped && s_pr3332NumPending < 64) {
+		Pr3332Pending &p = s_pr3332Pending[s_pr3332NumPending++];
+		p.frame = TheGameLogic->getFrame(); p.walker = walker->getID(); p.skipped = skippedId;
+		p.walkerPos = *walker->getPosition(); p.skippedPos = *skipped->getPosition();
+	}
+}
+static Real pr3332Dist(const Coord3D &a, const Coord3D &b) { Real dx = a.x - b.x, dy = a.y - b.y; return sqrtf(dx*dx + dy*dy); }
+static void pr3332CheckPending()
+{
+	const UnsignedInt now = TheGameLogic->getFrame();
+	for (Int k = 0; k < s_pr3332NumPending; ) {
+		Pr3332Pending &p = s_pr3332Pending[k];
+		if (now < p.frame + 150) { ++k; continue; }
+		const Object *w = TheGameLogic->findObjectByID(p.walker);
+		const Object *s = TheGameLogic->findObjectByID(p.skipped);
+		char line[256];
+		snprintf(line, sizeof(line), "AFTER150 skipframe %u walker %u moved %.1f skipped %u moved %.1f gap %.1f\n", p.frame,
+			p.walker, w ? pr3332Dist(*w->getPosition(), p.walkerPos) : -1.0f,
+			p.skipped, s ? pr3332Dist(*s->getPosition(), p.skippedPos) : -1.0f,
+			(w && s) ? pr3332Dist(*w->getPosition(), *s->getPosition()) : -1.0f);
+		pr3332Log(line);
+		s_pr3332Pending[k] = s_pr3332Pending[--s_pr3332NumPending];
+	}
+}
+
+
 Bool Pathfinder::moveAllies(Object *obj, Path *path)
 {
 
@@ -10205,7 +10252,7 @@ if (g_UT_startTiming) return false;
 	if (m_moveAlliesDepth > MOVE_ALLIES_MAX_DEPTH) {
 		return false;
 	}
-#if !RETAIL_COMPATIBLE_PATHFINDING
+#if 1 // PR3332 test: force the skip on
 	m_moveAlliesObjects[m_moveAlliesDepth - 1] = obj->getID();
 #endif
 
@@ -10243,7 +10290,7 @@ if (g_UT_startTiming) return false;
 					continue;	 // It's the one we are ignoring.
 				}
 
-#if !RETAIL_COMPATIBLE_PATHFINDING
+#if 1 // PR3332 test: force the skip on
 				// TheSuperHackers @bugfix bobtista 13/10/2026 Do not order a unit whose moveAllies call is still walking its path. The order destroys that path.
 				Bool isOuterCaller = false;
 				for (Int k = 0; k < m_moveAlliesDepth - 1; ++k) {
@@ -10253,6 +10300,7 @@ if (g_UT_startTiming) return false;
 					}
 				}
 				if (isOuterCaller) {
+					pr3332SkipProbe(obj, unitId, m_moveAlliesDepth);
 					continue;
 				}
 #endif

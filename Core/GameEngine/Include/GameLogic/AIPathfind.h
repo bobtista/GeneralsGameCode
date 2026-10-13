@@ -903,7 +903,7 @@ private:
 
 	enum { MOVE_ALLIES_MAX_DEPTH = 2 };
 	Int						m_moveAlliesDepth;
-#if !RETAIL_COMPATIBLE_PATHFINDING
+#if 1 // PR3332 test: force the skip on
 	ObjectID			m_moveAlliesObjects[MOVE_ALLIES_MAX_DEPTH];	///< Object of each active moveAllies call, by depth.
 #endif
 
