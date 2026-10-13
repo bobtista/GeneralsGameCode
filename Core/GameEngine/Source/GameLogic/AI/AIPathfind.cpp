@@ -6393,46 +6393,27 @@ if (g_UT_startTiming) return false;
 	if (m_moveAlliesDepth > MOVE_ALLIES_MAX_DEPTH) {
 		return false;
 	}
+#if !RETAIL_COMPATIBLE_PATHFINDING
+	m_moveAlliesObjects[m_moveAlliesDepth - 1] = obj->getID();
+#endif
 
 	Bool centerInCell;
 	Int radius;
 	getRadiusAndCenter(obj, radius, centerInCell);
 	Int numCellsAbove = radius;
 	if (centerInCell) numCellsAbove++;
+	PathNode *node;
 	ObjectID ignoreId = INVALID_ID;
 	if (obj->getAIUpdateInterface()) {
 		ignoreId = obj->getAIUpdateInterface()->getIgnoredObstacleID();
 	}
-
-#if RETAIL_COMPATIBLE_PATHFINDING
-	// TheSuperHackers @info Retail replays depend on the original walk, including reads of freed path nodes.
-	for (PathNode *node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious())
-	{
+	for( node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious() )	{
 		ICoord2D curCell;
 		worldToCell(node->getPosition(), &curCell);
-		const PathfindLayerEnum layer = node->getLayer();
-#else
-	// TheSuperHackers @bugfix bobtista 20/09/2026 Snapshot the path before move-away orders can destroy it.
-	const Bool blockedByAlly = path->getBlockedByAlly();
-	std::vector<MoveAlliesCell> &cells = m_moveAlliesCells[m_moveAlliesDepth - 1];
-	cells.clear();
-	for (const PathNode *node = path->getLastNode(); node && node != path->getFirstNode(); node = node->getPrevious())
-	{
-		MoveAlliesCell entry;
-		worldToCell(node->getPosition(), &entry.cell);
-		entry.layer = node->getLayer();
-		cells.push_back(entry);
-	}
-
-	for (std::vector<MoveAlliesCell>::const_iterator it = cells.begin(); it != cells.end(); ++it)
-	{
-		const ICoord2D &curCell = it->cell;
-		const PathfindLayerEnum layer = it->layer;
-#endif
 		Int i, j;
 		for (i=curCell.x-radius; i<curCell.x+numCellsAbove; i++) {
 			for (j=curCell.y-radius; j<curCell.y+numCellsAbove; j++) {
-				PathfindCell	*cell = getCell(layer, i, j);
+				PathfindCell	*cell = getCell(node->getLayer(), i, j);
 				if (!cell) {
 					continue; // Cell is not on the pathfinding grid
 				}
@@ -6464,12 +6445,7 @@ if (g_UT_startTiming) return false;
 				}
 				if (obj->isKindOf(KINDOF_INFANTRY) && !otherObj->isKindOf(KINDOF_INFANTRY)) {
 					// If this is a general clear operation, don't let infantry push vehicles.
-#if RETAIL_COMPATIBLE_PATHFINDING
-					if (!path->getBlockedByAlly())
-#else
-					if (!blockedByAlly)
-#endif
-					{
+					if (!path->getBlockedByAlly()) {
 						continue;
 					}
 				}
@@ -6487,6 +6463,20 @@ if (g_UT_startTiming) return false;
 				//Black Lotus exploit fix -- moving while hacking.
 				if( otherObj->testStatus( OBJECT_STATUS_IS_USING_ABILITY ) || otherObj->getAI()->isBusy() ) {
 					continue; // Packing or unpacking objects for example
+				}
+#endif
+
+#if !RETAIL_COMPATIBLE_PATHFINDING
+				// TheSuperHackers @bugfix bobtista 13/10/2026 Do not order a unit whose moveAllies call is still walking its path. The order destroys that path.
+				Bool isOuterCaller = false;
+				for (Int k = 0; k < m_moveAlliesDepth - 1; ++k) {
+					if (m_moveAlliesObjects[k] == unitId) {
+						isOuterCaller = true;
+						break;
+					}
+				}
+				if (isOuterCaller) {
+					continue;
 				}
 #endif
 
