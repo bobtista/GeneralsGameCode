@@ -21,7 +21,7 @@
 #pragma once
 
 #include "BaseType.h"
-#include "Utility/stringex.h"
+#include <Utility/stringex.h>
 #include <string.h>
 
 inline char getNativePathSeparator()
