@@ -342,8 +342,9 @@ static const REGSAM kRegistry32BitView = 0;
 Bool  getStringFromRegistry(HKEY root, AsciiString path, AsciiString key, AsciiString& val)
 {
 	HKEY handle;
-	unsigned char buffer[256];
-	unsigned long size = 256;
+	// TheSuperHackers @fix bobtista 14/10/2026 Reserve the last byte so the value is always NUL terminated.
+	unsigned char buffer[256] = {0};
+	unsigned long size = sizeof(buffer) - 1;
 	unsigned long type;
 	int returnValue;
 
