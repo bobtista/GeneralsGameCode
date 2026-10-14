@@ -474,7 +474,8 @@ WWINLINE float Vector3::Quick_Length() const
 
 	if (max < mid) { tmp = max; max = mid; mid = tmp; }
 	if (max < min) { tmp = max; max = min; min = tmp; }
-	if (mid < min) { tmp = mid; mid = min; min = mid; }
+	// TheSuperHackers @fix bobtista 14/10/2026 Swap mid and min instead of copying min into both.
+	if (mid < min) { tmp = mid; mid = min; min = tmp; }
 
 	return max + (11.0f / 32.0f)*mid + (1.0f / 4.0f)*min;
 }
