@@ -298,7 +298,9 @@ Bool AIGroup::removeAnyObjectsNotOwnedByPlayer( const Player *ownerPlayer )
 
 	for (it = m_memberList.begin(); it != m_memberList.end(); /* empty */) {
 		Object *obj = (*it);
+		// TheSuperHackers @fix bobtista 14/10/2026 Advance past a null member instead of looping on it forever.
 		if (!obj) {
+			++it;
 			continue;
 		}
 
