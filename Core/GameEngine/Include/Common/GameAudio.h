@@ -255,6 +255,9 @@ class AudioManager : public SubsystemInterface
 		virtual void setListenerPosition( const Coord3D *newListenerPos, const Coord3D *newListenerOrientation );
 		virtual const Coord3D *getListenerPosition() const;
 
+		// Returns TRUE when the event only plays outside the shroud and the position is not clear for the observed or local player.
+		Bool isShroudedAt( const AudioEventRTS *event, const Coord3D *pos ) const;
+
 		virtual AudioRequest *allocateAudioRequest();
 		virtual void releaseAudioRequest( AudioRequest *requestToRelease );
 		virtual void appendAudioRequest( AudioRequest *request );

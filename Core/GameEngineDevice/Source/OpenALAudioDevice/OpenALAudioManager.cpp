@@ -2880,7 +2880,8 @@ void OpenALAudioManager::processPlayingList(void)
 						distanceVector.sub(*pos);
 						beyondMaxRange = distanceVector.length() >= pai->m_maxDistance;
 					}
-					if ((volForConsideration < m_audioSettings->m_minVolume || beyondMaxRange) && !playAnyways)
+					// TheSuperHackers @bugfix bobtista 14/10/2026 Also stop sounds whose source became shrouded. The shroud was only checked when the sound started.
+					if ((volForConsideration < m_audioSettings->m_minVolume || beyondMaxRange || isShroudedAt(playing->m_audioEventRTS.Peek(), pos)) && !playAnyways)
 					{
 						// don't want to get an additional callback for this sample
 						//AIL_register_3D_EOS_callback(playing->m_3DSample, NULL);

@@ -2352,7 +2352,8 @@ void MilesAudioManager::processPlayingList()
 				volForConsideration /= (m_sound3DVolume > 0.0f ? m_soundVolume : 1.0f);
 				Bool playAnyways = BitIsSet( playing->m_audioEventRTS->getAudioEventInfo()->m_type, ST_GLOBAL) ||
 					playing->m_audioEventRTS->getAudioEventInfo()->m_priority == AP_CRITICAL;
-				if( volForConsideration < m_audioSettings->m_minVolume && !playAnyways )
+				// TheSuperHackers @bugfix bobtista 14/10/2026 Also stop sounds whose source became shrouded. The shroud was only checked when the sound started.
+				if( ( volForConsideration < m_audioSettings->m_minVolume || isShroudedAt(playing->m_audioEventRTS.Peek(), pos) ) && !playAnyways )
 				{
 					stopPlayingAudio(playing);
 				}
