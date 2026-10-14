@@ -250,6 +250,11 @@ void startNextCampaignGame()
 			TheGameLogic->clearGameData();
 	}
 
+	// TheSuperHackers @bugfix bobtista 14/10/2026 The logic update must not be halted to process the new game message.
+	TheGameLogic->setGamePaused(FALSE);
+	TheScriptEngine->forceUnfreezeTime();
+	TheScriptEngine->doUnfreezeTime();
+
 	// send a message to the logic for a new game
 	GameMessage *msg = TheMessageStream->appendMessage( GameMessage::MSG_NEW_GAME );
 	msg->appendIntegerArgument(GAME_SINGLE_PLAYER);
