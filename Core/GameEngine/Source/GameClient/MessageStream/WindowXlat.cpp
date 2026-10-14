@@ -55,6 +55,8 @@
 #include "GameClient/WindowXlat.h"
 #include "GameClient/Shell.h"
 #include "GameClient/Display.h"
+#include "GameClient/MetaEvent.h"
+#include "GameLogic/GameLogic.h"
 
 
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -74,6 +76,27 @@
 #if defined(RTS_DEBUG)	//debug hack to view object under mouse stats
 extern ICoord2D TheMousePos;
 #endif
+
+// isFastForwardReplayKey =====================================================
+/** Is the key mapped to the replay fast forward toggle while watching a replay? */
+//=============================================================================
+static Bool isFastForwardReplayKey( UnsignedByte key )
+{
+	if( TheMetaMap == nullptr || TheGameLogic == nullptr || !TheGameLogic->isInReplayGame() )
+	{
+		return FALSE;
+	}
+
+	for( const MetaMapRec *map = TheMetaMap->getFirstMetaMapRec(); map; map = map->m_next )
+	{
+		if( map->m_meta == GameMessage::MSG_META_TOGGLE_FAST_FORWARD_REPLAY && map->m_key == (MappableKeyType)key )
+		{
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
 
 // rawMouseToWindowMessage ====================================================
 /** Translate a raw mouse input event to a game window specific message
@@ -358,8 +381,10 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 
 			// TheSuperHackers @bugfix If the input is disabled, then only allow the ESC button to get through.
 			// Otherwise it would be possible to call user camera actions during scripted camera scenes.
+			// TheSuperHackers @bugfix bobtista 14/10/2026 Also let the replay fast forward key through, so a replay can be fast forwarded during scripted camera scenes.
 			if(returnCode != WIN_INPUT_USED &&
 				(key != KEY_ESC) &&
+				!isFastForwardReplayKey(key) &&
 				(TheInGameUI && (TheInGameUI->getInputEnabled() == FALSE)) )
 			{
 				returnCode = WIN_INPUT_USED;
