@@ -368,8 +368,9 @@ Int LocalFile::readChar()
 
 	Int ret = read( &character, sizeof(character) );
 
+	// TheSuperHackers @fix bobtista 14/10/2026 Return the byte as unsigned so 0xFF is not mistaken for EOF.
 	if (ret == sizeof(character))
-		return (Int)(intptr_t)character;
+		return (Int)(UnsignedByte)character;
 
 	return EOF;
 }
@@ -464,6 +465,7 @@ Int LocalFile::writeFormat( const WideChar* format, ... )
 
 Int LocalFile::writeChar( const Char* character )
 {
+	// TheSuperHackers @fix bobtista 14/10/2026 Return the character written instead of its address.
 	if ( write( character, sizeof(Char) ) == sizeof(Char) ) {
 		return (UnsignedByte)*character;
 	}
@@ -477,6 +479,7 @@ Int LocalFile::writeChar( const Char* character )
 
 Int LocalFile::writeChar( const WideChar* character )
 {
+	// TheSuperHackers @fix bobtista 14/10/2026 Return the character written instead of its address.
 #ifdef _WIN32
 	if ( write( character, sizeof(WideChar) ) == sizeof(WideChar) ) {
 		return *character;
@@ -484,7 +487,7 @@ Int LocalFile::writeChar( const WideChar* character )
 #else
 	UnsignedShort diskCharacter = (UnsignedShort)(*character);
 	if ( write( &diskCharacter, sizeof(diskCharacter) ) == sizeof(diskCharacter) ) {
-		return (Int)(intptr_t)character;
+		return (Int)diskCharacter;
 	}
 #endif
 
