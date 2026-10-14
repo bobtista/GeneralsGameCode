@@ -958,6 +958,7 @@ ControlBar::ControlBar()
 	m_generalsScreenAnimate = nullptr;
 	m_animateWindowManagerForGenShortcuts = nullptr;
 	m_flash = FALSE;
+	m_lastUpdateFrame = ~0u;
 	m_toggleButtonUpIn = nullptr;
 	m_toggleButtonUpOn = nullptr;
 	m_toggleButtonUpPushed = nullptr;
@@ -1401,8 +1402,18 @@ void ControlBar::update()
 {
 	if (TheGlobalData->m_headless)
 		return;
+
+	// TheSuperHackers @bugfix bobtista 14/10/2026 Advance the radar glow and button flashes once per logic frame.
+	// They advanced on every render update, so they ran too fast above 30 render FPS.
+	const UnsignedInt frame = TheGameClient->getFrame();
+	const Bool isNewFrame = frame != m_lastUpdateFrame;
+	m_lastUpdateFrame = frame;
+
 	getStarImage();
-	updateRadarAttackGlow();
+	if (isNewFrame)
+	{
+		updateRadarAttackGlow();
+	}
 	if(m_controlBarSchemeManager)
 		m_controlBarSchemeManager->update();
 
@@ -1495,7 +1506,7 @@ void ControlBar::update()
 				const CommandButton *commandButton = (const CommandButton *)GadgetButtonGetData(button);
 				if( commandButton != nullptr )
 				{
-					if( commandButton->getFlashCount() > 0 && TheGameClient->getFrame() % 10 == 0 )
+					if( commandButton->getFlashCount() > 0 && isNewFrame && frame % 10 == 0 )
 					{
 						if( commandButton->getFlashCount() % 2 == 0 )
 						{

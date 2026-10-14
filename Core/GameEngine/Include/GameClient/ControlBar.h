@@ -964,6 +964,7 @@ protected:
 
 	//cameo flash
 	Bool m_flash;                                       ///< tells update whether or not to check for flash
+	UnsignedInt m_lastUpdateFrame;                      ///< client frame of the previous update, so flashes advance once per logic frame
 
 	Bool m_sideSelectAnimateDown;
 	ICoord2D m_animateDownWin1Size;
