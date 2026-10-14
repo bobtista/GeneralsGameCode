@@ -15,6 +15,10 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+#include <locale.h>
+#if defined(__APPLE__)
+#include <xlocale.h>
+#endif
 
 #ifndef CALLBACK
 #define CALLBACK
@@ -466,20 +470,68 @@ inline short GetAsyncKeyState(int) { return 0; }
 #define VER_PLATFORM_WIN32_NT 2
 #endif
 
-inline int GetTimeFormat(unsigned long, unsigned long, const SYSTEMTIME *, const char *, char *buf, int bufsize)
+// Formats with strftime in the user's LC_TIME locale. Returns the length including the terminator, or 0 on failure.
+inline int FormatSystemTime(const SYSTEMTIME *time, const char *format, char *buf, int bufsize)
 {
-    if (buf != nullptr && bufsize > 0) { buf[0] = '\0'; }
-    return 0;
+    if (buf == nullptr || bufsize <= 0) { return 0; }
+    buf[0] = '\0';
+
+    SYSTEMTIME now;
+    if (time == nullptr) {
+        GetLocalTime(&now);
+        time = &now;
+    }
+
+    struct tm t = {};
+    t.tm_year = time->wYear - 1900;
+    t.tm_mon = time->wMonth - 1;
+    t.tm_mday = time->wDay;
+    t.tm_wday = time->wDayOfWeek;
+    t.tm_hour = time->wHour;
+    t.tm_min = time->wMinute;
+    t.tm_sec = time->wSecond;
+    t.tm_isdst = -1;
+
+    size_t length;
+    locale_t locale = newlocale(LC_TIME_MASK, "", (locale_t)0);
+    if (locale != (locale_t)0) {
+        length = strftime_l(buf, bufsize, format, &t, locale);
+        freelocale(locale);
+    } else {
+        length = strftime(buf, bufsize, format, &t);
+    }
+    if (length == 0) {
+        buf[0] = '\0';
+        return 0;
+    }
+    return static_cast<int>(length) + 1;
 }
-inline int GetDateFormatW(unsigned long, unsigned long, const SYSTEMTIME *, const wchar_t *, wchar_t *buf, int bufsize)
+inline int FormatSystemTimeW(const SYSTEMTIME *time, const char *format, wchar_t *buf, int bufsize)
 {
-    if (buf != nullptr && bufsize > 0) { buf[0] = L'\0'; }
-    return 0;
+    if (buf == nullptr || bufsize <= 0) { return 0; }
+    char narrow[256];
+    int length = FormatSystemTime(time, format, narrow, bufsize < 256 ? bufsize : 256);
+    for (int i = 0; i < length; ++i) {
+        buf[i] = static_cast<wchar_t>(static_cast<unsigned char>(narrow[i]));
+    }
+    if (length == 0) { buf[0] = L'\0'; }
+    return length;
 }
-inline int GetTimeFormatW(unsigned long, unsigned long, const SYSTEMTIME *, const wchar_t *, wchar_t *buf, int bufsize)
+inline const char *GetTimeFormatString(unsigned long flags)
 {
-    if (buf != nullptr && bufsize > 0) { buf[0] = L'\0'; }
-    return 0;
+    return (flags & TIME_NOSECONDS) ? "%H:%M" : "%H:%M:%S";
+}
+inline int GetTimeFormat(unsigned long, unsigned long flags, const SYSTEMTIME *time, const char *, char *buf, int bufsize)
+{
+    return FormatSystemTime(time, GetTimeFormatString(flags), buf, bufsize);
+}
+inline int GetDateFormatW(unsigned long, unsigned long, const SYSTEMTIME *time, const wchar_t *, wchar_t *buf, int bufsize)
+{
+    return FormatSystemTimeW(time, "%x", buf, bufsize);
+}
+inline int GetTimeFormatW(unsigned long, unsigned long flags, const SYSTEMTIME *time, const wchar_t *, wchar_t *buf, int bufsize)
+{
+    return FormatSystemTimeW(time, GetTimeFormatString(flags), buf, bufsize);
 }
 
 // Win critical section types backed by pthread_mutex.
