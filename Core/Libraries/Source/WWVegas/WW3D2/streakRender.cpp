@@ -537,7 +537,8 @@ void StreakRendererClass::RenderStreak
 		{
 			// #segments = #points - 1 (+ 2 dummy segments)
 
-			radius = widths[segmentIndex]; /// NEW ///// // TODO: Does not work correctly when subdivision are not 0
+			// TheSuperHackers @bugfix bobtista 14/10/2026 Offset by the chunk start so later chunks read their own widths.
+			radius = widths[MIN(chunkIndex + segmentIndex, num_points - 1)]; /// NEW ///// // TODO: Does not work correctly when subdivision are not 0
 
 			Vector3 &curr_point = points[segmentIndex - 1];
 			Vector3 &next_point = points[segmentIndex];
@@ -1351,7 +1352,8 @@ void StreakRendererClass::RenderStreak
 				vertex->X = vertexArray[i].x;
 				vertex->Y = vertexArray[i].y;
 				vertex->Z = vertexArray[i].z;
-				*reinterpret_cast<unsigned int *>(vb + diffuseOffset) = WW3DColor::To_ARGB_Clamp(colors[MIN((i/2), point_cnt)]); // TODO: Does not work correctly when subdivision are not 0
+				// TheSuperHackers @bugfix bobtista 14/10/2026 Offset by the chunk start and stay inside the color array.
+				*reinterpret_cast<unsigned int *>(vb + diffuseOffset) = WW3DColor::To_ARGB_Clamp(colors[MIN(chunkIndex + MIN((i/2), point_cnt - 1), num_points - 1)]); // TODO: Does not work correctly when subdivision are not 0
 				Vector2 *texture = reinterpret_cast<Vector2 *>(vb + textureOffset);
 				texture->U = vertexArray[i].u1;
 				texture->V = vertexArray[i].v1;
