@@ -53,6 +53,7 @@
 #include "Common/AudioSettings.h"
 #include "Common/FileSystem.h"
 #include "Common/GameEngine.h"
+#include "Common/GameUtility.h"
 #include "Common/GameMusic.h"
 #include "Common/GameSounds.h"
 #include "Common/MiscAudio.h"
@@ -66,6 +67,7 @@
 #include "GameClient/View.h"
 
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/PartitionManager.h"
 #include "GameLogic/TerrainLogic.h"
 
 #include "WWMath/matrix3d.h"
@@ -800,6 +802,18 @@ void AudioManager::setListenerPosition( const Coord3D *newListenerPos, const Coo
 const Coord3D *AudioManager::getListenerPosition() const
 {
 	return &m_listenerPosition;
+}
+
+//-------------------------------------------------------------------------------------------------
+Bool AudioManager::isShroudedAt( const AudioEventRTS *event, const Coord3D *pos ) const
+{
+	const AudioEventInfo *info = event->getAudioEventInfo();
+	if (info == nullptr || !BitIsSet(info->m_type, ST_SHROUDED) || ThePartitionManager == nullptr)
+	{
+		return FALSE;
+	}
+
+	return ThePartitionManager->getShroudStatusForPlayer(rts::getObservedOrLocalPlayerIndex_Safe(), pos) != CELLSHROUD_CLEAR;
 }
 
 //-------------------------------------------------------------------------------------------------
