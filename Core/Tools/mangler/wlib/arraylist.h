@@ -50,7 +50,7 @@ that don't belong to them, etc...
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <new.h>
+#include <new>
 #include <math.h>
 
 #include "wstypes.h"
