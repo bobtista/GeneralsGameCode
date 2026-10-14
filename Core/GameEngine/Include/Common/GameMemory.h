@@ -61,7 +61,7 @@
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 
-#include <new.h>
+#include <new>
 #include <Utility/stdio_adapter.h>
 #ifdef MEMORYPOOL_OVERRIDE_MALLOC
 	#ifdef _WIN32
