@@ -31,7 +31,6 @@
 #include "debug/debug_io.h"
 #include "internal.h"
 #include "internal_io.h"
-#include "Lib/PathUtil.h"
 #include <stdlib.h>
 #include <windows.h>
 #include <Utility/stringex.h>
@@ -75,7 +74,8 @@ void DebugIOFlat::OutputStream::Delete(const char *path)
     char *ext=strrchr(m_fileName,'.');
     if (!ext)
       ext=m_fileName+strlen(m_fileName);
-    char *fileNameOnly=getFileName(m_fileName);
+    const char *fileNameOnly=strrpbrk(m_fileName,"/\\");
+    fileNameOnly=fileNameOnly?fileNameOnly+1:m_fileName;
 
     for (;;)
     {
