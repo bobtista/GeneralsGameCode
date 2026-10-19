@@ -3781,6 +3781,10 @@ void GameLogic::update()
 		}
 		if (s_crcProbeFrom > 0 && m_frame >= static_cast<UnsignedInt>(s_crcProbeFrom) && getGameMode() != GAME_SHELL)
 		{
+			if (m_frame == static_cast<UnsignedInt>(s_crcProbeFrom) && getenv("GGC_RESEED") != nullptr)
+			{
+				InitRandom(12345);
+			}
 			FILE *f = fopen("crcprobe.txt", "a");
 			if (f)
 			{
