@@ -3733,8 +3733,9 @@ void GameLogic::update()
 
 #if defined(RTS_DEBUG)
 	// Save before scripts and object updates so loading does not repeat part of a frame.
+	extern UnsignedInt g_t3492LoopStopMax;
 	if (TheGlobalData->m_saveAtFrame > 0 && m_frame >= static_cast<UnsignedInt>(TheGlobalData->m_saveAtFrame)
-		&& isInInteractiveGame())
+		&& isInInteractiveGame() && (getenv("GGC_SAVE_ON_LOOP") == nullptr || m_frame + 20 < g_t3492LoopStopMax))
 	{
 		if (isInMultiplayerGame() || isInReplayGame())
 		{

@@ -42,6 +42,8 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/Weapon.h"
 
+UnsignedInt g_t3492LoopStopMax = 0;
+
 
 //-------------------------------------------------------------------------------------------------
 FiringTracker::FiringTracker(Thing* thing, const ModuleData *modData) : UpdateModule( thing, modData )
@@ -165,6 +167,10 @@ void FiringTracker::shotFired(const Weapon* weaponFired, ObjectID victimID)
 			m_audioHandle = TheAudio->addAudioEvent( &audio );
 		}
 		m_frameToStopLoopingSound = now + fireSoundLoopTime;
+		if( m_frameToStopLoopingSound > g_t3492LoopStopMax )
+		{
+			g_t3492LoopStopMax = m_frameToStopLoopingSound;
+		}
 	}
 	else
 	{
