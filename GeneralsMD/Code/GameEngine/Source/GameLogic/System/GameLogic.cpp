@@ -3784,7 +3784,7 @@ void GameLogic::update()
 			FILE *f = fopen("crcprobe.txt", "a");
 			if (f)
 			{
-				fprintf(f, "%u %08X\n", m_frame, getCRC(CRC_RECALC));
+				fprintf(f, "%u %08X seed %08X\n", m_frame, getCRC(CRC_RECALC), GetGameLogicRandomSeedCRC());
 				fclose(f);
 				const char *deepEnv = getenv("GGC_DEEPCRC_FRAME");
 				if (deepEnv && static_cast<UnsignedInt>(atoi(deepEnv)) == m_frame)
