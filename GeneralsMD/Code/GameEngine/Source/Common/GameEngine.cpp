@@ -101,6 +101,7 @@
 #include "GameClient/Drawable.h"
 #include "GameClient/GUICallbacks.h"
 
+#include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/LANAPI.h"
@@ -330,6 +331,85 @@ Bool GameEngine::isTimeFrozen()
 }
 
 //-------------------------------------------------------------------------------------------------
+static Bool startCommandLineSkirmish()
+{
+	if (TheMapCache == nullptr)
+	{
+		DEBUG_LOG(("Command line skirmish: no map cache"));
+		return FALSE;
+	}
+
+	AsciiString requestedMap = TheGlobalData->m_skirmishMap;
+	const MapMetaData *mapData = TheMapCache->findMap(requestedMap);
+	if (mapData == nullptr)
+	{
+		AsciiString candidate;
+		candidate.format("Maps\\%s\\%s.map", requestedMap.str(), requestedMap.str());
+		mapData = TheMapCache->findMap(candidate);
+	}
+	if (mapData == nullptr || mapData->m_numPlayers < 2)
+	{
+		DEBUG_LOG(("Command line skirmish: map '%s' not usable", requestedMap.str()));
+		return FALSE;
+	}
+
+	if (TheSkirmishGameInfo == nullptr)
+	{
+		TheSkirmishGameInfo = NEW SkirmishGameInfo;
+	}
+	else if (TheSkirmishGameInfo->isInGame())
+	{
+		TheSkirmishGameInfo->endGame();
+	}
+
+	TheSkirmishGameInfo->init();
+	TheSkirmishGameInfo->clearSlotList();
+	TheSkirmishGameInfo->reset();
+	TheSkirmishGameInfo->setLocalIP(0);
+	TheSkirmishGameInfo->enterGame();
+
+	GameSlot humanSlot;
+	humanSlot.setState(SLOT_PLAYER, UnicodeString(L"Harness"), 0);
+	TheSkirmishGameInfo->setSlot(0, humanSlot);
+
+	Int aiCount = TheGlobalData->m_skirmishAICount;
+	if (aiCount < 1)
+	{
+		aiCount = 1;
+	}
+	if (aiCount > mapData->m_numPlayers - 1)
+	{
+		aiCount = mapData->m_numPlayers - 1;
+	}
+	for (Int slotIndex = 1; slotIndex <= aiCount; ++slotIndex)
+	{
+		GameSlot aiSlot;
+		aiSlot.setState(SLOT_BRUTAL_AI);
+		TheSkirmishGameInfo->setSlot(slotIndex, aiSlot);
+	}
+
+	TheSkirmishGameInfo->setSeed(TheGlobalData->m_skirmishSeed);
+	TheSkirmishGameInfo->setMap(mapData->m_fileName);
+	TheSkirmishGameInfo->setMapCRC(mapData->m_CRC);
+	TheSkirmishGameInfo->setMapSize(mapData->m_filesize);
+
+	TheWritableGlobalData->m_shellMapOn = FALSE;
+	TheWritableGlobalData->m_playIntro = FALSE;
+	TheWritableGlobalData->m_mapName = TheSkirmishGameInfo->getMap();
+
+	TheSkirmishGameInfo->startGame(0);
+	InitRandom(TheGlobalData->m_skirmishSeed);
+
+	GameMessage *msg = TheMessageStream->appendMessage( GameMessage::MSG_NEW_GAME );
+	msg->appendIntegerArgument(GAME_SKIRMISH);
+	msg->appendIntegerArgument(DIFFICULTY_NORMAL);
+	msg->appendIntegerArgument(0);
+
+	DEBUG_LOG(("Command line skirmish on '%s' with %d computer opponents, seed %d",
+		mapData->m_fileName.str(), aiCount, TheGlobalData->m_skirmishSeed));
+	return TRUE;
+}
+
 Bool GameEngine::isGameHalted()
 {
 	if (TheNetwork != nullptr)
@@ -730,6 +810,14 @@ void GameEngine::init()
 				msg->appendIntegerArgument(DIFFICULTY_NORMAL);
 				msg->appendIntegerArgument(0);
 				InitRandom(0);
+			}
+		}
+
+		if (TheGlobalData->m_skirmishMap.isEmpty() == FALSE)
+		{
+			if (startCommandLineSkirmish() == FALSE)
+			{
+				m_quitting = TRUE;
 			}
 		}
 

@@ -3765,6 +3765,30 @@ void GameLogic::update()
 	}
 #endif
 
+	if (TheGlobalData->m_quitAtFrame > 0 && m_frame >= static_cast<UnsignedInt>(TheGlobalData->m_quitAtFrame) && getGameMode() != GAME_SHELL)
+	{
+		TheGameEngine->setQuitting(TRUE);
+		return;
+	}
+
+	{
+		static Int s_crcProbeFrom = -1;
+		if (s_crcProbeFrom < 0)
+		{
+			const char *env = getenv("GGC_CRCPROBE_FROM");
+			s_crcProbeFrom = env ? atoi(env) : 0;
+		}
+		if (s_crcProbeFrom > 0 && m_frame >= static_cast<UnsignedInt>(s_crcProbeFrom) && getGameMode() != GAME_SHELL)
+		{
+			FILE *f = fopen("crcprobe.txt", "a");
+			if (f)
+			{
+				fprintf(f, "%u %08X\n", m_frame, getCRC(CRC_RECALC));
+				fclose(f);
+			}
+		}
+	}
+
 	// update (execute) scripts
 	{
 		TheScriptEngine->UPDATE();

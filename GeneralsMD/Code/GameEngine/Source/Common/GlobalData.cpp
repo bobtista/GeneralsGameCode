@@ -997,6 +997,10 @@ GlobalData::GlobalData()
 	m_saveToFile = "commandline.sav";
 #endif
 	m_pendingFile.clear();
+	m_skirmishMap.clear();
+	m_skirmishAICount = 1;
+	m_skirmishSeed = 1;
+	m_quitAtFrame = 0;
 
 	m_simulateReplays.clear();
 	m_simulateReplayJobs = SIMULATE_REPLAYS_SEQUENTIAL;

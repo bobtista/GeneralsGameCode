@@ -388,6 +388,30 @@ void FiringTracker::xfer( Xfer *xfer )
 		xfer->xferUnsignedInt( &m_frameToForceReload );
 	}
 
+	if( xfer->getXferMode() != XFER_CRC )
+	{
+		static Int s_saveLoopSound = -1;
+		if( s_saveLoopSound < 0 )
+		{
+			s_saveLoopSound = getenv( "GGC_XFER_LOOPSOUND" ) ? 1 : 0;
+		}
+		if( s_saveLoopSound )
+		{
+			xfer->xferUnsignedInt( &m_frameToStopLoopingSound );
+		}
+		if( m_frameToStopLoopingSound != 0 || m_frameToForceReload != 0 )
+		{
+			FILE *f = fopen( "loopsound_probe.txt", "a" );
+			if( f )
+			{
+				fprintf( f, "mode %d now %u obj %u %s loopStop %u forceReload %u cooldown %u saveLoop %d\n", (Int)xfer->getXferMode(),
+					TheGameLogic->getFrame(), getObject()->getID(), getObject()->getTemplate()->getName().str(),
+					m_frameToStopLoopingSound, m_frameToForceReload, m_frameToStartCooldown, s_saveLoopSound );
+				fclose( f );
+			}
+		}
+	}
+
 }
 
 // ------------------------------------------------------------------------------------------------

@@ -693,6 +693,42 @@ Int parseDisplayDebug(char *args[], int)
 	return 1;
 }
 
+Int parseSkirmish(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_skirmishMap = args[1];
+	}
+	return 2;
+}
+
+Int parseSkirmishAICount(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_skirmishAICount = atoi(args[1]);
+	}
+	return 2;
+}
+
+Int parseSkirmishSeed(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_skirmishSeed = atoi(args[1]);
+	}
+	return 2;
+}
+
+Int parseQuitAtFrame(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_quitAtFrame = atoi(args[1]);
+	}
+	return 2;
+}
+
 Int parseSaveAtFrame(char *args[], int num)
 {
 	if (num <= 1)
@@ -1384,6 +1420,10 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-file", parseFile },
 	// TheSuperHackers @feature bobtista 14/08/2026 Save at a chosen logic frame and quit for unattended save/load tests.
 	{ "-saveatframe", parseSaveAtFrame },
+	{ "-skirmish", parseSkirmish },
+	{ "-skirmishaicount", parseSkirmishAICount },
+	{ "-skirmishseed", parseSkirmishSeed },
+	{ "-quitatframe", parseQuitAtFrame },
 	{ "-saveto", parseSaveTo },
 
 //	{ "-preload", parsePreload },
