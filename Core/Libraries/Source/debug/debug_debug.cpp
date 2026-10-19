@@ -31,7 +31,6 @@
 #include "internal.h"
 #include "internal_except.h"
 #include "internal_io.h"
-#include "Lib/PathUtil.h"
 #include <stdlib.h>
 #include <windows.h>
 #include <Utility/stdio_adapter.h>
@@ -1236,7 +1235,8 @@ Debug::FrameHashEntry* Debug::AddFrameEntry(unsigned addr, unsigned type,
   else
   {
     // no, just add file name (without path though)
-    e->fileOrGroup=getFileName(fileOrGroup);
+    e->fileOrGroup=fileOrGroup?strrpbrk(fileOrGroup,"/\\"):nullptr;
+    e->fileOrGroup=e->fileOrGroup?e->fileOrGroup+1:fileOrGroup;
   }
 
   // add to hash
@@ -1272,7 +1272,7 @@ const char *Debug::AddLogGroup(const char *fileOrGroup, const char *descr)
   char help[200];
 
   // do we need to strip down fileOrGroup?
-  const char *p=getLastPathSeparator(fileOrGroup);
+  const char *p=strrpbrk(fileOrGroup,"/\\");
   const char *q=strchr(p?p:fileOrGroup,'.');
   if (p||q)
   {

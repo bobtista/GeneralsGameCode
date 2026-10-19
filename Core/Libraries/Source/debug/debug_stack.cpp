@@ -29,7 +29,6 @@
 
 #include "debug/debug.h"
 #include "debug/debug_stack.h"
-#include "Lib/PathUtil.h"
 #include <windows.h>
 #include "Utility/stringex.h"
 #include <imagehlp.h>
@@ -75,7 +74,7 @@ static void InitDbghelp()
 	char dbgHelpPath[256];
 	if (GetModuleFileName(nullptr,dbgHelpPath,sizeof(dbgHelpPath)))
 	{
-		char *slash=getLastPathSeparator(dbgHelpPath);
+		char *slash=const_cast<char*>(strrpbrk(dbgHelpPath,"/\\"));
 		if (slash)
 		{
 			strcpy(slash+1,"DBGHELP.DLL");
@@ -171,7 +170,8 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr, char *buf, unsigned buf
   char symbolBuffer[512];
   GetModuleFileName((HMODULE)modBase,symbolBuffer,sizeof(symbolBuffer));
 
-  char *p=getFileName(symbolBuffer); // use filename only, strip off path
+  const char *p=strrpbrk(symbolBuffer,"/\\"); // use filename only, strip off path
+  p=p?p+1:symbolBuffer;
   *buf++=' ';
   strcpy(buf,p);
   buf+=strlen(buf);
@@ -198,7 +198,8 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr, char *buf, unsigned buf
   if (!gDbg._SymGetLineFromAddr((HANDLE)GetCurrentProcessId(),addr,&displacement,&line))
     return;
 
-  p=getFileName(line.FileName); // use filename only, strip off path
+  p=strrpbrk(line.FileName,"/\\"); // use filename only, strip off path
+  p=p?p+1:line.FileName;
 
   if ((unsigned int)(bufEnd-buf)<strlen(p)+16)
     return;
@@ -251,7 +252,8 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr,
   {
     GetModuleFileName((HMODULE)modBase,symbolBuffer,sizeof(symbolBuffer));
 
-    char *p=getFileName(symbolBuffer); // use filename only, strip off path
+    const char *p=strrpbrk(symbolBuffer,"/\\"); // use filename only, strip off path
+    p=p?p+1:symbolBuffer;
     strlcpy(bufMod,p,sizeMod);
   }
   if (relMod)
@@ -286,7 +288,8 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr,
       strcpy(bufFile,"(unknown)");
     else
     {
-      char *p=getFileName(line.FileName); // use filename only, strip off path
+      const char *p=strrpbrk(line.FileName,"/\\"); // use filename only, strip off path
+      p=p?p+1:line.FileName;
       strlcpy(bufFile,p,sizeFile);
       if (linePtr)
         *linePtr=line.LineNumber;
