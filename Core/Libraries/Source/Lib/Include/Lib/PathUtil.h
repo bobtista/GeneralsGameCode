@@ -49,7 +49,7 @@ inline bool isPathSeparator(char ch)
 	return ch == '/' || ch == '\\';
 }
 
-inline bool isPathSeparator(wchar_t ch)
+inline bool isPathSeparator(WideChar ch)
 {
 	return ch == L'/' || ch == L'\\';
 }
@@ -82,7 +82,7 @@ inline const char* getFirstPathSeparator(const char* path)
 	return path ? strpbrk(path, "/\\") : nullptr;
 }
 
-inline const wchar_t* getFirstPathSeparator(const wchar_t* path)
+inline const WideChar* getFirstPathSeparator(const WideChar* path)
 {
 	return path ? wcspbrk(path, L"/\\") : nullptr;
 }
@@ -102,9 +102,9 @@ inline char* getLastPathSeparator(char* path)
 	return const_cast<char*>(getLastPathSeparator(static_cast<const char*>(path)));
 }
 
-inline wchar_t* getLastPathSeparator(wchar_t* path)
+inline WideChar* getLastPathSeparator(WideChar* path)
 {
-	return const_cast<wchar_t*>(getLastPathSeparator(static_cast<const wchar_t*>(path)));
+	return const_cast<WideChar*>(getLastPathSeparator(static_cast<const WideChar*>(path)));
 }
 
 // Returns the whole path when it contains no separator
