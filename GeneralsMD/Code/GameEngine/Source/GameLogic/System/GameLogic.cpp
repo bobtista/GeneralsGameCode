@@ -3786,6 +3786,13 @@ void GameLogic::update()
 			{
 				fprintf(f, "%u %08X\n", m_frame, getCRC(CRC_RECALC));
 				fclose(f);
+				const char *deepEnv = getenv("GGC_DEEPCRC_FRAME");
+				if (deepEnv && static_cast<UnsignedInt>(atoi(deepEnv)) == m_frame)
+				{
+					AsciiString deepName;
+					deepName.format("deepcrc_%u.bin", m_frame);
+					getCRC(CRC_RECALC, deepName);
+				}
 			}
 		}
 	}
