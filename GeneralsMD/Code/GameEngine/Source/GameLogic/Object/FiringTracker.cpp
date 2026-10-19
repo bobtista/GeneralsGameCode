@@ -167,6 +167,19 @@ void FiringTracker::shotFired(const Weapon* weaponFired, ObjectID victimID)
 			m_audioHandle = TheAudio->addAudioEvent( &audio );
 		}
 		m_frameToStopLoopingSound = now + fireSoundLoopTime;
+		{
+			static UnsignedInt s_lastLogged = 0;
+			if( now >= s_lastLogged + 30 )
+			{
+				s_lastLogged = now;
+				FILE *f = fopen( "loopshots.txt", "a" );
+				if( f )
+				{
+					fprintf( f, "shot %u obj %u %s stop %u\n", now, getObject()->getID(), getObject()->getTemplate()->getName().str(), m_frameToStopLoopingSound );
+					fclose( f );
+				}
+			}
+		}
 		if( m_frameToStopLoopingSound > g_t3492LoopStopMax )
 		{
 			g_t3492LoopStopMax = m_frameToStopLoopingSound;
