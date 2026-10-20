@@ -79,22 +79,22 @@ inline bool isAbsolutePath(const char* path)
 
 inline const char* getFirstPathSeparator(const char* path)
 {
-	return path ? strpbrk(path, "/\\") : nullptr;
+	return strpbrk(path, "/\\");
 }
 
 inline const WideChar* getFirstPathSeparator(const WideChar* path)
 {
-	return path ? wcspbrk(path, L"/\\") : nullptr;
+	return wcspbrk(path, L"/\\");
 }
 
 inline const char* getLastPathSeparator(const char* path)
 {
-	return path ? strrpbrk(path, "/\\") : nullptr;
+	return strrpbrk(path, "/\\");
 }
 
 inline const WideChar* getLastPathSeparator(const WideChar* path)
 {
-	return path ? wcsrpbrk(path, L"/\\") : nullptr;
+	return wcsrpbrk(path, L"/\\");
 }
 
 inline char* getLastPathSeparator(char* path)
