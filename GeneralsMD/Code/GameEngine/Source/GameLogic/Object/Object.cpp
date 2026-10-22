@@ -770,18 +770,29 @@ static const char* probeBaseName(const char* file)
 	return p;
 }
 
-void Object::probeContainedByRead(const char* file, int line) const
+Bool probeFixEnabled()
+{
+	static Int s_fix = -1;
+	if (s_fix < 0)
+	{
+		const char* e = getenv("MM_FIX");
+		s_fix = (e && *e == '1') ? 1 : 0;
+	}
+	return s_fix == 1;
+}
+
+Bool Object::probeContainedByRead(const char* file, int line) const
 {
 	Object* live = TheGameLogic->findObjectByID(m_probeContainedByID);
 	if (live == m_containedBy)
-		return;
+		return FALSE;
 	static UnsignedInt s_lastFrame = 0xffffffff;
 	static ObjectID s_lastID = INVALID_ID;
 	static const char* s_lastFile = nullptr;
 	static int s_lastLine = -1;
 	UnsignedInt frame = TheGameLogic->getFrame();
 	if (frame == s_lastFrame && s_lastID == getID() && s_lastFile == file && s_lastLine == line)
-		return;
+		return probeFixEnabled();
 	s_lastFrame = frame;
 	s_lastID = getID();
 	s_lastFile = file;
@@ -792,6 +803,7 @@ void Object::probeContainedByRead(const char* file, int line) const
 		printf("MMPROBE STALE f=%u id=%u %s at=%s:%d cont=%u ptr=%p REUSED by live %u %s contain=%p\n", frame, getID(), getTemplate()->getName().str(), probeBaseName(file), line, m_probeContainedByID, (void*)m_containedBy, rawID, atRaw->getTemplate()->getName().str(), (void*)atRaw->getContain());
 	else
 		printf("MMPROBE STALE f=%u id=%u %s at=%s:%d cont=%u ptr=%p rawid=%u freed contain=%p\n", frame, getID(), getTemplate()->getName().str(), probeBaseName(file), line, m_probeContainedByID, (void*)m_containedBy, rawID, (void*)m_containedBy->getContain());
+	return probeFixEnabled();
 }
 
 void Object::friend_setContainedBy(Object* containedBy)
@@ -831,6 +843,11 @@ void Object::onDestroy()
 {
 
 	// This is the old cleanUpContain safeguard.  Say goodbye so they don't try to look us up.
+	if (m_containedBy && probeFixEnabled() && TheGameLogic->findObjectByID(m_probeContainedByID) != m_containedBy)
+	{
+		printf("MMPROBE FIXDESTROY f=%u id=%u cont=%u\n", TheGameLogic->getFrame(), getID(), m_probeContainedByID);
+		onRemovedFrom(nullptr);
+	}
 	if( m_containedBy && m_containedBy->getContain() )
 	{
 #if RETAIL_COMPATIBLE_CRC

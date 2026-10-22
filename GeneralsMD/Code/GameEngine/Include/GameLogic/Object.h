@@ -441,11 +441,11 @@ public:
 	RadarPriorityType getRadarPriority() const;
 
 	// contained-by
-	inline Object *getContainedByAt(const char* file, int line) { if (m_containedBy) probeContainedByRead(file, line); return m_containedBy; }
-	inline const Object *getContainedByAt(const char* file, int line) const { if (m_containedBy) probeContainedByRead(file, line); return m_containedBy; }
-	void probeContainedByRead(const char* file, int line) const;
+	inline Object *getContainedByAt(const char* file, int line) { if (m_containedBy && probeContainedByRead(file, line)) return nullptr; return m_containedBy; }
+	inline const Object *getContainedByAt(const char* file, int line) const { if (m_containedBy && probeContainedByRead(file, line)) return nullptr; return m_containedBy; }
+	Bool probeContainedByRead(const char* file, int line) const;
 	inline UnsignedInt getContainedByFrame() const { return m_containedByFrame; }
-	inline Bool isContained() const { if (m_containedBy) probeContainedByRead("isContained", 0); return m_containedBy != nullptr; }
+	inline Bool isContained() const { if (m_containedBy && probeContainedByRead("isContained", 0)) return FALSE; return m_containedBy != nullptr; }
 	void onContainedBy( Object *containedBy );
 	void onRemovedFrom( Object *removedFrom );
 	Int getTransportSlotCount() const;
