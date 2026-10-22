@@ -77,7 +77,31 @@
 #endif
 
 #include <algorithm>
+#include <limits.h>
 #include <utility>
+
+// TheSuperHackers @fix bobtista 22/10/2026 Compute the buffer sizes from the header, or 0 when the header is invalid.
+static long TGA_PaletteSize(const TGAHeader& header)
+{
+	const long depth = (header.CMapDepth >> 3);
+	if ((header.CMapStart < 0) || (header.CMapLength <= 0) || (depth <= 0) || (depth > 4)) {
+		return 0;
+	}
+	return ((long)header.CMapStart + (long)header.CMapLength) * depth;
+}
+
+static long TGA_ImageSize(const TGAHeader& header)
+{
+	const long depth = TGA_BytesPerPixel(header.PixelDepth);
+	if ((header.Width <= 0) || (header.Height <= 0) || (depth <= 0) || (depth > 4)) {
+		return 0;
+	}
+	const long pixels = (long)header.Width * (long)header.Height;
+	if (pixels > (LONG_MAX / depth)) {
+		return 0;
+	}
+	return pixels * depth;
+}
 
 /****************************************************************************
 *
@@ -103,7 +127,9 @@
 Targa::Targa()
 	{
 	mImage = nullptr;
+	mImageSize = 0;
 	mPalette = nullptr;
+	mPaletteSize = 0;
 	Clear_File();
 	mAccess = TGA_READMODE;
 	mFlags = 0;
@@ -373,12 +399,19 @@ long Targa::Load(const char* name, char* palette, char* image,bool invert_image)
 			 */
 			if ((palette != nullptr) && (Header.CMapLength > 0)) {
 
-				/* Adjust palette to the starting color entry. */
-				palette += (Header.CMapStart * depth);
+				// TheSuperHackers @fix bobtista 22/10/2026 Validate the color map range against the palette buffer.
+				const long paletteSize = TGA_PaletteSize(Header);
+				if ((palette != mPalette) || (paletteSize <= 0) || (paletteSize > mPaletteSize)) {
+					error = TGAERR_NOTSUPPORTED;
+				} else {
 
-				/* Read in the palette. */
-				if (File_Read(palette, size) != size) {
-					error = TGAERR_READ;
+					/* Adjust palette to the starting color entry. */
+					palette += (Header.CMapStart * depth);
+
+					/* Read in the palette. */
+					if (File_Read(palette, size) != size) {
+						error = TGAERR_READ;
+					}
 				}
 
 			} else {
@@ -393,10 +426,13 @@ long Targa::Load(const char* name, char* palette, char* image,bool invert_image)
 		 */
 		if (!error && (image != nullptr)) {
 
-			depth = TGA_BytesPerPixel(Header.PixelDepth);
-			size = ((Header.Width * Header.Height) * depth);
+			// TheSuperHackers @fix bobtista 22/10/2026 Validate the image size against the image buffer.
+			size = TGA_ImageSize(Header);
+			if ((image != mImage) || (size <= 0) || (size > mImageSize)) {
+				error = TGAERR_NOTSUPPORTED;
+			}
 
-			switch (Header.ImageType) {
+			switch (error ? TGA_NOIMAGE : Header.ImageType) {
 				case TGA_CMAPPED:
 					if (File_Read(image, size) != size) {
 						error = TGAERR_READ;
@@ -509,11 +545,12 @@ long Targa::Load(const char* name, long flags, bool invert_image)
 			if ((mPalette == nullptr) && !(mFlags & TGAF_PAL)) {
 
 				/* Compute the size of the palette from the targa header. */
-				size = (Header.CMapLength * (Header.CMapDepth >> 3));
+				size = TGA_PaletteSize(Header);
 
-				if (size != 0) {
+				if (size > 0) {
 					/* Allocate memory for the palette. */
 					if ((mPalette = (char *)malloc(size)) != nullptr) {
+						mPaletteSize = size;
 						mFlags |= TGAF_PAL; /* We allocated the palette. */
 					} else {
 						error = TGAERR_NOMEM;
@@ -536,10 +573,13 @@ long Targa::Load(const char* name, long flags, bool invert_image)
 			if ((mImage == nullptr) && !(mFlags & TGAF_IMAGE)) {
 
 				/* Compute the size of the image data from the targa header. */
-				size = ((Header.Width * Header.Height) * TGA_BytesPerPixel(Header.PixelDepth));
-				if (size != 0) {
+				size = TGA_ImageSize(Header);
+				if (size <= 0) {
+					error = TGAERR_NOTSUPPORTED;
+				} else {
 					/* Allocate memory for the image. */
 					if ((mImage = (char *)malloc(size)) != nullptr) {
+						mImageSize = size;
 						mFlags |= TGAF_IMAGE; /* We allocated the image. */
 					} else {
 						error = TGAERR_NOMEM;
@@ -934,7 +974,7 @@ void Targa::YFlip()
 *
 ****************************************************************************/
 
-char *Targa::SetImage(char *buffer)
+char *Targa::SetImage(char *buffer, long size)
 {
 	char *oldbuffer = nullptr;
 
@@ -952,6 +992,7 @@ char *Targa::SetImage(char *buffer)
 
 	/* Assign the new image buffer. */
 	mImage = buffer;
+	mImageSize = size;
 
 	return (oldbuffer);
 }
@@ -977,7 +1018,7 @@ char *Targa::SetImage(char *buffer)
 *
 ****************************************************************************/
 
-char *Targa::SetPalette(char *buffer)
+char *Targa::SetPalette(char *buffer, long size)
 {
 	char *oldbuffer = nullptr;
 
@@ -995,6 +1036,7 @@ char *Targa::SetPalette(char *buffer)
 
 	/* Assign the new image buffer. */
 	mPalette = buffer;
+	mPaletteSize = size;
 
 	return (oldbuffer);
 }
@@ -1079,8 +1121,15 @@ long Targa::DecodeImage()
 	/* Compute pixel depth in bytes. */
 	depth = TGA_BytesPerPixel(Header.PixelDepth);
 
+	// TheSuperHackers @fix bobtista 22/10/2026 Validate the image size and the packet counts against the image buffer.
+	const long image_size = TGA_ImageSize(Header);
+	if ((image_size <= 0) || (image_size > mImageSize))
+		{
+		return (TGAERR_NOTSUPPORTED);
+		}
+
 	/* Total number of pixels compressed in this image. */
-	pixel_count = (Header.Width * Header.Height);
+	pixel_count = (unsigned long)(image_size / depth);
 
 	while ((pixel_count > 0) && !error)
 		{
@@ -1090,11 +1139,16 @@ long Targa::DecodeImage()
 			/* If bit 8 of the count is set then we have a run of pixels,
 			 * otherwise the data is raw pixels.
 			 */
-			if (count & 0x80)
-				{
-				count &= 0x7F;
-				count++;
+			const bool is_run = ((count & 0x80) != 0);
+			count &= 0x7F;
+			count++;
 
+			if ((unsigned long)count > pixel_count)
+				{
+				error = TGAERR_READ;
+				}
+			else if (is_run)
+				{
 				/* Read in run pixel. */
 				if (File_Read(image, depth) == depth)
 					{
@@ -1111,7 +1165,6 @@ long Targa::DecodeImage()
 				}
 			else
 				{
-				count++;
 				size = (count * depth);
 
 				/* Read in raw pixels. */

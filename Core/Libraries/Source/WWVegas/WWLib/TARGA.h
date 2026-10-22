@@ -274,10 +274,10 @@ class Targa
 		void XFlip();
 		void YFlip();
 
-		char* SetImage(char* buffer);
+		char* SetImage(char* buffer, long size = 0);
 		char* GetImage() const {return (mImage);}
 
-		char* SetPalette(char* buffer);
+		char* SetPalette(char* buffer, long size);
 		char* GetPalette() const {return (mPalette);}
 
 		bool IsCompressed();
@@ -295,7 +295,9 @@ class Targa
 		long mAccess;
 		long mFlags;
 		char* mImage;
+		long mImageSize;
 		char* mPalette;
+		long mPaletteSize;
 		TGA2Extension mExtension;
 
 	private:
