@@ -188,7 +188,6 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 	m_containedBy(nullptr),
 	m_xferContainedByID(INVALID_ID),
 	m_probeContainedByID(INVALID_ID),
-	m_probeLastFrame(0xffffffff),
 	m_containedByFrame(0),
 	m_behaviors(nullptr),
 	m_body(nullptr),
@@ -760,22 +759,39 @@ Int Object::getTransportSlotCount() const
 	return count;
 }
 
-void Object::probeContainedByRead() const
+static const char* probeBaseName(const char* file)
 {
-	UnsignedInt frame = TheGameLogic->getFrame();
-	if (frame == m_probeLastFrame)
-		return;
+	const char* p = file;
+	for (const char* c = file; *c; ++c)
+	{
+		if (*c == '\\' || *c == '/')
+			p = c + 1;
+	}
+	return p;
+}
+
+void Object::probeContainedByRead(const char* file, int line) const
+{
 	Object* live = TheGameLogic->findObjectByID(m_probeContainedByID);
 	if (live == m_containedBy)
 		return;
-	m_probeLastFrame = frame;
+	static UnsignedInt s_lastFrame = 0xffffffff;
+	static ObjectID s_lastID = INVALID_ID;
+	static const char* s_lastFile = nullptr;
+	static int s_lastLine = -1;
+	UnsignedInt frame = TheGameLogic->getFrame();
+	if (frame == s_lastFrame && s_lastID == getID() && s_lastFile == file && s_lastLine == line)
+		return;
+	s_lastFrame = frame;
+	s_lastID = getID();
+	s_lastFile = file;
+	s_lastLine = line;
 	ObjectID rawID = m_containedBy->getID();
 	Object* atRaw = TheGameLogic->findObjectByID(rawID);
 	if (atRaw == m_containedBy)
-		printf("MMPROBE STALE f=%u id=%u %s cont=%u ptr=%p REUSED by live %u %s contain=%p\n", frame, getID(), getTemplate()->getName().str(), m_probeContainedByID, (void*)m_containedBy, rawID, atRaw->getTemplate()->getName().str(), (void*)atRaw->getContain());
+		printf("MMPROBE STALE f=%u id=%u %s at=%s:%d cont=%u ptr=%p REUSED by live %u %s contain=%p\n", frame, getID(), getTemplate()->getName().str(), probeBaseName(file), line, m_probeContainedByID, (void*)m_containedBy, rawID, atRaw->getTemplate()->getName().str(), (void*)atRaw->getContain());
 	else
-		printf("MMPROBE STALE f=%u id=%u %s cont=%u ptr=%p rawid=%u freed contain=%p\n", frame, getID(), getTemplate()->getName().str(), m_probeContainedByID, (void*)m_containedBy, rawID, (void*)m_containedBy->getContain());
-	fflush(stdout);
+		printf("MMPROBE STALE f=%u id=%u %s at=%s:%d cont=%u ptr=%p rawid=%u freed contain=%p\n", frame, getID(), getTemplate()->getName().str(), probeBaseName(file), line, m_probeContainedByID, (void*)m_containedBy, rawID, (void*)m_containedBy->getContain());
 }
 
 void Object::friend_setContainedBy(Object* containedBy)

@@ -3757,6 +3757,47 @@ void GameLogic::update()
 		TheTerrainLogic->UPDATE();
 	}
 
+	{
+		static Int s_crcFrom = -2;
+		static Int s_dumpFrom = 0;
+		static Int s_dumpTo = -1;
+		if (s_crcFrom == -2)
+		{
+			const char* e = getenv("MM_CRC_FROM");
+			s_crcFrom = e ? atoi(e) : -1;
+			e = getenv("MM_OBJDUMP_FROM");
+			s_dumpFrom = e ? atoi(e) : 0;
+			e = getenv("MM_OBJDUMP_TO");
+			s_dumpTo = e ? atoi(e) : -1;
+		}
+		Bool isGame = getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE;
+		if (isGame && s_crcFrom >= 0 && (Int)m_frame >= s_crcFrom)
+		{
+			XferCRC objCRC;
+			objCRC.open("mmObjects");
+			Int count = 0;
+			for (Object* o = m_objList; o; o = o->getNextObject())
+			{
+				objCRC.xferSnapshot(o);
+				++count;
+			}
+			objCRC.close();
+			printf("MMCRC f=%u seed=%08X objs=%08X count=%d\n", m_frame, GetGameLogicRandomSeedCRC(), objCRC.getCRC(), count);
+		}
+		if (isGame && (Int)m_frame >= s_dumpFrom && (Int)m_frame <= s_dumpTo)
+		{
+			for (Object* o = m_objList; o; o = o->getNextObject())
+			{
+				XferCRC one;
+				one.open("mmOne");
+				one.xferSnapshot(o);
+				one.close();
+				const Coord3D* pos = o->getPosition();
+				printf("MMOBJ f=%u id=%u %s crc=%08X pos=%.3f,%.3f,%.3f\n", m_frame, o->getID(), o->getTemplate()->getName().str(), one.getCRC(), pos->x, pos->y, pos->z);
+			}
+		}
+	}
+
 	// force CRC calculation, so we can keep a cache of the last N CRCs.  We do this right where the recorder
 	// would be getting the CRC anyway, so replays can get the CRCs from the exact instant in time as the original.
 	Bool isMPGameOrReplay = (TheRecorder && TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);

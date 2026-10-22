@@ -1331,11 +1331,7 @@ StateReturnType AIIdleState::onEnter()
 	// reset the idle countdown so that we don't do expensive checks too often,
 	// randomized so we avoid spikes
 	m_initialSleepOffset = (UnsignedShort)GameLogicRandomValue(0, IDLE_COUNTDOWN_DELAY);
-	if (TheGameLogic->getFrame() >= 22900 && TheGameLogic->getFrame() <= 23010)
-	{
-		printf("MMPROBE IDLE f=%u id=%u %s cont=%d off=%u\n", TheGameLogic->getFrame(), obj->getID(), obj->getTemplate()->getName().str(), (int)(obj->getContainedBy() != nullptr), (unsigned)m_initialSleepOffset);
-		fflush(stdout);
-	}
+	printf("MMPROBE IDLE f=%u id=%u %s off=%u\n", TheGameLogic->getFrame(), obj->getID(), obj->getTemplate()->getName().str(), (unsigned)m_initialSleepOffset);
 
 	// never sleep at the start, since we have to do checkGoalPos first time thru
 	return STATE_CONTINUE;
