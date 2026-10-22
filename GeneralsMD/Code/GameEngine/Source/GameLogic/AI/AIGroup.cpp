@@ -3347,6 +3347,20 @@ void AIGroup::crc( Xfer *xfer )
 }
 
 //-----------------------------------------------------------------------------
+void AIGroup::mmDump(UnsignedInt frame)
+{
+	printf("MMGROUP f=%u gid=%u size=%u speed=%f dirty=%d members=", frame, m_id, m_memberListSize, m_speed, (int)m_dirty);
+	for (std::list<Object *>::iterator it = m_memberList.begin(); it != m_memberList.end(); ++it)
+	{
+		if (*it)
+			printf("%u,", (*it)->getID());
+		else
+			printf("null,");
+	}
+	printf("\n");
+}
+
+//-----------------------------------------------------------------------------
 void AIGroup::xfer( Xfer *xfer )
 {
 

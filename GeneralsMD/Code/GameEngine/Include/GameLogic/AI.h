@@ -253,6 +253,7 @@ public:
 	virtual void update() override;					///< do one frame of AI computation
 
 	Pathfinder *pathfinder() { return m_pathfinder; }	///< public access to the pathfind system
+	void mmProbeParts(UnsignedInt frame, Bool dump);
 	enum
 	{
 		CAN_SEE														=	1 << 0,
@@ -889,6 +890,8 @@ private:
 	void groupAttackObjectPrivate( Bool forced, Object *victim, Int maxShotsToFire, CommandSourceType cmdSource );					///< attack given object
 
 public:
+	void mmDump(UnsignedInt frame);
+
 
 	// --------------- inherited from Snapshot interface --------------
 	virtual void crc( Xfer *xfer ) override;

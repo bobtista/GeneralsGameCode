@@ -1036,6 +1036,35 @@ void AI::crc( Xfer *xfer )
 }
 
 //-----------------------------------------------------------------------------
+void AI::mmProbeParts(UnsignedInt frame, Bool dump)
+{
+	XferCRC pf;
+	pf.open("mmPF");
+	pf.xferSnapshot(m_pathfinder);
+	pf.close();
+	XferCRC data;
+	data.open("mmData");
+	for (TAiData *aiData = m_aiData; aiData; aiData = aiData->m_next)
+		data.xferSnapshot(aiData);
+	data.close();
+	XferCRC groups;
+	groups.open("mmGroups");
+	Int count = 0;
+	for (std::list<AIGroup *>::iterator groupIt = m_groupList.begin(); groupIt != m_groupList.end(); ++groupIt)
+	{
+		if (*groupIt)
+		{
+			groups.xferSnapshot(*groupIt);
+			++count;
+			if (dump)
+				(*groupIt)->mmDump(frame);
+		}
+	}
+	groups.close();
+	printf("MMAI f=%u pf=%08X data=%08X groups=%08X ngroups=%d\n", frame, pf.getCRC(), data.getCRC(), groups.getCRC(), count);
+}
+
+//-----------------------------------------------------------------------------
 void AI::xfer( Xfer *xfer )
 {
 

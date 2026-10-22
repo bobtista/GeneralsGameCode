@@ -3782,7 +3782,16 @@ void GameLogic::update()
 				++count;
 			}
 			objCRC.close();
-			printf("MMCRC f=%u seed=%08X objs=%08X count=%d\n", m_frame, GetGameLogicRandomSeedCRC(), objCRC.getCRC(), count);
+			XferCRC partCRC;
+			partCRC.open("mmPart");
+			partCRC.xferSnapshot(ThePartitionManager);
+			partCRC.close();
+			XferCRC playerCRC;
+			playerCRC.open("mmPlayers");
+			playerCRC.xferSnapshot(ThePlayerList);
+			playerCRC.close();
+			printf("MMCRC f=%u seed=%08X objs=%08X count=%d part=%08X players=%08X\n", m_frame, GetGameLogicRandomSeedCRC(), objCRC.getCRC(), count, partCRC.getCRC(), playerCRC.getCRC());
+			TheAI->mmProbeParts(m_frame, (Int)m_frame >= s_dumpFrom && (Int)m_frame <= s_dumpTo);
 		}
 		if (isGame && (Int)m_frame >= s_dumpFrom && (Int)m_frame <= s_dumpTo)
 		{
