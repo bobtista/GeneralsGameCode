@@ -441,10 +441,11 @@ public:
 	RadarPriorityType getRadarPriority() const;
 
 	// contained-by
-	inline Object *getContainedBy() { return m_containedBy; }
-	inline const Object *getContainedBy() const { return m_containedBy; }
+	inline Object *getContainedBy() { if (m_containedBy) probeContainedByRead(); return m_containedBy; }
+	inline const Object *getContainedBy() const { if (m_containedBy) probeContainedByRead(); return m_containedBy; }
+	void probeContainedByRead() const;
 	inline UnsignedInt getContainedByFrame() const { return m_containedByFrame; }
-	inline Bool isContained() const { return m_containedBy != nullptr; }
+	inline Bool isContained() const { if (m_containedBy) probeContainedByRead(); return m_containedBy != nullptr; }
 	void onContainedBy( Object *containedBy );
 	void onRemovedFrom( Object *removedFrom );
 	Int getTransportSlotCount() const;
@@ -765,6 +766,8 @@ private:
 	Object*												m_containedBy;					/**< an object can only be contained by at most one
 																	other object, this is that object (if present) */
 	ObjectID											m_xferContainedByID;	///< xfer uses IDs to store pointers and looks them up after
+	ObjectID											m_probeContainedByID;
+	mutable UnsignedInt						m_probeLastFrame;
 	UnsignedInt										m_containedByFrame;	///< frame we were contained by m_containedBy
 
 	Real													m_constructionPercent;			///< for objects being built ... this is the amount completed (0.0 to 100.0)

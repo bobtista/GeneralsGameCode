@@ -187,6 +187,8 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 	m_geometryInfo(tt->getTemplateGeometryInfo()),
 	m_containedBy(nullptr),
 	m_xferContainedByID(INVALID_ID),
+	m_probeContainedByID(INVALID_ID),
+	m_probeLastFrame(0xffffffff),
 	m_containedByFrame(0),
 	m_behaviors(nullptr),
 	m_body(nullptr),
@@ -693,7 +695,10 @@ void Object::onContainedBy( Object *containedBy )
 	else
 		clearStatus( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_MASKED ) );
 	m_containedBy = containedBy;
+	m_probeContainedByID = containedBy ? containedBy->getID() : INVALID_ID;
 	m_containedByFrame = TheGameLogic->getFrame();
+	if (containedBy)
+		printf("MMPROBE CONTAINED f=%u id=%u %s by=%u %s ptr=%p\n", TheGameLogic->getFrame(), getID(), getTemplate()->getName().str(), containedBy->getID(), containedBy->getTemplate()->getName().str(), (void*)containedBy);
 
 	DEBUG_ASSERTCRASH(containedBy == nullptr || !containedBy->isDestroyed(),
 		("Object::onContainedBy - Adding to a destroyed container"));
@@ -708,7 +713,9 @@ void Object::onContainedBy( Object *containedBy )
 void Object::onRemovedFrom( Object *removedFrom )
 {
 	clearStatus( MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_MASKED, OBJECT_STATUS_UNSELECTABLE ) );
+	printf("MMPROBE REMOVED f=%u id=%u %s from=%u\n", TheGameLogic->getFrame(), getID(), getTemplate()->getName().str(), m_probeContainedByID);
 	m_containedBy = nullptr;
+	m_probeContainedByID = INVALID_ID;
 	m_containedByFrame = 0;
 
   handlePartitionCellMaintenance(); // get a clean look, now that I am outdoors, again
@@ -753,9 +760,28 @@ Int Object::getTransportSlotCount() const
 	return count;
 }
 
+void Object::probeContainedByRead() const
+{
+	UnsignedInt frame = TheGameLogic->getFrame();
+	if (frame == m_probeLastFrame)
+		return;
+	Object* live = TheGameLogic->findObjectByID(m_probeContainedByID);
+	if (live == m_containedBy)
+		return;
+	m_probeLastFrame = frame;
+	ObjectID rawID = m_containedBy->getID();
+	Object* atRaw = TheGameLogic->findObjectByID(rawID);
+	if (atRaw == m_containedBy)
+		printf("MMPROBE STALE f=%u id=%u %s cont=%u ptr=%p REUSED by live %u %s contain=%p\n", frame, getID(), getTemplate()->getName().str(), m_probeContainedByID, (void*)m_containedBy, rawID, atRaw->getTemplate()->getName().str(), (void*)atRaw->getContain());
+	else
+		printf("MMPROBE STALE f=%u id=%u %s cont=%u ptr=%p rawid=%u freed contain=%p\n", frame, getID(), getTemplate()->getName().str(), m_probeContainedByID, (void*)m_containedBy, rawID, (void*)m_containedBy->getContain());
+	fflush(stdout);
+}
+
 void Object::friend_setContainedBy(Object* containedBy)
 {
 	m_containedBy = containedBy;
+	m_probeContainedByID = containedBy ? containedBy->getID() : INVALID_ID;
 
 #if !RETAIL_COMPATIBLE_CRC
 	m_containedByFrame = containedBy ? TheGameLogic->getFrame() : 0;
@@ -4579,7 +4605,8 @@ void Object::loadPostProcess()
 {
 	if( m_xferContainedByID != INVALID_ID )
 		m_containedBy = TheGameLogic->findObjectByID(m_xferContainedByID);
-	else
+	m_probeContainedByID = m_containedBy ? m_containedBy->getID() : INVALID_ID;
+	if (!m_containedBy)
 		m_containedBy = nullptr;
 
 }
