@@ -185,6 +185,9 @@ void Pathfinder::reset()
 	m_isTunneling = false;
 
 	m_moveAlliesDepth = 0;
+#if !RETAIL_COMPATIBLE_PATHFINDING
+	std::fill(m_moveAlliesObjects, m_moveAlliesObjects + ARRAY_SIZE(m_moveAlliesObjects), INVALID_ID);
+#endif
 
 	// pathfind grid cells have not been classified yet
 	m_isMapReady = false;
