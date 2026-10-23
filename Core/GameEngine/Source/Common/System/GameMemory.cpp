@@ -2767,7 +2767,21 @@ void MemoryPoolFactory::mmResetEmptyPools()
 		Int used = pool->getUsedBlockCount();
 		const char* name = pool->getPoolName();
 		Bool interesting = strstr(name, "Object") || strstr(name, "Contain") || strstr(name, "Drawable");
-		if (used == 0)
+		const char* only = getenv("MM_POOLRESET_ONLY");
+		Bool selected = TRUE;
+		if (only && *only)
+		{
+			selected = FALSE;
+			char buf[512];
+			strncpy(buf, only, sizeof(buf) - 1);
+			buf[sizeof(buf) - 1] = 0;
+			for (char* tok = strtok(buf, ","); tok; tok = strtok(nullptr, ","))
+			{
+				if (strcmp(tok, name) == 0)
+					selected = TRUE;
+			}
+		}
+		if (used == 0 && selected)
 		{
 			if (interesting)
 				printf("MMPOOL empty %s blobs=%d total=%d%s\n", name, pool->countBlobsInPool(), pool->getTotalBlockCount(), doReset ? " reset" : "");
@@ -2777,7 +2791,7 @@ void MemoryPoolFactory::mmResetEmptyPools()
 				++resetCount;
 			}
 		}
-		else
+		else if (used != 0)
 		{
 			++liveCount;
 			if (interesting)
