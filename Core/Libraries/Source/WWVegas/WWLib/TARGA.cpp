@@ -83,19 +83,25 @@
 // TheSuperHackers @fix bobtista 22/10/2026 Compute the buffer sizes from the header, or 0 when the header is invalid.
 static long TGA_PaletteSize(const TGAHeader& header)
 {
-	const long depth = (header.CMapDepth >> 3);
-	if ((header.CMapStart < 0) || (header.CMapLength <= 0) || (depth <= 0) || (depth > 4)) {
+	if ((header.CMapStart < 0) || (header.CMapLength <= 0)) {
 		return 0;
 	}
+	if ((header.CMapDepth != 16) && (header.CMapDepth != 24) && (header.CMapDepth != 32)) {
+		return 0;
+	}
+	const long depth = (header.CMapDepth >> 3);
 	return ((long)header.CMapStart + (long)header.CMapLength) * depth;
 }
 
 static long TGA_ImageSize(const TGAHeader& header)
 {
-	const long depth = TGA_BytesPerPixel(header.PixelDepth);
-	if ((header.Width <= 0) || (header.Height <= 0) || (depth <= 0) || (depth > 4)) {
+	if ((header.Width <= 0) || (header.Height <= 0)) {
 		return 0;
 	}
+	if ((header.PixelDepth != 8) && (header.PixelDepth != 16) && (header.PixelDepth != 24) && (header.PixelDepth != 32)) {
+		return 0;
+	}
+	const long depth = TGA_BytesPerPixel(header.PixelDepth);
 	const long pixels = (long)header.Width * (long)header.Height;
 	if (pixels > (LONG_MAX / depth)) {
 		return 0;
@@ -555,6 +561,8 @@ long Targa::Load(const char* name, long flags, bool invert_image)
 					} else {
 						error = TGAERR_NOMEM;
 					}
+				} else {
+					error = TGAERR_NOTSUPPORTED;
 				}
 			}
 		}
