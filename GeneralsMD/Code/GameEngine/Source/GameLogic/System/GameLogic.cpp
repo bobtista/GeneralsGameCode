@@ -1145,6 +1145,7 @@ void GameLogic::startNewGame( Bool loadingSaveGame )
 
 void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 {
+	TheMemoryPoolFactory->mmResetEmptyPools();
 
 	#ifdef DUMP_PERF_STATS
 	__int64 startTime64;

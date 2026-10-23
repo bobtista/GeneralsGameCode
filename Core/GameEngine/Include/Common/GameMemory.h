@@ -525,6 +525,8 @@ public:
 	void init();
 	~MemoryPoolFactory();
 
+	void mmResetEmptyPools();
+
 	/// create a new memory pool with the given settings. if a pool with the given name already exists, return it.
 	MemoryPool *createMemoryPool(const PoolInitRec *parms);
 

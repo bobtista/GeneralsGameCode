@@ -2756,6 +2756,39 @@ void MemoryPoolFactory::destroyDynamicMemoryAllocator(DynamicMemoryAllocator *dm
 	throw away everything in all pools/dmas owned by this factory, but keep the factory
 	and pools/dmas themselves valid.
 */
+void MemoryPoolFactory::mmResetEmptyPools()
+{
+	const char* e = getenv("MM_POOLRESET");
+	Bool doReset = (e && *e == '1');
+	Int resetCount = 0;
+	Int liveCount = 0;
+	for (MemoryPool *pool = m_firstPoolInFactory; pool; pool = pool->getNextPoolInList())
+	{
+		Int used = pool->getUsedBlockCount();
+		const char* name = pool->getPoolName();
+		Bool interesting = strstr(name, "Object") || strstr(name, "Contain") || strstr(name, "Drawable");
+		if (used == 0)
+		{
+			if (interesting)
+				printf("MMPOOL empty %s blobs=%d total=%d%s\n", name, pool->countBlobsInPool(), pool->getTotalBlockCount(), doReset ? " reset" : "");
+			if (doReset)
+			{
+				pool->reset();
+				++resetCount;
+			}
+		}
+		else
+		{
+			++liveCount;
+			if (interesting)
+				printf("MMPOOL live %s used=%d blobs=%d total=%d\n", name, used, pool->countBlobsInPool(), pool->getTotalBlockCount());
+		}
+	}
+	printf("MMPOOL summary reset=%d live=%d\n", resetCount, liveCount);
+	fflush(stdout);
+}
+
+//-----------------------------------------------------------------------------
 void MemoryPoolFactory::reset()
 {
 #ifdef MEMORYPOOL_CHECKPOINTING
