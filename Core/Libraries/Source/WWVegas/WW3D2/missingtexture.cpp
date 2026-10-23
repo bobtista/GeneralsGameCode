@@ -68,8 +68,7 @@ void MissingTexture::_Init()
 		MIP_LEVELS_ALL
 	);
 
-	// TheSuperHackers @fix bobtista 09/10/2026 Fill every mip level with the solid color instead of
-	// filtering the mip chain, and no longer skip the last row.
+	// TheSuperHackers @fix bobtista 09/10/2026 Fill every mip level with the solid color.
 	for (unsigned level=0;level<tex->GetLevelCount();++level)
 	{
 		D3DSURFACE_DESC desc;
