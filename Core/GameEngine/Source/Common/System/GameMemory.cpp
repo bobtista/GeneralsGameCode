@@ -2760,6 +2760,9 @@ void MemoryPoolFactory::mmResetEmptyPools()
 {
 	const char* e = getenv("MM_POOLRESET");
 	Bool doReset = (e && *e == '1');
+	LARGE_INTEGER freq, t0, t1;
+	QueryPerformanceFrequency(&freq);
+	QueryPerformanceCounter(&t0);
 	Int resetCount = 0;
 	Int liveCount = 0;
 	for (MemoryPool *pool = m_firstPoolInFactory; pool; pool = pool->getNextPoolInList())
@@ -2798,7 +2801,8 @@ void MemoryPoolFactory::mmResetEmptyPools()
 				printf("MMPOOL live %s used=%d blobs=%d total=%d\n", name, used, pool->countBlobsInPool(), pool->getTotalBlockCount());
 		}
 	}
-	printf("MMPOOL summary reset=%d live=%d\n", resetCount, liveCount);
+	QueryPerformanceCounter(&t1);
+	printf("MMPOOL summary reset=%d live=%d usec=%.1f\n", resetCount, liveCount, (double)(t1.QuadPart - t0.QuadPart) * 1000000.0 / (double)freq.QuadPart);
 	fflush(stdout);
 }
 

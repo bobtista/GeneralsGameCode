@@ -22,7 +22,8 @@
 //																																						//
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+#include "PreRTS.h"
+#include <map>	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Recorder.h"
 #include "Common/file.h"
@@ -1001,6 +1002,39 @@ void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool f
 	if (isLocalPlayer)
 	{
 		UnsignedInt playbackCRC = m_crcInfo.readCRC();
+		{
+			static Int s_init = 0;
+			static Bool s_noStop = FALSE;
+			static std::map<UnsignedInt, UnsignedInt> s_expect;
+			if (!s_init)
+			{
+				s_init = 1;
+				const char* e = getenv("MM_NOSTOP");
+				s_noStop = (e && *e == '1');
+				e = getenv("MM_CRC_EXPECT");
+				if (e && *e)
+				{
+					FILE* f = fopen(e, "r");
+					if (f)
+					{
+						unsigned int fr, v;
+						while (fscanf(f, "%u %x", &fr, &v) == 2)
+							s_expect[fr] = v;
+						fclose(f);
+					}
+					printf("MMREC loaded %d expected CRCs from %s\n", (int)s_expect.size(), e);
+				}
+			}
+			const UnsignedInt checkFrame = TheGameLogic->getFrame() - m_crcInfo.GetQueueSize() - 1;
+			if (!s_expect.empty())
+			{
+				std::map<UnsignedInt, UnsignedInt>::iterator it = s_expect.find(checkFrame);
+				newCRC = (it != s_expect.end()) ? it->second : 0xFFFFFFFF;
+			}
+			printf("MMREC frame=%u recorded=%08X sim=%08X%s\n", checkFrame, newCRC, playbackCRC, (TheGameLogic->getFrame() > 0 && newCRC != playbackCRC) ? " MISMATCH" : "");
+			if (s_noStop)
+				return;
+		}
 		//DEBUG_LOG(("RecorderClass::handleCRCMessage() - Comparing CRCs of InGame:%8.8X Replay:%8.8X Frame:%d from Player %d",
 		//	playbackCRC, newCRC, TheGameLogic->getFrame()-m_crcInfo.GetQueueSize()-1, playerIndex));
 		if (TheGameLogic->getFrame() > 0 && newCRC != playbackCRC && !m_crcInfo.sawCRCMismatch())
