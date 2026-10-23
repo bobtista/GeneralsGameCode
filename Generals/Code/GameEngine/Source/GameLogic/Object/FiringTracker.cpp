@@ -336,7 +336,7 @@ void FiringTracker::crc( Xfer *xfer )
 /** Xfer method
 	* Version Info:
 	* 1: Initial version
-	* 2: TheSuperHackers @bugfix bobtista 11/10/2026 Save m_frameToForceReload
+	* 2: TheSuperHackers @bugfix bobtista 11/10/2026 Save m_frameToForceReload and m_frameToStopLoopingSound
 	*/
 // ------------------------------------------------------------------------------------------------
 void FiringTracker::xfer( Xfer *xfer )
@@ -363,10 +363,13 @@ void FiringTracker::xfer( Xfer *xfer )
 	// frame to start cooldown
 	xfer->xferUnsignedInt( &m_frameToStartCooldown );
 
-	// frame to force reload
 	if( version >= 2 )
 	{
+		// frame to force reload
 		xfer->xferUnsignedInt( &m_frameToForceReload );
+
+		// frame to stop looping sound
+		xfer->xferUnsignedInt( &m_frameToStopLoopingSound );
 	}
 
 }
