@@ -267,7 +267,6 @@ class Targa
 		long Open(const char* name, long mode);
 		void Close();
 
-		long Load(const char* name, char* palette, char* image,bool invert_image=true);
 		long Load(const char* name, long flags, bool invert_image=true);
 		long Save(const char* name, long flags, bool addextension = false);
 
@@ -302,6 +301,7 @@ class Targa
 
 	private:
 		// Utility functions
+		long LoadBuffers(const char* name, bool invert_image);
 		long DecodeImage();
 		long EncodeImage();
 		void InvertImage();
