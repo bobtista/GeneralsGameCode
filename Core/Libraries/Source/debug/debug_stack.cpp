@@ -74,7 +74,7 @@ static void InitDbghelp()
 	char dbgHelpPath[256];
 	if (GetModuleFileName(nullptr,dbgHelpPath,sizeof(dbgHelpPath)))
 	{
-		char *slash=const_cast<char*>(strrpbrk(dbgHelpPath,"/\\"));
+		char *slash=strrpbrk(dbgHelpPath,"/\\");
 		if (slash)
 		{
 			strcpy(slash+1,"DBGHELP.DLL");

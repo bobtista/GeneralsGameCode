@@ -99,12 +99,12 @@ inline const WideChar* getLastPathSeparator(const WideChar* path)
 
 inline char* getLastPathSeparator(char* path)
 {
-	return const_cast<char*>(getLastPathSeparator(static_cast<const char*>(path)));
+	return strrpbrk(path, "/\\");
 }
 
 inline WideChar* getLastPathSeparator(WideChar* path)
 {
-	return const_cast<WideChar*>(getLastPathSeparator(static_cast<const WideChar*>(path)));
+	return wcsrpbrk(path, L"/\\");
 }
 
 // Returns the whole path when it contains no separator
@@ -116,7 +116,8 @@ inline const char* getFileName(const char* path)
 
 inline char* getFileName(char* path)
 {
-	return const_cast<char*>(getFileName(static_cast<const char*>(path)));
+	char* lastSeparator = getLastPathSeparator(path);
+	return lastSeparator ? lastSeparator + 1 : path;
 }
 
 inline const char* getExtension(const char* path)
