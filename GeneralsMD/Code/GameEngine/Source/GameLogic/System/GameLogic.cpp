@@ -3755,14 +3755,7 @@ void GameLogic::update()
 			return;
 		}
 
-		if (TheInGameUI != nullptr && TheInGameUI->getInputEnabled() == FALSE)
-		{
-			if (m_frame == static_cast<UnsignedInt>(TheGlobalData->m_saveAtFrame))
-			{
-				DEBUG_LOG(("Command line save deferred at frame %d: input is disabled", m_frame));
-			}
-		}
-		else
+		if (TheInGameUI == nullptr || TheInGameUI->getInputEnabled())
 		{
 			const AsciiString &saveName = TheGlobalData->m_saveToFile;
 			const SaveResult saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"), SAVE_FILE_TYPE_NORMAL);

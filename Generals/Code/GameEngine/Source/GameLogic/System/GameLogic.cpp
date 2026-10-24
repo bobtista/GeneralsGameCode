@@ -3225,7 +3225,8 @@ void GameLogic::update()
 
 #if defined(RTS_DEBUG)
 	// Save before scripts and object updates so loading does not repeat part of a frame.
-	if (TheGlobalData->m_saveAtFrame > 0 && (Int)m_frame >= TheGlobalData->m_saveAtFrame && isInInteractiveGame())
+	if (TheGlobalData->m_saveAtFrame > 0 && m_frame >= static_cast<UnsignedInt>(TheGlobalData->m_saveAtFrame)
+		&& isInInteractiveGame())
 	{
 		if (isInMultiplayerGame() || isInReplayGame())
 		{
@@ -3236,15 +3237,7 @@ void GameLogic::update()
 			return;
 		}
 
-		if (TheInGameUI != nullptr && TheInGameUI->getInputEnabled() == FALSE)
-		{
-			// Log once, on the frame that was actually requested
-			if ((Int)m_frame == TheGlobalData->m_saveAtFrame)
-			{
-				DEBUG_LOG(("Command line save deferred at frame %d: input is disabled", m_frame));
-			}
-		}
-		else
+		if (TheInGameUI == nullptr || TheInGameUI->getInputEnabled())
 		{
 			const AsciiString &saveName = TheGlobalData->m_saveToFile;
 			const SaveResult saveResult = TheGameState->saveGame(saveName, UnicodeString(L"Command line save"), SAVE_FILE_TYPE_NORMAL);
