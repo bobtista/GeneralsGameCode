@@ -781,11 +781,86 @@ Bool probeFixEnabled()
 	return s_fix == 1;
 }
 
+struct MMStaleSite
+{
+	const char* file;
+	int line;
+	int kind;
+	unsigned int count;
+	UnsignedInt first;
+	UnsignedInt last;
+};
+static MMStaleSite s_mmStaleSites[256];
+static int s_mmStaleSiteCount = 0;
+
+static Bool probeQuiet()
+{
+	static Int s_quiet = -1;
+	if (s_quiet < 0)
+	{
+		const char* e = getenv("MM_STALE_QUIET");
+		s_quiet = (e && *e == '1') ? 1 : 0;
+	}
+	return s_quiet == 1;
+}
+
+static const char* const s_mmKindNames[] = { "REUSED_CONTAIN", "REUSED_NOCONTAIN", "FREED_CONTAIN", "FREED_NOCONTAIN" };
+
+static void probeCountStale(const char* file, int line, int kind, UnsignedInt frame)
+{
+	for (int i = 0; i < s_mmStaleSiteCount; ++i)
+	{
+		MMStaleSite& s = s_mmStaleSites[i];
+		if (s.file == file && s.line == line && s.kind == kind)
+		{
+			++s.count;
+			s.last = frame;
+			return;
+		}
+	}
+	if (s_mmStaleSiteCount < 256)
+	{
+		MMStaleSite& s = s_mmStaleSites[s_mmStaleSiteCount++];
+		s.file = file;
+		s.line = line;
+		s.kind = kind;
+		s.count = 1;
+		s.first = frame;
+		s.last = frame;
+	}
+}
+
+void Object::mmStaleSummary(const char* why)
+{
+	if (!probeQuiet())
+		return;
+	printf("MMSTALE summary why=%s frame=%u sites=%d\n", why, TheGameLogic ? TheGameLogic->getFrame() : 0, s_mmStaleSiteCount);
+	for (int i = 0; i < s_mmStaleSiteCount; ++i)
+	{
+		const MMStaleSite& s = s_mmStaleSites[i];
+		printf("MMSTALE site=%s:%d kind=%s count=%u first=%u last=%u\n", probeBaseName(s.file), s.line, s_mmKindNames[s.kind], s.count, s.first, s.last);
+	}
+	fflush(stdout);
+	s_mmStaleSiteCount = 0;
+}
+
 Bool Object::probeContainedByRead(const char* file, int line) const
 {
 	Object* live = TheGameLogic->findObjectByID(m_probeContainedByID);
 	if (live == m_containedBy)
 		return FALSE;
+	if (probeQuiet())
+	{
+		ObjectID qRawID = m_containedBy->getID();
+		Object* qAtRaw = TheGameLogic->findObjectByID(qRawID);
+		int kind;
+		if (qAtRaw == m_containedBy)
+			kind = qAtRaw->getContain() ? 0 : 1;
+		else
+			kind = m_containedBy->getContain() ? 2 : 3;
+		probeCountStale(file, line, kind, TheGameLogic->getFrame());
+		return probeFixEnabled();
+	}
 	static UnsignedInt s_lastFrame = 0xffffffff;
 	static ObjectID s_lastID = INVALID_ID;
 	static const char* s_lastFile = nullptr;
@@ -2538,6 +2613,19 @@ void Object::updateTriggerAreaFlags()
 //-------------------------------------------------------------------------------------------------
 void Object::onCollide( Object *other, const Coord3D *loc, const Coord3D *normal )
 {
+	if (m_behaviors == nullptr)
+	{
+		static Int s_guard = -1;
+		if (s_guard < 0)
+		{
+			const char* e = getenv("MM_GUARD");
+			s_guard = (e && *e == '1') ? 1 : 0;
+		}
+		printf("MMGUARD f=%u freed object onCollide guard=%d\n", TheGameLogic->getFrame(), s_guard);
+		fflush(stdout);
+		if (s_guard)
+			return;
+	}
 	for (BehaviorModule** m = m_behaviors; *m; ++m)
 	{
 		CollideModuleInterface* collide = (*m)->getCollide();

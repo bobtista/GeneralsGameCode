@@ -444,6 +444,7 @@ public:
 	inline Object *getContainedByAt(const char* file, int line) { if (m_containedBy && probeContainedByRead(file, line)) return nullptr; return m_containedBy; }
 	inline const Object *getContainedByAt(const char* file, int line) const { if (m_containedBy && probeContainedByRead(file, line)) return nullptr; return m_containedBy; }
 	Bool probeContainedByRead(const char* file, int line) const;
+	static void mmStaleSummary(const char* why);
 	inline UnsignedInt getContainedByFrame() const { return m_containedByFrame; }
 	inline Bool isContained() const { if (m_containedBy && probeContainedByRead("isContained", 0)) return FALSE; return m_containedBy != nullptr; }
 	void onContainedBy( Object *containedBy );

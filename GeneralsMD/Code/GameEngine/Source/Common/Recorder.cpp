@@ -46,6 +46,7 @@
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/networkutil.h"
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/Object.h"
 #include "Common/RandomValue.h"
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
@@ -449,6 +450,7 @@ void RecorderClass::updatePlayback() {
  * reaching the end of the playback file.
  */
 void RecorderClass::stopPlayback() {
+	Object::mmStaleSummary("stopPlayback");
 	if (m_file != nullptr) {
 		m_file->close();
 		m_file = nullptr;
@@ -1032,6 +1034,14 @@ void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool f
 				newCRC = (it != s_expect.end()) ? it->second : 0xFFFFFFFF;
 			}
 			printf("MMREC frame=%u recorded=%08X sim=%08X%s\n", checkFrame, newCRC, playbackCRC, (TheGameLogic->getFrame() > 0 && newCRC != playbackCRC) ? " MISMATCH" : "");
+			{
+				static Bool s_summarized = FALSE;
+				if (!s_summarized && TheGameLogic->getFrame() > 0 && newCRC != playbackCRC)
+				{
+					s_summarized = TRUE;
+					Object::mmStaleSummary("firstMismatch");
+				}
+			}
 			if (s_noStop)
 				return;
 		}
