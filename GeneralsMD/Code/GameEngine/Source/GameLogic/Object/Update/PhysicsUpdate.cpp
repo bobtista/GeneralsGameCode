@@ -1191,6 +1191,8 @@ void PhysicsBehavior::onCollide( Object *other, const Coord3D *loc, const Coord3
 		// (handy for parachutes.)
 		if (objContainedBy)
 		{
+			printf("MMCOLLIDE f=%u obj=%u %s cont=%p\n", TheGameLogic->getFrame(), obj->getID(), obj->getTemplate()->getName().str(), (void*)objContainedBy);
+			fflush(stdout);
 			objContainedBy->onCollide(other, loc, normal);
 		}
 		return;

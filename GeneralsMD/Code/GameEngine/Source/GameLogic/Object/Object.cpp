@@ -803,6 +803,8 @@ Bool Object::probeContainedByRead(const char* file, int line) const
 		printf("MMPROBE STALE f=%u id=%u %s at=%s:%d cont=%u ptr=%p REUSED by live %u %s contain=%p\n", frame, getID(), getTemplate()->getName().str(), probeBaseName(file), line, m_probeContainedByID, (void*)m_containedBy, rawID, atRaw->getTemplate()->getName().str(), (void*)atRaw->getContain());
 	else
 		printf("MMPROBE STALE f=%u id=%u %s at=%s:%d cont=%u ptr=%p rawid=%u freed contain=%p\n", frame, getID(), getTemplate()->getName().str(), probeBaseName(file), line, m_probeContainedByID, (void*)m_containedBy, rawID, (void*)m_containedBy->getContain());
+	if (strstr(file, "PhysicsUpdate"))
+		fflush(stdout);
 	return probeFixEnabled();
 }
 

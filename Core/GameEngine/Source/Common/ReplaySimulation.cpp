@@ -103,6 +103,16 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 					break;
 				}
 			}
+			{
+				const char* e = getenv("MM_EXTEND_FRAMES");
+				Int extra = e ? atoi(e) : 0;
+				for (Int k = 0; k < extra; ++k)
+				{
+					printf("MMEXTEND frame=%u\n", TheGameLogic->getFrame());
+					fflush(stdout);
+					TheGameLogic->UPDATE();
+				}
+			}
 			UnsignedInt gameTimeSec = TheGameLogic->getFrame() / LOGICFRAMES_PER_SECOND;
 			UnsignedInt realTimeSec = (GetTickCount()-startTimeMillis) / 1000;
 			printf("Elapsed Time: %02d:%02d Game Time: %02d:%02d/%02d:%02d\n",
