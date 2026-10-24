@@ -88,7 +88,7 @@ class Keyboard : public SubsystemInterface
 	enum
 	{
 		KEY_REPEAT_DELAY_MSEC = 333,	// 10 frames at 30 FPS
-		KEY_REPEAT_INTERVAL_MSEC = 67	// ~2 frames at 30 FPS
+		KEY_REPEAT_INTERVAL_MSEC = 33	// 1 frame at 30 FPS
 	};
 
 public:

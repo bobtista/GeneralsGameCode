@@ -227,9 +227,10 @@ Bool Keyboard::checkKeyRepeat()
 
 			const UnsignedInt now = timeGetTime();
 			const UnsignedInt keyDownTime = m_keyStatus[ key ].keyDownTimeMsec;
-			const UnsignedInt elapsedMsec = now - keyDownTime;
+			// TheSuperHackers @info The key down time can be slightly ahead of now, so the difference is signed.
+			const Int elapsedMsec = (Int)(now - keyDownTime);
 
-			if( elapsedMsec > Keyboard::KEY_REPEAT_DELAY_MSEC )
+			if( elapsedMsec >= Keyboard::KEY_REPEAT_DELAY_MSEC )
 			{
 				// Add key to this frame
 				m_keys[ index ].key = (UnsignedByte)key;
@@ -244,7 +245,7 @@ Bool Keyboard::checkKeyRepeat()
 					m_keyStatus[ index ].keyDownTimeMsec = now;
 
 				// Set repeated key so it will repeat again after the interval
-				m_keyStatus[ key ].keyDownTimeMsec = now - (Keyboard::KEY_REPEAT_DELAY_MSEC + Keyboard::KEY_REPEAT_INTERVAL_MSEC);
+				m_keyStatus[ key ].keyDownTimeMsec = now - (Keyboard::KEY_REPEAT_DELAY_MSEC - Keyboard::KEY_REPEAT_INTERVAL_MSEC);
 
 				retVal = TRUE;
 				break;  // exit for key
