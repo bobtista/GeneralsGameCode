@@ -693,27 +693,6 @@ Int parseDisplayDebug(char *args[], int)
 	return 1;
 }
 
-Int parseSaveAtFrame(char *args[], int num)
-{
-	if (num <= 1)
-	{
-		printf("Missing frame number for -saveatframe\n");
-		exit(1);
-	}
-
-	char *end;
-	errno = 0;
-	const long frame = strtol(args[1], &end, 10);
-	if (errno == ERANGE || end == args[1] || *end != '\0' || frame <= 0 || frame > INT_MAX)
-	{
-		printf("Invalid frame number for -saveatframe: '%s'\n", args[1]);
-		exit(1);
-	}
-
-	TheWritableGlobalData->m_saveAtFrame = static_cast<Int>(frame);
-	return 2;
-}
-
 static Bool isReservedSaveFilename(const char *filename)
 {
 	const char *reservedNames[] = {
@@ -737,6 +716,27 @@ static Bool isReservedSaveFilename(const char *filename)
 	return FALSE;
 }
 
+Int parseSaveAtFrame(char *args[], int num)
+{
+	if (num <= 1)
+	{
+		printf("Missing frame number for -saveatframe\n");
+		exit(1);
+	}
+
+	char *end;
+	errno = 0;
+	const long frame = strtol(args[1], &end, 10);
+	if (errno == ERANGE || end == args[1] || *end != '\0' || frame <= 0 || frame > INT_MAX)
+	{
+		printf("Invalid frame number for -saveatframe: '%s'\n", args[1]);
+		exit(1);
+	}
+
+	TheWritableGlobalData->m_saveAtFrame = static_cast<Int>(frame);
+	return 2;
+}
+
 Int parseSaveTo(char *args[], int num)
 {
 	if (num <= 1 || args[1][0] == '\0' || args[1][0] == '-')
@@ -749,6 +749,21 @@ Int parseSaveTo(char *args[], int num)
 	{
 		printf("-saveto requires a filename without a directory\n");
 		exit(1);
+	}
+
+	if (strpbrk(args[1], "<>\"|?*") != nullptr)
+	{
+		printf("-saveto cannot use invalid Windows filename characters\n");
+		exit(1);
+	}
+
+	for (const char *character = args[1]; *character != '\0'; ++character)
+	{
+		if (static_cast<unsigned char>(*character) < 32)
+		{
+			printf("-saveto cannot use control characters in the filename\n");
+			exit(1);
+		}
 	}
 
 	if (isReservedSaveFilename(args[1]))
