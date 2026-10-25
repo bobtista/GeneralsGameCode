@@ -226,7 +226,7 @@ private:
 	};
 
 	Team *							m_originalTeam;																///< our original team before we were garrisoned
-	TeamID							m_probeOriginalTeamID;
+	UnsignedInt					m_probeOriginalTeamID;
 	Team* probeOriginalTeam(const char* where);
 	GarrisonPointData		m_garrisonPointData[ MAX_GARRISON_POINTS ];		///< the garrison point placement data
 	Int									m_garrisonPointsInUse;
