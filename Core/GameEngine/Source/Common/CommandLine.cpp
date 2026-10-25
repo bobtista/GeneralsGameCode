@@ -724,6 +724,12 @@ Int parseSaveAtFrame(char *args[], int num)
 		exit(1);
 	}
 
+	if (!TheGlobalData->m_simulateReplays.empty())
+	{
+		printf("-saveatframe cannot be used with -replay\n");
+		exit(1);
+	}
+
 	char *end;
 	errno = 0;
 	const long frame = strtol(args[1], &end, 10);
