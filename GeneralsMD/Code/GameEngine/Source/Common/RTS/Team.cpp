@@ -43,6 +43,7 @@
 
 #include "GameLogic/SidesList.h"
 #include "GameLogic/Object.h"
+#include "GameLogic/GameLogic.h"
 #include "GameLogic/Module/BodyModule.h"
 #include "GameLogic/Module/ContainModule.h"
 #include "GameLogic/PolygonTrigger.h"
@@ -1078,6 +1079,7 @@ void TeamPrototype::updateState()
 				}
 
 				// So remove it
+				printf("MMTEAMDEL f=%u team=%u %s\n", TheGameLogic ? TheGameLogic->getFrame() : 0, iter.cur()->getID(), iter.cur()->getName().str());
 				TheTeamFactory->teamAboutToBeDeleted(iter.cur());
 				deleteInstance(iter.cur());
 

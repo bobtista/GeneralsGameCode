@@ -510,6 +510,7 @@ GarrisonContain::GarrisonContain( Thing *thing, const ModuleData *moduleData ) :
 	Int i, j;
 
 	m_originalTeam = nullptr;
+	m_probeOriginalTeamID = TEAM_ID_INVALID;
 	m_hideGarrisonedStateFromNonallies = FALSE;
 	m_garrisonPointsInUse = 0;
 	m_garrisonPointsInitialized = FALSE;
@@ -1185,6 +1186,30 @@ void GarrisonContain::healSingleObject( Object *obj, Real framesForFullHeal)
 	}
 }
 
+Team* GarrisonContain::probeOriginalTeam(const char* where)
+{
+	Team* t = m_originalTeam;
+	if (t == nullptr)
+		return t;
+	Team* live = TheTeamFactory->findTeamByID(m_probeOriginalTeamID);
+	if (live == t)
+	{
+		printf("MMTEAM RESTORE f=%u bld=%u %s team=%u ok at=%s\n", TheGameLogic->getFrame(), getObject()->getID(), getObject()->getTemplate()->getName().str(), m_probeOriginalTeamID, where);
+		return t;
+	}
+	TeamID rawID = t->getID();
+	Team* atRaw = TheTeamFactory->findTeamByID(rawID);
+	if (atRaw == t)
+		printf("MMTEAM STALE f=%u bld=%u %s team=%u at=%s REUSED by live team %u %s player=%ls\n", TheGameLogic->getFrame(), getObject()->getID(), getObject()->getTemplate()->getName().str(), m_probeOriginalTeamID, where, rawID, t->getName().str(), t->getControllingPlayer() ? t->getControllingPlayer()->getPlayerDisplayName().str() : L"?");
+	else
+		printf("MMTEAM STALE f=%u bld=%u %s team=%u at=%s FREED rawid=%u\n", TheGameLogic->getFrame(), getObject()->getID(), getObject()->getTemplate()->getName().str(), m_probeOriginalTeamID, where, rawID);
+	fflush(stdout);
+	const char* e = getenv("MM_TEAMGUARD");
+	if (e && *e == '1')
+		return ThePlayerList->getNeutralPlayer()->getDefaultTeam();
+	return t;
+}
+
 //-------------------------------------------------------------------------------------------------
 /** return the player that *appears* to control this unit. if null,
 		use getObject()->getControllingPlayer() instead. */
@@ -1210,13 +1235,19 @@ void GarrisonContain::recalcApparentControllingPlayer()
 	if( m_originalTeam == nullptr )
 	{
 		m_originalTeam = getObject()->getTeam();
+		m_probeOriginalTeamID = m_originalTeam ? m_originalTeam->getID() : TEAM_ID_INVALID;
+		if (m_originalTeam && TheGameLogic)
+			printf("MMTEAM RECORD f=%u bld=%u %s team=%u %s\n", TheGameLogic->getFrame(), getObject()->getID(), getObject()->getTemplate()->getName().str(), m_probeOriginalTeamID, m_originalTeam->getName().str());
 	}
 
 	// (hokey trick: if our team is null, nuke originalTeam -- this
 	// usually means we are being called during game-teardown and
 	// the teams are no longer valid...)
 	if (getObject()->getTeam() == nullptr)
+	{
 		m_originalTeam = nullptr;
+		m_probeOriginalTeamID = TEAM_ID_INVALID;
+	}
 	// Check to see if we have any units contained in our object
 	if( getContainCount() > 0 )
 	{
@@ -1238,7 +1269,7 @@ void GarrisonContain::recalcApparentControllingPlayer()
 	else
 	{
 		//Nothing in object, so set team to original team.
-		getObject()->setTeam( m_originalTeam );
+		getObject()->setTeam( probeOriginalTeam("recalc") );
 		m_hideGarrisonedStateFromNonallies = false;
 	}
 
@@ -1682,8 +1713,9 @@ void GarrisonContain::onRemoving( Object *obj )
 		// the teams are no longer valid...)
 		if (getObject()->getTeam() != nullptr)
 		{
-			getObject()->setTeam( m_originalTeam );
+			getObject()->setTeam( probeOriginalTeam("removeFromContain") );
 			m_originalTeam = nullptr;
+			m_probeOriginalTeamID = TEAM_ID_INVALID;
 		}
 
 		// we also lose our transient attack ability
@@ -1821,9 +1853,11 @@ void GarrisonContain::xfer( Xfer *xfer )
 		{
 
 			m_originalTeam = TheTeamFactory->findTeamByID( teamID );
+			m_probeOriginalTeamID = teamID;
 			if( m_originalTeam == nullptr )
 			{
 
+				printf("MMTEAM LOADFAIL bld=%u team=%u\n", getObject()->getID(), teamID);
 				DEBUG_CRASH(( "GarrisonContain::xfer - Unable to find original team by id" ));
 				throw SC_INVALID_DATA;
 

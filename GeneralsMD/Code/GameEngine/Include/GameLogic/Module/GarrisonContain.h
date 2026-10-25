@@ -226,6 +226,8 @@ private:
 	};
 
 	Team *							m_originalTeam;																///< our original team before we were garrisoned
+	TeamID							m_probeOriginalTeamID;
+	Team* probeOriginalTeam(const char* where);
 	GarrisonPointData		m_garrisonPointData[ MAX_GARRISON_POINTS ];		///< the garrison point placement data
 	Int									m_garrisonPointsInUse;
 	Coord3D							m_garrisonPoint[ MAX_GARRISON_POINT_CONDITIONS ][ MAX_GARRISON_POINTS ];		///< the garrison point positions (in world coords) for pristine, damaged, and really damaged

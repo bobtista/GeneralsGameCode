@@ -54,6 +54,7 @@
 #include "Common/StatsCollector.h"
 #include "Common/ThingFactory.h"
 #include "Common/Team.h"
+#include "Common/NameKeyGenerator.h"
 #include "Common/ThingTemplate.h"
 #if RTS_GENERALS && RETAIL_COMPATIBLE_CRC
 #include "Common/TunnelTracker.h"
@@ -3772,6 +3773,32 @@ void GameLogic::update()
 			s_dumpTo = e ? atoi(e) : -1;
 		}
 		Bool isGame = getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE;
+		if (isGame && m_frame == 1)
+		{
+			const char* e = getenv("MM_TEAMSOLO");
+			if (e && *e == '1')
+			{
+				Int n = 0;
+				for (Object* o = m_objList; o; o = o->getNextObject())
+				{
+					ContainModuleInterface* c = o->getContain();
+					if (!c || !c->isGarrisonable() || !o->getControllingPlayer() || o->getControllingPlayer()->isPlayableSide())
+						continue;
+					AsciiString name;
+					name.format("mmsolo_%u", o->getID());
+					Dict d;
+					TheTeamFactory->initTeam(name, TheNameKeyGenerator->keyToName(o->getControllingPlayer()->getPlayerNameKey()), FALSE, &d);
+					Team* t = TheTeamFactory->createTeam(name);
+					if (t)
+					{
+						o->setTeam(t);
+						++n;
+					}
+				}
+				printf("MMTEAMSOLO moved=%d\n", n);
+				fflush(stdout);
+			}
+		}
 		if (isGame && s_crcFrom >= 0 && (Int)m_frame >= s_crcFrom)
 		{
 			XferCRC objCRC;

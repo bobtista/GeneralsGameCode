@@ -5408,7 +5408,8 @@ AIAttackState::AIAttackState( StateMachine *machine, Bool follow, Bool attacking
 	m_follow(follow),
 	m_isAttackingObject(attackingObject),
 	m_isForceAttacking(forceAttacking),
-	m_victimTeam( nullptr )
+	m_victimTeam( nullptr ),
+	m_probeVictimTeamID( TEAM_ID_INVALID )
 {
 	m_originalVictimPos.zero();
 #ifdef STATE_MACHINE_DEBUG
@@ -5480,6 +5481,7 @@ void AIAttackState::loadPostProcess()
 	if (victim)
 	{
 		m_victimTeam = victim->getTeam();
+		m_probeVictimTeamID = m_victimTeam ? m_victimTeam->getID() : TEAM_ID_INVALID;
 	}
 	Object* source = getMachineOwner();
 	m_lockedWeaponOnEnter = source->isCurWeaponLocked() ? source->getCurrentWeapon() : nullptr;
@@ -5582,6 +5584,7 @@ StateReturnType AIAttackState::onEnter()
 			return STATE_FAILURE;	// we have nothing to attack!
 		}
 		m_victimTeam = victim->getTeam();
+		m_probeVictimTeamID = m_victimTeam ? m_victimTeam->getID() : TEAM_ID_INVALID;
 		m_attackMachine->setGoalObject( victim );
 		m_originalVictimPos = *victim->getPosition();
 	}
@@ -5655,6 +5658,10 @@ StateReturnType AIAttackState::update()
 			source->getAI()->setCurrentVictim(victim);
 		}
 
+		if (m_victimTeam && TheTeamFactory->findTeamByID(m_probeVictimTeamID) != m_victimTeam)
+		{
+			printf("MMVICTIMTEAM STALE f=%u src=%u victim=%u team=%u falsematch=%d\n", TheGameLogic->getFrame(), source->getID(), victim->getID(), m_probeVictimTeamID, victim->getTeam() == m_victimTeam ? 1 : 0);
+		}
 		if( victim->getTeam() != m_victimTeam )
 		{
 			// If, while I have been attacking my victim, it has lost its ability to attack

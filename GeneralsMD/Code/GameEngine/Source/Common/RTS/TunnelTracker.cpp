@@ -70,6 +70,15 @@ TunnelTracker::~TunnelTracker()
 // ------------------------------------------------------------------------
 void TunnelTracker::iterateContained( ContainIterateFunc func, void *userData, Bool reverse )
 {
+	for (ContainedItemsList::iterator pit = m_containList.begin(); pit != m_containList.end(); ++pit)
+	{
+		Object* pobj = *pit;
+		if (TheGameLogic->findObjectByID(pobj->getID()) != pobj)
+		{
+			printf("MMTUNNEL STALE f=%u ptr=%p rawid=%u count=%d\n", TheGameLogic->getFrame(), (void*)pobj, pobj->getID(), (int)m_containList.size());
+			fflush(stdout);
+		}
+	}
 	if (reverse)
 	{
 		// note that this has to be smart enough to handle items in the list being deleted
