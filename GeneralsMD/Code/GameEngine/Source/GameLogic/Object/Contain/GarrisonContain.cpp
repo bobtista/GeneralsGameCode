@@ -1231,6 +1231,12 @@ const Player* GarrisonContain::getApparentControllingPlayer( const Player* obser
 //-------------------------------------------------------------------------------------------------
 void GarrisonContain::recalcApparentControllingPlayer()
 {
+	{
+		const char* solo = getenv("MM_TEAMSOLO");
+		Team* cur = getObject()->getTeam();
+		if (solo && *solo == '1' && cur && cur != m_originalTeam && strncmp(cur->getName().str(), "mmsolo_", 7) == 0)
+			m_originalTeam = nullptr;
+	}
 	//Record original team first time through.
 	if( m_originalTeam == nullptr )
 	{
