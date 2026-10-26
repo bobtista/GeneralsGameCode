@@ -1011,7 +1011,7 @@ void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool f
 				const UnsignedInt ignoredFrame = TheGameLogic->getFrame() - m_crcInfo.GetQueueSize() - 1;
 				DEBUG_LOG(("Replay CRC mismatch ignored\nInGame:%8.8X Replay:%8.8X\nFrame:%d",
 					playbackCRC, newCRC, ignoredFrame));
-				printf("CRC Mismatch in Frame %d (ignored)\n", ignoredFrame);
+				printf("CRC Mismatch in Frame %d (ignored) InGame:%8.8X Replay:%8.8X\n", ignoredFrame, playbackCRC, newCRC);
 				return;
 			}
 
