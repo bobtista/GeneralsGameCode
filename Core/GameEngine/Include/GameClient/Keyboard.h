@@ -154,6 +154,7 @@ protected:
 	enum { NUM_KEYS  = 256 };
 	KeyboardIO m_keys[ NUM_KEYS ];  ///< the keys
 	KeyboardIO m_keyStatus[ KEY_COUNT ];  ///< the key status flags
+	UnsignedInt m_keyRepeatTimeMsec[ KEY_COUNT ];  ///< real-time in milliseconds when a held key repeats next
 
 	struct
 	{

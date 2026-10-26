@@ -145,6 +145,7 @@ void Keyboard::updateKeys()
 		if( BitIsSet( m_keys[ index ].state, KEY_STATE_DOWN ) )
 		{
 			m_keyStatus[ m_keys[ index ].key ].keyDownTimeMsec = m_keys[ index ].keyDownTimeMsec;
+			m_keyRepeatTimeMsec[ m_keys[ index ].key ] = m_keys[ index ].keyDownTimeMsec + Keyboard::KEY_REPEAT_DELAY_MSEC;
 		}
 
 		// prevent ALT-TAB from causing a TAB event
@@ -226,11 +227,10 @@ Bool Keyboard::checkKeyRepeat()
 		{
 
 			const UnsignedInt now = timeGetTime();
-			const UnsignedInt keyDownTime = m_keyStatus[ key ].keyDownTimeMsec;
-			// TheSuperHackers @info The key down time can be slightly ahead of now, so the difference is signed.
-			const Int elapsedMsec = (Int)(now - keyDownTime);
+			// TheSuperHackers @info The repeat time is usually ahead of now, so the difference is signed.
+			const Int msecUntilRepeat = (Int)(m_keyRepeatTimeMsec[ key ] - now);
 
-			if( elapsedMsec >= Keyboard::KEY_REPEAT_DELAY_MSEC )
+			if( msecUntilRepeat <= 0 )
 			{
 				// Add key to this frame
 				m_keys[ index ].key = (UnsignedByte)key;
@@ -240,12 +240,13 @@ Bool Keyboard::checkKeyRepeat()
 				// Set End Flag
 				m_keys[ ++index ].key = KEY_NONE;
 
-				// Set all keys as new to prevent multiple keys repeating
-				for( index = 0; index< NUM_KEYS; index++ )
-					m_keyStatus[ index ].keyDownTimeMsec = now;
+				// Delay all other keys to prevent multiple keys repeating
+				for( index = 0; index < ARRAY_SIZE(m_keyRepeatTimeMsec); index++ )
+				{
+					m_keyRepeatTimeMsec[ index ] = now + Keyboard::KEY_REPEAT_DELAY_MSEC;
+				}
 
-				// Set repeated key so it will repeat again after the interval
-				m_keyStatus[ key ].keyDownTimeMsec = now - (Keyboard::KEY_REPEAT_DELAY_MSEC - Keyboard::KEY_REPEAT_INTERVAL_MSEC);
+				m_keyRepeatTimeMsec[ key ] = now + Keyboard::KEY_REPEAT_INTERVAL_MSEC;
 
 				retVal = TRUE;
 				break;  // exit for key
@@ -700,6 +701,7 @@ Keyboard::Keyboard()
 
 	memset( m_keys, 0, sizeof( m_keys ) );
 	memset( m_keyStatus, 0, sizeof( m_keyStatus ) );
+	memset( m_keyRepeatTimeMsec, 0, sizeof( m_keyRepeatTimeMsec ) );
 	m_modifiers = KEY_STATE_NONE;
 	m_shift2Key = KEY_NONE;
 
@@ -757,6 +759,7 @@ void Keyboard::resetKeys()
 
 	memset( m_keys, 0, sizeof( m_keys ) );
 	memset( m_keyStatus, 0, sizeof( m_keyStatus ) );
+	memset( m_keyRepeatTimeMsec, 0, sizeof( m_keyRepeatTimeMsec ) );
 	m_modifiers = KEY_STATE_NONE;
 	if( getCapsState() )
 	{
