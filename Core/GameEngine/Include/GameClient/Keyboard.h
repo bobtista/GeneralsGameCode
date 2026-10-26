@@ -75,7 +75,6 @@ struct KeyboardIO
 	UnsignedByte	key;										// KeyDefType, key data
 	UnsignedByte	status;									// StatusType, above
 	UnsignedShort	state;									// KEY_STATE_* in KeyDefs.h
-	UnsignedInt		keyDownTimeMsec;				// real-time in milliseconds when key went down
 
 };
 

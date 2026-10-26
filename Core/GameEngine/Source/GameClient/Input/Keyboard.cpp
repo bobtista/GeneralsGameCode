@@ -141,11 +141,10 @@ void Keyboard::updateKeys()
 		m_keyStatus[ m_keys[ index ].key ].state = m_keys[ index ].state;
 		m_keyStatus[ m_keys[ index ].key ].status = m_keys[ index ].status;
 
-		// Update key down time for new key presses
+		// Update repeat time for new key presses
 		if( BitIsSet( m_keys[ index ].state, KEY_STATE_DOWN ) )
 		{
-			m_keyStatus[ m_keys[ index ].key ].keyDownTimeMsec = m_keys[ index ].keyDownTimeMsec;
-			m_keyRepeatTimeMsec[ m_keys[ index ].key ] = m_keys[ index ].keyDownTimeMsec + Keyboard::KEY_REPEAT_DELAY_MSEC;
+			m_keyRepeatTimeMsec[ m_keys[ index ].key ] = timeGetTime() + Keyboard::KEY_REPEAT_DELAY_MSEC;
 		}
 
 		// prevent ALT-TAB from causing a TAB event
