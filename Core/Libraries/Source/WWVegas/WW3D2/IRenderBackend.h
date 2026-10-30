@@ -659,6 +659,7 @@ public:
         return { 2048, 2048, 2048, 8 };
     }
     virtual int Get_Max_Texture_Stages() const { return RB_MAX_TEXTURE_STAGES; }
+    virtual int Get_Max_Texture_Size() const { return 4096; }
     virtual bool Supports_Z_Bias() const { return false; }
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode) {}
     virtual RenderBackendMSAAMode Get_MSAA_Mode() const { return RB_MSAA_NONE; }

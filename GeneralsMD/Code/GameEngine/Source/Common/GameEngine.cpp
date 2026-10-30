@@ -107,7 +107,7 @@
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 
 #include "Common/version.h"
-#include <rts/profile.h>
+#include "Lib/Profile.h"
 #include "GgcRuntimeFlags.h"
 
 

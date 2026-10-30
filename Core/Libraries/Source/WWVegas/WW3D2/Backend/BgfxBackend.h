@@ -119,6 +119,7 @@ public:
     virtual bool Supports_Point_Sprites() const override { return false; }
     virtual RenderBackendTextureLimits Get_Texture_Limits() const override;
     virtual int Get_Max_Texture_Stages() const override;
+    virtual int Get_Max_Texture_Size() const override;
     virtual bool Supports_Z_Bias() const override { return true; }
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode) override;
     virtual RenderBackendMSAAMode Get_MSAA_Mode() const override;

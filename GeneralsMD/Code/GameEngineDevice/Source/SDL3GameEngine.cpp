@@ -49,7 +49,7 @@
 #endif
 #include "SDL3Device/GameClient/SDL3Keyboard.h"
 #include "SDL3Device/GameClient/SDL3Mouse.h"
-#include "StdDevice/Common/StdBIGFileSystem.h"
+#include "Common/BIGFileSystem.h"
 #include "StdDevice/Common/StdLocalFileSystem.h"
 #include "W3DDevice/Common/W3DFunctionLexicon.h"
 #include "W3DDevice/Common/W3DModuleFactory.h"
@@ -859,7 +859,7 @@ LocalFileSystem *SDL3GameEngine::createLocalFileSystem()
 
 ArchiveFileSystem *SDL3GameEngine::createArchiveFileSystem()
 {
-	return NEW StdBIGFileSystem;
+	return NEW BIGFileSystem;
 }
 
 NetworkInterface *SDL3GameEngine::createNetwork()

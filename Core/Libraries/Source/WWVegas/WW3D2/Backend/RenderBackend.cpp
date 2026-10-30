@@ -54,11 +54,9 @@ IRenderBackend * Create_Render_Backend(void * window, bool lite)
 
 // TheSuperHackers @refactor bobtista 29/10/2026 Bridge from the upstream static
 // Renderer class to the active IRenderBackend. Renderer owns the backend instance
-// and forwards to it. The texture bit depth and swap interval still come from
-// DX8Wrapper because the backend interface does not expose them.
+// and forwards to it.
 
 #include "Renderer.h"
-#include "dx8wrapper.h"
 #include "ww3d.h"
 
 static IRenderBackend * TheRenderBackend = nullptr;
@@ -126,12 +124,12 @@ bool Renderer::Is_Windowed()
 
 int Renderer::Get_Texture_Bitdepth()
 {
-    return DX8Wrapper::Get_Texture_Bitdepth();
+    return TheRenderBackend->Get_Texture_Bitdepth();
 }
 
 int Renderer::Get_Swap_Interval()
 {
-    return DX8Wrapper::Get_Swap_Interval();
+    return TheRenderBackend->Get_Swap_Interval();
 }
 
 bool Renderer::Has_Stencil()

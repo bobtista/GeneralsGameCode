@@ -65,8 +65,8 @@
 
 #include <unordered_map>
 
-#include <rts/profile.h>
-// TheSuperHackers @perf bobtista 24/06/2026 rts/profile.h pulls in Tracy.hpp (C++ API) but the bgfx profiler callbacks use the Tracy C API.
+#include "Lib/Profile.h"
+// TheSuperHackers @perf bobtista 24/06/2026 Lib/Profile.h pulls in Tracy.hpp (C++ API) but the bgfx profiler callbacks use the Tracy C API.
 #if defined(RTS_PROFILE_TRACY)
 #include <tracy/TracyC.h>
 #endif
@@ -6490,6 +6490,12 @@ RenderBackendTextureLimits BgfxBackend::Get_Texture_Limits() const
         caps->limits.maxTextureSize,
         kTextureAspectRatioLimit
     };
+}
+
+int BgfxBackend::Get_Max_Texture_Size() const
+{
+    const bgfx::Caps * caps = bgfx::getCaps();
+    return caps != nullptr ? (int)caps->limits.maxTextureSize : 4096;
 }
 
 int BgfxBackend::Get_Max_Texture_Stages() const

@@ -757,8 +757,7 @@ Render2DSentenceClass::Allocate_New_Surface (const WCHAR *text, bool justCalcExt
 		//	The font does not fit the search range, so use the smallest texture that fits, limited to
 		//	the largest texture the device supports.
 		//
-		const D3DCAPS8 &dx8caps = DX8Wrapper::Get_Current_Caps ()->Get_DX8_Caps ();
-		const int max_device_size = (int)min (dx8caps.MaxTextureWidth, dx8caps.MaxTextureHeight);
+		const int max_device_size = WW3D::Get_Render_Backend ()->Get_Max_Texture_Size ();
 		while (max_pow2 > TextureSizeMinPow2 && (1 << max_pow2) > max_device_size) {
 			max_pow2 --;
 		}
@@ -1605,23 +1604,16 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	CFRelease(font);
 
 	Update_Current_Buffer(char_width);
-	uint16 *curr_buffer_p = BufferList[BufferList.Count() - 1].Buffer;
+	uint8 *curr_buffer_p = BufferList[BufferList.Count() - 1].Buffer;
 	curr_buffer_p += CurrPixelOffset;
 
-	// TheSuperHackers @bugfix bobtista 28/05/2026 Premultiply RGB by alpha
-	// so anti-aliased edges fade in colour instead of jumping from black to
-	// full white, and zero-fill the trailing rows between bitmap_height and
-	// CharHeight; the buffer stride below advances by CharHeight, and the
-	// previous code left those rows uninitialised, leaving stale words
-	// visible between glyphs on macOS.
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Store one byte of coverage per pixel, like the
+	// GDI path, and zero-fill the trailing rows between bitmap_height and CharHeight; the buffer
+	// stride below advances by CharHeight, and leaving those rows uninitialised showed stale
+	// pixels between glyphs on macOS.
 	for (int row = 0; row < bitmap_height; ++row) {
 		for (int col = 0; col < char_width; ++col) {
-			int source_row = row;
-			uint8 pixel_value = glyph_bitmap[static_cast<size_t>(source_row) * static_cast<size_t>(char_width) + col];
-			uint8 rgb_value = (pixel_value >> 4) & 0xF;
-			uint16 pixel_color = static_cast<uint16>(rgb_value) | (static_cast<uint16>(rgb_value) << 4) | (static_cast<uint16>(rgb_value) << 8);
-			uint8 alpha_value = ((pixel_value >> 4) & 0xF);
-			*curr_buffer_p++ = pixel_color | (alpha_value << 12);
+			*curr_buffer_p++ = glyph_bitmap[static_cast<size_t>(row) * static_cast<size_t>(char_width) + col];
 		}
 	}
 	for (int row = bitmap_height; row < CharHeight; ++row) {
@@ -1643,7 +1635,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 		UnicodeCharArray[ch - FirstUnicodeChar] = char_data;
 	}
 
-	CurrPixelOffset += ((char_width + PixelOverlap) * CharHeight);
+	CurrPixelOffset += char_width * CharHeight;
 	return char_data;
 #elif !defined(_WIN32)
 	// TheSuperHackers @port bobtista 24/07/2026 Adapted from
@@ -1667,7 +1659,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	int char_width = max(1, max(x_origin + left_pad + advance_width, glyph_right) + PixelOverlap);
 
 	Update_Current_Buffer(char_width);
-	uint16 *char_buffer = BufferList[BufferList.Count() - 1].Buffer + CurrPixelOffset;
+	uint8 *char_buffer = BufferList[BufferList.Count() - 1].Buffer + CurrPixelOffset;
 	::memset(char_buffer, 0, static_cast<size_t>(char_width) * static_cast<size_t>(CharHeight) * sizeof(*char_buffer));
 
 	for (unsigned int row = 0; row < bitmap.rows; ++row) {
@@ -1698,13 +1690,8 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 				continue;
 			}
 
-			// Match the CoreText path: premultiplied A4R4G4B4. The existing
-			// sentence texture upload and blit code consume these words directly.
-			uint8 alpha_value = (pixel_value >> 4) & 0xF;
-			uint16 pixel_color = static_cast<uint16>(alpha_value)
-				| (static_cast<uint16>(alpha_value) << 4)
-				| (static_cast<uint16>(alpha_value) << 8);
-			char_buffer[dest_y * char_width + dest_x] = pixel_color | (alpha_value << 12);
+			// Match the CoreText and GDI paths: one byte of coverage per pixel.
+			char_buffer[dest_y * char_width + dest_x] = pixel_value;
 		}
 	}
 

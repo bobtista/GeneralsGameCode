@@ -740,6 +740,12 @@ RenderBackendTextureLimits DX8Backend::Get_Texture_Limits() const
     };
 }
 
+int DX8Backend::Get_Max_Texture_Size() const
+{
+    const D3DCAPS8 & caps = DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps();
+    return (int)min(caps.MaxTextureWidth, caps.MaxTextureHeight);
+}
+
 int DX8Backend::Get_Max_Texture_Stages() const
 {
     const auto * caps = DX8Wrapper::Get_Current_Caps();
