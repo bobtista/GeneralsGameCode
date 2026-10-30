@@ -1883,7 +1883,10 @@ FontCharsClass::Update_Current_Buffer (int char_width)
 		//	into a full sized second block.
 		//
 		const int shift = 2 - min( 2, BufferList.Count() );
-		const int length = max( GlyphBlockBytes >> shift, GlyphCellBytes );
+		// TheSuperHackers @bugfix bobtista 29/10/2026 The CoreText and FreeType font paths do not size the
+		// glyph cell from GDI metrics, so fall back to the minimum block and never allocate less than this glyph.
+		const int blockBytes = GlyphBlockBytes > 0 ? GlyphBlockBytes : (int)GLYPH_BLOCK_MIN_BYTES;
+		const int length = max( max( blockBytes >> shift, GlyphCellBytes ), char_len );
 		WWASSERT( char_len <= length );
 
 		BufferList.Add( FontCharsBuffer( length, W3DNEWARRAY uint8[length] ) );
