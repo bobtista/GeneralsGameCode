@@ -101,6 +101,7 @@ enum GgcFlagType
 	X(GgcFlag_NoLightMap, "GGC_NO_LIGHTMAP", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "force the static terrain noise/lightmap layer off") \
 	X(GgcFlag_NoPropShadows, "GGC_NO_PROP_SHADOWS", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "stop marking opaque world objects as sun-shadow receivers") \
 	X(GgcFlag_NoRotorShadow, "GGC_NO_ROTOR_SHADOW", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "disable the rotor-blur alpha-tested disc shadow caster") \
+	X(GgcFlag_NoCasterOnlySubmit, "GGC_NO_CASTER_ONLY_SUBMIT", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "draw off-camera sun-shadow casters in the color view again") \
 	X(GgcFlag_BgfxDepthClamp, "GGC_BGFX_DEPTH_CLAMP", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "re-enable depth clamp (fallback for shadow-volume near/far-clip regressions)") \
 	X(GgcFlag_EnableLegacyStencilShadows, "GGC_ENABLE_LEGACY_STENCIL_SHADOWS", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "force the legacy stencil-shadow path on even when the shadow mode disables it") \
 	X(GgcFlag_BgfxLegacyPostMeshStencilShadows, "GGC_BGFX_LEGACY_POSTMESH_STENCIL_SHADOWS", NULL, GgcTier_KillSwitch, GgcFlagType_Presence, 0, 0.0f, "submit stencil volumes in legacy post-mesh order instead of the engine view") \

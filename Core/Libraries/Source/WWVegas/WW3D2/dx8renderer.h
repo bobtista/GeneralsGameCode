@@ -89,7 +89,7 @@ public:
 	DX8TextureCategoryClass(DX8FVFCategoryContainer* container,TextureClass** textures, ShaderClass shd, VertexMaterialClass* mat,int pass);
 	virtual ~DX8TextureCategoryClass() override;
 
-	void									Add_Render_Task(DX8PolygonRendererClass * p_renderer,MeshClass * p_mesh);
+	void									Add_Render_Task(DX8PolygonRendererClass * p_renderer,MeshClass * p_mesh,bool shadow_caster_only = false);
 
 	void									Render();
 	bool									Anything_To_Render() { return (render_task_head != nullptr); }

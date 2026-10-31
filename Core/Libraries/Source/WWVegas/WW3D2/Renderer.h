@@ -190,6 +190,7 @@ public:
     static void Set_Stencil_ZFail_Op(StencilOp op);
     static void Set_Z_Bias(int bias);
     static void Set_Normal_Bias(float bias);
+    static void Set_Shadow_Caster_Only(bool enable);
     static void Set_Fill_Mode(FillMode mode);
     static void Set_Shade_Mode(ShadeMode mode);
     static void Set_Depth_Test_Enable(bool enable);

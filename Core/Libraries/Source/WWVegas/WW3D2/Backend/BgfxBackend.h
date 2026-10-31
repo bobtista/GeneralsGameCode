@@ -387,6 +387,7 @@ public:
 
     virtual void Set_Z_Bias(int bias) override;
     virtual void Set_Normal_Bias(float bias) override;
+    virtual void Set_Shadow_Caster_Only(bool enable) override;
     virtual void Set_Fill_Mode(FillMode mode) override;
     virtual void Set_Shade_Mode(ShadeMode mode) override;
     virtual void Set_Depth_Test_Enable(bool enable) override;

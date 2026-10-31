@@ -497,6 +497,7 @@ struct BgfxDraw
     float sunShadowReceive[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     unsigned zBiasUnits       = 0;
     float normalBias[4]       = { 0.0f, 0.0f, 0.0f, 0.0f };
+    bool shadowCasterOnly     = false;
     float legacyPixelShaderMode[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     float swayTable[11][4]    = {{0}};
     float shroudOffset[4]     = { 0.0f, 0.0f, 0.0f, 0.0f };

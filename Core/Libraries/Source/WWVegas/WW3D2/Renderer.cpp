@@ -823,6 +823,11 @@ void Renderer::Set_Normal_Bias(float bias)
     return RENDERER_CALL(Set_Normal_Bias)(bias);
 }
 
+void Renderer::Set_Shadow_Caster_Only(bool enable)
+{
+    return RENDERER_CALL(Set_Shadow_Caster_Only)(enable);
+}
+
 void Renderer::Set_Fill_Mode(FillMode mode)
 {
     return RENDERER_CALL(Set_Fill_Mode)(mode);
