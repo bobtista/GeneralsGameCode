@@ -1007,6 +1007,7 @@ public:
     // channel flags use the boolean form.
     virtual void Set_Z_Bias(int bias) {}
     virtual void Set_Normal_Bias(float bias) {}
+    virtual void Set_Shadow_Caster_Only(bool enable) {}
     virtual void Set_Fill_Mode(FillMode mode) {}
     virtual void Set_Shade_Mode(ShadeMode mode) {}
     virtual void Set_Depth_Test_Enable(bool enable) {}

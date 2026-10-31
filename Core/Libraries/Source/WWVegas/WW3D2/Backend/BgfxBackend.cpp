@@ -9396,6 +9396,10 @@ static bool ShouldUploadFrameConstUniform(FrameConstUniformGuard & guard,
                                           const void * data,
                                           unsigned sizeBytes)
 {
+    if (g_draw.shadowCasterOnly && view == kBgfxEngineView)
+    {
+        return false;
+    }
     if (UniformFrequencySplitDisabled() || sizeBytes > sizeof(guard.value))
     {
         return true;
@@ -12805,6 +12809,12 @@ void BgfxBackend::Set_Normal_Bias(float bias)
     g_draw.normalBias[0] = bias;
 }
 
+void BgfxBackend::Set_Shadow_Caster_Only(bool enable)
+{
+    static const bool s_noCasterOnlySubmit = GgcFlags::Enabled(GgcFlag_NoCasterOnlySubmit);
+    g_draw.shadowCasterOnly = enable && !s_noCasterOnlySubmit;
+}
+
 void BgfxBackend::Set_Fill_Mode(FillMode mode)
 {
     FixedFunctionState::Set_Fill_Mode(static_cast<unsigned>(mode));
@@ -14166,12 +14176,25 @@ void SubmitEngineDraw(unsigned short start_index,
             program = g_device.uberFrameConstProgram;
         }
     }
-    bgfx::submit(submitView, program);
-    LogBgfxEffectSubmit("submit-engine", submitView,
-                        polygon_count, vertex_count, state, "submit");
-    LogBgfxRevealDraw("submit-engine", submitView,
-                      polygon_count, vertex_count, state, "submit");
-    g_stats.baseSubmits++;
+    // TheSuperHackers @performance bobtista 31/10/2026 A mesh kept only because it casts into the
+    // sun shadow map lies outside the camera frustum, so its color draw produces no pixels. Skip
+    // that submit. Discarding leaves the caster submits below the same clean state the color
+    // submit used to leave them, and ShouldUploadFrameConstUniform keeps its engine-view record
+    // untouched for this draw.
+    const bool casterOnlySubmit = g_draw.shadowCasterOnly && submitView == kBgfxEngineView;
+    if (casterOnlySubmit)
+    {
+        bgfx::discard(BGFX_DISCARD_ALL);
+    }
+    else
+    {
+        bgfx::submit(submitView, program);
+        LogBgfxEffectSubmit("submit-engine", submitView,
+                            polygon_count, vertex_count, state, "submit");
+        LogBgfxRevealDraw("submit-engine", submitView,
+                          polygon_count, vertex_count, state, "submit");
+        g_stats.baseSubmits++;
+    }
 
     const bool hasVB = g_draw.useTransientVB
         || (g_draw.useStaticVB && bgfx::isValid(g_draw.staticVB))

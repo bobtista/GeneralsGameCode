@@ -700,6 +700,7 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 
 		bool meshInView = Model->Get_Flag(MeshGeometryClass::SKIN) ||
 				CollisionMath::Overlap_Test(frustum,Get_Bounding_Box())!=CollisionMath::OUTSIDE;
+		bool shadowCasterOnly = false;
 #if defined(GGC_RENDER_BACKEND_BGFX)
 		// TheSuperHackers @feature bobtista 17/06/2026 Also render a mesh that is outside the camera
 		// frustum but inside the sun-shadow cull sphere, so off-screen casters still cast into the
@@ -722,7 +723,7 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 				if (dx > 0.0f) { distSq += dx * dx; }
 				if (dy > 0.0f) { distSq += dy * dy; }
 				if (dz > 0.0f) { distSq += dz * dz; }
-				if (distSq <= sr * sr) { meshInView = true; }
+				if (distSq <= sr * sr) { meshInView = true; shadowCasterOnly = true; }
 			}
 		}
 #endif
@@ -784,7 +785,7 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 				DX8PolygonRendererListIterator it(&(Model->PolygonRendererList));
 				while (!it.Is_Done()) {
 					DX8PolygonRendererClass* polygon_renderer=it.Peek_Obj();
-					polygon_renderer->Get_Texture_Category()->Add_Render_Task(polygon_renderer,this);
+					polygon_renderer->Get_Texture_Category()->Add_Render_Task(polygon_renderer,this,shadowCasterOnly);
 					it.Next();
 				}
 
@@ -796,7 +797,8 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 			** If the rendering context specifies procedural material passes, register them
 			** for rendering
 			*/
-			for (int i=0; i<rinfo.Additional_Pass_Count(); i++) {
+			const int additionalPassCount = shadowCasterOnly ? 0 : rinfo.Additional_Pass_Count();
+			for (int i=0; i<additionalPassCount; i++) {
 
 				MaterialPassClass * matpass = rinfo.Peek_Additional_Pass(i);
 
@@ -827,7 +829,7 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 			/*
 			** If we have a decal mesh, link it into the mesh rendering system
 			*/
-			if (	(DecalMesh != nullptr) &&
+			if (	(DecalMesh != nullptr) && !shadowCasterOnly &&
 					((rinfo.Current_Override_Flags() & RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY) == 0))
 			{
 				const SphereClass & ws_sphere = Get_Bounding_Sphere();

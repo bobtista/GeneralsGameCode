@@ -106,10 +106,11 @@ typedef MultiListIterator<PolyRemover>		PolyRemoverListIterator;
 class PolyRenderTaskClass : public AutoPoolClass<PolyRenderTaskClass, 256>
 {
 public:
-	PolyRenderTaskClass(DX8PolygonRendererClass * p_renderer,MeshClass * p_mesh) :
+	PolyRenderTaskClass(DX8PolygonRendererClass * p_renderer,MeshClass * p_mesh,bool shadow_caster_only) :
 		Renderer(p_renderer),
 		Mesh(p_mesh),
-		NextVisible(nullptr)
+		NextVisible(nullptr),
+		ShadowCasterOnly(shadow_caster_only)
 	{
 		WWASSERT(Renderer != nullptr);
 		WWASSERT(Mesh != nullptr);
@@ -129,11 +130,14 @@ public:
 	PolyRenderTaskClass *		Get_Next_Visible()									{ return NextVisible; }
 	void								Set_Next_Visible(PolyRenderTaskClass * prtc)		{ NextVisible = prtc; }
 
+	bool								Is_Shadow_Caster_Only() const						{ return ShadowCasterOnly; }
+
 protected:
 
 	DX8PolygonRendererClass *	Renderer;
 	MeshClass *						Mesh;
 	PolyRenderTaskClass *		NextVisible;
+	bool								ShadowCasterOnly;
 
 };
 
@@ -234,9 +238,9 @@ DX8TextureCategoryClass::~DX8TextureCategoryClass()
 	DEBUG_ASSERTCRASH(render_task_head == nullptr, ("~DX8TextureCategoryClass: Leaking render tasks"));
 }
 
-void DX8TextureCategoryClass::Add_Render_Task(DX8PolygonRendererClass * p_renderer,MeshClass * p_mesh)
+void DX8TextureCategoryClass::Add_Render_Task(DX8PolygonRendererClass * p_renderer,MeshClass * p_mesh,bool shadow_caster_only)
 {
-	PolyRenderTaskClass * new_prt = new PolyRenderTaskClass(p_renderer,p_mesh);
+	PolyRenderTaskClass * new_prt = new PolyRenderTaskClass(p_renderer,p_mesh,shadow_caster_only);
 	new_prt->Set_Next_Visible(render_task_head);
 	render_task_head = new_prt;
 
@@ -1899,6 +1903,10 @@ void DX8TextureCategoryClass::Render()
 		*/
 			const bool coplanarNormalBias = mesh->Peek_Model()->Get_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS) != 0;
 			Renderer::Set_Normal_Bias(coplanarNormalBias ? 0.02f : 0.0f);
+			const bool shadowCasterOnly = prt->Is_Shadow_Caster_Only();
+			if (shadowCasterOnly) {
+				Renderer::Set_Shadow_Caster_Only(true);
+			}
 
 		//(gth) this if statement's contents are not tabbed to avoid perforce merge problems...
 		if (!DX8RendererDebugger::Is_Enabled() || !mesh->Is_Disabled_By_Debugger()) {
@@ -1979,7 +1987,8 @@ void DX8TextureCategoryClass::Render()
 						&& nextScan->Peek_Polygon_Renderer() == renderer
 						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() != VERTEX_BUFFER_OVERFLOW
 						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() == mesh->Get_Base_Vertex_Offset()
-						&& nextScan->Peek_Mesh()->Get_Lighting_Environment() == lenv)
+						&& nextScan->Peek_Mesh()->Get_Lighting_Environment() == lenv
+						&& nextScan->Is_Shadow_Caster_Only() == shadowCasterOnly)
 					{
 						unsigned batchCount = 1;
 						for (PolyRenderTaskClass * s = nextScan; s != nullptr; s = s->Get_Next_Visible())
@@ -1997,6 +2006,7 @@ void DX8TextureCategoryClass::Render()
 								|| ((!!sm->Peek_Model()->Get_Flag(MeshGeometryClass::SORT)) && WW3D::Is_Sorting_Enabled())
 								|| sm->Get_ObjectScale() != 1.0f
 								|| sm->Peek_Model()->Get_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS)
+								|| s->Is_Shadow_Caster_Only() != shadowCasterOnly
 								) {
 								break;
 							}
@@ -2027,6 +2037,9 @@ void DX8TextureCategoryClass::Render()
 		}
 		if (coplanarNormalBias) {
 			Renderer::Set_Normal_Bias(0.0f);
+		}
+		if (shadowCasterOnly) {
+			Renderer::Set_Shadow_Caster_Only(false);
 		}
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
