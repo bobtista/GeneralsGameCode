@@ -211,18 +211,23 @@ inline void WaterSea_Bind(const WaterSeaInputs &in)
 	const float uvScale[4] = { in.bumpTilesPerUnit, in.bumpTilesPerUnit, in.edgeScaleU, (in.edgeScaleU != 0.0f) ? 1.0f : 0.0f };
 	dev->SetVertexShaderConstantF(8, uvScale, 1);
 
-	// vertex: two normal layers crossing at 60 degrees. Offsets stay inside -1..1, so the uv keeps its precision.
+	// vertex: two normal layers crossing at `cross` degrees. Offsets stay inside -1..1, so the uv keeps its precision.
 	const Real tileA = 1.0f / (190.0f * t.tile);
 	const Real tileB = 1.0f / (110.0f * t.tile);
 	const Real sec = in.clockSeconds * t.speed;
-	float normalA[4]    = { tileA, tileA, fmodf(sec * 0.011f, 1.0f), fmodf(sec * 0.004f, 1.0f) };
-	float normalBRot[4] = { 0.5f * tileB, -0.8660254f * tileB, 0.8660254f * tileB, 0.5f * tileB };
-	float normalBOff[4] = { fmodf(sec * -0.006f, 1.0f), fmodf(sec * 0.014f, 1.0f), 0.0f, 0.0f };
+	// Ronin @feature 01/11/2026 DX9: the sea's ripple map has its wind along u: both layers turn to `swelldir`, so the ripples'
+	// crests run with the swell's; the lake and river keep 0. Layer B turns `cross` from A; a river's drift turns with them.
+	const Real windA  = (in.kind == WATER_KIND_SEA) ? t.swellDir * 0.017453293f : 0.0f;
+	const Real windB  = windA - t.cross * 0.017453293f;
+	const Real aC = cosf(windA), aS = sinf(windA), bC = cosf(windB), bS = sinf(windB);
+	float normalA[4]    = { aC * tileA, aS * tileA, -aS * tileA, aC * tileA };
+	float normalBRot[4] = { bC * tileB, bS * tileB, -bS * tileB, bC * tileB };
+	float normalBOff[4] = { fmodf(sec * -0.006f, 1.0f), fmodf(sec * 0.014f, 1.0f), fmodf(sec * 0.011f, 1.0f), fmodf(sec * 0.004f, 1.0f) };
 	// Ronin @feature 02/10/2026 DX9: phase 4 - a river's layers stand still in world space: its flow map moves them
 	// (c22 here, c46 below; the drift per vertex comes from drawRiverWater). `speed` is its current, world units a second.
 	if (in.kind == WATER_KIND_RIVER)
 	{
-		normalA[2]    = 0.0f;	normalA[3]    = 0.0f;
+		normalBOff[2] = 0.0f;	normalBOff[3] = 0.0f;
 		normalBOff[0] = 0.37f;	normalBOff[1] = 0.61f;
 	}
 	// Ronin @bugfix 03/10/2026 DX9: z - the swell grid's real cell: the VS fades the swell by the lowest ground that far around

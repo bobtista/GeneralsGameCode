@@ -96,6 +96,8 @@ struct WaterSeaTuning
 	Real bend;			///< how far the normals bend it, screen uv
 	// Ronin @feature 29/09/2026 DX9: shadows on the surface.
 	Real shadow;		///< how much a shadow darkens the water body, 0 = no shadows (the sun's glitter always goes)
+	// Ronin @feature 01/11/2026 DX9: the angle between the two ripple layers; low = the wind's streaks line up.
+	Real cross;			///< degrees layer B turns from layer A (it was fixed at 60)
 };
 
 // Ronin @feature 04/10/2026 DX9: the built-in values on their own, so `water defaults` can return to them.
@@ -146,7 +148,7 @@ inline WaterSeaTuning WaterSea_DefaultProfile(WaterKind kind)
 		0.10f,		// sheen
 		24.0f,		// sheenPow
 		5.0f,		// speed
-		0.7f,		// tile
+		1.0f,		// tile
 		40.0f,		// clearDepth
 		1.0f,		// deep - no darkening until tuned
 		FALSE,		// ownOpacity
@@ -174,6 +176,7 @@ inline WaterSeaTuning WaterSea_DefaultProfile(WaterKind kind)
 		TRUE,		// breakers
 		0.02f,		// bend
 		0.5f,		// shadow
+		15.0f,		// cross - streaks along the wind, the preview Ronin picked (01/11); 60 crossed them into glitter
 	};
 	// Ronin @feature 02/10/2026 DX9: phase 4 - each kind's differences from the base. 
 	// A lake keeps the map's own see-through and swells slow and low.
@@ -193,6 +196,7 @@ inline WaterSeaTuning WaterSea_DefaultProfile(WaterKind kind)
 		t.swellTint   = 0.0f;
 		t.whitecaps   = 0.0f;
 		t.breakers    = FALSE;		// its 210-unit waves at speed 0.3 land every 21 s: the lake keeps the foam's own clock
+		t.cross       = 60.0f;		// Ronin @feature 01/11/2026 DX9: as it was; the lake's map has no wind
 	}
 	// Ronin @feature 02/10/2026 DX9: phase 4 - a river's current and bank foam.
 	// Ronin @bugfix 03/10/2026 DX9: the bank foam erodes a bubble field: `foam` = the share of the bank foamed at the
@@ -204,6 +208,7 @@ inline WaterSeaTuning WaterSea_DefaultProfile(WaterKind kind)
 		t.foamWidth   = 10.0f;		// 20 reached too far for the river's size (Ronin, 03/10)
 		t.foamTile    = 35.0f;		// big bubbles ~4.5 units, small ~2.5 (Ronin, 03/10)
 		t.seaFoamTile = 60.0f;		// the lace's 360 cells (-LaceCells): ~3-unit cells (Ronin, 03/10)
+		t.cross       = 60.0f;		// Ronin @feature 01/11/2026 DX9: as it was; the river's map has no wind
 	}
 	return t;
 }
@@ -253,6 +258,7 @@ inline const WaterKnobInfo TheWaterProfileKnobs[] =
 	{ "sheenpow",       WATER_KNOB_REAL, offsetof(WaterSeaTuning, sheenPow), 1.0f, 512.0f, TRUE },
 	{ "speed",          WATER_KNOB_REAL, offsetof(WaterSeaTuning, speed), 0.0f, 50.0f, TRUE },
 	{ "tile",           WATER_KNOB_REAL, offsetof(WaterSeaTuning, tile), 0.1f, 10.0f, TRUE },
+	{ "cross",          WATER_KNOB_REAL, offsetof(WaterSeaTuning, cross), 0.0f, 90.0f, TRUE },	// Ronin @feature 01/11/2026 DX9
 	{ "deepdist",       WATER_KNOB_REAL, offsetof(WaterSeaTuning, clearDepth), 1.0f, 500.0f, TRUE },
 	{ "deep",           WATER_KNOB_REAL, offsetof(WaterSeaTuning, deep), 0.0f, 1.0f, TRUE },
 	{ "ownopacity",     WATER_KNOB_BOOL, offsetof(WaterSeaTuning, ownOpacity), 0.0f, 1.0f, TRUE },

@@ -7,9 +7,11 @@ float4 g_ViewProj[4] : register(c0);	// world -> clip, uploaded transposed: one 
 float4 g_World[4]    : register(c4);	// object -> world, transposed: identity for the polygons, the patch for the sea
 float4 g_UVScale     : register(c8);	// xy: bump tiles per world unit; zw: river edge uv from uv0 (2,1), else (0,0)
 // Ronin @feature 28/09/2026 DX9: surface model - two normal-map layers, scale / rotation / scroll set per frame by C++.
-float4 g_NormalA     : register(c9);	// layer A: xy tiles per world unit, zw scroll offset
+// Ronin @feature 01/11/2026 DX9: layer A turns too (the sea's ripples follow the swell's wind): a matrix like B's; its
+// scroll moved to c11.zw.
+float4 g_NormalA     : register(c9);	// layer A: world xy -> uv rows (x0, y0, x1, y1), scale and rotation baked in
 float4 g_NormalBRot  : register(c10);	// layer B: world xy -> uv rows (x0, y0, x1, y1), scale and rotation baked in
-float4 g_NormalBOff  : register(c11);	// layer B: xy scroll offset
+float4 g_NormalBOff  : register(c11);	// xy: layer B's scroll offset, zw: layer A's
 // Ronin @feature 29/09/2026 DX9: phase 2 - Gerstner swell (R3DWaterSea.h), per wave two rows.
 float4 g_Wave[8]     : register(c12);	// [2i] (k dx, k dy, omega, height), [2i+1] (travel dx, travel dy, 0, 0)
 float4 g_SwellCfg    : register(c20);	// x: seconds, y: the mesh moves (the swell, or wakes - 25/10/2026), z: 1 / `swelldepth`, w: world z per sampled height
@@ -123,13 +125,13 @@ VSOutput main(VSInput input)
 
 	// Ronin @feature 28/09/2026 DX9: world position for the view vector; the two normal layers cross, so no tiling shows.
 	output.worldPos    = world.xyz;
-	output.normalUV.xy = world.xy * g_NormalA.xy + g_NormalA.zw;
+	output.normalUV.xy = float2(dot(world.xy, g_NormalA.xy), dot(world.xy, g_NormalA.zw)) + g_NormalBOff.zw;
 	output.normalUV.zw = float2(dot(world.xy, g_NormalBRot.xy), dot(world.xy, g_NormalBRot.zw)) + g_NormalBOff.xy;
 
 	// Ronin @feature 02/10/2026 DX9: phase 4 - a river's flow map. Its ripples stay in world space (the river's uv kinks and
 	// shears across its quads); the PS drags them downstream by this drift, two phases cross-faded (Valve, Portal 2).
 	const float2 drift = (g_UVScale.w > 0.5f) ? input.flow.xy * (g_Flow.x * g_Flow.y) : float2(0.0f, 0.0f);
-	output.flowUV.xy = drift * g_NormalA.xy;
+	output.flowUV.xy = float2(dot(drift, g_NormalA.xy), dot(drift, g_NormalA.zw));
 	output.flowUV.zw = float2(dot(drift, g_NormalBRot.xy), dot(drift, g_NormalBRot.zw));
 	output.flowUV.w += swellH;	// Ronin @diagnostic 03/10/2026 DX9: standing water has no drift; w carries the swell's height
 

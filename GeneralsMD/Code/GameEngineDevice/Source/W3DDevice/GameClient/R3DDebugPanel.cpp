@@ -440,7 +440,7 @@ namespace
 		printAscii(AsciiString("  profile: which water the profile's knobs edit - sea (standing water that reaches the map's edge), lake (other standing water), river. save / load / defaults: Data/INI/DX9Water.ini - write every knob, read it back, the built-in look (the file is untouched)"), FALSE);
 		printAscii(AsciiString("  flat / mesh / waves / sea: draw the flat water / the grid mesh (dams) / the 2003 shore-wave sprites at all / the old infinite sea plane instead of the map's water - debug switches; view: one ingredient alone, 0 = the water"), FALSE);
 		printAscii(AsciiString("  REFLECTION - refl: how much the water reflects; fresnel 1: more toward the horizon - f0 looking straight down, fpow how fast it rises, fresnelripple how much the ripples move it; distort: how far the ripples bend the reflection"), FALSE);
-		printAscii(AsciiString("  RIPPLES - normals 0|1: the ripple maps (0 = the old caust ripple); ripple: their strength, 0 = mirror-flat; speed / tile: how fast they move / how big they are (a river's speed is its current); refract: how far they bend the water's own texture; bend: how far they bend the seabed seen through"), FALSE);
+		printAscii(AsciiString("  RIPPLES - normals 0|1: the ripple maps (0 = the old caust ripple); ripple: their strength, 0 = mirror-flat; speed / tile: how fast they move / how big they are (a river's speed is its current); cross: degrees between the two layers, low = the wind's streaks line up; refract: how far they bend the water's own texture; bend: how far they bend the seabed seen through"), FALSE);
 		printAscii(AsciiString("  LIGHT - spec / gloss: the sun's sharp glitter, its strength / tightness; sheen / sheenpow: the broad sun sheen, the same; shade: light and shade the ripples put on the water body; shadow: how much a shadow darkens the water, 0 = no shadows"), FALSE);
 		printAscii(AsciiString("  DEPTH - deep: deep water's brightness, 1 = no darkening; deepdist: the depth it takes full effect by; opacity: how opaque past the shore (ownopacity 1: the map's own see-through instead); shore: the soft edge's width from the waterline; shoredepth: shore effects stop by this depth; texture: how much of the map's water texture shows"), FALSE);
 		printAscii(AsciiString("  FOAM - foam: the shore foam's amount (0 = none, ~4 = a solid band); foamwidth: its reach from the waterline; foamtile: its fleck size; seafoam / seafoamdepth / seafoamtile: the open water's foam - amount, the depth it fades out by, fleck size"), FALSE);
@@ -621,6 +621,7 @@ namespace
 		waterKnobCell(cols[1], t, "ripple");
 		waterKnobCell(cols[1], t, "speed");
 		waterKnobCell(cols[1], t, "tile");
+		waterKnobCell(cols[1], t, "cross");	// Ronin @feature 01/11/2026 DX9: the angle between the two ripple layers
 		waterKnobCell(cols[1], t, "refract");
 		waterKnobCell(cols[1], t, "bend");
 		cols[2].title = "LIGHT";
