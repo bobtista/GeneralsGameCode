@@ -1,0 +1,611 @@
+/*
+	ChallengeLoadScreen.rcss -- ChallengeLoadScreen.wnd, in the challenge menu's command room
+	(ChallengeMap.rcss): the backdrop movie in the world map's place, general against general in the
+	middle of the frame and the shared load bar (LoadScreen.rcss) along the bottom.
+
+	Each side is the general's portrait movie (the large portrait still on min spec) over a card with
+	the typed out name, rank and tactics; the player's general on the left, the opponent on the right.
+	Between them sits our own "vs" in place of the .wnd's reticle circles and Bink "vs" movie.
+
+	The sequence runs on the .wnd's beats: LoadScreenData's flags set st-* classes on .cl-versus-row
+	at the backdrop movie's frames (30 fps):
+		st-titles   frame 20   the cards rise in
+		st-typing   frame 24   name, rank and tactics type out, the name behind a caret, until the "vs"
+		st-in       frame 35   the portraits slide in from the sides (the player's general speaks)
+		st-lock     frame 63   brackets close in and lock onto each portrait; the sight ring shows
+		st-armed    frame 74   the centre reticle arms and starts turning
+		st-plate    frame 80   the dark plate behind the "vs"
+		st-vs       frame 98   the "vs" slams in (the announcer's "versus"): its plate flashes, two shock
+		                       rings burst out, the row jolts and the brackets kick; then the reticle
+		                       turns and the brackets breathe until loaded
+		st-static   min spec   everything at once and still
+	Each piece animates when its class arrives, mostly by transform (rotate, scale, translate). RmlUi
+	does not scissor inside a transformed element and this renderer has no clip mask, so a portrait
+	box stops clipping while it slides; nothing in it reaches past the box, so that shows nothing.
+*/
+
+.cl-versus-row
+{
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding-bottom: 20dp;
+}
+
+.cl-versus-group
+{
+	display: flex;
+	position: relative;
+	left: 0;
+	flex-direction: row;
+	align-items: flex-start;
+	flex: 0 0 auto;
+}
+
+.cl-side
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 auto;
+	width: 568dp;
+}
+
+/* ---- Portraits ------------------------------------------------------------------------------- */
+/* The wrap slides in and carries the lock brackets in its padding, just outside the clipped box. */
+.cl-portrait-wrap
+{
+	display: block;
+	position: relative;
+	padding: 14dp;
+	opacity: 0;
+}
+
+.st-in .cl-portrait-wrap
+{
+	opacity: 1;
+}
+
+.st-in .cl-side-l .cl-portrait-wrap { animation: 0.5s cubic-out 1 cl-slide-l; }
+.st-in .cl-side-r .cl-portrait-wrap { animation: 0.5s cubic-out 1 cl-slide-r; }
+
+@keyframes cl-slide-l
+{
+	from { transform: translateX(-160dp); opacity: 0; }
+	to { transform: translateX(0dp); opacity: 1; }
+}
+
+@keyframes cl-slide-r
+{
+	from { transform: translateX(160dp); opacity: 0; }
+	to { transform: translateX(0dp); opacity: 1; }
+}
+
+/* PortraitMovieLeft/Right are 394x329: the box keeps their shape. */
+.cl-portrait-box
+{
+	display: block;
+	position: relative;
+	box-sizing: border-box;
+	width: 540dp;
+	height: 450dp;
+	background-color: #05070FD9;
+	border: 1dp #8080FF46;
+	overflow: hidden;
+	clip: always;
+}
+
+/* The frame lights up as the picture lands, then settles. */
+.st-in .cl-portrait-box { animation: 0.9s cubic-out 1 cl-frame-lit; }
+
+@keyframes cl-frame-lit
+{
+	from { border-color: #D1FD04; }
+	to { border-color: #8080FF46; }
+}
+
+.cl-portrait-movie
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.cl-portrait-movie video
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* The large portrait still (about 331x327) centred in the box at its own shape. */
+.cl-portrait
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.cl-portrait mappedimage
+{
+	display: block;
+	width: 450dp;
+	height: 445dp;
+	margin: 2dp auto 0 auto;
+}
+
+/* ---- Lock: corner brackets and edge ticks just outside the box, green on ours, red on theirs -- */
+.cl-lock
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.cl-br, .cl-tk
+{
+	display: block;
+	position: absolute;
+	border-color: #D1FD04;
+}
+
+.cl-side-r .cl-br, .cl-side-r .cl-tk
+{
+	border-color: #FF5050;
+}
+
+.cl-br { width: 44dp; height: 44dp; }
+.cl-br-tl { left: 0; top: 0; border-top-width: 4dp; border-left-width: 4dp; }
+.cl-br-tr { right: 0; top: 0; border-top-width: 4dp; border-right-width: 4dp; }
+.cl-br-bl { left: 0; bottom: 0; border-bottom-width: 4dp; border-left-width: 4dp; }
+.cl-br-br { right: 0; bottom: 0; border-bottom-width: 4dp; border-right-width: 4dp; }
+
+/* Ticks in the gap between the brackets and the box, pointing at it. */
+.cl-tk-l, .cl-tk-r { top: 50%; width: 10dp; height: 0; margin-top: -1dp; border-top-width: 2dp; }
+.cl-tk-l { left: 0; }
+.cl-tk-r { right: 0; }
+.cl-tk-t, .cl-tk-b { left: 50%; width: 0; height: 10dp; margin-left: -1dp; border-left-width: 2dp; }
+.cl-tk-t { top: 0; }
+.cl-tk-b { bottom: 0; }
+
+.st-lock .cl-lock
+{
+	opacity: 1;
+	animation: 0.35s cubic-out 1 cl-lock-in;
+}
+
+/* The "vs" hits both targets; then the brackets breathe until the load ends. */
+.st-vs .cl-lock
+{
+	animation: 0.4s 0.2s cubic-out 1 cl-lock-hit, 1.6s 0.6s sine-in-out infinite alternate cl-breathe;
+}
+
+@keyframes cl-lock-in
+{
+	0% { transform: scale(1.22); opacity: 0; }
+	70% { transform: scale(0.98); opacity: 1; }
+	100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes cl-lock-hit
+{
+	0% { transform: scale(1); }
+	30% { transform: scale(1.03); }
+	100% { transform: scale(1); }
+}
+
+@keyframes cl-breathe
+{
+	from { opacity: 1; }
+	to { opacity: 0.45; }
+}
+
+/* ---- Card: name, rank and tactics ---------------------------------------------------------- */
+.cl-card
+{
+	display: block;
+	min-height: 150dp;
+	margin: 10dp 14dp 0 14dp;
+	padding: 16dp 22dp 18dp 22dp;
+	background-color: #070A1AE6;
+	border-top: 3dp #D1FD04;
+	opacity: 0;
+}
+
+.cl-card.cl-opponent
+{
+	text-align: right;
+	border-top-color: #FF5050;
+}
+
+.st-titles .cl-card
+{
+	opacity: 1;
+	animation: 0.4s cubic-out 1 cl-card-in;
+}
+
+@keyframes cl-card-in
+{
+	from { transform: translateY(28dp); opacity: 0; }
+	to { transform: translateY(0dp); opacity: 1; }
+}
+
+.cl-enemy-overline
+{
+	color: #FF5A5A;
+}
+
+.cl-name
+{
+	display: block;
+	min-height: 48dp;
+	margin-top: 4dp;
+	font-size: 40dp;
+	line-height: 48dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* The teletype's caret, from the first letter until the "vs". */
+.cl-caret
+{
+	display: none;
+	width: 14dp;
+	height: 34dp;
+	margin-left: 6dp;
+	vertical-align: -4dp;
+	background-color: #D1FD04;
+}
+
+.cl-opponent .cl-caret
+{
+	background-color: #FF5050;
+}
+
+.st-typing .cl-caret
+{
+	display: inline-block;
+	animation: 0.5s linear-in-out infinite alternate cl-blink;
+}
+
+@keyframes cl-blink
+{
+	from { opacity: 1; }
+	to { opacity: 0.15; }
+}
+
+.cl-facts
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 10dp;
+	padding-top: 10dp;
+	border-top: 1dp #8080FF28;
+}
+
+.cl-opponent .cl-facts
+{
+	flex-direction: row-reverse;
+}
+
+.cl-fact-rank
+{
+	flex: 0 0 40%;
+}
+
+.cl-fact-tactics
+{
+	flex: 1 1 0%;
+}
+
+.cl-opponent .cl-fact-rank
+{
+	margin-left: 20dp;
+}
+
+.cl-you .cl-fact-rank
+{
+	margin-right: 20dp;
+}
+
+.cl-card .fact-value
+{
+	min-height: 28dp;
+	line-height: 28dp;
+}
+
+/* ---- Centre reticle and "vs" ----------------------------------------------------------------- */
+/* Centred on the portraits: the column is as tall as a portrait with its lock margin. */
+.cl-centre
+{
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	flex: 0 0 332dp;
+	height: 478dp;
+}
+
+.cl-reticle
+{
+	display: block;
+	position: relative;
+	width: 300dp;
+	height: 300dp;
+}
+
+.cl-ring, .cl-arm, .cl-shock, .cl-plate, .cl-vs
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+}
+
+/* A hairline ring with ticks across it at the cardinal points: the sight, there from the lock on. */
+.cl-ring-outer
+{
+	left: 8dp;
+	top: 8dp;
+	width: 284dp;
+	height: 284dp;
+	border: 1dp #8080FF5A;
+	border-radius: 142dp;
+	opacity: 0;
+}
+
+.cl-rt
+{
+	display: block;
+	position: absolute;
+	background-color: #8080FF;
+	opacity: 0;
+}
+
+.cl-rt-t, .cl-rt-b { left: 149dp; width: 2dp; height: 16dp; }
+.cl-rt-t { top: 0; }
+.cl-rt-b { bottom: 0; }
+.cl-rt-l, .cl-rt-r { top: 149dp; width: 16dp; height: 2dp; }
+.cl-rt-l { left: 0; }
+.cl-rt-r { right: 0; }
+
+.st-lock .cl-ring-outer, .st-lock .cl-rt
+{
+	opacity: 1;
+	animation: 0.4s cubic-out 1 cl-fade-in;
+}
+
+@keyframes cl-fade-in
+{
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+/* The armed reticle: green arcs and blue arcs turning against each other. */
+.cl-arm
+{
+	left: 0;
+	top: 0;
+	width: 300dp;
+	height: 300dp;
+	opacity: 0;
+}
+
+.st-armed .cl-arm
+{
+	opacity: 1;
+	animation: 0.5s cubic-out 1 cl-arm-in;
+}
+
+@keyframes cl-arm-in
+{
+	from { transform: rotate(-120deg) scale(0.5); opacity: 0; }
+	to { transform: rotate(0deg) scale(1); opacity: 1; }
+}
+
+.cl-ring-spin
+{
+	left: 22dp;
+	top: 22dp;
+	width: 256dp;
+	height: 256dp;
+	border-width: 4dp;
+	border-color: #D1FD04 #D1FD0400 #D1FD04 #D1FD0400;
+	border-radius: 128dp;
+}
+
+.cl-ring-counter
+{
+	left: 48dp;
+	top: 48dp;
+	width: 204dp;
+	height: 204dp;
+	border-width: 2dp;
+	border-color: #8080FF00 #8080FFC8 #8080FF00 #8080FFC8;
+	border-radius: 102dp;
+}
+
+.st-armed .cl-ring-spin { animation: 9s linear-in-out infinite cl-spin; }
+.st-armed .cl-ring-counter { animation: 14s linear-in-out infinite cl-spin-back; }
+
+@keyframes cl-spin
+{
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+@keyframes cl-spin-back
+{
+	from { transform: rotate(0deg); }
+	to { transform: rotate(-360deg); }
+}
+
+/* The plate the "vs" lands on. */
+.cl-plate
+{
+	left: 66dp;
+	top: 66dp;
+	width: 168dp;
+	height: 168dp;
+	background-color: #05070FF2;
+	border: 2dp #8080FF46;
+	border-radius: 84dp;
+	opacity: 0;
+}
+
+.st-plate .cl-plate
+{
+	opacity: 1;
+	animation: 0.3s cubic-out 1 cl-plate-in;
+}
+
+.st-vs .cl-plate
+{
+	border-color: #D1FD04;
+	animation: 0.5s 0.2s cubic-out 1 cl-plate-flash, 1.6s 0.7s sine-in-out infinite alternate cl-plate-glow;
+}
+
+@keyframes cl-plate-in
+{
+	from { transform: scale(0.4); opacity: 0; }
+	to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes cl-plate-flash
+{
+	from { background-color: #F4FFD0; }
+	to { background-color: #05070FF2; }
+}
+
+@keyframes cl-plate-glow
+{
+	from { border-color: #D1FD04; }
+	to { border-color: #D1FD0450; }
+}
+
+/* The "vs": dropped in from over twice its size, overshooting a touch. */
+.cl-vs
+{
+	left: 0;
+	top: 94dp;
+	width: 300dp;
+	height: 112dp;
+	font-size: 84dp;
+	line-height: 112dp;
+	font-weight: bold;
+	text-align: center;
+	color: #D1FD04;
+	font-effect: glow(1dp 10dp 0dp 0dp #D1FD0460);
+	opacity: 0;
+}
+
+.st-vs .cl-vs
+{
+	opacity: 1;
+	animation: 0.32s cubic-in 1 cl-slam;
+}
+
+@keyframes cl-slam
+{
+	0% { transform: scale(2.6); opacity: 0; }
+	65% { transform: scale(0.9); opacity: 1; }
+	100% { transform: scale(1); opacity: 1; }
+}
+
+/* Two shock rings off the impact. */
+.cl-shock
+{
+	left: 66dp;
+	top: 66dp;
+	width: 168dp;
+	height: 168dp;
+	border: 3dp #D1FD04;
+	border-radius: 84dp;
+	opacity: 0;
+}
+
+.st-vs .cl-shock
+{
+	animation: 0.7s 0.2s cubic-out 1 cl-shock;
+}
+
+.st-vs .cl-shock-2
+{
+	border-width: 2dp;
+	animation: 0.9s 0.3s cubic-out 1 cl-shock;
+}
+
+@keyframes cl-shock
+{
+	from { transform: scale(0.9); opacity: 1; }
+	to { transform: scale(2.4); opacity: 0; }
+}
+
+/* The jolt of the impact. */
+.st-vs .cl-versus-group
+{
+	animation: 0.3s 0.2s linear-in-out 1 cl-jolt;
+}
+
+@keyframes cl-jolt
+{
+	0% { left: 0; }
+	20% { left: -10dp; }
+	45% { left: 8dp; }
+	70% { left: -4dp; }
+	100% { left: 0; }
+}
+
+/* ---- Min spec: every piece at once, still ------------------------------------------------------ */
+.cl-versus-row.st-static .cl-portrait-wrap,
+.cl-versus-row.st-static .cl-portrait-box,
+.cl-versus-row.st-static .cl-lock,
+.cl-versus-row.st-static .cl-card,
+.cl-versus-row.st-static .cl-ring-outer,
+.cl-versus-row.st-static .cl-rt,
+.cl-versus-row.st-static .cl-arm,
+.cl-versus-row.st-static .cl-ring-spin,
+.cl-versus-row.st-static .cl-ring-counter,
+.cl-versus-row.st-static .cl-plate,
+.cl-versus-row.st-static .cl-vs,
+.cl-versus-row.st-static .cl-shock,
+.cl-versus-row.st-static .cl-versus-group
+{
+	animation: none;
+}
+
+/* ---- 5:4 and 4:3 ----------------------------------------------------------------------------- */
+@media (max-aspect-ratio: 3/2)
+{
+	.cl-side { width: 454dp; }
+	.cl-portrait-wrap { padding: 12dp; }
+	.cl-portrait-box { width: 430dp; height: 358dp; }
+	.cl-portrait mappedimage { width: 358dp; height: 354dp; }
+	.cl-card { margin: 8dp 12dp 0 12dp; padding: 14dp 18dp 16dp 18dp; }
+	.cl-name { font-size: 32dp; line-height: 40dp; min-height: 40dp; }
+	.cl-caret { width: 12dp; height: 28dp; }
+	.cl-centre { flex-basis: 240dp; height: 382dp; }
+	.cl-reticle, .cl-arm { width: 230dp; height: 230dp; }
+	.cl-ring-outer { width: 214dp; height: 214dp; border-radius: 107dp; }
+	.cl-rt-t, .cl-rt-b { left: 114dp; }
+	.cl-rt-l, .cl-rt-r { top: 114dp; }
+	.cl-ring-spin { left: 17dp; top: 17dp; width: 196dp; height: 196dp; border-radius: 98dp; }
+	.cl-ring-counter { left: 37dp; top: 37dp; width: 156dp; height: 156dp; border-radius: 78dp; }
+	.cl-plate, .cl-shock { left: 51dp; top: 51dp; width: 128dp; height: 128dp; border-radius: 64dp; }
+	.cl-vs { top: 72dp; width: 230dp; height: 86dp; font-size: 64dp; line-height: 86dp; }
+}

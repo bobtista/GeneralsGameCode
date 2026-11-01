@@ -36,15 +36,28 @@
 #include "GameLogic/GameLogic.h"
 #include "GameClient/Mouse.h"
 #include "W3DDevice/GameClient/R3DDebugPanel.h"
+#include "GameClient/RmlUiMessageBoxHook.h"
 #include "W3DDevice/GameClient/RmlUi/RmlChallengeMenuScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 #include "W3DDevice/GameClient/RmlUi/RmlControlBarScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlCreditsScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlDownloadScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlInGamePopupScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlLanGameSetupScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlLanMapSelectScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlLoadScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
+#include "W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlPopupReplayScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlReplayMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSaveLoadScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlScoreScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlRulerDecorator.h"
@@ -244,6 +257,8 @@ void RmlUiManager::init(int width, int height)
 	Rml::Factory::RegisterElementInstancer("mappedimage", m_mappedImageInstancer);
 	m_mapPreviewInstancer = new Rml::ElementInstancerGeneric<RmlMapPreviewElement>();	// Ronin @feature 30/10/2026 DX9: his skirmish screens'
 	Rml::Factory::RegisterElementInstancer("mappreview", m_mapPreviewInstancer);
+	m_scrollLogInstancer = new Rml::ElementInstancerGeneric<RmlScrollLogElement>();	// Ronin @feature 31/10/2026 DX9: his chat logs
+	Rml::Factory::RegisterElementInstancer("scrolllog", m_scrollLogInstancer);
 	RmlRulerTicksInstancer::registerWithRml();	// ruler-ticks: the shell screens' frame
 
 	// ModernUI = yes|no (1|0 too): the modern control bar. No while it is being built; the 2003 bar stays behind no.
@@ -257,7 +272,10 @@ void RmlUiManager::init(int width, int height)
 	if (m_context)
 		m_context->SetDensityIndependentPixelRatio(height / 1080.0f);	// dp is a pixel at 1080 lines, so the UI scales by height
 	if (m_modernUI && m_context)
+	{
 		registerScreens();
+		RegisterRmlMessageBoxHook(m_context);	// Ronin @feature 31/10/2026 DX9: his message box, for gogoMessageBox()
+	}
 
 	R3DDebugPanel::registerCommand("ui", "ui [test|reload|debugger] - the RmlUi layer: its test panel, reload from Data/UI, inspector", cmdUi);
 	TheRmlUiInputHook = this;
@@ -357,7 +375,120 @@ void RmlUiManager::registerScreens()
 	challenge.isVisible = [] { return RmlChallengeMenuScreen::instance().isVisible(); };
 	challenge.back = [] { RmlChallengeMenuScreen::instance().back(); };
 	RmlUiScreenRegistry::registerScreen("Menus/ChallengeMenu.wnd", challenge);
-	// PopupReplay.wnd waits for the RmlUi score screen it opens over: the layer draws under the 2003 windows.
+
+	// Ronin @feature 31/10/2026 DX9: his screens around a match, as his manager registers them. The score screen is pushed
+	// after a match (GameLogicDispatch); the save-replay popup opens over it.
+	RmlUiScreenHooks score;
+	score.open = &OpenRmlScoreScreen;
+	score.close = &CloseRmlScoreScreen;
+	score.isVisible = [] { return RmlScoreScreen::instance().isVisible(); };
+	score.back = [] { RmlScoreScreen::instance().onBack(); };
+	RmlUiScreenRegistry::registerScreen("Menus/ScoreScreen.wnd", score);
+
+	RmlUiScreenHooks popupReplay;
+	popupReplay.open = &OpenRmlPopupReplayScreen;
+	popupReplay.close = &CloseRmlPopupReplayScreen;
+	popupReplay.isVisible = [] { return RmlPopupReplayScreen::instance().isVisible(); };
+	popupReplay.back = [] { RmlPopupReplayScreen::instance().back(); };
+	RmlUiScreenRegistry::registerScreen("Menus/PopupReplay.wnd", popupReplay);
+
+	// Over live play, so they take no input but their own (ScriptActions makes the four through winCreateFromScript()).
+	RmlUiScreenHooks endGame;
+	endGame.isVisible = [] { return RmlEndGameOverlayScreen::instance().isVisible(); };
+	endGame.capturesInput = false;
+	endGame.open = &OpenRmlVictoriousScreen;
+	endGame.close = &CloseRmlVictoriousScreen;
+	RmlUiScreenRegistry::registerScreen("Menus/Victorious.wnd", endGame);
+	endGame.open = &OpenRmlDefeatScreen;
+	endGame.close = &CloseRmlDefeatScreen;
+	RmlUiScreenRegistry::registerScreen("Menus/Defeat.wnd", endGame);
+	endGame.open = &OpenRmlLocalDefeatScreen;
+	endGame.close = &CloseRmlLocalDefeatScreen;
+	RmlUiScreenRegistry::registerScreen("Menus/LocalDefeat.wnd", endGame);
+	endGame.open = &OpenRmlObserverQuitScreen;
+	endGame.close = &CloseRmlObserverQuitScreen;
+	RmlUiScreenRegistry::registerScreen("Menus/ObserverQuit.wnd", endGame);
+
+	RmlUiScreenHooks disconnect;
+	disconnect.open = &OpenRmlDisconnectScreen;
+	disconnect.close = &CloseRmlDisconnectScreen;
+	disconnect.isVisible = [] { return RmlDisconnectScreen::instance().isVisible(); };
+	disconnect.capturesInput = false;
+	RmlUiScreenRegistry::registerScreen("Menus/DisconnectScreen.wnd", disconnect);
+
+	RmlUiScreenHooks download;
+	download.open = &OpenRmlDownloadScreen;
+	download.close = &CloseRmlDownloadScreen;
+	download.isVisible = [] { return RmlDownloadScreen::instance().isVisible(); };
+	download.back = [] { RmlDownloadScreen::instance().back(); };
+	RmlUiScreenRegistry::registerScreen("Menus/DownloadMenu.wnd", download);
+
+	// A map script's popup (InGameUI::popupMessage()): over live play, but it takes Enter and Escape as the .wnd did.
+	RmlUiScreenHooks popup;
+	popup.open = &OpenRmlInGamePopupScreen;
+	popup.close = &CloseRmlInGamePopupScreen;
+	popup.isVisible = [] { return RmlInGamePopupScreen::instance().isVisible(); };
+	popup.capturesInput = false;
+	popup.keys = [](unsigned char key, unsigned short state) { return RmlInGamePopupScreen::instance().onKey(key, state); };
+	RmlUiScreenRegistry::registerScreen("InGamePopupMessage.wnd", popup);
+
+	// The LoadScreen classes make these through winCreateFromScript().
+	RmlUiScreenHooks load;
+	load.open = &OpenRmlMapTransferScreen;
+	load.close = &CloseRmlMapTransferScreen;
+	load.isVisible = [] { return RmlLoadScreen::instance(RmlLoadScreen::KIND_MAP_TRANSFER).isVisible(); };
+	RmlUiScreenRegistry::registerScreen("Menus/MapTransferScreen.wnd", load);
+	load.open = &OpenRmlMultiplayerLoadScreen;
+	load.close = &CloseRmlMultiplayerLoadScreen;
+	load.isVisible = [] { return RmlLoadScreen::instance(RmlLoadScreen::KIND_MULTIPLAYER).isVisible(); };
+	RmlUiScreenRegistry::registerScreen("Menus/MultiplayerLoadScreen.wnd", load);
+	load.open = &OpenRmlOnlineLoadScreen;
+	load.close = &CloseRmlOnlineLoadScreen;
+	load.isVisible = [] { return RmlLoadScreen::instance(RmlLoadScreen::KIND_ONLINE).isVisible(); };
+	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoadScreen.wnd", load);
+	load.open = &OpenRmlShellLoadScreen;
+	load.close = &CloseRmlShellLoadScreen;
+	load.isVisible = [] { return RmlLoadScreen::instance(RmlLoadScreen::KIND_SHELL).isVisible(); };
+	RmlUiScreenRegistry::registerScreen("Menus/ShellGameLoadScreen.wnd", load);
+	load.open = &OpenRmlSinglePlayerLoadScreen;
+	load.close = &CloseRmlSinglePlayerLoadScreen;
+	load.isVisible = [] { return RmlLoadScreen::instance(RmlLoadScreen::KIND_SINGLE_PLAYER).isVisible(); };
+	RmlUiScreenRegistry::registerScreen("Menus/SinglePlayerLoadScreen.wnd", load);
+	load.open = &OpenRmlChallengeLoadScreen;
+	load.close = &CloseRmlChallengeLoadScreen;
+	load.isVisible = [] { return RmlLoadScreen::instance(RmlLoadScreen::KIND_CHALLENGE).isVisible(); };
+	RmlUiScreenRegistry::registerScreen("Menus/ChallengeLoadScreen.wnd", load);
+
+	// Ronin @feature 31/10/2026 DX9: his LAN screens. The lobby's update runs while its layout is on the shell's stack, so it
+	// polls the LAN under the game setup too, as LanLobbyMenuUpdate() did.
+	RmlUiScreenHooks lanLobby;
+	lanLobby.open = &OpenRmlLanLobbyScreen;
+	lanLobby.close = &CloseRmlLanLobbyScreen;
+	lanLobby.isVisible = [] { return RmlLanLobbyScreen::instance().isVisible(); };
+	lanLobby.back = [] { RmlLanLobbyScreen::instance().onBack(); };
+	lanLobby.update = [] { RmlLanLobbyScreen::instance().update(); };
+	RmlUiScreenRegistry::registerScreen("Menus/LanLobbyMenu.wnd", lanLobby);
+
+	RmlUiScreenHooks directConnect;
+	directConnect.open = &OpenRmlNetworkDirectConnectScreen;
+	directConnect.close = &CloseRmlNetworkDirectConnectScreen;
+	directConnect.isVisible = [] { return RmlNetworkDirectConnectScreen::instance().isVisible(); };
+	directConnect.back = [] { RmlNetworkDirectConnectScreen::instance().onBack(); };
+	RmlUiScreenRegistry::registerScreen("Menus/NetworkDirectConnect.wnd", directConnect);
+
+	RmlUiScreenHooks lanSetup;
+	lanSetup.open = &OpenRmlLanGameSetupScreen;
+	lanSetup.close = &CloseRmlLanGameSetupScreen;
+	lanSetup.isVisible = [] { return RmlLanGameSetupScreen::instance().isVisible(); };
+	lanSetup.back = [] { RmlLanGameSetupScreen::instance().onBack(); };
+	RmlUiScreenRegistry::registerScreen("Menus/LanGameOptionsMenu.wnd", lanSetup);
+
+	RmlUiScreenHooks lanMapSelect;
+	lanMapSelect.open = &OpenRmlLanMapSelectScreen;
+	lanMapSelect.close = &CloseRmlLanMapSelectScreen;
+	lanMapSelect.isVisible = [] { return RmlLanMapSelectScreen::instance().isVisible(); };
+	lanMapSelect.back = [] { RmlLanMapSelectScreen::instance().back(); };
+	RmlUiScreenRegistry::registerScreen("Menus/LanMapSelectMenu.wnd", lanMapSelect);
 }
 
 Rml::ElementDocument *RmlUiManager::loadScreen(const char *path)
@@ -383,9 +514,10 @@ void RmlUiManager::showScreen(Rml::ElementDocument *document)
 	document->PullToFront();
 }
 
+// Ronin @feature 31/10/2026 DX9: a capturing screen or a message box; overlays over live play do not count.
 bool RmlUiManager::screenUp() const
 {
-	return m_context && RmlUiScreenRegistry::anyOpen();
+	return m_context && RmlUiScreenRegistry::ownsInput();
 }
 
 bool RmlUiManager::capturesInput() const
@@ -405,6 +537,7 @@ void RmlUiManager::shutdown()
 		m_debuggerInitialized = false;
 		m_debuggerVisible = false;
 	}
+	UnregisterRmlMessageBoxHook();	// Ronin @feature 31/10/2026 DX9: closes a box still open, as his shutdown does
 	RmlControlBarScreen::instance().shutdown();
 	RmlUiScreenRegistry::unregisterAll();
 	for (int i = 0; i < kShellScreenCount; ++i)
@@ -416,6 +549,18 @@ void RmlUiManager::shutdown()
 	RmlReplayMenuScreen::instance().releaseRml();
 	RmlChallengeMenuScreen::instance().releaseRml();
 	RmlPopupReplayScreen::instance().releaseRml();
+	RmlScoreScreen::instance().releaseRml();	// Ronin @feature 31/10/2026 DX9: his screens around a match, likewise
+	RmlEndGameOverlayScreen::instance().releaseRml();
+	RmlDisconnectScreen::instance().releaseRml();
+	RmlDownloadScreen::instance().releaseRml();
+	RmlInGamePopupScreen::instance().releaseRml();
+	RmlLanLobbyScreen::instance().releaseRml();	// Ronin @feature 31/10/2026 DX9: his LAN screens, likewise
+	RmlNetworkDirectConnectScreen::instance().releaseRml();
+	RmlLanGameSetupScreen::instance().releaseRml();
+	RmlLanMapSelectScreen::instance().releaseRml();
+	for (int i = 0; i < RmlLoadScreen::KIND_COUNT; ++i)
+		RmlLoadScreen::instance((RmlLoadScreen::Kind)i).releaseRml();
+	RmlDropChatClears();
 	if (m_context)
 	{
 		Rml::RemoveContext(m_context->GetName());
@@ -436,6 +581,8 @@ void RmlUiManager::shutdown()
 	m_mappedImageInstancer = nullptr;
 	delete m_mapPreviewInstancer;
 	m_mapPreviewInstancer = nullptr;
+	delete m_scrollLogInstancer;
+	m_scrollLogInstancer = nullptr;
 	m_renderInterface.releaseAll();
 	m_initialized = false;
 }
@@ -454,6 +601,18 @@ void RmlUiManager::update()
 		RmlCreditsScreen::instance().update();
 	if (RmlSkirmishSetupScreen::instance().isVisible())
 		RmlSkirmishSetupScreen::instance().update();
+	RmlFlushChatClears();			// Ronin @feature 31/10/2026 DX9: his screens around a match
+	if (RmlScoreScreen::instance().isVisible())
+		RmlScoreScreen::instance().update();
+	if (RmlLanGameSetupScreen::instance().isVisible())	// Ronin @feature 31/10/2026 DX9: his LAN screens' header status
+		RmlLanGameSetupScreen::instance().update();
+	if (RmlNetworkDirectConnectScreen::instance().isVisible())
+		RmlNetworkDirectConnectScreen::instance().update();
+	RmlLoadScreen::tick();
+	RmlPopupReplayScreen::tick();
+	RmlDisconnectScreen::tick();
+	RmlDownloadScreen::tick();
+	RmlUiMessageBoxHook::raise();	// a box stays above screens shown after it
 	if (!hasVisibleDocument() && !m_debuggerVisible)
 		return;
 	for (int i = 0; i < kShellScreenCount; ++i)
@@ -728,12 +887,12 @@ bool RmlUiManager::wantsMouseInput(int x, int y) const
 		return false;
 	if (screenUp())		// Ronin @feature 29/10/2026 DX9: a shell screen takes the whole mouse; nothing behind it is clicked
 		return true;
-	if (gameHalted())
-		return false;
+	// Ronin @feature 31/10/2026 DX9: halted, the HUD takes no clicks; an overlay over the halt (the script popup) still does.
+	const bool halted = gameHalted();
 	for (int i = 0; i < m_context->GetNumDocuments(); ++i)
 	{
 		Rml::ElementDocument *doc = m_context->GetDocument(i);
-		if (!doc || !doc->IsVisible())
+		if (!doc || !doc->IsVisible() || (halted && doc == RmlControlBarScreen::instance().document()))
 			continue;
 		const float left = doc->GetAbsoluteLeft();
 		const float top = doc->GetAbsoluteTop();
@@ -759,7 +918,8 @@ bool RmlUiManager::leavesMiddleToWorld(int x, int y) const
 
 bool RmlUiManager::wantsKeyboardInput() const
 {
-	return textFieldFocused() || screenUp();	// a screen for its Escape (processKey passes every other key on)
+	// a screen for its Escape (processKey passes every other key on); Ronin @feature 31/10/2026 DX9: an overlay's own keys
+	return textFieldFocused() || screenUp() || RmlUiScreenRegistry::wantsOverlayKeys();
 }
 
 bool RmlUiManager::textFieldFocused() const
@@ -833,6 +993,9 @@ bool RmlUiManager::processKey(unsigned char engineKey, unsigned short engineKeyS
 {
 	if (!m_context)
 		return false;
+	// Ronin @feature 31/10/2026 DX9: an overlay's own keys come first (the script popup's Enter and Escape), as his do.
+	if (RmlUiScreenRegistry::overlayKey(engineKey, engineKeyState))
+		return true;
 	// Ronin @feature 29/10/2026 DX9: Escape is the newest screen's Back - unless a 2003 popup holds the pointer (a modal one holds
 	// it anywhere): the save/load popup and the message boxes keep their own Escape.
 	if (engineKey == KEY_ESC && screenUp())

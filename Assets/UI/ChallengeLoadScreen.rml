@@ -1,0 +1,82 @@
+<rml>
+<head>
+	<title>ChallengeLoadScreen</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="ChallengeMap.rcss"/>
+	<link type="text/rcss" href="ChallengeLoadScreen.rcss"/>
+</head>
+<body class="screen ld" data-model="challengeload">
+	<!-- The challenge menu's command room: the world map under the tactical grid (ChallengeMap.rcss).
+	     The backdrop movie is the map's animated version (its min spec still is the map art), so it
+	     plays in the map's own place. -->
+	<div class="cm-grid"><div class="cm-grid-v"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div><div class="cm-grid-h"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+	<div class="cm-theatre cm-map"><mappedimage class="cm-map-art" name="GCBackgroundMinSpec"/><div class="cm-map-art cm-map-movie" data-if="has_movie"><video source="loadscreen-background" fit="fill"/></div><div class="cm-map-tint"></div><div class="cm-fade cm-fade-l"></div><div class="cm-fade cm-fade-r"></div><div class="cm-fade cm-fade-t"></div><div class="cm-fade cm-fade-b"></div></div>
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<div class="screen-frame ld-frame">
+		<!-- General against general, our own "vs" sequence on the .wnd's beats (LoadScreenData): the cards
+		     rise with the titles and type out, the portrait movies (stills on min spec) slide in from the
+		     sides, brackets lock onto each (outer circle), the centre reticle arms (inner circle) and
+		     takes its plate (versus backdrop), then the "vs" slams in with a flash (versus). The reticle
+		     then turns slowly until the load ends. Nothing ever sits over a face. On min spec every
+		     piece shows at once, still (st-static). -->
+		<div class="cl-versus-row" data-class-st-titles="show_bio_titles" data-class-st-typing="show_bio_entries &amp;&amp; !show_versus" data-class-st-in="show_portrait_movies || show_portraits" data-class-st-lock="show_outer_circle" data-class-st-armed="show_inner_circle" data-class-st-plate="show_versus_backdrop" data-class-st-vs="show_versus" data-class-st-static="show_portraits">
+			<div class="cl-versus-group">
+				<div class="cl-side cl-side-l">
+					<div class="cl-portrait-wrap">
+						<div class="cl-portrait-box">
+							<div class="cl-portrait-movie" data-if="show_portrait_movies"><video source="loadscreen-portrait-left" fit="contain"/></div>
+							<div class="cl-portrait" data-if="show_portraits &amp;&amp; generals[0].has_portrait"><mappedimage data-attr-name="generals[0].portrait"/></div>
+						</div>
+						<div class="cl-lock"><span class="cl-br cl-br-tl"></span><span class="cl-br cl-br-tr"></span><span class="cl-br cl-br-bl"></span><span class="cl-br cl-br-br"></span><span class="cl-tk cl-tk-l"></span><span class="cl-tk cl-tk-r"></span><span class="cl-tk cl-tk-t"></span><span class="cl-tk cl-tk-b"></span></div>
+					</div>
+					<div class="cl-card cl-you">
+						<div class="overline accent-overline">Your General</div>
+						<div class="cl-name">{{show_bio_entries ? generals[0].big_name : ''}}<span class="cl-caret"></span></div>
+						<div class="cl-facts">
+							<div class="fact cl-fact-rank"><div class="stat-label"><gametext key="GUI:Rank"/></div><div class="fact-value">{{show_bio_entries ? generals[0].rank : ''}}</div></div>
+							<div class="fact cl-fact-tactics"><div class="stat-label">Tactics</div><div class="fact-value">{{show_bio_entries ? generals[0].strategy : ''}}</div></div>
+						</div>
+					</div>
+				</div>
+
+				<div class="cl-centre">
+					<div class="cl-reticle">
+						<div class="cl-ring cl-ring-outer"></div><span class="cl-rt cl-rt-t"></span><span class="cl-rt cl-rt-b"></span><span class="cl-rt cl-rt-l"></span><span class="cl-rt cl-rt-r"></span>
+						<div class="cl-arm"><div class="cl-ring cl-ring-spin"></div><div class="cl-ring cl-ring-counter"></div></div>
+						<div class="cl-shock"></div><div class="cl-shock cl-shock-2"></div>
+						<div class="cl-plate"></div>
+						<div class="cl-vs">VS</div>
+					</div>
+				</div>
+
+				<div class="cl-side cl-side-r">
+					<div class="cl-portrait-wrap">
+						<div class="cl-portrait-box">
+							<div class="cl-portrait-movie" data-if="show_portrait_movies"><video source="loadscreen-portrait-right" fit="contain"/></div>
+							<div class="cl-portrait" data-if="show_portraits &amp;&amp; generals[1].has_portrait"><mappedimage data-attr-name="generals[1].portrait"/></div>
+						</div>
+						<div class="cl-lock"><span class="cl-br cl-br-tl"></span><span class="cl-br cl-br-tr"></span><span class="cl-br cl-br-bl"></span><span class="cl-br cl-br-br"></span><span class="cl-tk cl-tk-l"></span><span class="cl-tk cl-tk-r"></span><span class="cl-tk cl-tk-t"></span><span class="cl-tk cl-tk-b"></span></div>
+					</div>
+					<div class="cl-card cl-opponent">
+						<div class="overline cl-enemy-overline">Opponent</div>
+						<div class="cl-name">{{show_bio_entries ? generals[1].big_name : ''}}<span class="cl-caret"></span></div>
+						<div class="cl-facts">
+							<div class="fact cl-fact-rank"><div class="stat-label"><gametext key="GUI:Rank"/></div><div class="fact-value">{{show_bio_entries ? generals[1].rank : ''}}</div></div>
+							<div class="fact cl-fact-tactics"><div class="stat-label">Tactics</div><div class="fact-value">{{show_bio_entries ? generals[1].strategy : ''}}</div></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="ld-bottom">
+			<div class="overline accent-overline ld-bottom-mode"><gametext key="GUI:Generals_Challenge"/></div>
+			<div class="overline ld-bottom-label"><gametext key="GUI:Loading"/></div>
+			<div class="progress ld-bar" data-class-center1="bar_color == 1" data-class-center2="bar_color == 2" data-class-center3="bar_color == 3"><div class="progress-fill" data-style-width="progress_style"></div></div>
+		</div>
+	</div>
+</body>
+</rml>

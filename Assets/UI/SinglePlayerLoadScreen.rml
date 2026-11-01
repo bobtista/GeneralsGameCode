@@ -1,0 +1,40 @@
+<rml>
+<head>
+	<title>SinglePlayerLoadScreen</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="SinglePlayerLoadScreen.rcss"/>
+</head>
+<body class="screen ld" data-model="singleplayerload">
+	<!-- The campaign's art, then the mission's briefing movie, over the whole screen. -->
+	<div class="ld-art">
+		<mappedimage class="ld-fallback-art" data-if="!has_background" name="LoadPageHuge"/>
+		<mappedimage class="ld-cover-art" data-if="has_background" data-attr-name="background_image"/>
+		<div class="ld-movie" data-if="has_movie"><video source="loadscreen-background" fit="cover"/></div>
+	</div>
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<!-- Briefing texts: only the original Generals shows these, at the .wnd's places on a 4:3 stage. -->
+	<div class="ls-stage-wrap">
+		<div class="ls-stage">
+			<div class="sp-location" data-if="show_location"><div>{{location}}</div></div>
+			<div class="sp-unit sp-unit0" data-if="units[0].shown"><div>{{units[0].name}}</div></div>
+			<div class="sp-unit sp-unit1" data-if="units[1].shown"><div>{{units[1].name}}</div></div>
+			<div class="sp-unit sp-unit2" data-if="units[2].shown"><div>{{units[2].name}}</div></div>
+			<div class="sp-objectives" data-if="show_objectives">
+				<div class="sp-objective" data-for="line : objective_lines">{{line}}</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="screen-frame ld-frame">
+		<div class="ld-mid"></div>
+		<div class="ld-bottom">
+			<div class="overline accent-overline ld-bottom-mode"><gametext key="GUI:Campaign"/></div>
+			<div class="overline ld-bottom-label"><gametext key="GUI:Loading"/></div>
+			<div class="progress ld-bar" data-class-center1="bar_color == 1" data-class-center2="bar_color == 2" data-class-center3="bar_color == 3"><div class="progress-fill" data-style-width="progress_style"></div></div>
+		</div>
+	</div>
+</body>
+</rml>

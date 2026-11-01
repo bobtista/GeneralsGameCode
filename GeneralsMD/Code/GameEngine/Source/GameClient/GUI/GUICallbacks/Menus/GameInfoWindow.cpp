@@ -39,6 +39,7 @@
 
 #include "GameClient/GameText.h"
 #include "GameClient/GameInfoWindow.h"
+#include "GameClient/GUI/GUICallbacks/Menus/LanLobbyData.h"
 #include "Common/MultiplayerSettings.h"
 #include "Common/PlayerTemplate.h"
 #include "GameNetwork/GameInfo.h"
@@ -96,31 +97,16 @@ void DestroyGameInfoWindow()
 
 void RefreshGameInfoWindow(GameInfo *gameInfo, UnicodeString gameName)
 {
-	static const Image *randomIcon = TheMappedImageCollection->findImageByName("GameinfoRANDOM");
-	static const Image *observerIcon = TheMappedImageCollection->findImageByName("GameinfoOBSRVR");
 	if(!gameInfoWindowLayout || !gameInfo )
 		return;
 
 	parent->winHide( FALSE );
 	parent->winBringToTop();
 
-	// Set the game name
-	GadgetStaticTextSetText(staticTextGameName, ((LANGameInfo *)gameInfo)->getPlayerName(0));
-	// set the map name
-	UnicodeString map;
-	AsciiString asciiMap = gameInfo->getMap();
-	asciiMap.toLower();
-	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
-	if (it != TheMapCache->end())
-	{
-		map = it->second.m_displayName;
-	}
-	else
-	{
-		// can happen if the map will have to be transferred... so use the leaf name (srj)
-		map.translate(getFileName(gameInfo->getMap().str()));
-	}
-	GadgetStaticTextSetText(staticTextMapName,map);
+	LanLobbyGameDetails details = LanLobbyData::buildGameDetails((LANGameInfo *)gameInfo);
+
+	GadgetStaticTextSetText(staticTextGameName, details.m_gameName);
+	GadgetStaticTextSetText(staticTextMapName, details.m_mapDisplayName);
 
 	// fill in the player list
 
@@ -128,66 +114,25 @@ void RefreshGameInfoWindow(GameInfo *gameInfo, UnicodeString gameName)
 
 	Int numColors = TheMultiplayerSettings->getNumColors();
 	Color white = GameMakeColor(255,255,255,255);
-//	Color grey =  GameMakeColor(188,188,188,255);
 	for (Int i = 0; i < MAX_SLOTS; i ++)
 	{
-		Color playerColor = white;
-		Int color = -1;
-		Int addedRow;
-		GameSlot *slot = gameInfo->getSlot(i);
-		if(!slot || (slot->isOccupied() == FALSE))
+		const LanLobbyGameDetailSlot &slot = details.m_slots[i];
+		if(!slot.m_occupied)
 			continue;
-		color = slot->getColor();
-		if(color > -1 && color < numColors)
+
+		Color playerColor = white;
+		if(slot.m_colorIndex > -1 && slot.m_colorIndex < numColors)
 		{
-			MultiplayerColorDefinition *def = TheMultiplayerSettings->getColor(color);
+			MultiplayerColorDefinition *def = TheMultiplayerSettings->getColor(slot.m_colorIndex);
 			playerColor = def->getColor();
 		}
-		if(slot->isAI())
-		{
-			switch(slot->getState())
-			{
-				case SLOT_EASY_AI:
-				{
-					addedRow = GadgetListBoxAddEntryText(listBoxPlayers,TheGameText->fetch("GUI:EasyAI"),playerColor,-1, 1);
-					break;
-				}
-				case SLOT_MED_AI:
-				{
-					addedRow = GadgetListBoxAddEntryText(listBoxPlayers,TheGameText->fetch("GUI:MediumAI"),playerColor,-1, 1);
-					break;
-				}
-				case SLOT_BRUTAL_AI:
-				{
-					addedRow = GadgetListBoxAddEntryText(listBoxPlayers,TheGameText->fetch("GUI:HardAI"),playerColor,-1, 1);
-					break;
-				}
-				default:
-					break;
-			}
-		}
-		else if(slot->isHuman())
-		{
-			addedRow = GadgetListBoxAddEntryText(listBoxPlayers, slot->getName(),playerColor,-1,1);
-		}
-		Int playerTemplate = slot->getPlayerTemplate();
-		if(playerTemplate == PLAYERTEMPLATE_OBSERVER)
-		{
-			GadgetListBoxAddEntryImage(listBoxPlayers, observerIcon,addedRow, 0, 22,25);
-		}
-		else if(playerTemplate < 0 || playerTemplate >= ThePlayerTemplateStore->getPlayerTemplateCount())
-		{
-			///< @todo: When we get art that shows player's side, then we'll actually draw the art instead of putting in text
-			GadgetListBoxAddEntryImage(listBoxPlayers, randomIcon,addedRow, 0, 22,25);
-			//GadgetListBoxAddEntryText(listBoxPlayers,TheGameText->fetch("GUI:???"),playerColor,addedRow, 0);
-		}
-		else
-		{
-			const PlayerTemplate *fact = ThePlayerTemplateStore->getNthPlayerTemplate(playerTemplate);
-			GadgetListBoxAddEntryImage(listBoxPlayers, fact->getSideIconImage(),addedRow, 0, 22,25);
-			//GadgetListBoxAddEntryText(listBoxPlayers,fact->getDisplayName(),playerColor,addedRow, 0);
-		}
 
+		Int addedRow = -1;
+		if(slot.m_isHuman || !slot.m_label.isEmpty())
+			addedRow = GadgetListBoxAddEntryText(listBoxPlayers, slot.m_label, playerColor, -1, 1);
+
+		const Image *sideIcon = slot.m_sideIconImage.isEmpty() ? nullptr : TheMappedImageCollection->findImageByName(slot.m_sideIconImage);
+		GadgetListBoxAddEntryImage(listBoxPlayers, sideIcon, addedRow, 0, 22,25);
 	}
 }
 

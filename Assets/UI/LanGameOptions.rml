@@ -1,0 +1,192 @@
+<rml>
+<head>
+	<title>LanGameOptions</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="NetworkGameSetup.rcss"/>
+</head>
+<body class="screen hq" data-model="langamesetup">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:LANLobby"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title ns-title">{{game_name}}</div></div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span>Offline</div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
+			</div>
+	</div></div>
+
+	<!-- The setup flow (common.rcss "Game setup"): the map, then who plays, then the rules and the chat,
+	     then Start. Only the host picks the map, the occupants and the rules; everyone edits their own
+	     slot, the host the AI slots too. What this machine cannot edit reads as text. -->
+	<div class="screen-frame">
+		<div class="screen-body su-body">
+			<!-- 01 Map: the preview with its start spots (left click takes one, right click clears it). -->
+			<div class="col su-map-col">
+				<div class="hq-card su-hero">
+					<div class="hq-section">Map</div>
+					<div class="map-frame">
+						<mappreview class="map-image" fit="width" sites="16" data-attr-map="map_name" data-if="map_found">
+							<div data-for="marker : start_markers">
+								<div class="marker" data-if="marker.used" data-class-occupied="marker.is_occupied"
+									data-style-left="marker.x_style" data-style-top="marker.y_style" data-attr-data-tooltip-text="marker.tooltip"
+									data-event-click="start_marker_clicked(marker.position)"
+									data-event-mousedown="start_marker_mousedown(marker.position)">
+									<div class="marker-dot" data-style-color="marker.color_hex">{{marker.is_occupied ? marker.slot_number : ''}}</div>
+								</div>
+							</div>
+						</mappreview>
+						<div class="map-missing" data-if="!map_found"><gametext key="GUI:CantFindMap"/></div>
+					</div>
+					<div class="su-hero-info">
+						<div class="su-map-name">{{map_display_name}}</div>
+						<div class="su-cap" data-if="map_num_players &gt; 0"><span>{{map_num_players}}</span><gametext key="GUI:Players"/></div>
+						<button class="btn-small su-map-btn" data-if="is_host" data-event-click="select_map" data-tooltip="Tooltip:SelectMap"><gametext key="GUI:SelectMap"/></button>
+					</div>
+				</div>
+			</div>
+
+			<!-- 02 Players: one row per slot the map has room for, the rest folded under "Unused on this
+			     map"; with any team picked the rows group by team. -->
+			<div class="col col-main su-main">
+				<div class="surface su-players">
+					<div class="su-players-head">
+						<div class="hq-section"><gametext key="GUI:Players"/></div>
+						<div class="su-fill" data-if="is_host">
+							<div class="overline">Fill with AI</div>
+							<button data-event-click="fill_ai(2)" data-tooltip="GUI:EasyAI"><span class="pc-plus">+</span><gametext key="GUI:EasyCaps"/></button>
+							<button data-event-click="fill_ai(3)" data-tooltip="GUI:MediumAI"><span class="pc-plus">+</span><gametext key="GUI:MediumDifficultyCaps"/></button>
+							<button data-event-click="fill_ai(4)" data-tooltip="GUI:HardAI"><span class="pc-plus">+</span><gametext key="GUI:HardCaps"/></button>
+						</div>
+					</div>
+					<div class="su-list scroll-container">
+						<div class="su-item" data-for="row : slots">
+							<div class="su-group" data-if="row.group_head">
+								<gametext key="GUI:Team" data-if="row.group_team &gt;= 0"/><span class="su-group-no" data-if="row.group_team &gt;= 0">{{row.group_team + 1}}</span>
+								<span data-if="row.group_team &lt; 0">No team</span>
+							</div>
+							<div class="su-fold" data-if="row.fold_head" data-event-click="show_unused = !show_unused">
+								<span class="su-fold-mark">{{show_unused ? '&#8722;' : '+'}}</span>Unused on this map<span class="su-fold-count">({{unused_count}})</span>
+							</div>
+
+							<div class="prow net" data-if="!row.unused || show_unused" data-class-empty="!row.is_occupied" data-class-unused="row.unused" data-class-human="row.is_human_occupant"
+								data-style-border-left-color="!row.is_occupied ? '#8080FF28' : (row.color &lt; 0 ? '#7079A0' : row.color_hex)">
+								<button class="prow-chip" data-if="row.is_occupied" data-class-open="color_popover_slot == row.slot_index" data-attrif-disabled="!row.can_edit"
+									data-style-background-color="row.color &lt; 0 ? '#141A3E' : row.color_hex" data-attr-data-tooltip-text="row.color_name"
+									data-event-click="color_popover_slot = color_popover_slot == row.slot_index ? -1 : row.slot_index"><span data-if="row.color &lt; 0">?</span></button>
+								<div class="prow-no" data-if="!row.is_occupied">{{row.slot_index + 1}}</div>
+								<div class="prow-badge" data-if="row.is_occupied">
+									<div data-for="opt : faction_options"><mappedimage data-if="opt.value == row.player_template &amp;&amp; opt.icon != ''" data-attr-name="opt.icon"/><span data-if="opt.value == row.player_template &amp;&amp; opt.icon == ''">?</span></div>
+								</div>
+								<div class="prow-who">
+								<!-- Only on AI, open and closed slots (LAN has no kick); the SLOT_PLAYER option still
+								     keeps the value matched while a player takes the slot. -->
+								<select data-if="!row.is_human_occupant &amp;&amp; row.can_edit_occupant" data-value="row.occupant_state"
+									data-event-change="slot_occupant_changed(row.slot_index)">
+									<option value="0"><gametext key="GUI:Open"/></option>
+									<option value="1"><gametext key="GUI:Closed"/></option>
+									<option value="2"><gametext key="GUI:EasyAI"/></option>
+									<option value="3"><gametext key="GUI:MediumAI"/></option>
+									<option value="4"><gametext key="GUI:HardAI"/></option>
+									<option class="occ-player" value="5" disabled="disabled">{{row.player_name}}</option>
+								</select>
+								<div class="prow-name" data-if="row.is_human_occupant" data-attr-data-tooltip-text="row.player_tooltip">{{row.player_name}}</div>
+								<div class="prow-state" data-if="!row.can_edit_occupant &amp;&amp; !row.is_human_occupant"><gametext key="GUI:Open" data-if="row.occupant_state == 0"/><gametext key="GUI:Closed" data-if="row.occupant_state == 1"/><gametext key="GUI:EasyAI" data-if="row.occupant_state == 2"/><gametext key="GUI:MediumAI" data-if="row.occupant_state == 3"/><gametext key="GUI:HardAI" data-if="row.occupant_state == 4"/></div>
+									<!-- Under the name: the connection, who lacks the map, hosts, is ready. -->
+									<div class="prow-sub" data-if="row.is_human_occupant">
+										<div class="chip-label warn" data-if="!row.has_map">No map</div>
+										<div class="chip-label accent" data-if="row.is_host_slot">Host</div>
+										<div class="chip-label good" data-if="!row.is_host_slot &amp;&amp; row.accepted" data-tooltip="TOOLTIP:GameAcceptance">Ready</div>
+									</div>
+								</div>
+								<div class="prow-army" data-if="row.is_occupied">
+									<select class="army-select" data-if="row.can_edit" data-value="row.player_template" data-attr-data-tooltip-text="row.faction_tooltip"
+										data-event-change="slot_faction_changed(row.slot_index)">
+										<option data-for="opt : faction_options" data-attr-value="opt.value"><mappedimage class="army-icon" data-if="opt.icon != ''" data-attr-name="opt.icon"/><span class="army-icon army-random" data-if="opt.icon == ''">?</span><span class="army-name">{{opt.label}}</span></option>
+									</select>
+									<div class="army-ro" data-if="!row.can_edit" data-attr-data-tooltip-text="row.faction_tooltip"><div data-for="opt : faction_options"><mappedimage class="army-icon" data-if="opt.value == row.player_template &amp;&amp; opt.icon != ''" data-attr-name="opt.icon"/><span class="army-icon army-random" data-if="opt.value == row.player_template &amp;&amp; opt.icon == ''">?</span></div><span class="army-ro-label">{{row.faction_label}}</span></div>
+								</div>
+								<div class="seg team-seg" data-if="row.is_occupied">
+									<button class="seg-item" data-class-on="row.team_number == -1" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, -1)"><gametext key="Team:0"/></button>
+									<button class="seg-item" data-class-on="row.team_number == 0" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, 0)"><gametext key="Team:1"/></button>
+									<button class="seg-item" data-class-on="row.team_number == 1" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, 1)"><gametext key="Team:2"/></button>
+									<button class="seg-item" data-class-on="row.team_number == 2" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, 2)"><gametext key="Team:3"/></button>
+									<button class="seg-item" data-class-on="row.team_number == 3" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, 3)"><gametext key="Team:4"/></button>
+								</div>
+								<div class="prow-spot" data-if="row.is_occupied" data-class-random="row.start_position &lt; 0" data-style-border-color="row.start_position &lt; 0 ? '#8080FF46' : (row.color &lt; 0 ? '#A9B1CF' : row.color_hex)" data-tooltip="TOOLTIP:StartPosition">{{row.start_position &lt; 0 ? '?' : row.start_position + 1}}</div>
+								<div class="prow-add" data-if="!row.is_occupied &amp;&amp; row.can_edit_occupant">
+									<div class="overline">Add AI</div>
+									<button data-event-click="slot_occupant_picked(row.slot_index, 2)" data-tooltip="GUI:EasyAI"><span class="pc-plus">+</span><gametext key="GUI:EasyCaps"/></button>
+									<button data-event-click="slot_occupant_picked(row.slot_index, 3)" data-tooltip="GUI:MediumAI"><span class="pc-plus">+</span><gametext key="GUI:MediumDifficultyCaps"/></button>
+									<button data-event-click="slot_occupant_picked(row.slot_index, 4)" data-tooltip="GUI:HardAI"><span class="pc-plus">+</span><gametext key="GUI:HardCaps"/></button>
+								</div>
+							</div>
+
+							<!-- The colour popover: the whole palette in a fixed order, colours other slots hold dimmed. -->
+							<div class="prow-pop" data-if="row.is_occupied &amp;&amp; color_popover_slot == row.slot_index &amp;&amp; (!row.unused || show_unused)">
+								<div class="swatches">
+									<button class="swatch" data-for="opt : row.color_options" data-class-random="opt.value &lt; 0" data-class-on="opt.value == row.color"
+										data-class-taken="opt.taken" data-attrif-disabled="!row.can_edit || opt.taken" data-attr-data-tooltip-text="opt.label"
+										data-event-click="color_popover_slot = -1; slot_color_picked(row.slot_index, opt.value)"><span class="chip"
+										data-style-background-color="opt.value &lt; 0 ? '#141A3E' : opt.swatch"><span data-if="opt.value &lt; 0">?</span></span></button>
+								</div>
+								<div class="prow-pop-name">{{row.color_name}}</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- 03 Rules (the host's to set), and the chat under them. -->
+			<div class="col col-side su-side">
+				<div class="surface su-rules">
+					<div class="hq-section">Rules</div>
+					<div class="opt-label"><gametext key="GUI:StartingMoney"/></div>
+					<div class="seg cash-seg" data-if="starting_cash_options.size &lt;= 4" data-tooltip="TOOLTIP:StartingMoney">
+						<button class="seg-item" data-for="opt : starting_cash_options" data-class-on="opt.value == starting_cash"
+							data-attrif-disabled="!is_host" data-event-click="starting_cash_picked(opt.value)">{{opt.label}}</button>
+					</div>
+					<select class="seg-overflow" data-if="starting_cash_options.size &gt; 4" data-attr-value="starting_cash" data-attrif-disabled="!is_host"
+						data-event-change="starting_cash_selected" data-tooltip="TOOLTIP:StartingMoney">
+						<option data-for="opt : starting_cash_options" data-attr-value="opt.value">{{opt.label}}</option>
+					</select>
+					<label class="check" data-tooltip="TOOLTIP:LimitSuperweapons">
+						<input class="checkbox" type="checkbox" data-checked="superweapons_restricted" data-attrif-disabled="!is_host"
+							data-event-change="superweapons_changed"/>
+						<gametext key="GUI:LimitSuperweapons"/>
+					</label>
+				</div>
+
+				<div class="surface chat-card">
+					<scrolllog class="chat-log">
+						<div class="chat-line" data-for="line : chat_lines" data-style-color="line.color == '' ? '#D7DCF0' : line.color">{{line.text}}</div>
+					</scrolllog>
+					<div class="chat-entry send-row">
+						<!-- Ronin @bugfix 31/10/2026 DX9: Enter and the button both send player chat ("/me " = an emote), as upstream's .wnd. -->
+						<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
+						<button class="chat-send" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><span class="send-arrow"></span></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="action-bar">
+			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
+			<!-- A client that accepted waits on the host. -->
+			<div class="ns-state" data-if="!is_host &amp;&amp; local_accepted">
+				<div class="chip-label good">Ready</div>
+				<div class="ns-state-text">Waiting for the host to start</div>
+			</div>
+			<div class="spacer"></div>
+			<!-- What the host's Start would refuse (GameSetupData::startBlockers()), or ready. -->
+			<div class="su-ready" data-if="is_host &amp;&amp; start_blockers.size == 0"><span class="dot"></span>Ready to start</div>
+			<div class="su-ready blocked" data-if="is_host &amp;&amp; start_blockers.size &gt; 0">
+				<div class="su-blockers"><div data-for="reason : start_blockers"><div class="su-blocker"><span class="su-blocker-mark">!</span><span>{{reason}}</span></div></div></div>
+			</div>
+			<button class="btn-cta" data-attrif-disabled="!start_enabled" data-event-click="start"><gametext key="GUI:Start" data-if="is_host"/><gametext key="GUI:Accept" data-if="!is_host"/></button>
+		</div>
+	</div>
+</body>
+</rml>

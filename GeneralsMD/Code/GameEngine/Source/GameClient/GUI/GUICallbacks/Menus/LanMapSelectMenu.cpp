@@ -40,6 +40,7 @@
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetRadioButton.h"
+#include "GameClient/GUI/GUICallbacks/Menus/LanGameSetupActions.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameClient/MapUtil.h"
 #include "GameNetwork/GUIUtil.h"
@@ -375,19 +376,7 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 						asciiMap = mapFname;
 					else
 						asciiMap.translate( map );
-					TheLAN->GetMyGame()->setMap( asciiMap );
-					asciiMap.toLower();
-					std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
-					if (it != TheMapCache->end())
-					{
-						TheLAN->GetMyGame()->getSlot(0)->setMapAvailability(true);
-						TheLAN->GetMyGame()->setMapCRC( it->second.m_CRC );
-						TheLAN->GetMyGame()->setMapSize( it->second.m_filesize );
-
-						TheLAN->GetMyGame()->resetStartSpots();
-						TheLAN->GetMyGame()->adjustSlotsForMap(); // BGC- adjust the slots for the new map.
-					}
-
+					LanGameSetupActions::applySelectedMap( TheLAN->GetMyGame(), asciiMap );
 
 					if (mapSelectLayout)
 					{
@@ -400,7 +389,6 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 					NullifyControls();
 
 					showLANGameOptionsUnderlyingGUIElements(TRUE);
-					PostToLanGameOptions(SEND_GAME_OPTS);
 
 				}
 			}

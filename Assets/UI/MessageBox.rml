@@ -1,0 +1,33 @@
+<rml>
+<head>
+	<title>MessageBox</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<style>
+		/* The Generals logo over the title, for the boxes that asked for it. */
+		.mb-logo { display: flex; flex: 0 0 auto; width: 280dp; height: 84dp; margin: 24dp auto 0 auto; }
+		.mb-logo mappedimage { display: block; width: 100%; height: 100%; }
+		.mb-body { white-space: pre-wrap; font-size: 20dp; }
+	</style>
+</head>
+<!-- Every RmlUi message box (RmlMessageBox): a modal card with the buttons the caller asked for, the
+     cancel far left, the answer that goes ahead far right. -->
+<body class="screen modal" data-model="messagebox">
+	<div class="modal-card">
+		<div class="mb-logo" data-if="use_logo"><mappedimage name="GeneralsLogo"/></div>
+		<div class="modal-head">
+			<div class="modal-heading">
+				<div class="modal-title">{{title}}</div>
+			</div>
+		</div>
+		<div class="modal-body mb-body">{{body}}</div>
+		<div class="modal-actions">
+			<button class="btn-back" data-if="show_cancel" data-event-click="cancel_click"><span class="chevron">&#8249;</span><gametext data-if="cancel_label == ''" key="GUI:Cancel"/><span data-if="cancel_label != ''">{{cancel_label}}</span></button>
+			<div class="spacer"></div>
+			<button data-if="show_no" data-event-click="no"><gametext data-if="no_label == ''" key="GUI:No"/><span data-if="no_label != ''">{{no_label}}</span></button>
+			<button class="btn-cta" data-if="show_ok" data-event-click="ok"><gametext data-if="ok_label == ''" key="GUI:Ok"/><span data-if="ok_label != ''">{{ok_label}}</span></button>
+			<button class="btn-cta" data-if="show_yes" data-event-click="yes"><gametext data-if="yes_label == ''" key="GUI:Yes"/><span data-if="yes_label != ''">{{yes_label}}</span></button>
+		</div>
+	</div>
+</body>
+</rml>

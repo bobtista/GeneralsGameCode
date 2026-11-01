@@ -57,6 +57,7 @@
 #include "GameClient/MessageBox.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameLogic/GameLogic.h"
+#include "GameClient/GUI/GUICallbacks/Menus/LanLobbyActions.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/LANGameInfo.h"
@@ -719,10 +720,7 @@ WindowMsgHandledType LanLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					if (rowSelected >= 0)
 					{
 						LANGameInfo * theGame = TheLAN->LookupGameByListOffset(rowSelected);
-						if (theGame)
-						{
-							TheLAN->RequestGameJoin(theGame);
-						}
+						LanLobbyActions::joinGame(theGame);
 					}
 				}
 				break;
@@ -770,7 +768,7 @@ WindowMsgHandledType LanLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if ( controlID == buttonHostID )
 				{
-					TheLAN->RequestGameCreate( L"", FALSE);
+					LanLobbyActions::hostGame();
 
 				}
 				else if ( controlID == buttonClearID )
@@ -793,10 +791,7 @@ WindowMsgHandledType LanLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					if (rowSelected >= 0)
 					{
 						LANGameInfo * theGame = TheLAN->LookupGameByListOffset(rowSelected);
-						if (theGame)
-						{
-							TheLAN->RequestGameJoin(theGame);
-						}
+						LanLobbyActions::joinGame(theGame);
 					}
 					else
 					{
@@ -810,16 +805,12 @@ WindowMsgHandledType LanLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					txtInput.set(GadgetTextEntryGetText( textEntryChat ));
 					// Clear the text entry line
 					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-					// Clean up the text (remove leading/trailing chars, etc)
-					txtInput.trim();
-					// Echo the user's input to the chat window
-					if (!txtInput.isEmpty()) {
-						TheLAN->RequestPlayerChat(txtInput);
-					}
+					// Clean up, echo to the chat window, and send (see LanLobbyActions::sendChatButton())
+					LanLobbyActions::sendChatButton(txtInput);
 				}
 				else if (controlID == buttonDirectConnectID)
 				{
-					TheLAN->RequestLobbyLeave( false );
+					LanLobbyActions::directConnect();
 					TheShell->push("Menus/NetworkDirectConnect.wnd");
 				}
 
@@ -838,36 +829,9 @@ WindowMsgHandledType LanLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					// grab the user's name
 					txtInput.set(GadgetTextEntryGetText( textEntryPlayerName ));
 
-					// Clean up the text (remove leading/trailing chars, etc)
-					const WideChar *c = txtInput.str();
-					while (c && (iswspace(*c)))
-						c++;
-
-					if (c)
-						txtInput = UnicodeString(c);
-					else
-						txtInput = UnicodeString::TheEmptyString;
-
-					txtInput.truncateTo(g_lanPlayerNameLength);
-
-					if (!txtInput.isEmpty() && txtInput.getCharAt(txtInput.getLength()-1) == L',')
-						txtInput.removeLastChar(); // we use , for strtok's so we can't allow them in names.  :(
-
-					if (!txtInput.isEmpty() && txtInput.getCharAt(txtInput.getLength()-1) == L':')
-						txtInput.removeLastChar(); // we use : for strtok's so we can't allow them in names.  :(
-
-					if (!txtInput.isEmpty() && txtInput.getCharAt(txtInput.getLength()-1) == L';')
-						txtInput.removeLastChar(); // we use ; for strtok's so we can't allow them in names.  :(
-
-					// send it over the network
-					if (!txtInput.isEmpty())
-						TheLAN->RequestSetName(txtInput);
-					else
-						{
-							TheLAN->RequestSetName(defaultName);
-						}
-
-					// Put the whitespace-free version in the box
+					// Clean up, send it, and put the whitespace-free version back in the box.
+					txtInput = LanLobbyActions::sanitizeName(txtInput);
+					LanLobbyActions::setName(txtInput, defaultName);
 					GadgetTextEntrySetText( textEntryPlayerName, txtInput );
 
 				}
@@ -889,15 +853,8 @@ WindowMsgHandledType LanLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					txtInput.set(GadgetTextEntryGetText( textEntryChat ));
 					// Clear the text entry line
 					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-					// Clean up the text (remove leading/trailing chars, etc)
-					while (!txtInput.isEmpty() && iswspace(txtInput.getCharAt(0)))
-						txtInput = UnicodeString(txtInput.str()+1);
-
-					// Echo the user's input to the chat window
-					if (!txtInput.isEmpty())
-					{
-						TheLAN->RequestPlayerChat(txtInput);
-					}
+					// Clean up and send (see LanLobbyActions::sendChatEntry())
+					LanLobbyActions::sendChatEntry(txtInput);
 
 				}
 				/*

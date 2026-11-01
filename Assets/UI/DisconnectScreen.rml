@@ -1,0 +1,52 @@
+<rml>
+<head>
+	<title>DisconnectScreen</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="DisconnectScreen.rcss"/>
+</head>
+<body class="screen dc" data-model="disconnectscreen">
+	<!-- A compact card over the running game: the document is only the card, so the HUD around it
+	     keeps the mouse and the game stays in view. -->
+	<div class="dc-card">
+		<div class="dc-head">
+			<div class="dc-title"><gametext key="GUI:InternetDisconnectionMenuHeaderCaps"/></div>
+			<div class="spacer"></div>
+			<div class="dc-router" data-if="router_visible">
+				<div class="overline"><gametext key="Network:PacketRouterTimeout"/></div>
+				<div class="dc-router-value">{{router_timeout}}</div>
+			</div>
+		</div>
+
+		<!-- The players who stopped answering: votes against them, time left, and the vote to drop them. -->
+		<div class="dc-list">
+			<div class="list-head dc-list-head">
+				<div class="dc-name overline"><gametext key="GUI:Player"/></div>
+				<div class="dc-votes overline" data-tooltip="Tooltip:NumberOfVotes">Votes</div>
+				<div class="dc-timeout overline">Timeout</div>
+				<div class="dc-vote-cell"></div>
+			</div>
+			<div class="dc-slot" data-for="p : players">
+				<div class="dc-row" data-if="p.visible">
+					<div class="dc-name">{{p.name}}</div>
+					<div class="dc-votes" data-tooltip="Tooltip:NumberOfVotes">{{p.votes}}</div>
+					<div class="dc-timeout">{{p.timeout}}</div>
+					<div class="dc-vote-cell"><button class="btn-small dc-vote" data-attrif-disabled="!p.vote_enabled" data-event-click="vote(p.index)" data-tooltip="Tooltip:Vote"><gametext key="Network:Vote"/></button></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="dc-chat">
+			<scrolllog class="scroll-container dc-log">
+				<div class="dc-line" data-for="line : chat_lines"><span data-if="line.used" data-style-color="line.color">{{line.text}}</span></div>
+			</scrolllog>
+			<input type="text" class="chat-input dc-entry" maxlength="128" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
+		</div>
+
+		<div class="dc-actions">
+			<div class="spacer"></div>
+			<button class="dc-quit" data-attrif-disabled="!quit_enabled" data-event-click="quit" data-tooltip="Tooltip:QuitMultiplayerGame"><gametext key="Network:QuitGame"/></button>
+		</div>
+	</div>
+</body>
+</rml>

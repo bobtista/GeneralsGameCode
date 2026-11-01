@@ -110,3 +110,30 @@ private:
 	Rml::Geometry m_geometry;
 	bool m_geometryDirty = true;
 };
+
+// Ronin @feature 31/10/2026 DX9: tintinhamans' <scrolllog> (the score and disconnect screens' chat): as a line comes in it
+// jumps to the new bottom, unless scrolled up to read; checked against the last layout's height, so a frame after the line.
+class RmlScrollLogElement : public Rml::Element
+{
+public:
+	explicit RmlScrollLogElement(const Rml::String &tag) : Rml::Element(tag) {}
+
+protected:
+	virtual void OnUpdate() override
+	{
+		Rml::Element::OnUpdate();
+		const float height = GetScrollHeight();
+		if (height != m_lastHeight)
+		{
+			m_lastHeight = height;
+			if (m_following)
+				SetScrollTop(height);
+		}
+		else
+			m_following = GetScrollTop() + GetClientHeight() >= height - 1.0f;
+	}
+
+private:
+	float m_lastHeight = 0.0f;
+	bool m_following = true;	// false once scrolled away from the bottom
+};

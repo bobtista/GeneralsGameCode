@@ -1,0 +1,539 @@
+/*
+	ScoreScreen.rcss -- the score screen after every game (ScoreScreen.wnd), on the screen template
+	of common.rcss. The side's score screen art fills the screen under the ruler, darkened. Inside:
+		header      the game mode over the outcome (victory, defeat or game over), the map and the
+		            game time beside it
+		highlights  a tile per headline stat with the player who led it, in their colour
+		table       a result card per player: colour, faction badge, name, a victory chip, and the
+		            seven stats; the stats a player led are lit in the accent
+		side        online and LAN only: the tactical analysis and the post-game chat
+		challenge   Generals Challenge: the opponent's portrait and remarks instead of the table
+*/
+
+body.ss
+{
+	background-color: #05070F;
+}
+
+/* ---- Art: the 4:3 score screen art covering the screen, cropped top and bottom ----------------- */
+.ss-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	clip: always;
+}
+
+.ss-cover-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 50%;
+	width: 100vw;
+	height: 75vw;
+	margin-top: -37.5vw;
+}
+
+.ss-scrim
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	decorator: vertical-gradient(#05070FA6 #05070FE0);
+}
+
+/* ---- Header ------------------------------------------------------------------------------------ */
+/* The result in the .hq-header strip: green for a victory, red for a defeat; the map and the game
+   time in its aside. */
+.ss-heading .hq-title
+{
+	flex-shrink: 0;
+	color: #FFFFFF;
+}
+
+.ss-heading.victory .hq-title
+{
+	color: #D1FD04;
+}
+
+.ss-heading.defeat .hq-title
+{
+	color: #FF5050;
+	border-left-color: #FF5050;
+}
+
+.hq-aside.ss-match
+{
+	align-self: stretch;
+	min-width: 0;
+	flex-shrink: 1;
+}
+
+.hq-aside.ss-match > *
+{
+	margin-left: 0;
+}
+
+.ss-fact
+{
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-width: 0;
+	padding: 0 24dp;
+	max-width: 480dp;
+	border-left: 1dp #8080FF28;
+}
+
+.ss-fact:first-child
+{
+	border-left-width: 0;
+}
+
+.ss-fact-value
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 24dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ---- Highlights --------------------------------------------------------------------------------- */
+.ss-highlights
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+	margin-bottom: 20dp;
+}
+
+/* The data-for slot carries no bindings of its own: a binding on the repeated element itself reads
+   past the end of the array for a frame when the list shrinks. */
+.ss-hl-slot
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-left: 20dp;
+}
+
+.ss-hl-slot:first-child
+{
+	margin-left: 0;
+}
+
+.ss-hl
+{
+	display: block;
+	padding: 16dp 20dp 16dp 20dp;
+	background-color: #070A1AE0;
+	border-top: 4dp #7079A0;
+}
+
+.ss-hl .overline
+{
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ss-hl-value
+{
+	display: block;
+	margin-top: 4dp;
+	font-size: 40dp;
+	line-height: 46dp;
+	font-weight: bold;
+	color: #D1FD04;
+}
+
+.ss-hl-name
+{
+	display: block;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #D7DCF0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ss-hl-dot
+{
+	display: inline-block;
+	width: 10dp;
+	height: 10dp;
+	margin-right: 8dp;
+	vertical-align: middle;
+}
+
+/* ---- Table ---------------------------------------------------------------------------------------- */
+.surface.ss-table
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 1 auto;
+	min-height: 0;
+	padding: 6dp 20dp 12dp 20dp;
+}
+
+/* Column captions: the stat names wrap onto two lines, right aligned over their numbers. */
+.list-head.ss-head
+{
+	height: auto;
+	min-height: 58dp;
+	padding: 6dp 16dp 8dp 22dp;
+	align-items: flex-end;
+}
+
+.ss-head .ss-cell
+{
+	font-size: 15dp;
+	line-height: 18dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #8089B0;
+	white-space: normal;
+}
+
+/* The body is 730dp tall at every resolution (1dp = 1/1080 of the height): eight cards fit under
+   the highlights, more scroll. */
+.ss-rows
+{
+	flex: 0 1 auto;
+	max-height: 490dp;
+}
+
+.ss-row-slot
+{
+	display: block;
+}
+
+.ss-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	height: 56dp;
+	margin-top: 5dp;
+	padding: 0 16dp 0 16dp;
+	background-color: #0B1030B4;
+	border-left: 6dp #7079A0;
+}
+
+.ss-row.local
+{
+	background-color: #141A3EE6;
+}
+
+.ss-row.observer
+{
+	height: 46dp;
+	background-color: #05070F8C;
+	border-left-color: #8080FF28;
+}
+
+.ss-who
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 2.4 1 0%;
+	min-width: 0;
+	padding-right: 12dp;
+}
+
+.ss-head .ss-who
+{
+	align-self: flex-end;
+}
+
+.pc-badge.ss-badge
+{
+	flex: 0 0 44dp;
+	width: 44dp;
+	height: 44dp;
+	margin-right: 14dp;
+	line-height: 42dp;
+}
+
+.ss-badge mappedimage
+{
+	width: 36dp;
+	height: 36dp;
+	margin: 3dp;
+}
+
+.observer .pc-badge.ss-badge
+{
+	flex-basis: 36dp;
+	width: 36dp;
+	height: 36dp;
+	line-height: 34dp;
+	opacity: 0.6;
+}
+
+.observer .ss-badge mappedimage
+{
+	width: 28dp;
+	height: 28dp;
+	margin: 3dp;
+}
+
+.ss-name-wrap
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.ss-name
+{
+	display: block;
+	flex: 0 1 auto;
+	min-width: 0;
+	font-size: 22dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.observer .ss-name
+{
+	font-size: 19dp;
+	font-weight: normal;
+	color: #A9B1CF;
+}
+
+.ss-tags
+{
+	display: block;
+	flex: 0 0 auto;
+	margin-left: 12dp;
+	white-space: nowrap;
+}
+
+.ss-tags .chip-label
+{
+	font-size: 12dp;
+	padding: 0 8dp;
+	margin-right: 6dp;
+}
+
+.ss-cell
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	padding-left: 8dp;
+	text-align: right;
+	font-size: 24dp;
+	font-weight: bold;
+	color: #D7DCF0;
+	white-space: nowrap;
+}
+
+.observer .ss-cell
+{
+	font-size: 19dp;
+	font-weight: normal;
+	color: #4A5070;
+}
+
+/* The game's best in this stat. */
+.ss-cell.best
+{
+	color: #D1FD04;
+}
+
+/* ---- Challenge splash ------------------------------------------------------------------------------ */
+.surface.ss-challenge
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	padding: 30dp;
+	border-left: 4dp #D1FD04;
+}
+
+.ss-challenge-portrait
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 330dp;
+	height: 327dp;
+	background-color: #05070F;
+	border: 1dp #8080FF46;
+}
+
+.ss-challenge-portrait mappedimage
+{
+	display: block;
+	width: 330dp;
+	height: 327dp;
+}
+
+.ss-challenge-text
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-left: 40dp;
+}
+
+.ss-challenge-header
+{
+	display: block;
+	margin-top: 10dp;
+	font-size: 40dp;
+	line-height: 48dp;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+.ss-challenge-remarks
+{
+	display: block;
+	margin-top: 16dp;
+	font-size: 22dp;
+	line-height: 30dp;
+	color: #D7DCF0;
+}
+
+/* ---- Side column: tactical analysis and chat ------------------------------------------------------- */
+.col-side.ss-side
+{
+	width: 540dp;
+}
+
+.surface.ss-academy
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 1 auto;
+	min-height: 0;
+	max-height: 280dp;
+	border-left: 4dp #D1FD04;
+}
+
+.ss-academy-body
+{
+	flex: 0 1 auto;
+	margin-top: 10dp;
+}
+
+.ss-tip
+{
+	display: block;
+	padding: 4dp 0;
+	font-size: 19dp;
+	line-height: 25dp;
+	color: #D7DCF0;
+}
+
+.surface.ss-chat
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding: 14dp 16dp 16dp 16dp;
+}
+
+.ss-chat-log
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	padding-right: 8dp;
+}
+
+.ss-chat-line
+{
+	display: block;
+	padding: 2dp 0;
+	font-size: 18dp;
+	line-height: 23dp;
+	color: #D7DCF0;
+}
+
+.ss-chat-entry
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-top: 10dp;
+}
+
+.ss-chat-entry .chat-input
+{
+	flex: 1 1 auto;
+	margin-right: 10dp;
+}
+
+/* ---- Action bar ------------------------------------------------------------------------------------ */
+.ss-saved
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 50dp;
+	margin-left: 15dp;
+	padding: 0 20dp;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #D7DCF0;
+	background-color: #070A1AD9;
+}
+
+.ss-saved .dot
+{
+	margin-right: 10dp;
+}
+
+/* ---- 5:4 and 4:3: a narrower side column and tighter cards ----------------------------------------- */
+@media (max-aspect-ratio: 3/2)
+{
+	.col-side.ss-side { width: 320dp; }
+	.ss-who { flex: 1.8 1 0%; }
+	.ss-row .ss-cell { font-size: 20dp; }
+	.ss-cell { padding-left: 4dp; }
+	.ss-head .ss-cell { font-size: 13dp; line-height: 16dp; letter-spacing: 0.5dp; }
+	.ss-name { font-size: 19dp; }
+	.pc-badge.ss-badge { flex-basis: 40dp; width: 40dp; height: 40dp; margin-right: 10dp; line-height: 38dp; }
+	.ss-badge mappedimage { width: 32dp; height: 32dp; }
+	.ss-hl { padding: 14dp 16dp; }
+	.ss-hl .overline { font-size: 14dp; letter-spacing: 0.5dp; white-space: normal; line-height: 17dp; height: 34dp; }
+	.ss-hl-value { font-size: 30dp; line-height: 36dp; }
+	.ss-hl-name { font-size: 16dp; }
+	.ss-fact { padding: 0 14dp; max-width: 300dp; }
+	.ss .hq-crumb { display: none; }
+
+	/* The name over its chip; beside the side column also no badge, so the name keeps its room. */
+	.ss-name-wrap { display: block; }
+	.ss-tags { margin-left: 0; margin-top: 2dp; }
+	.ss-row.observer { height: 54dp; }
+	.has-side .pc-badge.ss-badge { display: none; }
+	.has-side .ss-row .ss-cell { font-size: 18dp; }
+	.has-side .ss-who { flex: 1.6 1 0%; padding-right: 6dp; }
+	.has-side .ss-head .ss-cell { letter-spacing: 0; }
+	.has-side .ss-row, .has-side .list-head.ss-head { padding-left: 12dp; padding-right: 10dp; }
+}

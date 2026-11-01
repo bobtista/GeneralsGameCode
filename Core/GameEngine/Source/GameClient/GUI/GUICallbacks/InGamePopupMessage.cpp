@@ -63,6 +63,8 @@
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/DisplayStringManager.h"
+#include "GameClient/GUI/GUICallbacks/Menus/InGamePopupMessageActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/InGamePopupMessageData.h"
 
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -77,8 +79,6 @@ static GameWindow *parent = nullptr;
 static GameWindow *staticTextMessage = nullptr;
 static GameWindow *buttonOk = nullptr;
 
-
-static Bool pause = FALSE;
 //-----------------------------------------------------------------------------
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
@@ -97,36 +97,29 @@ void InGamePopupMessageInit( WindowLayout *layout, void *userData )
 	buttonOkID = TheNameKeyGenerator->nameToKey("InGamePopupMessage.wnd:ButtonOk");
 	buttonOk = TheWindowManager->winGetWindowFromId(parent, buttonOkID);
 
-	PopupMessageData *pMData = TheInGameUI->getPopupMessageData();
-
-	if(!pMData)
-	{
-		DEBUG_ASSERTCRASH(pMData, ("We're in InGamePopupMessage without a pointer to pMData") );
-		///< @todo: add a call to the close this bitch method when I implement it CLH
+	if(!InGamePopupMessageActions::open(parent))
 		return;
-	}
+
+	const InGamePopupMessageData &data = InGamePopupMessageData::instance();
 
 	DisplayString *tempString = TheDisplayStringManager->newDisplayString();
-	tempString->setText(pMData->message);
+	tempString->setText(data.m_message);
 	tempString->setFont(staticTextMessage->winGetFont());
-	tempString->setWordWrap(pMData->width - 14);
+	tempString->setWordWrap(data.m_width - 14);
 	Int width, height;
 	tempString->getSize(&width, &height);
 	TheDisplayStringManager->freeDisplayString(tempString);
 
-	GadgetStaticTextSetText(staticTextMessage, pMData->message);
+	GadgetStaticTextSetText(staticTextMessage, data.m_message);
 	// set the positions/sizes
 	Int widthOk, heightOk;
 	buttonOk->winGetSize(&widthOk, &heightOk);
-	parent->winSetPosition( pMData->x, pMData->y);
-	parent->winSetSize( pMData->width, height + 7 + 2 + 2 + heightOk + 2 );
+	parent->winSetPosition( data.m_x, data.m_y);
+	parent->winSetSize( data.m_width, height + 7 + 2 + 2 + heightOk + 2 );
 	staticTextMessage->winSetPosition(  2,  2);
-	staticTextMessage->winSetSize( pMData->width - 4, height + 7);
-	buttonOk->winSetPosition(pMData->width - widthOk - 2, height + 7 + 2 + 2);
-	staticTextMessage->winSetEnabledTextColors(pMData->textColor, 0);
-	pause = pMData->pause;
-	if(pMData->pause)
-		TheWindowManager->winSetModal( parent );
+	staticTextMessage->winSetSize( data.m_width - 4, height + 7);
+	buttonOk->winSetPosition(data.m_width - widthOk - 2, height + 7 + 2 + 2);
+	staticTextMessage->winSetEnabledTextColors(data.m_textColor, 0);
 
 	TheWindowManager->winSetFocus( parent );
 
@@ -151,31 +144,9 @@ WindowMsgHandledType InGamePopupMessageInput( GameWindow *window, UnsignedInt ms
 	//			if (buttonPushed)
 	//				break;
 
-				switch( key )
-				{
-
-					// ----------------------------------------------------------------------------------------
-					case KEY_ENTER:
-					case KEY_ESC:
-					{
-
-						//
-						// send a simulated selected event to the parent window of the
-						// back/exit button
-						//
-						if( BitIsSet( state, KEY_STATE_UP ) )
-						{
-							TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
-																								(WindowMsgData)buttonOk, buttonOkID );
-
-						}
-
-						// don't let key fall through anywhere else
-						return MSG_HANDLED;
-
-					}
-
-				}
+				// Enter and Escape are the OK button; don't let them fall through anywhere else
+				if( InGamePopupMessageActions::key( key, state ) )
+					return MSG_HANDLED;
 
 			}
 
@@ -228,10 +199,7 @@ WindowMsgHandledType InGamePopupMessageSystem( GameWindow *window, UnsignedInt m
 
       if( controlID == buttonOkID )
 			{
-				if(!pause)
-					TheMessageStream->appendMessage( GameMessage::MSG_CLEAR_INGAME_POPUP_MESSAGE );
-				else
-					TheInGameUI->clearPopupMessageData();
+				InGamePopupMessageActions::ok();
 			}
 			break;
 		}

@@ -1,0 +1,36 @@
+<rml>
+<head>
+	<title>MapTransfer</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="MapTransfer.rcss"/>
+</head>
+<body class="screen ld" data-model="maptransfer">
+	<div class="ld-art"><mappedimage class="ld-fallback-art" name="LoadPageHuge"/></div>
+	<div class="ld-scrim"></div>
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<div class="screen-frame ld-frame">
+		<div class="ld-head">
+			<div class="ld-heading">
+				<div class="overline accent-overline ld-mode"><gametext key="GUI:Loading"/></div>
+				<div class="ld-title ld-title-small">{{current_file}}</div>
+			</div>
+			<div class="spacer"></div>
+			<div class="ld-timeout" data-if="timeout != ''"><span>{{timeout}}</span></div>
+		</div>
+
+		<div class="ld-mid"></div>
+
+		<!-- Map transfer: who is receiving the map, how far along and their state. -->
+		<div class="ld-cards">
+			<div class="ld-card" data-for="row : rows" data-if="row.used" data-style-border-top-color="row.color_hex">
+					<div class="ld-name">{{row.name}}</div>
+					<div class="ld-army">{{row.status}}</div>
+					<div class="progress ld-player-bar" data-class-invisible="!row.show_progress"><div class="progress-fill" data-style-width="row.progress_style" data-style-background-color="row.color_hex"></div></div>
+			</div>
+		</div>
+	</div>
+</body>
+</rml>

@@ -1,0 +1,56 @@
+/*
+	InGamePopupMessage.rcss -- InGamePopupMessage.wnd, the message a map script pops up over the game. The
+	script gives the position and width in pixels (the view sets them on the document) and the text colour;
+	the text height decides the rest. The document is only the card, so the HUD around it keeps the mouse:
+	no ruler and no scrim over the game, just the template's card with its lit blue edge and a small OK in
+	the bottom right corner.
+*/
+
+body.pm
+{
+	box-sizing: border-box;
+	left: 164px;
+	top: 124px;
+	width: 172px;
+	height: auto;
+	font-size: 18dp;
+}
+
+.pm-panel
+{
+	display: block;
+	box-sizing: border-box;
+	background-color: #070A1AEB;
+	border: 1dp #8080FF3A; /* the .hq-card edge */
+	border-top: 3dp #6170FA;
+}
+
+/* The message, its colour coming from the script. */
+.pm-text
+{
+	display: block;
+	box-sizing: border-box;
+	padding: 12dp 14dp 4dp 14dp;
+	font-size: 18dp;
+	line-height: 24dp;
+	text-align: left;
+	white-space: pre-line;
+}
+
+.pm-footer
+{
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-end;
+	padding: 6dp 10dp 10dp 10dp;
+}
+
+.screen button.pm-ok
+{
+	flex: 0 0 auto;
+	min-width: 90dp;
+	height: 36dp;
+	line-height: 34dp;
+	padding: 0 16dp;
+	text-align: center;
+}

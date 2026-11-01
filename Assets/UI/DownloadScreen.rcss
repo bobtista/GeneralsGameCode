@@ -1,0 +1,60 @@
+/*
+	DownloadScreen.rcss -- the Generals Online update download (DownloadMenu.wnd) over the main menu, on
+	the shared modal card (body.modal, common.rcss): the file being fetched, the shared progress bar,
+	bytes and time left under it, the download state where the primary would sit, and Cancel (the only
+	way out, as in the .wnd; Escape does the same).
+*/
+
+.dl-card
+{
+	width: 780dp;
+}
+
+/* The file name wraps rather than running past the card. */
+.dl-file
+{
+	display: block;
+	min-height: 28dp;
+	font-size: 21dp;
+	line-height: 28dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	word-break: break-word;
+}
+
+.progress.dl-bar
+{
+	height: 22dp;
+	margin-top: 16dp;
+}
+
+.dl-meta
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 10dp;
+	min-height: 24dp;
+	font-size: 17dp;
+	line-height: 24dp;
+	color: #A9B1CF;
+}
+
+/* The state, in the primary's place: one line of tracked caps behind a pulsing dot. */
+.dl-status
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 54dp;
+	font-size: 17dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #D7DCF0;
+}
+
+.dl-status .dot
+{
+	margin-right: 10dp;
+	background-color: #D1FD04;
+}

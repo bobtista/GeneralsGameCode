@@ -2739,6 +2739,11 @@ WindowLayoutInfo::WindowLayoutInfo() :
 GameWindow *GameWindowManager::winCreateFromScript( AsciiString filenameString,
 																										WindowLayoutInfo *info )
 {
+	// Ronin @feature 31/10/2026 DX9: a screen RmlUi draws (load screens, victory / defeat) gets a hidden placeholder window in place
+	// of its .wnd; winDestroy() of it closes the screen.
+	if( RmlUiScreenRegistry::isRegistered( filenameString ) )
+		return RmlUiScreenRegistry::createWindow( filenameString );
+
 	const char* filename = filenameString.str();
 	static char buffer[ WIN_BUFFER_LENGTH ]; 		// input buffer for reading
 	GameWindow *firstWindow = nullptr;

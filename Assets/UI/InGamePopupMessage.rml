@@ -1,0 +1,14 @@
+<rml>
+<head>
+	<title>InGamePopupMessage</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="InGamePopupMessage.rcss"/>
+</head>
+<body class="screen pm" data-model="ingamepopup" data-style-left="left_px" data-style-top="top_px" data-style-width="width_px">
+	<div class="pm-panel">
+		<div class="pm-text"><span data-style-color="text_color">{{message}}</span></div>
+		<div class="pm-footer"><button class="btn-small pm-ok" data-event-click="ok"><gametext key="GUI:Ok"/></button></div>
+	</div>
+</body>
+</rml>

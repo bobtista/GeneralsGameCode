@@ -1,0 +1,10 @@
+/*
+	MultiplayerLoad.rcss -- skirmish and network games (MultiplayerLoadScreen.wnd). Everything is the
+	shared load look of LoadScreen.rcss: the map full-bleed, the map name and mode, the local
+	general, the map card and a card per player. Screen-specific overrides go here.
+*/
+
+body.ld
+{
+	font-size: 20dp;
+}

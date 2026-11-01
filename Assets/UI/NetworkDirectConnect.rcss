@@ -1,0 +1,112 @@
+/*
+	NetworkDirectConnect.rcss -- direct connect on the screen template (common.rcss): one compact
+	card centred on the map with the player name, the local IP others join on, and the remote IP to
+	join with the addresses joined before listed under it (the .wnd's editable combo box). Create
+	Game and Join Game are the action bar's.
+*/
+
+.dc-body
+{
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
+.dc-card
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 1 auto;
+	box-sizing: border-box;
+	width: 760dp;
+	min-height: 0;
+	padding: 30dp 40dp 34dp 40dp;
+	border-top: 4dp #6170FA;
+}
+
+.dc-field
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 auto;
+}
+
+.dc-label
+{
+	margin-bottom: 10dp;
+}
+
+.dc-input
+{
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+}
+
+/* The address others join on: the one thing to read out, so it is set large. */
+.dc-local
+{
+	display: block;
+	flex: 0 0 auto;
+	margin-top: 26dp;
+	padding: 18dp 22dp;
+	background-color: #05070FB4;
+	border-left: 4dp #3A46D0;
+}
+
+.dc-local .dc-label
+{
+	margin-bottom: 4dp;
+}
+
+.dc-ip
+{
+	display: block;
+	font-size: 38dp;
+	line-height: 46dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dc-remote
+{
+	flex: 0 1 auto;
+	min-height: 0;
+	margin-top: 26dp;
+}
+
+/* Addresses joined before, newest first; clicking one fills the entry. */
+.dc-history
+{
+	display: block;
+	flex: 0 1 auto;
+	min-height: 0;
+	max-height: 264dp;
+	overflow-y: auto;
+	margin-top: 8dp;
+}
+
+.dc-history-row
+{
+	display: block;
+	line-height: 42dp;
+	color: #D7DCF0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dc-history-row.selected
+{
+	color: #FFFFFF;
+	font-weight: bold;
+}
+
+@media (max-aspect-ratio: 3/2)
+{
+	.dc-card { width: 640dp; }
+}

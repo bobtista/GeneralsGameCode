@@ -1,0 +1,219 @@
+/*
+	DisconnectScreen.rcss -- the panel over a running network game that lists the players who stopped
+	answering (DisconnectScreen.wnd). An in-game overlay, so no ruler frame and no scrim: a compact card
+	near the top of the screen, and the document is only that card, so the HUD around it keeps the
+	mouse and the battlefield stays in view. The template's buttons, text entry and scrollbars come from
+	common.rcss (class="screen" on the body).
+*/
+
+body.dc
+{
+	left: 50%;
+	top: 96dp;
+	width: 860dp;
+	height: auto;
+	margin-left: -430dp;
+	font-size: 19dp;
+}
+
+.dc-card
+{
+	display: block;
+	background-color: #070A1AEB;
+	border: 1dp #8080FF3A; /* the .hq-card edge */
+	border-top: 3dp #6170FA;
+}
+
+/* ---- Header ---------------------------------------------------------------------------------- */
+.dc-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	min-height: 64dp;
+	padding: 10dp 24dp;
+	border-bottom: 1dp #8080FF28;
+}
+
+/* The modal title's look: tracked caps behind the accent tick. */
+.dc-title
+{
+	font-size: 28dp;
+	line-height: 36dp;
+	padding-left: 15dp;
+	border-left: 4dp #D1FD04;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #FFFFFF;
+	white-space: nowrap;
+}
+
+.dc-router
+{
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+}
+
+.dc-router-value
+{
+	font-size: 24dp;
+	line-height: 28dp;
+	font-weight: bold;
+	color: #E8D440;
+}
+
+/* ---- Players --------------------------------------------------------------------------------- */
+.dc-list
+{
+	display: block;
+	padding: 4dp 24dp 8dp 24dp;
+}
+
+.list-head.dc-list-head
+{
+	height: 34dp;
+	padding: 0 0 0 12dp;
+}
+
+.dc-slot
+{
+	display: block;
+}
+
+.dc-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	height: 42dp;
+	margin-top: 4dp;
+	padding-left: 12dp;
+	background-color: #0B1030B4;
+	border-left: 3dp #FF5050;
+}
+
+.dc-name
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dc-votes, .dc-timeout
+{
+	flex: 0 0 110dp;
+	text-align: center;
+	white-space: nowrap;
+}
+
+.dc-row .dc-votes
+{
+	color: #D1FD04;
+	font-weight: bold;
+}
+
+.dc-row .dc-timeout
+{
+	color: #E8D440;
+	font-weight: bold;
+}
+
+.dc-vote-cell
+{
+	flex: 0 0 120dp;
+	text-align: right;
+	padding-right: 4dp;
+}
+
+.screen button.dc-vote
+{
+	width: 108dp;
+	padding: 0;
+	text-align: center;
+}
+
+/* ---- Chat -------------------------------------------------------------------------------------- */
+.dc-chat
+{
+	display: flex;
+	flex-direction: column;
+	padding: 8dp 24dp 0 24dp;
+}
+
+.dc-log
+{
+	flex: 0 0 auto;
+	height: 150dp;
+	padding: 8dp 8dp 8dp 12dp;
+	background-color: #05070FB4;
+}
+
+.dc-line
+{
+	display: block;
+	padding: 1dp 0;
+	font-size: 17dp;
+	line-height: 22dp;
+}
+
+.dc-entry
+{
+	margin-top: 10dp;
+}
+
+/* ---- Quit ------------------------------------------------------------------------------------ */
+.dc-actions
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 16dp 24dp 20dp 24dp;
+}
+
+.screen button.dc-quit
+{
+	border-color: #FF505078;
+}
+
+.screen button.dc-quit:hover
+{
+	background-color: #7A1E1ED2;
+	border-color: #FF5050;
+}
+
+.screen button.dc-quit[disabled], .screen button.dc-quit[disabled]:hover
+{
+	background-color: #0C0F24AA;
+	border-color: #8080FF1E;
+}
+
+/* Translated labels run longer than the English ones: the router timeout label wraps beside the
+   title instead of running under it, and a column head may take two lines. */
+.dc-router
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-left: 16dp;
+}
+
+.dc-router .overline
+{
+	white-space: normal;
+	text-align: right;
+}
+
+.dc-list-head .dc-votes, .dc-list-head .dc-timeout
+{
+	white-space: normal;
+	word-break: break-word;
+	font-size: 13dp;
+	line-height: 16dp;
+	letter-spacing: 1dp;
+}

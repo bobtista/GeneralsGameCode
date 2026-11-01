@@ -52,6 +52,8 @@
 #include "GameClient/GadgetCheckBox.h"
 #include "GameClient/GlobalLanguage.h"
 #include "GameClient/GameWindowTransitions.h"
+#include "GameClient/RmlUiMessageBoxHook.h"	// Ronin @feature 31/10/2026 DX9: the RmlUi screens' placeholders and message box
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "Common/NameKeyGenerator.h"
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////////////////////////
@@ -1391,6 +1393,9 @@ Int GameWindowManager::winDestroy( GameWindow *window )
 	if( window == nullptr )
 		return WIN_ERR_INVALID_WINDOW;
 
+	// Ronin @feature 31/10/2026 DX9: an RmlUi screen's or message box's placeholder closes what it stands for (tintinhamans').
+	RmlUiScreenRegistry::windowDestroyed( window );
+
 	//
 	// we should never have edit data allocated in the window code, it's
 	// completely handled by the editor ONLY
@@ -1622,6 +1627,15 @@ GameWindow *GameWindowManager::gogoMessageBox(Int x, Int y, Int width, Int heigh
 	{
 		return nullptr;
 	}
+
+	// Ronin @feature 31/10/2026 DX9: with ModernUI the box is RmlUi's (tintinhamans'); its handle is a placeholder window, so
+	// winDestroy() closes it and a button destroys it after the callback, as MessageBoxSystem does.
+	if( RmlUiScreenRegistry::routesMessageBoxToRmlUi() )
+	{
+		const UnsignedInt boxId = RmlUiMessageBoxHook::show( buttonFlags, titleString, bodyString, yesCallback, noCallback, okCallback, cancelCallback, useLogo );
+		return boxId != 0 ? RmlUiScreenRegistry::createMessageBoxWindow( boxId ) : nullptr;
+	}
+
 	GameWindow *trueParent = nullptr;
 	//Changed by Chris
 	if(useLogo)

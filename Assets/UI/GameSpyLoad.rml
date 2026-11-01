@@ -1,0 +1,65 @@
+<rml>
+<head>
+	<title>GameSpyLoad</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="GameSpyLoad.rcss"/>
+</head>
+<body class="screen ld" data-model="onlineload">
+	<div class="ld-art"><mappreview class="ld-map-art" fit="fill" data-attr-map="map_name" data-if="has_map"/><mappedimage class="ld-fallback-art" data-if="!has_map" name="MDSkirmishLoadB"/></div>
+	<div class="ld-scrim"></div>
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<div class="screen-frame ld-frame">
+		<div class="ld-head">
+			<div class="ld-heading">
+				<div class="overline accent-overline ld-mode">{{game_mode}}</div>
+				<div class="ld-title">{{map_display_name}}</div>
+				<div class="ld-loading pulse"><gametext key="GUI:Loading"/></div>
+			</div>
+			<div class="spacer"></div>
+				<div class="ld-general" data-if="local_name != ''">
+					<div class="ld-portrait" data-if="has_portrait"><mappedimage data-attr-name="local_portrait"/></div>
+					<div class="ld-general-text">
+						<div class="ld-general-name">{{local_name}}</div>
+						<div class="ld-general-features">{{local_features}}</div>
+					</div>
+				</div>
+		</div>
+
+		<div class="ld-mid">
+			<div class="spacer"></div>
+			<div class="surface ld-map-card" data-if="has_map">
+				<div class="map-frame ld-map-frame">
+					<mappreview class="map-image" data-attr-map="map_name">
+						<div data-for="marker : markers">
+							<div class="marker" data-if="marker.used" data-style-left="marker.x_style" data-style-top="marker.y_style">
+								<div class="marker-dot" data-style-border-color="marker.has_label ? marker.color_hex : '#FFFFFF78'">{{marker.has_label ? marker.label : ''}}</div>
+							</div>
+						</div>
+					</mappreview>
+				</div>
+			</div>
+		</div>
+
+			<!-- One card per player along the bottom: colour, badge, name, army, team, rank and record, progress. -->
+			<div class="ld-cards">
+				<div class="ld-card" data-for="row : rows" data-if="row.used" data-style-border-top-color="row.color_hex">
+						<div class="ld-card-top">
+							<div class="pc-badge ld-badge"><mappedimage data-if="row.has_side_image" data-attr-name="row.side_image"/><span data-if="!row.has_side_image">?</span></div>
+								<div class="ld-rank" data-if="row.has_rank"><mappedimage data-attr-name="row.rank_image"/></div>
+								<div class="ld-medal" data-if="row.has_medal"><mappedimage data-attr-name="row.medal_image"/></div>
+						</div>
+						<div class="ld-name">{{row.name}}</div>
+						<div class="ld-army-line"><div class="ld-army">{{row.side}}</div><div class="chip-label ld-team">{{row.team}}</div></div>
+						<div class="ld-stats" data-if="row.show_stats">
+							<div class="ld-stat"><span class="ld-stat-label"><gametext key="GUI:WINLOSS"/></span>{{row.win_loss}}</div>
+							<div class="ld-stat"><span class="ld-stat-label"><gametext key="GUI:Discons"/></span>{{row.disconnects}}</div>
+						</div>
+						<div class="progress ld-player-bar" data-class-invisible="!row.show_progress"><div class="progress-fill" data-style-width="row.progress_style" data-style-background-color="row.color_hex"></div></div>
+				</div>
+			</div>
+	</div>
+</body>
+</rml>

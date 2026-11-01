@@ -1,0 +1,122 @@
+<rml>
+<head>
+	<title>LanLobby</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="LanLobby.rcss"/>
+</head>
+<body class="screen hq" data-model="lanlobby">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:Multiplayer"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:LANLobby"/></div></div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span>Offline</div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
+			</div>
+	</div></div>
+
+	<div class="screen-frame">
+
+		<div class="screen-body">
+			<div class="col col-main">
+				<!-- Games hosted on the network: host, map and players. Click selects for the card on
+				     the right, double-click joins. A game already under way is dimmed. -->
+				<div class="surface games">
+					<div class="list-head">
+						<div class="head-name overline">Host</div>
+						<div class="head-map overline">Map</div>
+						<div class="head-players overline"><gametext key="GUI:Players"/></div>
+					</div>
+					<div class="game-list">
+						<div data-for="game : games">
+							<div class="row-item game-row" data-if="game.used" data-class-selected="game.is_selected" data-class-in-progress="game.in_progress"
+								data-event-click="game_row_clicked(game.index)" data-event-dblclick="game_row_activated(game.index)">
+								<div class="game-name">{{game.display_name}}</div>
+								<div class="game-state"><span class="chip-label" data-if="game.in_progress">In progress</span></div>
+								<div class="game-map">{{game.map_name}}</div>
+								<div class="game-players">{{game.players_text}}</div>
+							</div>
+						</div>
+						<div class="empty-state" data-if="game_count == 0">No games on your network yet</div>
+					</div>
+				</div>
+
+				<!-- The network's chat beside the players on the network. -->
+				<div class="surface chat-panel">
+					<div class="chat-col">
+						<scrolllog class="chat-lines">
+							<div class="chat-row" data-for="line : chat_lines" data-style-color="line.color == '' ? '#D7DCF0' : line.color">{{line.text}}</div>
+						</scrolllog>
+						<div class="chat-entry send-row">
+							<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
+							<button class="chat-send" data-event-click="send_chat"><span class="send-arrow"></span></button>
+						</div>
+					</div>
+					<div class="roster">
+						<div class="roster-head">
+							<div class="overline"><gametext key="GUI:Players"/></div>
+							<div class="roster-count">{{player_count}}</div>
+						</div>
+						<div class="roster-list">
+							<div data-for="player : players">
+								<div class="roster-row" data-if="player.used" data-attr-data-tooltip-text="player.tooltip"><span class="dot"></span>{{player.name}}</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- The selected game's card: its map, who is in it and their armies and colours. -->
+			<div class="col col-side side-col">
+				<!-- The name everyone on the network sees; it is sent as it is typed, like the .wnd. -->
+				<div class="surface name-plate">
+					<div class="overline name-label"><gametext key="GUI:PlayerName"/></div>
+					<div class="name-row">
+						<input type="text" class="text-input name-input" data-value="lan_name" data-event-change="name_changed"/>
+						<button class="btn-small" data-event-click="clear_name" data-tooltip="TOOLTIP:ButtonClear"><gametext key="GUI:Clear"/></button>
+					</div>
+				</div>
+				<div class="surface details">
+					<div class="overline group-title"><gametext key="GUI:GameInfo"/></div>
+					<div class="detail-body" data-if="details_valid">
+						<div class="detail-top">
+							<div class="map-frame detail-map">
+								<mappreview class="map-image" sites="12" data-attr-map="details_map_path"/>
+							</div>
+							<div class="detail-text">
+								<div class="detail-name">{{details_game_name}}</div>
+								<div class="detail-map-name">{{details_map_display_name}}</div>
+								<div class="stat-label detail-players-label"><gametext key="GUI:Players"/></div>
+								<div class="detail-players">{{details_players_text}}</div>
+								<div class="detail-chip" data-if="details_in_progress"><span class="chip-label">In progress</span></div>
+							</div>
+						</div>
+						<div class="slots">
+							<div data-for="slot : detail_slots">
+								<div class="slot" data-if="slot.occupied" data-class-observer="slot.is_observer" data-class-human="slot.is_human"
+									data-style-border-left-color="slot.color_hex != '' ? slot.color_hex : '#7079A0'">
+									<mappedimage class="slot-icon" data-attr-name="slot.side_icon_image" data-if="slot.show_side_icon"/>
+									<div class="slot-icon" data-if="!slot.show_side_icon"></div>
+									<div class="slot-label">{{slot.label}}</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="empty-state" data-if="!details_valid"><gametext key="GUI:NoGameSelected"/></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="action-bar">
+			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:GotoMainMenu"/></button>
+			<div class="spacer"></div>
+			<button data-event-click="direct_connect"><gametext key="GUI:DirectConnect"/></button>
+			<button data-event-click="host_game"><gametext key="GUI:Host"/></button>
+			<button class="btn-cta" data-event-click="join_selected"><gametext key="GUI:Join"/></button>
+		</div>
+	</div>
+</body>
+</rml>

@@ -595,12 +595,34 @@ void LANAPI::OnPlayerLeave( UnicodeString player )
 	}
 }
 
+// Ronin @feature 31/10/2026 DX9: tintinhamans' events for the RmlUi screens (LANAPICallbacks.h).
+namespace ScoreScreenSignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine() { static Signal2<const UnicodeString &, Color> s; return s; }
+}
+
+namespace LanLobbySignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine() { static Signal2<const UnicodeString &, Color> s; return s; }
+	Signal1<LANPlayer *> &playerList() { static Signal1<LANPlayer *> s; return s; }
+	Signal1<LANGameInfo *> &gameList() { static Signal1<LANGameInfo *> s; return s; }
+}
+
+namespace LanGameSetupSignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine() { static Signal2<const UnicodeString &, Color> s; return s; }
+	Signal1<LANGameInfo *> &slotsChanged() { static Signal1<LANGameInfo *> s; return s; }
+	Signal1<LANGameInfo *> &optionsChanged() { static Signal1<LANGameInfo *> s; return s; }
+	Signal1<Bool> &startButton() { static Signal1<Bool> s; return s; }
+}
+
 void LANAPI::OnGameList( LANGameInfo *gameList )
 {
 
 	if (m_inLobby)
 	{
 		LANDisplayGameList(listboxGames, gameList);
+		LanLobbySignals::gameList().emit(gameList);	// Ronin @feature 31/10/2026 DX9: the RmlUi lobby
 	}
 }
 
@@ -619,17 +641,21 @@ void LANAPI::OnGameCreate( ReturnType ret )
 	{
 		if(m_inLobby)
 		{
+			// Ronin @feature 31/10/2026 DX9: the text goes to the RmlUi lobby too, which has no listboxChatWindow
+			UnicodeString errorText;
 			switch( ret )
 			{
 			case RET_GAME_EXISTS:
-				GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorGameExists"), chatSystemColor, -1, -1);
+				errorText = TheGameText->fetch("LAN:ErrorGameExists");
 				break;
 			case RET_BUSY:
-				GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorBusy"), chatSystemColor, -1, -1);
+				errorText = TheGameText->fetch("LAN:ErrorBusy");
 				break;
 			default:
-				GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorUnknown"), chatSystemColor, -1, -1);
+				errorText = TheGameText->fetch("LAN:ErrorUnknown");
 			}
+			GadgetListBoxAddEntryText(listboxChatWindow, errorText, chatSystemColor, -1, -1);
+			LanLobbySignals::chatLine().emit(errorText, chatSystemColor);
 		}
 	}
 
@@ -639,6 +665,7 @@ void LANAPI::OnPlayerList( LANPlayer *playerList )
 {
 	if (m_inLobby)
 	{
+		LanLobbySignals::playerList().emit(playerList);	// Ronin @feature 31/10/2026 DX9: the RmlUi lobby
 
 		UnsignedInt selectedIP = 0;
 		Int selectedIndex = -1;
@@ -679,37 +706,46 @@ void LANAPI::OnInActive(UnsignedInt IP) {
 void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message, ChatType format )
 {
 	GameWindow *chatWindow = nullptr;
+	// Ronin @feature 31/10/2026 DX9: which screen the line is for, so an RmlUi one (no listbox) gets it through its event
+	Bool isScoreScreenChat = FALSE;
+	Bool isLobbyChat = FALSE;
+	Bool isGameSetupChat = FALSE;
 
 	if (m_inLobby)
 	{
 		chatWindow = listboxChatWindow;
+		isLobbyChat = TRUE;
 	}
 	else if( m_currentGame && m_currentGame->isGameInProgress() && TheShell->isShellActive())
 	{
 		chatWindow = listboxChatWindowScoreScreen;
+		isScoreScreenChat = TRUE;
 	}
 	else if( m_currentGame && !m_currentGame->isGameInProgress())
 	{
 		chatWindow = listboxChatWindowLanGame;
+		isGameSetupChat = TRUE;
 	}
-	if (chatWindow == nullptr)
+	if (chatWindow == nullptr && !((isScoreScreenChat && ScoreScreenSignals::chatLine().hasListeners()) || (isLobbyChat && LanLobbySignals::chatLine().hasListeners()) || (isGameSetupChat && LanGameSetupSignals::chatLine().hasListeners())))
 		return;
 	Int index = -1;
 	UnicodeString unicodeChat;
+	Color chatColorOut = 0;
 	switch (format)
 	{
 		case LANAPIInterface::LANCHAT_SYSTEM:
 			unicodeChat = message;
-			index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatSystemColor, -1, -1);
+			chatColorOut = chatSystemColor;
+			if (chatWindow)
+				index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatColorOut, -1, -1);
 			break;
 		case LANAPIInterface::LANCHAT_EMOTE:
 			unicodeChat = player;
 			unicodeChat.concat(L' ');
 			unicodeChat.concat(message);
-			if (ip == m_localIP)
-				index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatLocalActionColor, -1, -1);
-			else
-				index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatActionColor, -1, -1);
+			chatColorOut = (ip == m_localIP) ? chatLocalActionColor : chatActionColor;
+			if (chatWindow)
+				index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatColorOut, -1, -1);
 			break;
 		case LANAPIInterface::LANCHAT_NORMAL:
 		default:
@@ -737,12 +773,19 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 			unicodeChat.concat(player);
 			unicodeChat.concat(L"] ");
 			unicodeChat.concat(message);
-			if (ip == m_localIP)
-				index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatColor, -1, -1);
-			else
+			chatColorOut = chatColor;
+			if (chatWindow)
 				index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatColor, -1, -1);
 			break;
 		}
 	}
-	GadgetListBoxSetItemData(chatWindow, (void *)-1, index);
+	if (chatWindow)
+		GadgetListBoxSetItemData(chatWindow, (void *)-1, index);
+
+	if (isScoreScreenChat)
+		ScoreScreenSignals::chatLine().emit(unicodeChat, chatColorOut);
+	if (isLobbyChat)
+		LanLobbySignals::chatLine().emit(unicodeChat, chatColorOut);
+	if (isGameSetupChat)
+		LanGameSetupSignals::chatLine().emit(unicodeChat, chatColorOut);
 }

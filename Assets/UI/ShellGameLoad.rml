@@ -1,0 +1,25 @@
+<rml>
+<head>
+	<title>ShellGameLoad</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="ShellGameLoad.rcss"/>
+</head>
+<body class="screen ld" data-model="shellload">
+	<div class="ld-art">
+		<mappedimage class="ld-fallback-art" data-if="!title_screen" name="LoadPageHuge"/>
+		<mappedimage class="ld-fallback-art" data-if="title_screen" name="TitleScreen"/>
+	</div>
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<div class="screen-frame ld-frame">
+		<div class="ld-mid"></div>
+		<div class="ld-legal" data-if="title_screen"><gametext key="GUI:EACopyright"/></div>
+		<div class="ld-bottom">
+			<div class="overline ld-bottom-label"><gametext key="GUI:Loading"/></div>
+			<div class="progress ld-bar"><div class="progress-fill" data-style-width="progress_style"></div></div>
+		</div>
+	</div>
+</body>
+</rml>

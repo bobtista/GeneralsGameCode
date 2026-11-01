@@ -33,15 +33,21 @@
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameText.h"
 #include "GameClient/Gadget.h"
+#include "GameClient/GadgetStaticText.h"
 #include "GameClient/GadgetTextEntry.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/DisconnectMenu.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/RmlUiScreenRegistry.h"
+#include "GameClient/GUI/GUICallbacks/Menus/DisconnectMenuActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/DisconnectMenuData.h"
 #include "Common/NameKeyGenerator.h"
 
 // Private Data -----------------------------
 static WindowLayout *disconnectMenuLayout;
+
+static const Int SLOTS = DisconnectMenuData::PLAYER_SLOTS;
 
 static NameKeyType textEntryID = NAMEKEY_INVALID;
 static NameKeyType textDisplayID = NAMEKEY_INVALID;
@@ -52,21 +58,72 @@ static GameWindow *textDisplayWindow = nullptr;
 static NameKeyType buttonQuitID = NAMEKEY_INVALID;
 static GameWindow *buttonQuitWindow = nullptr;
 
-static NameKeyType buttonVotePlayer1ID = NAMEKEY_INVALID;
-static NameKeyType buttonVotePlayer2ID = NAMEKEY_INVALID;
-static NameKeyType buttonVotePlayer3ID = NAMEKEY_INVALID;
-static NameKeyType buttonVotePlayer4ID = NAMEKEY_INVALID;
-static NameKeyType buttonVotePlayer5ID = NAMEKEY_INVALID;
-static NameKeyType buttonVotePlayer6ID = NAMEKEY_INVALID;
-static NameKeyType buttonVotePlayer7ID = NAMEKEY_INVALID;
+static NameKeyType buttonVotePlayerID[SLOTS] = { NAMEKEY_INVALID };
 
-static GameWindow *buttonVotePlayer1Window = nullptr;
-static GameWindow *buttonVotePlayer2Window = nullptr;
-static GameWindow *buttonVotePlayer3Window = nullptr;
-static GameWindow *buttonVotePlayer4Window = nullptr;
-static GameWindow *buttonVotePlayer5Window = nullptr;
-static GameWindow *buttonVotePlayer6Window = nullptr;
-static GameWindow *buttonVotePlayer7Window = nullptr;
+static GameWindow *buttonVotePlayerWindow[SLOTS] = { nullptr };
+static GameWindow *playerNameWindow[SLOTS] = { nullptr };
+static GameWindow *playerTimeoutWindow[SLOTS] = { nullptr };
+static GameWindow *playerVotesWindow[SLOTS] = { nullptr };
+static GameWindow *packetRouterTimeoutWindow = nullptr;
+static GameWindow *packetRouterTimeoutLabelWindow = nullptr;
+
+static UnsignedInt shownVersion = 0;
+static UnsignedInt shownChatVersion = 0;
+
+// Names of the per-player controls in the window, one per slot.
+static const char *const playerNameControlNames[SLOTS] = {
+	"DisconnectScreen.wnd:StaticPlayer1Name",
+	"DisconnectScreen.wnd:StaticPlayer2Name",
+	"DisconnectScreen.wnd:StaticPlayer3Name",
+	"DisconnectScreen.wnd:StaticPlayer4Name",
+	"DisconnectScreen.wnd:StaticPlayer5Name",
+	"DisconnectScreen.wnd:StaticPlayer6Name",
+	"DisconnectScreen.wnd:StaticPlayer7Name"
+};
+
+static const char *const playerTimeoutControlNames[SLOTS] = {
+	"DisconnectScreen.wnd:StaticPlayer1Timeout",
+	"DisconnectScreen.wnd:StaticPlayer2Timeout",
+	"DisconnectScreen.wnd:StaticPlayer3Timeout",
+	"DisconnectScreen.wnd:StaticPlayer4Timeout",
+	"DisconnectScreen.wnd:StaticPlayer5Timeout",
+	"DisconnectScreen.wnd:StaticPlayer6Timeout",
+	"DisconnectScreen.wnd:StaticPlayer7Timeout"
+};
+
+static const char *const playerVoteButtonControlNames[SLOTS] = {
+	"DisconnectScreen.wnd:ButtonKickPlayer1",
+	"DisconnectScreen.wnd:ButtonKickPlayer2",
+	"DisconnectScreen.wnd:ButtonKickPlayer3",
+	"DisconnectScreen.wnd:ButtonKickPlayer4",
+	"DisconnectScreen.wnd:ButtonKickPlayer5",
+	"DisconnectScreen.wnd:ButtonKickPlayer6",
+	"DisconnectScreen.wnd:ButtonKickPlayer7"
+};
+
+static const char *const playerVoteCountControlNames[SLOTS] = {
+	"DisconnectScreen.wnd:StaticPlayer1Votes",
+	"DisconnectScreen.wnd:StaticPlayer2Votes",
+	"DisconnectScreen.wnd:StaticPlayer3Votes",
+	"DisconnectScreen.wnd:StaticPlayer4Votes",
+	"DisconnectScreen.wnd:StaticPlayer5Votes",
+	"DisconnectScreen.wnd:StaticPlayer6Votes",
+	"DisconnectScreen.wnd:StaticPlayer7Votes"
+};
+
+static const char *const packetRouterTimeoutControlName = "DisconnectScreen.wnd:StaticPacketRouterTimeout";
+static const char *const packetRouterTimeoutLabelControlName = "DisconnectScreen.wnd:StaticPacketRouterTimeoutLabel";
+
+// The RmlUi screen replaces the .wnd, unless -wnd was given; its layout only holds a placeholder.
+static Bool routedToRmlUi()
+{
+	return RmlUiScreenRegistry::routesToRmlUi( AsciiString( "Menus/DisconnectScreen.wnd" ) );
+}
+
+static GameWindow *findWindow( const char *name )
+{
+	return TheWindowManager->winGetWindowFromId( nullptr, TheNameKeyGenerator->nameToKey( name ) );
+}
 
 static void InitDisconnectWindow() {
 	textEntryID = TheNameKeyGenerator->nameToKey( "DisconnectScreen.wnd:TextEntry");
@@ -83,21 +140,71 @@ static void InitDisconnectWindow() {
 	buttonQuitID = TheNameKeyGenerator->nameToKey( "DisconnectScreen.wnd:ButtonQuitGame");
 	buttonQuitWindow = TheWindowManager->winGetWindowFromId(nullptr, buttonQuitID);
 
-	buttonVotePlayer1ID = TheNameKeyGenerator->nameToKey( "DisconnectScreen.wnd:ButtonKickPlayer1");
-	buttonVotePlayer2ID = TheNameKeyGenerator->nameToKey( "DisconnectScreen.wnd:ButtonKickPlayer2");
-	buttonVotePlayer3ID = TheNameKeyGenerator->nameToKey( "DisconnectScreen.wnd:ButtonKickPlayer3");
-	buttonVotePlayer4ID = TheNameKeyGenerator->nameToKey( "DisconnectScreen.wnd:ButtonKickPlayer4");
-	buttonVotePlayer5ID = TheNameKeyGenerator->nameToKey( "DisconnectScreen.wnd:ButtonKickPlayer5");
-	buttonVotePlayer6ID = TheNameKeyGenerator->nameToKey( "DisconnectScreen.wnd:ButtonKickPlayer6");
-	buttonVotePlayer7ID = TheNameKeyGenerator->nameToKey( "DisconnectScreen.wnd:ButtonKickPlayer7");
+	for (Int i = 0; i < SLOTS; ++i) {
+		buttonVotePlayerID[i] = TheNameKeyGenerator->nameToKey( playerVoteButtonControlNames[i] );
+		buttonVotePlayerWindow[i] = TheWindowManager->winGetWindowFromId(nullptr, buttonVotePlayerID[i]);
+		playerNameWindow[i] = findWindow( playerNameControlNames[i] );
+		playerTimeoutWindow[i] = findWindow( playerTimeoutControlNames[i] );
+		playerVotesWindow[i] = findWindow( playerVoteCountControlNames[i] );
+	}
 
-	buttonVotePlayer1Window = TheWindowManager->winGetWindowFromId(nullptr, buttonVotePlayer1ID);
-	buttonVotePlayer2Window = TheWindowManager->winGetWindowFromId(nullptr, buttonVotePlayer2ID);
-	buttonVotePlayer3Window = TheWindowManager->winGetWindowFromId(nullptr, buttonVotePlayer3ID);
-	buttonVotePlayer4Window = TheWindowManager->winGetWindowFromId(nullptr, buttonVotePlayer4ID);
-	buttonVotePlayer5Window = TheWindowManager->winGetWindowFromId(nullptr, buttonVotePlayer5ID);
-	buttonVotePlayer6Window = TheWindowManager->winGetWindowFromId(nullptr, buttonVotePlayer6ID);
-	buttonVotePlayer7Window = TheWindowManager->winGetWindowFromId(nullptr, buttonVotePlayer7ID);
+	packetRouterTimeoutWindow = findWindow( packetRouterTimeoutControlName );
+	packetRouterTimeoutLabelWindow = findWindow( packetRouterTimeoutLabelControlName );
+
+	shownVersion = 0;
+	shownChatVersion = 0;
+}
+
+//------------------------------------------------------
+/** Make the windows show the disconnect data. DisconnectMenu calls this after every change. */
+//------------------------------------------------------
+void SyncDisconnectWindow()
+{
+	// not created yet, or the RmlUi screen shows the data
+	if( disconnectMenuLayout == nullptr || textDisplayWindow == nullptr )
+		return;
+
+	const DisconnectMenuData &data = DisconnectMenuData::instance();
+
+	if( shownVersion != data.m_version )
+	{
+		shownVersion = data.m_version;
+
+		for( Int i = 0; i < SLOTS; ++i )
+		{
+			const DisconnectMenuData::Player &player = data.m_players[i];
+
+			if( !player.m_name.isEmpty() )
+				GadgetStaticTextSetText( playerNameWindow[i], player.m_name );
+			GadgetStaticTextSetText( playerTimeoutWindow[i], player.m_timeout );
+			GadgetStaticTextSetText( playerVotesWindow[i], player.m_votes );
+
+			playerNameWindow[i]->winHide( !player.m_visible );
+			playerTimeoutWindow[i]->winHide( !player.m_visible );
+			playerVotesWindow[i]->winHide( !player.m_visible );
+			buttonVotePlayerWindow[i]->winHide( !player.m_visible );
+			buttonVotePlayerWindow[i]->winEnable( player.m_voteEnabled );
+		}
+
+		packetRouterTimeoutLabelWindow->winHide( !data.m_routerVisible );
+		GadgetStaticTextSetText( packetRouterTimeoutWindow, data.m_routerTimeout );
+		packetRouterTimeoutWindow->winHide( !data.m_routerVisible );
+
+		buttonQuitWindow->winEnable( data.m_quitEnabled );
+	}
+
+	if( shownChatVersion != data.m_chatVersion )
+	{
+		shownChatVersion = data.m_chatVersion;
+
+		GadgetListBoxReset( textDisplayWindow );
+		for( size_t i = 0; i < data.m_chat.size(); ++i )
+		{
+			const UnsignedInt rgb = data.m_chat[i].m_rgb;
+			GadgetListBoxAddEntryText( textDisplayWindow, data.m_chat[i].m_text,
+				GameMakeColor( (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 255 ), -1 );
+		}
+	}
 }
 
 //------------------------------------------------------
@@ -114,7 +221,8 @@ void ShowDisconnectWindow()
 		disconnectMenuLayout = TheWindowManager->winCreateLayout( "Menus/DisconnectScreen.wnd" );
 
 		// init it
-		InitDisconnectWindow();
+		if( !routedToRmlUi() )
+			InitDisconnectWindow();
 
 		// show it
 		disconnectMenuLayout->hide( FALSE );
@@ -127,19 +235,8 @@ void ShowDisconnectWindow()
 
 	}
 
-	buttonVotePlayer1Window->winEnable(TRUE);
-	buttonVotePlayer2Window->winEnable(TRUE);
-	buttonVotePlayer3Window->winEnable(TRUE);
-	buttonVotePlayer4Window->winEnable(TRUE);
-	buttonVotePlayer5Window->winEnable(TRUE);
-	buttonVotePlayer6Window->winEnable(TRUE);
-	buttonVotePlayer7Window->winEnable(TRUE);
-	buttonQuitWindow->winEnable(TRUE);
+	SyncDisconnectWindow();
 	disconnectMenuLayout->bringForward();
-
-	GadgetListBoxReset(textDisplayWindow);
-	GadgetListBoxAddEntryText(textDisplayWindow, TheGameText->fetch("GUI:InternetDisconnectionMenuBody1"),
-		GameMakeColor(255,255,255,255), -1);
 
 }
 
@@ -157,7 +254,8 @@ void HideDisconnectWindow()
 		disconnectMenuLayout = TheWindowManager->winCreateLayout( "Menus/DisconnectScreen.wnd" );
 
 		// init it
-		InitDisconnectWindow();
+		if( !routedToRmlUi() )
+			InitDisconnectWindow();
 
 		// show it
 		disconnectMenuLayout->hide( TRUE );
@@ -200,30 +298,16 @@ WindowMsgHandledType DisconnectControlSystem( GameWindow *window, UnsignedInt ms
 			Int controlID = control->winGetWindowId();
 
 			if (controlID == buttonQuitID) {
-				TheDisconnectMenu->quitGame();
-				buttonQuitWindow->winEnable(FALSE);
-			} else if (controlID == buttonVotePlayer1ID) {
-				TheDisconnectMenu->voteForPlayer(0);
-				buttonVotePlayer1Window->winEnable(FALSE);
-			} else if (controlID == buttonVotePlayer2ID) {
-				TheDisconnectMenu->voteForPlayer(1);
-				buttonVotePlayer2Window->winEnable(FALSE);
-			} else if (controlID == buttonVotePlayer3ID) {
-				TheDisconnectMenu->voteForPlayer(2);
-				buttonVotePlayer3Window->winEnable(FALSE);
-			} else if (controlID == buttonVotePlayer4ID) {
-				TheDisconnectMenu->voteForPlayer(3);
-				buttonVotePlayer4Window->winEnable(FALSE);
-			} else if (controlID == buttonVotePlayer5ID) {
-				TheDisconnectMenu->voteForPlayer(4);
-				buttonVotePlayer5Window->winEnable(FALSE);
-			} else if (controlID == buttonVotePlayer6ID) {
-				TheDisconnectMenu->voteForPlayer(5);
-				buttonVotePlayer6Window->winEnable(FALSE);
-			} else if (controlID == buttonVotePlayer7ID) {
-				TheDisconnectMenu->voteForPlayer(6);
-				buttonVotePlayer7Window->winEnable(FALSE);
+				DisconnectMenuActions::quit();
+			} else {
+				for (Int i = 0; i < SLOTS; ++i) {
+					if (controlID == buttonVotePlayerID[i]) {
+						DisconnectMenuActions::vote(i);
+						break;
+					}
+				}
 			}
+			SyncDisconnectWindow();
 
 			break;
 
@@ -247,13 +331,7 @@ WindowMsgHandledType DisconnectControlSystem( GameWindow *window, UnsignedInt ms
 				txtInput.set(GadgetTextEntryGetText( textEntryWindow ));
 				// Clear the text entry line
 				GadgetTextEntrySetText(textEntryWindow, UnicodeString::TheEmptyString);
-				// Clean up the text (remove leading/trailing chars, etc)
-				txtInput.trim();
-				// Echo the user's input to the chat window
-				if (!txtInput.isEmpty()) {
-//					DEBUG_LOG(("DisconnectControlSystem - sending string %ls", txtInput.str()));
-					TheDisconnectMenu->sendChat(txtInput);
-				}
+				DisconnectMenuActions::sendChat(txtInput);
 
 			}
 			break;
@@ -268,4 +346,3 @@ WindowMsgHandledType DisconnectControlSystem( GameWindow *window, UnsignedInt ms
 	return MSG_HANDLED;
 
 }
-

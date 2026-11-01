@@ -1,0 +1,378 @@
+/*
+	LanLobby.rcss -- the LAN lobby on the screen template (common.rcss), laid out like the online
+	lobby (OnlineLobby.rcss): the network's games over the chat in the main column, the players on
+	the network beside the chat (LAN has no social dock), and down the right the player name over
+	the selected game's card; the .hq-header strip on top.
+	A game already under way is dimmed with an "in progress" chip, like the .wnd's grey row.
+*/
+
+/* ---- Side: player name ------------------------------------------------------------------- */
+.surface.name-plate
+{
+	flex: 0 0 auto;
+	padding: 16dp 20dp 18dp 20dp;
+}
+
+.name-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 10dp;
+}
+
+.screen .name-input
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-right: 8dp;
+}
+
+/* ---- Columns ------------------------------------------------------------------------------- */
+.side-col
+{
+	width: 440dp;
+}
+
+/* ---- Game list ------------------------------------------------------------------------------- */
+.games
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding: 10dp 20dp 10dp 20dp;
+}
+
+.head-name
+{
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.head-map
+{
+	flex: 0 0 300dp;
+	margin-left: 15dp;
+}
+
+.head-players
+{
+	flex: 0 0 100dp;
+	text-align: right;
+}
+
+.game-list
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.game-row
+{
+	height: 50dp;
+	color: #D7DCF0;
+}
+
+.game-name
+{
+	flex: 0 1 auto;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.game-row.selected .game-name
+{
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+.game-state
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	padding-left: 12dp;
+}
+
+.game-map
+{
+	flex: 0 0 300dp;
+	margin-left: 15dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.game-players
+{
+	flex: 0 0 100dp;
+	text-align: right;
+	font-weight: bold;
+	color: #EEF1FA;
+}
+
+/* Under way: no joining, so it steps back (the .wnd's grey row). */
+.game-row.in-progress .game-name, .game-row.in-progress .game-map, .game-row.in-progress .game-players
+{
+	color: #6A6F88;
+}
+
+.game-row.selected.in-progress .game-name, .game-row.selected.in-progress .game-map, .game-row.selected.in-progress .game-players
+{
+	color: #A9B1CF;
+}
+
+/* ---- Chat --------------------------------------------------------------------------------- */
+.chat-panel
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+	height: 220dp;
+}
+
+.chat-col
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.chat-lines
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	padding-right: 10dp;
+}
+
+.chat-row
+{
+	display: block;
+	padding: 3dp 0;
+	line-height: 25dp;
+	color: #D7DCF0;
+}
+
+.chat-entry
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-top: 13dp;
+}
+
+.chat-input
+{
+	flex: 1 1 auto;
+	margin-right: 10dp;
+}
+
+/* ---- Game card ------------------------------------------------------------------------------ */
+.details
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+}
+
+.detail-body
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.detail-top
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+}
+
+.detail-map
+{
+	width: 170dp;
+	height: 170dp;
+	margin-right: 18dp;
+}
+
+.detail-text
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.detail-name
+{
+	display: block;
+	font-size: 23dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.detail-map-name
+{
+	display: block;
+	margin-top: 2dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.detail-players-label
+{
+	display: block;
+	margin-top: 16dp;
+	letter-spacing: 0;
+}
+
+.detail-players
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 21dp;
+	font-weight: bold;
+	color: #EEF1FA;
+}
+
+.detail-chip
+{
+	display: block;
+	margin-top: 12dp;
+}
+
+/* Who is in the game: their colour down the left edge, the army badge, the name (or AI level). */
+.slots
+{
+	display: block;
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
+	margin-top: 18dp;
+	border-top: 1dp #8080FF28;
+	padding-top: 10dp;
+}
+
+.slot
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 40dp;
+	padding-left: 12dp;
+	margin-bottom: 4dp;
+	border-left: 4dp #7079A0;
+	background-color: #05070FB4;
+	color: #D7DCF0;
+}
+
+.slot.human
+{
+	color: #FFFFFF;
+	font-weight: bold;
+}
+
+.slot.observer
+{
+	color: #A9B1CF;
+}
+
+.slot-icon
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 26dp;
+	height: 26dp;
+	margin-right: 12dp;
+}
+
+.slot-icon img
+{
+	display: block;
+}
+
+.slot-label
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ---- Players on the network, beside the chat -------------------------------------------------- */
+.roster
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 300dp;
+	min-height: 0;
+	margin-left: 20dp;
+	padding-left: 20dp;
+	border-left: 1dp #8080FF28;
+}
+
+.roster-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-bottom: 10dp;
+}
+
+.roster-count
+{
+	margin-left: auto;
+	font-size: 16dp;
+	font-weight: bold;
+	color: #A9B1CF;
+}
+
+.roster-list
+{
+	display: block;
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.roster-row
+{
+	display: block;
+	height: 34dp;
+	line-height: 34dp;
+	color: #D7DCF0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.roster-row .dot
+{
+	margin-right: 12dp;
+	vertical-align: middle;
+}
+
+/* ---- 5:4 and 4:3 ------------------------------------------------------------------------------ */
+@media (max-aspect-ratio: 3/2)
+{
+	.side-col { width: 320dp; }
+	.detail-map { width: 110dp; height: 110dp; margin-right: 14dp; }
+	.head-map, .game-map { flex-basis: 190dp; }
+	.head-players, .game-players { flex-basis: 70dp; }
+	.roster { flex-basis: 220dp; }
+}

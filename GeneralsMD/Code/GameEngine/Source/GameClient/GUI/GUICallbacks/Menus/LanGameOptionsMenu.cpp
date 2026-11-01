@@ -59,6 +59,8 @@
 #include "Common/MultiplayerSettings.h"
 #include "GameClient/GameText.h"
 #include "GameNetwork/GUIUtil.h"
+#include "GameClient/GUI/GUICallbacks/Menus/LanLobbyData.h"
+#include "GameClient/GUI/GUICallbacks/Menus/LanGameSetupActions.h"
 
 
 extern char *LANnextScreen;
@@ -145,40 +147,6 @@ GameWindow *listboxChatWindowLanGame = nullptr;
 NameKeyType listboxChatWindowLanGameID = NAMEKEY_INVALID;
 WindowLayout *mapSelectLayout = nullptr;
 
-static Int getNextSelectablePlayer(Int start)
-{
-	LANGameInfo *game = TheLAN->GetMyGame();
-	if (!game->amIHost())
-		return -1;
-	for (Int j=start; j<MAX_SLOTS; ++j)
-	{
-		LANGameSlot *slot = game->getLANSlot(j);
-		if (slot && slot->getStartPos() == -1 &&
-			( (j==game->getLocalSlotNum() && game->getConstSlot(j)->getPlayerTemplate()!=PLAYERTEMPLATE_OBSERVER) ||
-			slot->isAI()))
-		{
-			return j;
-		}
-	}
-	return -1;
-}
-
-static Int getFirstSelectablePlayer(const GameInfo *game)
-{
-	const GameSlot *slot = game->getConstSlot(game->getLocalSlotNum());
-	if (!game->amIHost() || (slot && slot->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER))
-		return game->getLocalSlotNum();
-
-	for (Int i=0; i<MAX_SLOTS; ++i)
-	{
-		slot = game->getConstSlot(i);
-		if (slot && slot->isAI())
-			return i;
-	}
-
-	return game->getLocalSlotNum();
-}
-
 void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[], Bool onLoadScreen = FALSE );
 void positionStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[], GameWindow *mapWindow);
 void LanPositionStartSpots()
@@ -226,172 +194,38 @@ static void playerTooltip(GameWindow *window,
 void StartPressed()
 {
 	LANGameInfo *myGame = TheLAN->GetMyGame();
-
-	Bool isReady = true;
-	Bool allHaveMap = true;
-	Int playerCount = 0;
 	if (!myGame)
-	{
 		return;
-	}
-	myGame->getLANSlot(0)->setAccept(); // cause we are, of course!
 
-	int i;
-
-	int numUsers = 0;
-	int numHumans = 0;
-	for (i=0; i<MAX_SLOTS; ++i)
+	if (LanGameSetupActions::validateStart(myGame) == LanGameSetupActions::STARTVALIDATION_READY)
 	{
-		GameSlot *slot = myGame->getSlot(i);
-		if (slot && slot->isOccupied() && slot->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
+		Bool wasOpen[MAX_SLOTS];
+		for (Int i = 0; i < MAX_SLOTS; i++)
+			wasOpen[i] = myGame->getLANSlot(i)->isOpen();
+
+		LanGameSetupActions::startGame(myGame);
+
+		for (Int i = 0; i < MAX_SLOTS; i++)
 		{
-			if (slot && slot->isHuman())
-				numHumans++;
-			numUsers++;
-		}
-	}
-
-	// Check for too many players
-	const MapMetaData *md = TheMapCache->findMap( myGame->getMap() );
-	if (!md || md->m_numPlayers < numUsers)
-	{
-		if (TheLAN->AmIHost())
-		{
-			UnicodeString text;
-			text.format(TheGameText->fetch("LAN:TooManyPlayers"), (md)?md->m_numPlayers:0);
-			TheLAN->OnChat(L"SYSTEM", TheLAN->GetLocalIP(), text, LANAPI::LANCHAT_SYSTEM);
-		}
-		return;
-	}
-
-	// Check for observer + AI players
-	if (TheGlobalData->m_netMinPlayers && !numHumans)
-	{
-		if (TheLAN->AmIHost())
-		{
-			UnicodeString text = TheGameText->fetch("GUI:NeedHumanPlayers");
-			TheLAN->OnChat(L"SYSTEM", TheLAN->GetLocalIP(), text, LANAPI::LANCHAT_SYSTEM);
-		}
-		return;
-	}
-
-	// Check for too few players
-	if (numUsers < TheGlobalData->m_netMinPlayers)
-	{
-		if (TheLAN->AmIHost())
-		{
-			UnicodeString text;
-			text.format(TheGameText->fetch("LAN:NeedMorePlayers"),numUsers);
-			TheLAN->OnChat(L"SYSTEM", TheLAN->GetLocalIP(), text, LANAPI::LANCHAT_SYSTEM);
-		}
-		return;
-	}
-
-	// Check for too few teams
-	int numRandom = 0;
-	std::set<Int> teams;
-	for (i=0; i<MAX_SLOTS; ++i)
-	{
-		GameSlot *slot = myGame->getSlot(i);
-		if (slot && slot->isOccupied() && slot->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
-		{
-			if (slot->getTeamNumber() >= 0)
-			{
-				teams.insert(slot->getTeamNumber());
-			}
-			else
-			{
-				++numRandom;
-			}
-		}
-	}
-	if (numRandom + teams.size() < TheGlobalData->m_netMinPlayers)
-	{
-		if (TheLAN->AmIHost())
-		{
-			UnicodeString text;
-			text.format(TheGameText->fetch("LAN:NeedMoreTeams"));
-			TheLAN->OnChat(L"SYSTEM", TheLAN->GetLocalIP(), text, LANAPI::LANCHAT_SYSTEM);
-		}
-		return;
-	}
-
-	if (numRandom + teams.size() < 2)
-	{
-		UnicodeString text;
-		text.format(TheGameText->fetch("GUI:SandboxMode"));
-			TheLAN->OnChat(L"SYSTEM", TheLAN->GetLocalIP(), text, LANAPI::LANCHAT_SYSTEM);
-	}
-
-	// see if everyone's accepted and count the number of players in the game
-	UnicodeString mapDisplayName;
-	const MapMetaData *mapData = TheMapCache->findMap( myGame->getMap() );
-	Bool willTransfer = TRUE;
-	if (mapData)
-	{
-		mapDisplayName.format(L"%ls", mapData->m_displayName.str());
-		willTransfer = !mapData->m_isOfficial;
-	}
-	else
-	{
-		mapDisplayName.format(L"%hs", myGame->getMap().str());
-		willTransfer = WouldMapTransfer(myGame->getMap());
-	}
-	for( i = 0; i < MAX_SLOTS; i++ )
-	{
-		LANGameSlot *slot = myGame->getLANSlot(i);
-		if( slot->isHuman() && !slot->isAccepted())
-		{
-			isReady = false;
-			if (!willTransfer)
-			{
-				if (!slot->hasMap())
-				{
-					UnicodeString msg;
-					msg.format(TheGameText->fetch("GUI:PlayerNoMap"), slot->getName().str(), mapDisplayName.str());
-					GadgetListBoxAddEntryText(listboxChatWindowLanGame, msg , chatSystemColor, -1, 0);
-					allHaveMap = false;
-				}
-			}
-		}
-		if( slot->isHuman() && slot->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER )
-			playerCount++;
-	}
-
-	if(isReady)
-	{
-		for( i = 0; i < MAX_SLOTS; i++ )
-		{
-			LANGameSlot *slot = myGame->getLANSlot(i);
-			if (slot && slot->isOpen())
-			{
-				slot->setState( SLOT_CLOSED );
+			if (wasOpen[i])
 				GadgetComboBoxSetSelectedPos(comboBoxPlayer[i], SLOT_CLOSED);
-			}
 		}
-		Int seconds = TheMultiplayerSettings->getStartCountdownTimerSeconds();
-		if (seconds)
-			TheLAN->RequestGameStartTimer(seconds);
-		else
-			TheLAN->RequestGameStart();
 		LANEnableStartButton(false);
 	}
-	else
-	{
-		// Does everyone have the map?
-		if (allHaveMap)
-		{
-			GadgetListBoxAddEntryText(listboxChatWindowLanGame, TheGameText->fetch("GUI:NotifiedStartIntent") , chatSystemColor, -1, 0);
-			TheLAN->RequestAccept();
-		}
-	}
-
+	// else: validateStart() already sent whatever chat notice/RequestAccept() applies.
 }
 
 void LANEnableStartButton(Bool enabled)
 {
-	buttonStart->winEnable(enabled);
-	buttonSelectMap->winEnable(enabled);
+	// Reachable from LANGameInfo::resetAccepted() (network-driven, e.g. another player's option
+	// change) even when this .wnd never ran InitLanGameGadgets() -- an RmlUi front end (see
+	// RmlLanGameSetupScreen) leaves these null for its whole lifetime, so both must be null-checked
+	// the way the hook below already is.
+	if (buttonStart)
+		buttonStart->winEnable(enabled);
+	if (buttonSelectMap)
+		buttonSelectMap->winEnable(enabled);
+	LanGameSetupSignals::startButton().emit(enabled);
 }
 
 static void handleColorSelection(int index)
@@ -400,56 +234,7 @@ static void handleColorSelection(int index)
 	Int color, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
 	color = (Int)(intptr_t)GadgetComboBoxGetItemData(combo, selIndex);
-
-	LANGameInfo *myGame = TheLAN->GetMyGame();
-
-	if (myGame)
-	{
-		LANGameSlot * slot = myGame->getLANSlot(index);
-		if (color == slot->getColor())
-			return;
-
-		if (color >= -1 && color < TheMultiplayerSettings->getNumColors())
-		{
-			Bool colorAvailable = TRUE;
-			if(color != -1 )
-			{
-				for(Int i=0; i <MAX_SLOTS; i++)
-				{
-					LANGameSlot *checkSlot = myGame->getLANSlot(i);
-					if(color == checkSlot->getColor() && slot != checkSlot)
-					{
-						colorAvailable = FALSE;
-						break;
-					}
-				}
-			}
-			if(!colorAvailable)
-				return;
-		}
-
-		slot->setColor(color);
-
-		if (myGame->amIHost())
-		{
-			if (!s_isIniting)
-			{
-				// send around a new slotlist
-				TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
-				lanUpdateSlotList();
-			}
-		}
-		else
-		{
-			// request the color from the host
-			if (!slot->isLocalPlayer() || !AreSlotListUpdatesEnabled())
-				return;
-
-			AsciiString options;
-			options.format("Color=%d", color);
-			TheLAN->RequestGameOptions(options, true);
-		}
-	}
+	LanGameSetupActions::selectColor(TheLAN->GetMyGame(), index, color, s_isIniting);
 }
 
 static void handlePlayerTemplateSelection(int index)
@@ -458,111 +243,14 @@ static void handlePlayerTemplateSelection(int index)
 	Int playerTemplate, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
 	playerTemplate = (Int)(intptr_t)GadgetComboBoxGetItemData(combo, selIndex);
-	LANGameInfo *myGame = TheLAN->GetMyGame();
-
-	if (myGame)
+	Bool observerChanged = FALSE;
+	if (LanGameSetupActions::selectPlayerTemplate(TheLAN->GetMyGame(), index, playerTemplate, s_isIniting, &observerChanged) && observerChanged)
 	{
-		LANGameSlot * slot = myGame->getLANSlot(index);
-		if (playerTemplate == slot->getPlayerTemplate())
-			return;
-
-		Int oldTemplate = slot->getPlayerTemplate();
-		slot->setPlayerTemplate(playerTemplate);
-
-		if (oldTemplate == PLAYERTEMPLATE_OBSERVER)
-		{
-			// was observer, so populate color & team with all, and enable
-			GadgetComboBoxSetSelectedPos(comboBoxColor[index], 0);
-			GadgetComboBoxSetSelectedPos(comboBoxTeam[index], 0);
-			slot->setStartPos(-1);
-		}
-		else if (playerTemplate == PLAYERTEMPLATE_OBSERVER)
-		{
-			// is becoming observer, so populate color & team with random only, and disable
-			GadgetComboBoxSetSelectedPos(comboBoxColor[index], 0);
-			GadgetComboBoxSetSelectedPos(comboBoxTeam[index], 0);
-			slot->setStartPos(-1);
-		}
-
-		myGame->resetAccepted();
-
-		if (myGame->amIHost())
-		{
-			if (!s_isIniting)
-			{
-				// send around a new slotlist
-				TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
-				lanUpdateSlotList();
-			}
-		}
-		else
-		{
-			// request the playerTemplate from the host
-			if (AreSlotListUpdatesEnabled())
-			{
-				AsciiString options;
-				options.format("PlayerTemplate=%d", playerTemplate);
-				TheLAN->RequestGameOptions(options, true);
-			}
-		}
+		// becoming/leaving observer resets color & team to random -- reflect that in the combo boxes
+		GadgetComboBoxSetSelectedPos(comboBoxColor[index], 0);
+		GadgetComboBoxSetSelectedPos(comboBoxTeam[index], 0);
 	}
 }
-
-static void handleStartPositionSelection(Int player, int startPos)
-{
-	LANGameInfo *myGame = TheLAN->GetMyGame();
-
-	if (myGame)
-	{
-		LANGameSlot * slot = myGame->getLANSlot(player);
-		if (startPos == slot->getStartPos())
-			return;
-		Bool skip = FALSE;
-		if (startPos < 0)
-		{
-			skip = TRUE;
-		}
-
-		if(!skip)
-		{
-			Bool isAvailable = TRUE;
-			for(Int i = 0; i < MAX_SLOTS; ++i)
-			{
-				if(i != player && myGame->getSlot(i)->getStartPos() == startPos)
-				{
-					isAvailable = FALSE;
-					break;
-				}
-			}
-			if( !isAvailable )
-				return;
-		}
-		slot->setStartPos(startPos);
-
-		if (myGame->amIHost())
-		{
-			if (!s_isIniting)
-			{
-				// send around a new slotlist
-				myGame->resetAccepted();
-				TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
-				lanUpdateSlotList();
-			}
-		}
-		else
-		{
-			// request the color from the host
-			if (AreSlotListUpdatesEnabled())
-			{
-				AsciiString options;
-				options.format("StartPos=%d", slot->getStartPos());
-				TheLAN->RequestGameOptions(options, true);
-			}
-		}
-	}
-}
-
-
 
 static void handleTeamSelection(int index)
 {
@@ -570,104 +258,42 @@ static void handleTeamSelection(int index)
 	Int team, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
 	team = (Int)(intptr_t)GadgetComboBoxGetItemData(combo, selIndex);
-	LANGameInfo *myGame = TheLAN->GetMyGame();
-
-	if (myGame)
-	{
-		LANGameSlot * slot = myGame->getLANSlot(index);
-		if (team == slot->getTeamNumber())
-			return;
-
-		slot->setTeamNumber(team);
-		myGame->resetAccepted();
-
-		if (myGame->amIHost())
-		{
-			if (!s_isIniting)
-			{
-				// send around a new slotlist
-				myGame->resetAccepted();
-				TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
-				lanUpdateSlotList();
-			}
-		}
-		else
-		{
-			// request the team from the host
-			if (AreSlotListUpdatesEnabled())
-			{
-				AsciiString options;
-				options.format("Team=%d", team);
-				TheLAN->RequestGameOptions(options, true);
-			}
-		}
-	}
+	LanGameSetupActions::selectTeam(TheLAN->GetMyGame(), index, team, s_isIniting);
 }
 
 static void handleStartingCashSelection()
 {
-  LANGameInfo *myGame = TheLAN->GetMyGame();
+	Int selIndex;
+	GadgetComboBoxGetSelectedPos(comboBoxStartingCash, &selIndex);
 
-  if (myGame)
-  {
-    Int selIndex;
-    GadgetComboBoxGetSelectedPos(comboBoxStartingCash, &selIndex);
-
-    Money startingCash;
-    startingCash.deposit( (UnsignedInt)(uintptr_t)GadgetComboBoxGetItemData( comboBoxStartingCash, selIndex ), FALSE, FALSE );
-    myGame->setStartingCash( startingCash );
-    myGame->resetAccepted();
-
-    if (myGame->amIHost())
-    {
-      if (!s_isIniting)
-      {
-        // send around the new data
-        TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
-        lanUpdateSlotList(); // Update the accepted button UI
-      }
-    }
-  }
+	Money startingCash;
+	startingCash.deposit( (UnsignedInt)(uintptr_t)GadgetComboBoxGetItemData( comboBoxStartingCash, selIndex ), FALSE, FALSE );
+	LanGameSetupActions::setStartingCash(TheLAN->GetMyGame(), startingCash, s_isIniting);
 }
 
 static void handleLimitSuperweaponsClick()
 {
-  LANGameInfo *myGame = TheLAN->GetMyGame();
-
-  if (myGame)
-  {
-    // At the moment, 1 and 0 are the only choices supported in the GUI, though the system could
-    // support more.
-    if ( GadgetCheckBoxIsChecked( checkboxLimitSuperweapons ) )
-    {
-      myGame->setSuperweaponRestriction( 1 );
-    }
-    else
-    {
-      myGame->setSuperweaponRestriction( 0 );
-    }
-    myGame->resetAccepted();
-
-    if (myGame->amIHost())
-    {
-      if (!s_isIniting)
-      {
-        // send around a new slotlist
-        TheLAN->RequestGameOptions(GenerateGameOptionsString(), true);
-        lanUpdateSlotList(); // Update the accepted button UI
-      }
-    }
-  }
+	// At the moment, 1 and 0 are the only choices supported in the GUI, though the system could
+	// support more.
+	LanGameSetupActions::setSuperweaponRestriction(TheLAN->GetMyGame(), GadgetCheckBoxIsChecked( checkboxLimitSuperweapons ), s_isIniting);
 }
 
 void lanUpdateSlotList()
 {
-	if(!AreSlotListUpdatesEnabled() || s_isIniting)
-		return;
-	UpdateSlotList( TheLAN->GetMyGame(), comboBoxPlayer, comboBoxColor,
-		comboBoxPlayerTemplate, comboBoxTeam, buttonAccept, buttonStart, buttonMapStartPosition);
+	// Widget refresh stays gated on the .wnd's own state exactly as before; the signal fires
+	// unconditionally below (same shape as updateGameOptions()'s optionsChanged)
+	// so an RmlUi front end (see RmlLanGameSetupScreen) still hears every slot change -- including
+	// ones driven by network callbacks (OnPlayerJoin(), OnGameOptions(), etc.) -- even though it
+	// never runs InitLanGameGadgets() and so never sets AreSlotListUpdatesEnabled().
+	if (AreSlotListUpdatesEnabled() && !s_isIniting)
+	{
+		UpdateSlotList( TheLAN->GetMyGame(), comboBoxPlayer, comboBoxColor,
+			comboBoxPlayerTemplate, comboBoxTeam, buttonAccept, buttonStart, buttonMapStartPosition);
 
-	updateMapStartSpots(TheLAN->GetMyGame(), buttonMapStartPosition);
+		updateMapStartSpots(TheLAN->GetMyGame(), buttonMapStartPosition);
+	}
+
+	LanGameSetupSignals::slotsChanged().emit(TheLAN->GetMyGame());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -977,6 +603,8 @@ void updateGameOptions()
 
     DEBUG_ASSERTCRASH( index < itemCount, ("Could not find new starting cash amount %d in list", theGame->getStartingCash().countMoney() ) );
 	}
+
+	LanGameSetupSignals::optionsChanged().emit(theGame);
 }
 
 
@@ -984,18 +612,7 @@ void updateGameOptions()
 //-------------------------------------------------------------------------------------------------
 void setLANPlayerTooltip(LANPlayer* player)
 {
-	UnicodeString tooltip;
-
-	if (!player->getLogin().isEmpty() || !player->getHost().isEmpty())
-	{
-		tooltip.format(TheGameText->fetch("TOOLTIP:LANPlayer"), player->getLogin().str(), player->getHost().str());
-	}
-
-#if defined(RTS_DEBUG)
-	UnicodeString ip;
-	ip.format(L" - %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(player->getIP()));
-	tooltip.concat(ip);
-#endif
+	UnicodeString tooltip = LanLobbyData::buildPlayerTooltip(player);
 
 	if (!tooltip.isEmpty())
 	{
@@ -1231,7 +848,7 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 							deleteInstance(mapSelectLayout);
 							mapSelectLayout = nullptr;
 						}
-					TheLAN->RequestGameLeave();
+					LanGameSetupActions::leaveGame();
 					//TheShell->pop();
 
 				}
@@ -1269,7 +886,7 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 					else
 					{
 						//I'm the Client... send an accept message to the host.
-						TheLAN->RequestAccept();
+						LanGameSetupActions::requestAccept(TheLAN->GetMyGame());
 
 						// Disable the accept button
 						EnableAcceptControls(TRUE, TheLAN->GetMyGame(), comboBoxPlayer, comboBoxColor, comboBoxPlayerTemplate,
@@ -1287,39 +904,7 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 					{
 						if (controlID == buttonMapStartPositionID[i])
 						{
-							LANGameInfo *game = TheLAN->GetMyGame();
-							Int playerIdxInPos = -1;
-							for (Int j=0; j<MAX_SLOTS; ++j)
-							{
-								LANGameSlot *slot = game->getLANSlot(j);
-								if (slot && slot->getStartPos() == i)
-								{
-									playerIdxInPos = j;
-									break;
-								}
-							}
-							if (playerIdxInPos >= 0)
-							{
-								LANGameSlot *slot = game->getLANSlot(playerIdxInPos);
-								if (playerIdxInPos == game->getLocalSlotNum() || (game->amIHost() && slot && slot->isAI()))
-								{
-									// it's one of my type.  Try to change it.
-									Int nextPlayer = getNextSelectablePlayer(playerIdxInPos+1);
-									handleStartPositionSelection(playerIdxInPos, -1);
-									if (nextPlayer >= 0)
-									{
-										handleStartPositionSelection(nextPlayer, i);
-									}
-								}
-							}
-							else
-							{
-								// nobody in the slot - put us in
-								Int nextPlayer = getNextSelectablePlayer(0);
-								if (nextPlayer < 0)
-									nextPlayer = getFirstSelectablePlayer(game);
-								handleStartPositionSelection(nextPlayer, i);
-							}
+							LanGameSetupActions::handleStartPositionMarkerClick(TheLAN->GetMyGame(), i);
 						}
 					}
 				}
@@ -1338,26 +923,7 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 			{
 				if (controlID == buttonMapStartPositionID[i])
 				{
-					LANGameInfo *game = TheLAN->GetMyGame();
-					Int playerIdxInPos = -1;
-					for (Int j=0; j<MAX_SLOTS; ++j)
-					{
-						LANGameSlot *slot = game->getLANSlot(j);
-						if (slot && slot->getStartPos() == i)
-						{
-							playerIdxInPos = j;
-							break;
-						}
-					}
-					if (playerIdxInPos >= 0)
-					{
-						LANGameSlot *slot = game->getLANSlot(playerIdxInPos);
-						if (playerIdxInPos == game->getLocalSlotNum() || (game->amIHost() && slot && slot->isAI()))
-						{
-							// it's one of my type.  Remove it.
-							handleStartPositionSelection(playerIdxInPos, -1);
-						}
-					}
+					LanGameSetupActions::handleStartPositionMarkerRightClick(TheLAN->GetMyGame(), i);
 				}
 			}
 			break;

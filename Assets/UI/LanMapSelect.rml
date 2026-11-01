@@ -1,0 +1,105 @@
+<rml>
+<head>
+	<title>LanMapSelect</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="SkirmishMapSelect.rcss"/>
+</head>
+<!-- LanMapSelectMenu.wnd, opened from the LAN game setup: the skirmish map select's layout and sheet (SkirmishMapSelect.rcss). -->
+<body class="screen hq" data-model="lanmapselect">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:LANLobby"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:SelectAMapLowerCase"/></div></div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span>Offline</div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
+			</div>
+	</div></div>
+
+	<div class="screen-frame">
+		<!-- Toolbar: search by name (live, nothing is sent), the order, the player-count filter and
+		     official/unofficial maps; the count of what is left at the far end. -->
+		<div class="screen-header ms-toolbar">
+			<div class="ms-filter-plate ms-search">
+				<div class="overline filter-label">Search</div>
+				<div class="ms-search-box"><span class="ms-search-mark"></span><input type="text" class="text-input ms-search-input" maxlength="48" data-value="search_text" data-event-change="search_changed"/></div>
+			</div>
+			<div class="ms-filter-plate">
+				<div class="overline filter-label">Sort</div>
+				<div class="seg">
+					<button class="seg-item" data-class-on="!sort_by_players" data-event-click="sort_changed(0)">Name</button>
+					<button class="seg-item" data-class-on="sort_by_players" data-event-click="sort_changed(1)"><gametext key="GUI:Players"/></button>
+				</div>
+			</div>
+			<div class="ms-filter-plate">
+				<div class="overline filter-label"><gametext key="GUI:Players"/></div>
+				<div class="seg">
+					<button class="seg-item" data-class-on="player_filter == 0" data-event-click="player_filter_changed(0)"><gametext key="GUI:Any"/></button>
+					<button class="seg-item" data-class-on="player_filter == 2" data-event-click="player_filter_changed(2)">2</button>
+					<button class="seg-item" data-class-on="player_filter == 3" data-event-click="player_filter_changed(3)">3</button>
+					<button class="seg-item" data-class-on="player_filter == 4" data-event-click="player_filter_changed(4)">4</button>
+					<button class="seg-item" data-class-on="player_filter == 5" data-event-click="player_filter_changed(5)">5</button>
+					<button class="seg-item" data-class-on="player_filter == 6" data-event-click="player_filter_changed(6)">6</button>
+					<button class="seg-item" data-class-on="player_filter == 7" data-event-click="player_filter_changed(7)">7</button>
+					<button class="seg-item" data-class-on="player_filter == 8" data-event-click="player_filter_changed(8)">8</button>
+				</div>
+			</div>
+			<div class="seg source-seg">
+				<button class="seg-item" data-class-on="use_system_maps" data-event-click="filter_changed(1)"><gametext key="GUI:SystemMaps"/></button>
+				<button class="seg-item" data-class-on="!use_system_maps" data-event-click="filter_changed(0)"><gametext key="GUI:UserMaps"/></button>
+			</div>
+			<div class="ms-count">{{map_count_text}}</div>
+		</div>
+
+		<div class="screen-body">
+			<!-- Thumbnail grid across the whole frame: every map's own preview (getMapPreviewImage() via
+			     <mappreview>), its skirmish star and player count. Click selects, double-click accepts. -->
+			<div class="col col-main surface browser">
+				<div class="grid">
+					<div data-for="entry : maps">
+						<div class="map-tile" data-if="entry.used &amp;&amp; entry.visible"
+							data-class-selected="entry.is_selected"
+							data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
+							<div class="thumb">
+								<mappreview class="thumb-image" data-attr-map="entry.map_name"/>
+								<mappedimage class="thumb-star" data-attr-name="entry.star_image" data-if="entry.has_star_image"/>
+								<div class="thumb-players">{{entry.num_players}}</div>
+							</div>
+							<div class="map-tile-name">{{entry.display_name}}</div>
+						</div>
+					</div>
+					<div class="empty-state" data-if="visible_count == 0 &amp;&amp; search_text == ''">No maps for this many players</div>
+					<div class="empty-state" data-if="visible_count == 0 &amp;&amp; search_text != ''"><div class="overline">&quot;{{search_text}}&quot;</div>No maps match your search</div>
+				</div>
+			</div>
+
+			<!-- The selected map's details slide in from the side. -->
+			<div class="col col-side detail-col" data-if="has_selection">
+				<div class="surface detail">
+					<div class="overline accent-overline group-title"><gametext key="GUI:MapPreview"/></div>
+					<div class="map-frame">
+						<mappreview class="map-image" sites="16" data-attr-map="selected_map_name">
+							<div data-for="marker : start_markers">
+								<div class="marker" data-if="marker.used" data-style-left="marker.x_style" data-style-top="marker.y_style">
+									<div class="marker-dot"></div>
+								</div>
+							</div>
+						</mappreview>
+					</div>
+					<div class="map-name">{{selected_display_name}}</div>
+					<div class="map-meta">{{selected_num_players}} <gametext key="GUI:Players"/></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="action-bar">
+			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:CancelMapSelect"/></button>
+			<div class="spacer"></div>
+			<button class="btn-cta" data-attrif-disabled="!has_selection" data-event-click="ok"><gametext key="GUI:Accept"/></button>
+		</div>
+	</div>
+</body>
+</rml>

@@ -1,0 +1,129 @@
+/*
+	NetworkGameSetup.rcss -- the LAN and online game setup screens: the game setup flow of
+	common.rcss (01 map, 02 players, 03 rules, readiness by Start) under the .hq-header strip, plus
+	what a networked game adds: each human row's status chips (no map, host, ready), the chat under
+	the rules in the side column, and the start state (countdown, or a client waiting on the host)
+	in the action bar. OnlineGameSetup.rcss adds the online-only pieces.
+
+	What this machine cannot edit reads as text (.prow-state, .army-ro) instead of a disabled select.
+	Every select keeps an option matching its bound value (the hidden SLOT_PLAYER occupant on player
+	slots, every army in the army list): RmlUi fires a phantom "change" for an unmatched value, which
+	on these screens kicks a player or resets a slot.
+*/
+
+/* ---- Header ------------------------------------------------------------------------------------ */
+.ns-title
+{
+	max-width: 900dp;
+}
+
+/* ---- Side column: the rules over the chat -------------------------------------------------------- */
+.su-side
+{
+	display: flex;
+	flex-direction: column;
+}
+
+.su-side .surface.su-rules
+{
+	flex: 0 0 auto;
+}
+
+.surface.chat-card
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding: 14dp 16dp 16dp 16dp;
+}
+
+.chat-card .chat-log
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	padding-right: 8dp;
+	background-color: transparent;
+}
+
+.chat-card .chat-line
+{
+	display: block;
+	padding: 2dp 0;
+	font-size: 18dp;
+	line-height: 23dp;
+	color: #D7DCF0;
+	font-effect: shadow(1dp 1dp #000000E0);
+	word-break: break-word;
+}
+
+.chat-card .chat-entry
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-top: 10dp;
+}
+
+.chat-card .chat-input
+{
+	flex: 1 1 auto;
+	margin-right: 10dp;
+}
+
+/* ---- Action bar -------------------------------------------------------------------------------- */
+/* Where the start stands: the countdown, or a client waiting on the host. */
+.ns-state
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 58dp;
+	margin-left: 30dp;
+	padding: 0 22dp;
+	background-color: #070A1AC8;
+}
+
+.ns-state-text
+{
+	margin-left: 14dp;
+	font-size: 19dp;
+	color: #D7DCF0;
+	white-space: nowrap;
+}
+
+.ns-state.countdown
+{
+	height: 58dp;
+	padding: 0 26dp 0 22dp;
+	background-color: #151C04E6;
+	border: 1dp #D1FD04;
+	border-left: 5dp #D1FD04;
+}
+
+.ns-state.countdown .overline
+{
+	font-size: 17dp;
+	color: #D1FD04;
+}
+
+.ns-count
+{
+	margin-left: 18dp;
+	font-size: 44dp;
+	line-height: 52dp;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+/* ---- 5:4 and 4:3 ------------------------------------------------------------------------------- */
+@media (max-aspect-ratio: 3/2)
+{
+	.screen .su-rules .cash-seg button.seg-item { padding: 0 2dp; font-size: 15dp; letter-spacing: 0; }
+	.army-ro { font-size: 17dp; padding: 0 8dp; }
+	.army-ro .army-icon { margin-right: 8dp; }
+	.ns-state { margin-left: 16dp; padding: 0 14dp; }
+	.ns-state-text { font-size: 16dp; margin-left: 10dp; }
+}

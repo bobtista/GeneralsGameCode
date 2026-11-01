@@ -1,0 +1,10 @@
+/*
+	ShellGameLoad.rcss -- the shell map, save game and replay load (ShellGameLoadScreen.wnd): the
+	title art on the first load, the load art otherwise, full-bleed under the ruler, with the
+	copyright line on the first load and the shared load bar (LoadScreen.rcss).
+*/
+
+body.ld
+{
+	font-size: 20dp;
+}

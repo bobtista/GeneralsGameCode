@@ -46,19 +46,13 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
-#include "Common/GameEngine.h"
 #include "Common/NameKeyGenerator.h"
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GadgetProgressBar.h"
-#include "GameClient/GameText.h"
-#include "GameClient/MessageBox.h"
-
-#include "GameLogic/GameLogic.h"
-
-#include "GameNetwork/DownloadManager.h"
-#include "GameNetwork/GameSpy/MainMenuUtils.h"
+#include "GameClient/GUI/GUICallbacks/Menus/DownloadMenuActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/DownloadMenuData.h"
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static NameKeyType buttonCancelID = NAMEKEY_INVALID;
@@ -76,156 +70,23 @@ static GameWindow * progressBarMunkee = nullptr;
 
 static GameWindow *parent = nullptr;
 
-static void closeDownloadWindow()
+static SignalConnection dataConnection;
+
+// Draws DownloadMenuData into the gadgets.
+static void showData()
 {
-	DEBUG_ASSERTCRASH(parent, ("No Parent"));
-	if (!parent)
-		return;
-
-	WindowLayout *menuLayout = parent->winGetLayout();
-	if (menuLayout)
-	{
-		menuLayout->runShutdown();
-		menuLayout->destroyWindows();
-		deleteInstance(menuLayout);
-		menuLayout = nullptr;
-	}
-
-	GameWindow *mainWin = TheWindowManager->winGetWindowFromId( nullptr, NAMEKEY("MainMenu.wnd:MainMenuParent") );
-	if (mainWin)
-		TheWindowManager->winSetFocus( mainWin );
-}
-
-static void errorCallback()
-{
-	HandleCanceledDownload();
-	closeDownloadWindow();
-}
-
-static void successQuitCallback()
-{
-	TheGameEngine->setQuitting( TRUE );
-	closeDownloadWindow();
-
-	// Clean up game data.  No crashy-crash for you!
-	if (TheGameLogic->isInGame())
-		TheGameLogic->exitGame();
-}
-
-static void successNoQuitCallback()
-{
-	HandleCanceledDownload();
-	closeDownloadWindow();
-}
-
-class DownloadManagerMunkee : public DownloadManager
-{
-public:
-	DownloadManagerMunkee() {m_shouldQuitOnSuccess = true; m_shouldQuitOnSuccess = false;}
-	virtual HRESULT OnError( Int error ) override;
-	virtual HRESULT OnEnd() override;
-	virtual HRESULT OnProgressUpdate( Int bytesread, Int totalsize, Int timetaken, Int timeleft ) override;
-	virtual HRESULT OnStatusUpdate( Int status ) override;
-	virtual HRESULT downloadFile( AsciiString server, AsciiString username, AsciiString password, AsciiString file, AsciiString localfile, AsciiString regkey, Bool tryResume ) override;
-
-private:
-	Bool m_shouldQuitOnSuccess;
-};
-
-HRESULT DownloadManagerMunkee::downloadFile( AsciiString server, AsciiString username, AsciiString password, AsciiString file, AsciiString localfile, AsciiString regkey, Bool tryResume )
-{
-	// see if we'll need to restart
-	if (strstr(localfile.str(), "patches\\") != nullptr)
-	{
-		m_shouldQuitOnSuccess = true;
-	}
-
-	if (staticTextFile)
-	{
-		// just get the filename, not the pathname
-		const char* bob = getFileName(file.str());
-
-		UnicodeString fileString;
-		fileString.translate(bob);
-		GadgetStaticTextSetText(staticTextFile, fileString);
-	}
-
-	password.format("-%s", password.str());
-	return DownloadManager::downloadFile( server, username, password, file, localfile, regkey, tryResume );
-}
-HRESULT DownloadManagerMunkee::OnError( Int error )
-{
-	HRESULT ret = DownloadManager::OnError( error );
-
-	MessageBoxOk(TheGameText->fetch("GUI:DownloadErrorTitle"), getErrorString(), errorCallback);
-	return ret;
-}
-HRESULT DownloadManagerMunkee::OnEnd()
-{
-	HRESULT ret = DownloadManager::OnEnd();
-
-	if (isFileQueuedForDownload())
-	{
-		return downloadNextQueuedFile();
-	}
-	if (m_shouldQuitOnSuccess)
-		MessageBoxOk(TheGameText->fetch("GUI:DownloadSuccessTitle"), TheGameText->fetch("GUI:DownloadSuccessMustQuit"), successQuitCallback);
-	else
-		MessageBoxOk(TheGameText->fetch("GUI:DownloadSuccessTitle"), TheGameText->fetch("GUI:DownloadSuccess"), successNoQuitCallback);
-	return ret;
-}
-
-static time_t lastUpdate = 0;
-static Int timeLeft = 0;
-HRESULT DownloadManagerMunkee::OnProgressUpdate( Int bytesread, Int totalsize, Int timetaken, Int timeleft )
-{
-	HRESULT ret = DownloadManager::OnProgressUpdate( bytesread, totalsize, timetaken, timeleft );
+	const DownloadMenuData &data = DownloadMenuData::instance();
 
 	if (progressBarMunkee)
-	{
-		Int percent = bytesread * 100 / totalsize;
-		GadgetProgressBarSetProgress( progressBarMunkee, percent );
-	}
-
+		GadgetProgressBarSetProgress( progressBarMunkee, data.m_percent );
 	if (staticTextSize)
-	{
-		UnicodeString sizeString;
-		sizeString.format(TheGameText->fetch("GUI:DownloadBytesRatio"), bytesread, totalsize);
-		GadgetStaticTextSetText(staticTextSize, sizeString);
-	}
-	timeLeft = timeleft;
-	if (staticTextTime && GadgetStaticTextGetText(staticTextTime).isEmpty()) // only update immediately the first time
-	{
-		lastUpdate = time(nullptr);
-		UnicodeString timeString;
-		if (timeleft)
-		{
-			DEBUG_ASSERTCRASH(timeleft > 0, ("Time left is negative!"));
-			timeleft = max(1, timeleft);
-			Int takenHour, takenMin, takenSec;
-			takenHour = timeleft / 60 / 60;
-			takenMin = timeleft / 60;
-			takenSec = timeleft % 60;
-			timeString.format(TheGameText->fetch("GUI:DownloadTimeLeft"), takenHour, takenMin, takenSec);
-		}
-		else
-		{
-			timeString = TheGameText->fetch("GUI:DownloadUnknownTime");
-		}
-		GadgetStaticTextSetText(staticTextTime, timeString);
-	}
-	return ret;
-}
-
-HRESULT DownloadManagerMunkee::OnStatusUpdate( Int status )
-{
-	HRESULT ret = DownloadManager::OnStatusUpdate( status );
-
+		GadgetStaticTextSetText( staticTextSize, data.m_size );
+	if (staticTextTime)
+		GadgetStaticTextSetText( staticTextTime, data.m_time );
+	if (staticTextFile)
+		GadgetStaticTextSetText( staticTextFile, data.m_file );
 	if (staticTextStatus)
-	{
-		GadgetStaticTextSetText(staticTextStatus, getStatusString());
-	}
-	return ret;
+		GadgetStaticTextSetText( staticTextStatus, data.m_status );
 }
 
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////////////////////////
@@ -254,10 +115,8 @@ void DownloadMenuInit( WindowLayout *layout, void *userData )
 	staticTextStatus = TheWindowManager->winGetWindowFromId( parent, staticTextStatusID );
 	progressBarMunkee = TheWindowManager->winGetWindowFromId( parent, progressBarMunkeeID );
 
-	DEBUG_ASSERTCRASH(!TheDownloadManager, ("Download manager already exists"));
-
-	delete TheDownloadManager;
-	TheDownloadManager = NEW DownloadManagerMunkee;
+	dataConnection = DownloadMenuSignals::changed().connect( &showData );
+	DownloadMenuActions::open( layout );
 
 }
 
@@ -266,10 +125,8 @@ void DownloadMenuInit( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void DownloadMenuShutdown( WindowLayout *layout, void *userData )
 {
-	DEBUG_ASSERTCRASH(TheDownloadManager, ("No download manager"));
-
-	delete TheDownloadManager;
-	TheDownloadManager = nullptr;
+	dataConnection.disconnect();
+	DownloadMenuActions::close();
 
 	staticTextSize = nullptr;
 	staticTextTime = nullptr;
@@ -285,32 +142,7 @@ void DownloadMenuShutdown( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void DownloadMenuUpdate( WindowLayout *layout, void *userData )
 {
-	if (staticTextTime && !GadgetStaticTextGetText(staticTextTime).isEmpty())
-	{
-		time_t now = time(nullptr);
-		if (now <= lastUpdate)
-			return;
-
-		lastUpdate = now;
-
-		UnicodeString timeString;
-		if (timeLeft)
-		{
-			DEBUG_ASSERTCRASH(timeLeft > 0, ("Time left is negative!"));
-			timeLeft = max(1, timeLeft);
-			Int takenHour, takenMin, takenSec;
-			takenHour = timeLeft / 60 / 60;
-			takenMin = timeLeft / 60;
-			takenSec = timeLeft % 60;
-			timeString.format(TheGameText->fetch("GUI:DownloadTimeLeft"), takenHour, takenMin, takenSec);
-		}
-		else
-		{
-			timeString = TheGameText->fetch("GUI:DownloadUnknownTime");
-		}
-		GadgetStaticTextSetText(staticTextTime, timeString);
-	}
-
+	DownloadMenuActions::update();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -409,8 +241,7 @@ WindowMsgHandledType DownloadMenuSystem( GameWindow *window, UnsignedInt msg,
 
 			if( controlID == buttonCancelID )
 			{
-				HandleCanceledDownload();
-				closeDownloadWindow();
+				DownloadMenuActions::cancel();
 			}
 
 			break;

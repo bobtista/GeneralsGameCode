@@ -131,6 +131,7 @@ set(GAMEENGINE_SRC
 #    Include/Common/TunnelTracker.h
     Include/Common/UnicodeString.h
     Include/Common/UnicodeUtf8.h    # Ronin @feature 30/10/2026 DX9: UTF-8 <-> UnicodeString, for the RmlUi screens
+    Include/Common/Signal.h    # Ronin @feature 31/10/2026 DX9: tintinhamans' events for the RmlUi screens
 #    Include/Common/UnitTimings.h
 #    Include/Common/Upgrade.h
     #Include/Common/urllaunch.h # unused
@@ -158,6 +159,7 @@ set(GAMEENGINE_SRC
     Include/GameClient/ControlBarData.h
     Include/GameClient/RmlUiInputHook.h
     Include/GameClient/RmlUiScreenRegistry.h    # Ronin @feature 29/10/2026 DX9: the shell screens RmlUi draws
+    Include/GameClient/RmlUiMessageBoxHook.h    # Ronin @feature 31/10/2026 DX9: tintinhamans' RmlUi message box
     Include/GameClient/ControlBarResizer.h
     Include/GameClient/ControlBarScheme.h
     Include/GameClient/Credits.h
@@ -211,6 +213,8 @@ set(GAMEENGINE_SRC
     Include/GameClient/LanguageFilter.h
     Include/GameClient/Line2D.h
     Include/GameClient/LoadScreen.h
+    Include/GameClient/LoadScreenData.h    # Ronin @feature 31/10/2026 DX9: tintinhamans' load screens: data, and the .wnd view
+    Include/GameClient/LoadScreenView.h
     Include/GameClient/LookAtXlat.h
     Include/GameClient/MapUtil.h
     Include/GameClient/MessageBox.h
@@ -827,6 +831,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/HeaderTemplate.cpp
     Source/GameClient/GUI/IMEManager.cpp
     Source/GameClient/GUI/LoadScreen.cpp
+    Source/GameClient/GUI/LoadScreenView.cpp    # Ronin @feature 31/10/2026 DX9: tintinhamans' load screens' .wnd view
     Source/GameClient/GUI/ProcessAnimateWindow.cpp
     Source/GameClient/GUI/Shell/Shell.cpp
     Source/GameClient/GUI/Shell/ShellMenuScheme.cpp
@@ -848,6 +853,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/MessageStream/LookAtXlat.cpp
     Source/GameClient/MessageStream/MetaEvent.cpp
     Source/GameClient/MessageStream/PlaceEventTranslator.cpp
+    Source/GameClient/MessageStream/RmlUiMessageBoxHook.cpp    # Ronin @feature 31/10/2026 DX9: tintinhamans' RmlUi message box
     Source/GameClient/MessageStream/SelectionXlat.cpp
     Source/GameClient/MessageStream/WindowXlat.cpp
     Source/GameClient/ParabolicEase.cpp

@@ -1,0 +1,64 @@
+/*
+	SinglePlayerLoadScreen.rcss -- SinglePlayerLoadScreen.wnd: the campaign's art, then the mission's
+	briefing movie, full-bleed, with the shared load bar in the campaign's colour (LoadScreen.rcss).
+	The location, unit and objective texts are the original Generals' briefing, at their .wnd places
+	on the 4:3 stage; Zero Hour never shows them.
+*/
+
+/* StaticTextCameoText3 (92,312)-(259,354) */
+.sp-location
+{
+	position: absolute;
+	left: 11.5%;
+	top: 52%;
+	width: 20.875%;
+	height: 7%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 26dp;
+	color: #FF0400;
+}
+
+/* StaticTextCameoText0..2 (441,146)-(539,192), (544,146)-(642,192), (647,146)-(746,192) */
+.sp-unit
+{
+	position: absolute;
+	top: 24.333%;
+	width: 12.25%;
+	height: 7.667%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 16dp;
+	color: #FEFEFE;
+	background-color: rgba(0, 0, 0, 126);
+}
+
+.sp-unit0 { left: 55.125%; }
+.sp-unit1 { left: 68%; }
+.sp-unit2 { left: 80.875%; }
+
+/* ObjectivesWin (255,369)-(768,513), five lines of 24 */
+.sp-objectives
+{
+	position: absolute;
+	left: 31.875%;
+	top: 61.5%;
+	width: 64.125%;
+	height: 24%;
+	background-color: #070A1AD9;
+}
+
+.sp-objective
+{
+	display: block;
+	height: 16.667%;
+	padding-left: 4dp;
+	font-size: 26dp;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+}

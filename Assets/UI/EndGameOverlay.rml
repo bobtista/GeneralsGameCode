@@ -1,0 +1,43 @@
+<rml>
+<head>
+	<title>EndGameOverlay</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<style>
+		/* A band across the middle of the battlefield, not a frame: the game goes on around it and every
+		   click passes straight through to it. Victory in the accent, defeat in red, game over grey. */
+		body { width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: center; }
+		.eg-band { display: block; position: relative; flex: 0 0 auto; height: 176dp; animation: 0.35s cubic-out eg-in; }
+		.eg-fade { display: block; position: absolute; top: 0; bottom: 0; width: 50%; }
+		.eg-fade.l { left: 0; decorator: horizontal-gradient(#070A1A00 #070A1AE0); }
+		.eg-fade.r { left: 50%; decorator: horizontal-gradient(#070A1AE0 #070A1A00); }
+		.eg-band-inner { display: flex; flex-direction: column; align-items: center; position: relative; padding-top: 20dp; }
+		@keyframes eg-in { from { opacity: 0; } to { opacity: 1; } }
+		.eg-rule { display: block; width: 520dp; height: 3dp; background-color: #D1FD04; }
+		.eg-title { display: block; margin: 14dp 0 12dp 0; font-size: 72dp; line-height: 92dp; font-weight: bold; letter-spacing: 12dp;
+			text-transform: uppercase; color: #FFFFFF; font-effect: glow(1dp 10dp 0dp 1dp #000000F0); }
+		.defeat .eg-rule { background-color: #FF5050; }
+		.defeat .eg-title { color: #FFD8D8; }
+		.over .eg-rule { background-color: #A9B1CF; }
+		/* Any other art a mod names: its image, the .wnd's size. */
+		.eg-art { display: flex; width: 606dp; height: 225dp; margin: 0 auto; }
+		.eg-art mappedimage { display: block; width: 100%; height: 100%; }
+	</style>
+</head>
+<!-- Victorious.wnd, Defeat.wnd, LocalDefeat.wnd and ObserverQuit.wnd (RmlEndGameOverlayScreen): the
+     outcome over the battlefield, named by the art each .wnd drew. -->
+<body class="screen" data-model="endgameoverlay">
+	<div class="eg-band" data-if="image_name == 'Victorious' || image_name == 'Defeated' || image_name == 'GameOver'"
+		data-class-defeat="image_name == 'Defeated'" data-class-over="image_name == 'GameOver'">
+		<div class="eg-fade l"></div><div class="eg-fade r"></div>
+		<div class="eg-band-inner">
+			<div class="eg-rule"></div>
+			<div class="eg-title"><gametext key="GUI:Victory" data-if="image_name == 'Victorious'"/><gametext key="GUI:Defeat" data-if="image_name == 'Defeated'"/><gametext key="GUI:GameOver" data-if="image_name == 'GameOver'"/></div>
+			<div class="eg-rule"></div>
+		</div>
+	</div>
+	<div class="eg-art" data-if="image_name != 'Victorious' &amp;&amp; image_name != 'Defeated' &amp;&amp; image_name != 'GameOver'">
+		<mappedimage data-attr-name="image_name"/>
+	</div>
+</body>
+</rml>

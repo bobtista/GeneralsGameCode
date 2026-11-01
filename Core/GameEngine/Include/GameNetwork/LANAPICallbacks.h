@@ -31,6 +31,7 @@
 #pragma once
 
 #include "Common/NameKeyGenerator.h"
+#include "Common/Signal.h"	// Ronin @feature 31/10/2026 DX9: the RmlUi screens' events
 #include "GameClient/Shell.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
@@ -54,6 +55,30 @@ extern WindowLayout *mapSelectLayout;
 // ScoreScreen
 extern NameKeyType listboxChatWindowScoreScreenID;
 extern GameWindow *listboxChatWindowScoreScreen;
+
+// Ronin @feature 31/10/2026 DX9: tintinhamans' events for the RmlUi screens, fired beside the .wnd listbox writes, never instead.
+// The score screen's chat while a game is in progress (listboxChatWindowScoreScreen stays null for the RmlUi screen).
+namespace ScoreScreenSignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine();
+}
+
+// The LAN lobby: chat, player list and game list.
+namespace LanLobbySignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine();
+	Signal1<LANPlayer *> &playerList();
+	Signal1<LANGameInfo *> &gameList();
+}
+
+// LAN game setup: chat; slots, options and the start button (LanGameOptionsMenu.cpp, LANEnableStartButton()).
+namespace LanGameSetupSignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine();
+	Signal1<LANGameInfo *> &slotsChanged();
+	Signal1<LANGameInfo *> &optionsChanged();
+	Signal1<Bool> &startButton();
+}
 
 
 //Colors used for the chat dialogs

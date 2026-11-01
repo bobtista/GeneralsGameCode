@@ -1,0 +1,21 @@
+/*
+	MapTransfer.rcss -- the map download before a network game (MapTransferScreen.wnd). The shared
+	load look of LoadScreen.rcss: the file being sent and the abort countdown in the header, a card
+	per human with their transfer state and progress. Screen-specific overrides go here.
+*/
+
+body.ld
+{
+	font-size: 20dp;
+}
+
+/* The abort countdown on a plate as tall as the heading's, with the same accent edge. */
+.ld-head .ld-timeout
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	align-self: stretch;
+	padding: 0 26dp 0 22dp;
+	border-left: 4dp #D1FD04;
+}

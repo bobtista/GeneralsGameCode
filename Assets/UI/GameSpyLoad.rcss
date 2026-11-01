@@ -1,0 +1,10 @@
+/*
+	GameSpyLoad.rcss -- Generals Online games (GameSpyLoadScreen.wnd). The shared load look of
+	LoadScreen.rcss, whose player cards add each player's rank, medal, win/loss record and
+	disconnects. Screen-specific overrides go here.
+*/
+
+body.ld
+{
+	font-size: 20dp;
+}

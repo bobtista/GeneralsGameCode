@@ -33,8 +33,6 @@
 
 #include "gamespy/peer/peer.h"
 
-#include "Common/QuotedPrintable.h"
-#include "Common/OptionPreferences.h"
 #include "GameClient/AnimateWindowManager.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
@@ -45,10 +43,13 @@
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/Shell.h"
 #include "GameClient/GameWindowTransitions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/DirectConnectActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/DirectConnectData.h"
 
-#include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/LANAPICallbacks.h"
+
+#include <vector>
 
 
 // window ids ------------------------------------------------------------------------------
@@ -79,169 +80,58 @@ static GameWindow *staticLocalIP = nullptr;
 
 void PopulateRemoteIPComboBox()
 {
-	LANPreferences userprefs;
 	GadgetComboBoxReset(comboboxRemoteIP);
 
-	Int numRemoteIPs = userprefs.getNumRemoteIPs();
+	std::vector<UnicodeString> history = DirectConnectData::loadRemoteIPHistory();
 	Color white = GameMakeColor(255,255,255,255);
 
-	for (Int i = 0; i < numRemoteIPs; ++i)
-	{
-		UnicodeString entry;
-		entry = userprefs.getRemoteIPEntry(i);
+	for (const UnicodeString &entry : history)
 		GadgetComboBoxAddEntry(comboboxRemoteIP, entry, white);
-	}
 
-	if (numRemoteIPs > 0)
+	if (!history.empty())
 	{
 		GadgetComboBoxSetSelectedPos(comboboxRemoteIP, 0, TRUE);
 	}
-	userprefs.write();
 }
 
-void UpdateRemoteIPList()
+// Enumerates the combobox's own entries (in display order), same SetSelectedPos(i, FALSE)+GetText()
+// dance the original UpdateRemoteIPList() used, so DirectConnectActions::updateRemoteIPList() can do
+// the prefs bookkeeping without any GadgetComboBox coupling.
+static std::vector<UnicodeString> currentRemoteIPComboEntries()
 {
-	Int n1[4], n2[4];
-	LANPreferences prefs;
+	std::vector<UnicodeString> entries;
 	Int numEntries = GadgetComboBoxGetLength(comboboxRemoteIP);
-	Int currentSelection = -1;
-	GadgetComboBoxGetSelectedPos(comboboxRemoteIP, &currentSelection);
-	UnicodeString unisel = GadgetComboBoxGetText(comboboxRemoteIP);
-	AsciiString sel;
-	sel.translate(unisel);
 
-//	UnicodeString newEntry = prefs.getRemoteIPEntry(0);
-	UnicodeString newEntry = unisel;
-	UnicodeString newIP;
-	newEntry.nextToken(&newIP, L":");
-	Int numFields = swscanf(newIP.str(), L"%d.%d.%d.%d", &(n1[0]), &(n1[1]), &(n1[2]), &(n1[3]));
-
-	if (numFields != 4) {
-		// this is not a properly formatted IP, don't change a thing.
-		return;
-	}
-
-	prefs["RemoteIP0"] = sel;
-
-	Int currentINIEntry = 1;
-
+	// Same SetSelectedPos(i, FALSE) dance the original loop used to read each entry's text; like the
+	// original, this leaves the widget's selection at the last enumerated position -- harmless since
+	// PopulateRemoteIPComboBox() always runs right after and resets/rebuilds the whole combobox.
 	for (Int i = 0; i < numEntries; ++i)
 	{
-		if (i != currentSelection)
-		{
-			GadgetComboBoxSetSelectedPos(comboboxRemoteIP, i, FALSE);
-			UnicodeString uni;
-			uni = GadgetComboBoxGetText(comboboxRemoteIP);
-			AsciiString ascii;
-			ascii.translate(uni);
-
-			// prevent more than one copy of an IP address from being put in the list.
-			if (currentSelection == -1)
-			{
-				UnicodeString oldEntry = uni;
-				UnicodeString oldIP;
-				oldEntry.nextToken(&oldIP, L":");
-
-				swscanf(oldIP.str(), L"%d.%d.%d.%d", &(n2[0]), &(n2[1]), &(n2[2]), &(n2[3]));
-
-				Bool isEqual = TRUE;
-				for (Int i = 0; (i < 4) && (isEqual == TRUE); ++i) {
-					if (n1[i] != n2[i]) {
-						isEqual = FALSE;
-					}
-				}
-				// check to see if this is a duplicate or if this is not a properly formatted IP address.
-				if (isEqual == TRUE)
-				{
-					--numEntries;
-					continue;
-				}
-			}
-			AsciiString temp;
-			temp.format("RemoteIP%d", currentINIEntry);
-			++currentINIEntry;
-			prefs[temp.str()] = ascii;
-		}
+		GadgetComboBoxSetSelectedPos(comboboxRemoteIP, i, FALSE);
+		entries.push_back(GadgetComboBoxGetText(comboboxRemoteIP));
 	}
 
-	if (currentSelection == -1)
-	{
-		++numEntries;
-	}
-
-	AsciiString numRemoteIPs;
-	numRemoteIPs.format("%d", numEntries);
-
-	prefs["NumRemoteIPs"] = numRemoteIPs;
-
-	prefs.write();
+	return entries;
 }
 
 void HostDirectConnectGame()
 {
-	// Init LAN API Singleton
-	DEBUG_ASSERTCRASH(TheLAN != nullptr, ("TheLAN is null!"));
-	if (!TheLAN)
-	{
-		TheLAN = NEW LANAPI();
-	}
-
-	UnsignedInt localIP = TheLAN->GetLocalIP();
-	UnicodeString localIPString;
-	localIPString.format(L"%d.%d.%d.%d", PRINTF_IP_AS_4_INTS(localIP));
-
-	UnicodeString name;
-	name = GadgetTextEntryGetText(editPlayerName);
-
-	LANPreferences prefs;
-	prefs["UserName"] = UnicodeStringToQuotedPrintable(name);
-	prefs.write();
-
-	name.truncateTo(g_lanPlayerNameLength);
-	TheLAN->RequestSetName(name);
-	TheLAN->RequestGameCreate(localIPString, TRUE);
+	UnicodeString name = GadgetTextEntryGetText(editPlayerName);
+	DirectConnectActions::hostGame(name);
 }
 
 void JoinDirectConnectGame()
 {
-	// Init LAN API Singleton
-
-	if (!TheLAN)
-	{
-		TheLAN = NEW LANAPI();
-	}
-
-	UnsignedInt ipaddress = 0;
+	Int currentSelection = -1;
+	GadgetComboBoxGetSelectedPos(comboboxRemoteIP, &currentSelection);
 	UnicodeString ipunistring = GadgetComboBoxGetText(comboboxRemoteIP);
-	AsciiString asciientry;
-	asciientry.translate(ipunistring);
+	std::vector<UnicodeString> comboEntries = currentRemoteIPComboEntries();
 
-	AsciiString ipstring;
-	asciientry.nextToken(&ipstring, "(");
+	UnicodeString name = GadgetTextEntryGetText(editPlayerName);
 
-	Int ip1, ip2, ip3, ip4;
-	Int numFields = sscanf(ipstring.str(), "%d.%d.%d.%d", &ip1, &ip2, &ip3, &ip4);
-	(void)numFields; DEBUG_ASSERTCRASH(numFields == 4, ("JoinDirectConnectGame - invalid IP address format: %s", ipstring.str()));
+	DirectConnectActions::joinGame(ipunistring, comboEntries, currentSelection, name);
 
-	DEBUG_LOG(("JoinDirectConnectGame - joining at %d.%d.%d.%d", ip1, ip2, ip3, ip4));
-
-	ipaddress = (ip1 << 24) + (ip2 << 16) + (ip3 << 8) + ip4;
-//	ipaddress = htonl(ipaddress);
-
-	UnicodeString name;
-	name = GadgetTextEntryGetText(editPlayerName);
-
-	LANPreferences prefs;
-	prefs["UserName"] = UnicodeStringToQuotedPrintable(name);
-	prefs.write();
-
-	UpdateRemoteIPList();
 	PopulateRemoteIPComboBox();
-
-	name.truncateTo(g_lanPlayerNameLength);
-	TheLAN->RequestSetName(name);
-
-	TheLAN->RequestGameJoinDirectConnect(ipaddress);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -252,16 +142,8 @@ void NetworkDirectConnectInit( WindowLayout *layout, void *userData )
 	LANbuttonPushed = false;
 	LANisShuttingDown = false;
 
-	if (TheLAN == nullptr)
-	{
-		TheLAN = NEW LANAPI();
-		TheLAN->init();
-	}
-	TheLAN->reset();
-
 	buttonPushed = false;
 	isShuttingDown = false;
-	TheShell->showShellMap(TRUE);
 	buttonBackID = TheNameKeyGenerator->nameToKey( "NetworkDirectConnect.wnd:ButtonBack" );
 	buttonHostID = TheNameKeyGenerator->nameToKey( "NetworkDirectConnect.wnd:ButtonHost" );
 	buttonJoinID = TheNameKeyGenerator->nameToKey( "NetworkDirectConnect.wnd:ButtonJoin" );
@@ -281,67 +163,16 @@ void NetworkDirectConnectInit( WindowLayout *layout, void *userData )
 //	TheShell->registerWithAnimateManager(buttonHost, WIN_ANIMATION_SLIDE_LEFT, TRUE, 600);
 //	TheShell->registerWithAnimateManager(buttonJoin, WIN_ANIMATION_SLIDE_LEFT, TRUE, 200);
 //
-	LANPreferences userprefs;
-	UnicodeString name;
-	name = userprefs.getUserName();
 
-	if (name.isEmpty())
-	{
-		name = TheGameText->fetch("GUI:Player");
-	}
+	// TheLAN create/reset/local-IP-resolve dance, see DirectConnectActions::enterDirectConnect().
+	UnicodeString name = DirectConnectActions::enterDirectConnect();
 
 	GadgetTextEntrySetText(editPlayerName, name);
 
 	PopulateRemoteIPComboBox();
 
-	UnicodeString ipstr;
+	GadgetStaticTextSetText(staticLocalIP, DirectConnectActions::localIPString());
 
-	delete TheLAN;
-	TheLAN = nullptr;
-
-	if (TheLAN == nullptr) {
-//		DEBUG_ASSERTCRASH(TheLAN != nullptr, ("TheLAN is null initializing the direct connect screen."));
-		TheLAN = NEW LANAPI();
-
-		OptionPreferences prefs;
-		UnsignedInt IP = prefs.getOnlineIPAddress();
-
-		IPEnumeration IPs;
-
-//		if (!IP)
-//		{
-			EnumeratedIP *IPlist = IPs.getAddresses();
-			DEBUG_ASSERTCRASH(IPlist, ("No IP addresses found!"));
-			if (!IPlist)
-			{
-				/// @todo: display error and exit lan lobby if no IPs are found
-			}
-
-			Bool foundIP = FALSE;
-			EnumeratedIP *tempIP = IPlist;
-			while ((tempIP != nullptr) && (foundIP == FALSE)) {
-				if (IP == tempIP->getIP()) {
-					foundIP = TRUE;
-				}
-				tempIP = tempIP->getNext();
-			}
-
-			if (foundIP == FALSE) {
-				// The IP that we had no longer exists, we need to pick a new one.
-				IP = IPlist->getIP();
-			}
-
-//			IP = IPlist->getIP();
-//		}
-		TheLAN->init();
-		TheLAN->SetLocalIP(IP);
-	}
-
-	UnsignedInt ip = TheLAN->GetLocalIP();
-	ipstr.format(L"%d.%d.%d.%d", PRINTF_IP_AS_4_INTS(ip));
-	GadgetStaticTextSetText(staticLocalIP, ipstr);
-
-	TheLAN->RequestLobbyLeave(true);
 	layout->hide(FALSE);
 	layout->bringForward();
 	TheTransitionHandler->setGroup("NetworkDirectConnectFade");
@@ -489,15 +320,8 @@ WindowMsgHandledType NetworkDirectConnectSystem( GameWindow *window, UnsignedInt
 
 				if ( controlID == buttonBackID )
 				{
-					UnicodeString name;
-					name = GadgetTextEntryGetText(editPlayerName);
-
-					LANPreferences prefs;
-					prefs["UserName"] = UnicodeStringToQuotedPrintable(name);
-					prefs.write();
-
-					name.truncateTo(g_lanPlayerNameLength);
-					TheLAN->RequestSetName(name);
+					UnicodeString name = GadgetTextEntryGetText(editPlayerName);
+					DirectConnectActions::commitPlayerName(name);
 
 					buttonPushed = true;
 					LANbuttonPushed = true;

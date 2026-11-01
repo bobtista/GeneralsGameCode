@@ -93,6 +93,20 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlSaveLoadScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.h
+    # Ronin @feature 31/10/2026 DX9: tintinhamans' RmlUi screens around a match and their logic (docs/UI_Work.md)
+    Include/W3DDevice/GameClient/RmlUi/RmlChatInput.h
+    Include/W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlDownloadScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlInGamePopupScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlLoadScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlMessageBox.h
+    Include/W3DDevice/GameClient/RmlUi/RmlScoreScreen.h
+    # Ronin @feature 31/10/2026 DX9: tintinhamans' RmlUi LAN screens and their logic (docs/UI_Work.md)
+    Include/W3DDevice/GameClient/RmlUi/RmlLanGameSetupScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlLanMapSelectScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h
 #    Include/W3DDevice/GameClient/W3DSmudge.h
 #    Include/W3DDevice/GameClient/W3DSnow.h
     Include/W3DDevice/GameClient/W3DStatusCircle.h
@@ -220,6 +234,19 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlSaveLoadScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.cpp
+    # Ronin @feature 31/10/2026 DX9: tintinhamans' RmlUi screens around a match and their logic (docs/UI_Work.md)
+    Source/W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlDownloadScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlInGamePopupScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlLoadScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlMessageBox.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlScoreScreen.cpp
+    # Ronin @feature 31/10/2026 DX9: tintinhamans' RmlUi LAN screens and their logic (docs/UI_Work.md)
+    Source/W3DDevice/GameClient/RmlUi/RmlLanGameSetupScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlLanMapSelectScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.cpp
 #    Source/W3DDevice/GameClient/W3DSmudge.cpp
 #    Source/W3DDevice/GameClient/W3DSnow.cpp
     Source/W3DDevice/GameClient/W3DStatusCircle.cpp

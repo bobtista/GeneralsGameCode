@@ -197,6 +197,22 @@ set(GAMEENGINE_SRC
     Include/GameClient/GUI/GUICallbacks/Menus/SaveLoadActions.h
     Include/GameClient/GUI/GUICallbacks/Menus/SaveLoadData.h
     Include/GameClient/GUI/GUICallbacks/Menus/SkirmishSetupActions.h
+    # Ronin @feature 31/10/2026 DX9: tintinhamans' RmlUi screens around a match and their logic (docs/UI_Work.md)
+    Include/GameClient/GUI/GUICallbacks/Menus/DisconnectMenuActions.h
+    Include/GameClient/GUI/GUICallbacks/Menus/DisconnectMenuData.h
+    Include/GameClient/GUI/GUICallbacks/Menus/DownloadMenuActions.h
+    Include/GameClient/GUI/GUICallbacks/Menus/DownloadMenuData.h
+    Include/GameClient/GUI/GUICallbacks/Menus/InGamePopupMessageActions.h
+    Include/GameClient/GUI/GUICallbacks/Menus/InGamePopupMessageData.h
+    Include/GameClient/GUI/GUICallbacks/Menus/ScoreScreenActions.h
+    Include/GameClient/GUI/GUICallbacks/Menus/ScoreScreenData.h
+    # Ronin @feature 31/10/2026 DX9: tintinhamans' RmlUi LAN screens and their logic (docs/UI_Work.md)
+    Include/GameClient/GUI/GUICallbacks/Menus/DirectConnectActions.h
+    Include/GameClient/GUI/GUICallbacks/Menus/DirectConnectData.h
+    Include/GameClient/GUI/GUICallbacks/Menus/LanGameSetupActions.h
+    Include/GameClient/GUI/GUICallbacks/Menus/LanGameSetupData.h
+    Include/GameClient/GUI/GUICallbacks/Menus/LanLobbyActions.h
+    Include/GameClient/GUI/GUICallbacks/Menus/LanLobbyData.h
 #    Include/GameClient/GUICommandTranslator.h
 #    Include/GameClient/HeaderTemplate.h
 #    Include/GameClient/HintSpy.h
@@ -778,6 +794,21 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/SaveLoadActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/SaveLoadData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/SkirmishSetupActions.cpp
+    # Ronin @feature 31/10/2026 DX9: tintinhamans' RmlUi screens around a match and their logic (docs/UI_Work.md)
+    Source/GameClient/GUI/GUICallbacks/Menus/DisconnectMenuActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/DisconnectMenuData.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/DownloadMenuActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/DownloadMenuData.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/InGamePopupMessageActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/ScoreScreenActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/ScoreScreenData.cpp
+    # Ronin @feature 31/10/2026 DX9: tintinhamans' RmlUi LAN screens and their logic (docs/UI_Work.md)
+    Source/GameClient/GUI/GUICallbacks/Menus/DirectConnectActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/DirectConnectData.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/LanGameSetupActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/LanGameSetupData.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/LanLobbyActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/LanLobbyData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupCommunicator.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupHostGame.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupJoinGame.cpp

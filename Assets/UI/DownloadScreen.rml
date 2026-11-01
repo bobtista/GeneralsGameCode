@@ -1,0 +1,36 @@
+<rml>
+<head>
+	<title>DownloadScreen</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="DownloadScreen.rcss"/>
+</head>
+<body class="screen modal dl" data-model="downloadscreen">
+	<!-- The shared modal card over the main menu: the file, the shared progress bar, how much has
+	     arrived and how long is left, the state, and Cancel. -->
+	<div class="modal-card dl-card">
+		<div class="modal-head">
+			<div class="modal-heading">
+				<div class="overline accent-overline"><gametext key="TOOLTIP:DownloadProgress"/></div>
+				<div class="modal-title">Downloading Update</div>
+			</div>
+		</div>
+
+		<div class="modal-body dl-body">
+			<div class="dl-file">{{file_text}}</div>
+			<div class="progress dl-bar" data-tooltip="Tooltip:DownloadProgress"><div class="progress-fill" data-style-width="progress_style"></div></div>
+			<div class="dl-meta">
+				<div class="dl-size">{{size_text}}</div>
+				<div class="spacer"></div>
+				<div class="dl-time">{{time_text}}</div>
+			</div>
+		</div>
+
+		<div class="modal-actions">
+			<button class="btn-back" data-event-click="cancel"><span class="chevron">&#8249;</span><gametext key="GUI:Cancel"/></button>
+			<div class="spacer"></div>
+			<div class="dl-status" data-if="status_text != ''"><span class="dot pulse"></span><span>{{status_text}}</span></div>
+		</div>
+	</div>
+</body>
+</rml>

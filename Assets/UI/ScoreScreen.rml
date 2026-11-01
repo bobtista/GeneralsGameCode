@@ -1,0 +1,126 @@
+<rml>
+<head>
+	<title>ScoreScreen</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ShellCommon.rcss"/>
+	<link type="text/rcss" href="ScoreScreen.rcss"/>
+</head>
+<body class="screen hq ss" data-model="scorescreen">
+	<!-- The side's score screen art (or the multiplayer one) over the whole screen, darkened. -->
+	<div class="ss-art"><mappedimage class="ss-cover-art" data-if="has_background_image" data-attr-name="background_image"/></div>
+	<div class="ss-scrim"></div>
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading ss-heading" data-class-victory="is_victory" data-class-defeat="is_defeat"><div class="hq-crumb"><gametext key="GUI:SinglePlayer" data-if="mode == 0"/><gametext key="GUI:Skirmish" data-if="mode == 1"/><gametext key="GUI:Network" data-if="mode == 2"/><gametext key="GUI:GeneralsOnline" data-if="mode == 3"/><gametext key="GUI:LoadReplay" data-if="mode == 4"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:Victory" data-if="is_victory"/><gametext key="GUI:Defeat" data-if="is_defeat"/><gametext key="GUI:GameOver" data-if="!is_victory &amp;&amp; !is_defeat"/></div></div>
+			<div class="hq-aside ss-match">
+				<div class="ss-fact" data-if="map_name != ''">
+					<div class="overline">Map</div>
+					<div class="ss-fact-value">{{map_name}}</div>
+				</div>
+				<div class="ss-fact">
+					<div class="overline">Game Time</div>
+					<div class="ss-fact-value">{{game_time}}</div>
+				</div>
+			</div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span>Offline</div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
+			</div>
+	</div></div>
+
+	<div class="screen-frame">
+		<!-- The outcome as the title, the game mode as the crumb, the map and game length beside it. -->
+
+		<div class="screen-body" data-class-has-side="!show_challenge_splash &amp;&amp; (show_academy_panel || show_chat_log)">
+			<div class="col col-main">
+				<!-- Generals Challenge: the opponent's win or loss portrait and remarks instead of the table. -->
+				<div class="surface ss-challenge" data-if="show_challenge_splash">
+					<div class="ss-challenge-portrait"><mappedimage data-attr-name="challenge_portrait_image"/></div>
+					<div class="ss-challenge-text">
+						<div class="overline accent-overline"><gametext key="GUI:Generals_Challenge"/></div>
+						<div class="ss-challenge-header">{{challenge_header_text}}</div>
+						<div class="ss-challenge-remarks">{{challenge_remarks_text}}</div>
+					</div>
+				</div>
+
+				<!-- Who led each headline stat, in their colour. -->
+				<div class="ss-highlights" data-if="!show_challenge_splash &amp;&amp; highlights.size > 0">
+					<div class="ss-hl-slot" data-for="h : highlights"><div class="ss-hl" data-style-border-top-color="h.color_hex">
+						<div class="overline"><gametext key="GUI:ResourcesCollected" data-if="h.stat == 0"/><gametext key="GUI:UnitsKilled" data-if="h.stat == 1"/><gametext key="GUI:BuildingsKilled" data-if="h.stat == 2"/><gametext key="GUI:UnitsBuilt" data-if="h.stat == 3"/></div>
+						<div class="ss-hl-value">{{h.value}}</div>
+						<div class="ss-hl-name"><span class="ss-hl-dot" data-style-background-color="h.color_hex"></span>{{h.name}}</div>
+					</div></div>
+				</div>
+
+				<!-- A result card per player, sorted by score; the stats each one led are lit. -->
+				<div class="surface ss-table" data-if="!show_challenge_splash">
+					<div class="list-head ss-head">
+						<div class="ss-who overline"><gametext key="GUI:PlayerName"/></div>
+						<div class="ss-cell"><gametext key="GUI:ResourcesCollected"/></div>
+						<div class="ss-cell"><gametext key="GUI:UnitsBuilt"/></div>
+						<div class="ss-cell"><gametext key="GUI:UnitsLost"/></div>
+						<div class="ss-cell"><gametext key="GUI:UnitsKilled"/></div>
+						<div class="ss-cell"><gametext key="GUI:BuildingsBuilt"/></div>
+						<div class="ss-cell"><gametext key="GUI:BuildingsLost"/></div>
+						<div class="ss-cell"><gametext key="GUI:BuildingsKilled"/></div>
+					</div>
+					<div class="scroll-container ss-rows">
+						<div class="ss-row-slot" data-for="row : rows"><div class="ss-row" data-class-observer="row.is_observer" data-class-local="row.is_local" data-style-border-left-color="row.color_hex">
+							<div class="ss-who">
+								<div class="pc-badge ss-badge"><mappedimage data-if="row.badge_image != ''" data-attr-name="row.badge_image"/></div>
+								<div class="ss-name-wrap">
+									<div class="ss-name">{{row.display_name}}</div>
+									<div class="ss-tags" data-if="row.is_victor || row.is_observer"><span class="chip-label good" data-if="row.is_victor"><gametext key="GUI:Victory"/></span><span class="chip-label" data-if="row.is_observer"><gametext key="GUI:Observer"/></span></div>
+								</div>
+							</div>
+							<div class="ss-cell" data-class-best="row.best_money">{{row.money_earned}}</div>
+							<div class="ss-cell" data-class-best="row.best_units_built">{{row.units_built}}</div>
+							<div class="ss-cell">{{row.units_lost}}</div>
+							<div class="ss-cell" data-class-best="row.best_units_destroyed">{{row.units_destroyed}}</div>
+							<div class="ss-cell" data-class-best="row.best_buildings_built">{{row.buildings_built}}</div>
+							<div class="ss-cell">{{row.buildings_lost}}</div>
+							<div class="ss-cell" data-class-best="row.best_buildings_destroyed">{{row.buildings_destroyed}}</div>
+						</div></div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Online and LAN: the tactical analysis and the post-game chat beside the results. -->
+			<div class="col col-side ss-side" data-if="!show_challenge_splash &amp;&amp; (show_academy_panel || show_chat_log)">
+				<div class="surface ss-academy" data-if="show_academy_panel">
+					<div class="overline accent-overline"><gametext key="ACADEMY:Eva"/></div>
+					<div class="scroll-container ss-academy-body">
+						<div class="ss-tip" data-for="tip : academy_advice">{{tip}}</div>
+					</div>
+				</div>
+
+				<div class="surface ss-chat" data-if="show_chat_log">
+					<scrolllog class="scroll-container ss-chat-log">
+						<div class="ss-chat-line" data-for="line : chat_lines" data-style-color="line.color == '' ? '#D7DCF0' : line.color">{{line.text}}</div>
+					</scrolllog>
+					<div class="ss-chat-entry send-row" data-if="show_chat_entry">
+						<input type="text" class="chat-input" maxlength="128" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
+						<button class="chat-send" data-event-click="send_chat"><span class="send-arrow"></span></button>
+						<button class="chat-send emote" data-if="show_emote_button" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><span class="send-emote">*</span></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Replay and communicator on the left; exit and continue on the right, the campaign's continue (the next mission) as the primary. -->
+		<div class="action-bar">
+			<button data-event-click="save_replay" data-attrif-disabled="!can_save_replay"><gametext key="GUI:SaveReplay"/></button>
+			<button data-if="show_buddies_button" data-event-click="buddies"><gametext key="GUI:Buddies"/></button>
+			<div class="ss-saved" data-if="show_save_game_text"><span class="dot"></span><gametext key="GUI:GameSaved"/></div>
+			<div class="spacer"></div>
+			<button data-if="mode == 0" data-event-click="ok"><gametext key="GUI:MainMenu"/></button>
+			<button data-if="show_continue_button &amp;&amp; show_default_continue_label" data-class-btn-cta="mode == 0" data-event-click="continue_pressed"><gametext key="GUI:Continue"/></button>
+			<button data-if="show_continue_button &amp;&amp; !show_default_continue_label" data-class-btn-cta="mode == 0" data-event-click="continue_pressed">{{continue_button_caption}}</button>
+			<button class="btn-cta" data-if="mode != 0" data-event-click="ok"><gametext key="GUI:MainMenu"/></button>
+		</div>
+	</div>
+</body>
+</rml>

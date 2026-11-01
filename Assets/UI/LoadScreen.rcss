@@ -1,0 +1,500 @@
+/*
+	LoadScreen.rcss -- the one look of every load screen (map transfer, multiplayer, online, shell,
+	single player and challenge), on the screen template of common.rcss.
+
+	The map or campaign art, or the mission's movie, fills the whole screen under the ruler frame;
+	a scrim darkens it towards the bottom where the text sits. Inside the frame:
+		.ld-head    the game mode over the map name (or what is loading) and, on the multiplayer
+		            screens, the local player's general with his portrait and features
+		.ld-mid     the map card with its start positions, on the right
+		.ld-cards   a card per player along the bottom: colour, faction badge, name, army, team,
+		            rank and record (online), load progress in the player's colour
+		.ld-bottom  the one load bar (shell, single player, challenge)
+	The single player briefing texts and the challenge's general against general keep the .wnd's
+	places on a 4:3 stage centred over the art (.ls-stage-wrap > .ls-stage), since their movies
+	and portraits are 4:3 pictures.
+
+	Every value comes from LoadScreenData through RmlLoadScreen; rows and markers are always
+	MAX_SLOTS long and hidden with data-if="row.used"/"marker.used".
+*/
+
+body.ld
+{
+	background-color: #05070F;
+}
+
+/* ---- Full-bleed art ---------------------------------------------------------------------------- */
+/* The art, the movie and the scrim fill the screen from its middle, so they still do when the
+   interface width option narrows the body to a centred band (RmlInterfaceArea.h). */
+.ld-art
+{
+	display: block;
+	position: absolute;
+	left: 50%;
+	top: 0;
+	width: 100vw;
+	margin-left: -50vw;
+	height: 100%;
+	overflow: hidden;
+	clip: always;
+	background-color: #05070F;
+}
+
+/* The map's own preview, square, covering the screen: centred and cropped top and bottom. */
+.ld-map-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 50%;
+	width: 100vw;
+	height: 100vw;
+	margin-top: -50vw;
+	opacity: 0.9;
+}
+
+/* Full-screen art made for the whole screen (the .wnd's own backgrounds): stretched to it. */
+.ld-fallback-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100vw;
+	height: 100vh;
+}
+
+/* 4:3 campaign art covering the screen: full width, cropped top and bottom. mappedimage takes no
+   percentages, so the 4:3 box is sized in vw. */
+.ld-cover-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 50%;
+	width: 100vw;
+	height: 75vw;
+	margin-top: -37.5vw;
+}
+
+.ld-movie
+{
+	display: block;
+	position: absolute;
+	left: 50%;
+	top: 0;
+	width: 100vw;
+	margin-left: -50vw;
+	height: 100%;
+	background-color: #000000;
+}
+
+.ld-movie video
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* Darker towards the bottom, where the cards and the bar sit. */
+.ld-scrim
+{
+	display: block;
+	position: absolute;
+	left: 50%;
+	top: 0;
+	width: 100vw;
+	margin-left: -50vw;
+	height: 100%;
+	decorator: vertical-gradient(#05070F59 #05070FD9);
+}
+
+/* ---- Frame ------------------------------------------------------------------------------------ */
+.ld-frame
+{
+	display: flex;
+	flex-direction: column;
+}
+
+.ld-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	flex: 0 0 auto;
+	padding-top: 10dp;
+}
+
+.ld-heading
+{
+	display: block;
+	flex: 0 1 auto;
+	min-width: 0;
+	padding: 14dp 30dp 16dp 22dp;
+	background-color: #070A1AD9;
+	border-left: 4dp #D1FD04;
+}
+
+.ld-mode
+{
+	font-size: 17dp;
+	letter-spacing: 3dp;
+}
+
+.ld-title
+{
+	display: block;
+	margin-top: 4dp;
+	font-size: 56dp;
+	line-height: 64dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ld-title-small
+{
+	font-size: 32dp;
+	line-height: 40dp;
+	text-transform: none;
+}
+
+.ld-loading
+{
+	display: block;
+	margin-top: 6dp;
+	font-size: 16dp;
+	font-weight: bold;
+	letter-spacing: 3dp;
+	color: #A9B1CF;
+}
+
+.ld-timeout
+{
+	padding: 10dp 20dp;
+	font-size: 24dp;
+	font-weight: bold;
+	color: #D1FD04;
+	background-color: #070A1AD9;
+}
+
+/* The local player's general: portrait, name and special abilities. */
+.ld-general
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 1 620dp;
+	min-width: 0;
+	margin-left: 30dp;
+	padding: 12dp 20dp 12dp 12dp;
+	background-color: #070A1AD9;
+}
+
+.ld-portrait
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 124dp;
+	height: 124dp;
+	margin-right: 18dp;
+}
+
+.ld-portrait mappedimage
+{
+	display: block;
+	width: 124dp;
+	height: 124dp;
+}
+
+.ld-general-text
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.ld-general-name
+{
+	display: block;
+	font-size: 28dp;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+.ld-general-features
+{
+	display: block;
+	margin-top: 6dp;
+	font-size: 18dp;
+	line-height: 24dp;
+	color: #A9B1CF;
+}
+
+/* ---- Map card --------------------------------------------------------------------------------- */
+.ld-mid
+{
+	display: flex;
+	flex-direction: row;
+	align-items: flex-end;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding: 20dp 0;
+}
+
+.ld-map-card
+{
+	padding: 12dp;
+	border-top: 2dp #8080FF46;
+}
+
+.ld-map-frame
+{
+	width: 340dp;
+	height: 340dp;
+}
+
+/* ---- Player cards ------------------------------------------------------------------------------ */
+.ld-cards
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+}
+
+.ld-card
+{
+	display: block;
+	box-sizing: border-box;
+	flex: 0 1 400dp;
+	min-width: 0;
+	margin-right: 12dp;
+	padding: 14dp 16dp 16dp 16dp;
+	background-color: #070A1AEB;
+	border-top: 5dp #7079A0;
+}
+
+.ld-card-top
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 10dp;
+}
+
+.ld-badge
+{
+	margin-right: 10dp;
+}
+
+.ld-rank, .ld-medal
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 40dp;
+	height: 40dp;
+	margin-right: 8dp;
+}
+
+.ld-rank mappedimage, .ld-medal mappedimage
+{
+	display: block;
+	width: 40dp;
+	height: 40dp;
+}
+
+.ld-army-line
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 2dp;
+}
+
+.ld-team
+{
+	flex: 0 1 auto;
+	min-width: 0;
+	margin-left: 8dp;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ld-name
+{
+	display: block;
+	font-size: 23dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ld-army
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 17dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ld-stats
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 8dp;
+}
+
+.ld-stat
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.ld-stat-label
+{
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 12dp;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #7079A0;
+}
+
+.ld-player-bar
+{
+	margin-top: 12dp;
+	height: 14dp;
+	padding: 2dp;
+}
+
+.ld-player-bar .progress-fill
+{
+	decorator: none;
+	border-right: 2dp #FFFFFF;
+}
+
+.ld-player-bar.invisible
+{
+	visibility: hidden;
+}
+
+/* ---- The one load bar ------------------------------------------------------------------------- */
+.ld-bottom
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	padding: 16dp 22dp;
+	background-color: #070A1AD9;
+}
+
+.ld-bottom-label
+{
+	flex: 0 0 auto;
+	margin-right: 22dp;
+	font-size: 17dp;
+	letter-spacing: 3dp;
+	color: #D7DCF0;
+}
+
+.ld-bar
+{
+	flex: 1 1 0%;
+	height: 26dp;
+	padding: 4dp;
+}
+
+/* The campaign's colour: LoadingBar_ProgressCenter1 (China), 2 (USA) and 3 (GLA). */
+.ld-bar.center1 .progress-fill { decorator: vertical-gradient(#FF7070 #C00000); border-right-color: #FFD0D0; }
+.ld-bar.center2 .progress-fill { decorator: vertical-gradient(#8FA5FF #2F4AD8); border-right-color: #D8E0FF; }
+.ld-bar.center3 .progress-fill { decorator: vertical-gradient(#8CF57E #2A9A1E); border-right-color: #D6FFD0; }
+
+.ld-legal
+{
+	display: block;
+	flex: 0 0 auto;
+	margin-bottom: 12dp;
+	text-align: center;
+	font-size: 14dp;
+	color: #A9B1CF;
+}
+
+/* ---- 4:3 stage for the briefing texts and the general against general ------------------------- */
+/* 1440dp wide (4:3 of the 1080dp height), centred, narrowing to the screen on narrower aspects.
+   Positions inside it are percentages of the .wnd's 800x600 rects. */
+.ls-stage-wrap
+{
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.ls-stage
+{
+	position: relative;
+	flex: 0 0 auto;
+	width: 1440dp;
+	max-width: 100%;
+	height: 100%;
+}
+
+/* ---- 5:4 and 4:3 ---------------------------------------------------------------------------------- */
+@media (max-aspect-ratio: 3/2)
+{
+	.ld-title { font-size: 44dp; line-height: 52dp; }
+	.ld-general { flex-basis: 480dp; }
+	.ld-portrait, .ld-portrait mappedimage { width: 96dp; height: 96dp; }
+	.ld-general-features { font-size: 16dp; line-height: 21dp; }
+	.ld-card { padding: 12dp 10dp 12dp 10dp; margin-right: 8dp; }
+	.ld-name { font-size: 19dp; }
+	.ld-army { font-size: 15dp; }
+	.ld-badge { flex-basis: 44dp; width: 44dp; height: 44dp; line-height: 42dp; margin-right: 8dp; }
+	.ld-badge mappedimage { width: 36dp; height: 36dp; }
+	.ld-rank, .ld-medal, .ld-rank mappedimage, .ld-medal mappedimage { width: 30dp; height: 30dp; }
+	.ld-rank, .ld-medal { margin-right: 6dp; }
+}
+
+/* 16:10 is narrower than 16:9 in dp, so eight cards no longer fit the full-size top row (badge, rank,
+   medal); use the compact card metrics there too. */
+@media (min-aspect-ratio: 3/2) and (max-aspect-ratio: 8/5)
+{
+	.ld-card { padding: 12dp 10dp 12dp 10dp; margin-right: 8dp; }
+	.ld-badge { flex-basis: 44dp; width: 44dp; height: 44dp; line-height: 42dp; margin-right: 8dp; }
+	.ld-badge mappedimage { width: 36dp; height: 36dp; }
+	.ld-rank, .ld-medal, .ld-rank mappedimage, .ld-medal mappedimage { width: 30dp; height: 30dp; }
+	.ld-rank, .ld-medal { margin-right: 6dp; }
+}
+
+.ld-bottom-mode
+{
+	flex: 0 0 auto;
+	margin-right: 18dp;
+	padding-right: 18dp;
+	font-size: 17dp;
+	letter-spacing: 3dp;
+	border-right: 1dp #8080FF46;
+}

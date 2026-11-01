@@ -362,6 +362,7 @@ WindowMsgHandledType IdleWorkerSystem( GameWindow *window, UnsignedInt msg, Wind
 // Disconnect Menu --------------------------------------------------------------------------------
 extern void ShowDisconnectWindow();
 extern void HideDisconnectWindow();
+extern void SyncDisconnectWindow();	// Ronin @feature 31/10/2026 DX9: DisconnectMenuData into the .wnd, when the .wnd shows it
 extern WindowMsgHandledType DisconnectControlSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType DisconnectControlInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 

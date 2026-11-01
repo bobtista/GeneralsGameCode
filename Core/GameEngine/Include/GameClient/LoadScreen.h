@@ -32,18 +32,20 @@
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
+#include "Lib/BaseType.h"
 #include "Common/SubsystemInterface.h"
 #include "GameClient/GameWindow.h"
 #include "GameNetwork/GameInfo.h"
 #include "GameClient/CampaignManager.h"
 #include "GameClient/ChallengeGenerals.h"
+#include "GameClient/WindowVideoManager.h"
 
 // FORWARD REFERENCES /////////////////////////////////////////////////////////
 
 // TYPE DEFINES ///////////////////////////////////////////////////////////////
 class VideoBuffer;
 class VideoStreamInterface;
-class WindowVideoManager;
+class LoadScreenView;
 
 
 
@@ -64,7 +66,10 @@ public:
 	virtual void setProgressRange( Int min, Int max ) = 0;
 protected:
 	void setLoadScreen( GameWindow *g ) { m_loadScreen = g; }
+	void publishData();					///< bump LoadScreenData and refresh the legacy view
+	void publishProgress( Int percent );	///< the load bar of the shell, single player and challenge screens
 	GameWindow *m_loadScreen;		///< The GameWindow that is our loadscreen
+	LoadScreenView *m_view;			///< .wnd presentation of LoadScreenData, null when RmlUi draws the screen (m_loadScreen is then an empty placeholder)
 
 private:
 
@@ -94,14 +99,6 @@ public:
 	virtual void setProgressRange( Int min, Int max ) override;
 
 private:
-	GameWindow *m_progressBar;				///< Pointer to the Progress Bar on the window
-	GameWindow *m_percent;
-
-	GameWindow *m_objectiveWin;
-	GameWindow *m_objectiveLines[MAX_OBJECTIVE_LINES];
-	GameWindow *m_unitDesc[MAX_DISPLAYED_UNITS];
-	GameWindow *m_location;
-
 	Int m_currentObjectiveLine;
 	Int m_currentObjectiveLineCharacter;
 	Int m_currentObjectiveWidthOffset;
@@ -118,7 +115,28 @@ private:
 	AudioHandle m_ambientLoopHandle;
 };
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// class LoadScreenMovie is one movie of the challenge load screen: WindowVideoManager's playback
+// for a single stream, without a window. The screen publishes buffer() as a LoadScreenData video.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+class LoadScreenMovie
+{
+public:
+	LoadScreenMovie();
+	~LoadScreenMovie();
 
+	void play( const AsciiString &movieName, WindowVideoPlayType playType ); ///< stays empty if the movie can't be opened
+	void update(); ///< decode the next frame when it is due
+	VideoBuffer *buffer() const; ///< what is on screen: null when nothing plays or it stopped
+
+private:
+	void release();
+
+	VideoStreamInterface *m_stream;
+	VideoBuffer *m_buffer;
+	WindowVideoPlayType m_playType;
+	WindowVideoStates m_state;
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // class ChallengeLoadScreen is to be used only when we're loading a Generals' Challenge mission
@@ -144,50 +162,28 @@ public:
 	virtual void setProgressRange( Int min, Int max ) override;
 
 private:
-	GameWindow *m_progressBar;				///< Pointer to the Progress Bar on the window
-
 	VideoBuffer *m_videoBuffer;
 	VideoStreamInterface *m_videoStream;
 
-	WindowVideoManager *m_wndVideoManager;
+	LoadScreenMovie m_portraitMovieLeft;
+	LoadScreenMovie m_portraitMovieRight;
+	LoadScreenMovie m_versusMovie;
 
 	AudioEventRTS m_ambientLoop;
 	AudioHandle m_ambientLoopHandle;
 
-	GameWindow *m_bioNameLeft;
-	GameWindow *m_bioAgeLeft;
-	GameWindow *m_bioBirthplaceLeft;
-	GameWindow *m_bioStrategyLeft;
-	GameWindow *m_bioBigNameEntryLeft;
-	GameWindow *m_bioNameEntryLeft;
-	GameWindow *m_bioAgeEntryLeft;
-	GameWindow *m_bioBirthplaceEntryLeft;
-	GameWindow *m_bioStrategyEntryLeft;
-	GameWindow *m_bioNameRight;
-	GameWindow *m_bioAgeRight;
-	GameWindow *m_bioBirthplaceRight;
-	GameWindow *m_bioStrategyRight;
-	GameWindow *m_bioBigNameEntryRight;
-	GameWindow *m_bioNameEntryRight;
-	GameWindow *m_bioAgeEntryRight;
-	GameWindow *m_bioBirthplaceEntryRight;
-	GameWindow *m_bioStrategyEntryRight;
-
-	GameWindow *m_portraitLeft;
-	GameWindow *m_portraitRight;
-	GameWindow *m_portraitMovieLeft;
-	GameWindow *m_portraitMovieRight;
-
-//	GameWindow *m_overlayReticleCrosshairs;
-	GameWindow *m_overlayReticleCircleLineOuter;
-	GameWindow *m_overlayReticleCircleLineInner;
-	GameWindow *m_overlayReticleCircleAlphaOuter;
-	GameWindow *m_overlayReticleCircleAlphaInner;
-	GameWindow *m_overlayVsBackdrop;
-	GameWindow *m_overlayVs;
+	// full bio texts; LoadScreenData holds what the teletype has shown of them
+	UnicodeString m_bioName[2];
+	UnicodeString m_bioRank[2];
+	UnicodeString m_bioStrategy[2];
+	Int m_textPosBigName[2];
+	Int m_textPosName[2];
+	Int m_textPosRank[2];
+	Int m_textPosStrategy[2];
 
 	void activatePieces( Int frame, const GeneralPersona *generalPlayer, const GeneralPersona *generalOpponent );
 	void activatePiecesMinSpec(const GeneralPersona *generalPlayer, const GeneralPersona *generalOpponent);
+	void updateMovies(); ///< advance the three overlay movies and publish their buffers
 };
 
 
@@ -214,9 +210,6 @@ public:
 	}
 	virtual void setProgressRange( Int min, Int max ) override { }
 
-private:
-	GameWindow *m_progressBar	;				///< Pointer to the Progress Bar on the window
-
 };
 
 
@@ -239,16 +232,7 @@ public:
 	virtual void processProgress(Int playerId, Int percentage) override;
 	virtual void setProgressRange( Int min, Int max ) override { }
 private:
-	GameWindow *m_progressBars[MAX_SLOTS];	///< pointer array to all the progress bars on the window
-	GameWindow *m_playerNames[MAX_SLOTS];		///< pointer array to all the static text player names on the window
-	GameWindow *m_playerSide[MAX_SLOTS];		///< pointer array to all the static text player sides
 	Int m_playerLookup[MAX_SLOTS];					///< lookup table to translate network slot info screen slot (to account for holes in the slot list)
-	GameWindow *m_mapPreview;
-	GameWindow *m_buttonMapStartPosition[MAX_SLOTS];
-	GameWindow *m_portraitLocalGeneral;
-	GameWindow *m_featuresLocalGeneral;
-	GameWindow *m_nameLocalGeneral;
-
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -270,23 +254,7 @@ public:
 	virtual void processProgress(Int playerId, Int percentage) override;
 	virtual void setProgressRange( Int min, Int max ) override { }
 private:
-	GameWindow *m_progressBars[MAX_SLOTS];	///< pointer array to all the progress bars on the window
-	GameWindow *m_playerNames[MAX_SLOTS];		///< pointer array to all the static text player names on the window
-	GameWindow *m_playerSide[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerFavoriteFactions[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerTotalDisconnects[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerWin[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerWinLosses[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerRank[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerOfficerMedal[MAX_SLOTS];		///< pointer array to all the static text player munkees
-	GameWindow *m_mapPreview;
-	GameWindow *m_buttonMapStartPosition[MAX_SLOTS];
-
 	Int m_playerLookup[MAX_SLOTS];					///< lookup table to translate network slot info screen slot (to account for holes in the slot list)
-
-	GameWindow *m_portraitLocalGeneral;
-	GameWindow *m_featuresLocalGeneral;
-	GameWindow *m_nameLocalGeneral;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -314,12 +282,7 @@ public:
 	void processTimeout(Int secondsLeft);
 	void setCurrentFilename(AsciiString filename);
 private:
-	GameWindow *m_progressBars[MAX_SLOTS];	///< pointer array to all the progress bars on the window
-	GameWindow *m_playerNames[MAX_SLOTS];		///< pointer array to all the static text player names on the window
-	GameWindow *m_progressText[MAX_SLOTS];	///< pointer array to all the static text player sides
 	Int m_playerLookup[MAX_SLOTS];					///< lookup table to translate network slot info screen slot (to account for holes in the slot list)
 	Int m_oldProgress[MAX_SLOTS];						///< old vals, so we can call processProgress() every frame and not touch the GUI
-	GameWindow *m_fileNameText;
-	GameWindow *m_timeoutText;
 	Int m_oldTimeout;												///< old val, so we can call processTimeout() every frame and not touch the GUI
 };
