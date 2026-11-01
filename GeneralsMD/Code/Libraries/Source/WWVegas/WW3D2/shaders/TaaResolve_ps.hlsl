@@ -41,6 +41,11 @@ sampler2D g_MoverMap : register(s3);
 float4x4 g_ToSun     : register(c12);
 float4   g_MoverPrm  : register(c16);    // x = drawn this frame (2 = and `taa maskcap`), y = half texel, z = dilation (uv),
                                          // w = depth bias
+// Ronin @bugfix 01/11/2026 DX9: the fog of war's change mask (R3DTaa updateFogMask): a = 1 at shroud texels that changed this
+// frame or last. c25..c28 take a screen clip position to the fog texture's uv; c29.x = 1 when it is bound.
+sampler2D g_FogChange : register(s12);
+float4x4  g_ToFog     : register(c25);
+float4    g_FogPrm    : register(c29);
 
 // Ronin @feature 12/10/2026 DX9: HDR stage 1b - the TONE CURVE. A float scene is bent as it is read: as it is up to the knee
 // (2 - white), then a parabola that meets it there with the same slope and reaches 1 at `white`. White 1 = no bend.
@@ -455,6 +460,7 @@ float4 resolve(float2 uv, out float3 lowBits)
     // POSITION but not its CONTENT, so no motion vector can fix it: clamp the history and cap its weight (c10.z).
     // Velocity alpha: 0.4 reactive, 0.7 velocity + reactive, 1.0 velocity only.
     float reactive = 0.0f;
+    float vanishBox = 0.0f;	// Ronin @bugfix 01/11/2026 DX9: inside a vanished mesh's box
     float autoR    = 0.0f;
     float effectLeft = 0.0f;	// Ronin @bugfix 09/10/2026 DX9: an effect covered this pixel last frame and covers it less now
     if (g_TaaExtra.z > 0.0f)
@@ -463,7 +469,10 @@ float4 resolve(float2 uv, out float3 lowBits)
         // Ronin @bugfix 25/09/2026 DX9: reactive LAST frame too. A light that blinks off is not drawn, so it had no flag
         // the frame after and its history faded over ~10 frames: the trail along the runway lights.
         float rp = (g_TaaExtra.x > 0.5f) ? tex2Dlod(g_VelPrev, float4(camHistUV, 0.0f, 0.0f)).a : 0.0f;
-        reactive = ((ra > 0.25f && ra < 0.85f) || (rp > 0.25f && rp < 0.85f)) ? 1.0f : 0.0f;
+        // Ronin @bugfix 01/11/2026 DX9: 0.45 = a VANISHED mesh's box, now or last frame: clamped, not capped, and
+        // restarted only where the geometry that was there is gone (the depth block). Not reactive as a whole: that showed the box.
+        vanishBox = (abs(ra - 0.45f) < 0.02f || abs(rp - 0.45f) < 0.02f) ? 1.0f : 0.0f;
+        reactive = ((ra > 0.25f && ra < 0.85f && abs(ra - 0.45f) >= 0.02f) || (rp > 0.25f && rp < 0.85f && abs(rp - 0.45f) >= 0.02f)) ? 1.0f : 0.0f;
         // Ronin @feature 26/09/2026 DX9: AUTO-REACTIVE (c11.w). An effect drew here if the final frame differs from the copy
         // taken just before particles; LAST frame's flag rides in the depth history's alpha, so the pixel a flame just
         // left is clamped too. Particles had no velocity and no clamp: the beaded missile trail, the smeared fire.
@@ -488,6 +497,16 @@ float4 resolve(float2 uv, out float3 lowBits)
     // with `taa reflmark 2` its sample count restarts where a unit moved there (blue, below).
     float  reflR     = lightMask.r;
     float  reflMover = lightMask.b;
+    // Ronin @bugfix 01/11/2026 DX9: the FOG changed here (c29.x): still pixels with no other evidence kept the old fog, and a vanished
+    // unit's reset box showed against them as a rectangle. Reactive: clamped and capped, at the pixel's own position.
+    float fogR = 0.0f;
+    if (g_FogPrm.x > 0.5f)
+    {
+        float2 fs = (uv - g_Viewport.xy) / g_Viewport.zw;
+        float4 fp = mul(float4(fs.x * 2.0f - 1.0f, 1.0f - fs.y * 2.0f, tex2Dlod(g_Depth, float4(uv, 0.0f, 0.0f)).r, 1.0f), g_ToFog);
+        fogR = (fp.w > 0.0001f) ? tex2Dlod(g_FogChange, float4(fp.xy / fp.w, 0.0f, 0.0f)).a : 0.0f;
+        reactive = max(reactive, fogR);
+    }
 
     // DEBUG 13: the mesh velocity target. Dim = nothing, GREEN = velocity, YELLOW = velocity + reactive, MAGENTA =
     // reactive only, CYAN = stopped this frame, ORANGE = auto-reactive (an effect drew over the scene, now or last frame).
@@ -500,6 +519,7 @@ float4 resolve(float2 uv, out float3 lowBits)
             float3 c13 = lerp(lerp(scene * 0.25f, float3(1.0f, 0.5f, 0.0f), autoR), float3(1.0f, 0.0f, 0.0f), effectLeft);	// RED: an effect just left
             c13 = lerp(c13, float3(1.0f, 1.0f, 1.0f), lightR);		// WHITE: a local light changed
             c13 = lerp(c13, float3(1.0f, 0.4f, 0.7f), reflR);		// Ronin @feature 19/10/2026 DX9: PINK: a reflection changed
+            c13 = lerp(c13, float3(0.0f, 0.6f, 0.5f), fogR);		// Ronin @bugfix 01/11/2026 DX9: TEAL: the fog of war changed
             return float4(lerp(c13, float3(0.6f, 0.2f, 1.0f), reflMover), 0.0f);	// Ronin @feature 19/10/2026 DX9: PURPLE: a unit's
         }
         if (da < 0.25f)
@@ -576,7 +596,7 @@ float4 resolve(float2 uv, out float3 lowBits)
     // so a turret, wheels or a unit turning all carry residual error, and through a 0.9 history that compounds roughly
     // x9 into a smear. Motion vectors get the history approximately right and the clamp bounds the rest - the standard
     // pairing. A static pole never gets a velocity, so this does not bring its flicker back. `taa clamp 0` for an A/B.
-    float clampNeed = saturate(max(max(speedPx * 0.5f, velTaken), max(reactive, max(lightR, reflR))));
+    float clampNeed = saturate(max(max(speedPx * 0.5f, velTaken), max(max(reactive, vanishBox), max(lightR, reflR))));
     // Ronin @bugfix 27/09/2026 DX9: applied after the depth block, which adds the moving-shadow band (`taa shadowmask 1`).
 
     // ---- history weight: a per-pixel sample counter ---------------------------------------------------------------
@@ -593,6 +613,7 @@ float4 resolve(float2 uv, out float3 lowBits)
     float curLinZ  = 0.0f;
     float prevLinZ = 0.0f;
     float depthBad = 0.0f;
+    float vanishGone = 0.0f;	// Ronin @bugfix 01/11/2026 DX9: in a vanished mesh's box, where its geometry was
     float moverAny   = 0.0f;	// Ronin @bugfix 27/09/2026 DX9: in or near a moving shadow, now or last frame
     float moverBand  = 0.0f;	// Ronin @bugfix 27/09/2026 DX9: near where a moving shadow arrived or left this frame
     float moverIn    = 0.0f;	// in a moving shadow now (debug 14 only)
@@ -626,6 +647,10 @@ float4 resolve(float2 uv, out float3 lowBits)
 
         float tol  = max(curLinZ * 0.01f, 0.5f);
         depthBad   = saturate((bestRev - tol) / max(tol, 0.0001f));
+        // Ronin @bugfix 01/11/2026 DX9: in a vanished mesh's box, its own pixels: the same test, 5x stricter - a rock or a fence is
+        // shallower than 1% of the view's depth. Still ground matches a neighbour within the jitter and is left alone.
+        float tolV = max(curLinZ * 0.002f, 0.1f);
+        vanishGone = vanishBox * saturate((bestRev - tolV) / tolV);
 
         // Ronin @bugfix 27/09/2026 DX9: MOVING SHADOWS (`taa shadowmask`). A still pixel in or near the shadow of a mesh that moved,
         // this frame or last, can have had its lighting changed by it - the trail carries no velocity and no depth change.
@@ -668,7 +693,7 @@ float4 resolve(float2 uv, out float3 lowBits)
     // it just uncovered gets no velocity (the ground did not move) and the depth test misses a low vehicle, whose depth
     // differs from the ground's by less than its tolerance. Exact: last frame's velocity alpha says where a mover was.
     // Sampled at the CAMERA-reprojected position, so it follows a pan. A static pole never carries a velocity.
-    float disocc = 0.0f;
+    float disocc = vanishGone;	// Ronin @bugfix 01/11/2026 DX9: a vanished mesh's own pixels restart, as a ghost's did
     // Ronin @bugfix 27/09/2026 DX9: GHOST (velocity alpha 0.3) - a moving build preview or the placement bib. Its pixels mix
     // preview and ground and change every frame, so no history is right under it.
     if (g_TaaExtra.y > 0.5f && g_TaaSharpen.y > 0.5f)

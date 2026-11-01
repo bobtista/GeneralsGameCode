@@ -227,6 +227,15 @@ static const float            TAA_FLASH_GAIN   = 2.0f;	// the scene added the ti
 enum { TAA_MAX_VANISH = 64 };
 static float                  s_vanishBox[TAA_MAX_VANISH][6];	// centre xyz, extent xyz
 static Int                    s_vanishCount    = 0;
+// Ronin @bugfix 01/11/2026 DX9: the fog of war's change mask (updateFogMask): a = 255 at the shroud texels that changed this
+// frame or last; the resolve reads it at each pixel's ground position (s12, c25..c29).
+static TextureClass          *s_fogMaskTex     = NULL;	// MANAGED, the shroud texture's size
+static unsigned char         *s_fogPrev        = NULL;	// last frame's shroud texels, raw
+static unsigned char         *s_fogAge         = NULL;	// frames each texel stays marked
+static UnsignedInt            s_fogW = 0, s_fogH = 0, s_fogBpp = 0;
+static Bool                   s_fogLitLast     = FALSE;	// marked last frame: the mask must be rewritten
+static Bool                   s_fogReady       = FALSE;	// marked this frame: the resolve binds it
+static float                  s_toFogT[16];				// screen clip -> fog texture uv, transposed
 static const float            TAA_JUMP_DIST2   = 16.0f;	// Ronin @bugfix 09/10/2026 DX9: a still mesh that moved further than 4 units in one frame jumped
 static float s_disoccV    = 0.5f;	// Ronin @bugfix 26/09/2026 DX9: `taa disoccv` - px a mover must have moved to vacate a pixel
 static Int   s_reactCount = 0;
@@ -1960,6 +1969,88 @@ static void setResolveSampler(IDirect3DDevice9 *dev, DWORD stage, Bool linearFil
 	dev->SetSamplerState(stage, D3DSAMP_ADDRESSV,  D3DTADDRESS_CLAMP);
 }
 
+// Ronin @bugfix 01/11/2026 DX9: the fog of war's change mask - the shroud texture against last frame's copy, texel by texel. A
+// changed texel stays marked this frame and the next ("reactive last frame"). Once a frame, before the resolve.
+static void updateFogMask(void)
+{
+	s_fogReady  = FALSE;
+	TextureClass *shroud = W3DShaderManager::getShroudTexture();
+	IDirect3DTexture9 *st = (shroud != NULL) ? shroud->Peek_D3D_Texture() : NULL;
+	float ox = 0.0f, oy = 0.0f, sx = 0.0f, sy = 0.0f;
+	D3DSURFACE_DESC desc;
+	if (st == NULL || !W3DShaderManager::getShroudMapState(&ox, &oy, &sx, &sy) || FAILED(st->GetLevelDesc(0, &desc)))
+		return;
+	const UnsignedInt bpp = (desc.Format == D3DFMT_A8R8G8B8 || desc.Format == D3DFMT_X8R8G8B8) ? 4 : 2;
+	Bool fresh = FALSE;
+	if (s_fogMaskTex == NULL || s_fogW != desc.Width || s_fogH != desc.Height || s_fogBpp != bpp)
+	{
+		REF_PTR_RELEASE(s_fogMaskTex);
+		delete [] s_fogPrev;
+		delete [] s_fogAge;
+		s_fogW = desc.Width; s_fogH = desc.Height; s_fogBpp = bpp;
+		s_fogPrev = new unsigned char[s_fogW * s_fogH * bpp];
+		s_fogAge  = new unsigned char[s_fogW * s_fogH];
+		memset(s_fogAge, 0, s_fogW * s_fogH);
+		s_fogMaskTex = NEW_REF(TextureClass, (s_fogW, s_fogH, WW3D_FORMAT_A8R8G8B8, MIP_LEVELS_1, TextureClass::POOL_MANAGED));
+		s_fogLitLast = TRUE;	// the new mask is written clear once
+		fresh = TRUE;			// the first copy marks nothing
+	}
+	IDirect3DTexture9 *mt = (s_fogMaskTex != NULL) ? s_fogMaskTex->Peek_D3D_Texture() : NULL;
+	D3DLOCKED_RECT src;
+	if (mt == NULL || FAILED(st->LockRect(0, &src, NULL, D3DLOCK_READONLY)))
+		return;
+	const UnsignedInt rowBytes = s_fogW * bpp;
+	for (UnsignedInt y = 0; y < s_fogH; ++y)
+	{
+		const unsigned char *row  = (const unsigned char *)src.pBits + y * src.Pitch;
+		unsigned char       *prev = s_fogPrev + y * rowBytes;
+		if (!fresh && memcmp(row, prev, rowBytes) != 0)
+		{
+			unsigned char *age = s_fogAge + y * s_fogW;
+			for (UnsignedInt x = 0; x < s_fogW; ++x)
+				if (memcmp(row + x * bpp, prev + x * bpp, bpp) != 0)
+					age[x] = 2;
+		}
+		memcpy(prev, row, rowBytes);
+	}
+	st->UnlockRect(0);
+
+	const UnsignedInt count = s_fogW * s_fogH;
+	Int marked = 0;
+	for (UnsignedInt i = 0; i < count; ++i)
+		if (s_fogAge[i] > 0)
+			++marked;
+	const Bool litNow = (marked > 0) ? TRUE : FALSE;
+	D3DLOCKED_RECT dst;
+	if ((litNow || s_fogLitLast) && SUCCEEDED(mt->LockRect(0, &dst, NULL, 0)))
+	{
+		for (UnsignedInt y = 0; y < s_fogH; ++y)
+		{
+			DWORD *out = (DWORD *)((unsigned char *)dst.pBits + y * dst.Pitch);
+			const unsigned char *age = s_fogAge + y * s_fogW;
+			for (UnsignedInt x = 0; x < s_fogW; ++x)
+				out[x] = (age[x] > 0) ? 0xFF000000 : 0;
+		}
+		mt->UnlockRect(0);
+	}
+	s_fogLitLast = litNow;
+	for (UnsignedInt i = 0; i < count; ++i)
+		if (s_fogAge[i] > 0)
+			--s_fogAge[i];
+
+	// screen clip -> world (this frame, jitter removed) -> fog texture uv, as the terrain maps it: (world + offset) * scale
+	D3DXMATRIX inv, toWorldUV, toFog, toFogT;
+	if (!litNow || D3DXMatrixInverse(&inv, NULL, &s_curViewProjClean) == NULL)
+		return;
+	D3DXMatrixIdentity(&toWorldUV);
+	toWorldUV._11 = sx;			toWorldUV._22 = sy;			toWorldUV._33 = 0.0f;
+	toWorldUV._41 = ox * sx;	toWorldUV._42 = oy * sy;
+	D3DXMatrixMultiply(&toFog, &inv, &toWorldUV);
+	D3DXMatrixTranspose(&toFogT, &toFog);
+	memcpy(s_toFogT, &toFogT, sizeof(s_toFogT));
+	s_fogReady = TRUE;
+}
+
 // Ronin @bugfix 27/09/2026 DX9: POOL_DEFAULT through TextureClass/ZTextureClass, so DX8TextureManagerClass recreates both across
 // a device reset, like the shadow map's own pair.
 static Bool ensureMoverTargets(void)
@@ -2178,6 +2269,10 @@ void R3DTaa::shutdown(void)
 	if (s_waterMaskPS != NULL) { s_waterMaskPS->Release(); s_waterMaskPS = NULL; }
 	REF_PTR_RELEASE(s_waterMaskTex);
 	REF_PTR_RELEASE(s_lightMaskTex);	// Ronin @bugfix 09/10/2026 DX9: the local lights' change mask
+	REF_PTR_RELEASE(s_fogMaskTex);		// Ronin @bugfix 01/11/2026 DX9: the fog's change mask and its copies
+	delete [] s_fogPrev;	s_fogPrev = NULL;
+	delete [] s_fogAge;		s_fogAge  = NULL;
+	s_fogW = s_fogH = s_fogBpp = 0;
 	s_lightMaskW     = 0;
 	s_lightMaskH     = 0;
 	s_lightMaskStamp = 0;
@@ -3110,11 +3205,12 @@ void R3DTaa::postRender(void)
 					dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, (UINT)(s_waterVertCount / 3), s_waterVerts, sizeof(Vector3));
 				}
 
-				// Ronin @bugfix 09/10/2026 DX9: the vanished meshes' boxes, as GHOSTS (alpha 0.3, one-sided, zero velocity): the resolve keeps no
-				// history there this frame and the next. Before the meshes, so anything still standing there overwrites it.
+				// Ronin @bugfix 09/10/2026 DX9: the vanished meshes' boxes, one-sided, zero velocity, this frame and the next. Before the meshes, so
+				// anything still standing there overwrites it. Ronin @bugfix 01/11/2026 DX9: 0.45, the resolve clamps the box and restarts
+				// only the mesh's own pixels (its depth is gone); the whole box reset as a GHOST (0.3) flashed.
 				if (s_vanishCount > 0)
 				{
-					static const float ghostC12[4] = { 0.3f, 1.0f, 1.0f, 0.0f };
+					static const float ghostC12[4] = { 0.45f, 1.0f, 1.0f, 0.0f };
 					static const unsigned short boxIdx[36] = { 0,1,2, 2,1,3,  4,6,5, 5,6,7,  0,4,1, 1,4,5,
 															  2,3,6, 6,3,7,  0,2,4, 4,2,6,  1,5,3, 3,5,7 };
 					D3DXMATRIX vpT;
@@ -3329,6 +3425,16 @@ void R3DTaa::postRender(void)
 				const float c9[4] = { s_white, s_floatNow ? 1.0f : 0.0f, 0.0f, 0.0f };
 				dev->SetPixelShaderConstantF(9, c9, 1);
 
+				// Ronin @bugfix 01/11/2026 DX9: the fog of war's change mask at s12, screen clip -> its uv at c25..c28, c29.x = bound.
+				updateFogMask();
+				if (s_fogReady)
+				{
+					dev->SetTexture(12, s_fogMaskTex->Peek_D3D_Texture());
+					setResolveSampler(dev, 12, TRUE);	// LINEAR - the shroud is read filtered, so a texel's change reaches as far
+					dev->SetPixelShaderConstantF(25, s_toFogT, 4);
+				}
+				const float c29[4] = { s_fogReady ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f };
+				dev->SetPixelShaderConstantF(29, c29, 1);
 				const Bool usePrevVel = (s_prevVelOK && s_velPrevTex != NULL);	// disocc AND last frame's reactive flags
 				if (usePrevVel)
 				{
@@ -3392,6 +3498,7 @@ void R3DTaa::postRender(void)
 				dev->SetTexture(7, NULL);
 				dev->SetTexture(3, NULL);
 				dev->SetTexture(8, NULL);
+				dev->SetTexture(12, NULL);	// Ronin @bugfix 01/11/2026 DX9: the fog's change mask
 				wroteHistory = TRUE;
 			}
 			curSurf->Release();

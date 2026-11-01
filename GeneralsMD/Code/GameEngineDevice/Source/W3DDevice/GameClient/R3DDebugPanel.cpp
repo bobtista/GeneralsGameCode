@@ -783,7 +783,7 @@ namespace
 		if (!ok)
 		{
 			printAscii(AsciiString("usage: taa [0|1] | weight <0..0.99> | debug <0..15> | sharpen <0..1> | mipbias <-2..0> | clamp <0..1> | shadowmask <0|1> | maskcap <0|1> | vel <0|1> | disocc <0..2> | disoccv <px> | reactive <0..1> | autoreact <0..1> | autofull <0..1> | water <0|1> | reflmark <0..2>"), TRUE);
-			printAscii(AsciiString("  debug 1=reproj 2=depth 3=samples 4=history 13=velocity/reactive mask (orange = auto-reactive, by how much; red = an effect just left; white = a local light changed, pink = a reflection changed, purple = and a unit moved there) 14=moving shadows (blue = in one now, red = clamped, yellow = also capped) 15=mesh motion px/frame (navy<.05 blue<.1 cyan<.2 green<.35 yellow<.5 orange<1 red)"), FALSE);
+			printAscii(AsciiString("  debug 1=reproj 2=depth 3=samples 4=history 13=velocity/reactive mask (orange = auto-reactive, by how much; red = an effect just left; white = a local light changed, pink = a reflection changed, purple = and a unit moved there, teal = the fog of war changed) 14=moving shadows (blue = in one now, red = clamped, yellow = also capped) 15=mesh motion px/frame (navy<.05 blue<.1 cyan<.2 green<.35 yellow<.5 orange<1 red)"), FALSE);
 			return;
 		}
 		// Ronin @diagnostic 26/09/2026 DX9: labels are the knob names, so what is read here is what gets typed.
