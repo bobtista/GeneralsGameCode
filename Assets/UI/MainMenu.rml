@@ -144,11 +144,11 @@
 				</div>
 			</div>
 
-			<div class="d-row" data-class-active="panel == 'loadreplay'">
+			<div class="d-row d-list" data-class-active="panel == 'loadreplay'">
 				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:ReplayMenu"/></div></div>
 				<div class="d-deck">
-				<button class="hq-card d-card d-wide" data-event-click="go_load_game"><div class="hq-art d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-save"><span class="s s1"></span><span class="s s2"></span><span class="s s3"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:MainMenuLoadGame"/></div><div class="hq-card-desc">Resume a saved mission</div></div><span class="hq-edge"></span></button>
-				<button class="hq-card d-card d-wide" data-event-click="go_replay"><div class="hq-art d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-rec"><mappedimage class="ring" name="Circle_Mid"/><mappedimage class="ring ring-in" name="Circle_Mid"/><span class="tick t-n"></span><span class="tick t-s"></span><span class="tick t-w"></span><span class="tick t-e"></span><span class="core"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:MainMenuLoadReplay"/></div><div class="hq-card-desc">Watch your recorded battles</div></div><span class="hq-edge"></span></button>
+				<button class="hq-card d-card d-line" data-event-click="go_load_game"><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:MainMenuLoadGame"/></div><div class="hq-card-desc">Resume a saved mission</div></div><span class="hq-edge"></span></button>
+				<button class="hq-card d-card d-line" data-event-click="go_replay"><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:MainMenuLoadReplay"/></div><div class="hq-card-desc">Watch your recorded battles</div></div><span class="hq-edge"></span></button>
 				</div>
 			</div>
 

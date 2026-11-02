@@ -829,6 +829,38 @@
 	max-width: 440dp;
 }
 
+/* Ronin @feature 02/11/2026: the load row - two short cards stacked, the title and its line, no art. */
+.screen .d-list .d-deck
+{
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.screen .d-list .d-deck > button.d-card.d-line
+{
+	flex: 0 0 auto;
+	width: 300dp;
+	max-width: 300dp;
+	height: auto;
+	margin: 0 0 16dp 0;
+}
+
+/* Its 40dp head centred on LOAD's 56dp label line (50dp narrow), from rmlscreens' boxes at 1080, 720 and 4:3. A 0-high box: the row hangs down
+   from it, whatever its cards' height. */
+.mm-d .d-row.d-list.active
+{
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 314dp;
+	height: 0;
+}
+
+/* 10% more see-through than the other cards (EC, F0 -> D2, D6). */
+.screen .d-list button.hq-card.d-line { background-color: #070A1AD2; }
+.screen .d-list button.hq-card.d-line:hover { background-color: #0B1030D6; }
+.screen .d-list button.hq-card.d-line:active { background-color: #141A3ED6; }
+
 .d-art
 {
 	height: 226dp;
@@ -1005,79 +1037,6 @@
 .g-net .n2 { right: 10dp; top: 60dp; }
 .g-net .n3 { left: 90dp; top: 0; }
 
-/* Load game: three save slots, the newest lit. */
-.g-save
-{
-	width: 210dp;
-	height: 120dp;
-	margin-left: -105dp;
-	margin-top: -60dp;
-}
-
-.g-save .s
-{
-	display: block;
-	box-sizing: border-box;
-	height: 32dp;
-	margin-bottom: 12dp;
-	border: 2dp #8080FFA0;
-	background-color: #070A1AC8;
-}
-
-.g-save .s1 { border-left: 8dp #D1FD04; }
-.g-save .s2 { margin-left: 16dp; opacity: 0.8; }
-.g-save .s3 { margin-left: 32dp; opacity: 0.55; }
-
-/* Replays: a reticle, two rings with a lit core and four ticks. */
-.g-rec
-{
-	width: 160dp;
-	height: 160dp;
-	margin-left: -80dp;
-	margin-top: -80dp;
-}
-
-.g-rec .ring
-{
-	left: 14dp;
-	top: 14dp;
-	width: 132dp;
-	height: 132dp;
-}
-
-.g-rec .ring-in
-{
-	left: 44dp;
-	top: 44dp;
-	width: 72dp;
-	height: 72dp;
-	opacity: 0.6;
-}
-
-.g-rec .tick
-{
-	display: block;
-	position: absolute;
-	background-color: #C4CAE4;
-}
-
-.g-rec .t-n { left: 79dp; top: 0; width: 2dp; height: 22dp; }
-.g-rec .t-s { left: 79dp; bottom: 0; width: 2dp; height: 22dp; }
-.g-rec .t-w { left: 0; top: 79dp; width: 22dp; height: 2dp; }
-.g-rec .t-e { right: 0; top: 79dp; width: 22dp; height: 2dp; }
-
-.g-rec .core
-{
-	display: block;
-	position: absolute;
-	left: 64dp;
-	top: 64dp;
-	width: 32dp;
-	height: 32dp;
-	border-radius: 16dp;
-	background-color: #D1FD04;
-}
-
 /* Difficulty: a three-step level meter. */
 .d-diff .d-art
 {
@@ -1153,6 +1112,7 @@
 	.screen .d-deck > .d-card:nth-child(n+3) { margin-top: 16dp; }
 	.d-card .hq-card-title { font-size: 22dp; }
 	.d-card .hq-card-desc { font-size: 15dp; line-height: 19dp; }
+	.mm-d .d-row.d-list.active { bottom: 287dp; }	/* the items are 80dp here */
 }
 
 /* Translated side and mode names run longer than the English ones (German "Westliche Allianz"):

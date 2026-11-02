@@ -84,7 +84,7 @@
 			<div class="textbtn" data-cb="x3" data-alias-s="context_buttons[3]" data-if="s.shown" data-class-off="!s.enabled"><gametext key="GUI:Clear"/></div>
 		</div>
 	</div>
-	<div id="cb-left">
+	<div id="cb-left" data-class-alone="!(commands_shown || context == 'construction' || context == 'ocl' || context == 'beacon')">
 		<div id="cb-queue" class="panel" data-if="queue_shown">
 			<div class="queue-head" data-alias-s="queue[0]"><div class="slot" data-cb="q0" data-alias-s="queue[0]" data-class-live="s.shown" data-class-off="!s.enabled &amp;&amp; !s.not_ready" data-class-poor="s.poor" data-class-checked="s.checked" data-class-flash="s.flash"><div class="art" data-if="s.shown &amp;&amp; s.icon != ''" data-style-decorator="s.icon != '' ? 'image(' + s.icon + ')' : 'none'"></div><div class="vet" data-if="s.shown &amp;&amp; s.overlay != ''" data-style-decorator="s.overlay != '' ? 'image(' + s.overlay + ')' : 'none'"></div><div class="clock" data-if="s.shown &amp;&amp; s.has_clock" data-style-height="s.clock"></div><div class="shade"></div><span class="key" data-if="s.shown &amp;&amp; s.key != ''">{{s.key}}</span><span class="count" data-if="s.shown &amp;&amp; s.text != ''">{{s.text}}</span></div>
 				<div class="queue-progress"><div class="queue-label" data-if="s.has_clock">TRAINING</div><div class="queue-bar" data-if="s.has_clock"><div class="queue-left" data-style-width="s.clock"></div></div></div>

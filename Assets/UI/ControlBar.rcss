@@ -343,6 +343,7 @@ body.low #cb-map, body.low #cb-general, body.low #cb-card, body.low #cb-left, bo
 	bottom: 66dp;
 	width: 280dp;	/* the selection's 6 x 3; the narrower panels hug the card's side */
 }
+#cb-left.alone { right: 10dp; }	/* Ronin @feature 02/11/2026: no card - the selection takes its corner, over the factory tabs */
 #cb-left .panel { position: relative; margin-left: auto; }
 #cb-queue { width: 167dp; }	/* 10% larger than the first cut (28/10), so the item in work reads at a glance */
 .queue-head { display: flex; flex-direction: row; }
