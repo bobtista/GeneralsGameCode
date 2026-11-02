@@ -398,6 +398,7 @@ static Bool  s_floatReady  = FALSE;	// Ronin @feature 17/10/2026 DX9: the float 
 static float s_sunGain[4]  = { 2.0f, 1.8f, 2.0f, 1.0f };	// `hdr sun`: morning, afternoon, evening, night
 static float s_sunWarm     = 0.35f;						// `hdr warm`
 static float s_white       = 1.5f;						// `hdr white`
+static float s_spill       = 1.0f;						// Ronin @bugfix 02/11/2026 DX9: `hdr spill` - past white, colours run to white as 8-bit clipped
 
 static void keepSceneFormat(void)
 {
@@ -435,6 +436,8 @@ void  R3DTaa::setSunWarm(float v)	{ s_sunWarm = (v < 0.0f) ? 0.0f : ((v > 1.0f) 
 float R3DTaa::getSunWarm(void)		{ return s_sunWarm; }
 void  R3DTaa::setWhite(float v)		{ s_white = (v < 1.0f) ? 1.0f : ((v > 2.0f) ? 2.0f : v); }
 float R3DTaa::getWhite(void)		{ return s_white; }
+void  R3DTaa::setSpill(float v)		{ s_spill = (v < 0.0f) ? 0.0f : ((v > 1.0f) ? 1.0f : v); }	// Ronin @bugfix 02/11/2026 DX9
+float R3DTaa::getSpill(void)		{ return s_spill; }
 
 // Ronin @feature 12/10/2026 DX9: what the lift adds to a wholly sunlit pixel, as a share of it: gain - 1, less in green and
 // blue by `warm` (to 0.90 and 0.72 of it).
@@ -644,12 +647,12 @@ void R3DTaa::describeScene(char *out, Int size)
 		w = d.Width;
 		h = d.Height;
 	}
-	_snprintf(out, size, "hdr: %d (needs MSAA off)%s  scene target: %s, %u x %u. The scene %s  sun %.2f (this time of day; all four %.2f %.2f %.2f %.2f)  warm %.2f  white %.2f",
+	_snprintf(out, size, "hdr: %d (needs MSAA off)%s  scene target: %s, %u x %u. The scene %s  sun %.2f (this time of day; all four %.2f %.2f %.2f %.2f)  warm %.2f  white %.2f  spill %.2f",
 			  s_floatScene ? 1 : 0, s_floatRefused ? " (REFUSED by the device)" : "", name, w, h,
 			  s_active ? "is drawn into it (TAA runs)." : ((DX8Wrapper::Get_Anti_Aliasing_Level() != 0) ?
 			  "is NOT drawn into it: MSAA is on." : (s_floatReady ? "is drawn into it (TAA off: the tone curve alone brings it back)." :
 			  "is NOT drawn into it: TAA and hdr are off - it goes straight to the frame buffer.")),
-			  s_sunGain[sunGainSlot()], s_sunGain[0], s_sunGain[1], s_sunGain[2], s_sunGain[3], s_sunWarm, s_white);
+			  s_sunGain[sunGainSlot()], s_sunGain[0], s_sunGain[1], s_sunGain[2], s_sunGain[3], s_sunWarm, s_white, s_spill);
 	out[size - 1] = 0;
 }
 void  R3DTaa::setClamp(float v)       { s_clamp = taaKnob(v, 0.0f, 1.0f, 1.0f); }
@@ -2370,7 +2373,7 @@ static Bool buildSurround(IDirect3DDevice9 *dev, IDirect3DBaseTexture9 *src, Uns
 	DX8Wrapper::BindLayoutFVF(D3DFVF_XYZ | D3DFVF_TEX1, "R3DTaa::buildSurround");
 	dev->SetVertexShader(s_quadVS);		// after the layout bind - BindLayoutFVF clears the VS
 	dev->SetPixelShader(s_resolvePS);
-	const float c9[4] = { s_white, floatScene ? 1.0f : 0.0f, 0.0f, 0.0f };
+	const float c9[4] = { s_white, floatScene ? 1.0f : 0.0f, s_spill, 0.0f };
 	dev->SetPixelShaderConstantF(9, c9, 1);
 	dev->SetPixelShaderConstantF(24, rect, 1);
 	// Ronin @feature 23/10/2026 DX9: the dark lift, so the night's surroundings are as shown (c19 is uploaded after this).
@@ -2484,7 +2487,7 @@ static void drawFinish(IDirect3DDevice9 *dev, IDirect3DTexture9 *src, const D3DV
 	dev->SetPixelShaderConstantF(7, zero4, 1);		// no CAS: it is TAA's
 	const float c8[4] = { 1.0f, 1.0f, 1.0f, 0.0f };
 	dev->SetPixelShaderConstantF(8, c8, 1);			// no flash: without TAA the scene draws its own
-	const float c9[4] = { s_white, floatScene ? 1.0f : 0.0f, 0.0f, 0.0f };
+	const float c9[4] = { s_white, floatScene ? 1.0f : 0.0f, s_spill, 0.0f };
 	dev->SetPixelShaderConstantF(9, c9, 1);			// the tone curve bends a float scene only
 	const Bool nightMask = (s_lightMaskTex != NULL && s_lightMaskFrame == s_frameNo && s_lightMaskW == texW &&
 							s_lightMaskH == texH) ? TRUE : FALSE;
@@ -3422,7 +3425,7 @@ void R3DTaa::postRender(void)
 				dev->SetPixelShaderConstantF(7, c7, 1);
 				// Ronin @feature 12/10/2026 DX9: HDR stage 1b: c9 = the tone curve - x = `hdr white`, y = 1: stage 0 and the copy before
 				// particles hold the float scene and are bent as they are read. The history stays 8-bit, already bent.
-				const float c9[4] = { s_white, s_floatNow ? 1.0f : 0.0f, 0.0f, 0.0f };
+				const float c9[4] = { s_white, s_floatNow ? 1.0f : 0.0f, s_spill, 0.0f };
 				dev->SetPixelShaderConstantF(9, c9, 1);
 
 				// Ronin @bugfix 01/11/2026 DX9: the fog of war's change mask at s12, screen clip -> its uv at c25..c28, c29.x = bound.
@@ -3560,7 +3563,7 @@ void R3DTaa::postRender(void)
 		const float c7cas[4] = { s_sharpen, 0.0f, 0.0f, 0.0f };	// Ronin @feature 26/09/2026 DX9: CAS here, never in pass 1
 		dev->SetPixelShaderConstantF(7, c7cas, 1);
 		// Ronin @feature 12/10/2026 DX9: HDR stage 1b: stage 0 is the bent history here - or, without one, the raw float scene.
-		const float c9copy[4] = { s_white, (s_floatNow && !wroteHistory) ? 1.0f : 0.0f, 0.0f, 0.0f };
+		const float c9copy[4] = { s_white, (s_floatNow && !wroteHistory) ? 1.0f : 0.0f, s_spill, 0.0f };
 		dev->SetPixelShaderConstantF(9, c9copy, 1);
 		// Ronin @feature 15/10/2026 DX9: THE NIGHT LOOK (`night`): c17 = the dim's tint, w = on; c18 = lo, hi, floor.
 		// Ronin @feature 15/10/2026 DX9: the light mask at s8 too when it is this frame's: its alpha keeps a lamp-lit pixel's colour.

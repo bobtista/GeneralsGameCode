@@ -2129,6 +2129,7 @@ static const R3DLocalLights::Knob s_knobs[] =
 	{ "hdrnight", FALSE, TRUE, [](float v) { R3DTaa::setSunGainAt(3, v); }, []() -> float { return R3DTaa::getSunGainAt(3); } },
 	{ "hdrwarm", FALSE, TRUE, [](float v) { R3DTaa::setSunWarm(v); }, []() -> float { return R3DTaa::getSunWarm(); } },
 	{ "hdrwhite", FALSE, TRUE, [](float v) { R3DTaa::setWhite(v); }, []() -> float { return R3DTaa::getWhite(); } },
+	{ "hdrspill", FALSE, TRUE, [](float v) { R3DTaa::setSpill(v); }, []() -> float { return R3DTaa::getSpill(); } },	// Ronin @bugfix 02/11/2026 DX9
 	LIGHT_SWITCH("lampmaps", setLampMaps, getLampMaps),
 	LIGHT_REAL("lampshadows", setLampShadows, getLampShadows),
 	LIGHT_REAL("lampbias", setLampBias, getLampBias),

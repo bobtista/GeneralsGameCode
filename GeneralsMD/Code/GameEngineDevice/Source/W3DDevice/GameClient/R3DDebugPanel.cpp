@@ -1017,7 +1017,7 @@ namespace
 			{ "COLOUR", "night", "nighttint", "nightlo", "nighthi", "nightfloor", "nightfull", "nightlift", "grade", "gradewarm", "gradesat",
 			  "grademids", "vibrance", "localcontrast", "nightvibrance", "nightcontrast", NULL },		// Ronin @feature 21/10/2026 DX9: the final pass's colour - the night look, the dark lift, the grade
 			// Ronin @feature 21/10/2026 DX9: HDR's look - the sun's lift by the time of day, its warmth, the curve's white (on / off: Options.ini)
-			{ "HDR", "hdrmorning", "hdrafternoon", "hdrevening", "hdrnight", "hdrwarm", "hdrwhite", NULL },
+			{ "HDR", "hdrmorning", "hdrafternoon", "hdrevening", "hdrnight", "hdrwarm", "hdrwhite", "hdrspill", NULL },
 		};
 		Bool placed[LIGHT_KNOBS_MAX] = {};
 		PanelColumn cols[10] = {};
@@ -1183,9 +1183,12 @@ namespace
 			R3DTaa::setSunWarm((float)atof(argv[2].str()));
 		else if (argc == 3 && stricmp(argv[1].str(), "white") == 0)
 			R3DTaa::setWhite((float)atof(argv[2].str()));
+		else if (argc == 3 && stricmp(argv[1].str(), "spill") == 0)	// Ronin @bugfix 02/11/2026 DX9
+			R3DTaa::setSpill((float)atof(argv[2].str()));
 		else if (argc != 1)
 		{
-			printAscii(AsciiString("usage: hdr [0|1] | hdr sun <1..4> | hdr warm <0..1> | hdr white <1..2>   (needs MSAA off; the sun lift also needs the lights on and the sun's shadow maps)"), TRUE);
+			printAscii(AsciiString("usage: hdr [0|1] | hdr sun <1..4> | hdr warm <0..1> | hdr white <1..2> | hdr spill <0..1>   (needs MSAA off; the sun lift also needs the lights on and the sun's shadow maps)"), TRUE);
+			printAscii(AsciiString("  spill: past white, a colour runs to white as the 8-bit target clipped it (a beam's core white, a fire's yellow); 0 = it keeps its hue to the end"), FALSE);
 			printAscii(AsciiString("  sun: how bright the sun is on what it reaches, for the time of day now showing; 1 = as before"), FALSE);
 			printAscii(AsciiString("  warm: the lift's tint, 0 = none, 1 = strongly warm;  white: the scene value shown as white - higher keeps more detail in the brightest, flatter"), FALSE);
 			return;
@@ -3639,7 +3642,7 @@ void R3DDebugPanel::update(void)
 		registerCommand("lights", "lights [0|1] | save|load|defaults | intensity|range|small|over|boost|view|beams|shafts|rays|rayturn|lampwidth|spill|spillwide|glows|glowreach|glowjoin|coronas|coronasize|pools|beamreach|poolfill|hotspot|sunfill|sunerase|mapshadow|reflect|reflectground|fresnel|ssr|bounce|fxlights|fxstrength|fxreach|fxmerge|fxflares|fxfire|fxsmooth|pulsemin|pulsefade|searchlight|night*|daysun|dayshade|sun*|lampmaps|lampshadows|lampbias|lampself|lampselfnear|pointmaps|pointsides <v> - local lights per pixel from the scene depth; 0 = the old vertex paths; save keeps the knobs in DX9Lights.ini", cmdLights);
 		registerCommand("glowfx", "glowfx - the glowing (additive) particle systems now: how many, how many on screen, the strongest by colour x alpha x size^2", cmdGlowFx);
 		registerCommand("night", "night [0|1] | night tint|lo|hi|floor|full|lift <v> - the night look and the dark lift: dim colour into one tint from the map's light, lamps keep theirs (at night; not saved)", cmdNight);
-		registerCommand("hdr", "hdr [0|1] | hdr sun <1..4> | hdr warm <0..1> | hdr white <1..2> - HDR stage 1: a float scene, the sun lifted above 1, a tone curve (needs MSAA off; on / off: Options.ini DX9HDR; the rest: DX9Lights.ini)", cmdHdr);
+		registerCommand("hdr", "hdr [0|1] | hdr sun <1..4> | hdr warm <0..1> | hdr white <1..2> | hdr spill <0..1> - HDR stage 1: a float scene, the sun lifted above 1, a tone curve (needs MSAA off; on / off: Options.ini DX9HDR; the rest: DX9Lights.ini)", cmdHdr);
 		registerCommand("grade", "grade [0|1] | grade warm|sat|mids <v> - the daytime colour: warm tint, saturation, darker mid-tones (by day; off by default; DX9Lights.ini: grade, gradewarm, gradesat, grademids)", cmdGrade);
 		registerCommand("campitch", "campitch [degrees | default] - the camera's tilt (a middle click resets it)", cmdCamPitch);
 		registerCommand("sky", "sky | sky rebuild - the map's sky cube: its source, its ground, the ambient's six colours (`lights view 5` shows it)", cmdSky);

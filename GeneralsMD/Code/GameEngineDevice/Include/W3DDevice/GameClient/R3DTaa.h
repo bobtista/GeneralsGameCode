@@ -102,6 +102,8 @@ public:
 	static float getSunWarm(void);
 	static void  setWhite(float v);
 	static float getWhite(void);
+	static void  setSpill(float v);		// Ronin @bugfix 02/11/2026 DX9: `hdr spill` 0..1 - past white, colours run to white
+	static float getSpill(void);
 	static Bool  getSunLift(float rgb[3]);	// FALSE: no float scene this frame, or no gain - nothing to draw
 	// Ronin @feature 21/10/2026 DX9: THE GRADE - the daytime colour in the final pass, never at night: warm 0 = none, 1 = the measured
 	// tint; sat 1 = none; mids = the mid-tones' power, 1 = none. Off by default.

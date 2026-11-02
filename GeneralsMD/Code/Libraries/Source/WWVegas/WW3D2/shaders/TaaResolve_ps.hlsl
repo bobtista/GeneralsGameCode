@@ -49,16 +49,24 @@ float4    g_FogPrm    : register(c29);
 
 // Ronin @feature 12/10/2026 DX9: HDR stage 1b - the TONE CURVE. A float scene is bent as it is read: as it is up to the knee
 // (2 - white), then a parabola that meets it there with the same slope and reaches 1 at `white`. White 1 = no bend.
-float4   g_Tone      : register(c9);     // x = `hdr white` (1..2), y = 1: stage 0 and g_Opaque hold the float scene
+float4   g_Tone      : register(c9);     // x = `hdr white` (1..2), y = 1: stage 0 and g_Opaque hold the float scene, z = `hdr spill`
+float bendOne(float v, float knee)
+{
+    float t = saturate((v - knee) / max(g_Tone.x - knee, 0.0001f));
+    return (v > knee) ? knee + (1.0f - knee) * (1.0f - (1.0f - t) * (1.0f - t)) : v;
+}
 float3 toneCurve(float3 c)
 {
     float  knee = 2.0f - g_Tone.x;
     // Ronin @bugfix 23/10/2026 DX9: the brightest channel bent and the others scaled with it, so a colour keeps its hue and saturation;
     // bent one by one, a sunlit orange went yellow (hue 28 -> 45 deg) and paler.
     float  m    = max(c.r, max(c.g, c.b));
-    float  t    = saturate((m - knee) / max(g_Tone.x - knee, 0.0001f));
-    float  bent = knee + (1.0f - knee) * (1.0f - (1.0f - t) * (1.0f - t));
-    return (g_Tone.y > 0.5f && m > knee) ? c * (bent / m) : c;
+    float3 kept = c * (bendOne(m, knee) / max(m, 0.0001f));
+    // Ronin @bugfix 02/11/2026 DX9: past `white` it runs to the channel-by-channel bend, as the 8-bit target clipped: an additive
+    // beam's core goes white, a fire's yellow (`hdr spill`; at twice `white` all the way, 0 = the hue kept to the end).
+    float3 each = float3(bendOne(c.r, knee), bendOne(c.g, knee), bendOne(c.b, knee));
+    float  s    = g_Tone.z * saturate((m - g_Tone.x) / g_Tone.x);
+    return (g_Tone.y > 0.5f && m > knee) ? lerp(kept, each, s) : c;
 }
 
 // Ronin @feature 15/10/2026 DX9: THE NIGHT LOOK. Night vision has no colour in the dim: a pixel keeps its own colour as far as
