@@ -1787,6 +1787,7 @@ static void gpuFrameEnd(void)
 static TextureClass			*s_shadeTex     = NULL;
 static UnsignedInt			s_shadeW        = 0;
 static UnsignedInt			s_shadeH        = 0;
+static Bool					s_shadeMapReuse = FALSE;	// Ronin @bugfix 04/11/2026 DX9: SSAO ran it after the trees: the light pass reads it as it is
 static UnsignedInt			s_shadeMapFrame = 0;		// Ronin @feature 21/10/2026 DX9: the s_fixFrame the shade pass last filled it in
 static Bool runShadePass(IDirect3DDevice9 *dev, IDirect3DTexture9 *depthTex, const D3DSURFACE_DESC &rd, const CameraClass &camera);
 static Bool					s_shadeOpen     = FALSE;	// between beginFrame and the light pass
@@ -1937,7 +1938,7 @@ float R3DLocalLights::getMapShadow(void)	{ return s_mapShadow; }
 
 // Ronin @feature 12/10/2026 DX9: LIGHTING, STEP 3 - SSAO is the shade of the map's AMBIENT. Where the sun reaches, the ambient is only
 // the shade's floor over the shade of the pixel's light: SSAO's multiply (SsaoShow_ps) takes that much. Needs the sun's shadow maps.
-void R3DLocalLights::bindSunShadeForAO(void)
+void R3DLocalLights::bindSunShadeForAO(Bool afterTrees)
 {
 	IDirect3DDevice9 *dev = DX8Wrapper::_Get_D3D_Device8();
 	if (dev == NULL)
@@ -1965,6 +1966,7 @@ void R3DLocalLights::bindSunShadeForAO(void)
 			for (Int k = 0; k < 5; ++k)
 				dev->GetSamplerState(0, KEEP_SAMP[k], &keepSamp[k]);
 			fromMap = runShadePass(dev, depthTex, rd, *cam);
+			s_shadeMapReuse = (fromMap && afterTrees) ? TRUE : FALSE;
 			dev->SetTexture(0, keepTex);
 			if (keepTex != NULL)
 				keepTex->Release();
@@ -3961,9 +3963,14 @@ void R3DLocalLights::renderPass(const CameraClass &camera, RTS3DScene *scene)
 	// frame before the copy. In every mode - MSAA has no records, and the meshes' leave gaps (glass, trees) where the ground behind was read.
 	Bool meshShade = (s_shadeWritten && s_shadeTex != NULL && s_shadeW == rd.Width && s_shadeH == rd.Height) ? TRUE : FALSE;
 	Bool shadeFromMap = FALSE;
-	if (depthOK && ((s_effects && s_sunFill > 0.0f) || liftWanted))
+	// Ronin @bugfix 02/11/2026 DX9: for the lamps only with one on screen - 0.43 ms at 1600x900 for none; bounce then reads the records.
+	if (depthOK && ((s_effects && s_sunFill > 0.0f && count > 0) || liftWanted))
 	{
-		shadeFromMap = runShadePass(dev, depthTex, rd, camera);
+		// Ronin @bugfix 04/11/2026 DX9: SSAO's `aosun` ran it this frame after the trees, the scene as it stands now: 0.43 ms saved.
+		if (s_shadeMapReuse && s_shadeMapFrame == s_fixFrame && s_shadeTex != NULL && s_shadeW == rd.Width && s_shadeH == rd.Height)
+			shadeFromMap = TRUE;
+		else
+			shadeFromMap = runShadePass(dev, depthTex, rd, camera);
 		meshShade = shadeFromMap ? TRUE : meshShade;
 	}
 	drawSunLift(dev, rd, shadeFromMap);		// Ronin @feature 12/10/2026 DX9: HDR stage 1b: with or without a light on screen
@@ -3986,8 +3993,10 @@ void R3DLocalLights::renderPass(const CameraClass &camera, RTS3DScene *scene)
 		return;
 	}
 	IDirect3DSurface9 *copySurf = NULL;
-	Bool ready = (depthOK && ensureCopy(rd.Width, rd.Height, rd.Format)) ? TRUE : FALSE;
-	if (ready)
+	// Ronin @bugfix 02/11/2026 DX9: only the lamps read the frame's copy (s1): with none on screen - the ground's bounce alone - none is taken.
+	const Bool copyWanted = (count > 0) ? TRUE : FALSE;
+	Bool ready = (depthOK && (!copyWanted || ensureCopy(rd.Width, rd.Height, rd.Format))) ? TRUE : FALSE;
+	if (ready && copyWanted)
 	{
 		copySurf = s_copy->Get_D3D_Surface_Level();
 		ready = (copySurf != NULL && SUCCEEDED(dev->StretchRect(rt, NULL, copySurf, NULL, D3DTEXF_NONE))) ? TRUE : FALSE;
@@ -4133,7 +4142,7 @@ void R3DLocalLights::renderPass(const CameraClass &camera, RTS3DScene *scene)
 		dev->SetSamplerState(stage, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
 	}
 	dev->SetTexture(0, depthTex);
-	dev->SetTexture(1, s_copy->Peek_D3D_Texture());
+	dev->SetTexture(1, (s_copy != NULL) ? s_copy->Peek_D3D_Texture() : NULL);	// Ronin @bugfix 02/11/2026 DX9: none taken yet
 	dev->SetTexture(2, (shadeUse > 0.0f && meshShade) ? s_shadeTex->Peek_D3D_Texture() : NULL);
 	dev->SetTexture(3, (shadeUse > 0.0f) ? groundShade : NULL);
 	// Ronin @feature 11/10/2026 DX9: the lamps' shadow maps: this frame's atlas on s4, last frame's on s6, LINEAR - the sampler
@@ -4195,14 +4204,12 @@ void R3DLocalLights::renderPass(const CameraClass &camera, RTS3DScene *scene)
 			dev->GetRenderState(D3DRS_COLORWRITEENABLE1, &maskWrites);
 			dev->SetRenderState(D3DRS_COLORWRITEENABLE1, 0);
 		}
-		for (Int half = 0; half < ((s_view == 6) ? 1 : 2); ++half)
-		{
-			const float c0[4] = { shared[0], shared[1], 7.0f, (s_view == 6) ? 0.0f : ((half == 0) ? 1.0f : -1.0f) };
-			dev->SetPixelShaderConstantF(0, c0, 1);
-			dev->SetRenderState(D3DRS_SRCBLEND,  (half == 0) ? D3DBLEND_DESTCOLOR : D3DBLEND_ZERO);
-			dev->SetRenderState(D3DRS_DESTBLEND, (half == 0) ? D3DBLEND_ONE : D3DBLEND_SRCCOLOR);
-			dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, bq, sizeof(BounceVertex));
-		}
+		// Ronin @bugfix 02/11/2026 DX9: both halves in one pass (c0.w 2): the shader writes (1 + k) / 2, blended dest x src x 2.
+		const float c0[4] = { shared[0], shared[1], 7.0f, (s_view == 6) ? 0.0f : 2.0f };
+		dev->SetPixelShaderConstantF(0, c0, 1);
+		dev->SetRenderState(D3DRS_SRCBLEND,  D3DBLEND_DESTCOLOR);
+		dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);
+		dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, bq, sizeof(BounceVertex));
 		if (masked)
 			dev->SetRenderState(D3DRS_COLORWRITEENABLE1, maskWrites);
 		dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);

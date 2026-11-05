@@ -549,8 +549,8 @@ PS_OUTPUT main(float2 uv : TEXCOORD0)
         o.color = float4(texCUBElod(g_SkyCube, float4(cos(rise) * cos(turn), cos(rise) * sin(turn), sin(rise), 0.0f)).rgb, 0.0f);
         return o;
     }
-    // Ronin @feature 15/10/2026 DX9: THE GROUND AS A LIGHT, one quad, twice (c0.w +1: dest x max(k, 0) + dest;
-    // -1: dest x (1 + min(k, 0))). k = the surface's share of (what the ground under it sends up - the flat ambient) x (1 - n.z) / 2.
+    // Ronin @feature 15/10/2026 DX9: THE GROUND AS A LIGHT, one quad: dest x (1 + k). k = the surface's share of (what the ground
+    // under it sends up - the flat ambient) x (1 - n.z) / 2.
     if (view == 7)
     {
         clip(0.99999f - tex2Dlod(g_SceneDepth, float4(uv, 0.0f, 0.0f)).r);
@@ -575,7 +575,8 @@ PS_OUTPUT main(float2 uv : TEXCOORD0)
         if (g_LightPos.z > 0.0f && shadeM.a > 0.5f)
             shade = shadeM.rgb;
         float3 k = g_SceneLight.rgb * (G - g_LightAmb.rgb) * down * g_LightAmb.w / clamp(shade, 0.05f, 1.0f);
-        o.color = float4((g_Camera.w > 0.0f) ? max(k, 0.0f) : saturate(1.0f + min(k, 0.0f)), 0.0f);
+        // Ronin @bugfix 02/11/2026 DX9: one pass (c0.w 2), blended dest x src x 2: the add and the darken at once.
+        o.color = float4(max(0.5f + 0.5f * k, 0.0f), 0.0f);
         if (g_Camera.w == 0.0f)
             o.color = float4(saturate(0.5f + k * 2.0f), 0.0f);     // `lights view 6`: grey = nothing, lighter = added, darker = taken
         return o;

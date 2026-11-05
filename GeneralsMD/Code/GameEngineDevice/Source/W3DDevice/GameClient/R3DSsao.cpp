@@ -519,7 +519,7 @@ void R3DSsao::renderPass(const CameraClass &camera, Bool afterTrees)
 							D3DCOLORWRITEENABLE_BLUE);
 		// Ronin @feature 12/10/2026 DX9: lighting step 3. The sun's shade on stages 1 and 2, its floor in c0: AO shades the ambient
 		// only. The invalidate below unbinds both.
-		R3DLocalLights::bindSunShadeForAO();
+		R3DLocalLights::bindSunShadeForAO(afterTrees);
 		// Ronin @feature 24/10/2026 DX9: after the sun's shade (its pass keeps c0..c3 as it found them): c2, c3 and the frame on s3.
 		float light[3] = { 1.0f, 1.0f, 1.0f };
 		R3DTaa::getMapLightFactor(light);
@@ -624,7 +624,7 @@ void R3DSsao::drawDebugView(const CameraClass *camera)
 	else
 	{
 		// Ronin @feature 12/10/2026 DX9: view 3 is the AO as the frame takes it: lifted where the sun reaches (`lights aosun`).
-		R3DLocalLights::bindSunShadeForAO();
+		R3DLocalLights::bindSunShadeForAO(FALSE);
 		// Ronin @feature 24/10/2026 DX9: grey, as before; view 4 the colour bleed's bounce alone.
 		const float c2[8] = { 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, (view == 4) ? 2.0f : 0.0f, 0.0f, 0.0f };
 		dev->SetPixelShaderConstantF(2, c2, 2);

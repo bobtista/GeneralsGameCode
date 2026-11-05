@@ -147,7 +147,7 @@ public:
 	static float getMapShadow(void);
 	// Ronin @feature 12/10/2026 DX9: lighting, step 3. SSAO shades the map's ambient, not its sun. For SSAO's show shader: the sun's shade
 	// records on stages 1 and 2, their floor in pixel constant c0 (w = `lights aosun`, 0 = SSAO as before), which exist in c1.
-	static void  bindSunShadeForAO(void);
+	static void  bindSunShadeForAO(Bool afterTrees);	// Ronin @bugfix 04/11/2026 DX9: TRUE = the light pass comes next, nothing between
 	static void  setAoSun(float v);			// how far SSAO steps back where the sun reaches: 1 = down to the ambient's share; 0 = not at all
 	static float getAoSun(void);
 	// Ronin @feature 12/10/2026 DX9: lighting, step 5. What a reflective mesh mirrors: 0 = the art's one picture (as before), 1 = the
