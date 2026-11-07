@@ -228,9 +228,9 @@ static const char* Get_DX8_Error_Code_Name(HRESULT res)
 	CASE_LABEL(E_FAIL)
 	}
 
-#undef CASE_LABEL
-
 	return "Unknown";
+
+#undef CASE_LABEL
 }
 
 void Log_DX8_ErrorCode(unsigned res)
