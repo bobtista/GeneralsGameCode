@@ -23,6 +23,8 @@
 #include "BaseType.h"
 #include <Utility/stringex.h>
 #include <string.h>
+// TheSuperHackers @build bobtista 12/11/2026 Include wchar.h for wcspbrk and wcsrchr. GCC 15 no longer pulls it in transitively.
+#include <wchar.h>
 
 inline char getNativePathSeparator()
 {
