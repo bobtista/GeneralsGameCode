@@ -247,6 +247,12 @@ target_link_libraries(z_gameenginedevice PUBLIC
     z_gameengine
 )
 
+# TheSuperHackers @build bobtista 12/11/2026 GameEngine calls back into GameEngineDevice. GNU ld scans
+# each static archive once, in order, so declare the cycle and CMake repeats both archives on the link line.
+if(UNIX AND NOT APPLE)
+    target_link_libraries(z_gameengine INTERFACE z_gameenginedevice)
+endif()
+
 if(SAGE_USE_SDL3)
     target_link_libraries(z_gameenginedevice PUBLIC sdl3lib)
 endif()
