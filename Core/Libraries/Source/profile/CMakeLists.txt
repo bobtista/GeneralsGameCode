@@ -28,7 +28,11 @@ if(NOT WIN32)
     target_include_directories(core_profile_legacy BEFORE PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../WWVegas/compat/win32_shims
         ${CMAKE_CURRENT_SOURCE_DIR}/../WWVegas
-        ${CMAKE_CURRENT_SOURCE_DIR}/../debug/Include
+    )
+    # TheSuperHackers @build bobtista 12/11/2026 Add the debug headers as a quote-only path.
+    # With -I, libstdc++ 15's <debug/debug.h> resolves to the engine's debug/debug.h.
+    target_compile_options(core_profile_legacy BEFORE PRIVATE
+        "SHELL:-iquote ${CMAKE_CURRENT_SOURCE_DIR}/../debug/Include"
     )
 endif()
 
