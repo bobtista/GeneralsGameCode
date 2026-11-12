@@ -293,8 +293,17 @@ inline const char *GetCommandLineA() { return g_compatCommandLine != nullptr ? g
 // stdlib.h. SDL3Main.cpp defines them on POSIX for the command-line parser.
 extern int __argc;
 extern char **__argv;
-inline DWORD GetModuleFileName(HMODULE, char *, DWORD size) { (void)size; return 0; }
-inline DWORD GetModuleFileNameA(HMODULE, char *, DWORD size) { (void)size; return 0; }
+// TheSuperHackers @bugfix bobtista 12/11/2026 Return an empty string instead of leaving the buffer
+// uninitialized. Callers parse the buffer without checking the result, and the compiler turned
+// the uninitialized read in LogClass::LogClass into a trap that crashed before main.
+inline DWORD GetModuleFileName(HMODULE, char *filename, DWORD size)
+{
+    if (filename != nullptr && size > 0) {
+        filename[0] = '\0';
+    }
+    return 0;
+}
+inline DWORD GetModuleFileNameA(HMODULE module, char *filename, DWORD size) { return GetModuleFileName(module, filename, size); }
 inline void GetLocalTime(SYSTEMTIME *t)
 {
     if (t == nullptr) {
@@ -613,7 +622,13 @@ inline int MessageBox(HWND, const char *, const char *, unsigned long) { return 
 inline int MessageBoxA(HWND, const char *, const char *, unsigned long) { return 0; }
 inline int MessageBoxW(HWND, const wchar_t *, const wchar_t *, unsigned long) { return 0; }
 inline int ShowWindow(HWND, int) { return 0; }
-inline DWORD GetModuleFileNameW(HMODULE, wchar_t *, DWORD size) { (void)size; return 0; }
+inline DWORD GetModuleFileNameW(HMODULE, wchar_t *filename, DWORD size)
+{
+    if (filename != nullptr && size > 0) {
+        filename[0] = L'\0';
+    }
+    return 0;
+}
 
 #ifndef MB_OK
 #define MB_OK              0x00000000
