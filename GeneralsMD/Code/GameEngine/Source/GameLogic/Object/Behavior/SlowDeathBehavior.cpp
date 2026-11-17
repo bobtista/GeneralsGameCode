@@ -178,20 +178,9 @@ Int SlowDeathBehavior::getProbabilityModifier( const DamageInfo *damageInfo ) co
 	// Calculating how far past dead we were allows us to pick more spectacular deaths when
 	// severely killed, and more sedate ones when only slightly killed.
 	// eg ( 200 hp max, had 10 left, took 50 damage, 40 overkill, (40/200) * 100 = 20 overkill %)
-	// TheSuperHackers @bugfix bobtista 10/06/2026 Guard against a zero max health. Dividing by it
-	// gave 0/0 = NaN, and (Int)NaN is undefined behavior that differs across architectures (arm64
-	// yields 0, x86 yields INT_MIN), which flipped the probability total and made one machine roll
-	// the GameLogic RNG while the other did not - a cross-platform lockstep desync.
 	Int overkillDamage = damageInfo->out.m_actualDamageDealt - damageInfo->out.m_actualDamageClipped;
 	Real overkillPercent = WWMath::Div_Safe((float)overkillDamage, (float)getObject()->getBodyModule()->getMaxHealth());
 	Int overkillModifier = overkillPercent * getSlowDeathBehaviorModuleData()->m_modifierBonusPerOverkillPercent;
-
-	DUMPREAL(damageInfo->out.m_actualDamageDealt);
-	DUMPREAL(damageInfo->out.m_actualDamageClipped);
-	DUMPREAL(getObject()->getBodyModule()->getMaxHealth());
-	DUMPREAL((Real)overkillDamage);
-	DUMPREAL(overkillPercent);
-	DUMPREAL((Real)overkillModifier);
 
 	return max( getSlowDeathBehaviorModuleData()->m_probabilityModifier + overkillModifier, 1 );
 }
