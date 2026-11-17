@@ -21,6 +21,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <wctype.h>
+// TheSuperHackers @build bobtista 17/11/2026 Declare the libc wcslcpy and wcslcat before ours so ours take their C linkage.
+#include <wchar.h>
 
 
 // Declaration
