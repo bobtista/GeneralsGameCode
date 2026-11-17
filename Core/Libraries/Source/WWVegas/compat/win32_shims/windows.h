@@ -13,6 +13,8 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <unistd.h>
+// TheSuperHackers @build bobtista 17/11/2026 Provide GetTickCount as windows.h does on Windows.
+#include "Utility/time_compat.h"
 
 #ifndef CALLBACK
 #define CALLBACK
