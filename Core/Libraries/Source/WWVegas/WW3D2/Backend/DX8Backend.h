@@ -351,6 +351,8 @@ public:
                                       unsigned long * handle) override;
     virtual bool Create_Pixel_Shader(const unsigned int * shader,
                                      unsigned long * handle) override;
+    virtual bool Create_Legacy_Pixel_Shader(RenderBackendLegacyPixelShaderMode mode,
+                                            unsigned long * handle) override;
     virtual void Delete_Vertex_Shader(unsigned long vertex_shader) override;
     virtual void Delete_Pixel_Shader(unsigned long pixel_shader) override;
     virtual void Set_Vertex_Shader(unsigned long vertex_shader);

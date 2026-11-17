@@ -45,7 +45,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <d3dx8core.h>
 #include <d3dx8math.h>
 #include "BgfxRenderProfile.h"
 
@@ -160,27 +159,21 @@ static bool EnsureProfilerSwizzleShader()
         return true;
     }
 
-    ID3DXBuffer * compiledShader = nullptr;
-    const char * shader =
-        "ps.1.4\n"
-        "texld r0, t0\n"
-        "mov r1.a, r0.r\n"
-        "mov r2.a, r0.g\n"
-        "mov r3.a, r0.b\n"
-        "mul r0.rgb, r3.a, c0\n"
-        "mad r0.rgb, r2.a, c1, r0\n"
-        "mad r0.rgb, r1.a, c2, r0\n";
+    // TheSuperHackers @refactor bobtista 17/11/2026 Create the shader from precompiled tokens instead of D3DXAssembleShader.
+    static const DWORD swizzleShader[] =
+    {
+        D3DPS_VERSION(1, 4),
+        0x00000042, 0x800f0000, 0xb0e40000,                         // texld r0, t0
+        0x00000001, 0x80080001, 0x80000000,                         // mov r1.a, r0.r
+        0x00000001, 0x80080002, 0x80550000,                         // mov r2.a, r0.g
+        0x00000001, 0x80080003, 0x80aa0000,                         // mov r3.a, r0.b
+        0x00000005, 0x80070000, 0x80ff0003, 0xa0e40000,             // mul r0.rgb, r3.a, c0
+        0x00000004, 0x80070000, 0x80ff0002, 0xa0e40001, 0x80e40000, // mad r0.rgb, r2.a, c1, r0
+        0x00000004, 0x80070000, 0x80ff0001, 0xa0e40002, 0x80e40000, // mad r0.rgb, r1.a, c2, r0
+        D3DPS_END(),
+    };
 
-    HRESULT hr = D3DXAssembleShader(shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
-    if (FAILED(hr) || compiledShader == nullptr) {
-        return false;
-    }
-
-    hr = DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader(
-        reinterpret_cast<const DWORD *>(compiledShader->GetBufferPointer()),
-        &g_profilerSwizzleShader);
-    compiledShader->Release();
-
+    const HRESULT hr = DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader(swizzleShader, &g_profilerSwizzleShader);
     if (FAILED(hr)) {
         g_profilerSwizzleShader = 0;
         return false;
@@ -2428,6 +2421,70 @@ bool DX8Backend::Create_Pixel_Shader(const unsigned int * shader,
 
     *handle = static_cast<unsigned long>(dx_handle);
     return true;
+}
+
+// TheSuperHackers @refactor bobtista 17/11/2026 The water pixel shaders, as precompiled tokens.
+bool DX8Backend::Create_Legacy_Pixel_Shader(RenderBackendLegacyPixelShaderMode mode,
+                                            unsigned long * handle)
+{
+    static const DWORD riverWaterShader[] =
+    {
+        D3DPS_VERSION(1, 1),
+        0x00000042, 0xb00f0000,                         // tex t0
+        0x00000042, 0xb00f0001,                         // tex t1
+        0x00000042, 0xb00f0002,                         // tex t2
+        0x00000042, 0xb00f0003,                         // tex t3
+        0x00000005, 0x80070000, 0x90e40000, 0xb0e40000, // mul r0.rgb, v0, t0 ; blend vertex color into t0.
+        0x00000001, 0x80080000, 0xb0e40000,             // mov r0.a, t0 ; keep vertex alpha from fading the base water.
+        0x00000005, 0x800f0001, 0xb0e40001, 0xb0e40002, // mul r1, t1, t2
+        0x00000002, 0x80070001, 0x80e40001, 0xb0e40003, // add r1.rgb, r1, t3
+        0x00000005, 0x80070001, 0x80e40001, 0x90ff0000, // mul r1.rgb, r1, v0.a
+        0x40000005, 0x80080000, 0x80e40000, 0xb0e40003, // +mul r0.a, r0, t3
+        0x00000002, 0x80070000, 0x80e40000, 0x80e40001, // add r0.rgb, r0, r1
+        D3DPS_END(),
+    };
+
+    static const DWORD reflectiveWaterShader[] =
+    {
+        D3DPS_VERSION(1, 1),
+        0x00000042, 0xb00f0000,                         // tex t0
+        0x00000042, 0xb00f0001,                         // tex t1
+        0x00000043, 0xb00f0002, 0xb0e40001,             // texbem t2, t1 ; use t1 as env map adjustment on t2.
+        0x00000005, 0x800f0000, 0x90e40000, 0xb0e40000, // mul r0, v0, t0 ; blend vertex color into t0.
+        0x00000005, 0x80070001, 0xb0e40002, 0xa0e40000, // mul r1.rgb, t2, c0 ; reduce t2 (environment mapped reflection) by constant
+        0x00000002, 0x80070000, 0x80e40000, 0x80e40001, // add r0.rgb, r0, r1
+        D3DPS_END(),
+    };
+
+    static const DWORD trapezoidWaterShader[] =
+    {
+        D3DPS_VERSION(1, 1),
+        0x00000042, 0xb00f0000,                                     // tex t0 ; get water texture
+        0x00000042, 0xb00f0001,                                     // tex t1 ; get white highlights on black background
+        0x00000042, 0xb00f0002,                                     // tex t2 ; get white highlights with more tiling
+        0x00000042, 0xb00f0003,                                     // tex t3 ; get black shroud
+        0x00000005, 0x800f0000, 0x90e40000, 0xb0e40000,             // mul r0, v0, t0 ; blend vertex color and alpha into base texture.
+        0x00000004, 0x80070000, 0xb0e40001, 0xb0e40002, 0x80e40000, // mad r0.rgb, t1, t2, r0 ; blend sparkles and noise
+        0x00000005, 0x80070000, 0x80e40000, 0xb0e40003,             // mul r0.rgb, r0, t3 ; blend in black shroud
+        D3DPS_END(),
+    };
+
+    const DWORD * tokens = nullptr;
+    switch (mode) {
+    case RB_LEGACY_PIXEL_SHADER_RIVER_WATER:
+        tokens = riverWaterShader;
+        break;
+    case RB_LEGACY_PIXEL_SHADER_REFLECTIVE_WATER:
+        tokens = reflectiveWaterShader;
+        break;
+    case RB_LEGACY_PIXEL_SHADER_TRAPEZOID_WATER:
+        tokens = trapezoidWaterShader;
+        break;
+    default:
+        return false;
+    }
+
+    return Create_Pixel_Shader(reinterpret_cast<const unsigned int *>(tokens), handle);
 }
 
 void DX8Backend::Delete_Vertex_Shader(unsigned long vertex_shader)
