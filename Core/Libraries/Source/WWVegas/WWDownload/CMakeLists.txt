@@ -36,5 +36,8 @@ target_sources(corei_wwdownload INTERFACE ${WWDOWNLOAD_SRC})
 
 target_link_libraries(corei_wwdownload INTERFACE
     core_wwcommon
-    ws2_32
 )
+
+if(WIN32)
+    target_link_libraries(corei_wwdownload INTERFACE ws2_32)
+endif()
