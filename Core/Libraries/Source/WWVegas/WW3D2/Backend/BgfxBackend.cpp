@@ -2786,6 +2786,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                  g_device.window,
                  bgfx::isValid(g_device.passthroughProgram) ? "ok" : "FAILED",
                  bgfx::isValid(g_device.uberProgram)        ? "ok" : "FAILED"));
+    (void)rendererName;
     // Log whether RGBA8 is supported as a render target (needed for
     // DESTALPHA water technique — back buffer must have alpha channel).
     const bool rgba8Supported = (caps->formats[bgfx::TextureFormat::RGBA8] &
@@ -2797,6 +2798,8 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                  rgba8Supported ? 1 : 0, bgra8Supported ? 1 : 0,
                  caps->homogeneousDepth ? 1 : 0,
                  caps->originBottomLeft ? 1 : 0));
+    (void)rgba8Supported;
+    (void)bgra8Supported;
 
     // TheSuperHackers @refactor bobtista 16/04/2026 Single-window build: there is
     // no secondary reference window to create or move here.
@@ -7949,6 +7952,7 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
                              stage,
                              t2d_fb ? t2d_fb->Get_Full_Path().str() : "(null)",
                              texture->Get_Pool()));
+                (void)t2d_fb;
             }
         }
         // TextureFilterClass::Apply() updates the semantic sampler state above.
