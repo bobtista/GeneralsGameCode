@@ -79,13 +79,13 @@
 #include "textureloader.h"
 #include "missingtexture.h"
 #include "WWLib/thread.h"
-#if !defined(GGC_RENDER_BACKEND_BGFX)
 #include <d3dx8core.h>
 #include "WWDebug/wwprofile.h"
 #include "WWLib/ffactory.h"
 #include "dx8caps.h"
 #include "dx8convert.h"
 #include "formconv.h"
+#include "dx8formatconv.h"
 #include "dx8texman.h"
 #include "WWLib/bound.h"
 #include "DbgHelpGuard.h"
