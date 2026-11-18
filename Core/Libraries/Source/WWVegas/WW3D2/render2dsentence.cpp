@@ -48,8 +48,11 @@
 #define GGC_RESTORE_INTERFACE_MACRO
 #undef interface
 #endif
+// TheSuperHackers @build bobtista 28/09/2026 MacTypes.h declares its own Byte, which collides with the precompiled BaseTypes.h Byte.
+#define Byte MacTypesByte
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreText/CoreText.h>
+#undef Byte
 #if defined(GGC_RESTORE_INTERFACE_MACRO)
 #define interface struct
 #undef GGC_RESTORE_INTERFACE_MACRO
@@ -1563,7 +1566,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	CFRelease(font);
 
 	Update_Current_Buffer(char_width);
-	uint16 *curr_buffer_p = BufferList[BufferList.Count() - 1]->Buffer;
+	uint16 *curr_buffer_p = BufferList[BufferList.Count() - 1].Buffer;
 	curr_buffer_p += CurrPixelOffset;
 
 	for (int row = 0; row < bitmap_height; ++row) {
@@ -1579,7 +1582,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	FontCharsClassCharDataStruct *char_data = W3DNEW FontCharsClassCharDataStruct;
 	char_data->Value = ch;
 	char_data->Width = static_cast<short>(char_width);
-	char_data->Buffer = BufferList[BufferList.Count() - 1]->Buffer + CurrPixelOffset;
+	char_data->Buffer = BufferList[BufferList.Count() - 1].Buffer + CurrPixelOffset;
 
 	if (ch < 256) {
 		ASCIICharArray[ch] = char_data;
@@ -1588,7 +1591,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 		UnicodeCharArray[ch - FirstUnicodeChar] = char_data;
 	}
 
-	CurrPixelOffset += ((char_width + PixelOverlap) * CharHeight);
+	CurrPixelOffset += char_width * CharHeight;
 	return char_data;
 #elif !defined(_WIN32)
 	// GDI font rasterization is Win-only. Return a synthetic char with width
