@@ -13,7 +13,7 @@
 #include "WW3DDeviceInit.h"
 
 #include "FixedFunctionState.h"
-#include "boxrobj.h"
+#include "WW3D2/boxrobj.h"
 #include "dx8indexbuffer.h"
 #include "dx8renderer.h"
 #include "dx8vertexbuffer.h"
@@ -24,8 +24,8 @@
 #include "sortingrenderer.h"
 #include "texturefilter.h"
 #include "textureloader.h"
-#include "vertmaterial.h"
-#include "ww3d.h"
+#include "WW3D2/vertmaterial.h"
+#include "WW3D2/ww3d.h"
 
 void WW3DDeviceInit::Init_Subsystems()
 {
