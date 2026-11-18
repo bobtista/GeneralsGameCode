@@ -126,12 +126,12 @@ bool Renderer::Is_Windowed()
 
 int Renderer::Get_Texture_Bitdepth()
 {
-    return DX8Wrapper::Get_Texture_Bitdepth();
+    return TheRenderBackend->Get_Texture_Bitdepth();
 }
 
 int Renderer::Get_Swap_Interval()
 {
-    return DX8Wrapper::Get_Swap_Interval();
+    return TheRenderBackend->Get_Swap_Interval();
 }
 
 bool Renderer::Has_Stencil()

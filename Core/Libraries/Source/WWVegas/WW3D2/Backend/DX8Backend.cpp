@@ -28,11 +28,11 @@
 #include "formconv.h"
 #include "WWDebug/wwdebug.h"
 #include "texture.h"
-#include "vector3.h"
-#include "matrix4.h"
-#include "matrix3d.h"
-#include "light.h"
-#include "lightenvironment.h"
+#include "WWMath/vector3.h"
+#include "WWMath/matrix4.h"
+#include "WWMath/matrix3d.h"
+#include "WW3D2/light.h"
+#include "WW3D2/lightenvironment.h"
 
 DX8Backend::DX8Backend(bool lite) : Lite(lite)
 {
