@@ -3420,6 +3420,12 @@ RenderBackendTextureLimits BgfxBackend::Get_Texture_Limits() const
     };
 }
 
+int BgfxBackend::Get_Max_Texture_Size() const
+{
+    const bgfx::Caps * caps = bgfx::getCaps();
+    return caps != nullptr ? (int)caps->limits.maxTextureSize : 4096;
+}
+
 int BgfxBackend::Get_Max_Texture_Stages() const
 {
     return kBgfxTextureStages;

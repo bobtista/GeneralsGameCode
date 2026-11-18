@@ -748,8 +748,7 @@ Render2DSentenceClass::Allocate_New_Surface (const WCHAR *text, bool justCalcExt
 		//	The font does not fit the search range, so use the smallest texture that fits, limited to
 		//	the largest texture the device supports.
 		//
-		const D3DCAPS8 &dx8caps = DX8Wrapper::Get_Current_Caps ()->Get_DX8_Caps ();
-		const int max_device_size = (int)min (dx8caps.MaxTextureWidth, dx8caps.MaxTextureHeight);
+		const int max_device_size = WW3D::Get_Render_Backend ()->Get_Max_Texture_Size ();
 		while (max_pow2 > TextureSizeMinPow2 && (1 << max_pow2) > max_device_size) {
 			max_pow2 --;
 		}
