@@ -159,7 +159,7 @@ void BIGFileSystem::init() {
     GetStringFromRegistry("", "InstallPath", zhInstallPath );
     if (!zhInstallPath.isEmpty())
     {
-      loadBigFilesFromDirectory(zhInstallPath, "*.big");
+      loadArchiveFilesFromDirectory(zhInstallPath, "*.big");
     }
 #endif
 
