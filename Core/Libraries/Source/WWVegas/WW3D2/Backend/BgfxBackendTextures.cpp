@@ -31,7 +31,7 @@
 #include "dx8wrapper.h"
 #include "texture.h"
 #include "surfaceclass.h"
-#include "wwdebug.h"
+#include "WWDebug/wwdebug.h"
 
 #include "Backend/BgfxBackend.h"
 #include "Backend/BgfxBackendState.h"
