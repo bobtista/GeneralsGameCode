@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bittype.h"
+#include "WWLib/bittype.h"
 
 #include <cmath>
 #include <cctype>

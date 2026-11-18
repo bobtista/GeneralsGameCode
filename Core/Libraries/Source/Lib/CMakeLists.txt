@@ -33,6 +33,15 @@ target_include_directories(core_libraries PUBLIC
 
 target_sources(core_libraries PRIVATE ${CORE_LIBRARIES_SRC})
 
+# TheSuperHackers @build bobtista 29/10/2026 Lib includes <windows.h>; on non-Windows that resolves
+# to the WWVegas compat shims, which the merged Lib target no longer gets through core_wwcommon.
+if(NOT WIN32)
+    target_include_directories(core_libraries BEFORE PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/../WWVegas/compat/win32_shims
+        ${CMAKE_CURRENT_SOURCE_DIR}/../WWVegas
+    )
+endif()
+
 target_link_libraries(core_libraries PUBLIC
     deps_precompiled # Gives force included headers. Link early.
     core_profile_legacy

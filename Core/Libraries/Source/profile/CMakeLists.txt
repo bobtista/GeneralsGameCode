@@ -24,6 +24,14 @@ target_include_directories(core_profile_legacy PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/Include
 )
 
+if(NOT WIN32)
+    target_include_directories(core_profile_legacy BEFORE PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../WWVegas/compat/win32_shims
+        ${CMAKE_CURRENT_SOURCE_DIR}/../WWVegas
+        ${CMAKE_CURRENT_SOURCE_DIR}/../debug/Include
+    )
+endif()
+
 # TheSuperHackers @build bobtista 29/04/2026 Pull windows.h in via the compat
 # shim before profile.h on non-Win so __int64 / __forceinline are defined.
 if(WIN32)
