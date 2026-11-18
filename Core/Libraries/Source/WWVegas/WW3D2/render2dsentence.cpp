@@ -1658,7 +1658,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	int char_width = max(1, max(x_origin + left_pad + advance_width, glyph_right) + PixelOverlap);
 
 	Update_Current_Buffer(char_width);
-	uint16 *char_buffer = BufferList[BufferList.Count() - 1]->Buffer + CurrPixelOffset;
+	uint8 *char_buffer = BufferList[BufferList.Count() - 1].Buffer + CurrPixelOffset;
 	::memset(char_buffer, 0, static_cast<size_t>(char_width) * static_cast<size_t>(CharHeight) * sizeof(*char_buffer));
 
 	for (unsigned int row = 0; row < bitmap.rows; ++row) {
@@ -1689,13 +1689,8 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 				continue;
 			}
 
-			// Match the CoreText path: premultiplied A4R4G4B4. The existing
-			// sentence texture upload and blit code consume these words directly.
-			uint8 alpha_value = (pixel_value >> 4) & 0xF;
-			uint16 pixel_color = static_cast<uint16>(alpha_value)
-				| (static_cast<uint16>(alpha_value) << 4)
-				| (static_cast<uint16>(alpha_value) << 8);
-			char_buffer[dest_y * char_width + dest_x] = pixel_color | (alpha_value << 12);
+			// Match the CoreText and GDI paths: one byte of coverage per pixel.
+			char_buffer[dest_y * char_width + dest_x] = pixel_value;
 		}
 	}
 
