@@ -87,6 +87,36 @@ static void appendSimulationMathCrc_Deterministic(XferCRC &xfer)
     xfer.xferMatrix3D(&matrix);
 }
 
+static void appendSimulationMathCrc_Native(XferCRC &xfer)
+{
+    Matrix3D matrix;
+    Matrix3D factorsMatrix;
+
+    matrix.Set(
+        4.1f, 1.2f, 0.3f, 0.4f,
+        0.5f, 3.6f, 0.7f, 0.8f,
+        0.9f, 1.0f, 2.1f, 1.2f);
+
+    factorsMatrix.Set(
+        (float)(::sin(0.7) * ::log10(2.3)),
+        (float)(::cos(1.1) * ::pow(1.1, 2.0)),
+        (float)::tan(0.3),
+        (float)::asin(0.967302263),
+        (float)::acos(0.967302263),
+        (float)(::atan(0.967302263) * ::pow(1.1, 2.0)),
+        (float)::atan2(0.4, 1.3),
+        (float)::sinh(0.2),
+        (float)(::cosh(0.4) * ::tanh(0.5)),
+        (float)::sqrt(55788.84375),
+        (float)(::exp(0.1) * ::log10(2.3)),
+        (float)::log(1.4));
+
+    Matrix3D::Multiply(matrix, factorsMatrix, &matrix);
+    matrix.Get_Inverse(matrix);
+
+    xfer.xferMatrix3D(&matrix);
+}
+
 UnsignedInt SimulationMathCrc::calculate()
 {
     XferCRC xfer;

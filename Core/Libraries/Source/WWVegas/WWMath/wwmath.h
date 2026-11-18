@@ -109,6 +109,8 @@ static void				Shutdown();
 // double-precision ones (gm_*) can diverge by 1 ULP due to FPU precision differences (x87 vs NEON).
 static WWINLINE double Pow(double x, double y);
 static WWINLINE float  Powf(float x, float y);
+static WWINLINE double Sqr(double x);
+static WWINLINE float  Sqrf(float x);
 static WWINLINE float  Sqrt(float x);
 static WWINLINE double Sqrt(double x);
 static WWINLINE float  Sqrtf(float x);
