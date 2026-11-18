@@ -26,7 +26,7 @@
 #pragma once
 
 #include "IRenderBackend.h"
-#include "vector3.h"
+#include "WWMath/vector3.h"
 
 class BgfxBackend : public IRenderBackend
 {
