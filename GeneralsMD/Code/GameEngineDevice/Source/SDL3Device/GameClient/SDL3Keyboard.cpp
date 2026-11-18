@@ -39,7 +39,6 @@ void SDL3Keyboard::reset()
 		m_buffer[i].key = KEY_NONE;
 		m_buffer[i].status = KeyboardIO::STATUS_UNUSED;
 		m_buffer[i].state = KEY_STATE_NONE;
-		m_buffer[i].keyDownTimeMsec = 0;
 	}
 	m_nextGetIndex = 0;
 	m_nextFreeIndex = 0;
@@ -83,7 +82,6 @@ void SDL3Keyboard::getKey(KeyboardIO *key)
 		key->key = KEY_NONE;
 		key->status = KeyboardIO::STATUS_UNUSED;
 		key->state = KEY_STATE_NONE;
-		key->keyDownTimeMsec = 0;
 		return;
 	}
 
