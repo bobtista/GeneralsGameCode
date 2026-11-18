@@ -36,7 +36,7 @@
 #include "surfaceclass.h"
 #include "texture.h"
 #include "textureloader.h"
-#include "ww3d.h"
+#include "WW3D2/ww3d.h"
 
 namespace
 {
@@ -136,6 +136,7 @@ void TextureCompatibilityInterop::Set_Legacy_Base_Texture(TextureBaseClass &text
 	WWASSERT_PRINT(
 		old_texture == nullptr && native_texture == nullptr,
 		"Set_Legacy_Base_Texture: standalone bgfx cannot own fake-D3D textures");
+	(void)old_texture;
 #else
 	if (old_texture != nullptr) {
 		old_texture->Release();

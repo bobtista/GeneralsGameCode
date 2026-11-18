@@ -2298,7 +2298,7 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 	);
 
 	// Texture creation can fail, e.g. when out of memory
-	return D3DTexture != nullptr;
+	return NativeCompatibilityTexture != nullptr;
 #endif
 }
 
@@ -2713,6 +2713,7 @@ void TextureLoadTaskClass::Allocate_CPU_Texture_Staging()
 		unsigned int rows = 0;
 		const bool valid_layout = Get_CPU_Texture_Snapshot_Staging_Layout(Format, width, height, pitch, rows);
 		WWASSERT(valid_layout);
+		(void)valid_layout;
 
 		mip.Width = width;
 		mip.Height = height;
@@ -3199,7 +3200,7 @@ bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 #endif
 	);
 
-	return D3DTexture != nullptr;
+	return NativeCompatibilityTexture != nullptr;
 #endif
 }
 
@@ -3275,7 +3276,7 @@ bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 #endif
 	);
 
-	return D3DTexture != nullptr;
+	return NativeCompatibilityTexture != nullptr;
 #endif
 }
 
@@ -3528,7 +3529,7 @@ bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 #endif
 	);
 
-	return D3DTexture != nullptr;
+	return NativeCompatibilityTexture != nullptr;
 #endif
 }
 
@@ -3607,7 +3608,7 @@ bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 #endif
 	);
 
-	return D3DTexture != nullptr;
+	return NativeCompatibilityTexture != nullptr;
 #endif
 }
 

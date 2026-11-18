@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include "vector3.h"
-#include "vector4.h"
+#include "WWMath/vector3.h"
+#include "WWMath/vector4.h"
 
 namespace WW3DColor
 {

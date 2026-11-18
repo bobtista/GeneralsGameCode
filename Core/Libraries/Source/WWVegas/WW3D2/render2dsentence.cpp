@@ -1592,23 +1592,16 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	CFRelease(font);
 
 	Update_Current_Buffer(char_width);
-	uint16 *curr_buffer_p = BufferList[BufferList.Count() - 1].Buffer;
+	uint8 *curr_buffer_p = BufferList[BufferList.Count() - 1].Buffer;
 	curr_buffer_p += CurrPixelOffset;
 
-	// TheSuperHackers @bugfix bobtista 28/05/2026 Premultiply RGB by alpha
-	// so anti-aliased edges fade in colour instead of jumping from black to
-	// full white, and zero-fill the trailing rows between bitmap_height and
-	// CharHeight; the buffer stride below advances by CharHeight, and the
-	// previous code left those rows uninitialised, leaving stale words
-	// visible between glyphs on macOS.
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Store one byte of coverage per pixel, like the
+	// GDI path, and zero-fill the trailing rows between bitmap_height and CharHeight; the buffer
+	// stride below advances by CharHeight, and leaving those rows uninitialised showed stale
+	// pixels between glyphs on macOS.
 	for (int row = 0; row < bitmap_height; ++row) {
 		for (int col = 0; col < char_width; ++col) {
-			int source_row = row;
-			uint8 pixel_value = glyph_bitmap[static_cast<size_t>(source_row) * static_cast<size_t>(char_width) + col];
-			uint8 rgb_value = (pixel_value >> 4) & 0xF;
-			uint16 pixel_color = static_cast<uint16>(rgb_value) | (static_cast<uint16>(rgb_value) << 4) | (static_cast<uint16>(rgb_value) << 8);
-			uint8 alpha_value = ((pixel_value >> 4) & 0xF);
-			*curr_buffer_p++ = pixel_color | (alpha_value << 12);
+			*curr_buffer_p++ = glyph_bitmap[static_cast<size_t>(row) * static_cast<size_t>(char_width) + col];
 		}
 	}
 	for (int row = bitmap_height; row < CharHeight; ++row) {
