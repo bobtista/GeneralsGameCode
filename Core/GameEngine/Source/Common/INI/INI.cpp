@@ -59,10 +59,7 @@
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/Weapon.h"
 
-// TheSuperHackers @build bobtista 29/04/2026 Apple Clang's libc++ marks the
-// floating-point overloads of std::from_chars as deleted. Fall back to the
-// sscanf path on Apple so float/double parsing keeps working there.
-#if __cplusplus >= 201611L && !defined(GENERALS_ONLINE_DISABLE_STD_FROM_CHARS_PARSING) && !defined(__APPLE__)
+#if __cplusplus >= 201611L && !defined(GENERALS_ONLINE_DISABLE_STD_FROM_CHARS_PARSING)
 #define USE_STD_FROM_CHARS_PARSING 1
 #else
 #define USE_STD_FROM_CHARS_PARSING 0
@@ -79,6 +76,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 static Xfer *s_xfer = nullptr;
+
 
 //-------------------------------------------------------------------------------------------------
 /** This is the table of data types we can have in INI files.  To add a new data type
@@ -654,7 +652,7 @@ void INI::parseBool( INI* ini, void * /*instance*/, void *store, const void* /*u
 void INI::parseBitInInt32( INI *ini, void *instance, void *store, const void* userData )
 {
 	UnsignedInt* s = (UnsignedInt*)store;
-	UnsignedInt mask = (UnsignedInt)userData;
+	UnsignedInt mask = (UnsignedInt)(uintptr_t)userData;
 
 	if (INI::scanBool(ini->getNextToken()))
 		*s |= mask;

@@ -236,19 +236,24 @@ typedef UnsignedInt DeathTypeFlags;
 const DeathTypeFlags DEATH_TYPE_FLAGS_ALL = 0xffffffff;
 const DeathTypeFlags DEATH_TYPE_FLAGS_NONE = 0x00000000;
 
+inline UnsignedInt getDeathTypeFlagBit(DeathType dt)
+{
+	return static_cast<UnsignedInt>(dt - 1) & 31;
+}
+
 inline Bool getDeathTypeFlag(DeathTypeFlags flags, DeathType dt)
 {
-	return (flags & (1UL << (dt - 1))) != 0;
+	return (flags & (1UL << getDeathTypeFlagBit(dt))) != 0;
 }
 
 inline DeathTypeFlags setDeathTypeFlag(DeathTypeFlags flags, DeathType dt)
 {
-	return (flags | (1UL << (dt - 1)));
+	return (flags | (1UL << getDeathTypeFlagBit(dt)));
 }
 
 inline DeathTypeFlags clearDeathTypeFlag(DeathTypeFlags flags, DeathType dt)
 {
-	return (flags & ~(1UL << (dt - 1)));
+	return (flags & ~(1UL << getDeathTypeFlagBit(dt)));
 }
 
 //-------------------------------------------------------------------------------------------------

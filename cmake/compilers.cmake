@@ -42,6 +42,7 @@ endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)  # Ensures only ISO features are used
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 if (NOT IS_VS6_BUILD)
     if (MSVC)
@@ -61,6 +62,9 @@ if (NOT IS_VS6_BUILD)
         add_compile_options(/fp:precise)
     else()
         add_compile_options(-Wsuggest-override)
+        # Prevent FMA contraction (a*b+c -> fmadd) which skips intermediate
+        # rounding and breaks cross-platform deterministic math parity with MSVC (/fp:precise).
+        add_compile_options(-ffp-contract=off)
     endif()
 else()
     if(RTS_BUILD_OPTION_VC6_FULL_DEBUG)

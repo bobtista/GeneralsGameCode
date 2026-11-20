@@ -1200,6 +1200,10 @@ if(NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_link_libraries(corei_gameengine_public INTERFACE
         d3d8lib
     )
+elseif(TARGET d3dx8math_sdk)
+    target_link_libraries(corei_gameengine_public INTERFACE
+        d3dx8math_sdk
+    )
 endif()
 
 # ReactOS ATL for MinGW-w64 only (MSVC uses native ATL)
