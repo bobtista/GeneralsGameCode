@@ -48,15 +48,20 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "line3d.h"
-#include "WW3D2/vertmaterial.h"
-#include "WW3D2/shader.h"
+#include "vertmaterial.h"
+#include "shader.h"
 #include "WWDebug/wwdebug.h"
-#include "WW3D2/ww3d.h"
-#include "WW3D2/rinfo.h"
+#include "ww3d.h"
+#include "rinfo.h"
+#include "ww3dcolor.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8fvf.h"
+#include "Renderer.h"
 
 // 12 Triangles for index buffer
 const unsigned short Indices[]=
@@ -267,21 +272,21 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 		return;
 	}
 
-	DX8Wrapper::Set_Shader(Shader);
-	DX8Wrapper::Set_Texture(0,nullptr);
+	Renderer::Set_Shader(Shader);
+	Renderer::Set_Texture(0,nullptr);
 	VertexMaterialClass *vm=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vm);
+	Renderer::Set_Material(vm);
 	REF_PTR_RELEASE(vm);
 
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);
 
-	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,8);
+	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,8);
 	{
 		DynamicVBAccessClass::WriteLockClass Lock(&vb);
 		const FVFInfoClass &fi=vb.FVF_Info();
 		unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
 		int i;
-		unsigned int color=DX8Wrapper::Convert_Color(Color);
+		unsigned int color=WW3DColor::To_ARGB(Color);
 
 		for (i=0; i<8; i++)
 		{
@@ -291,7 +296,7 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 		}
 	}
 
-	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,36);
+	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC,36);
 	{
 		DynamicIBAccessClass::WriteLockClass Lock(&ib);
 		unsigned short *mem=Lock.Get_Index_Array();
@@ -299,9 +304,9 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 			mem[i]=Indices[i];
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb);
-	DX8Wrapper::Set_Index_Buffer(ib,0);
-	DX8Wrapper::Draw_Triangles(0,36/3,0,8);
+	Renderer::Set_Vertex_Buffer(vb);
+	Renderer::Set_Index_Buffer(ib,0);
+	Renderer::Draw_Triangles(0,36/3,0,8);
 }
 
 /**************************************************************************
@@ -511,4 +516,3 @@ int Line3DClass::Get_Num_Polys() const
 {
 	return 12;
 }
-

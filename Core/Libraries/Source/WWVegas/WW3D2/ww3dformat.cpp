@@ -41,9 +41,8 @@
 #include "WWMath/vector4.h"
 #include "WWDebug/wwdebug.h"
 #include "WWLib/TARGA.h"
-#include "dx8wrapper.h"
-#include "dx8caps.h"
-#include <d3d8.h>
+#include "WW3D2/ww3dcolor.h"
+#include "WW3D2/Renderer.h"
 
  /*
 	WW3D_FORMAT_UNKNOWN=0,
@@ -128,7 +127,7 @@ unsigned char RGB_to_CIEY(Vector4 color)
 void Vector4_to_Color(unsigned int *outc,const Vector4 &inc,const WW3DFormat format)
 {
 	// convert to ARGB 32-bit
-	unsigned int color=DX8Wrapper::Convert_Color(inc);
+	unsigned int color=WW3DColor::To_ARGB(inc);
 	unsigned char *argb=(unsigned char*) &color;
 	unsigned char r,g,b,a,lum;
 
@@ -296,6 +295,20 @@ void Get_WW3D_Format(WW3DFormat& src_format,unsigned& src_bpp,const Targa& targa
 	}
 }
 
+static bool Backend_Supports_Texture_Format(WW3DFormat format)
+{
+	return Renderer::Is_Initialized() && Renderer::Supports_Texture_Format(format);
+}
+
+static bool Backend_Supports_DXTC()
+{
+	return Backend_Supports_Texture_Format(WW3D_FORMAT_DXT1)
+		|| Backend_Supports_Texture_Format(WW3D_FORMAT_DXT2)
+		|| Backend_Supports_Texture_Format(WW3D_FORMAT_DXT3)
+		|| Backend_Supports_Texture_Format(WW3D_FORMAT_DXT4)
+		|| Backend_Supports_Texture_Format(WW3D_FORMAT_DXT5);
+}
+
 // ----------------------------------------------------------------------------
 //
 // Utility function for determining valid WW3D format
@@ -304,10 +317,7 @@ void Get_WW3D_Format(WW3DFormat& src_format,unsigned& src_bpp,const Targa& targa
 
 WW3DFormat Get_Valid_Texture_Format(WW3DFormat format, bool is_compression_allowed)
 {
-	int w,h,bits;
-	bool windowed;
-
-	if (!DX8Wrapper::Get_Current_Caps()->Support_DXTC() ||
+	if (!Backend_Supports_DXTC() ||
 		!is_compression_allowed) {
 		switch (format) {
 		case WW3D_FORMAT_DXT1: format=WW3D_FORMAT_R8G8B8; break;
@@ -322,8 +332,8 @@ WW3DFormat Get_Valid_Texture_Format(WW3DFormat format, bool is_compression_allow
 		switch (format) {
 		case WW3D_FORMAT_DXT1:
 			// NVidia hack - switch to DXT2 is there is no DXT1 support (which is disabled on NVidia cards)
-			if (!DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(WW3D_FORMAT_DXT1) &&
-				DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(WW3D_FORMAT_DXT2)) {
+			if (!Backend_Supports_Texture_Format(WW3D_FORMAT_DXT1) &&
+				Backend_Supports_Texture_Format(WW3D_FORMAT_DXT2)) {
 				format=WW3D_FORMAT_DXT2;
 			}
 			break;
@@ -331,7 +341,9 @@ WW3DFormat Get_Valid_Texture_Format(WW3DFormat format, bool is_compression_allow
 		case WW3D_FORMAT_DXT3:
 		case WW3D_FORMAT_DXT4:
 		case WW3D_FORMAT_DXT5:
-			if (!DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(format)) format=WW3D_FORMAT_A8R8G8B8;
+			if (!Backend_Supports_Texture_Format(format)) format=WW3D_FORMAT_A8R8G8B8;
+			break;
+		default:
 			break;
 		}
 	}
@@ -340,6 +352,9 @@ WW3DFormat Get_Valid_Texture_Format(WW3DFormat format, bool is_compression_allow
 		format=WW3D_FORMAT_X8R8G8B8;
 	}
 
+#if !defined(GGC_RENDER_BACKEND_BGFX)
+	int w,h,bits;
+	bool windowed;
 	WW3D::Get_Device_Resolution(w,h,bits,windowed);
 	if (WW3D::Get_Texture_Bitdepth()==16) bits=16;
 
@@ -361,19 +376,24 @@ WW3DFormat Get_Valid_Texture_Format(WW3DFormat format, bool is_compression_allow
 		}
 
 	}
+#else
+	// The bgfx standalone renderer is not constrained by DX8-era 16-bit
+	// texture-depth settings. Preserve native 24/32-bit texture formats so
+	// UI and effect alpha channels do not get quantized through A4R4G4B4.
+#endif
 
 	// Fallback if the hardware doesn't support the texture format
-	if (!DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(format)) {
+	if (!Backend_Supports_Texture_Format(format)) {
 		format=WW3D_FORMAT_A8R8G8B8;
-		if (!DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(format)) {
+		if (!Backend_Supports_Texture_Format(format)) {
 			format=WW3D_FORMAT_A4R4G4B4;
-			if (!DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(format)) {
+			if (!Backend_Supports_Texture_Format(format)) {
 				// If still no luck, try non-alpha formats
 
 				format=WW3D_FORMAT_X8R8G8B8;
-				if (!DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(format)) {
+				if (!Backend_Supports_Texture_Format(format)) {
 					format=WW3D_FORMAT_R5G6B5;
-					if (!DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(format)) {
+					if (!Backend_Supports_Texture_Format(format)) {
 						WWASSERT_PRINT(0,("No valid texture format found"));
 					}
 				}

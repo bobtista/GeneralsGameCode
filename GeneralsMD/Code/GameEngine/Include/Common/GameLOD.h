@@ -187,7 +187,7 @@ public:
 	BenchProfile *newBenchProfile();
 	Bool didMemPass();
 	void setReallyLowMHz(Int mhz) { m_reallyLowMHz = mhz; }
-	Bool isReallyLowMHz() const { return m_cpuFreq < m_reallyLowMHz; }
+	Bool isReallyLowMHz() const { return m_cpuFreq > 0 && m_cpuFreq < m_reallyLowMHz; }
 #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
 	void updateGraphicsQualityState(float averageFPS);
 	void restoreQualitySettings();

@@ -50,11 +50,14 @@
 #include "Common/Debug.h"
 #include "WW3D2/texture.h"
 #include "WWMath/colmath.h"
+#include "GgcRuntimeFlags.h"
 #include "WW3D2/coltest.h"
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/assetmgr.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx8fvf.h"
+#include "WW3D2/renderbufferclasses.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/scene.h"
 #include "GameLogic/TerrainLogic.h"
 #include "GameLogic/Object.h"
@@ -87,6 +90,7 @@ TerrainTracksRenderObjClass::TerrainTracksRenderObjClass()
 	m_bottomIndex=0;
 	m_activeEdgeCount=0;
 	m_totalEdgesAdded=0;
+	m_groupedThisFlush=false;
 	m_bound=false;
 	m_ownerDrawable = nullptr;
 }
@@ -97,7 +101,8 @@ TerrainTracksRenderObjClass::TerrainTracksRenderObjClass()
 /** WW3D method that returns object bounding sphere used in frustum culling*/
 //=============================================================================
 void TerrainTracksRenderObjClass::Get_Obj_Space_Bounding_Sphere(SphereClass & sphere) const
-{	/// @todo: Add code to cull track marks to screen by constantly updating bounding volumes
+{
+	/// @todo: Add code to cull track marks to screen by constantly updating bounding volumes
 	sphere=m_boundingSphere;
 }
 
@@ -185,12 +190,14 @@ void TerrainTracksRenderObjClass::addCapEdgeToTrack(Real x, Real y)
 	/// @todo: Have object pass its height and orientation so we can remove extra calls.
 
 	if (m_haveCap)
-	{	//we already have a cap or there are no segments to cap
+	{
+		//we already have a cap or there are no segments to cap
 		return;
 	}
 
 	if (m_activeEdgeCount == 1)
-	{	//if we only have one edge, then it must be the current anchor edge.
+	{
+		//if we only have one edge, then it must be the current anchor edge.
 		//since achnors are caps, there is not point in adding another.
 		m_haveCap=TRUE;
 		m_haveAnchor=false;	//recreate a new anchor when track resumes.
@@ -220,7 +227,8 @@ void TerrainTracksRenderObjClass::addCapEdgeToTrack(Real x, Real y)
 
 	//avoid sqrt() by checking distance squared since last track mark
 	if (vDir.Length2() < sqr(m_length))
-	{	//not far enough from anchor to add track
+	{
+		//not far enough from anchor to add track
 		//since this is a  cap, we'll force the previous segment to transparent
 		Int lastAddedEdge=m_topIndex-1;
 		if (lastAddedEdge < 0)
@@ -232,7 +240,8 @@ void TerrainTracksRenderObjClass::addCapEdgeToTrack(Real x, Real y)
 	}
 
 	if (m_activeEdgeCount >= maxEdgeCount)
-	{	//no more room in buffer so release oldest edge
+	{
+		//no more room in buffer so release oldest edge
 		m_bottomIndex++;
 		m_activeEdgeCount--;
 
@@ -307,7 +316,8 @@ void TerrainTracksRenderObjClass::addEdgeToTrack(Real x, Real y)
 	/// @todo: Have object pass its height and orientation so we can remove extra calls.
 
 	if (!m_haveAnchor)
-	{	//no anchor yet, make this point an anchor.
+	{
+		//no anchor yet, make this point an anchor.
 		PathfindLayerEnum objectLayer;
 		if (m_ownerDrawable && (objectLayer=m_ownerDrawable->getObject()->getLayer()) != LAYER_GROUND)
 			m_lastAnchor=Vector3(x,y,TheTerrainLogic->getLayerHeight(x,y,objectLayer)+BRIDGE_OFFSET_FACTOR);
@@ -349,7 +359,8 @@ void TerrainTracksRenderObjClass::addEdgeToTrack(Real x, Real y)
 	Int maxEdgeCount=TheTerrainTracksRenderObjClassSystem->m_maxTankTrackEdges;
 
 	if (m_activeEdgeCount >= maxEdgeCount)
-	{	//no more room in buffer so release oldest edge
+	{
+		//no more room in buffer so release oldest edge
 		m_bottomIndex++;
 		m_activeEdgeCount--;
 
@@ -422,7 +433,8 @@ void TerrainTracksRenderObjClass::addEdgeToTrack(Real x, Real y)
 */
 //=============================================================================
 void TerrainTracksRenderObjClass::Render(RenderInfoClass & rinfo)
-{	///@todo: After adding track mark visibility tests, add visible marks to another list.
+{
+	///@todo: After adding track mark visibility tests, add visible marks to another list.
 	if (TheGlobalData->m_makeTrackMarks && m_activeEdgeCount >= 2)
 		TheTerrainTracksRenderObjClassSystem->m_edgesToFlush += m_activeEdgeCount;
 }
@@ -440,7 +452,8 @@ static Real computeTrackSpacing(RenderObjClass *renderObj)
 	Int rightTrack;
 
 	if ((leftTrack=renderObj->Get_Bone_Index( "TREADFX01" )) != 0 && (rightTrack=renderObj->Get_Bone_Index( "TREADFX02" )) != 0)
-	{	//both bones found, determine distance between them.
+	{
+		//both bones found, determine distance between them.
 		Vector3 leftPos,rightPos;
 		leftPos=renderObj->Get_Bone_Transform( leftTrack ).Get_Translation();
 		rightPos=renderObj->Get_Bone_Transform( rightTrack ).Get_Translation();
@@ -594,11 +607,11 @@ void TerrainTracksRenderObjClassSystem::ReAcquireResources()
 	REF_PTR_RELEASE(m_vertexBuffer);
 
 	//Create static index buffers.  These will index the vertex buffers holding the track segments
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,((m_maxTankTrackEdges-1)*6));
+	m_indexBuffer=NEW_REF(RenderIndexBufferClass,((m_maxTankTrackEdges-1)*6));
 
 	// Fill up the IB
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 
 		for (i=0; i<(m_maxTankTrackEdges-1); i++)
@@ -613,7 +626,7 @@ void TerrainTracksRenderObjClassSystem::ReAcquireResources()
 
 	DEBUG_ASSERTCRASH(numModules*m_maxTankTrackEdges*2 < 65535, ("Too many terrain track edges"));
 
-	m_vertexBuffer=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,numModules*m_maxTankTrackEdges*2,DX8VertexBufferClass::USAGE_DYNAMIC));
+	m_vertexBuffer=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,numModules*m_maxTankTrackEdges*2,RenderVertexBufferClass::USAGE_DYNAMIC));
 }
 
 //=============================================================================
@@ -767,7 +780,8 @@ void TerrainTracksRenderObjClassSystem::update()
 			}
 
 			if (iDiff == 0.0f)
-			{	//this edge was invisible, we can remove it
+			{
+				//this edge was invisible, we can remove it
 				mod->m_bottomIndex++;
 				mod->m_activeEdgeCount--;
 
@@ -823,24 +837,8 @@ Try improving the fit to vertical surfaces like cliffs.
 	//check if there is anything to draw and fill vertex buffer
 	if (m_edgesToFlush >= 2)
 	{
-		// Guard against a null vertex buffer (e.g. if ReleaseResources() was called
-		// without a matching ReAcquireResources() during a device reset).
-		if (!m_vertexBuffer)
-		{
-			m_edgesToFlush = 0;
-			return;
-		}
-
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBuffer);
+		RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBuffer);
 		VertexFormatXYZDUV1 *verts = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
-
-		// Guard against a failed buffer lock returning a null pointer.
-		if (!verts)
-		{
-			m_edgesToFlush = 0;
-			return;
-		}
-
 		trackStartIndex=0;
 
 		mod=m_usedModules;
@@ -851,17 +849,9 @@ Try improving the fit to vertical surfaces like cliffs.
 			Vector3 *endPoint;
 			Vector2 *endPointUV;
 
-			// Clamp activeEdgeCount to m_maxTankTrackEdges to prevent writing past the
-			// end of the vertex buffer when m_maxTankTrackEdges was reduced (e.g. by a
-			// graphics-detail change) while tracks still hold edges from the old, larger
-			// limit.  This also keeps index within the fixed-size m_edges[] array.
-			Int activeEdgeCount = mod->m_activeEdgeCount;
-			if (activeEdgeCount > m_maxTankTrackEdges)
-				activeEdgeCount = m_maxTankTrackEdges;
-
-			if (activeEdgeCount >= 2 && mod->Is_Really_Visible())
+			if (mod->m_activeEdgeCount >= 2 && mod->Is_Really_Visible())
 			{
-				for (i=0,index=mod->m_bottomIndex; i<activeEdgeCount; i++,index++)
+				for (i=0,index=mod->m_bottomIndex; i<mod->m_activeEdgeCount; i++,index++)
 				{
 					if (index >= m_maxTankTrackEdges)
 						index=0;
@@ -871,10 +861,11 @@ Try improving the fit to vertical surfaces like cliffs.
 
 					distanceFade=1.0f;
 
-					if ((activeEdgeCount -1 -i) >= m_maxTankTrackOpaqueEdges)// && i < (MAX_PER_TRACK_EDGE_COUNT-FORCE_FADE_AT_EDGE))
-					{	//we're getting close to the limit on the number of track pieces allowed
+					if ((mod->m_activeEdgeCount -1 -i) >= m_maxTankTrackOpaqueEdges)// && i < (MAX_PER_TRACK_EDGE_COUNT-FORCE_FADE_AT_EDGE))
+					{
+						//we're getting close to the limit on the number of track pieces allowed
 						//so force it to fade out.
-						distanceFade=1.0f-(float)((activeEdgeCount -i)-m_maxTankTrackOpaqueEdges)/numFadedEdges;
+						distanceFade=1.0f-(float)((mod->m_activeEdgeCount -i)-m_maxTankTrackOpaqueEdges)/numFadedEdges;
 					}
 
 					distanceFade *= mod->m_edges[index].alpha;	//adjust fade with distance from start of track
@@ -912,32 +903,119 @@ Try improving the fit to vertical surfaces like cliffs.
 	if (m_edgesToFlush >= 2)
 	{
 		ShaderClass::Invalidate();
-		DX8Wrapper::Set_Material(m_vertexMaterialClass);
-		DX8Wrapper::Set_Shader(m_shaderClass);
-		DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
-		DX8Wrapper::Set_Vertex_Buffer(m_vertexBuffer);
+		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
+		// through the IRenderBackend abstraction.
+		Renderer::Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Shader(m_shaderClass);
+		Renderer::Set_Index_Buffer(m_indexBuffer,0);
+		Renderer::Set_Vertex_Buffer(m_vertexBuffer,0);
 
 		trackStartIndex=0;
 		mod=m_usedModules;
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,mod->Transform);
-		while (mod)
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,mod->Transform);
+
+		// TheSuperHackers @perf bobtista 03/06/2026 Coalesce per-module track draws into one
+		// Draw_Triangles per stage-zero texture; the grouped index buffer reproduces the strip
+		// pattern bit-for-bit. The DX8 reference path keeps the per-module loop.
+		Int totalVerts=0;
+		Int totalTris=0;
+		for (TerrainTracksRenderObjClass *countMod=m_usedModules; countMod; countMod=countMod->m_nextSystem)
 		{
-			// Use the same clamped edge count as the vertex-fill pass above so that
-			// trackStartIndex stays consistent and we don't read past the index buffer
-			// (which is only allocated for m_maxTankTrackEdges-1 segments).
-			Int activeEdgeCount = mod->m_activeEdgeCount;
-			if (activeEdgeCount > m_maxTankTrackEdges)
-				activeEdgeCount = m_maxTankTrackEdges;
-
-			if (activeEdgeCount >= 2 && mod->Is_Really_Visible())
+			if (countMod->m_activeEdgeCount >= 2 && countMod->Is_Really_Visible())
 			{
-				DX8Wrapper::Set_Texture(0,mod->m_stageZeroTexture);
-				DX8Wrapper::Set_Index_Buffer_Index_Offset(trackStartIndex);
-				DX8Wrapper::Draw_Triangles(	0,(activeEdgeCount-1)*2, 0, activeEdgeCount*2);
-
-				trackStartIndex += activeEdgeCount*2;
+				totalVerts += countMod->m_activeEdgeCount*2;
+				totalTris += (countMod->m_activeEdgeCount-1)*2;
 			}
-			mod=mod->m_nextSystem;
+		}
+
+		// Draw_Triangles takes the index start as a 16-bit value, so the grouped
+		// index buffer must stay within 65535 indices; fall back to per-module
+		// draws when a very large scene would overflow that range.
+		// GGC_NO_TRACK_BATCH=1 forces the per-module path for A/B verification.
+		static const bool s_trackBatchDisabled = GgcFlags::Enabled(GgcFlag_NoTrackBatch);
+		if (!s_trackBatchDisabled && Renderer::Has_Shader_Pipeline() && totalVerts > 0 && totalTris*3 <= 65535)
+		{
+			RenderIndexBufferClass *groupIndexBuffer=NEW_REF(RenderIndexBufferClass,((UnsignedShort)(totalTris*3)));
+			{
+				RenderIndexBufferClass::WriteLockClass lockIdxBuffer(groupIndexBuffer);
+				UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
+				for (TerrainTracksRenderObjClass *texMod=m_usedModules; texMod; texMod=texMod->m_nextSystem)
+				{
+					if (!(texMod->m_activeEdgeCount >= 2 && texMod->Is_Really_Visible()))
+					{
+						continue;
+					}
+					if (texMod->m_groupedThisFlush)
+					{
+						continue;
+					}
+					TextureClass *groupTexture=texMod->m_stageZeroTexture;
+					Int baseVert=0;
+					for (TerrainTracksRenderObjClass *runMod=m_usedModules; runMod; runMod=runMod->m_nextSystem)
+					{
+						if (runMod->m_activeEdgeCount >= 2 && runMod->Is_Really_Visible())
+						{
+							if (runMod->m_stageZeroTexture == groupTexture && !runMod->m_groupedThisFlush)
+							{
+								for (Int e=0; e<(runMod->m_activeEdgeCount-1); e++)
+								{
+									ib[3]=ib[0]=(UnsignedShort)(baseVert+e*2);
+									ib[1]=(UnsignedShort)(baseVert+e*2+1);
+									ib[4]=ib[2]=(UnsignedShort)(baseVert+(e+1)*2+1);
+									ib[5]=(UnsignedShort)(baseVert+(e+1)*2);
+									ib+=6;
+								}
+								runMod->m_groupedThisFlush=true;
+							}
+							baseVert += runMod->m_activeEdgeCount*2;
+						}
+					}
+				}
+			}
+
+			Renderer::Set_Index_Buffer(groupIndexBuffer,0);
+			Renderer::Set_Index_Buffer_Index_Offset(0);
+
+			Int drawStartTri=0;
+			for (TerrainTracksRenderObjClass *drawMod=m_usedModules; drawMod; drawMod=drawMod->m_nextSystem)
+			{
+				if (!drawMod->m_groupedThisFlush)
+				{
+					continue;
+				}
+				TextureClass *groupTexture=drawMod->m_stageZeroTexture;
+				Int groupTris=0;
+				for (TerrainTracksRenderObjClass *sumMod=drawMod; sumMod; sumMod=sumMod->m_nextSystem)
+				{
+					if (sumMod->m_groupedThisFlush && sumMod->m_stageZeroTexture == groupTexture)
+					{
+						groupTris += (sumMod->m_activeEdgeCount-1)*2;
+						sumMod->m_groupedThisFlush=false;
+					}
+				}
+				Renderer::Set_Texture(0,groupTexture);
+				Renderer::Draw_Triangles((UnsignedShort)(drawStartTri*3),(UnsignedShort)groupTris,0,(UnsignedShort)totalVerts);
+				drawStartTri += groupTris;
+			}
+
+			REF_PTR_RELEASE(groupIndexBuffer);
+			// Restore the shared per-module index buffer for the next flush.
+			Renderer::Set_Index_Buffer(m_indexBuffer,0);
+		}
+		else
+		{
+			while (mod)
+			{
+				if (mod->m_activeEdgeCount >= 2 && mod->Is_Really_Visible())
+				{
+					Renderer::Set_Texture(0,mod->m_stageZeroTexture);
+					Renderer::Set_Index_Buffer_Index_Offset(trackStartIndex);
+					Renderer::Draw_Triangles(	0,(mod->m_activeEdgeCount-1)*2, 0, mod->m_activeEdgeCount*2);
+
+					trackStartIndex += mod->m_activeEdgeCount*2;
+				}
+				mod=mod->m_nextSystem;
+			}
 		}
 	}
 

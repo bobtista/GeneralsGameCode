@@ -36,6 +36,7 @@
 #include "Common/GameStateMap.h"
 #include "Common/LatchRestore.h"
 #include "Common/MapObject.h"
+#include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "Common/RandomValue.h"
 #include "Common/Radar.h"
@@ -48,17 +49,24 @@
 #include "GameClient/GameClient.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MapUtil.h"
+#include "GameClient/Drawable.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/ParticleSys.h"
 #include "GameClient/TerrainVisual.h"
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/Object.h"
+#include "GgcRuntimeFlags.h"
 #include "GameLogic/GhostObject.h"
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/SidesList.h"
 #include "GameLogic/TerrainLogic.h"
 
+#ifndef _WIN32
+#include <sys/stat.h>
+#include <time.h>
+#endif
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////////////////////////
 GameState *TheGameState = nullptr;
@@ -171,6 +179,36 @@ Bool SaveDate::isNewerThan( SaveDate *other )
 	}
 
 }
+
+#ifndef _WIN32
+static Bool isInvalidSaveDate( const SaveDate &date )
+{
+	return date.year == 0 || date.month == 0 || date.day == 0;
+}
+
+static void useFileModifiedTimeForSaveDate( AsciiString filename, SaveDate *date )
+{
+	if( date == nullptr || isInvalidSaveDate( *date ) == FALSE )
+		return;
+
+	struct stat st;
+	if( stat( filename.str(), &st ) != 0 )
+		return;
+
+	struct tm local_tm;
+	if( localtime_r( &st.st_mtime, &local_tm ) == nullptr )
+		return;
+
+	date->year = local_tm.tm_year + 1900;
+	date->month = local_tm.tm_mon + 1;
+	date->dayOfWeek = local_tm.tm_wday;
+	date->day = local_tm.tm_mday;
+	date->hour = local_tm.tm_hour;
+	date->minute = local_tm.tm_min;
+	date->second = local_tm.tm_sec;
+	date->milliseconds = 0;
+}
+#endif
 
 // ------------------------------------------------------------------------------------------------
 /** Find a snapshot block info that matches the token passed in */
@@ -746,6 +784,46 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 	}
 
+	// TheSuperHackers @feature bobtista 11/07/2026 End-of-load visibility census
+	// for the intermittent drawable-less load (units simulate but never render;
+	// only ghost-visible objects draw). Pairs with the per-frame GGC_SCENE_DIAG
+	// counters: this line shows whether the local player's shroud state is
+	// already wrong when the load completes, or breaks afterwards.
+	if( GgcFlags::Enabled(GgcFlag_SceneDiag) )
+	{
+		Int objectCount = 0;
+		Int shroudClear = 0;
+		Int shroudFogged = 0;
+		Int shroudInvisible = 0;
+		const Int localPlayerIndex = ThePlayerList->getLocalPlayer()
+			? ThePlayerList->getLocalPlayer()->getPlayerIndex()
+			: -1;
+		for( Object *obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject() )
+		{
+			++objectCount;
+			if( localPlayerIndex >= 0 )
+			{
+				const ObjectShroudStatus ss = obj->getShroudedStatus( localPlayerIndex );
+				if( ss <= OBJECTSHROUD_PARTIAL_CLEAR )
+					++shroudClear;
+				else if( ss == OBJECTSHROUD_FOGGED )
+					++shroudFogged;
+				else
+					++shroudInvisible;
+			}
+		}
+		Int drawableCount = 0;
+		for( Drawable *draw = TheGameClient->firstDrawable(); draw; draw = draw->getNextDrawable() )
+		{
+			++drawableCount;
+		}
+		std::fprintf( stderr,
+			"[ggc] load census: objects=%d drawables=%d localPlayer=%d shroudClear=%d fogged=%d invisible=%d\n",
+			objectCount, drawableCount, localPlayerIndex,
+			shroudClear, shroudFogged, shroudInvisible );
+		std::fflush( stderr );
+	}
+
 	//
 	// when loading a mission save, we want to do as much normal loading stuff as we
 	// can cause we don't have any real save game data to load other than the
@@ -777,7 +855,11 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 AsciiString GameState::getSaveDirectory() const
 {
 	AsciiString tmp = TheGlobalData->getPath_UserData();
+#ifdef _WIN32
 	tmp.concat("Save\\");
+#else
+	tmp.concat("Save/");
+#endif
 	return tmp;
 }
 
@@ -799,6 +881,13 @@ Bool GameState::isInSaveDirectory(const AsciiString& path) const
 AsciiString GameState::getMapLeafName(const AsciiString& in) const
 {
 	const char* p = strrchr(in.str(), '\\');
+#ifndef _WIN32
+	const char* fwd = strrchr(in.str(), '/');
+	if (fwd && (!p || fwd > p))
+	{
+		p = fwd;
+	}
+#endif
 	if (p)
 	{
 		//
@@ -890,6 +979,16 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
 		// uncaught exceptions crash us. better to just use a bad path.
 		prefix = in;
 	}
+	// TheSuperHackers @bugfix bobtista 09/06/2026 Normalize separators to '\\' (the retail
+	// portable-path format). On macOS getMapLeafAndDirName returns '/'-separated names while
+	// PORTABLE_MAPS uses '\\', producing a mixed path like "maps\\alpine assault/..." that the
+	// game-options encoder (which walks the path on '\\') truncated to just "maps" - so the
+	// joiner could not resolve the host's map and the cross-platform map-name CRCs mismatched.
+	{
+		std::string normalized(prefix.str());
+		std::replace(normalized.begin(), normalized.end(), '/', '\\');
+		prefix.set(normalized.c_str());
+	}
 	prefix.toLower();
 	return prefix;
 }
@@ -897,31 +996,53 @@ AsciiString GameState::realMapPathToPortableMapPath(const AsciiString& in) const
 // ------------------------------------------------------------------------------------------------
 AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 {
+	// TheSuperHackers @bugfix bobtista 11/07/2026 Normalize the portable input
+	// to the portable '\\' separator form before parsing. Saves written before
+	// the 09/06/2026 portable-path normalization carry '/' or mixed separators;
+	// on Windows the '\\'-only separator scan then mis-splits a mixed name
+	// ("maps\\dir/leaf.map" keeps its "maps\\" prefix and double-prefixes the
+	// real path to "maps\\maps\\..."), and an all-'/' name fails the portable
+	// prefix match outright on both platforms.
+	AsciiString portableIn = in;
+	{
+		std::string normalized(portableIn.str());
+		std::replace(normalized.begin(), normalized.end(), '/', '\\');
+		portableIn.set(normalized.c_str());
+	}
+
 	AsciiString prefix;
 	// The directory where the real map path should be contained in.
 	AsciiString containingBasePath;
-	if (in.startsWithNoCase(PORTABLE_SAVE))
+	if (portableIn.startsWithNoCase(PORTABLE_SAVE))
 	{
 		// the save dir ends with "\\"
 		prefix = getSaveDirectory();
 		containingBasePath = prefix;
-		prefix.concat(getMapLeafName(in));
+		prefix.concat(getMapLeafName(portableIn));
 	}
-	else if (in.startsWithNoCase(PORTABLE_MAPS))
+	else if (portableIn.startsWithNoCase(PORTABLE_MAPS))
 	{
 		// the map dir DOES NOT end with "\\", must add it
 		prefix = TheMapCache->getMapDir();
+#ifdef _WIN32
 		prefix.concat("\\");
+#else
+		prefix.concat("/");
+#endif
 		containingBasePath = prefix;
-		prefix.concat(getMapLeafAndDirName(in));
+		prefix.concat(getMapLeafAndDirName(portableIn));
 	}
-	else if (in.startsWithNoCase(PORTABLE_USER_MAPS))
+	else if (portableIn.startsWithNoCase(PORTABLE_USER_MAPS))
 	{
 		// the map dir DOES NOT end with "\\", must add it
 		prefix = TheMapCache->getUserMapDir();
+#ifdef _WIN32
 		prefix.concat("\\");
+#else
+		prefix.concat("/");
+#endif
 		containingBasePath = prefix;
-		prefix.concat(getMapLeafAndDirName(in));
+		prefix.concat(getMapLeafAndDirName(portableIn));
 	}
 	else
 	{
@@ -929,6 +1050,14 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 		// Empty string represents a failure, either caused by an invalid prefix or a relative path leading outside the base path.
 		return AsciiString::TheEmptyString;
 	}
+
+#ifndef _WIN32
+	{
+		std::string normalized(prefix.str());
+		std::replace(normalized.begin(), normalized.end(), '\\', '/');
+		prefix.set(normalized.c_str());
+	}
+#endif
 
 	if (!FileSystem::isPathInDirectory(prefix, containingBasePath))
 	{
@@ -1115,6 +1244,9 @@ static void addGameToAvailableList( AsciiString filename, void *userData )
 	SaveGameInfo saveGameInfo;
 	if( TheGameState->getSaveGameInfoFromFile( filename, &saveGameInfo ) == FALSE )
 		return;
+#ifndef _WIN32
+	useFileModifiedTimeForSaveDate( filename, &saveGameInfo.date );
+#endif
 
 	// allocate new info
 	AvailableGameInfo *newInfo = new AvailableGameInfo;
@@ -1240,7 +1372,7 @@ void GameState::populateSaveGameListbox( GameWindow *listbox, SaveLoadLayoutType
 
 			displayLabel = TheGameText->fetch( saveGameInfo->mapLabel, &exists );
 			if( exists == FALSE )
-				displayLabel.format( L"%S", saveGameInfo->mapLabel.str() );
+				displayLabel.translate( saveGameInfo->mapLabel );
 
 		}
 

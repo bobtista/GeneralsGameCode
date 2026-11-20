@@ -1,0 +1,1480 @@
+$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_stage1UV, v_stage2UV, v_sceneDepth, v_worldPos
+
+#include <bgfx_shader.sh>
+
+SAMPLER2D(s_tex0, 0);
+SAMPLER2D(s_tex1, 1);
+SAMPLER2D(s_tex2, 2);
+SAMPLER2D(s_tex3, 3);
+// fs_uber_array variant: stage 0 reads a texture2DArray layer selected per
+// vertex (layer index carried in v_texcoord1.x by the sorted merge path).
+// Compiled from this same source with GGC_UBER_STAGE0_ARRAY=1 so every other
+// shading path stays byte-identical to the plain uber program.
+#if GGC_UBER_STAGE0_ARRAY
+SAMPLER2DARRAY(s_texArray, 4);
+#define GGC_SAMPLE_STAGE0(uv) texture2DArray(s_texArray, vec3(v_texcoord1.xy, floor(v_normal.z)))
+#define GGC_SAMPLE_STAGE0_ANISO(uv) texture2DArray(s_texArray, vec3(v_texcoord1.xy, floor(v_normal.z)))
+#else
+#define GGC_SAMPLE_STAGE0(uv) texture2D(s_tex0, uv)
+#define GGC_SAMPLE_STAGE0_ANISO(uv) sampleAniso(s_tex0, uv)
+#endif
+// Terrain cloud-shadow scroll texture (BASE_NOISE1/NOISE12 paths on DX8).
+SAMPLER2D(s_cloudMap, 5);
+SAMPLER2D(s_sceneDepth, 6);
+// Specular/rim uniforms not in trunk's packed u_material[] array (which already
+// provides u_matDiffuse/Ambient/Emissive/tssOps/atest via #define).
+uniform vec4 u_matSpecular; // rgb = specular color, w = shininess (Blinn-Phong power)
+uniform vec4 u_matFx; // x specular strength, y rim strength, z rim power, w emissive boost
+uniform vec4 u_eyePos; // xyz = world-space camera position
+SAMPLER2D(s_shadowMap, 7);
+// TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map sampler and uniforms.
+// s_pointShadowMap is the depth map rendered from the strongest CastsShadows dynamic light.
+// u_pointShadowMatrix is the world->shadow-clip matrix for that light.
+// u_pointShadowParams: x=active(1)/none(-1), y=bias, z=texel(1/mapSize), w=strength.
+// The nuke caster is a dedicated light (not a LightEnvironment slot):
+// u_pointShadowLightPos = world xyz + outer range, u_pointShadowLightColor = diffuse rgb.
+SAMPLER2D(s_pointShadowMap, 8);
+// TheSuperHackers @feature bobtista 14/07/2026 Second point-shadow slot: transient lightning
+// flash lights near the particle-cannon beam cast their own shadow alongside the primary.
+SAMPLER2D(s_pointShadowMap2, 10);
+// Static terrain noise/lightmap layer (DX8 ST_TERRAIN_BASE_NOISE2); white when disabled.
+SAMPLER2D(s_lightMap, 11);
+// TheSuperHackers @performance bobtista Global per-frame constants (sun-shadow and point-
+// shadow transforms/params, scene ambient) are identical for every draw in a frame. The
+// GGC_UBER_FRAME_TEXTURE variant reads them from a small data texture instead of per-draw
+// uniforms, shrinking the fs_uber constant buffer by ~352 bytes/draw so heavy scenes stay
+// under bgfx's fixed 8MB Metal uniform arena. Texel layout MUST match PackFrameConstTexture()
+// in BgfxBackend.cpp. The plain (non-texture) program stays byte-identical; the backend picks
+// it when GGC_BGFX_NO_UNIFORM_FRAME_TEXTURE is set.
+#if GGC_UBER_FRAME_TEXTURE
+SAMPLER2D(s_frameConst, 9);
+vec4 ggcFrameConst(int i) { return texture2DLod(s_frameConst, vec2((float(i) + 0.5) / 24.0, 0.5), 0.0); }
+#define u_shadowParams          ggcFrameConst(1)
+#define u_shadowQuality         ggcFrameConst(2)
+#define u_pointShadowParams     ggcFrameConst(7)
+#define u_pointShadowLightPos   ggcFrameConst(8)
+#define u_pointShadowLightColor ggcFrameConst(9)
+#define u_pointShadow2Params     ggcFrameConst(14)
+#define u_pointShadow2LightPos   ggcFrameConst(15)
+#define u_pointShadow2LightColor ggcFrameConst(16)
+// The packer memcpys the bgfx column-major float[16] (texel = one column), so the matrices
+// must be rebuilt with mtxFromCols - the same convention the instanced vertex path uses for
+// i_data0-3. A raw mat4() constructor is not portable across shader languages and yields a
+// transposed transform on Metal.
+#define GGC_SUN_SHADOW_MATRIX   mtxFromCols(ggcFrameConst(3), ggcFrameConst(4), ggcFrameConst(5), ggcFrameConst(6))
+#define GGC_POINT_SHADOW_MATRIX mtxFromCols(ggcFrameConst(10), ggcFrameConst(11), ggcFrameConst(12), ggcFrameConst(13))
+#define GGC_POINT_SHADOW2_MATRIX mtxFromCols(ggcFrameConst(17), ggcFrameConst(18), ggcFrameConst(19), ggcFrameConst(20))
+#define GGC_SCENE_AMBIENT       u_sceneAmbient
+#else
+uniform mat4 u_pointShadowMatrix;
+uniform vec4 u_pointShadowParams;
+uniform vec4 u_pointShadowLightPos;
+uniform vec4 u_pointShadowLightColor;
+uniform mat4 u_pointShadow2Matrix;
+uniform vec4 u_pointShadow2Params;
+uniform vec4 u_pointShadow2LightPos;
+uniform vec4 u_pointShadow2LightColor;
+uniform mat4 u_shadowMatrices[1]; // single camera-fit sun shadow map (was [3] cascades; [1]/[2] unused)
+uniform vec4 u_shadowParams; // x atlas texel size, y depth bias, z strength, w enabled
+uniform vec4 u_shadowQuality; // x: >0.5 = full 36-fetch PCF, else reduced 9-fetch (default)
+#define GGC_SUN_SHADOW_MATRIX   u_shadowMatrices[0]
+#define GGC_POINT_SHADOW_MATRIX u_pointShadowMatrix
+#define GGC_POINT_SHADOW2_MATRIX u_pointShadow2Matrix
+#define GGC_SCENE_AMBIENT       u_sceneAmbient
+#endif
+uniform vec4 u_sunShadowReceive; // x>0.5 = this object draw receives the sun cast shadow
+uniform vec4 u_lightDirs[4];    // per-light direction (xyz=toward light, w=enabled)
+uniform vec4 u_lightColors[4]; // per-light diffuse color (rgb)
+uniform vec4 u_lightAmbients[4]; // per-light ambient color (rgb)
+uniform vec4 u_lightPositions[4]; // per-light world position (xyz)
+uniform vec4 u_lightParams[4]; // x inner range, y outer/range, z > 0.5 point, w enabled
+// TheSuperHackers @bugfix bobtista Scene ambient is NOT frame-constant: fog-of-war shrouded
+// objects carry a dimmed per-object ambient, so it stays a per-draw uniform in both variants
+// (unlike the sun/point-shadow transforms, which are genuinely global per frame). Extracting it
+// would light shrouded objects with the bright global ambient instead of leaving them fog-dimmed.
+uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
+// TheSuperHackers @feature bobtista 15/07/2026 GGC_PCANNON_ENHANCED world-space radial scene dip:
+// xy = dim centre (the drama light), z = 1/falloffWidth, w = far dim factor (1 = inactive).
+// The area around the beam keeps full brightness; the scene eases darker with distance.
+uniform vec4 u_dramaDim;
+uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
+uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
+uniform vec4 u_shroudParams; // xy = offset, zw = scale
+uniform vec4 u_softParticleParams; // .x enable, .y fade scale, zw inverse scene size
+
+// TheSuperHackers @performance bobtista 15/06/2026 Packed per-draw material uniforms.
+// Index order MUST match MaterialUniformSlot in BgfxBackend.cpp.
+uniform vec4 u_material[25];
+#define u_matDiffuse            u_material[0]
+#define u_matAmbient            u_material[1]
+#define u_matEmissive           u_material[2]
+#define u_tssOps0               u_material[3]
+#define u_tssOps1               u_material[4]
+#define u_atestParams           u_material[5]
+#define u_texcoordSource        u_material[6]
+#define u_vertexColorFlags      u_material[7]
+#define u_texcoordSelect2       u_material[8]
+#define u_projectedDecalMode    u_material[9]
+#define u_grayscaleEnable       u_material[10]
+#define u_objectShroudDim       u_material[11]
+#define u_cloudParams           u_material[12]
+#define u_texTransform0         u_material[13]
+#define u_texTransform1         u_material[14]
+#define u_texTransform0Z        u_material[15]
+#define u_tex1Transform0        u_material[16]
+#define u_tex1Transform1        u_material[17]
+#define u_tex1TransformZ        u_material[18]
+#define u_tex2Transform0        u_material[19]
+#define u_tex2Transform1        u_material[20]
+#define u_texProjected          u_material[21]
+#define u_legacyPixelShaderMode u_material[22]
+#define u_zBias                 u_material[23]
+#define u_lightMapParams        u_material[24]
+
+// TSS operation IDs (must match BgfxBackend.cpp encoding)
+#define TSS_DISABLE         0.0
+#define TSS_SELECTARG1      1.0
+#define TSS_SELECTARG2      2.0
+#define TSS_MODULATE        3.0
+#define TSS_MODULATE2X      4.0
+#define TSS_ADD             5.0
+#define TSS_ADDSIGNED       6.0
+#define TSS_SUBTRACT        7.0
+#define TSS_BLENDTEXALPHA   8.0
+#define TSS_BLENDCURALPHA   9.0
+#define TSS_ADDSMOOTH      10.0
+#define TSS_ADDSIGNED2X      11.0
+#define TSS_MODALPHAADDCOLOR 12.0
+#define TSS_SUBTRACTREV      13.0
+
+// Arg source IDs
+#define SRC_TEXTURE  0.0
+#define SRC_DIFFUSE  1.0
+#define SRC_CURRENT  2.0
+
+// RenderBackendProjectedDecalMode values from IRenderBackend.h.
+#define PROJECTED_DECAL_BLOB_SHADOW 1.0
+#define PROJECTED_DECAL_ADDITIVE    2.0
+#define PROJECTED_DECAL_ALPHA       3.0
+#define PROJECTED_DECAL_MULTIPLY    4.0
+
+#define CLOUD_SHADOW_MIN 0.72
+// TheSuperHackers @tweak bobtista 23/06/2026 Keep the restored bgfx cloud-shadow
+// layer subtle. Applying TSCloudMed at full strength creates a map-wide 14-18%
+// terrain dim that reads like unrelated superweapon/explosion smoke.
+#define CLOUD_SHADOW_STRENGTH 0.35
+// BT.601 luminance weights (matches the BGRA bytes of the D3D8 TFACTOR=0x80A5CA8E cascade used by the disabled-button grayscale path).
+#define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
+// Additive projector/effect textures often carry a pure-black matte around
+// useful glow pixels. In D3D8 that matte is a no-op for additive blending; on
+// bgfx it can survive as visible matte fragments unless discarded.
+// Half of one 8-bit color step is "rounds to black" in authored effect mattes.
+#define ADDITIVE_MATTE_EPSILON (0.5 / 255.0)
+#define ALPHA_MASK_EPSILON (0.5 / 255.0)
+// Multiplier applied to shadowed pixels. 1.0 = unshadowed, 0.0 = fully black; we darken to 60% for visible but not crushed shadows.
+#define SHADOW_DARKNESS 0.6
+
+// Maximum darkening applied at the blob center under the multiplicative blend.
+// The blob darkening is driven directly by ShadowI's soft alpha (no smoothstep):
+// the alpha over the coarse heightmap receiver is mostly below 0.5, so a smoothstep
+// gate crushed it to nothing and made infantry shadows invisible on bgfx.
+#define BLOB_MASK_MAX_DARKNESS 0.7
+
+bool alphaTestPass(float alpha, float ref, float func)
+{
+	if (func < 0.5)
+	{
+		return true;
+	}
+	if (func < 1.5) { return false; }              // D3DCMP_NEVER
+	if (func < 2.5) { return alpha < ref; }        // D3DCMP_LESS
+	if (func < 3.5) { return abs(alpha - ref) <= ALPHA_MASK_EPSILON; }
+	if (func < 4.5) { return alpha <= ref; }       // D3DCMP_LESSEQUAL
+	if (func < 5.5) { return alpha > ref; }        // D3DCMP_GREATER
+	if (func < 6.5) { return abs(alpha - ref) > ALPHA_MASK_EPSILON; }
+	if (func < 7.5) { return alpha >= ref; }       // D3DCMP_GREATEREQUAL
+	return true;                                  // D3DCMP_ALWAYS
+}
+
+vec3 applyColorOp(float op, vec3 arg1, vec3 arg2)
+{
+	// Binary split to reduce worst-case from 7 sequential comparisons to 4.
+	if (op < 5.5)
+	{
+		if (op < 2.5)
+		{
+			return (op < 1.5) ? arg1 : arg2;
+		}
+		if (op < 3.5)
+		{
+			return arg1 * arg2;
+		}
+		if (op < 4.5)
+		{
+			return min(arg1 * arg2 * 2.0, vec3_splat(1.0));
+		}
+		return arg1 + arg2;
+	}
+	// ADDSIGNED(6), SUBTRACT(7), BLENDTEX(8)/BLENDCUR(9)/MODALPHAADDCOLOR(12) handled by
+	// caller, ADDSMOOTH(10), ADDSIGNED2X(11), SUBTRACTREV(13)
+	if (op < 6.5)
+	{
+		return arg1 + arg2 - vec3_splat(0.5);
+	}
+	if (op < 7.5)
+	{
+		return arg1 - arg2;
+	}
+	if (op < 9.5)
+	{
+		return arg1;
+	}
+	if (op < 10.5)
+	{
+		return arg1 + arg2 - arg1 * arg2;
+	}
+	if (op < 11.5)
+	{
+		return clamp((arg1 + arg2 - vec3_splat(0.5)) * 2.0, vec3_splat(0.0), vec3_splat(1.0));
+	}
+	if (op > 12.5)
+	{
+		return arg2 - arg1;
+	}
+	return arg1;
+}
+
+float applyAlphaOp(float op, float arg1, float arg2)
+{
+	if (op < 5.5)
+	{
+		if (op < 2.5)
+		{
+			return (op < 1.5) ? arg1 : arg2;
+		}
+		if (op < 3.5)
+		{
+			return arg1 * arg2;
+		}
+		if (op < 4.5)
+		{
+			return min(arg1 * arg2 * 2.0, 1.0);
+		}
+		return arg1 + arg2;
+	}
+	if (op < 6.5)
+	{
+		return arg1 + arg2 - 0.5;
+	}
+	if (op < 7.5)
+	{
+		return arg1 - arg2;
+	}
+	if (op < 9.5)
+	{
+		return arg1;
+	}
+	if (op < 10.5)
+	{
+		return arg1 + arg2 - arg1 * arg2;
+	}
+	if (op < 11.5)
+	{
+		return clamp((arg1 + arg2 - 0.5) * 2.0, 0.0, 1.0);
+	}
+	if (op > 12.5)
+	{
+		return arg2 - arg1;
+	}
+	return arg1;
+}
+
+vec3 sampleCloudShadow(vec2 cloudUV)
+{
+	vec3 cloudSample = texture2D(s_cloudMap, cloudUV).rgb;
+	vec3 cloudShadow = max(cloudSample, vec3_splat(CLOUD_SHADOW_MIN));
+	return mix(vec3_splat(1.0), cloudShadow, CLOUD_SHADOW_STRENGTH);
+}
+
+// World-space normal offset for the shadow receive point, pushing the sample off the surface
+// along its normal to clear self-shadow acne without visibly detaching the shadow (peter-pan).
+#define SUN_SHADOW_NORMAL_OFFSET 1.2
+
+// TheSuperHackers @refactor bobtista 18/06/2026 Single camera-fit sun shadow lookup (replaces the
+// 3 concentric cascades). One ortho map is fit to the visible ground footprint in SetupSunShadowView,
+// so a caster and the ground its shadow lands on are always in the same map - no cascade selection,
+// no tight/coarse caster-receiver mismatch, no per-zoom fall-through or cascade-blend. u_shadowMatrices[0]
+// is the world->shadow-clip matrix; u_shadowParams = (uv texel, depth bias, strength, enabled).
+// Returns the lit fraction in [0,1]: 1 = fully lit, 0 = fully shadowed. nrm is the surface normal.
+float sampleSunShadow(vec3 worldPos, vec3 nrm)
+{
+	if (u_shadowParams.w < 0.5)
+	{
+		return 1.0;
+	}
+	vec3 n = normalize(nrm);
+	vec3 lightDir = normalize(u_lightDirs[0].xyz);
+	float ndotl = clamp(dot(n, lightDir), 0.0, 1.0);
+	float slope = 1.0 + 2.0 * (1.0 - ndotl);
+	float texel = u_shadowParams.x; // shadow-map texel in UV (1 / map size)
+	float bias = u_shadowParams.y;
+	vec3 biasedPos = worldPos + lightDir * (SUN_SHADOW_NORMAL_OFFSET * slope);
+	vec4 sc = mul(GGC_SUN_SHADOW_MATRIX, vec4(biasedPos, 1.0));
+	if (sc.w <= 0.0)
+	{
+		return 1.0;
+	}
+	vec3 ndc = sc.xyz / sc.w;
+	vec2 cuv = ndc.xy * 0.5 + 0.5;
+#if !BGFX_SHADER_LANGUAGE_GLSL
+	cuv.y = 1.0 - cuv.y;
+#endif
+	if (cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0)
+	{
+		return 1.0; // outside the shadow footprint = lit
+	}
+	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
+	// TheSuperHackers @performance bobtista 28/06/2026 The sun-shadow PCF is the single biggest
+	// full-screen frame cost. The original 3x3 grid did 4 manual-bilinear point fetches per tap = 36
+	// shadow-map fetches per pixel. The reduced path collapses each tap to one point fetch (9 fetches,
+	// 4x fewer): the 3x3 spread still softens the edge, only the sub-texel bilinear is lost (slightly
+	// harder texel stepping). u_shadowQuality.x selects: >0.5 = original 36-fetch, else reduced 9-fetch
+	// (default). GGC_BGFX_SHADOW_FULL_PCF=1 restores the original for a quality/perf A/B in one binary.
+	float lit = 0.0;
+	if (u_shadowQuality.x > 0.5)
+	{
+		float invTexel = 1.0 / texel;
+		for (int dy = -1; dy <= 1; ++dy)
+		{
+			for (int dx = -1; dx <= 1; ++dx)
+			{
+				vec2 sampUV = cuv + vec2(float(dx), float(dy)) * texel;
+				vec2 texelCoord = sampUV * invTexel - 0.5;
+				vec2 fracPart = fract(texelCoord);
+				vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
+				float s00 = (curDepth <= texture2D(s_shadowMap, baseUV).x) ? 1.0 : 0.0;
+				float s10 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
+				float s01 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
+				float s11 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
+				lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
+			}
+		}
+	}
+	else
+	{
+		for (int dy = -1; dy <= 1; ++dy)
+		{
+			for (int dx = -1; dx <= 1; ++dx)
+			{
+				vec2 sampUV = cuv + vec2(float(dx), float(dy)) * texel;
+				lit += (curDepth <= texture2D(s_shadowMap, sampUV).x) ? 1.0 : 0.0;
+			}
+		}
+	}
+	return lit * (1.0 / 9.0);
+}
+
+// TheSuperHackers @feature bobtista 16/06/2026 Sun-shadow color multiplier. Returns the factor to
+// multiply a lit pixel by; shadowed pixels darken toward an ambient floor (1 - strength), never to
+// black. Terrain passes world-up because its mesh normal is degenerate (n.z ~ 0); objects pass
+// their real normal so the normal-offset bias keeps them from self-shadowing their own facing side.
+float sunShadowFactor(vec3 worldPos, vec3 rawNormal)
+{
+	if (u_shadowParams.w < 0.5)
+	{
+		return 1.0;
+	}
+	float normalLen2 = dot(rawNormal, rawNormal);
+	vec3 receiverNormal = (normalLen2 > 1e-6) ? rawNormal : vec3(0.0, 0.0, 1.0);
+	float lit = sampleSunShadow(worldPos, receiverNormal);
+	float receiverWeight = smoothstep(0.20, 0.45, receiverNormal.z);
+	return mix(1.0, mix(1.0 - u_shadowParams.z, 1.0, lit), receiverWeight);
+}
+
+// TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow lookup. Mirrors sampleSunShadow
+// but projects through u_pointShadowMatrix (a perspective map) and offsets the sample position
+// toward the point light instead of the sun direction. Returns lit fraction [0,1].
+float samplePointShadow(vec3 worldPos, vec3 nrm)
+{
+	if (u_pointShadowParams.x < 0.0)
+	{
+		return 1.0;
+	}
+	vec3 n = normalize(nrm);
+	vec3 toLight = u_pointShadowLightPos.xyz - worldPos;
+	float dist = length(toLight);
+	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
+	float ndotl = clamp(dot(n, lightDir), 0.0, 1.0);
+	float slope = 1.0 + 2.0 * (1.0 - ndotl);
+	float texel = u_pointShadowParams.z;
+	float bias = u_pointShadowParams.y;
+	vec3 biasedPos = worldPos + lightDir * (SUN_SHADOW_NORMAL_OFFSET * slope);
+	vec4 sc = mul(GGC_POINT_SHADOW_MATRIX, vec4(biasedPos, 1.0));
+	if (sc.w <= 0.0)
+	{
+		return 1.0;
+	}
+	vec3 ndc = sc.xyz / sc.w;
+	vec2 cuv = ndc.xy * 0.5 + 0.5;
+#if !BGFX_SHADER_LANGUAGE_GLSL
+	cuv.y = 1.0 - cuv.y;
+#endif
+	if (cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0)
+	{
+		return 1.0;
+	}
+	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
+	float invTexel = 1.0 / texel;
+	float lit = 0.0;
+	for (int dy = -1; dy <= 1; ++dy)
+	{
+		for (int dx = -1; dx <= 1; ++dx)
+		{
+			vec2 sampUV = cuv + vec2(float(dx), float(dy)) * (texel * 1.35);
+			vec2 texelCoord = sampUV * invTexel - 0.5;
+			vec2 fracPart = fract(texelCoord);
+			vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
+			float s00 = (curDepth <= texture2D(s_pointShadowMap, baseUV).x) ? 1.0 : 0.0;
+			float s10 = (curDepth <= texture2D(s_pointShadowMap, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
+			float s01 = (curDepth <= texture2D(s_pointShadowMap, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
+			float s11 = (curDepth <= texture2D(s_pointShadowMap, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
+			lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
+		}
+	}
+	return lit * (1.0 / 9.0);
+}
+
+// TheSuperHackers @bugfix bobtista 05/08/2026 2D noise for the arc network. A 1D noise is a set
+// of straight parallel stripes by construction, so the old crossed-1D veins could only ever draw
+// a lattice of straight lines - fine on a wall, but a carrier deck showed it for what it was.
+float ggcHash21(vec2 p)
+{
+	return fract(sin(p.x * 127.1 + p.y * 311.7) * 43758.5453123);
+}
+float ggcValueNoise2(vec2 p)
+{
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	float a = ggcHash21(i);
+	float b = ggcHash21(i + vec2(1.0, 0.0));
+	float c = ggcHash21(i + vec2(0.0, 1.0));
+	float d = ggcHash21(i + vec2(1.0, 1.0));
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+vec2 ggcHash22(vec2 p)
+{
+	return fract(sin(vec2(p.x * 127.1 + p.y * 311.7, p.x * 269.5 + p.y * 183.3)) * 43758.5453);
+}
+
+// Distance between the two nearest cell points: near zero along the cell borders, which form a
+// branching network with Y junctions. Level sets of a smooth field can only close into loops -
+// this is what gives the arcs forks instead of rings.
+float ggcVoronoiEdge(vec2 p)
+{
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	float f1 = 9.0;
+	float f2 = 9.0;
+	for (int oy = -1; oy <= 1; ++oy)
+	{
+		for (int ox = -1; ox <= 1; ++ox)
+		{
+			vec2 o = vec2(float(ox), float(oy));
+			vec2 c = o + ggcHash22(i + o) - f;
+			float d = length(c);
+			float nearest = min(f1, d);
+			f2 = min(f2, max(f1, d));
+			f1 = nearest;
+		}
+	}
+	return f2 - f1;
+}
+
+// One electric arc network over a surface-aligned coordinate pair. Time is quantised into about
+// six strike windows a second, each a hard attack followed by a fast decay: within a window
+// nothing moves, and between windows the network reshapes and the lit region jumps somewhere
+// else. That discontinuity is what reads as lightning - anything that translates smoothly reads
+// as flowing energy instead. Two warp octaves keep the cells from looking like a regular
+// honeycomb.
+// NOTE when retuning: ggcValueNoise2 is built on fract(), so it spans 0..1 and averages ~0.5,
+// not -1..1 around zero. The activation window has to sit high in that range or most of the
+// network lights at once and the whole surface turns into a lit honeycomb.
+float ggcDramaArcVein(vec2 p, float tt)
+{
+	float slot = floor(tt * 6.0);
+	float phase = tt * 6.0 - slot;
+	float env = exp2(-phase * 7.0);
+	float st = slot * 0.37;
+	vec2 q = vec2(ggcValueNoise2(vec2(p.x * 0.02, p.y * 0.02 + st)),
+	              ggcValueNoise2(vec2(p.x * 0.02 + 5.2, p.y * 0.02 + 1.3 + st)));
+	vec2 w = p + (q * 2.0 - 1.0) * 12.0;
+	vec2 r = vec2(ggcValueNoise2(vec2(w.x * 0.07 + 2.1, w.y * 0.07 + st * 1.7)),
+	              ggcValueNoise2(vec2(w.x * 0.07 + 9.7, w.y * 0.07 + 4.4 - st * 1.3)));
+	w += (r * 2.0 - 1.0) * 5.0;
+	float v = ggcVoronoiEdge(w * 0.04);
+	float glow = 1.0 - smoothstep(0.0, 0.117, v);
+	float core = 1.0 - smoothstep(0.0, 0.045, v);
+	vec2 jump = vec2(ggcHash21(vec2(slot, 11.0)), ggcHash21(vec2(slot, 41.0))) * 500.0;
+	float act = smoothstep(0.62, 0.92, ggcValueNoise2(vec2(p.x * 0.03 + jump.x, p.y * 0.03 + jump.y)));
+	return (glow * 0.7 + core * 2.2) * act * env;
+}
+
+// TheSuperHackers @feature bobtista 15/07/2026 GGC_PCANNON_ENHANCED radial scene dip (see
+// u_dramaDim). Full brightness inside ~350 world units of the drama light, easing to the
+// dim factor over the falloff width - a world-space vignette around the action.
+float ggcDramaDimFactor(vec3 worldPos)
+{
+
+	// w = -1: this view is excluded from drama lighting entirely (2D/UI draws).
+	if (u_dramaDim.w >= 0.999 || u_dramaDim.w < -0.5)
+	{
+		return 1.0;
+	}
+	// Distance to the nearest beam: with two cannons firing, each gets its own glow pool, so
+	// one beam ending never jumps the other's pool. u_pointShadow2LightPos is the second beam
+	// when u_pointShadow2Params.w > 0 (a persistent beam, not a transient flash pulse).
+	float d = length(worldPos.xy - u_dramaDim.xy);
+	if (u_pointShadow2Params.w > 0.0)
+	{
+		d = min(d, length(worldPos.xy - u_pointShadow2LightPos.xy));
+	}
+	// Effect strength eases in/out with u_dramaDim.w (1.0 = inactive -> 0 strength).
+	float effect = 1.0 - u_dramaDim.w;
+	// Every distance below is a multiple of the falloff width the engine publishes, so a smaller
+	// light (nuke shell rather than superweapon) shrinks the whole pool instead of only its depth.
+	// s = 1 reproduces the hand-tuned beam geometry: glow 210, dim ramp 150-320, fade 450-700.
+	// abs: a negative falloff scale flags a dim-only view (sorted translucents).
+	float s = 1.0 / max(abs(u_dramaDim.z) * 170.0, 0.0001);
+	// Bright pool right around the beam: the immediate area glows more, so the beam reads as
+	// powerful against the dimmer surroundings.
+	float glowT = 1.0 - clamp(d / (210.0 * s), 0.0, 1.0);
+	glowT = glowT * glowT;
+	float glow = effect * glowT * 2.4;
+	// Gentle dim just outside the glow pool, so the beam reads bright against darker ground.
+	float dimT = clamp((d - 150.0 * s) / (170.0 * s), 0.0, 1.0);
+	dimT = dimT * dimT * (3.0 - 2.0 * dimT);
+	// The dim is a pool around the beam, not a global exposure change: past the hold band it
+	// eases back to full brightness. Without this the falloff clamps at its floor and stays
+	// there for every pixel beyond it, so a cannon firing off screen darkened the whole map.
+	float dimFade = 1.0 - clamp((d - 450.0 * s) / (250.0 * s), 0.0, 1.0);
+	dimFade = dimFade * dimFade * (3.0 - 2.0 * dimFade);
+	float dimBase = 1.0 - effect * dimT * dimFade;
+	return dimBase + glow;
+}
+
+// TheSuperHackers @feature bobtista 23/06/2026 Dedicated nuke point light contribution. Dynamic
+// lights never reach the per-object LightEnvironment, so the caster light is applied directly here -
+// to objects and to terrain (which returns from its own branch) - and shadowed by the perspective
+// point-shadow map. It both brightens lit surfaces the blast reaches and darkens occluded ones, so
+// the cast shadow reads as real darkness rather than just an absence of bonus light.
+// u_pointShadowParams.w controls how strongly occluded areas are darkened.
+void applyNukePointLight(inout vec3 color, vec3 worldPos, vec3 nrm, vec3 albedo, vec3 viewDir, float specPower, float cutoutDamp)
+{
+	if (u_pointShadowParams.x < 0.0)
+	{
+		return;
+	}
+	vec3 toLight = u_pointShadowLightPos.xyz - worldPos;
+	float dist = length(toLight);
+	float range = max(u_pointShadowLightPos.w, 1.0);
+	float radial = clamp(1.0 - dist / range, 0.0, 1.0);
+	float atten = radial * radial;
+	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
+	float ndotl = max(0.0, dot(nrm, lightDir));
+	// Only sample the shadow map when this light actually casts one (state >= 1); a glow-only light
+	// (state 0, e.g. the particle cannon beam) lights and glints without shadowing.
+	float shadow = (u_pointShadowParams.x >= 0.5) ? samplePointShadow(worldPos, nrm) : 1.0;
+	// Brighten the lit surfaces the light reaches. Alpha-tested cutouts (foliage) are damped
+	// by the caller, and the contribution is soft-knee limited: sparse bright texels in leaf
+	// textures otherwise take the full addition and clip into isolated pale speckles.
+	vec3 pointAdd = u_pointShadowLightColor.rgb * albedo * ndotl * atten * shadow * cutoutDamp;
+	pointAdd /= (1.0 + 1.5 * max(pointAdd.r, max(pointAdd.g, pointAdd.b)));
+	// Headroom scaling: the addition fades to zero as the pixel approaches white, so bright
+	// sun-lit texels (foliage highlights) cannot clip into isolated speckles.
+	pointAdd *= clamp(1.45 - max(color.r, max(color.g, color.b)), 0.0, 1.0);
+	color += pointAdd;
+	// No specular glint: it is albedo-independent, so on foliage (whose blended leaf passes
+	// carry chaotic normals and no alpha-test flag) it printed as white pixel speckles.
+	// Darken occluded surfaces within reach so the cast shadow reads as real darkness. Safe
+	// against slot-swap blinking because the persistent tracking light always owns this slot
+	// (transient pulses ride slot 2, which stays adds-only). Terrain and decals never cast
+	// into this map, so the darkening cannot print the frustum footprint.
+	float shadowAtten = clamp(radial * 1.18, 0.0, 1.0);
+	shadowAtten = shadowAtten * (2.0 - shadowAtten);
+	color *= (1.0 - u_pointShadowParams.w * shadowAtten * (1.0 - shadow));
+}
+
+// TheSuperHackers @feature bobtista 14/07/2026 Second point-shadow slot: shadow lookup and light
+// contribution for a transient second caster (particle-cannon lightning flash). Mirrors the
+// primary slot with the u_pointShadow2* inputs so the flash throws its own brief shadow while
+// the primary beam shadow stays put.
+float samplePointShadow2(vec3 worldPos, vec3 nrm)
+{
+	vec3 n = normalize(nrm);
+	vec3 toLight = u_pointShadow2LightPos.xyz - worldPos;
+	float dist = length(toLight);
+	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
+	float ndotl = clamp(dot(n, lightDir), 0.0, 1.0);
+	float slope = 1.0 + 2.0 * (1.0 - ndotl);
+	float texel = u_pointShadow2Params.z;
+	float bias = u_pointShadow2Params.y;
+	vec3 biasedPos = worldPos + lightDir * (SUN_SHADOW_NORMAL_OFFSET * slope);
+	vec4 sc = mul(GGC_POINT_SHADOW2_MATRIX, vec4(biasedPos, 1.0));
+	if (sc.w <= 0.0)
+	{
+		return 1.0;
+	}
+	vec3 ndc = sc.xyz / sc.w;
+	vec2 cuv = ndc.xy * 0.5 + 0.5;
+#if !BGFX_SHADER_LANGUAGE_GLSL
+	cuv.y = 1.0 - cuv.y;
+#endif
+	if (cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0)
+	{
+		return 1.0;
+	}
+	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
+	float invTexel = 1.0 / texel;
+	float lit = 0.0;
+	for (int dy = -1; dy <= 1; ++dy)
+	{
+		for (int dx = -1; dx <= 1; ++dx)
+		{
+			vec2 sampUV = cuv + vec2(float(dx), float(dy)) * (texel * 1.35);
+			vec2 texelCoord = sampUV * invTexel - 0.5;
+			vec2 fracPart = fract(texelCoord);
+			vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
+			float s00 = (curDepth <= texture2D(s_pointShadowMap2, baseUV).x) ? 1.0 : 0.0;
+			float s10 = (curDepth <= texture2D(s_pointShadowMap2, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
+			float s01 = (curDepth <= texture2D(s_pointShadowMap2, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
+			float s11 = (curDepth <= texture2D(s_pointShadowMap2, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
+			lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
+		}
+	}
+	// Fade the shadow out over the outer band of the map so the frustum boundary can never
+	// print as a hard square on the ground (transient flash lights sit close to the terrain,
+	// where the footprint edge lands well inside the lit radius).
+	float edge = min(min(cuv.x, 1.0 - cuv.x), min(cuv.y, 1.0 - cuv.y));
+	float edgeFade = clamp(edge * 6.0, 0.0, 1.0);
+	return mix(1.0, lit * (1.0 / 9.0), edgeFade);
+}
+
+void applyFlashPointLight(inout vec3 color, vec3 worldPos, vec3 nrm, vec3 albedo, vec3 viewDir, float specPower, float cutoutDamp)
+{
+	if (u_pointShadow2Params.x < 0.5)
+	{
+		return;
+	}
+	vec3 toLight = u_pointShadow2LightPos.xyz - worldPos;
+	float dist = length(toLight);
+	float range = max(u_pointShadow2LightPos.w, 1.0);
+	float radial = clamp(1.0 - dist / range, 0.0, 1.0);
+	float atten = radial * radial;
+	vec3 lightDir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
+	float ndotl = max(0.0, dot(nrm, lightDir));
+	float shadow = samplePointShadow2(worldPos, nrm);
+	// Cutout foliage is damped by the caller and the addition is soft-knee limited
+	// (white-speckle clipping, see applyNukePointLight).
+	vec3 flashAdd = u_pointShadow2LightColor.rgb * albedo * ndotl * atten * shadow * cutoutDamp;
+	flashAdd /= (1.0 + 0.9 * max(flashAdd.r, max(flashAdd.g, flashAdd.b)));
+	// Headroom scaling (see applyNukePointLight): no clipping speckles on bright texels.
+	flashAdd *= clamp(1.45 - max(color.r, max(color.g, color.b)), 0.0, 1.0);
+	color += flashAdd;
+	// No specular glint (foliage speckle, see applyNukePointLight).
+	// Occlusion darkening matching the primary slot, scaled by u_pointShadow2Params.w: the
+	// backend sends the light's strength for persistent beams (both cannons cast equal shadows
+	// from ignition) and 0 for transient flash pulses, which must only ever ADD light.
+	float shadowAtten = clamp(radial * 1.18, 0.0, 1.0);
+	shadowAtten = shadowAtten * (2.0 - shadowAtten);
+	color *= (1.0 - u_pointShadow2Params.w * shadowAtten * (1.0 - shadow));
+}
+
+// TheSuperHackers @feature bobtista 18/06/2026 Lightweight anisotropic base-texture sampling.
+// bgfx's hardware anisotropy is all-or-nothing (16x or off): 16x over-sharpens grazing surfaces
+// into a striped/aliased look, while plain trilinear leaves a dark fringe where high-contrast
+// texture detail (building panel lines, foundation-slab edges) aliases at the RTS camera's near-
+// horizontal viewing angle. This samples up to 4 taps spread along the texture footprint's major
+// axis, each fetched with the minor-axis gradient so it lands on the sharper mip, yielding a
+// capped ~4x anisotropic result that clears the fringe without the 16x striping. The tap count
+// scales with the footprint's anisotropy ratio, so a roughly square footprint costs a single tap.
+vec4 sampleAniso(sampler2D smp, vec2 uv)
+{
+	vec2 dx = dFdx(uv);
+	vec2 dy = dFdy(uv);
+	float lenSqX = dot(dx, dx);
+	float lenSqY = dot(dy, dy);
+	vec2 majorAxis = (lenSqX > lenSqY) ? dx : dy;
+	vec2 minorAxis = (lenSqX > lenSqY) ? dy : dx;
+	float ratio = sqrt(max(lenSqX, lenSqY) / max(min(lenSqX, lenSqY), 1e-12));
+	float taps = clamp(ceil(ratio), 1.0, 4.0);
+	vec4 sum = vec4_splat(0.0);
+	for (int i = 0; i < 4; ++i)
+	{
+		if (float(i) >= taps)
+		{
+			break;
+		}
+		float t = (float(i) + 0.5) / taps - 0.5;
+		sum += texture2DGrad(smp, uv + majorAxis * t, minorAxis, minorAxis);
+	}
+	return sum / taps;
+}
+
+void main()
+{
+	vec4 diffuse = v_color0;
+	vec2 stage0UV = v_stage0UV;
+	vec2 stage1UV = v_stage1UV;
+	if (u_texProjected.x > 0.5 && abs(v_sceneDepth.x) > 1e-6)
+	{
+		stage0UV /= v_sceneDepth.x;
+	}
+	if (u_texProjected.y > 0.5 && abs(v_sceneDepth.y) > 1e-6)
+	{
+		stage1UV /= v_sceneDepth.y;
+	}
+	vec2 baseStage0UV = v_texcoord0;
+	// --- Terrain pixel shader path ---
+	// The D3D8 terrain system uses a hardware pixel shader (terrain.nvp)
+	// that completely replaces the TSS pipeline:
+	//   tex t0              ; sample tex0 with UV set 0
+	//   tex t1              ; sample tex1 with UV set 1
+	//   lrp r0, v0.a, t1, t0  ; mix(t0, t1, vertex_alpha)
+	//   mul r0, r0, v0        ; multiply by diffuse (baked lighting)
+	if (u_texcoordSelect.y > 0.5)
+	{
+		vec4 baseTex  = GGC_SAMPLE_STAGE0( (u_texProjected.x > 0.5) ? stage0UV : baseStage0UV);
+		vec4 blendTex = texture2D(s_tex1, (u_texProjected.y > 0.5) ? stage1UV : v_texcoord1);
+		float blendAlpha = diffuse.a;
+		vec3 blended = mix(baseTex.rgb, blendTex.rgb, blendAlpha);
+		vec4 result = vec4(blended * diffuse.rgb, 1.0);
+
+		if (!alphaTestPass(result.a, u_atestParams.x, u_atestParams.y))
+		{
+			discard;
+		}
+
+		// TheSuperHackers @bugfix bobtista 28/04/2026 Apply the cloudmap
+		// inside the terrain pixel-shader path. Terrain returns from this
+		// branch before the generic material path below, so placing cloud
+		// modulation only after the branch made the effect invisible.
+		if (u_cloudParams.w > 0.5)
+		{
+			result.rgb *= sampleCloudShadow(v_cloudUV);
+		}
+		if (u_lightMapParams.w > 0.5)
+		{
+			result.rgb *= texture2D(s_lightMap, v_worldPos.xy * u_lightMapParams.x).rgb;
+		}
+
+		// TheSuperHackers @bugfix bobtista 16/06/2026 Terrain returns from this branch
+		// before the generic shadow apply below, so the sun shadow has to be applied here
+		// too - otherwise cast shadows land on roads/decals/objects but skip the ground.
+		float terrainSunFactor = sunShadowFactor(v_worldPos, vec3(0.0, 0.0, 1.0));
+		result.rgb *= terrainSunFactor;
+
+		// TheSuperHackers @feature bobtista 14/07/2026 GGC_PCANNON_ENHANCED radial scene dip for
+		// terrain, applied before the beam light is added so the beam's own glow stays dominant
+		// on the darkened battlefield.
+		result.rgb *= ggcDramaDimFactor(v_worldPos);
+
+		// TheSuperHackers @feature bobtista 23/06/2026 Terrain also receives the dedicated nuke point
+		// light and its cast shadow (terrain returns here, never reaching the object lighting path),
+		// so the blast lights the ground and structures throw shadows across it.
+		// TheSuperHackers @bugfix bobtista 15/07/2026 The point-light adds are gated by the
+		// NORMALIZED sun-lit fraction: 0 inside a cast shadow, 1 in the open. A raw shadow-factor
+		// damp still let ~30% of the flash through, visibly refilling dark shadow interiors on
+		// every flash ("shadows light up") - shadowed pixels now receive nothing.
+		float terrainSunLit = (u_shadowParams.z > 0.01)
+			? clamp((terrainSunFactor - (1.0 - u_shadowParams.z)) / u_shadowParams.z, 0.0, 1.0)
+			: 1.0;
+		applyNukePointLight(result.rgb, v_worldPos, vec3(0.0, 0.0, 1.0), blended, vec3(0.0, 0.0, 1.0), 0.0, terrainSunLit);
+		applyFlashPointLight(result.rgb, v_worldPos, vec3(0.0, 0.0, 1.0), blended, vec3(0.0, 0.0, 1.0), 0.0, terrainSunLit);
+
+
+		gl_FragColor = result;
+		return;
+	}
+
+	vec4 tex0 = GGC_SAMPLE_STAGE0_ANISO(stage0UV);
+	vec4 tex1 = texture2D(s_tex1, stage1UV);
+	vec4 tex2 = texture2D(s_tex2, v_stage2UV);
+	vec2 stage3UV = v_texcoord0;
+	if (u_texcoordSource.w > 2.5)
+	{
+		stage3UV = (v_worldPos.xy + u_shroudParams.xy) * u_shroudParams.zw;
+	}
+	else if (u_texcoordSource.w > 0.5 && u_texcoordSource.w < 1.5)
+	{
+		stage3UV = v_texcoord1;
+	}
+	vec4 tex3 = texture2D(s_tex3, stage3UV);
+
+	if (u_texcoordSelect2.z > 3.5)
+	{
+		// Zero Hour command-center driveway emblems are player-recolored
+		// sorted decals. The generic material path can inherit zero opacity
+		// from nearby water/shroud work, while the remapped texture carries
+		// its matte as black RGB rather than a reliable alpha channel.
+		float mask = max(max(tex0.r, tex0.g), tex0.b);
+		float alpha = clamp(mask * 4.0 * diffuse.a, 0.0, 1.0);
+		if (alpha <= ALPHA_MASK_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = vec4(tex0.rgb, alpha);
+		return;
+	}
+
+	if (u_texcoordSelect2.z > 2.5)
+	{
+		// Sneak Attack ground dirt is authored as a sorted translucent W3D
+		// quad. Use the texture alpha directly; inherited material opacity can
+		// be zero on this replay path and erase the broad dirt stain.
+		float alpha = clamp(tex0.a * diffuse.a, 0.0, 1.0);
+		if (alpha <= ALPHA_MASK_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = vec4(tex0.rgb * diffuse.rgb, alpha);
+		return;
+	}
+
+	if (u_texcoordSelect2.z > 1.5)
+	{
+		// Chinook rotor blur is authored as a sorted translucent mask. Keep
+		// it out of the generic material path so stale vehicle material alpha
+		// cannot erase the cards after the sorted pool is replayed.
+		float mask = max(tex0.a, dot(tex0.rgb, LUMA_WEIGHTS));
+		float alpha = clamp(mask * diffuse.a, 0.0, 1.0);
+		if (alpha <= ALPHA_MASK_EPSILON)
+		{
+			discard;
+		}
+		vec3 color = tex0.rgb * diffuse.rgb;
+		if (max(max(color.r, color.g), color.b) <= ADDITIVE_MATTE_EPSILON)
+		{
+			color = vec3_splat(mask) * diffuse.rgb;
+		}
+		gl_FragColor = vec4(color, alpha);
+		return;
+	}
+
+	if (u_texcoordSelect.z > 0.5)
+	{
+		// Projected shroud overlays are destination multipliers. The terrain
+		// vertex buffer they reuse carries baked terrain diffuse, but the DX8
+		// shroud pass contributes only the shroud texture multiplier here.
+		vec4 shroud = tex0;
+		if (u_objectShroudDim.y > 0.5)
+		{
+			float maskAlpha = texture2D(s_tex1, v_texcoord0).a;
+			if (maskAlpha < u_objectShroudDim.z)
+			{
+				discard;
+			}
+			shroud.a *= maskAlpha;
+		}
+		// TheSuperHackers @bugfix bobtista 01/07/2026 The shroud texture RGB already
+		// encodes the per-cell level (level * shroudColor: fogged ~0.5, clear 1.0,
+		// shrouded 0), so it is the sole darkening term here just like the terrain
+		// shroud pass and retail DX8. An extra fogAlpha/clearAlpha dim factor would
+		// darken fogged structures a second time (0.5 * 0.5), rendering them near-black.
+		gl_FragColor = shroud;
+		return;
+	}
+
+	if (u_legacyPixelShaderMode.x > 0.5)
+	{
+		vec4 water = vec4(tex0.rgb * diffuse.rgb, tex0.a * diffuse.a);
+		if (u_legacyPixelShaderMode.x > 2.5 && u_legacyPixelShaderMode.x < 3.5)
+		{
+			// The trapezoid-water vertex format carries the authored
+			// world-space noise UV in TEXCOORD1. The legacy D3D path also
+			// derives this sample through TCI_CAMERASPACEPOSITION, but using
+			// the explicit UV keeps bgfx out of a fragile generated-coordinate
+			// path and matches the same world-space mapping.
+			vec4 waterNoise = texture2D(s_tex2, v_texcoord1);
+			// Trapezoid / standing water ps.1.1:
+			//   r0 = diffuse * t0
+			//   r0.rgb += t1.rgb * t2.rgb
+			//   r0.rgb *= t3.rgb
+			water.rgb += tex1.rgb * waterNoise.rgb;
+			water.rgb *= tex3.rgb;
+		}
+		else if (u_legacyPixelShaderMode.x > 0.5 && u_legacyPixelShaderMode.x < 1.5)
+		{
+			// River water ps.1.1 uses the same sparkle/noise contribution
+			// and adds the stage-3 shroud contribution before the final add.
+			water.rgb += tex3.rgb;
+			water.a *= tex3.a;
+			water.rgb += tex1.rgb * tex2.rgb;
+		}
+		gl_FragColor = water;
+		return;
+	}
+
+	vec2 projectedDecalUV = v_texcoord0;
+	vec4 projectedDecalTex = tex0;
+	if (u_projectedDecalMode.x > 0.5)
+	{
+		projectedDecalTex = GGC_SAMPLE_STAGE0( projectedDecalUV);
+		// TheSuperHackers @bugfix bobtista 31/05/2026 Default infantry blob shadows
+		// (mode 1) project onto a coarse heightmap receiver quad much larger than the
+		// [0,1] decal image, so most blob fragments have out-of-range UVs. Discarding
+		// them (needed for the other projected-decal modes) erased almost the whole
+		// blob, leaving infantry shadows nearly invisible. ShadowI is clamp-sampled
+		// with a transparent (alpha 0) border, so out-of-range fragments already add
+		// no darkening; keep them for the blob branch instead of discarding.
+		bool isBlobMode = u_projectedDecalMode.x > (PROJECTED_DECAL_BLOB_SHADOW - 0.5)
+			&& u_projectedDecalMode.x < (PROJECTED_DECAL_BLOB_SHADOW + 0.5);
+		if (!isBlobMode
+			&& (projectedDecalUV.x < 0.0 || projectedDecalUV.x > 1.0 || projectedDecalUV.y < 0.0 || projectedDecalUV.y > 1.0))
+		{
+			// W3D projects decals onto terrain cell meshes that can extend beyond
+			// the decal image. DX8 treats that area as non-contributing; clamping the
+			// bgfx sample instead can repeat dark texture padding into blocky patches.
+			discard;
+		}
+	}
+
+	if (u_projectedDecalMode.x > (PROJECTED_DECAL_ADDITIVE - 0.5)
+		&& u_projectedDecalMode.x < (PROJECTED_DECAL_ADDITIVE + 0.5))
+	{
+		// W3D projected additive decals (Spy Satellite / Spy Drone reveal
+		// grid, radius decals) use the fixed-function additive preset:
+		// stage0 texture modulated by vertex diffuse, then ONE/ONE blending.
+		// They are not lit meshes and must not inherit stale material,
+		// secondary-stage or blob-shadow state from the shared decal
+		// batch path.
+		vec4 projected = vec4(projectedDecalTex.rgb * diffuse.rgb, 0.0);
+		if (max(max(projected.r, projected.g), projected.b) <= ADDITIVE_MATTE_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = projected;
+		return;
+	}
+
+	if (u_projectedDecalMode.x > (PROJECTED_DECAL_ALPHA - 0.5)
+		&& u_projectedDecalMode.x < (PROJECTED_DECAL_ALPHA + 0.5))
+	{
+		// W3D projected alpha decals (selection/guard/reveal overlays) use
+		// the fixed-function stage-0 texture modulated by vertex diffuse and
+		// the draw's SRC_ALPHA/INV_SRC_ALPHA blend. Keep them out of the
+		// generic TSS path so stale secondary-stage/shadow state cannot turn
+		// transparent matte pixels into dark geometry.
+		float alpha = clamp(projectedDecalTex.a * diffuse.a, 0.0, 1.0);
+		if (alpha <= ALPHA_MASK_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = vec4(projectedDecalTex.rgb * diffuse.rgb, alpha);
+		return;
+	}
+
+	if (u_projectedDecalMode.x > (PROJECTED_DECAL_BLOB_SHADOW - 0.5)
+		&& u_projectedDecalMode.x < (PROJECTED_DECAL_BLOB_SHADOW + 0.5))
+	{
+		// Default infantry blobs are authored as a soft ALPHA mask (ShadowI RGB is
+		// white). Darken the terrain directly by that alpha under the ZERO/SRC_COLOR
+		// multiplicative blend; emitting (1 - mask) darkens by mask at the blob
+		// center and falls off softly to the transparent edge. No smoothstep: the
+		// alpha over the coarse heightmap receiver is mostly below 0.5, so a
+		// smoothstep gate crushed it to nothing and made the blobs invisible.
+		float mask = clamp(projectedDecalTex.a * diffuse.a, 0.0, 1.0) * BLOB_MASK_MAX_DARKNESS;
+		gl_FragColor = vec4(vec3_splat(1.0 - mask), 1.0);
+		return;
+	}
+
+	if (u_projectedDecalMode.x > (PROJECTED_DECAL_MULTIPLY - 0.5)
+		&& u_projectedDecalMode.x < (PROJECTED_DECAL_MULTIPLY + 0.5))
+	{
+		// Non-blob projected shadows use W3D's preset multiplicative
+		// fixed-function shader: COLOROP=MODULATE and blend ZERO/SRC_COLOR.
+		// Their textures can still carry black RGB in transparent padding.
+		// DX8's texture/decal setup lets that padding contribute as neutral
+		// destination color; in bgfx it must be made explicit or large shadow
+		// receiver meshes stamp blocky black patches around the actual mask.
+		float mask = clamp(projectedDecalTex.a * diffuse.a, 0.0, 1.0);
+		vec3 multiplier = projectedDecalTex.rgb * diffuse.rgb;
+		gl_FragColor = vec4(mix(vec3_splat(1.0), multiplier, mask), 1.0);
+		return;
+	}
+
+	// --- TSS stage evaluation ---
+	// u_tssOps0 = (priColorOp, priAlphaOp, secColorOp, secAlphaOp)
+	// u_tssOps1 = (priCArg1Src, priAArg1Src, secCArg1Src, secAArg1Src)
+	float priColorOp = u_tssOps0.x;
+	float priAlphaOp = u_tssOps0.y;
+	float secColorOp = u_tssOps0.z;
+	float secAlphaOp = u_tssOps0.w;
+	float priArg1Src = u_tssOps1.x;
+
+	vec4 current;
+
+	// Fast paths for the most common TSS combos. These are uniform branches
+	// (all fragments in a draw take the same path) so the GPU skips the
+	// not-taken side entirely. For the ~90% of draws that hit a fast path,
+	// applyColorOp/applyAlphaOp and the secondary stage are never entered.
+
+	if (priColorOp > 2.5 && priColorOp < 3.5
+		&& priAlphaOp > 2.5 && priAlphaOp < 3.5
+		&& secColorOp < 0.5 && secAlphaOp < 0.5
+		&& priArg1Src < 0.5)
+	{
+		// Fast path: MODULATE primary, DISABLE secondary (~80% of draws).
+		// tex0 * diffuse for both color and alpha.
+		current = vec4(tex0.rgb * diffuse.rgb, tex0.a * diffuse.a);
+	}
+	else if (priColorOp > 0.5 && priColorOp < 1.5
+		&& priAlphaOp > 0.5 && priAlphaOp < 1.5
+		&& secColorOp < 0.5 && secAlphaOp < 0.5
+		&& priArg1Src < 0.5)
+	{
+		// Fast path: SELECTARG1 primary, DISABLE secondary.
+		// Texture only — shell map, pre-lit terrain, baked-lit textures.
+		current = tex0;
+	}
+	else if (priColorOp > 1.5 && priColorOp < 2.5
+		&& priAlphaOp > 1.5 && priAlphaOp < 2.5
+		&& secColorOp < 0.5 && secAlphaOp < 0.5)
+	{
+		// Fast path: SELECTARG2 primary, DISABLE secondary.
+		// Diffuse only — untextured lit meshes.
+		current = diffuse;
+	}
+	else
+	{
+		// General TSS path — handles all remaining combinations via
+		// applyColorOp/applyAlphaOp. This covers detail textures,
+		// additive blending, bump env map fallback, etc.
+		float priAlphaArg1Src = u_tssOps1.y;
+
+		vec4 priArg1 = (priArg1Src < 0.5) ? tex0 : diffuse;
+		vec4 priArg2 = (priArg1Src < 0.5) ? diffuse : tex0;
+		vec4 priAlphaA1 = (priAlphaArg1Src < 0.5) ? tex0 : diffuse;
+		vec4 priAlphaA2 = (priAlphaArg1Src < 0.5) ? diffuse : tex0;
+
+		vec3 priColor;
+		float priAlpha;
+
+		if (priColorOp < 0.5)
+		{
+			priColor = diffuse.rgb;
+			priAlpha = diffuse.a;
+		}
+		else
+		{
+			priColor = applyColorOp(priColorOp, priArg1.rgb, priArg2.rgb);
+			priAlpha = applyAlphaOp(priAlphaOp, priAlphaA1.a, priAlphaA2.a);
+		}
+
+		current = vec4(priColor, priAlpha);
+
+		// Secondary/detail stage
+		if (secColorOp > 0.5)
+		{
+			vec3 secArg1 = tex1.rgb;
+			vec3 secArg2 = current.rgb;
+
+			if (secColorOp > 7.5 && secColorOp < 8.5)
+			{
+				current.rgb = mix(secArg2, secArg1, tex1.a);
+			}
+			else if (secColorOp > 8.5 && secColorOp < 9.5)
+			{
+				current.rgb = mix(secArg2, secArg1, current.a);
+			}
+			else if (secColorOp > 11.5 && secColorOp < 12.5)
+			{
+				// D3DTOP_MODULATEALPHA_ADDCOLOR with retail arg order (current, tex):
+				// current.rgb + current.a * tex.rgb
+				current.rgb = clamp(secArg2 + current.a * secArg1, vec3_splat(0.0), vec3_splat(1.0));
+			}
+			else
+			{
+				current.rgb = applyColorOp(secColorOp, secArg1, secArg2);
+			}
+		}
+
+		if (secAlphaOp > 0.5)
+		{
+			float secAArg1 = tex1.a;
+			float secAArg2 = current.a;
+			current.a = applyAlphaOp(secAlphaOp, secAArg1, secAArg2);
+		}
+	}
+
+	// --- Stages 2-3: legacy multi-stage multiply path. In the bgfx
+	// backend the terrain pixel-shader branch handles cloud+noise by
+	// itself (u_texcoordSelect.y > 0.5 at the top of main). Non-terrain
+	// meshes (vehicles, buildings, infantry) only bind stage 0/1 and
+	// inherit stale cloud/noise handles from the previous terrain draw
+	// — multiplying by them turned tank turrets and GLA quad-cannon
+	// tops pure black.
+	// TheSuperHackers @bugfix bobtista 23/04/2026 gate the
+	// stage 2/3 multiply on the terrain texcoord select so only the
+	// legacy DX8 multipass path (which never takes this branch in
+	// standalone — terrain uses the pixel-shader branch above) can
+	// opt back in.
+	if (secColorOp > 0.5 && u_texcoordSelect.y > 0.5)
+	{
+		current *= tex2 * tex3;
+	}
+
+	// --- Lighting ---
+	// The lit path covers MODULATE/ADD and SELECTARG2 (priColorOp=2, texturing disabled).
+	// priColorOp=1 (SELECTARG1) is excluded: it outputs tex0 directly as a baked-lit texture.
+	bool needsLit = (priColorOp > 2.5 && priColorOp < 5.5)
+	             || (priColorOp > 1.5 && priColorOp < 2.5);
+	if (needsLit && u_lightingEnabled.x > 0.5)
+	{
+		// Material has lighting enabled. D3D's T&L pipeline REPLACES the
+		// vertex color with the computed lit result. Our vertex shader
+		// passes through the raw vertex attribute which is meaningless
+		// for lit meshes. Recompute current as tex-only * lighting.
+		vec3 matDiffuse = (u_vertexColorFlags.y > 0.5) ? diffuse.rgb : u_matDiffuse.rgb;
+		vec3 matAmbient = (u_vertexColorFlags.z > 0.5) ? diffuse.rgb : u_matAmbient.rgb;
+		// TheSuperHackers @feature bobtista 15/06/2026 Optional emissive boost (u_matFx.w,
+		// neutral 1.0) brightens self-illuminated material so it reads and feeds bloom.
+		vec3 matEmissive = (u_vertexColorFlags.w > 0.5) ? diffuse.rgb : (u_matEmissive.rgb * u_matFx.w);
+
+		// TheSuperHackers @bugfix bobtista 05/06/2026 Guard normalize against a zero
+		// normal (degenerate geometry) which would yield NaN and bleed into the color.
+		float nrmLen = length(v_normal);
+		vec3 nrm = (nrmLen > 1e-5) ? (v_normal / nrmLen) : vec3(0.0, 0.0, 1.0);
+		// TheSuperHackers @feature bobtista 15/06/2026 View vector for Blinn-Phong
+		// specular and rim lighting, both driven entirely from existing W3D material
+		// data and geometry normals (no new art).
+		vec3 viewDir = normalize(u_eyePos.xyz - v_worldPos);
+		vec3 specAccum = vec3(0.0, 0.0, 0.0);
+		// The old W3D files often carry broad, nearly-white specular values with
+		// shininess near zero. For the optional bgfx material FX path, treat those
+		// as hints and remap them to a narrower modern highlight instead of using
+		// them literally.
+		float authoredShininess = max(u_matSpecular.w, 0.0);
+		float specPower = (authoredShininess < 2.0)
+			? (10.0 + authoredShininess * 22.0)
+			: min(max(authoredShininess, 10.0), 96.0);
+		vec3 specFxColor = min(u_matSpecular.rgb, vec3_splat(0.85));
+		// D3D fixed-function folds emissive into the material color before
+		// texture-stage modulation. Adding it after sampling bleaches tinted
+		// self-lit textures like the shellmap police roof lights to white.
+		vec3 litColor = GGC_SCENE_AMBIENT.rgb * matAmbient + matEmissive;
+		for (int li = 0; li < 4; ++li)
+		{
+			if (u_lightParams[li].w > 0.5 || u_lightDirs[li].w > 0.5)
+			{
+				// TheSuperHackers @bugfix bobtista 05/06/2026 Guard against a zero light
+				// direction (unset but enabled slot) to avoid NaN from normalize.
+				float ldirLen = length(u_lightDirs[li].xyz);
+				vec3 ldir = (ldirLen > 1e-5) ? (u_lightDirs[li].xyz / ldirLen) : vec3(0.0, 0.0, 1.0);
+				float atten = 1.0;
+				if (u_lightParams[li].z > 0.5)
+				{
+					vec3 toLight = u_lightPositions[li].xyz - v_worldPos;
+					float dist = length(toLight);
+					ldir = (dist > 0.0001) ? (toLight / dist) : vec3(0.0, 0.0, 1.0);
+					float inner = max(u_lightParams[li].x, 0.0001);
+					float outer = max(u_lightParams[li].y, inner);
+					// TheSuperHackers @bugfix bobtista 16/07/2026 Match the retail D3D point-light
+					// falloff (dx8wrapper Set_Light_Environment): inverse linear+quadratic
+					// 1/(1 + 0.1/irad*d + 8/orad^2*d^2) with the linear term dropped for a
+					// degenerate inner/outer range, and the hard D3D Range cutoff at outer.
+					// The previous linear ramp rendered point lights brighter near the source
+					// with a harder edge than the DX8 build.
+					float a1 = (outer - inner < 0.001) ? 0.0 : (0.1 / inner);
+					float a2 = 8.0 / (outer * outer);
+					atten = (dist <= outer) ? (1.0 / (1.0 + a1 * dist + a2 * dist * dist)) : 0.0;
+				}
+				float nDotL = max(0.0, dot(nrm, ldir));
+				litColor += (u_lightAmbients[li].rgb * matAmbient + u_lightColors[li].rgb * nDotL * matDiffuse) * atten;
+				if (nDotL > 0.0)
+				{
+					vec3 halfV = normalize(ldir + viewDir);
+					float nDotH = max(0.0, dot(nrm, halfV));
+					specAccum += u_lightColors[li].rgb * pow(nDotH, specPower) * atten;
+				}
+			}
+		}
+		vec4 litDiffuse = vec4(min(vec3_splat(1.0), litColor), u_matDiffuse.a);
+		float litAlpha = current.a * u_matDiffuse.a;
+		if (priColorOp > 0.5 && priColorOp < 1.5)
+		{
+			current = tex0;
+		}
+		else if (priColorOp > 1.5 && priColorOp < 2.5)
+		{
+			current = litDiffuse;
+		}
+		else if (priColorOp > 2.5 && priColorOp < 3.5)
+		{
+			// Keep the fixed-function alpha combiner result. Some lit decals
+			// use stage 0 for recolored RGB and stage 1 only as an alpha mask;
+			// recomputing alpha from tex0 draws their black padding.
+			current = vec4(tex0.rgb * litDiffuse.rgb, litAlpha);
+		}
+		else if (priColorOp > 3.5 && priColorOp < 4.5)
+		{
+			current = vec4(min(tex0.rgb * litDiffuse.rgb * 2.0, vec3_splat(1.0)),
+			               litAlpha);
+		}
+		else if (priColorOp > 4.5 && priColorOp < 5.5)
+		{
+			current = vec4(min(tex0.rgb + litDiffuse.rgb, vec3_splat(1.0)),
+			               litAlpha);
+		}
+		else
+		{
+			float priAlphaArg1Src = u_tssOps1.y;
+			vec4 priArg1 = (priArg1Src < 0.5) ? tex0 : litDiffuse;
+			vec4 priArg2 = (priArg1Src < 0.5) ? litDiffuse : tex0;
+			vec4 priAlphaA1 = (priAlphaArg1Src < 0.5) ? tex0 : litDiffuse;
+			vec4 priAlphaA2 = (priAlphaArg1Src < 0.5) ? litDiffuse : tex0;
+			current = vec4(applyColorOp(priColorOp, priArg1.rgb, priArg2.rgb),
+			               applyAlphaOp(priAlphaOp, priAlphaA1.a, priAlphaA2.a));
+		}
+
+		if (secColorOp > 0.5)
+		{
+			if (secColorOp > 7.5 && secColorOp < 8.5)
+			{
+				current.rgb = mix(current.rgb, tex1.rgb, tex1.a);
+			}
+			else if (secColorOp > 8.5 && secColorOp < 9.5)
+			{
+				current.rgb = mix(current.rgb, tex1.rgb, current.a);
+			}
+			else if (secColorOp > 11.5 && secColorOp < 12.5)
+			{
+				// D3DTOP_MODULATEALPHA_ADDCOLOR with retail arg order (current, tex):
+				// current.rgb + current.a * tex.rgb
+				current.rgb = clamp(current.rgb + current.a * tex1.rgb, vec3_splat(0.0), vec3_splat(1.0));
+			}
+			else
+			{
+				current.rgb = applyColorOp(secColorOp, tex1.rgb, current.rgb);
+			}
+			if (u_texcoordSelect.y > 0.5)
+			{
+				current *= tex2 * tex3;
+			}
+		}
+		if (secAlphaOp > 0.5)
+		{
+			current.a = applyAlphaOp(secAlphaOp, tex1.a, current.a);
+		}
+
+		// TheSuperHackers @feature bobtista 15/06/2026 Add Blinn-Phong specular and a
+		// fresnel rim term on top of the lit/textured result. Both are gated by u_matFx
+		// strengths (0 = off) so the retail look is unchanged unless explicitly enabled.
+		// Fade the additive FX on transparent and alpha-tested surfaces: billboard
+		// foliage, infantry cards, and blended effect meshes have flat or grazing
+		// normals that otherwise wash out to white. Solid meshes keep the full effect.
+		float fxMask = (u_atestParams.y > 0.5) ? 0.0 : current.a;
+		// Headroom guard: keep additive FX bounded as the surface approaches white, so
+		// bright sun-facing roofs and glossy domes still get a visible highlight without
+		// being pushed into a flat white blob.
+		float fxHeadroom = max(0.0, 1.0 - max(max(current.r, current.g), current.b));
+		fxMask *= (0.45 + 0.55 * fxHeadroom);
+		float rim = pow(1.0 - max(0.0, dot(nrm, viewDir)), u_matFx.z) * u_matFx.y;
+		vec3 fxAdd = (specAccum * specFxColor * u_matFx.x + rim * litDiffuse.rgb) * fxMask;
+		// Exposure-style soft add: brightens toward white but can never overshoot it, so
+		// strong settings roll grazing-angle surfaces (tunnel walls, vehicle bodies) into
+		// a smooth highlight instead of hard-clamping them to a flat white blob.
+		vec3 fxLit = 1.0 - (1.0 - current.rgb) * exp(-fxAdd);
+		float maxFxLift = 0.14 + 0.22 * fxHeadroom;
+		current.rgb = min(fxLit, current.rgb + vec3_splat(maxFxLift));
+	}
+	else
+	{
+		// Pre-lit or unlit: vertex color contains baked lighting.
+		current *= u_matDiffuse;
+	}
+
+	// TheSuperHackers @feature bobtista 23/06/2026 Apply the dedicated dynamic light after the
+	// object texture/lighting path has converged. Many Generals buildings and vehicles use pre-lit
+	// or unlit combiner states, so applying this only inside the lit-material branch made the
+	// particle-cannon/nuke light visible on terrain and some organic meshes while skipping those
+	// larger opaque receivers.
+	// Projected decals (blob shadows, scorches) must not receive the drama point lights or the
+	// radial dim: adding light to a shadow decal's own texels visibly brightens the shadow
+	// graphic whenever a flash fires. u_dramaDim.w = -1 excludes the whole view (2D/UI draws,
+	// whose screen-space v_worldPos would otherwise be treated as world coordinates).
+	if (u_dramaDim.w > -0.5
+		&& u_softParticleParams.x < 0.5
+		&& u_texcoordSelect2.w < 0.5
+		&& u_projectedDecalMode.x < 0.5)
+	{
+		// Radial scene dip applies (and fades out) independently of the point lights, so the
+		// scene eases back to normal when the drama light dies instead of snapping bright.
+		current.rgb *= ggcDramaDimFactor(v_worldPos);
+		if ((u_pointShadowParams.x >= 0.0 || u_pointShadow2Params.x >= 0.5)
+			&& u_dramaDim.z >= 0.0)
+		{
+			float pointNrmLen = length(v_normal);
+			vec3 pointNrm = (pointNrmLen > 1e-5) ? (v_normal / pointNrmLen) : vec3(0.0, 0.0, 1.0);
+			vec3 pointViewDir = normalize(u_eyePos.xyz - v_worldPos);
+			float authoredShininess = max(u_matSpecular.w, 0.0);
+			float pointSpecPower = (authoredShininess >= 2.0) ? min(max(authoredShininess, 10.0), 96.0) : 0.0;
+			// Alpha-tested cutouts (foliage) get a damped contribution and no glint.
+			float pointCutoutDamp = (u_atestParams.y > 0.5) ? 0.3 : 1.0;
+			// Cutouts cast flash shadows but do not RECEIVE the flash: their self-shadowing at
+			// map-texel granularity speckles canopies/fences with bright blotches otherwise.
+			float flashDamp = (u_atestParams.y > 0.5) ? 0.0 : 1.0;
+			// Sun-shadowed object pixels receive nothing from the drama lights (see the terrain
+			// branch): shadows must stay dark through a flash.
+			if (u_sunShadowReceive.x > 0.5 && u_shadowParams.z > 0.01)
+			{
+				float objSunFactor = sunShadowFactor(v_worldPos, v_normal);
+				float sunGate = clamp((objSunFactor - (1.0 - u_shadowParams.z)) / u_shadowParams.z, 0.0, 1.0);
+				pointCutoutDamp *= sunGate;
+				flashDamp *= sunGate;
+			}
+			// Electric texture on solid receivers (unit hulls, building walls): an animated
+			// jagged pattern rides the drama lights when the backend publishes a clock in
+			// u_pointShadowLightColor.w (2.0 + seconds; 1.0 = plain light, pattern off).
+			float dramaClock = u_pointShadowLightColor.w;
+			if (dramaClock > 1.5 && u_atestParams.y < 0.5)
+			{
+				// Proximity to the NEAREST beam so both cannons get arcs, not just slot 1's beam
+				// (u_pointShadow2LightPos is the second beam when u_pointShadow2Params.w > 0).
+				// Evaluated first: it gates the whole pattern, and the network is far too costly
+				// to compute for pixels that would multiply it away.
+				float beamProx = clamp(1.0 - length(u_pointShadowLightPos.xyz - v_worldPos) / max(u_pointShadowLightPos.w, 1.0), 0.0, 1.0);
+				if (u_pointShadow2Params.w > 0.0)
+				{
+					float prox2 = clamp(1.0 - length(u_pointShadow2LightPos.xyz - v_worldPos) / max(u_pointShadow2LightPos.w, 1.0), 0.0, 1.0);
+					beamProx = max(beamProx, prox2);
+				}
+				if (beamProx > 0.0)
+				{
+					// Blue lightning on solid surfaces near the beam: a branching arc network
+					// with charge crawling along it - additive and blue, never a brightness
+					// wave over the whole surface.
+					float tt = dramaClock - 2.0;
+					// Triplanar, so the network runs across the surface whatever its facing.
+					// Weights are sharpened hard: a near-axis receiver takes a single projection,
+					// which both avoids washing the pattern out and skips two of the three
+					// evaluations. Only curved geometry pays for more than one.
+					vec3 planeW = abs(pointNrm);
+					planeW = planeW * planeW;
+					planeW = planeW * planeW;
+					planeW /= max(planeW.x + planeW.y + planeW.z, 1e-5);
+					float vein = 0.0;
+					if (planeW.x > 0.02)
+					{
+						vein += ggcDramaArcVein(vec2(v_worldPos.y, v_worldPos.z), tt) * planeW.x;
+					}
+					if (planeW.y > 0.02)
+					{
+						vein += ggcDramaArcVein(vec2(v_worldPos.x, v_worldPos.z), tt) * planeW.y;
+					}
+					if (planeW.z > 0.02)
+					{
+						vein += ggcDramaArcVein(vec2(v_worldPos.x, v_worldPos.y), tt) * planeW.z;
+					}
+					// Headroom-limited: bright thin geometry (chainlink fences, radar dishes,
+					// white panels) otherwise clips to solid white under the arcs.
+					vec3 arcAdd = vec3(0.45, 0.8, 1.9) * vein * beamProx;
+					arcAdd *= clamp(0.82 - max(current.r, max(current.g, current.b)), 0.0, 1.0);
+					current.rgb += arcAdd;
+				}
+			}
+			applyNukePointLight(current.rgb, v_worldPos, pointNrm, current.rgb, pointViewDir, pointSpecPower, pointCutoutDamp);
+			applyFlashPointLight(current.rgb, v_worldPos, pointNrm, current.rgb, pointViewDir, pointSpecPower, flashDamp);
+			current.rgb = min(current.rgb, vec3_splat(1.0));
+		}
+	}
+
+	// Additive black texels are mathematical no-ops in the D3D8 fixed-function
+	// path. Discard them before output so large additive effect meshes with
+	// black matte pixels cannot contribute visible fragments on bgfx backends.
+	if (u_texcoordSelect2.w > 0.5
+		&& max(max(current.r, current.g), current.b) <= ADDITIVE_MATTE_EPSILON)
+	{
+		discard;
+	}
+
+	// --- Alpha test ---
+	if (!alphaTestPass(current.a, u_atestParams.x, u_atestParams.y))
+	{
+		discard;
+	}
+
+	// Soft particles. Compare sorted alpha-blended fragments against the
+	// readable opaque scene-depth target and fade only where particles
+	// intersect world geometry.
+	if (u_softParticleParams.x > 0.5)
+	{
+		vec2 sceneUV = gl_FragCoord.xy * u_softParticleParams.zw;
+		float sceneDepth = texture2D(s_sceneDepth, sceneUV).x;
+		float particleDepth = gl_FragCoord.z;
+		float softFade = clamp((sceneDepth - particleDepth) * u_softParticleParams.y, 0.0, 1.0);
+		current.a *= softFade;
+		if (current.a <= 0.003)
+		{
+			discard;
+		}
+	}
+
+	// TheSuperHackers @bugfix bobtista 14/06/2026 Cloud-shadow modulation,
+	// gated on u_cloudParams.w. The terrain pixel-shader branch above samples
+	// cloud itself and returns early, so this only runs for generic-path
+	// ground draws inside the terrain pass (roads and other map decals) where
+	// the cloud state is enabled. Units, buildings and effects render after
+	// the terrain pass with w == 0, so they are unaffected. Matches the DX8
+	// ST_ROAD_BASE_NOISE multipass that modulated the scrolling cloud texture
+	// into the road colour, which the single-pass bgfx road path had dropped.
+	// TheSuperHackers @bugfix bobtista 17/07/2026 The noise lightmap is gated independently
+	// of the cloud state, matching the terrain branch and DX8's road shader where NOISE1
+	// (cloud) and NOISE2 (lightmap) are separate stages. Nesting it under the cloud gate
+	// left roads without the noise layer on lightmapped maps with clouds disabled.
+	if (u_lightMapParams.w > 0.5)
+	{
+		current.rgb *= texture2D(s_lightMap, v_worldPos.xy * u_lightMapParams.x).rgb;
+	}
+	if (u_cloudParams.w > 0.5)
+	{
+		current.rgb *= sampleCloudShadow(v_cloudUV);
+		// TheSuperHackers @bugfix bobtista 17/06/2026 Ground decals drawn in the terrain
+		// pass (roads, bridges, map markings) receive the sun shadow too, so a cast shadow
+		// stays continuous as it crosses a road instead of vanishing on the road surface.
+		// This shares the cloud gate (w > 0.5) that already distinguishes ground draws from
+		// units/buildings/effects (which render after the terrain pass with w == 0 and only
+		// cast), so it cannot re-introduce the object self-shadow blob.
+		current.rgb *= sunShadowFactor(v_worldPos, vec3(0.0, 0.0, 1.0));
+	}
+	else if (u_sunShadowReceive.x > 0.5)
+	{
+		// TheSuperHackers @feature bobtista 17/06/2026 Opaque/alpha-tested objects (units,
+		// structures, props) receive the sun cast shadow so they darken when standing inside a
+		// mountain/building shadow instead of staying bright. The engine sets u_sunShadowReceive
+		// only for the caster set (writes depth, not blended), so blended effects/particles are
+		// excluded. sampleSunShadow uses the object's real vertex normal for the normal-offset
+		// bias, which keeps the object from self-shadowing. Objects do NOT fall through to coarser
+		// cascades (allowFallthrough=false): the binary fall-through decision snaps a wall between
+		// light and dark across cascades as the camera zooms; walls use their containing cascade only.
+		current.rgb *= sunShadowFactor(v_worldPos, v_normal);
+	}
+
+	// Grayscale output for disabled button state. Matches the D3D8 path
+	// (render2d.cpp) which used D3DTOP_DOTPRODUCT3 with TFACTOR=0x80A5CA8E
+	// to dot-product RGB with luminance weights (0.299, 0.587, 0.114).
+	if (u_grayscaleEnable.x > 0.5)
+	{
+		float luma = dot(current.rgb, LUMA_WEIGHTS);
+		current.rgb = vec3(luma, luma, luma);
+	}
+
+	// TheSuperHackers @bugfix bobtista 16/06/2026 Objects (units, structures) CAST into the
+	// sun shadow map but do NOT receive it on themselves. A small solid caster like an
+	// infantryman occludes its own near side in the shadow map, so receiving the map back
+	// onto its body paints a dark self-shadow blob across the model (the "blob shadow" that
+	// is not a real ground shadow). Only the terrain receives the sun shadow (handled in the
+	// terrain pixel-shader branch above), so cast silhouettes still land on the ground.
+
+	gl_FragColor = current;
+}

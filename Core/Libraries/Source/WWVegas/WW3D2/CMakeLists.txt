@@ -1,8 +1,8 @@
 set(WW3D2_SRC
     aabtree.cpp
     aabtree.h
-    #aabtreebuilder.cpp
-    #aabtreebuilder.h
+    aabtreebuilder.cpp
+    aabtreebuilder.h
     agg_def.cpp
     agg_def.h
     animatedsoundmgr.cpp
@@ -13,12 +13,14 @@ set(WW3D2_SRC
     #assetmgr.h
     assetstatus.cpp
     assetstatus.h
+    Backend/RenderBackendWater.cpp
+    Backend/RenderBackendWater.h
     bitmaphandler.cpp
     bitmaphandler.h
     bmp2d.cpp
     bmp2d.h
-    #boxrobj.cpp
-    #boxrobj.h
+    boxrobj.cpp
+    boxrobj.h
     bwrender.cpp
     bwrender.h
     #camera.cpp
@@ -45,9 +47,10 @@ set(WW3D2_SRC
     dllist.h
     dx8caps.cpp
     dx8caps.h
+    dx8convert.h
     dx8fvf.cpp
     dx8fvf.h
-    dx8indexbuffer.cpp
+    indexbuffer.cpp
     dx8indexbuffer.h
     dx8list.h
     dx8polygonrenderer.cpp
@@ -56,22 +59,22 @@ set(WW3D2_SRC
     dx8renderer.h
     dx8rendererdebugger.cpp
     dx8rendererdebugger.h
-    dx8texman.cpp
-    dx8texman.h
-    dx8vertexbuffer.cpp
+    vertexbuffer.cpp
     dx8vertexbuffer.h
-    dx8webbrowser.cpp
-    dx8webbrowser.h
-    dx8wrapper.cpp
     dx8wrapper.h
+    WW3DDeviceInit.cpp
+    WW3DDeviceInit.h
+    texturecompatibilityinterop.cpp
     dynamesh.cpp
     dynamesh.h
     font3d.cpp
     font3d.h
-    formconv.cpp
+    dx8formatconv.h
+    texturecompatibilityinterop.h
     formconv.h
-    FramGrab.cpp
     framgrab.h
+    FixedFunctionState.cpp
+    FixedFunctionState.h
     hanim.cpp
     hanim.h
     #hanimmgr.cpp
@@ -82,10 +85,10 @@ set(WW3D2_SRC
     #hlod.h
     hmdldef.cpp
     hmdldef.h
-    #hmorphanim.cpp
-    #hmorphanim.h
-    #hrawanim.cpp
-    #hrawanim.h
+    hmorphanim.cpp
+    hmorphanim.h
+    hrawanim.cpp
+    hrawanim.h
     htree.cpp
     htree.h
     #htreemgr.cpp
@@ -96,49 +99,49 @@ set(WW3D2_SRC
     inttest.h
     layer.cpp
     layer.h
-    #light.cpp
-    #light.h
+    light.cpp
+    light.h
     #lightenvironment.cpp
     #lightenvironment.h
     line3d.cpp
     line3d.h
     #linegrp.cpp
     #linegrp.h
-    #mapper.cpp
-    #mapper.h
+    mapper.cpp
+    mapper.h
     matinfo.cpp
     matinfo.h
     matpass.cpp
     matpass.h
-    #matrixmapper.cpp
-    #matrixmapper.h
-    #mesh.cpp
-    #mesh.h
+    matrixmapper.cpp
+    matrixmapper.h
+    mesh.cpp
+    mesh.h
     #meshbuild.cpp
     #meshbuild.h
     meshdam.cpp
     meshdam.h
-    #meshgeometry.cpp
-    #meshgeometry.h
+    meshgeometry.cpp
+    meshgeometry.h
     #meshmatdesc.cpp
     #meshmatdesc.h
-    #meshmdl.cpp
-    #meshmdl.h
-    #meshmdlio.cpp
+    meshmdl.cpp
+    meshmdl.h
+    meshmdlio.cpp
     metalmap.cpp
     metalmap.h
     missingtexture.cpp
     missingtexture.h
-    #motchan.cpp
-    #motchan.h
+    motchan.cpp
+    motchan.h
     #nullrobj.cpp
     #nullrobj.h
     #part_buf.cpp
     #part_buf.h
-    #part_emt.cpp
-    #part_emt.h
-    #part_ldr.cpp
-    #part_ldr.h
+    part_emt.cpp
+    part_emt.h
+    part_ldr.cpp
+    part_ldr.h
     pivot.cpp
     pivot.h
     pointgr.cpp
@@ -155,16 +158,21 @@ set(WW3D2_SRC
     proto.h
     proxy.h
     rddesc.h
+    Renderer.cpp
+    Renderer.h
     #render2d.cpp
     #render2d.h
     render2dsentence.cpp
     render2dsentence.h
+    Renderer.h
     renderobjectrecycler.cpp
     renderobjectrecycler.h
     rendobj.cpp
     rendobj.h
     #rinfo.cpp
     #rinfo.h
+    renderdebugstats.cpp
+    renderdebugstats.h
     ringobj.cpp
     ringobj.h
     robjlist.h
@@ -174,8 +182,8 @@ set(WW3D2_SRC
     segline.h
     seglinerenderer.cpp
     seglinerenderer.h
-    #shader.cpp
-    #shader.h
+    shader.cpp
+    shader.h
     shattersystem.cpp
     shattersystem.h
     shdlib.h
@@ -184,8 +192,6 @@ set(WW3D2_SRC
     sortingrenderer.cpp
     sortingrenderer.h
     soundlibrarybridge.h
-    soundrobj.cpp
-    soundrobj.h
     sphereobj.cpp
     sphereobj.h
     static_sort_list.cpp
@@ -204,38 +210,185 @@ set(WW3D2_SRC
     texproject.h
     #textdraw.cpp # unused
     textdraw.h
+    texturecompat.h
     texture.cpp
     texture.h
+    TextureResourceManager.cpp
+    TextureResourceManager.h
     texturefilter.cpp
     texturefilter.h
     textureloader.cpp
     textureloader.h
     texturethumbnail.cpp
     texturethumbnail.h
-    #vertmaterial.cpp
-    #vertmaterial.h
+    vertmaterial.cpp
+    vertmaterial.h
     visrasterizer.cpp
     visrasterizer.h
     w3d_dep.cpp
     w3d_dep.h
-    #w3d_file.h
+    w3d_file.h
     w3d_obsolete.h
     w3d_util.cpp
     w3d_util.h
     w3derr.h
     w3dexclusionlist.cpp
     w3dexclusionlist.h
-    #ww3d.cpp
-    #ww3d.h
+    ww3d.cpp
+    ww3d.h
     ww3dformat.cpp
     ww3dformat.h
-    ww3dids.h
     ww3dtrig.h
 )
+
+if(WIN32)
+    list(APPEND WW3D2_SRC
+        FramGrab.cpp
+        soundrobj.cpp
+        soundrobj.h
+    )
+endif()
 
 add_library(corei_ww3d2 INTERFACE)
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
+
+target_include_directories(corei_ww3d2 INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+if(UNIX AND NOT APPLE)
+    find_package(Freetype REQUIRED)
+    find_package(Fontconfig REQUIRED)
+    target_link_libraries(corei_ww3d2 INTERFACE
+        Freetype::Freetype
+        Fontconfig::Fontconfig
+    )
+endif()
+
+if(NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/formconv.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.h
+    )
+endif()
+
+if(GGC_RENDER_BACKEND STREQUAL "dx8")
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8Backend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8Backend.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8BackendEffects.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8BackendRoad.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8BackendShroud.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/DX8BackendTerrain.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8wrapper.cpp
+    )
+endif()
+
+# TheSuperHackers @feature bobtista 01/06/2026 Backend-agnostic RenderDoc
+# capture trigger, compiled for every backend so the env var works in both
+# dx8 and bgfx builds.
+target_sources(corei_ww3d2 INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/RenderDocTrigger.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/RenderDocTrigger.h
+)
+
+# TheSuperHackers @feature bobtista 01/06/2026 Backend-agnostic draw-call
+# logger. Writes CSV per frame when GGC_DRAWLOG_AFTER+GGC_DRAWLOG_PATH set.
+target_sources(corei_ww3d2 INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/DrawCallLog.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/DrawCallLog.h
+)
+
+# TheSuperHackers @refactor bobtista 10/04/2026 Conditionally include the
+# active render backend's source files. See cmake/render-backend.cmake.
+if(GGC_RENDER_BACKEND STREQUAL "bgfx")
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/BgfxBackend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/BgfxBackend.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/BgfxBackendState.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/Backend/BgfxBackendTextures.cpp
+    )
+
+    # TheSuperHackers @refactor bobtista 11/04/2026 Compile bgfx shaders.
+    # The ggc_compile_bgfx_shader helper (cmake/bgfx.cmake) creates the
+    # ggc_bgfx_shaders STATIC library on first call and attaches every
+    # generated .bin.h to it. corei_ww3d2 links it INTERFACE so g_ww3d2 /
+    # z_ww3d2 inherit the include directory and build order dependency.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_passthrough.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_passthrough.sc)
+    # TheSuperHackers @refactor bobtista 12/04/2026 Uber shader pair.
+    # A single program handles all TSS combinations via uniforms; replaces
+    # the earlier per-preset shader pairs.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber_instanced.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc NAME fs_uber_array DEFINES "GGC_UBER_STAGE0_ARRAY=1")
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber.sc NAME vs_uber_array DEFINES "GGC_UBER_STAGE0_ARRAY=1")
+    # TheSuperHackers @performance bobtista fs_uber variant that reads the global per-frame
+    # constants (sun/point shadow, scene ambient) from a data texture instead of per-draw
+    # uniforms, shrinking the per-draw constant buffer so heavy scenes stay under bgfx's
+    # fixed 8MB Metal uniform arena. Pairs with the unmodified vs_uber.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc NAME fs_uber_frameconst DEFINES "GGC_UBER_FRAME_TEXTURE=1")
+    # TheSuperHackers @refactor bobtista 14/04/2026 Ported Trees.nvv
+    # (grass/blade sway vertex shader). Reuses fs_uber for the fragment side.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_trees.sc)
+    # TheSuperHackers @refactor bobtista 15/04/2026 Stencil shadow volume
+    # shader pair. XYZ-only verts, no color output.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_volume.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_volume.sc)
+    # Shadow darkening apply pass (fullscreen quad blend).
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_apply.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_apply.sc)
+    # TheSuperHackers @feature bobtista 27/04/2026 Scene-color composite
+    # pass. World/effects render to an offscreen framebuffer, then this
+    # identity pass copies it to the swapchain before UI draws.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_scene_composite.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_scene_composite.sc)
+    # TheSuperHackers @feature bobtista 15/06/2026 Bloom bright-pass and separable
+    # blur. Reuse vs_scene_composite as the fullscreen vertex stage.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_bloom_bright.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_bloom_blur.sc)
+    # TheSuperHackers @feature bobtista 15/06/2026 SSAO pass (reuses vs_scene_composite).
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_ssao.sc)
+    # TheSuperHackers @feature bobtista 15/06/2026 Fullscreen copy/resolve (MSAA smudge).
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_copy.sc)
+    # TheSuperHackers @feature bobtista 27/04/2026 Readable scene-depth
+    # pass. Opaque world draws populate an R32F texture for future post
+    # effects and soft particles.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_scene_depth.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_scene_depth_instanced.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_scene_depth.sc)
+    # TheSuperHackers @feature bobtista 16/06/2026 Shadow-map caster pass with
+    # alpha-test, so cutout geometry (infantry, foliage) casts its real silhouette.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_caster.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_caster_instanced.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_caster.sc)
+    # TheSuperHackers @feature bobtista 27/04/2026 Dedicated smudge /
+    # heat-haze pass. This samples the scene-color snapshot without going
+    # through the fixed-function uber shader.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_smudge.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_smudge.sc)
+    get_property(GGC_BGFX_GENERATED_SHADER_HEADERS GLOBAL PROPERTY GGC_BGFX_SHADER_HEADERS)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/Backend/BgfxBackend.cpp PROPERTIES
+        OBJECT_DEPENDS "${GGC_BGFX_GENERATED_SHADER_HEADERS}"
+    )
+    target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
+endif()
+
+# Propagate the active backend's compile define to every translation unit
+# that pulls in WW3D2, so that Renderer.cpp and any future callers can
+# #if on GGC_RENDER_BACKEND_DX8 / _BGFX.
+if(DEFINED GGC_RENDER_BACKEND_COMPILE_DEFINE)
+    target_compile_definitions(corei_ww3d2 INTERFACE ${GGC_RENDER_BACKEND_COMPILE_DEFINE})
+endif()
+
+if(GGC_RENDERER_VIRTUAL)
+    target_compile_definitions(corei_ww3d2 INTERFACE GGC_RENDERER_VIRTUAL=1)
+endif()
 
 if (MSVC AND NOT IS_VS6_BUILD)
     target_link_libraries(corei_ww3d2 INTERFACE
@@ -248,3 +401,34 @@ target_link_libraries(corei_ww3d2 INTERFACE
     core_wwlib
     core_wwmath
 )
+
+if(APPLE)
+    target_link_libraries(corei_ww3d2 INTERFACE
+        "-framework CoreGraphics"
+        "-framework CoreText"
+        "-framework CoreFoundation"
+    )
+endif()
+
+# Link the backend's native libraries into whoever consumes corei_ww3d2.
+if(GGC_RENDER_BACKEND STREQUAL "bgfx")
+    target_link_libraries(corei_ww3d2 INTERFACE bgfx bx bimg)
+    # TheSuperHackers @build bobtista 29/04/2026 BgfxBackend.cpp pulls SDL3 headers
+    # to query the native window pointer for bgfx::PlatformData on macOS/Linux.
+    if(SAGE_USE_SDL3)
+        target_link_libraries(corei_ww3d2 INTERFACE sdl3lib)
+    endif()
+    # TheSuperHackers @perf bobtista 24/06/2026 When the Tracy profiler is built
+    # in (RTS_BUILD_OPTION_PROFILE_TRACY=ON), turn on bgfx's internal profiler
+    # callbacks so its submit/encode work can be forwarded into the same Tracy
+    # timeline (see BgfxLoggingCallback). No effect on default builds.
+    if(RTS_BUILD_OPTION_PROFILE_TRACY)
+        target_compile_definitions(bgfx PUBLIC BGFX_CONFIG_PROFILER=1)
+    endif()
+elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
+    target_link_libraries(corei_ww3d2 INTERFACE
+        Diligent-GraphicsEngineD3D11-static
+        Diligent-Common
+        Diligent-GraphicsTools
+    )
+endif()

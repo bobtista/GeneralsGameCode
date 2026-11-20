@@ -71,25 +71,30 @@
 #include "sphereobj.h"
 #include "w3d_util.h"
 #include "WWDebug/wwdebug.h"
-#include "WW3D2/vertmaterial.h"
-#include "WW3D2/ww3d.h"
+#include "vertmaterial.h"
+#include "ww3d.h"
 #include "WWLib/chunkio.h"
-#include "WW3D2/rinfo.h"
+#include "rinfo.h"
 #include "coltest.h"
 #include "WWLib/bound.h"
 #include "inttest.h"
 #include "predlod.h"
 #include "WWMath/matrix3.h"
 #include "WWMath/wwmath.h"
-#include "WW3D2/assetmgr.h"
+#include "assetmgr.h"
 #include "WWLib/wwstring.h"
-#include "WW3D2/camera.h"
+#include "camera.h"
 #include "statistics.h"
+#include "ww3dcolor.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "sortingrenderer.h"
 #include "visrasterizer.h"
+#include "Renderer.h"
 
 static bool Sphere_Array_Valid = false;
 
@@ -235,6 +240,7 @@ SphereRenderObjClass::SphereRenderObjClass(const SphereRenderObjClass & src)
 
 SphereRenderObjClass::~SphereRenderObjClass()
 {
+	REF_PTR_RELEASE(SphereTexture);
 	REF_PTR_RELEASE(SphereMaterial);
 }
 
@@ -468,13 +474,13 @@ void SphereRenderObjClass::render_sphere()
 	} else {
 		SphereShader.Set_Texturing (ShaderClass::TEXTURING_DISABLE);
 	}
-	DX8Wrapper::Set_Shader(SphereShader);
-	DX8Wrapper::Set_Texture(0,SphereTexture);
-	DX8Wrapper::Set_Material(SphereMaterial);
+	Renderer::Set_Shader(SphereShader);
+	Renderer::Set_Texture(0,SphereTexture);
+	Renderer::Set_Material(SphereMaterial);
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (SphereShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (SphereShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
- 	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC;
 
 	DynamicVBAccessClass vb(buffer_type, dynamic_fvf_type, mesh.Vertex_ct);
 	{
@@ -492,7 +498,7 @@ void SphereRenderObjClass::render_sphere()
 			vb->nz = mesh.vtx_normal[i].Z;
 
 			if (Flags & USE_ALPHA_VECTOR) {
-				vb->diffuse = DX8Wrapper::Convert_Color(mesh.dcg[i]);
+				vb->diffuse = WW3DColor::To_ARGB(mesh.dcg[i]);
 			} else {
 				vb->diffuse = 0xFFFFFFFF;		// TODO could combine the material color with this and turn off lighting
 			}
@@ -517,13 +523,13 @@ void SphereRenderObjClass::render_sphere()
 		}
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb);
-	DX8Wrapper::Set_Index_Buffer(ib,0);
+	Renderer::Set_Vertex_Buffer(vb);
+	Renderer::Set_Index_Buffer(ib,0);
 
 	if (sort) {
 		SortingRendererClass::Insert_Triangles(Get_Bounding_Sphere(), 0, mesh.face_ct, 0, mesh.Vertex_ct);
 	} else {
-		DX8Wrapper::Draw_Triangles(0,mesh.face_ct,0,mesh.Vertex_ct);
+		Renderer::Draw_Triangles(0,mesh.face_ct,0,mesh.Vertex_ct);
 	}
 
 }
@@ -659,7 +665,7 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 		// Camera Align
 		if (Flags & USE_CAMERA_ALIGN) {
 			Matrix4x4 view,ident(true);
-			DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+			Renderer::Get_Transform(RB_TRANSFORM_VIEW, view);
 
 			Vector4 wpos(Transform[0][3],Transform[1][3],Transform[2][3],1);
 			Vector4 cpos;
@@ -670,12 +676,12 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 							1.0f, 0.0f, 0.0f, cpos.Z);
 
 			tm.Scale(real_scale);
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,ident);
-			DX8Wrapper::Set_Transform(D3DTS_VIEW,tm);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD,ident);
+			Renderer::Set_Transform(RB_TRANSFORM_VIEW, tm);
 			render_sphere();
-			DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+			Renderer::Set_Transform(RB_TRANSFORM_VIEW, view);
 		} else {
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,temp);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD,temp);
 			render_sphere();
 		}
 	}
@@ -1176,12 +1182,7 @@ SpherePrototypeClass::SpherePrototypeClass(SphereRenderObjClass *sphere)
 	//
 	if (sphere->SphereTexture != nullptr) {
 		StringClass name = sphere->SphereTexture->Get_Full_Path();
-		const char *filename = ::strrchr (name, '\\');
-		if (filename != nullptr) {
-			filename ++;
-		} else {
-			filename = name;
-		}
+		const char *filename = getFileName (name.str());
 
 		strlcpy(Definition.TextureName, filename, ARRAY_SIZE(Definition.TextureName));
 
@@ -1362,6 +1363,8 @@ fan_size(0),
 fans(nullptr),
 face_ct(0),
 tri_poly(nullptr),
+dcg(nullptr),
+IsAdditive(false),
 inverse_alpha(false)
 {
 	// compute # of vertices
@@ -1399,6 +1402,8 @@ fan_size(0),
 fans(nullptr),
 face_ct(0),
 tri_poly(nullptr),
+dcg(nullptr),
+IsAdditive(false),
 inverse_alpha(false)
 {
 
@@ -1675,7 +1680,7 @@ void SphereMeshClass::Generate(float radius, int slices, int stacks)
 	}
 
 	// Make Sure ptr is where I expect it to be
-	WWASSERT(((int)out) == ((int)(tri_poly + face_ct)));
+	WWASSERT(out == (tri_poly + face_ct));
 
 	//
 	//	Fill in the DCG array
@@ -1735,4 +1740,3 @@ void SphereMeshClass::Free()
 }
 
 // EOF - sphereobj.cpp
-

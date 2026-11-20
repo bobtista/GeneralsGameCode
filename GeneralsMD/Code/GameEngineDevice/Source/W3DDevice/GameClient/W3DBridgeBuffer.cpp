@@ -65,7 +65,7 @@
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -131,9 +131,10 @@ are already set.  */
 void W3DBridge::renderBridge(Bool wireframe)
 {
 	if (m_visible && m_numPolygons && m_numVertex) {
-		if (!wireframe) DX8Wrapper::Set_Texture(0,m_bridgeTexture);
-		// Draw all the bridges.
-		DX8Wrapper::Draw_Triangles(	m_firstIndex, m_numPolygons, m_firstVertex,	m_numVertex);
+		if (!wireframe) {
+			Renderer::Set_Texture(0, m_bridgeTexture);
+		}
+		Renderer::Draw_Triangles(m_firstIndex, m_numPolygons, m_firstVertex, m_numVertex);
 	}
 }
 
@@ -246,6 +247,13 @@ Bool W3DBridge::load(BodyDamageType curDamageState)
 	strlcat(right, ".BRIDGE_RIGHT", ARRAY_SIZE(right));
 
 	m_bridgeTexture = pMgr->Get_Texture(textureFile,  MIP_LEVELS_3);
+	if (m_bridgeTexture != nullptr && Renderer::Has_Shader_Pipeline()) {
+		// Bridge textures are compact atlases whose lower mips can collapse
+		// black padding into visible deck pixels under bgfx/Metal. Keep the
+		// authored level-0 texels stable; the bgfx backend binds a one-mip
+		// sibling whenever the stage mip filter is disabled.
+		m_bridgeTexture->Get_Filter().Set_Mip_Mapping(TextureFilterClass::FILTER_TYPE_NONE);
+	}
 	m_leftMtx.Make_Identity();
 	m_rightMtx.Make_Identity();
 	m_sectionMtx.Make_Identity();
@@ -255,7 +263,7 @@ Bool W3DBridge::load(BodyDamageType curDamageState)
 	Int i;
 	for (i=0; i<pObj->Get_Num_Sub_Objects(); i++) {
 		RenderObjClass *pSub = pObj->Get_Sub_Object(i);
-		Matrix3D mtx = pSub->Get_Transform();
+		const Matrix3D& mtx = pSub->Get_Transform();
 		if (0==strnicmp(left, pSub->Get_Name(), strlen(left))) {
 			m_leftMtx = mtx;
 			strlcpy(left, pSub->Get_Name(), ARRAY_SIZE(left));
@@ -521,13 +529,15 @@ void W3DBridge::getIndicesNVertices(UnsignedShort *destination_ib, VertexFormatX
 	if (m_sectionMesh == nullptr) {
 		numV = getModelVerticesFixed(destination_vb, *curVertexP, m_leftMtx, m_leftMesh, pLightsIterator);
 		if (!numV)
-		{	//not enough room for vertices
+		{
+			//not enough room for vertices
 			DEBUG_ASSERTCRASH( numV, ("W3DBridge::GetIndicesNVertices(). Vertex overflow.") );
 			return;
 		}
 		numI = getModelIndices( destination_ib, *curIndexP, *curVertexP, m_leftMesh);
 		if (!numI)
-		{	//not enough room for indices
+		{
+			//not enough room for indices
 			DEBUG_ASSERTCRASH( numI, ("W3DBridge::GetIndicesNVertices(). Index overflow.") );
 			return;
 		}
@@ -571,13 +581,15 @@ void W3DBridge::getIndicesNVertices(UnsignedShort *destination_ib, VertexFormatX
 	numV = getModelVertices(destination_vb, *curVertexP, xOffset, vec, vecNormal, vecZ, m_start,
 		m_leftMtx, m_leftMesh, pLightsIterator);
 	if (!numV)
-	{	//not enough room for vertices
+	{
+		//not enough room for vertices
 		DEBUG_ASSERTCRASH( numV, ("W3DBridge::GetIndicesNVertices(). Vertex overflow.") );
 		return;
 	}
 	numI = getModelIndices( destination_ib, *curIndexP, *curVertexP, m_leftMesh);
 	if (!numI)
-	{	//not enough room for indices
+	{
+		//not enough room for indices
 		DEBUG_ASSERTCRASH( numI, ("W3DBridge::GetIndicesNVertices(). Index overflow.") );
 		return;
 	}
@@ -592,13 +604,15 @@ void W3DBridge::getIndicesNVertices(UnsignedShort *destination_ib, VertexFormatX
 		numV = getModelVertices(destination_vb, *curVertexP, xOffset+i*spanLength, vec, vecNormal, vecZ, m_start,
 			m_sectionMtx, m_sectionMesh, pLightsIterator);
 		if (!numV)
-		{	//not enough room for vertices
+		{
+			//not enough room for vertices
 			DEBUG_ASSERTCRASH( numV, ("W3DBridge::GetIndicesNVertices(). Vertex overflow.") );
 			return;
 		}
 		numI = getModelIndices( destination_ib, *curIndexP, *curVertexP, m_sectionMesh);
 		if (!numI)
-		{	//not enough room for indices
+		{
+			//not enough room for indices
 			DEBUG_ASSERTCRASH( numI, ("W3DBridge::GetIndicesNVertices(). Index overflow.") );
 			return;
 		}
@@ -612,13 +626,15 @@ void W3DBridge::getIndicesNVertices(UnsignedShort *destination_ib, VertexFormatX
 	numV = getModelVertices(destination_vb, *curVertexP, xOffset+(numSpans-1)*spanLength, vec, vecNormal, vecZ, m_start,
 		m_rightMtx, m_rightMesh, pLightsIterator);
 	if (!numV)
-	{	//not enough room for vertices
+	{
+		//not enough room for vertices
 		DEBUG_ASSERTCRASH( numV, ("W3DBridge::GetIndicesNVertices(). Vertex overflow.") );
 		return;
 	}
 	numI = getModelIndices( destination_ib, *curIndexP, *curVertexP, m_rightMesh);
 	if (!numI)
-	{	//not enough room for indices
+	{
+		//not enough room for indices
 		DEBUG_ASSERTCRASH( numI, ("W3DBridge::GetIndicesNVertices(). Index overflow.") );
 		return;
 	}
@@ -693,8 +709,8 @@ void W3DBridgeBuffer::loadBridgesInVertexAndIndexBuffers(RefRenderObjListIterato
 	VertexFormatXYZNDUV1 *vb;
 	UnsignedShort *ib;
 	// Lock the buffers.
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBridge, D3DLOCK_DISCARD);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBridge, D3DLOCK_DISCARD);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBridge, RB_LOCK_DISCARD);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBridge, RB_LOCK_DISCARD);
 	vb=(VertexFormatXYZNDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 
@@ -766,8 +782,13 @@ void W3DBridgeBuffer::allocateBridgeBuffers()
 {
 	if (TheGlobalData->m_headless)
 		return;
-	m_vertexBridge=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_BRIDGE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-	m_indexBridge=NEW_REF(DX8IndexBufferClass,(MAX_BRIDGE_INDEX+4, DX8IndexBufferClass::USAGE_DYNAMIC));
+	m_vertexBridge=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZNDUV1,
+		MAX_BRIDGE_VERTEX+4,
+		Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+	m_indexBridge=NEW_REF(RenderIndexBufferClass,(
+		MAX_BRIDGE_INDEX+4,
+		Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	m_vertexMaterial=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 #ifdef USE_BRIDGE_NORMALS
 	m_vertexMaterial= NEW VertexMaterialClass();
@@ -1152,19 +1173,22 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 		return;
 	}
 
-	DX8Wrapper::Set_Material(m_vertexMaterial);
-	// Setup the vertex buffer, shader & texture.
-	DX8Wrapper::Set_Index_Buffer(m_indexBridge,0);
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexBridge);
-	DX8Wrapper::Set_Shader(detailAlphaShader);
-#ifdef RTS_DEBUG
-	//DX8Wrapper::Set_Shader(detailShader); // shows alpha clipping.
-#endif
+	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
+	// through the IRenderBackend abstraction.
+	Renderer::Set_Material(m_vertexMaterial);
+	Renderer::Set_Index_Buffer(m_indexBridge,0);
+	Renderer::Set_Vertex_Buffer(m_vertexBridge,0);
+	Renderer::Set_Shader(detailAlphaShader);
+	if (Renderer::Has_Shader_Pipeline()) {
+		Renderer::Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+		Renderer::Clear_Texture_Transform(0);
+		Renderer::Set_Texture_Transform_Mode(0, 0, false);
+		Renderer::Set_Texture_Mip_Filter(0, RB_TEXTURE_SAMPLE_NONE);
+	}
+	Renderer::Apply_Render_State_Changes();
 
-	DX8Wrapper::Apply_Render_State_Changes();
-
-	if (!wireframe && cloudTexture)
-	{	//Force a cloud texture projection into stage 1
+	if (!wireframe && cloudTexture && !Renderer::Has_Shader_Pipeline())
+	{
 		W3DShaderManager::setTexture(1,cloudTexture);
 		W3DShaderManager::setShader(W3DShaderManager::ST_CLOUD_TEXTURE,1);
 	}
@@ -1176,30 +1200,22 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	}
 
 	if (!wireframe && cloudTexture)
-		//Force a cloud texture projection into stage 1
 		W3DShaderManager::resetShader(W3DShaderManager::ST_CLOUD_TEXTURE);
 
-	//Render shroud pass over all the bridges
 	if (!wireframe && TheTerrainRenderObject->getShroud())
 	{
-		//Reset to a known shader.
-		DX8Wrapper::Invalidate_Cached_Render_States();
-		DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-		DX8Wrapper::Set_Material(m_vertexMaterial);
-		DX8Wrapper::Set_Index_Buffer(m_indexBridge,0);
-		DX8Wrapper::Set_Vertex_Buffer(m_vertexBridge);
-		DX8Wrapper::Apply_Render_State_Changes();
-		//Apply custom shroud projection shader.
-		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
-		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
+		Renderer::Invalidate_Cached_Render_States();
+		Renderer::Set_Shader(ShaderClass::_PresetOpaqueShader);
+		Renderer::Set_Material(m_vertexMaterial);
+		Renderer::Set_Index_Buffer(m_indexBridge,0);
+		Renderer::Set_Vertex_Buffer(m_vertexBridge,0);
+		Renderer::Apply_Render_State_Changes();
+		W3DShaderManager::beginShroudOverlay();
 		for (curBridge=0; curBridge<m_numBridges; curBridge++) {
 			if (m_bridges[curBridge].isEnabled() && m_bridges[curBridge].isVisible()) {
-				//Pretend we're in wireframe so function doesn't reset the shroud texture.
 				m_bridges[curBridge].renderBridge(TRUE);
 			}
 		}
-		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
+		W3DShaderManager::endShroudOverlay();
 	}
 }
-
-

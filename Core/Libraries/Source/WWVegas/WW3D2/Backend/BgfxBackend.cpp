@@ -1,0 +1,15092 @@
+/*
+**	Command & Conquer Generals Zero Hour(tm)
+**	Copyright 2025 TheSuperHackers
+**
+**	This program is free software: you can redistribute it and/or modify
+**	it under the terms of the GNU General Public License as published by
+**	the Free Software Foundation, either version 3 of the License, or
+**	(at your option) any later version.
+**
+**	This program is distributed in the hope that it will be useful,
+**	but WITHOUT ANY WARRANTY; without even the implied warranty of
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	GNU General Public License for more details.
+**
+**	You should have received a copy of the GNU General Public License
+**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+// TheSuperHackers @refactor bobtista 10/04/2026 BgfxBackend.
+// IRenderBackend implementation that drives bgfx as the primary
+// rendering backend, translating the engine's DX8-era draw calls
+// into bgfx submits with a fixed-function-emulating uber shader.
+
+#include "Backend/BgfxBackend.h"
+
+#include "BgfxRenderProfile.h"
+#include "DrawCallLog.h"
+#include "RenderDocTrigger.h"
+#include "RenderStateDefs.h"
+#include "DXTUtils.h"
+#include "dx8fvf.h"
+#include "dx8indexbuffer.h"
+#include "dx8vertexbuffer.h"
+#include "dx8wrapper.h"
+#include "FixedFunctionState.h"
+#include "GgcRuntimeFlags.h"
+#include "indexbuffer.h"
+#include "WW3D2/light.h"
+#include "WW3D2/lightenvironment.h"
+#include "WW3D2/mapper.h"
+#include "WWMath/matrix3d.h"
+#include "WWMath/matrix4.h"
+#include "WW3D2/render2d.h"
+#include "FixedFunctionState.h"
+#include "RenderStateDefs.h"
+#include "WW3D2/shader.h"
+#include "shdlib.h"
+#include "texture.h"
+#include "texturefilter.h"
+#include "textureloader.h"
+#include "TextureResourceManager.h"
+#include "vertexbuffer.h"
+#include "WWMath/vector3.h"
+#include "WW3DDeviceInit.h"
+#include "WW3D2/ww3d.h"
+#include "ww3dformat.h"
+#include "WWDebug/wwdebug.h"
+#include "WWMath/wwmath.h"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <string>
+
+#include <unordered_map>
+
+#include "Lib/Profile.h"
+// TheSuperHackers @perf bobtista 24/06/2026 Lib/Profile.h pulls in Tracy.hpp (C++ API) but the bgfx profiler callbacks use the Tracy C API.
+#if defined(RTS_PROFILE_TRACY)
+#include <tracy/TracyC.h>
+#endif
+
+// Including the bgfx header here is intentional: it forces a compile-time
+// dependency on the bgfx headers when GGC_RENDER_BACKEND=bgfx. If bgfx
+// isn't available the build fails here, which is the right place to
+// catch dependency problems.
+#include <bgfx/bgfx.h>
+#include <bgfx/platform.h>
+#include <bx/math.h>
+#include <bx/file.h>
+#include <bx/error.h>
+#include <bimg/bimg.h>
+#ifdef __APPLE__
+#include <dlfcn.h>
+#endif
+#if defined(SAGE_USE_SDL3)
+#include <SDL3/SDL.h>
+#endif
+
+// TheSuperHackers @refactor bobtista 16/04/2026 bgfx renders into the single
+// game window. The old DX8 reference popup window has been removed.
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
+// TheSuperHackers @refactor bobtista 11/06/2026 On bgfx builds dx8wrapper.cpp (the home of these
+// globals on the DX8 reference build) is not compiled, so define them here. External code declares
+// them extern locally (CommandLine.cpp, GameEngine.cpp, Debug.cpp). g_device.windowed is the source
+// of truth; DX8Wrapper_IsWindowed mirrors it for the legacy headless/quickstart checks.
+bool DX8Wrapper_IsWindowed = true;
+int DX8Wrapper_PreserveFPU = 0;
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Compiled shader
+// bytecode. These headers are generated at build time by ggc_compile_bgfx_shader
+// (cmake/bgfx.cmake) and end up in the target's binary dir.
+#if defined(GGC_BGFX_RENDERER_METAL)
+#include "vs_passthrough_metal.bin.h"
+#include "fs_passthrough_metal.bin.h"
+#include "vs_uber_metal.bin.h"
+#include "vs_uber_instanced_metal.bin.h"
+#include "vs_trees_metal.bin.h"
+#include "fs_uber_metal.bin.h"
+#include "fs_uber_array_metal.bin.h"
+#include "fs_uber_frameconst_metal.bin.h"
+#include "vs_uber_array_metal.bin.h"
+#include "vs_shadow_volume_metal.bin.h"
+#include "fs_shadow_volume_metal.bin.h"
+#include "vs_shadow_apply_metal.bin.h"
+#include "fs_shadow_apply_metal.bin.h"
+#include "vs_scene_composite_metal.bin.h"
+#include "fs_scene_composite_metal.bin.h"
+#include "fs_bloom_bright_metal.bin.h"
+#include "fs_bloom_blur_metal.bin.h"
+#include "fs_ssao_metal.bin.h"
+#include "fs_copy_metal.bin.h"
+#include "vs_scene_depth_metal.bin.h"
+#include "vs_scene_depth_instanced_metal.bin.h"
+#include "fs_scene_depth_metal.bin.h"
+#include "vs_shadow_caster_metal.bin.h"
+#include "vs_shadow_caster_instanced_metal.bin.h"
+#include "fs_shadow_caster_metal.bin.h"
+#include "vs_smudge_metal.bin.h"
+#include "fs_smudge_metal.bin.h"
+#define GGC_BGFX_SHADER(name) name##_metal
+#elif defined(GGC_BGFX_RENDERER_VULKAN)
+#include "vs_passthrough_spirv.bin.h"
+#include "fs_passthrough_spirv.bin.h"
+#include "vs_uber_spirv.bin.h"
+#include "vs_uber_instanced_spirv.bin.h"
+#include "vs_trees_spirv.bin.h"
+#include "fs_uber_spirv.bin.h"
+#include "fs_uber_array_spirv.bin.h"
+#include "fs_uber_frameconst_spirv.bin.h"
+#include "vs_uber_array_spirv.bin.h"
+#include "vs_shadow_volume_spirv.bin.h"
+#include "fs_shadow_volume_spirv.bin.h"
+#include "vs_shadow_apply_spirv.bin.h"
+#include "fs_shadow_apply_spirv.bin.h"
+#include "vs_scene_composite_spirv.bin.h"
+#include "fs_scene_composite_spirv.bin.h"
+#include "fs_bloom_bright_spirv.bin.h"
+#include "fs_bloom_blur_spirv.bin.h"
+#include "fs_ssao_spirv.bin.h"
+#include "fs_copy_spirv.bin.h"
+#include "vs_scene_depth_spirv.bin.h"
+#include "vs_scene_depth_instanced_spirv.bin.h"
+#include "fs_scene_depth_spirv.bin.h"
+#include "vs_shadow_caster_spirv.bin.h"
+#include "vs_shadow_caster_instanced_spirv.bin.h"
+#include "fs_shadow_caster_spirv.bin.h"
+#include "vs_smudge_spirv.bin.h"
+#include "fs_smudge_spirv.bin.h"
+#define GGC_BGFX_SHADER(name) name##_spirv
+#else
+#include "vs_passthrough_dx11.bin.h"
+#include "fs_passthrough_dx11.bin.h"
+
+// TheSuperHackers @refactor bobtista 12/04/2026 Uber shader pair.
+// Single program handles all TSS combinations via uniforms.
+#include "vs_uber_dx11.bin.h"
+#include "vs_uber_instanced_dx11.bin.h"
+#include "vs_trees_dx11.bin.h"
+#include "fs_uber_dx11.bin.h"
+#include "fs_uber_array_dx11.bin.h"
+#include "fs_uber_frameconst_dx11.bin.h"
+#include "vs_uber_array_dx11.bin.h"
+
+// TheSuperHackers @refactor bobtista 15/04/2026 Stencil shadow
+// volume program. Vertex shader is a trivial XYZ->clip transform; fragment
+// writes nothing visible because color writes are disabled for the pass.
+#include "vs_shadow_volume_dx11.bin.h"
+#include "fs_shadow_volume_dx11.bin.h"
+#include "vs_shadow_apply_dx11.bin.h"
+#include "fs_shadow_apply_dx11.bin.h"
+
+#include "vs_scene_composite_dx11.bin.h"
+#include "fs_scene_composite_dx11.bin.h"
+#include "fs_bloom_bright_dx11.bin.h"
+#include "fs_bloom_blur_dx11.bin.h"
+#include "fs_ssao_dx11.bin.h"
+#include "fs_copy_dx11.bin.h"
+#include "vs_scene_depth_dx11.bin.h"
+#include "vs_scene_depth_instanced_dx11.bin.h"
+#include "fs_scene_depth_dx11.bin.h"
+#include "vs_shadow_caster_dx11.bin.h"
+#include "vs_shadow_caster_instanced_dx11.bin.h"
+#include "fs_shadow_caster_dx11.bin.h"
+#include "vs_smudge_dx11.bin.h"
+#include "fs_smudge_dx11.bin.h"
+#define GGC_BGFX_SHADER(name) name##_dx11
+#endif
+
+#include "Backend/BgfxBackendState.h"
+
+#ifdef RTS_ZEROHOUR
+extern "C" void GGC_GetBgfxPostProcessParams(float * params);
+extern "C" void GGC_GetBgfxWipeParams(float * params);
+extern "C" void GGC_GetBgfxColorGradeParams(float * params);
+extern "C" void GGC_GetBgfxBloomParams(float * params);
+extern "C" int  GGC_GetBgfxHdrEnabled();
+extern "C" void GGC_GetBgfxPostFx2Params(float * params);
+extern "C" void GGC_GetBgfxSSAOParams(float * params);
+extern "C" void GGC_GetBgfxMaterialFxParams(float * params);
+extern "C" int  GGC_GetBgfxShadowMapEnabled();
+extern "C" void GGC_GetBgfxShadowMapParams(float * params);
+extern "C" int  GGC_GetBgfxPointFilter();
+extern "C" const char * GGC_GetBgfxRenderer();
+extern "C" int  GGC_GetBgfxSrgb();
+extern "C" int  GGC_GetBgfxShadowFullPcf();
+extern "C" int  GGC_GetBgfxStencilShadowsEnabled();
+extern "C" int   GGC_GetBgfxMsaaSamples();
+extern "C" float GGC_GetBgfxRenderScale();
+extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
+extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
+extern "C" int  GGC_GetBgfxScreenshotFrame();
+extern "C" const char * GGC_GetBgfxScreenshotPath();
+extern "C" void GGC_ClearBgfxScreenshotRequest();
+extern "C" int  GGC_GetCurrentLogicFrame();
+// TheSuperHackers @feature bobtista 23/06/2026 Strongest shadow-casting dynamic light in the live
+// scene. Fills outPosRange={x,y,z,range} and outDiffuseBias={r,g,b,bias}; returns non-zero
+// when a caster light is active. Drives SetupPointShadowView's perspective shadow map.
+// outIsTrackingLight distinguishes the persistent particle-cannon beam light from a transient
+// blast light, so the scene dim can scale itself to the blast instead of using the beam's tuning.
+extern "C" int  GGC_GetBgfxPointShadowLight(float * outPosRange, float * outDiffuseBias, float * outShadowStrength,
+                                            int * outIsTrackingLight);
+// TheSuperHackers @feature bobtista 14/07/2026 Second-strongest shadow-casting dynamic light,
+// for the second point-shadow slot (transient lightning-flash lights next to the beam).
+extern "C" int  GGC_GetBgfxPointShadowLight2(float * outPosRange, float * outDiffuseBias, float * outShadowStrength);
+// TheSuperHackers @feature bobtista 23/06/2026 Global toggle for the dynamic-light shadow-map pass.
+extern "C" int  GGC_GetBgfxDynamicLightShadowsEnabled();
+// TheSuperHackers @feature bobtista 16/07/2026 INI toggle for the dramatic Particle Cannon lighting
+// (Data/INI/Bgfx.ini PCannonEnhanced=Yes); the GGC_PCANNON_ENHANCED env flag still overrides.
+extern "C" int  GGC_GetPCannonEnhancedEnabled();
+extern "C" float GGC_GetPCannonDimTarget();
+#endif
+
+// Render-state globals. Defined here (external linkage), declared `extern`
+// in BgfxBackendState.h so BgfxBackendTextures.cpp can reference them.
+BgfxDevice     g_device;
+BgfxUniforms   g_uniforms;
+
+// TheSuperHackers @bugfix bobtista 08/07/2026 Static render objects in other
+// translation units (e.g. the DX8MeshRendererClass instance) destroy their
+// vertex/index buffers from destructors that __cxa_finalize may run after this
+// file's g_resourceRegistry/g_caches maps are already destroyed, which
+// segfaulted on any std::exit (GGC_AUTO_EXIT_SECONDS). The handler is
+// registered in Initialize, which the standard orders BEFORE the destruction
+// of every static initialized at load time, so the flag always trips first.
+// Leaking the GPU handles at process exit is intentional; the OS reclaims them.
+static bool s_exitTeardownActive = false;
+
+static void MarkExitTeardownActive()
+{
+    s_exitTeardownActive = true;
+}
+
+bool BgfxExitTeardownActive()
+{
+    return s_exitTeardownActive;
+}
+
+// TheSuperHackers @feature bobtista 09/07/2026 The automated capture triggers name files
+// <base>.NNNNNN.<ext>. Honor a .png base path so the capture emits PNG directly (encoded in the
+// screenShot callback) instead of a BMP that has to be converted afterwards; anything else stays BMP.
+// Returns the extension and sets baseLen to the base length excluding a recognized .png suffix.
+static const char * BgfxScreenshotBaseExtension(const char * basePath, size_t * baseLen)
+{
+    const size_t n = strlen(basePath);
+    *baseLen = n;
+    if (n >= 4
+        && basePath[n - 4] == '.'
+        && tolower(static_cast<unsigned char>(basePath[n - 3])) == 'p'
+        && tolower(static_cast<unsigned char>(basePath[n - 2])) == 'n'
+        && tolower(static_cast<unsigned char>(basePath[n - 1])) == 'g')
+    {
+        *baseLen = n - 4;
+        return "png";
+    }
+    return "bmp";
+}
+
+// TheSuperHackers @performance bobtista 15/06/2026 Slot layout for the packed
+// per-draw material array uniform (u_material). MUST stay in lockstep with the
+// #define block in fs_uber.sc / vs_uber.sc / vs_uber_instanced.sc.
+enum MaterialUniformSlot
+{
+    MU_MatDiffuse = 0,
+    MU_MatAmbient,
+    MU_MatEmissive,
+    MU_TssOps0,
+    MU_TssOps1,
+    MU_AtestParams,
+    MU_TexcoordSource,
+    MU_VertexColorFlags,
+    MU_TexcoordSelect2,
+    MU_ProjectedDecalMode,
+    MU_GrayscaleEnable,
+    MU_ObjectShroudDim,
+    MU_CloudParams,
+    MU_TexTransform0,
+    MU_TexTransform1,
+    MU_TexTransform0Z,
+    MU_Tex1Transform0,
+    MU_Tex1Transform1,
+    MU_Tex1TransformZ,
+    MU_Tex2Transform0,
+    MU_Tex2Transform1,
+    MU_TexProjected,
+    MU_LegacyPixelShaderMode,
+    MU_ZBias,
+    MU_LightMapParams,
+    MU_COUNT
+};
+BgfxDraw       g_draw;
+BgfxOverrides  g_overrides;
+
+// TheSuperHackers @feature bobtista 15/06/2026 LOCAL DEV AID (uncommitted): lets a
+// hotkey request a scene-framebuffer rebuild so opt-in HDR (RGBA8<->RGBA16F format)
+// can be toggled live. The rebuild runs at the safe resize point in Begin_Scene.
+static bool g_requestSceneFramebufferRebuild = false;
+extern "C" void GGC_RequestBgfxFramebufferRebuild()
+{
+    g_requestSceneFramebufferRebuild = true;
+}
+BgfxViewFlags  g_views;
+BgfxFrame      g_frame;
+BgfxStats      g_stats;
+BgfxCaches     g_caches;
+// Asset-ingress resource side-table. id 0 is reserved invalid.
+BgfxResourceRegistry g_resourceRegistry = { {}, 1 };
+
+// Defined in BgfxBackendTextures.cpp.
+bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt);
+
+#if defined(__APPLE__) && defined(SAGE_USE_SDL3)
+// TheSuperHackers @bugfix bobtista 30/04/2026 Owned by SDL3Main.cpp
+// (filled in main() right after SDL_Metal_CreateView). Kept at global
+// scope here so GetNativeWindowHandle below can reach it across the
+// surrounding anonymous namespace.
+extern void *TheSDL3MetalLayer;
+#endif
+
+
+namespace
+{
+// TSS operation IDs matching fs_uber.sc #defines. Used in BuildTssOpsForShader
+// and UpdateTextureStageOps to encode fixed-function texture stage state as
+// float uniforms consumed by the uber fragment shader.
+static const float kTssDisable       =  0.0f;
+static const float kTssSelectArg1    =  1.0f;
+static const float kTssSelectArg2    =  2.0f;
+static const float kTssModulate      =  3.0f;
+static const float kTssModulate2x    =  4.0f;
+static const float kTssAdd           =  5.0f;
+static const float kTssAddSigned     =  6.0f;
+static const float kTssSubtract      =  7.0f;
+static const float kTssBlendTexAlpha =  8.0f;
+static const float kTssBlendCurAlpha =  9.0f;
+static const float kTssAddSmooth     = 10.0f;
+static const float kTssAddSigned2x   = 11.0f;
+static const float kTssModAlphaAddColor = 12.0f;
+static const float kTssSubtractRev   = 13.0f;
+
+// TSS argument source IDs (packed into arg1/arg2 uniform channels).
+static const float kTssArgTexture =  0.0f;
+static const float kTssArgDiffuse =  1.0f;
+static const float kTssArgCurrent =  2.0f;
+static const unsigned kTextureArgumentSelectMask = 0x0000000f;
+
+constexpr unsigned kTextureAddressWrap = 1, kTextureAddressClamp = 3, kTextureAddressBorder = 4;
+constexpr unsigned kTextureSampleNone = 0, kTextureSamplePoint = 1, kTextureSampleLinear = 2, kTextureSampleAnisotropic = 3;
+constexpr unsigned kTexcoordGenPassthru = 0x00000000, kTexcoordGenCameraNormal = 0x00010000, kTexcoordGenCameraReflection = 0x00030000, kTexcoordGenCameraPosition = 0x00020000;
+constexpr unsigned kTextureTransformDisable = 0, kTextureTransformProjected = 256, kTextureTransformCount2 = 2, kTextureTransformCount3 = 3;
+constexpr unsigned kTextureTransformStage0 = 16, kTransformView = 2;
+constexpr unsigned kTextureArgCurrent = static_cast<unsigned>(RB_TEXARG_CURRENT), kTextureArgTexture = static_cast<unsigned>(RB_TEXARG_TEXTURE), kTextureArgDiffuse = static_cast<unsigned>(RB_TEXARG_DIFFUSE);
+constexpr unsigned kTextureOpDisable = static_cast<unsigned>(RB_TEXOP_DISABLE), kTextureOpSelectArg1 = static_cast<unsigned>(RB_TEXOP_SELECTARG1), kTextureOpSelectArg2 = static_cast<unsigned>(RB_TEXOP_SELECTARG2);
+
+static float TextureOpToTssOp(unsigned value)
+{
+    switch (static_cast<RenderBackendTextureOperation>(value))
+    {
+        case RB_TEXOP_DISABLE:            return kTssDisable;
+        case RB_TEXOP_SELECTARG1:         return kTssSelectArg1;
+        case RB_TEXOP_SELECTARG2:         return kTssSelectArg2;
+        case RB_TEXOP_MODULATE:           return kTssModulate;
+        case RB_TEXOP_MODULATE2X:         return kTssModulate2x;
+        case RB_TEXOP_ADD:                return kTssAdd;
+        case RB_TEXOP_ADDSIGNED:          return kTssAddSigned;
+        case RB_TEXOP_SUBTRACT:           return kTssSubtract;
+        case RB_TEXOP_BLENDTEXTUREALPHA:  return kTssBlendTexAlpha;
+        case RB_TEXOP_BLENDCURRENTALPHA:  return kTssBlendCurAlpha;
+        case RB_TEXOP_ADDSMOOTH:          return kTssAddSmooth;
+        case RB_TEXOP_ADDSIGNED2X:        return kTssAddSigned2x;
+        case RB_TEXOP_MODULATEALPHA_ADDCOLOR: return kTssModAlphaAddColor;
+        default:                          return kTssSelectArg1;
+    }
+}
+
+static float TextureArgToTssArg(unsigned value)
+{
+    switch (static_cast<RenderBackendTextureArgument>(value & kTextureArgumentSelectMask))
+    {
+        case RB_TEXARG_TEXTURE: return kTssArgTexture;
+        case RB_TEXARG_CURRENT: return kTssArgCurrent;
+        case RB_TEXARG_DIFFUSE:
+        default:                return kTssArgDiffuse;
+    }
+}
+
+static unsigned long AllocateLegacyShaderHandle()
+{
+    static unsigned long nextHandle = 1;
+    return nextHandle++;
+}
+
+static bool CoalesceDynamicRangeUploadsEnabled()
+{
+    static int s_enabled = -1;
+    if (s_enabled < 0)
+    {
+        const char * env = GgcFlags::StringValue(GgcFlag_BgfxCoalesceDynamicRangeUploads);
+        s_enabled = (env == nullptr || env[0] == '\0' || std::atoi(env) != 0) ? 1 : 0;
+    }
+    return s_enabled != 0;
+}
+
+static std::unordered_map<unsigned long, RenderBackendLegacyPixelShaderMode> g_legacyPixelShaderModes;
+
+static void ResetFrameStats()
+{
+    const uint32_t nextFrame = g_stats.frameIndex + 1;
+    std::memset(&g_stats, 0, sizeof(g_stats));
+    g_stats.frameIndex = nextFrame;
+}
+
+struct BgfxDiagnosticFlags
+{
+    bool logStats;
+    bool noSceneFramebuffer;
+    bool noPostFx;
+};
+
+static BgfxDiagnosticFlags GetBgfxDiagnosticFlags()
+{
+    BgfxDiagnosticFlags flags = { false, false, false };
+#ifdef RTS_ZEROHOUR
+    int logStats = 0;
+    int noSceneFramebuffer = 0;
+    int noPostFx = 0;
+    GGC_GetBgfxDiagnosticFlags(&logStats, &noSceneFramebuffer, &noPostFx);
+    flags.logStats = logStats != 0;
+    flags.noSceneFramebuffer = noSceneFramebuffer != 0;
+    flags.noPostFx = noPostFx != 0;
+#endif
+    return flags;
+}
+
+enum class BgfxShadowMode
+{
+    Stencil,
+    None
+};
+
+static BgfxShadowMode GetBgfxShadowMode()
+{
+    if (const char * mode = GgcFlags::StringValue(GgcFlag_BgfxShadowMode))
+    {
+        if (std::strcmp(mode, "stencil") == 0)
+        {
+            return BgfxShadowMode::Stencil;
+        }
+        if (std::strcmp(mode, "none") == 0 || std::strcmp(mode, "off") == 0)
+        {
+            return BgfxShadowMode::None;
+        }
+    }
+    if (GGC_GetBgfxStencilShadowsEnabled() == 0)
+    {
+        return BgfxShadowMode::None;
+    }
+    return BgfxShadowMode::Stencil;
+}
+
+static bool BgfxStencilShadowsEnabled()
+{
+    const BgfxShadowMode mode = GetBgfxShadowMode();
+    return mode == BgfxShadowMode::Stencil;
+}
+
+// TheSuperHackers @performance bobtista 04/06/2026 bgfx multithreaded mode.
+// The backend forces single-threaded mode by calling bgfx::renderFrame() once before
+// bgfx::init() (see Initialize); skipping it lets bgfx::init() create its own internal
+// render thread, pipelining the Metal command-buffer build against the next frame's
+// encode. On macOS this is the default (validated pixel-identical + ~17% frame win, and
+// up to ~48% on GPU-flush-bound heavy scenes); opt out with GGC_BGFX_NO_RENDER_THREAD.
+// On other platforms it stays opt-in via GGC_BGFX_RENDER_THREAD. The DX8 path is unchanged.
+static bool BgfxUseRenderThread()
+{
+    static int cached = -1;
+    if (cached < 0)
+    {
+        // TheSuperHackers @performance bobtista 05/06/2026 Default the render thread ON for
+        // Windows/DX11 too (measured +27% on save 67, 24.75 -> 31.56 fps): it overlaps the
+        // next frame's CPU encode with the current frame's DX11 submit. The single-bgfx-API-thread
+        // invariant already holds (create/destroy/update/frame and the deferred-destroy queues run
+        // on the Begin/End_Scene thread; the texture loader worker is CPU-only). Opt out via
+        // GGC_BGFX_NO_RENDER_THREAD.
+        cached = (!GgcFlags::Enabled(GgcFlag_BgfxNoRenderThread)) ? 1 : 0;
+    }
+    return cached != 0;
+}
+
+static bool g_triangleDrawEnabled = true;
+
+static bool IsBgfxStatsLoggingEnabled()
+{
+    if (GgcFlags::Enabled(GgcFlag_BgfxPerfLog)) {
+        return true;
+    }
+    return GetBgfxDiagnosticFlags().logStats;
+}
+
+static double BgfxTicksToMs(int64_t ticks, int64_t frequency)
+{
+    if (frequency <= 0)
+    {
+        return -1.0;
+    }
+    return (static_cast<double>(ticks) * 1000.0) / static_cast<double>(frequency);
+}
+
+struct BgfxStatsLogWindow
+{
+    bool initialized;
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER lastCounter;
+    double elapsedSeconds;
+    double windowSeconds;
+    uint32_t frames;
+    double bgfxNumDraw;
+    double bgfxNumBlit;
+    double bgfxCpuFrameMs;
+    double bgfxGpuFrameMs;
+    double bgfxWaitRenderMs;
+    double bgfxWaitSubmitMs;
+    uint32_t bgfxGpuFrameCount;
+    uint32_t backendDraws;
+    uint32_t backendSkipped;
+    uint32_t baseSubmits;
+    uint32_t sceneDepthSubmits;
+    uint32_t shadowVolumeSubmits;
+    uint32_t shadowApplySubmits;
+    uint32_t smudgeSubmits;
+    uint32_t sceneCompositeSubmits;
+    uint32_t debugSubmits;
+    uint32_t worldDraws;
+    uint32_t uiDraws;
+    uint32_t waterDraws;
+    uint32_t sortedDraws;
+    uint32_t effectDraws;
+    uint32_t rttDraws;
+    uint32_t smudgeDraws;
+    uint32_t textureBinds;
+    uint32_t textureCreates;
+    uint32_t textureUploads;
+    uint32_t textureCopies;
+    uint32_t materialUniformUploads;
+    uint32_t lightUniformUploads;
+    uint32_t uniformCommands;
+    uint32_t materialUniformCommands;
+    uint32_t lightUniformCommands;
+    uint32_t shadowUniformCommands;
+    uint32_t pointShadowUniformCommands;
+    uint32_t textureTransformUpdates;
+    uint32_t renderStateCopies;
+    uint32_t transientVbAllocations;
+    uint32_t transientIbAllocations;
+    uint32_t transientVbDraws;
+    uint32_t transientIbDraws;
+    uint32_t dynamicVbAllocations;
+    uint32_t dynamicIbAllocations;
+    uint32_t instancedSavedDrawCalls;
+    uint32_t sortedReplayCalls;
+    long long sortedReplayTotalTicks;
+    long long sortedReplayShaderTicks;
+    long long sortedReplayMaterialTicks;
+    long long sortedReplayTextureTicks;
+    long long sortedReplayTransformTicks;
+    long long sortedReplayLightTicks;
+    double bgfxTransientVbUsed;
+    double bgfxTransientIbUsed;
+    int64_t textureMemoryUsed;
+    int64_t rtMemoryUsed;
+    uint16_t numTextures;
+    uint16_t numFrameBuffers;
+    long long renderPhaseTicks[GGCRenderProfile::PHASE_COUNT];
+};
+
+static BgfxStatsLogWindow g_bgfxStatsLog = {};
+
+struct BgfxPerfSession
+{
+    uint32_t windows;
+    uint32_t totalFrames;
+    double totalSeconds;
+    double cpuMsMin;
+    double cpuMsMax;
+    double cpuMsSum;
+    double fpsMin;
+    double fpsMax;
+    uint32_t drawsMin;
+    uint32_t drawsMax;
+    uint64_t drawsSum;
+    uint64_t uploadsSum;
+    int64_t peakTexMem;
+    double transientVbSum;
+    double transientIbSum;
+};
+
+static BgfxPerfSession g_perfSession = {};
+
+static void PerfSessionAccumulate(double windowSeconds, uint32_t windowFrames,
+                                   double cpuMsAvg, double fps,
+                                   uint32_t drawsAvg, uint32_t uploads,
+                                   int64_t texMem, double transVb, double transIb)
+{
+    if (g_perfSession.windows == 0)
+    {
+        g_perfSession.cpuMsMin = cpuMsAvg;
+        g_perfSession.cpuMsMax = cpuMsAvg;
+        g_perfSession.fpsMin = fps;
+        g_perfSession.fpsMax = fps;
+        g_perfSession.drawsMin = drawsAvg;
+        g_perfSession.drawsMax = drawsAvg;
+    }
+    else
+    {
+        if (cpuMsAvg < g_perfSession.cpuMsMin) { g_perfSession.cpuMsMin = cpuMsAvg; }
+        if (cpuMsAvg > g_perfSession.cpuMsMax) { g_perfSession.cpuMsMax = cpuMsAvg; }
+        if (fps < g_perfSession.fpsMin) { g_perfSession.fpsMin = fps; }
+        if (fps > g_perfSession.fpsMax) { g_perfSession.fpsMax = fps; }
+        if (drawsAvg < g_perfSession.drawsMin) { g_perfSession.drawsMin = drawsAvg; }
+        if (drawsAvg > g_perfSession.drawsMax) { g_perfSession.drawsMax = drawsAvg; }
+    }
+    g_perfSession.windows++;
+    g_perfSession.totalFrames += windowFrames;
+    g_perfSession.totalSeconds += windowSeconds;
+    g_perfSession.cpuMsSum += cpuMsAvg * windowFrames;
+    g_perfSession.drawsSum += static_cast<uint64_t>(drawsAvg) * windowFrames;
+    g_perfSession.uploadsSum += uploads;
+    if (texMem > g_perfSession.peakTexMem) { g_perfSession.peakTexMem = texMem; }
+    g_perfSession.transientVbSum += transVb * windowFrames;
+    g_perfSession.transientIbSum += transIb * windowFrames;
+}
+
+static void PerfSessionPrintSummary()
+{
+    if (g_perfSession.totalFrames == 0) { return; }
+    const double frames = static_cast<double>(g_perfSession.totalFrames);
+    const double avgFps = frames / g_perfSession.totalSeconds;
+    const double avgCpu = g_perfSession.cpuMsSum / frames;
+    const double avgDraws = static_cast<double>(g_perfSession.drawsSum) / frames;
+    std::fprintf(stderr,
+        "\nBGFX_PERF_SUMMARY: %.1fs %u frames\n"
+        "  fps:     avg=%.1f  min=%.1f  max=%.1f\n"
+        "  cpu:     avg=%.2fms  min=%.2fms  max=%.2fms\n"
+        "  draws:   avg=%.0f  min=%u  max=%u\n"
+        "  uploads: %llu total (%.2f/frame)\n"
+        "  texMem:  peak=%lldKB\n"
+        "  transVB: avg=%.0f bytes/frame\n"
+        "  transIB: avg=%.0f bytes/frame\n",
+        g_perfSession.totalSeconds, g_perfSession.totalFrames,
+        avgFps, g_perfSession.fpsMin, g_perfSession.fpsMax,
+        avgCpu, g_perfSession.cpuMsMin, g_perfSession.cpuMsMax,
+        avgDraws, g_perfSession.drawsMin, g_perfSession.drawsMax,
+        static_cast<unsigned long long>(g_perfSession.uploadsSum),
+        static_cast<double>(g_perfSession.uploadsSum) / frames,
+        static_cast<long long>(g_perfSession.peakTexMem / 1024),
+        g_perfSession.transientVbSum / frames,
+        g_perfSession.transientIbSum / frames);
+}
+
+static double AverageOrMinusOne(double total, uint32_t count)
+{
+    if (count == 0)
+    {
+        return -1.0;
+    }
+    return total / static_cast<double>(count);
+}
+
+static uint32_t MakeBgfxClearColor(const Vector3 & color, float alpha)
+{
+    const uint32_t r = static_cast<uint32_t>(WWMath::Clamp(color.X, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t g = static_cast<uint32_t>(WWMath::Clamp(color.Y, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t b = static_cast<uint32_t>(WWMath::Clamp(color.Z, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t a = static_cast<uint32_t>(WWMath::Clamp(alpha, 0.0f, 1.0f) * 255.0f + 0.5f);
+    return (r << 24) | (g << 16) | (b << 8) | a;
+}
+
+static uint32_t MakeLegacyARGBColor(const Vector3 & color, float alpha)
+{
+    const uint32_t r = static_cast<uint32_t>(WWMath::Clamp(color.X, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t g = static_cast<uint32_t>(WWMath::Clamp(color.Y, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t b = static_cast<uint32_t>(WWMath::Clamp(color.Z, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t a = static_cast<uint32_t>(WWMath::Clamp(alpha, 0.0f, 1.0f) * 255.0f + 0.5f);
+    return (a << 24) | (r << 16) | (g << 8) | b;
+}
+
+static uint32_t FloatAsDword(float value)
+{
+    uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+
+static void ResetBgfxStatsLogWindow()
+{
+    g_bgfxStatsLog.windowSeconds = 0.0;
+    g_bgfxStatsLog.frames = 0;
+    g_bgfxStatsLog.bgfxNumDraw = 0.0;
+    g_bgfxStatsLog.bgfxNumBlit = 0.0;
+    g_bgfxStatsLog.bgfxCpuFrameMs = 0.0;
+    g_bgfxStatsLog.bgfxGpuFrameMs = 0.0;
+    g_bgfxStatsLog.bgfxWaitRenderMs = 0.0;
+    g_bgfxStatsLog.bgfxWaitSubmitMs = 0.0;
+    g_bgfxStatsLog.bgfxGpuFrameCount = 0;
+    g_bgfxStatsLog.backendDraws = 0;
+    g_bgfxStatsLog.backendSkipped = 0;
+    g_bgfxStatsLog.baseSubmits = 0;
+    g_bgfxStatsLog.sceneDepthSubmits = 0;
+    g_bgfxStatsLog.shadowVolumeSubmits = 0;
+    g_bgfxStatsLog.shadowApplySubmits = 0;
+    g_bgfxStatsLog.smudgeSubmits = 0;
+    g_bgfxStatsLog.sceneCompositeSubmits = 0;
+    g_bgfxStatsLog.debugSubmits = 0;
+    g_bgfxStatsLog.worldDraws = 0;
+    g_bgfxStatsLog.uiDraws = 0;
+    g_bgfxStatsLog.waterDraws = 0;
+    g_bgfxStatsLog.sortedDraws = 0;
+    g_bgfxStatsLog.effectDraws = 0;
+    g_bgfxStatsLog.rttDraws = 0;
+    g_bgfxStatsLog.smudgeDraws = 0;
+    g_bgfxStatsLog.textureBinds = 0;
+    g_bgfxStatsLog.textureCreates = 0;
+    g_bgfxStatsLog.textureUploads = 0;
+    g_bgfxStatsLog.textureCopies = 0;
+    g_bgfxStatsLog.materialUniformUploads = 0;
+    g_bgfxStatsLog.lightUniformUploads = 0;
+    g_bgfxStatsLog.uniformCommands = 0;
+    g_bgfxStatsLog.materialUniformCommands = 0;
+    g_bgfxStatsLog.lightUniformCommands = 0;
+    g_bgfxStatsLog.shadowUniformCommands = 0;
+    g_bgfxStatsLog.pointShadowUniformCommands = 0;
+    g_bgfxStatsLog.textureTransformUpdates = 0;
+    g_bgfxStatsLog.renderStateCopies = 0;
+    g_bgfxStatsLog.transientVbAllocations = 0;
+    g_bgfxStatsLog.transientIbAllocations = 0;
+    g_bgfxStatsLog.transientVbDraws = 0;
+    g_bgfxStatsLog.transientIbDraws = 0;
+    g_bgfxStatsLog.dynamicVbAllocations = 0;
+    g_bgfxStatsLog.dynamicIbAllocations = 0;
+    g_bgfxStatsLog.sortedReplayCalls = 0;
+    g_bgfxStatsLog.sortedReplayTotalTicks = 0;
+    g_bgfxStatsLog.sortedReplayShaderTicks = 0;
+    g_bgfxStatsLog.sortedReplayMaterialTicks = 0;
+    g_bgfxStatsLog.sortedReplayTextureTicks = 0;
+    g_bgfxStatsLog.sortedReplayTransformTicks = 0;
+    g_bgfxStatsLog.sortedReplayLightTicks = 0;
+    g_bgfxStatsLog.bgfxTransientVbUsed = 0.0;
+    g_bgfxStatsLog.bgfxTransientIbUsed = 0.0;
+    g_bgfxStatsLog.textureMemoryUsed = 0;
+    g_bgfxStatsLog.rtMemoryUsed = 0;
+    g_bgfxStatsLog.numTextures = 0;
+    g_bgfxStatsLog.numFrameBuffers = 0;
+    std::memset(g_bgfxStatsLog.renderPhaseTicks, 0, sizeof(g_bgfxStatsLog.renderPhaseTicks));
+}
+
+// TheSuperHackers @bugfix bobtista 28/05/2026 Allow the perf-log directory to be overridden by GGC_BGFX_PERF_DIR and fall back to the current working directory; the previous hard-coded "C:\\tmp\\bgfx_perf" only ever worked on Windows.
+static std::string GetBgfxPerfLogPath()
+{
+    std::filesystem::path dir;
+    if (const char *env = GgcFlags::StringValue(GgcFlag_BgfxPerfDir))
+    {
+        dir = env;
+    }
+    else
+    {
+        dir = std::filesystem::current_path();
+    }
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    return (dir / "PerfLog_BgfxStats.csv").string();
+}
+
+static void InitializeBgfxStatsLog()
+{
+    g_bgfxStatsLog.initialized = true;
+    g_bgfxStatsLog.elapsedSeconds = 0.0;
+    QueryPerformanceFrequency(&g_bgfxStatsLog.frequency);
+    QueryPerformanceCounter(&g_bgfxStatsLog.lastCounter);
+    ResetBgfxStatsLogWindow();
+
+    const std::string logPath = GetBgfxPerfLogPath();
+    FILE * file = fopen(logPath.c_str(), "wt");
+    if (file != nullptr)
+    {
+        fprintf(file, "elapsed_seconds,window_seconds,window_frames,bgfx_num_draw_avg,bgfx_num_blit_avg,bgfx_cpu_frame_ms_avg,bgfx_gpu_ms_avg,bgfx_wait_render_ms_avg,bgfx_wait_submit_ms_avg,backend_draws_avg,backend_skipped_avg,base_submits_avg,scene_depth_submits_avg,shadow_volume_submits_avg,shadow_apply_submits_avg,smudge_submits_avg,scene_composite_submits_avg,debug_submits_avg,world_draws_avg,ui_draws_avg,water_draws_avg,sorted_draws_avg,effect_draws_avg,rtt_draws_avg,smudge_draws_avg,texture_binds_avg,texture_creates_avg,texture_uploads_avg,texture_copies_avg,material_uniforms_avg,light_uniforms_avg,uniform_cmds_avg,material_uniform_cmds_avg,light_uniform_cmds_avg,shadow_uniform_cmds_avg,pointshadow_uniform_cmds_avg,texture_transform_updates_avg,render_state_copies_avg,transient_vb_alloc_avg,transient_ib_alloc_avg,transient_vb_draw_avg,transient_ib_draw_avg,dynamic_vb_alloc_avg,dynamic_ib_alloc_avg,bgfx_transient_vb_used_avg,bgfx_transient_ib_used_avg,bgfx_texture_memory,bgfx_rt_memory,bgfx_num_textures,bgfx_num_framebuffers,phase_frame_draw_us_avg,phase_draw_views_us_avg,phase_render_total_us_avg,phase_traversal_us_avg,phase_mesh_flush_us_avg,phase_sort_flush_us_avg,phase_particles_us_avg,phase_terrain_us_avg,phase_pointgroup_update_arrays_us_avg,phase_pointgroup_vb_fill_us_avg,phase_sort_pool_build_us_avg,phase_sort_pool_sort_us_avg,phase_sort_pool_draw_us_avg,sorted_replay_calls_avg,sorted_replay_total_us_avg,sorted_replay_shader_us_avg,sorted_replay_material_us_avg,sorted_replay_texture_us_avg,sorted_replay_transform_us_avg,sorted_replay_light_us_avg,phase_sorted_insert_us_avg,phase_sorted_capture_us_avg,phase_pg_compress_us_avg,phase_pg_view_xform_us_avg,phase_pg_ground_fixup_us_avg,phase_particle_tex_fetch_us_avg\n");
+        fclose(file);
+    }
+    else
+    {
+        WWDEBUG_SAY(("[BgfxBackend] Failed to open PerfLog_BgfxStats.csv"));
+    }
+}
+
+static void FlushBgfxStatsLogWindow()
+{
+    if (g_bgfxStatsLog.frames == 0)
+    {
+        return;
+    }
+
+    const std::string logPath = GetBgfxPerfLogPath();
+    FILE * file = fopen(logPath.c_str(), "at");
+    if (file != nullptr)
+    {
+        const double frames = static_cast<double>(g_bgfxStatsLog.frames);
+        // TheSuperHackers @bugfix bobtista 28/05/2026 Format string and arg list got out of sync: drop one stray %.3f and use portable %lld/%llu instead of MSVC-only %I64d.
+        const double phaseUsPerFrame = g_bgfxStatsLog.frequency.QuadPart > 0
+            ? 1000000.0 / static_cast<double>(g_bgfxStatsLog.frequency.QuadPart) / frames
+            : 0.0;
+        fprintf(file, "%.3f,%.3f,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%lld,%lld,%u,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+            g_bgfxStatsLog.elapsedSeconds,
+            g_bgfxStatsLog.windowSeconds,
+            g_bgfxStatsLog.frames,
+            g_bgfxStatsLog.bgfxNumDraw / frames,
+            g_bgfxStatsLog.bgfxNumBlit / frames,
+            g_bgfxStatsLog.bgfxCpuFrameMs / frames,
+            AverageOrMinusOne(g_bgfxStatsLog.bgfxGpuFrameMs, g_bgfxStatsLog.bgfxGpuFrameCount),
+            g_bgfxStatsLog.bgfxWaitRenderMs / frames,
+            g_bgfxStatsLog.bgfxWaitSubmitMs / frames,
+            static_cast<double>(g_bgfxStatsLog.backendDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.backendSkipped) / frames,
+            static_cast<double>(g_bgfxStatsLog.baseSubmits) / frames,
+            static_cast<double>(g_bgfxStatsLog.sceneDepthSubmits) / frames,
+            static_cast<double>(g_bgfxStatsLog.shadowVolumeSubmits) / frames,
+            static_cast<double>(g_bgfxStatsLog.shadowApplySubmits) / frames,
+            static_cast<double>(g_bgfxStatsLog.smudgeSubmits) / frames,
+            static_cast<double>(g_bgfxStatsLog.sceneCompositeSubmits) / frames,
+            static_cast<double>(g_bgfxStatsLog.debugSubmits) / frames,
+            static_cast<double>(g_bgfxStatsLog.worldDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.uiDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.waterDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.sortedDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.effectDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.rttDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.smudgeDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.textureBinds) / frames,
+            static_cast<double>(g_bgfxStatsLog.textureCreates) / frames,
+            static_cast<double>(g_bgfxStatsLog.textureUploads) / frames,
+            static_cast<double>(g_bgfxStatsLog.textureCopies) / frames,
+            static_cast<double>(g_bgfxStatsLog.materialUniformUploads) / frames,
+            static_cast<double>(g_bgfxStatsLog.lightUniformUploads) / frames,
+            static_cast<double>(g_bgfxStatsLog.uniformCommands) / frames,
+            static_cast<double>(g_bgfxStatsLog.materialUniformCommands) / frames,
+            static_cast<double>(g_bgfxStatsLog.lightUniformCommands) / frames,
+            static_cast<double>(g_bgfxStatsLog.shadowUniformCommands) / frames,
+            static_cast<double>(g_bgfxStatsLog.pointShadowUniformCommands) / frames,
+            static_cast<double>(g_bgfxStatsLog.textureTransformUpdates) / frames,
+            static_cast<double>(g_bgfxStatsLog.renderStateCopies) / frames,
+            static_cast<double>(g_bgfxStatsLog.transientVbAllocations) / frames,
+            static_cast<double>(g_bgfxStatsLog.transientIbAllocations) / frames,
+            static_cast<double>(g_bgfxStatsLog.transientVbDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.transientIbDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.dynamicVbAllocations) / frames,
+            static_cast<double>(g_bgfxStatsLog.dynamicIbAllocations) / frames,
+            g_bgfxStatsLog.bgfxTransientVbUsed / frames,
+            g_bgfxStatsLog.bgfxTransientIbUsed / frames,
+            static_cast<long long>(g_bgfxStatsLog.textureMemoryUsed),
+            static_cast<long long>(g_bgfxStatsLog.rtMemoryUsed),
+            g_bgfxStatsLog.numTextures,
+            g_bgfxStatsLog.numFrameBuffers,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::FRAME_DRAW]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::DRAW_VIEWS]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::RENDER_TOTAL]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::TRAVERSAL]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::MESH_FLUSH]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORT_FLUSH]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::PARTICLES]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::TERRAIN]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::POINTGROUP_UPDATE_ARRAYS]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::POINTGROUP_VB_FILL]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORT_POOL_BUILD]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORT_POOL_SORT]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORT_POOL_DRAW]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayCalls) / frames,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayTotalTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayShaderTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayMaterialTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayTextureTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayTransformTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.sortedReplayLightTicks) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORTED_INSERT]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::SORTED_CAPTURE]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::POINTGROUP_COMPRESS]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::POINTGROUP_VIEW_XFORM]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::POINTGROUP_GROUND_FIXUP]) * phaseUsPerFrame,
+            static_cast<double>(g_bgfxStatsLog.renderPhaseTicks[GGCRenderProfile::PARTICLE_TEX_FETCH]) * phaseUsPerFrame);
+        fclose(file);
+    }
+
+    if (GgcFlags::Enabled(GgcFlag_BgfxPerfLog))
+    {
+        const double frames = static_cast<double>(g_bgfxStatsLog.frames);
+        const double fps = frames / g_bgfxStatsLog.windowSeconds;
+        const double cpuMs = g_bgfxStatsLog.bgfxCpuFrameMs / frames;
+        const uint32_t draws = static_cast<uint32_t>(g_bgfxStatsLog.backendDraws / g_bgfxStatsLog.frames);
+        const double uploads = static_cast<double>(g_bgfxStatsLog.textureUploads) / frames;
+        const double transVb = g_bgfxStatsLog.bgfxTransientVbUsed / frames;
+        const double transIb = g_bgfxStatsLog.bgfxTransientIbUsed / frames;
+        std::fprintf(stderr,
+            "BGFX_PERF: %.1fs fps=%.1f cpu=%.2fms draws=%u uploads=%.0f texMem=%lldKB transVB=%.0f transIB=%.0f instSaved=%u\n",
+            g_bgfxStatsLog.elapsedSeconds, fps, cpuMs, draws, uploads,
+            static_cast<long long>(g_bgfxStatsLog.textureMemoryUsed / 1024),
+            transVb, transIb, g_bgfxStatsLog.instancedSavedDrawCalls);
+        PerfSessionAccumulate(g_bgfxStatsLog.windowSeconds, g_bgfxStatsLog.frames,
+                              cpuMs, fps, draws, g_bgfxStatsLog.textureUploads,
+                              g_bgfxStatsLog.textureMemoryUsed, transVb, transIb);
+    }
+
+    ResetBgfxStatsLogWindow();
+}
+
+static void UpdateBgfxStatsLog()
+{
+    if (!IsBgfxStatsLoggingEnabled())
+    {
+        return;
+    }
+    if (!g_bgfxStatsLog.initialized)
+    {
+        InitializeBgfxStatsLog();
+    }
+
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    double deltaSeconds = 0.0;
+    if (g_bgfxStatsLog.frequency.QuadPart > 0)
+    {
+        deltaSeconds =
+            static_cast<double>(now.QuadPart - g_bgfxStatsLog.lastCounter.QuadPart) /
+            static_cast<double>(g_bgfxStatsLog.frequency.QuadPart);
+    }
+    g_bgfxStatsLog.lastCounter = now;
+    g_bgfxStatsLog.elapsedSeconds += deltaSeconds;
+    g_bgfxStatsLog.windowSeconds += deltaSeconds;
+    ++g_bgfxStatsLog.frames;
+
+    const bgfx::Stats * stats = bgfx::getStats();
+    if (stats != nullptr)
+    {
+        g_bgfxStatsLog.bgfxNumDraw += stats->numDraw;
+        g_bgfxStatsLog.bgfxNumBlit += stats->numBlit;
+        g_bgfxStatsLog.bgfxCpuFrameMs += BgfxTicksToMs(stats->cpuTimeFrame, stats->cpuTimerFreq);
+        g_bgfxStatsLog.bgfxWaitRenderMs += BgfxTicksToMs(stats->waitRender, stats->cpuTimerFreq);
+        g_bgfxStatsLog.bgfxWaitSubmitMs += BgfxTicksToMs(stats->waitSubmit, stats->cpuTimerFreq);
+        if (stats->gpuTimerFreq > 0 && stats->gpuTimeEnd >= stats->gpuTimeBegin)
+        {
+            g_bgfxStatsLog.bgfxGpuFrameMs += BgfxTicksToMs(stats->gpuTimeEnd - stats->gpuTimeBegin, stats->gpuTimerFreq);
+            ++g_bgfxStatsLog.bgfxGpuFrameCount;
+        }
+        g_bgfxStatsLog.bgfxTransientVbUsed += stats->transientVbUsed;
+        g_bgfxStatsLog.bgfxTransientIbUsed += stats->transientIbUsed;
+        g_bgfxStatsLog.textureMemoryUsed = stats->textureMemoryUsed;
+        g_bgfxStatsLog.rtMemoryUsed = stats->rtMemoryUsed;
+        g_bgfxStatsLog.numTextures = stats->numTextures;
+        g_bgfxStatsLog.numFrameBuffers = stats->numFrameBuffers;
+    }
+
+    g_bgfxStatsLog.backendDraws += g_stats.drawCalls;
+    g_bgfxStatsLog.backendSkipped += g_stats.skippedDraws;
+    g_bgfxStatsLog.baseSubmits += g_stats.baseSubmits;
+    g_bgfxStatsLog.sceneDepthSubmits += g_stats.sceneDepthSubmits;
+    g_bgfxStatsLog.shadowVolumeSubmits += g_stats.shadowVolumeSubmits;
+    g_bgfxStatsLog.shadowApplySubmits += g_stats.shadowApplySubmits;
+    g_bgfxStatsLog.smudgeSubmits += g_stats.smudgeSubmits;
+    g_bgfxStatsLog.sceneCompositeSubmits += g_stats.sceneCompositeSubmits;
+    g_bgfxStatsLog.debugSubmits += g_stats.debugSubmits;
+    g_bgfxStatsLog.worldDraws += g_stats.worldDraws;
+    g_bgfxStatsLog.uiDraws += g_stats.uiDraws;
+    g_bgfxStatsLog.waterDraws += g_stats.waterDraws;
+    g_bgfxStatsLog.sortedDraws += g_stats.sortedDraws;
+    g_bgfxStatsLog.effectDraws += g_stats.effectDraws;
+    g_bgfxStatsLog.rttDraws += g_stats.rttDraws;
+    g_bgfxStatsLog.smudgeDraws += g_stats.smudgeDraws;
+    g_bgfxStatsLog.textureBinds += g_stats.textureBinds;
+    g_bgfxStatsLog.textureCreates += g_stats.textureCreates;
+    g_bgfxStatsLog.textureUploads += g_stats.textureUploads;
+    g_bgfxStatsLog.textureCopies += g_stats.textureCopies;
+    g_bgfxStatsLog.materialUniformUploads += g_stats.materialUniformUploads;
+    g_bgfxStatsLog.lightUniformUploads += g_stats.lightUniformUploads;
+    g_bgfxStatsLog.uniformCommands += g_stats.uniformCommands;
+    g_bgfxStatsLog.materialUniformCommands += g_stats.materialUniformCommands;
+    g_bgfxStatsLog.lightUniformCommands += g_stats.lightUniformCommands;
+    g_bgfxStatsLog.shadowUniformCommands += g_stats.shadowUniformCommands;
+    g_bgfxStatsLog.pointShadowUniformCommands += g_stats.pointShadowUniformCommands;
+    g_bgfxStatsLog.textureTransformUpdates += g_stats.textureTransformUpdates;
+    g_bgfxStatsLog.renderStateCopies += g_stats.renderStateCopies;
+    g_bgfxStatsLog.transientVbAllocations += g_stats.transientVbAllocations;
+    g_bgfxStatsLog.transientIbAllocations += g_stats.transientIbAllocations;
+    g_bgfxStatsLog.transientVbDraws += g_stats.transientVbDraws;
+    g_bgfxStatsLog.transientIbDraws += g_stats.transientIbDraws;
+    g_bgfxStatsLog.dynamicVbAllocations += g_stats.dynamicVbAllocations;
+    g_bgfxStatsLog.dynamicIbAllocations += g_stats.dynamicIbAllocations;
+    g_bgfxStatsLog.instancedSavedDrawCalls += g_stats.instancedSavedDrawCalls;
+    g_bgfxStatsLog.sortedReplayCalls += g_stats.sortedReplayCalls;
+    g_bgfxStatsLog.sortedReplayTotalTicks += g_stats.sortedReplayTotalTicks;
+    g_bgfxStatsLog.sortedReplayShaderTicks += g_stats.sortedReplayShaderTicks;
+    g_bgfxStatsLog.sortedReplayMaterialTicks += g_stats.sortedReplayMaterialTicks;
+    g_bgfxStatsLog.sortedReplayTextureTicks += g_stats.sortedReplayTextureTicks;
+    g_bgfxStatsLog.sortedReplayTransformTicks += g_stats.sortedReplayTransformTicks;
+    g_bgfxStatsLog.sortedReplayLightTicks += g_stats.sortedReplayLightTicks;
+    for (int phase = 0; phase < GGCRenderProfile::PHASE_COUNT; ++phase)
+    {
+        g_bgfxStatsLog.renderPhaseTicks[phase] +=
+            GGCRenderProfile::SnapshotTicks(static_cast<GGCRenderProfile::Phase>(phase));
+    }
+
+    if (g_bgfxStatsLog.windowSeconds >= 1.0)
+    {
+        FlushBgfxStatsLogWindow();
+    }
+}
+
+static void LogFrameStats()
+{
+#ifdef RTS_DEBUG
+    // TheSuperHackers @perf bobtista 03/06/2026 Default off; opt in via
+    // GGC_BGFX_PERF_LOG=1 (interval in frames, default 300). The big
+    // formatted string used to fire every 60 frames + first 10, costing
+    // measurable Debug FPS on heavy-combat saves. Cache the env probe.
+    static int s_perfLogInterval = -1;
+    if (s_perfLogInterval < 0) {
+        const char * env = GgcFlags::StringValue(GgcFlag_BgfxPerfLog);
+        if (env != nullptr) {
+            int v = std::atoi(env);
+            s_perfLogInterval = (v > 0) ? v : 300;
+        } else {
+            s_perfLogInterval = 0;  // disabled
+        }
+    }
+    if (s_perfLogInterval > 0 && (g_stats.frameIndex % s_perfLogInterval) == 0)
+    {
+        WWDEBUG_SAY(("[BGFX PERF] frame=%u draws=%u skipped=%u submits(base/depth/vol/apply/smudge/comp/debug)=%u/%u/%u/%u/%u/%u/%u views(world/ui/water/sort/effect/rtt/smudge)=%u/%u/%u/%u/%u/%u/%u binds=%u uniforms(mat/light)=%u/%u texxf=%u rsCopies=%u transientAlloc(vb/ib)=%u/%u transientDraw(vb/ib)=%u/%u dynAlloc(vb/ib)=%u/%u",
+            g_stats.frameIndex,
+            g_stats.drawCalls,
+            g_stats.skippedDraws,
+            g_stats.baseSubmits,
+            g_stats.sceneDepthSubmits,
+            g_stats.shadowVolumeSubmits,
+            g_stats.shadowApplySubmits,
+            g_stats.smudgeSubmits,
+            g_stats.sceneCompositeSubmits,
+            g_stats.debugSubmits,
+            g_stats.worldDraws,
+            g_stats.uiDraws,
+            g_stats.waterDraws,
+            g_stats.sortedDraws,
+            g_stats.effectDraws,
+            g_stats.rttDraws,
+            g_stats.smudgeDraws,
+            g_stats.textureBinds,
+            g_stats.materialUniformUploads,
+            g_stats.lightUniformUploads,
+            g_stats.textureTransformUpdates,
+            g_stats.renderStateCopies,
+            g_stats.transientVbAllocations,
+            g_stats.transientIbAllocations,
+            g_stats.transientVbDraws,
+            g_stats.transientIbDraws,
+            g_stats.dynamicVbAllocations,
+            g_stats.dynamicIbAllocations));
+    }
+#endif
+}
+
+// TheSuperHackers @refactor bobtista 15/04/2026 bgfx callback
+// so fatal errors and debug trace messages land in DebugLogFileD.txt
+// instead of silently firing bx::debugBreak. Without this, internal
+// bgfx validation failures produce only a raw breakpoint with no text.
+class BgfxLoggingCallback : public bgfx::CallbackI
+{
+public:
+#if defined(RTS_PROFILE_TRACY)
+    BgfxLoggingCallback()
+        : m_profilerDepth(0)
+        , m_profilerOverflow(0)
+    {
+    }
+#endif
+    ~BgfxLoggingCallback() override {}
+
+    void fatal(const char * filePath, uint16_t line, bgfx::Fatal::Enum code, const char * str) override
+    {
+        // TheSuperHackers @build bobtista 30/04/2026 Always print bgfx fatal
+        // messages to stderr — WWDEBUG_SAY is a no-op in release builds, but
+        // we want diagnostics for the macOS bring-up.
+        std::fprintf(stderr, "[bgfx] FATAL code=%d at %s:%u: %s\n",
+                     static_cast<int>(code), filePath ? filePath : "?", line, str ? str : "?");
+        std::fflush(stderr);
+    }
+    void traceVargs(const char * filePath, uint16_t line, const char * format, va_list argList) override
+    {
+        // TheSuperHackers @perf bobtista 02/06/2026 A Debug-config build compiles bgfx
+        // itself in Debug, which turns on its internal BX_TRACE narration (per texture,
+        // per uniform, per bind). Printing+flushing every one of those thousands of lines
+        // per frame dragged the Debug build to ~5fps. Suppress the informational flood by
+        // default; surface WARN/ERROR lines always, and emit everything only when the
+        // operator opts in via GGC_TRACE. The level word is literal in bgfx's format
+        // string, so we can classify before formatting and skip the vsnprintf entirely
+        // for suppressed lines.
+        static const bool s_verbose = (GgcFlags::Enabled(GgcFlag_Trace));
+        bool isImportant = (format != nullptr)
+            && (std::strstr(format, "WARN") != nullptr || std::strstr(format, "ERROR") != nullptr);
+        // TheSuperHackers @tweak bobtista 18/06/2026 bgfx emits a "RefCount is N (expected 0)"
+        // WARN for every transient vertex/index buffer still mid-flight when the device tears
+        // down on resize/shutdown. It is benign teardown chatter (dozens per swap), so demote
+        // it out of the always-on path and let it through only under GGC_TRACE.
+        if (isImportant && format != nullptr && std::strstr(format, "RefCount is") != nullptr)
+        {
+            isImportant = false;
+        }
+        if (!s_verbose && !isImportant)
+        {
+            return;
+        }
+        char buf[512];
+        std::vsnprintf(buf, sizeof(buf), format, argList);
+        size_t len = std::strlen(buf);
+        while (len > 0 && (buf[len-1] == '\n' || buf[len-1] == '\r')) { buf[--len] = '\0'; }
+        std::fprintf(stderr, "[bgfx] %s:%u: %s\n", filePath ? filePath : "?", line, buf);
+        // Flush important lines so they survive a subsequent crash; let the opt-in verbose
+        // flood rely on normal stdio buffering to avoid a syscall per line.
+        if (isImportant)
+        {
+            std::fflush(stderr);
+        }
+    }
+    void profilerBegin(const char * name, uint32_t /*abgr*/, const char * filePath, uint16_t line) override
+    {
+#if defined(RTS_PROFILE_TRACY)
+        if (m_profilerDepth >= kProfilerStackMax)
+        {
+            ++m_profilerOverflow;
+            return;
+        }
+        const uint64_t srcloc = ___tracy_alloc_srcloc_name(
+            line, filePath, std::strlen(filePath),
+            name, std::strlen(name),
+            name, std::strlen(name), 0);
+        m_profilerStack[m_profilerDepth] = ___tracy_emit_zone_begin_alloc(srcloc, 1);
+        ++m_profilerDepth;
+#else
+        (void)name; (void)filePath; (void)line;
+#endif
+    }
+    void profilerBeginLiteral(const char * name, uint32_t /*abgr*/, const char * filePath, uint16_t line) override
+    {
+#if defined(RTS_PROFILE_TRACY)
+        if (m_profilerDepth >= kProfilerStackMax)
+        {
+            ++m_profilerOverflow;
+            return;
+        }
+        const struct ___tracy_source_location_data srcloc = { name, name, filePath, line, 0 };
+        m_profilerStack[m_profilerDepth] = ___tracy_emit_zone_begin(&srcloc, 1);
+        ++m_profilerDepth;
+#else
+        (void)name; (void)filePath; (void)line;
+#endif
+    }
+    void profilerEnd() override
+    {
+#if defined(RTS_PROFILE_TRACY)
+        if (m_profilerOverflow > 0)
+        {
+            --m_profilerOverflow;
+            return;
+        }
+        if (m_profilerDepth > 0)
+        {
+            --m_profilerDepth;
+            ___tracy_emit_zone_end(m_profilerStack[m_profilerDepth]);
+        }
+#endif
+    }
+    uint32_t cacheReadSize(uint64_t) override { return 0; }
+    bool cacheRead(uint64_t, void *, uint32_t) override { return false; }
+    void cacheWrite(uint64_t, const void *, uint32_t) override {}
+    void screenShot(const char * filePath, uint32_t width, uint32_t height, uint32_t pitch,
+                    bgfx::TextureFormat::Enum /*format*/, const void * data, uint32_t /*size*/,
+                    bool yflip) override
+    {
+        // bgfx delivers BGRA8 pixels asynchronously. The requested path's extension chooses the
+        // format: .png is encoded with bimg (already linked for the bgfx backend) for the in-game
+        // F12 screenshots; every other extension keeps the legacy uncompressed 32-bpp BMP used by
+        // the offline capture tooling.
+        if (filePath == nullptr || data == nullptr || width == 0 || height == 0)
+        {
+            return;
+        }
+
+        const size_t pathLen = strlen(filePath);
+        const bool wantPng = pathLen >= 4
+            && filePath[pathLen - 4] == '.'
+            && tolower(static_cast<unsigned char>(filePath[pathLen - 3])) == 'p'
+            && tolower(static_cast<unsigned char>(filePath[pathLen - 2])) == 'n'
+            && tolower(static_cast<unsigned char>(filePath[pathLen - 1])) == 'g';
+        if (wantPng)
+        {
+            bx::FileWriter writer;
+            bx::Error err;
+            if (bx::open(&writer, filePath, false, &err))
+            {
+                bimg::imageWritePng(&writer, width, height, pitch, data,
+                                    bimg::TextureFormat::BGRA8, yflip, &err);
+                bx::close(&writer);
+                WWDEBUG_SAY(("[BgfxBackend] screenShot wrote %ux%u PNG to %s", width, height, filePath));
+            }
+            else
+            {
+                WWDEBUG_SAY(("[BgfxBackend] screenShot: open %s failed", filePath));
+            }
+            return;
+        }
+
+        FILE * f = fopen(filePath, "wb");
+        if (f == nullptr)
+        {
+            WWDEBUG_SAY(("[BgfxBackend] screenShot: fopen %s failed", filePath));
+            return;
+        }
+        const uint32_t rowBytes = width * 4;
+        const uint32_t pixelBytes = rowBytes * height;
+        const uint32_t fileSize = 14 + 40 + pixelBytes;
+        uint8_t fileHdr[14] = {0};
+        fileHdr[0] = 'B'; fileHdr[1] = 'M';
+        fileHdr[2] = static_cast<uint8_t>(fileSize & 0xFF);
+        fileHdr[3] = static_cast<uint8_t>((fileSize >> 8) & 0xFF);
+        fileHdr[4] = static_cast<uint8_t>((fileSize >> 16) & 0xFF);
+        fileHdr[5] = static_cast<uint8_t>((fileSize >> 24) & 0xFF);
+        fileHdr[10] = 54; // pixel data offset
+        uint8_t infoHdr[40] = {0};
+        infoHdr[0] = 40;
+        infoHdr[4] = static_cast<uint8_t>(width & 0xFF);
+        infoHdr[5] = static_cast<uint8_t>((width >> 8) & 0xFF);
+        infoHdr[6] = static_cast<uint8_t>((width >> 16) & 0xFF);
+        infoHdr[7] = static_cast<uint8_t>((width >> 24) & 0xFF);
+        // BMP: positive height = bottom-up storage (first row = bottom);
+        // negative height = top-down storage (first row = top). bgfx
+        // yflip=true means data is bottom-up (OpenGL origin), yflip=false
+        // means top-down (D3D origin). Match accordingly so we never flip
+        // on the CPU.
+        const int32_t h = static_cast<int32_t>(height);
+        const int32_t signedH = yflip ? h : -h;
+        const uint32_t storeH = static_cast<uint32_t>(signedH);
+        infoHdr[8]  = static_cast<uint8_t>(storeH & 0xFF);
+        infoHdr[9]  = static_cast<uint8_t>((storeH >> 8) & 0xFF);
+        infoHdr[10] = static_cast<uint8_t>((storeH >> 16) & 0xFF);
+        infoHdr[11] = static_cast<uint8_t>((storeH >> 24) & 0xFF);
+        infoHdr[12] = 1;  // planes
+        infoHdr[14] = 32; // bpp
+        // BI_RGB compression = 0 (no compression). BGRA byte order is the
+        // BMP default for 32bpp BI_RGB.
+        fwrite(fileHdr, 1, sizeof(fileHdr), f);
+        fwrite(infoHdr, 1, sizeof(infoHdr), f);
+        const uint8_t * src = static_cast<const uint8_t *>(data);
+        for (uint32_t y = 0; y < height; ++y)
+        {
+            fwrite(src + y * pitch, 1, rowBytes, f);
+        }
+        fclose(f);
+        WWDEBUG_SAY(("[BgfxBackend] screenShot wrote %ux%u to %s", width, height, filePath));
+    }
+    void captureBegin(uint32_t, uint32_t, uint32_t, bgfx::TextureFormat::Enum, bool) override {}
+    void captureEnd() override {}
+    void captureFrame(const void *, uint32_t) override {}
+
+#if defined(RTS_PROFILE_TRACY)
+    static const int kProfilerStackMax = 64;
+    TracyCZoneCtx m_profilerStack[kProfilerStackMax];
+    int m_profilerDepth;
+    int m_profilerOverflow;
+#endif
+};
+
+BgfxLoggingCallback g_bgfxCallback;
+
+static uint32_t MapCmpFuncToBgfxStencilTest(CompareFunc f)
+{
+    switch (f)
+    {
+        case RB_CMP_NEVER:         return BGFX_STENCIL_TEST_NEVER;
+        case RB_CMP_LESS:          return BGFX_STENCIL_TEST_LESS;
+        case RB_CMP_EQUAL:         return BGFX_STENCIL_TEST_EQUAL;
+        case RB_CMP_LESS_EQUAL:    return BGFX_STENCIL_TEST_LEQUAL;
+        case RB_CMP_GREATER:       return BGFX_STENCIL_TEST_GREATER;
+        case RB_CMP_NOT_EQUAL:     return BGFX_STENCIL_TEST_NOTEQUAL;
+        case RB_CMP_GREATER_EQUAL: return BGFX_STENCIL_TEST_GEQUAL;
+        case RB_CMP_ALWAYS: default: return BGFX_STENCIL_TEST_ALWAYS;
+    }
+}
+
+static uint32_t MapStencilOpToBgfx(StencilOp op, uint32_t shift)
+{
+    uint32_t ord;
+    switch (op)
+    {
+        case RB_STENCIL_OP_KEEP:     ord = 1; break;
+        case RB_STENCIL_OP_ZERO:     ord = 0; break;
+        case RB_STENCIL_OP_REPLACE:  ord = 2; break;
+        case RB_STENCIL_OP_INCR_SAT: ord = 4; break;
+        case RB_STENCIL_OP_DECR_SAT: ord = 6; break;
+        case RB_STENCIL_OP_INVERT:   ord = 7; break;
+        case RB_STENCIL_OP_INCR:     ord = 3; break;
+        case RB_STENCIL_OP_DECR:     ord = 5; break;
+        default:                     ord = 1; break;
+    }
+    return ord << shift;
+}
+
+static uint32_t BuildCurrentStencilState()
+{
+    if (!g_draw.stencilEnabled)
+    {
+        return BGFX_STENCIL_NONE;
+    }
+    return g_draw.stencilFuncBits
+        | BGFX_STENCIL_FUNC_REF(g_draw.stencilRef & 0xFF)
+        | BGFX_STENCIL_FUNC_RMASK(g_draw.stencilReadMask & 0xFF)
+        | g_draw.stencilFailOpBits
+        | g_draw.stencilZFailOpBits
+        | g_draw.stencilPassOpBits;
+}
+
+static void UpdateShadowStencilState()
+{
+    g_draw.shadowStencilFront = BuildCurrentStencilState();
+    if (g_draw.shadowStencilFront == BGFX_STENCIL_NONE)
+    {
+        g_draw.shadowStencilBack = BGFX_STENCIL_NONE;
+        return;
+    }
+    g_draw.shadowStencilBack = BGFX_STENCIL_NONE;
+}
+
+// TheSuperHackers @refactor bobtista 26/04/2026 Shader program creation
+// helper. Creates a bgfx program from compiled bytecode, sets debug names,
+// and cleans up on failure.
+bgfx::ProgramHandle CreateShaderProgram(
+    const uint8_t * vsData, uint32_t vsSize, const char * vsName,
+    const uint8_t * fsData, uint32_t fsSize, const char * fsName)
+{
+    bgfx::ShaderHandle vs = bgfx::createShader(bgfx::makeRef(vsData, vsSize));
+    bgfx::ShaderHandle fs = bgfx::createShader(bgfx::makeRef(fsData, fsSize));
+    if (bgfx::isValid(vs) && bgfx::isValid(fs))
+    {
+        bgfx::setName(vs, vsName);
+        bgfx::setName(fs, fsName);
+        return bgfx::createProgram(vs, fs, true);
+    }
+    if (bgfx::isValid(vs))
+    {
+        bgfx::destroy(vs);
+    }
+    if (bgfx::isValid(fs))
+    {
+        bgfx::destroy(fs);
+    }
+    WWDEBUG_SAY(("[BgfxBackend] %s + %s createShader FAILED.", vsName, fsName));
+    return BGFX_INVALID_HANDLE;
+}
+
+bgfx::RendererType::Enum GetConfiguredRendererType()
+{
+    // TheSuperHackers @perf bobtista 03/06/2026 GGC_BGFX_RENDERER selects the bgfx renderer at
+    // run time on any platform: dx11/d3d11, dx12/d3d12, vulkan, metal, gl. bgfx's DX11 and
+    // DX12 backends share SM5 DXBC shaders, so no shader recompile is needed.
+    const char *override_ = GgcFlags::StringValue(GgcFlag_BgfxRenderer);
+    if (override_ == nullptr || *override_ == '\0')
+    {
+        override_ = GGC_GetBgfxRenderer();
+    }
+    if (override_ != nullptr)
+    {
+        if (std::strcmp(override_, "dx12") == 0 || std::strcmp(override_, "d3d12") == 0)
+        {
+            return bgfx::RendererType::Direct3D12;
+        }
+        if (std::strcmp(override_, "dx11") == 0 || std::strcmp(override_, "d3d11") == 0)
+        {
+            return bgfx::RendererType::Direct3D11;
+        }
+        if (std::strcmp(override_, "vulkan") == 0)
+        {
+            return bgfx::RendererType::Vulkan;
+        }
+        if (std::strcmp(override_, "metal") == 0)
+        {
+            return bgfx::RendererType::Metal;
+        }
+        if (std::strcmp(override_, "gl") == 0 || std::strcmp(override_, "opengl") == 0)
+        {
+            return bgfx::RendererType::OpenGL;
+        }
+    }
+#if defined(GGC_BGFX_RENDERER_METAL)
+    return bgfx::RendererType::Metal;
+#elif defined(GGC_BGFX_RENDERER_VULKAN)
+    return bgfx::RendererType::Vulkan;
+#else
+    return bgfx::RendererType::Direct3D11;
+#endif
+}
+
+void *GetNativeWindowHandle(void *window)
+{
+    if (window == NULL)
+    {
+        return NULL;
+    }
+#if defined(SAGE_USE_SDL3)
+#if defined(__APPLE__)
+    // TheSuperHackers @bugfix bobtista 30/04/2026 SDL_Metal_CreateView
+    // gives us a CAMetalLayer that bgfx can take as platformData.nwh
+    // directly. Passing the NSWindow instead lets bgfx try to install
+    // its own CAMetalLayer on the contentView, which fights with
+    // SDL3's own layer setup and intermittently crashes Apple's AGX
+    // driver in AGCDeserializedReply during pipeline-state compile.
+    // GGC_MACOS_USE_NSWINDOW=1 forces the legacy NSWindow path so we
+    // can A/B-test which form the local Apple Silicon variant prefers.
+    if (::TheSDL3MetalLayer != NULL && !GgcFlags::Enabled(GgcFlag_MacosUseNsWindow))
+    {
+        return ::TheSDL3MetalLayer;
+    }
+#endif
+    SDL_Window *sdlWindow = static_cast<SDL_Window *>(window);
+    SDL_PropertiesID props = SDL_GetWindowProperties(sdlWindow);
+#if defined(__APPLE__)
+    void *nativeWindow = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, NULL);
+    if (nativeWindow != NULL)
+    {
+        return nativeWindow;
+    }
+#elif defined(_WIN32)
+    void *nativeWindow = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+    if (nativeWindow != NULL)
+    {
+        return nativeWindow;
+    }
+#elif defined(__linux__)
+    // TheSuperHackers @feature bobtista 24/07/2026 Linux native surface for bgfx.
+    // Prefer X11: bgfx takes the X11 Window XID as platformData.nwh (with the
+    // Display* as ndt, set separately in Initialize). Fall back to the Wayland
+    // surface pointer when running under a Wayland SDL video driver.
+    {
+        const Uint64 x11Window = SDL_GetNumberProperty(props, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0);
+        if (x11Window != 0)
+        {
+            return reinterpret_cast<void *>(static_cast<uintptr_t>(x11Window));
+        }
+        void *waylandSurface = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, NULL);
+        if (waylandSurface != NULL)
+        {
+            return waylandSurface;
+        }
+    }
+#endif
+#endif
+    return window;
+}
+
+// TheSuperHackers @feature bobtista 24/07/2026 Native display/device handle for
+// bgfx platformData.ndt. Required on Linux (X11 Display* / Wayland wl_display*);
+// returns nullptr elsewhere, where bgfx derives the device from nwh alone.
+void *GetNativeDisplayHandle(void *window)
+{
+#if defined(SAGE_USE_SDL3) && defined(__linux__)
+    if (window != NULL)
+    {
+        SDL_Window *sdlWindow = static_cast<SDL_Window *>(window);
+        SDL_PropertiesID props = SDL_GetWindowProperties(sdlWindow);
+        void *x11Display = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, NULL);
+        if (x11Display != NULL)
+        {
+            return x11Display;
+        }
+        void *waylandDisplay = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, NULL);
+        if (waylandDisplay != NULL)
+        {
+            return waylandDisplay;
+        }
+    }
+#else
+    (void)window;
+#endif
+    return nullptr;
+}
+
+void BuildStandardVertexLayouts()
+{
+    g_device.layoutP
+        .begin()
+        .add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+        .end();
+
+    g_device.layoutPN
+        .begin()
+        .add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::Normal,   3, bgfx::AttribType::Float)
+        .end();
+
+    g_device.layoutPNT1
+        .begin()
+        .add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::Normal,    3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+        .end();
+
+    g_device.layoutPNT2
+        .begin()
+        .add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::Normal,    3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::TexCoord1, 2, bgfx::AttribType::Float)
+        .end();
+
+    g_device.layoutPT1
+        .begin()
+        .add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+        .end();
+
+    g_device.layoutPDT1
+        .begin()
+        .add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true)
+        .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+        .end();
+
+    g_device.layoutPNDT1
+        .begin()
+        .add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::Normal,    3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true)
+        .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+        .end();
+
+    g_device.layoutPNDT2
+        .begin()
+        .add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::Normal,    3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true)
+        .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::TexCoord1, 2, bgfx::AttribType::Float)
+        .end();
+}
+
+}
+
+BgfxBackend::BgfxBackend()
+    : m_textureBitDepth(16)
+    , m_msaaMode(RB_MSAA_NONE)
+    , m_renderDeviceDescBuilt(false)
+    , m_deviceCreated(false)
+    , m_curRenderDevice(-1)
+{
+    m_waterShaders.water_pixel_shader = 0;
+    m_waterShaders.river_pixel_shader = 0;
+    m_waterShaders.white_texture = nullptr;
+    WWDEBUG_SAY(("[BgfxBackend] Backend constructed."));
+}
+
+BgfxBackend::~BgfxBackend()
+{
+}
+
+// -- Backend lifecycle -------------------------------------------------------
+
+namespace
+{
+// TheSuperHackers @refactor bobtista 11/04/2026 ShaderClass
+// translation table. Maps a ShaderClass instance to (program handle,
+// bgfx state bits).
+//
+// Mapping rules:
+//   - alpha-test enabled & textured & lit -> g_texturedLitAtestProgram
+//   - textured & lit                      -> g_texturedLitProgram
+//   - textured & !lit                     -> g_texturedUnlitProgram
+//   - !textured & lit                     -> g_solidLitProgram
+//   - else                                -> g_device.passthroughProgram (debug)
+//
+// State bit translation is mechanical: depth compare, depth write, color
+// write, blend factors, cull. Detail-blend / fog / specular gradient need
+// shader code rather than state bits, so they are not handled by this
+// translation.
+
+uint64_t TranslateBlendFactor(ShaderClass::SrcBlendFuncType src)
+{
+    switch (src)
+    {
+        case ShaderClass::SRCBLEND_ZERO:                 return BGFX_STATE_BLEND_ZERO;
+        case ShaderClass::SRCBLEND_ONE:                  return BGFX_STATE_BLEND_ONE;
+        case ShaderClass::SRCBLEND_SRC_ALPHA:            return BGFX_STATE_BLEND_SRC_ALPHA;
+        case ShaderClass::SRCBLEND_ONE_MINUS_SRC_ALPHA:  return BGFX_STATE_BLEND_INV_SRC_ALPHA;
+        default:                                         return BGFX_STATE_BLEND_ONE;
+    }
+}
+
+uint64_t TranslateBlendFactor(ShaderClass::DstBlendFuncType dst)
+{
+    switch (dst)
+    {
+        case ShaderClass::DSTBLEND_ZERO:                 return BGFX_STATE_BLEND_ZERO;
+        case ShaderClass::DSTBLEND_ONE:                  return BGFX_STATE_BLEND_ONE;
+        case ShaderClass::DSTBLEND_SRC_COLOR:            return BGFX_STATE_BLEND_SRC_COLOR;
+        case ShaderClass::DSTBLEND_ONE_MINUS_SRC_COLOR:  return BGFX_STATE_BLEND_INV_SRC_COLOR;
+        case ShaderClass::DSTBLEND_SRC_ALPHA:            return BGFX_STATE_BLEND_SRC_ALPHA;
+        case ShaderClass::DSTBLEND_ONE_MINUS_SRC_ALPHA:  return BGFX_STATE_BLEND_INV_SRC_ALPHA;
+        default:                                         return BGFX_STATE_BLEND_ZERO;
+    }
+}
+
+uint64_t TranslateDepthCompare(ShaderClass::DepthCompareType cmp)
+{
+    switch (cmp)
+    {
+        case ShaderClass::PASS_NEVER:    return BGFX_STATE_DEPTH_TEST_NEVER;
+        case ShaderClass::PASS_LESS:     return BGFX_STATE_DEPTH_TEST_LESS;
+        case ShaderClass::PASS_EQUAL:    return BGFX_STATE_DEPTH_TEST_EQUAL;
+        case ShaderClass::PASS_LEQUAL:   return BGFX_STATE_DEPTH_TEST_LEQUAL;
+        case ShaderClass::PASS_GREATER:  return BGFX_STATE_DEPTH_TEST_GREATER;
+        case ShaderClass::PASS_NOTEQUAL: return BGFX_STATE_DEPTH_TEST_NOTEQUAL;
+        case ShaderClass::PASS_GEQUAL:   return BGFX_STATE_DEPTH_TEST_GEQUAL;
+        case ShaderClass::PASS_ALWAYS:   return BGFX_STATE_DEPTH_TEST_ALWAYS;
+        default:                         return BGFX_STATE_DEPTH_TEST_LEQUAL;
+    }
+}
+
+CompareFunc MapShaderDepthCompareToBackendCompare(ShaderClass::DepthCompareType cmp)
+{
+    switch (cmp)
+    {
+        case ShaderClass::PASS_NEVER:    return RB_CMP_NEVER;
+        case ShaderClass::PASS_LESS:     return RB_CMP_LESS;
+        case ShaderClass::PASS_EQUAL:    return RB_CMP_EQUAL;
+        case ShaderClass::PASS_LEQUAL:   return RB_CMP_LESS_EQUAL;
+        case ShaderClass::PASS_GREATER:  return RB_CMP_GREATER;
+        case ShaderClass::PASS_NOTEQUAL: return RB_CMP_NOT_EQUAL;
+        case ShaderClass::PASS_GEQUAL:   return RB_CMP_GREATER_EQUAL;
+        case ShaderClass::PASS_ALWAYS:   return RB_CMP_ALWAYS;
+        default:                         return RB_CMP_LESS_EQUAL;
+    }
+}
+
+// Extract TSS operation IDs from ShaderClass preset bits.
+// Maps the same logic as shader.cpp's Apply() into float IDs that the
+// uber fragment shader evaluates at runtime.
+//
+// TSS op IDs must match the #defines in fs_uber.sc:
+//   0=DISABLE 1=SELECTARG1 2=SELECTARG2 3=MODULATE 4=MODULATE2X
+//   5=ADD 6=ADDSIGNED 7=SUBTRACT 8=BLENDTEXALPHA 9=BLENDCURALPHA 10=ADDSMOOTH
+// Arg source IDs: 0=TEXTURE 1=DIFFUSE 2=CURRENT
+
+// Default legacy alpha-test reference (0x60/255 = 0.376) used when a shader has ALPHATEST enabled without an explicit reference. Matches the implicit behavior preserved by ShaderClass presets.
+const float kDefaultAlphaTestRef = 0x60 / 255.0f;
+
+void BuildTssOpsForShader(const ShaderClass & shader,
+                          float * ops0, float * ops1, float * atestRef, float * atestFunc)
+{
+    float priColorOp  = 3.0f; // MODULATE
+    float priAlphaOp  = 3.0f; // MODULATE
+    float priCArg1Src = 0.0f; // TEXTURE
+    float priAArg1Src = 0.0f; // TEXTURE
+    float secColorOp  = 0.0f; // DISABLE
+    float secAlphaOp  = 0.0f; // DISABLE
+    float secCArg1Src = 0.0f; // TEXTURE
+    float secAArg1Src = 0.0f; // TEXTURE
+
+    if (shader.Get_Texturing() == ShaderClass::TEXTURING_ENABLE)
+    {
+        switch (shader.Get_Primary_Gradient())
+        {
+            case ShaderClass::GRADIENT_DISABLE:
+                priColorOp  = kTssSelectArg1;
+                priAlphaOp  = kTssSelectArg1;
+                priCArg1Src = kTssArgTexture;
+                priAArg1Src = kTssArgTexture;
+                break;
+            default:
+            case ShaderClass::GRADIENT_MODULATE:
+                priColorOp  = kTssModulate;
+                priAlphaOp  = kTssModulate;
+                priCArg1Src = kTssArgTexture;
+                priAArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::GRADIENT_ADD:
+                priColorOp  = kTssAdd;
+                priAlphaOp  = kTssModulate;
+                priCArg1Src = kTssArgTexture;
+                priAArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::GRADIENT_MODULATE2X:
+                priColorOp  = kTssModulate2x;
+                priAlphaOp  = kTssModulate;
+                priCArg1Src = kTssArgTexture;
+                priAArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::GRADIENT_BUMPENVMAP:
+            case ShaderClass::GRADIENT_BUMPENVMAPLUMINANCE:
+                priColorOp  = kTssSelectArg1;
+                priAlphaOp  = kTssSelectArg1;
+                priCArg1Src = kTssArgDiffuse;
+                priAArg1Src = kTssArgDiffuse;
+                break;
+        }
+
+        switch (shader.Get_Post_Detail_Color_Func())
+        {
+            default:
+            case ShaderClass::DETAILCOLOR_DISABLE:
+                secColorOp = kTssDisable;
+                break;
+            case ShaderClass::DETAILCOLOR_DETAIL:
+                secColorOp  = kTssSelectArg1;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_SCALE:
+                secColorOp  = kTssModulate;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_INVSCALE:
+                secColorOp  = kTssAddSmooth;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_ADD:
+                secColorOp  = kTssAdd;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_SUB:
+                secColorOp  = kTssSubtract;
+                secCArg1Src = kTssArgTexture; // result = tex - current (retail arg1=TEXTURE)
+                break;
+            // TheSuperHackers @bugfix bobtista 16/07/2026 SUBR needs current - tex, but the
+            // uber shader's detail combiner hardcodes arg1=tex, arg2=current (the arg-select
+            // channels u_tssOps1.zw are not read). Encode the reversal in a dedicated op
+            // instead; the previous kTssSubtract mapping rendered SUBR inverted.
+            case ShaderClass::DETAILCOLOR_SUBR:
+                secColorOp  = kTssSubtractRev;
+                secCArg1Src = kTssArgCurrent; // result = current - tex
+                break;
+            case ShaderClass::DETAILCOLOR_BLEND:
+                secColorOp  = kTssBlendTexAlpha;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_DETAILBLEND:
+                secColorOp  = kTssBlendCurAlpha;
+                secCArg1Src = kTssArgTexture;
+                break;
+            // TheSuperHackers @bugfix bobtista 16/07/2026 These four detail funcs previously
+            // fell into the default branch and silently disabled the detail stage; retail
+            // maps them at shader.cpp:799-858. SCALE2X and ADDSIGNED reuse existing shader
+            // ops; ADDSIGNED2X and MODALPHAADDCOLOR have dedicated ops in fs_uber.
+            case ShaderClass::DETAILCOLOR_ADDSIGNED:
+                secColorOp  = kTssAddSigned;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_ADDSIGNED2X:
+                secColorOp  = kTssAddSigned2x;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_SCALE2X:
+                secColorOp  = kTssModulate2x;
+                secCArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILCOLOR_MODALPHAADDCOLOR:
+                secColorOp  = kTssModAlphaAddColor;
+                secCArg1Src = kTssArgCurrent; // retail arg1=CURRENT: current.rgb + current.a * tex.rgb
+                break;
+        }
+
+        switch (shader.Get_Post_Detail_Alpha_Func())
+        {
+            default:
+            case ShaderClass::DETAILALPHA_DISABLE:
+                secAlphaOp = kTssDisable;
+                break;
+            case ShaderClass::DETAILALPHA_DETAIL:
+                secAlphaOp  = kTssSelectArg1;
+                secAArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILALPHA_SCALE:
+                secAlphaOp  = kTssModulate;
+                secAArg1Src = kTssArgTexture;
+                break;
+            case ShaderClass::DETAILALPHA_INVSCALE:
+                secAlphaOp  = kTssAddSmooth;
+                secAArg1Src = kTssArgTexture;
+                break;
+        }
+    }
+    else
+    {
+        switch (shader.Get_Primary_Gradient())
+        {
+            case ShaderClass::GRADIENT_DISABLE:
+                priColorOp = kTssDisable;
+                priAlphaOp = kTssDisable;
+                break;
+            default:
+            case ShaderClass::GRADIENT_MODULATE:
+            case ShaderClass::GRADIENT_ADD:
+                priColorOp  = kTssSelectArg2;
+                priAlphaOp  = kTssSelectArg2;
+                priCArg1Src = kTssArgTexture;
+                priAArg1Src = kTssArgTexture;
+                break;
+        }
+    }
+
+    ops0[0] = priColorOp;
+    ops0[1] = priAlphaOp;
+    ops0[2] = secColorOp;
+    ops0[3] = secAlphaOp;
+
+    ops1[0] = priCArg1Src;
+    ops1[1] = priAArg1Src;
+    ops1[2] = secCArg1Src;
+    ops1[3] = secAArg1Src;
+
+    if (shader.Get_Alpha_Test() != ShaderClass::ALPHATEST_DISABLE)
+    {
+        if (shader.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE_MINUS_SRC_ALPHA)
+        {
+            *atestRef = 1.0f - kDefaultAlphaTestRef;
+            *atestFunc = static_cast<float>(RB_CMP_LESS_EQUAL);
+        }
+        else
+        {
+            *atestRef = kDefaultAlphaTestRef;
+            *atestFunc = static_cast<float>(RB_CMP_GREATER_EQUAL);
+        }
+    }
+    else
+    {
+        *atestRef = 0.0f;
+        *atestFunc = 0.0f;
+    }
+}
+
+uint64_t BuildBgfxStateForShader(const ShaderClass & shader)
+{
+    uint64_t state = 0;
+
+    if (shader.Get_Color_Mask() == ShaderClass::COLOR_WRITE_ENABLE)
+    {
+        state |= BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A;
+    }
+
+    if (shader.Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE)
+    {
+        // W3D used D3D's clockwise = front by default. bgfx CW culls the
+        // clockwise face (i.e. the back face when CW is the front), so
+        // BGFX_STATE_CULL_CW matches the W3D convention.
+        // TheSuperHackers @info bobtista 16/07/2026 ShaderClass::Invert_Backface_Culling
+        // (retail shader.cpp honors it here) is deliberately ignored: its only live setter
+        // is the legacy water mirror pass, which is compiled out on this backend
+        // (W3DWater.cpp updateRenderTargetTextures), so CW is always correct.
+        state |= BGFX_STATE_CULL_CW;
+    }
+
+    return state;
+}
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Generic FVF
+// to bgfx::VertexLayout translator. Walks the FVFInfoClass offset
+// table and emits attributes in offset order. Handles arbitrary FVF
+// combinations including padding and unused texcoord stages by issuing
+// skip() calls between attributes whose offsets do not abut.
+//
+// The bgfx layout API does not let you assign explicit offsets, only
+// running totals via add()/skip(). So this helper accumulates the
+// offsets in source order and emits skip() calls to fast-forward to
+// each attribute's true offset, then adds the attribute itself.
+//
+// Returns true if a layout was built. Caller must have called begin()
+// already and must call end() afterwards.
+
+void AddAttribAtOffset(bgfx::VertexLayout & layout,
+                       unsigned & cursor,
+                       unsigned target_offset,
+                       bgfx::Attrib::Enum attr,
+                       uint8_t count,
+                       bgfx::AttribType::Enum type,
+                       bool normalized,
+                       unsigned attr_size_bytes)
+{
+    if (target_offset > cursor)
+    {
+        layout.skip(static_cast<uint8_t>(target_offset - cursor));
+        cursor = target_offset;
+    }
+    layout.add(attr, count, type, normalized);
+    cursor += attr_size_bytes;
+}
+
+// TheSuperHackers @perf bobtista 28/04/2026 Cache built layouts keyed by
+// FVF bits. FVFInfoClass derives all offsets from the FVF bits in its
+// constructor, so two instances with the same Get_FVF() produce identical
+// layouts. Hit on every dynamic capture (particles, lines, 2D quads) and
+// every static VB upload — the engine churns through a handful of FVF
+// combos repeatedly.
+static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::VertexLayout & out);
+
+bool BuildBgfxLayoutForFVF(const FVFInfoClass & fvf, bgfx::VertexLayout & out)
+{
+    struct CachedLayout
+    {
+        bgfx::VertexLayout layout;
+        bool ok;
+    };
+    static std::unordered_map<unsigned, CachedLayout> s_cache;
+    const unsigned key = fvf.Get_FVF();
+    std::unordered_map<unsigned, CachedLayout>::iterator it = s_cache.find(key);
+    if (it != s_cache.end())
+    {
+        out = it->second.layout;
+        return it->second.ok;
+    }
+    CachedLayout entry;
+    entry.ok = BuildBgfxLayoutForFVFUncached(fvf, entry.layout);
+    out = entry.layout;
+    s_cache[key] = entry;
+    return entry.ok;
+}
+
+static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::VertexLayout & out)
+{
+    const unsigned bits      = fvf.Get_FVF();
+    const unsigned totalSize = fvf.Get_FVF_Size();
+
+    out.begin();
+    unsigned cursor = 0;
+
+    if ((bits & DX8_FVF_FLAG_XYZ) == DX8_FVF_FLAG_XYZ)
+    {
+        AddAttribAtOffset(out, cursor, fvf.Get_Location_Offset(),
+                          bgfx::Attrib::Position, 3, bgfx::AttribType::Float, false,
+                          3 * sizeof(float));
+    }
+    else if ((bits & DX8_FVF_FLAG_XYZRHW) == DX8_FVF_FLAG_XYZRHW)
+    {
+        // Pre-transformed: 4 floats (x, y, z, rhw). bgfx has no native
+        // pre-transformed attribute - declare as 4-component position
+        // and the shader is expected to bypass the projection matrix.
+        AddAttribAtOffset(out, cursor, fvf.Get_Location_Offset(),
+                          bgfx::Attrib::Position, 4, bgfx::AttribType::Float, false,
+                          4 * sizeof(float));
+    }
+
+    if (fvf.Has_Normal())
+    {
+        AddAttribAtOffset(out, cursor, fvf.Get_Normal_Offset(),
+                          bgfx::Attrib::Normal, 3, bgfx::AttribType::Float, false,
+                          3 * sizeof(float));
+    }
+
+    if (fvf.Has_Diffuse())
+    {
+        // Legacy vertex color is BGRA u8x4 packed; the shader swizzles it
+        // back to engine ARGB channels after bgfx normalizes the bytes.
+        AddAttribAtOffset(out, cursor, fvf.Get_Diffuse_Offset(),
+                          bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true,
+                          sizeof(uint32_t));
+    }
+
+    if (fvf.Has_Specular())
+    {
+        AddAttribAtOffset(out, cursor, fvf.Get_Specular_Offset(),
+                          bgfx::Attrib::Color1, 4, bgfx::AttribType::Uint8, true,
+                          sizeof(uint32_t));
+    }
+
+    // Texcoord sets - decode each stage's size from the FVF bits.
+    const bgfx::Attrib::Enum kTexAttr[8] = {
+        bgfx::Attrib::TexCoord0, bgfx::Attrib::TexCoord1,
+        bgfx::Attrib::TexCoord2, bgfx::Attrib::TexCoord3,
+        bgfx::Attrib::TexCoord4, bgfx::Attrib::TexCoord5,
+        bgfx::Attrib::TexCoord6, bgfx::Attrib::TexCoord7,
+    };
+
+    const unsigned numTex = fvf.Get_UV_Channel_Count();
+    for (unsigned i = 0; i < numTex && i < 8; ++i)
+    {
+        unsigned componentCount = 2;
+        if ((bits & DX8_FVF_TEXCOORDSIZE1(i)) == DX8_FVF_TEXCOORDSIZE1(i))
+        {
+            componentCount = 1;
+        }
+        else if ((bits & DX8_FVF_TEXCOORDSIZE3(i)) == DX8_FVF_TEXCOORDSIZE3(i))
+        {
+            componentCount = 3;
+        }
+        else if ((bits & DX8_FVF_TEXCOORDSIZE4(i)) == DX8_FVF_TEXCOORDSIZE4(i))
+        {
+            componentCount = 4;
+        }
+        // else default 2
+
+        AddAttribAtOffset(out, cursor, fvf.Get_Tex_Offset(i),
+                          kTexAttr[i],
+                          static_cast<uint8_t>(componentCount),
+                          bgfx::AttribType::Float, false,
+                          componentCount * sizeof(float));
+    }
+
+    // Pad up to the FVF stride if there is trailing space the bgfx
+    // layout has not accounted for. This keeps strides in lockstep so
+    // bgfx reads vertices at the same byte boundaries the engine writes
+    // them at.
+    if (totalSize > cursor)
+    {
+        out.skip(static_cast<uint8_t>(totalSize - cursor));
+    }
+
+    out.end();
+    return out.getStride() == totalSize;
+}
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Vertex/index buffer caches keyed by the
+// source buffer pointer: copy bytes on first sight, create a bgfx buffer, destroy
+// wholesale in Shutdown.
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Dynamic bgfx VB/IB handles: AppendLockClass
+// sub-range writes need in-place updates only dynamic buffers support. Cache entries store
+// dimensions to detect address reuse; stale handles are destroyed two frames later.
+
+// The bgfx texture currently bound to stage 0 by Set_Texture.
+
+// Per-stage sampler flags captured from the source TextureClass's
+// Get_U/V_Addr_Mode in Set_Texture. Default 0 = use bgfx's creation-time
+// default (usually linear filter + wrap). Shoreline LUT needs CLAMP
+// because its U coord can exceed [0,1] and WRAP produces a visible
+// stripe/checker artifact at the boundary.
+
+// The most recent buffers and offsets cached from Set_Vertex_Buffer /
+// Set_Index_Buffer. Read by Draw_Triangles when it issues the bgfx
+// submit. Cleared (made invalid) on Shutdown.
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Transient
+// (dynamic) buffer state. Capture_Dynamic_Vertex_Data allocs a bgfx
+// transient VB and records the owning DynamicVBAccessClass pointer so
+// the matching Set_Vertex_Buffer(DynamicVBAccessClass&) call can claim
+// it. The transient buffers are auto-freed at bgfx::frame time; we
+// only track validity within the current frame.
+// Current draw call uses transient buffers if these are set. They
+// shadow the static VB/IB handles above - SubmitEngineDraw picks the
+// transient path when these are true.
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Transform
+// capture. The engine calls Set_Transform with world / view / projection
+// matrices in W3D row-major form (Vector4 Row[4]). bgfx wants column-
+// major float[16] for setViewTransform / setTransform. We convert with
+// a transpose copy.
+//
+// We capture all three matrices and apply them per-submit. View and
+// projection are written via setViewTransform on view 1; world is set
+// per-submit via setTransform.
+
+// Snapshot of g_frame.view and g_frame.proj captured at the first opaque
+// draw of each frame. Re-applied to view 1 at End_Scene to prevent
+// later Set_Projection calls (water, shadows, sneak attack) from
+// retroactively stomping the camera projection via setViewTransform.
+
+// Engine geometry submits to its own view so it does not collide with
+// the test triangle on view 0. View 0 keeps the test triangle for the
+// "is bgfx alive" sentinel; view 1 is engine geometry under engine
+// transforms. Both render to the popup back buffer.
+const bgfx::ViewId kBgfxDebugView  = 0;
+const bgfx::ViewId kBgfxEngineView = 1;
+const int kBgfxTextureStages = 4;
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Dedicated
+// view id for sorted draws. View 2's view matrix is permanently
+// identity and its projection tracks view 1's. Per-batch sort
+// transforms get pre-multiplied into g_frame.sortWorld so view 2 never
+// needs setViewTransform updates per batch - which is critical,
+// because bgfx::setViewTransform is per-view-for-the-whole-frame and
+// would otherwise stomp view 1's camera view if shared.
+const bgfx::ViewId kBgfxEngineSortView = 2;
+const bgfx::ViewId kBgfxRTTView = 3;
+const bgfx::ViewId kBgfxWaterView = 4;
+// Effect overlay view for dazzle / lens flare / muzzle flash draws that
+// submit vertices already in clip/NDC space. These require identity
+// view and identity projection to render correctly. Routing them
+// through the sort view (which has the camera perspective projection)
+// re-projects their NDC coords and pushes them off-screen.
+const bgfx::ViewId kBgfxEffectOverlayView = 5;
+// TheSuperHackers @refactor bobtista 15/04/2026 Dedicated views for stencil shadow volumes
+// + darken apply. Sequential order after view 1 guarantees depth is populated first and
+// the INCR/DECR volume passes execute in submit order; no clears — attachments are shared.
+const bgfx::ViewId kBgfxShadowVolumeView = 6;
+const bgfx::ViewId kBgfxShadowApplyView  = 7;
+// Multiplicative shroud overlay must run after all regular 3D scene/detail
+// draws, otherwise later depth-equal building/detail passes can overwrite it.
+const bgfx::ViewId kBgfxShroudOverlayView = 8;
+// TheSuperHackers @feature bobtista 27/04/2026 Scene composite view. World,
+// water, sorted translucency, and effect overlays render into an offscreen
+// scene framebuffer; this view copies scene color to the swapchain before UI.
+const bgfx::ViewId kBgfxSceneCompositeView = 9;
+// TheSuperHackers @feature bobtista 27/04/2026 Native bgfx smudge/heat-haze
+// views. The copy view snapshots scene color, then the draw view writes
+// distorted samples back into the scene framebuffer before final composite.
+const bgfx::ViewId kBgfxSmudgeCopyView      = 12;
+const bgfx::ViewId kBgfxSmudgeView          = 13;
+// TheSuperHackers @feature bobtista 16/04/2026 Dedicated view for
+// 2D UI overlay draws (Render2DClass). Sequential mode preserves draw order;
+// identity view+projection so screen-space quads render at their authored
+// positions. Composites over the 3D scene as the last view in the order.
+const bgfx::ViewId kBgfxUIView           = 10;
+// TheSuperHackers @feature bobtista 27/04/2026 Readable scene-depth view.
+// Opaque world draws are duplicated here into an R32F target so later post
+// and particle passes can sample depth without touching the D24S8 stencil
+// surface used by the main scene framebuffer.
+const bgfx::ViewId kBgfxSceneDepthView   = 11;
+// TheSuperHackers @feature bobtista 15/06/2026 Bloom passes. After the scene is
+// fully rendered, a bright-pass extracts highlights into a half-res target which
+// is blurred (H then V) and added back over the scene in the composite.
+const bgfx::ViewId kBgfxBloomBrightView  = 14;
+const bgfx::ViewId kBgfxBloomBlurHView   = 15;
+const bgfx::ViewId kBgfxBloomBlurVView   = 16;
+// TheSuperHackers @feature bobtista 15/06/2026 SSAO compute + separable blur.
+const bgfx::ViewId kBgfxSsaoView         = 17;
+const bgfx::ViewId kBgfxSsaoBlurHView    = 18;
+const bgfx::ViewId kBgfxSsaoBlurVView    = 19;
+// TheSuperHackers @feature bobtista 15/06/2026 Sun shadow map. Caster geometry is
+// duplicated here from the sun's POV into an R32F depth target (reusing the
+// scene-depth program); the uber shader samples it to shadow the sun's diffuse term.
+// TheSuperHackers @feature bobtista 16/06/2026 Cascaded shadow maps: NUM cascades
+// share one atlas (2x2 tiles), each fit to a progressively larger concentric box
+// around the camera focus. Views kBgfxShadowMapView + c render cascade c's tile.
+const int kNumShadowCascades             = 3;
+// TheSuperHackers @performance bobtista Width of the frame-constant data texture (RGBA32F,
+// 1 row). Holds the global per-frame constants the fs_uber_frameconst variant reads instead
+// of per-draw uniforms. Layout (must match fs_uber.sc GGC_UBER_FRAME_TEXTURE):
+//   0: sceneAmbient  1: shadowParams  2: shadowQuality  3-6: sun shadow matrix
+//   7: pointShadowParams  8: pointShadowLightPos  9: pointShadowLightColor  10-13: point shadow matrix
+//   14: pointShadow2Params  15: pointShadow2LightPos  16: pointShadow2LightColor  17-20: point shadow 2 matrix
+const uint16_t kFrameConstTexels         = 24;
+const int kBgfxFrameConstSamplerStage    = 9;
+const bgfx::ViewId kBgfxShadowMapView    = 20;
+// TheSuperHackers @feature bobtista 23/06/2026 Perspective shadow map for one bright dynamic
+// point light (e.g. the nuke fireball). Renders before the engine view that samples it.
+const bgfx::ViewId kBgfxPointShadowView  = 23;
+// TheSuperHackers @feature bobtista 23/06/2026 Debug blit for GGC_POINT_SHADOW_VIZ: blits the
+// point shadow map R32F texture to a screen-corner quad after the scene composite.
+const bgfx::ViewId kBgfxPointShadowVizView = 24;
+// TheSuperHackers @feature bobtista 14/07/2026 Second perspective point-shadow map so a transient
+// second caster light (particle-cannon lightning flash) shadows alongside the primary.
+const bgfx::ViewId kBgfxPointShadow2View = 25;
+const uint8_t kBgfxSortedArraySamplerStage = 4;
+const uint8_t kBgfxSceneDepthSamplerStage = 6;
+const uint8_t kBgfxShadowMapSamplerStage = 7;
+// TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map sampler (next free stage
+// after the sun shadow map).
+const uint8_t kBgfxPointShadowMapSamplerStage = 8;
+const uint8_t kBgfxPointShadow2MapSamplerStage = 10;
+const float kSoftParticleDepthFadeScale  = 80.0f;
+const int kSwayTableEntries              = 11;
+const float kPostSharpenAmount           = 0.08f;
+const float kPostSaturation              = 1.015f;
+const float kPostContrast                = 1.01f;
+const float kPostFxaaAmount              = 0.35f;
+const float kBloomDefaultThreshold       = 0.75f;
+const float kBloomForcedIntensity        = 0.8f;
+const float kVignetteForcedStrength      = 0.4f;
+const float kChromaForcedAmount          = 0.5f;
+const float kFilmGrainForcedStrength     = 0.08f;
+const float kSsaoDefaultRadius           = 1.0f;
+const float kSsaoDefaultIntensity        = 1.0f;
+const float kSsaoDefaultBias             = 0.025f;
+
+static bool BgfxProbeFlag(const char *name)
+{
+    static const bool s_nullSubmit = GgcFlags::Enabled(GgcFlag_ProbeNullSubmit);
+    static const bool s_freezeState = GgcFlags::Enabled(GgcFlag_ProbeFreezeState);
+    static const bool s_noSorted = GgcFlags::Enabled(GgcFlag_ProbeNoSorted);
+    static const bool s_noTexBind = GgcFlags::Enabled(GgcFlag_ProbeNoTexBind);
+    static const bool s_noMaterialUniform = GgcFlags::Enabled(GgcFlag_ProbeNoMatUniform);
+    static const bool s_noLightUniform = GgcFlags::Enabled(GgcFlag_ProbeNoLightUniform);
+
+    if (std::strcmp(name, "GGC_PROBE_NULL_SUBMIT") == 0)
+    {
+        return s_nullSubmit;
+    }
+    if (std::strcmp(name, "GGC_PROBE_FREEZE_STATE") == 0)
+    {
+        return s_freezeState;
+    }
+    if (std::strcmp(name, "GGC_PROBE_NO_SORTED") == 0)
+    {
+        return s_noSorted;
+    }
+    if (std::strcmp(name, "GGC_PROBE_NO_TEXBIND") == 0)
+    {
+        return s_noTexBind;
+    }
+    if (std::strcmp(name, "GGC_PROBE_NO_MATUNIFORM") == 0)
+    {
+        return s_noMaterialUniform;
+    }
+    if (std::strcmp(name, "GGC_PROBE_NO_LIGHTUNIFORM") == 0)
+    {
+        return s_noLightUniform;
+    }
+    return false;
+}
+
+// Render-to-texture state. Set by Set_Render_Target_With_Z, cleared
+// when the back buffer is restored. SubmitEngineDraw routes to
+// kBgfxRTTView while this is true.
+
+// True between Begin_Sorted_Batch_Pass and End_Sorted_Batch_Pass;
+// SubmitEngineDraw routes to kBgfxEngineSortView and uses
+// g_frame.sortWorld while this is set.
+
+// Per-batch effective world for sorted draws: the pre-multiplied
+// sortView * sortWorld (in bgfx column-major form) captured from the
+// engine's sorted replay state.
+// TheSuperHackers @refactor bobtista 11/04/2026 Set by
+// Submit_Sorted_Draw after it emits the bgfx submit for a sorting VB
+// direct draw. The outer BgfxBackend::Draw_Triangles consumes this
+// flag to skip its SubmitEngineDraw - the draw was already issued
+// with correctly remapped args against the inner dynamic buffers,
+// so falling through would emit a second, incorrect submit.
+
+// Water override — set by Override_Material_Opacity, consumed by
+// SubmitEngineDraw to route to the water view and apply DESTALPHA blend.
+
+// Snapshot of g_frame.proj at the time the sort flush runs. The engine
+// calls Set_Projection_Transform_With_Z_Bias multiple times per frame
+// (camera, water reflections, shadows). The LAST call may use a tiny
+// near-field frustum that clips all sort geometry. We capture the
+// projection at sort-flush time (when it's still the camera projection)
+// and re-apply it to view 2 at End_Scene time.
+
+void IdentityMatrix(float * out)
+{
+    out[0]  = 1.0f; out[1]  = 0.0f; out[2]  = 0.0f; out[3]  = 0.0f;
+    out[4]  = 0.0f; out[5]  = 1.0f; out[6]  = 0.0f; out[7]  = 0.0f;
+    out[8]  = 0.0f; out[9]  = 0.0f; out[10] = 1.0f; out[11] = 0.0f;
+    out[12] = 0.0f; out[13] = 0.0f; out[14] = 0.0f; out[15] = 1.0f;
+}
+
+static bool GetBackendWindowSize(void *window, int &width, int &height)
+{
+    width = 0;
+    height = 0;
+#if defined(SAGE_USE_SDL3)
+    if (window != nullptr)
+    {
+        SDL_Window *sdlWindow = static_cast<SDL_Window *>(window);
+        SDL_GetWindowSize(sdlWindow, &width, &height);
+        if (width <= 0 || height <= 0)
+        {
+            SDL_GetWindowSizeInPixels(sdlWindow, &width, &height);
+        }
+    }
+#else
+    RECT clientRect;
+    if (GetClientRect(static_cast<HWND>(window), &clientRect))
+    {
+        width = clientRect.right - clientRect.left;
+        height = clientRect.bottom - clientRect.top;
+    }
+#endif
+    return width > 0 && height > 0;
+}
+
+static bool NearlyEqual(float a, float b)
+{
+    const float epsilon = 0.00001f;
+    return a > b - epsilon && a < b + epsilon;
+}
+
+// TheSuperHackers @feature bobtista 08/06/2026 Swapchain dimensions for the letterbox present. The
+// swapchain always matches the window; g_device.width/height are the (possibly smaller) content
+// size. Fall back to the content size before the first resize has populated the swap fields.
+static inline int LbSwapWidth()  { return g_device.swapWidth  > 0 ? g_device.swapWidth  : g_device.width; }
+static inline int LbSwapHeight() { return g_device.swapHeight > 0 ? g_device.swapHeight : g_device.height; }
+
+// Compute the content rect (render size + centered offset) for a window of swapW x swapH given the
+// current letterbox request. With no request the content fills the window (offset 0). With one, the
+// content is the largest box of the requested aspect that fits, centered, leaving the remainder for
+// black bars. active is false when the content ends up filling the window (e.g. an exact-aspect
+// window), so the direct-present fast path is kept.
+static void ComputeLetterboxLayout(int swapW, int swapH,
+                                   int &contentW, int &contentH,
+                                   int &offsetX, int &offsetY, bool &active)
+{
+    contentW = swapW;
+    contentH = swapH;
+    offsetX = 0;
+    offsetY = 0;
+    active = false;
+    if (!g_device.letterboxRequested || swapW <= 0 || swapH <= 0
+        || g_device.letterboxAspectW <= 0.0f || g_device.letterboxAspectH <= 0.0f)
+    {
+        return;
+    }
+    const float targetAspect = g_device.letterboxAspectW / g_device.letterboxAspectH;
+    const float windowAspect = static_cast<float>(swapW) / static_cast<float>(swapH);
+    if (windowAspect > targetAspect)
+    {
+        // Window wider than the target: pillarbox (bars left/right).
+        contentH = swapH;
+        contentW = static_cast<int>(static_cast<float>(swapH) * targetAspect + 0.5f);
+    }
+    else
+    {
+        // Window taller than the target: letterbox (bars top/bottom).
+        contentW = swapW;
+        contentH = static_cast<int>(static_cast<float>(swapW) / targetAspect + 0.5f);
+    }
+    if (contentW < 1) { contentW = 1; }
+    if (contentH < 1) { contentH = 1; }
+    if (contentW > swapW) { contentW = swapW; }
+    if (contentH > swapH) { contentH = swapH; }
+    offsetX = (swapW - contentW) / 2;
+    offsetY = (swapH - contentH) / 2;
+    active = (contentW != swapW) || (contentH != swapH);
+}
+
+// TheSuperHackers @info bobtista 06/06/2026 Intentionally ignores the translation row (m[12..14]):
+// only the rotation/scale 3x3 and the homogeneous m[15] are checked, so a pure-translation view
+// still counts as identity. That is what the 2D-overlay inference at the call site wants - it is
+// not an oversight.
+static bool IsIdentityViewMatrix(const float *m)
+{
+    return NearlyEqual(m[0], 1.0f) && NearlyEqual(m[5], 1.0f)
+        && NearlyEqual(m[10], 1.0f) && NearlyEqual(m[15], 1.0f)
+        && NearlyEqual(m[1], 0.0f) && NearlyEqual(m[2], 0.0f)
+        && NearlyEqual(m[3], 0.0f) && NearlyEqual(m[4], 0.0f)
+        && NearlyEqual(m[6], 0.0f) && NearlyEqual(m[7], 0.0f)
+        && NearlyEqual(m[8], 0.0f) && NearlyEqual(m[9], 0.0f)
+        && NearlyEqual(m[11], 0.0f);
+}
+
+static bool IsNonPerspectiveProjection(const float *m)
+{
+    // W3DMatrix4ToBgfx transpose-copies into bgfx's column-major layout.
+    // Perspective camera projections carry m[3][3] == 0, which lands in
+    // slot 15. Screen/orthographic projections keep slot 15 at 1.
+    return NearlyEqual(m[15], 1.0f);
+}
+
+// W3D Matrix4x4 stores Vector4 Row[4] in row-major order. bgfx wants
+// column-major float[16]. Transpose-copy.
+void W3DMatrix4ToBgfx(const Matrix4x4 & m, float * out)
+{
+    out[0]  = m[0][0]; out[4]  = m[0][1]; out[8]  = m[0][2]; out[12] = m[0][3];
+    out[1]  = m[1][0]; out[5]  = m[1][1]; out[9]  = m[1][2]; out[13] = m[1][3];
+    out[2]  = m[2][0]; out[6]  = m[2][1]; out[10] = m[2][2]; out[14] = m[2][3];
+    out[3]  = m[3][0]; out[7]  = m[3][1]; out[11] = m[3][2]; out[15] = m[3][3];
+}
+
+// W3D Matrix3D stores Vector4 Row[3] - the bottom row is implicitly
+// (0,0,0,1). Same transpose convention as Matrix4x4 but the missing
+// row needs to be filled in.
+void W3DMatrix3DToBgfx(const Matrix3D & m, float * out)
+{
+    out[0]  = m[0][0]; out[4]  = m[0][1]; out[8]  = m[0][2]; out[12] = m[0][3];
+    out[1]  = m[1][0]; out[5]  = m[1][1]; out[9]  = m[1][2]; out[13] = m[1][3];
+    out[2]  = m[2][0]; out[6]  = m[2][1]; out[10] = m[2][2]; out[14] = m[2][3];
+    out[3]  = 0.0f;    out[7]  = 0.0f;    out[11] = 0.0f;    out[15] = 1.0f;
+}
+
+auto MakeLegacyCacheMatrix(const Matrix4x4 & m)
+{
+    return To_D3DMATRIX(m);
+}
+
+auto MakeLegacyCacheMatrix(const Matrix3D & m)
+{
+    return To_D3DMATRIX(m);
+}
+
+auto MakeIdentityLegacyCacheMatrix()
+{
+    Matrix4x4 identity(true);
+    return MakeLegacyCacheMatrix(identity);
+}
+
+void CacheTransform(TransformKind transform, const Matrix4x4 & m)
+{
+    FixedFunctionState::Set_Transform_Matrix(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
+}
+
+void CacheTransform(TransformKind transform, const Matrix3D & m)
+{
+    FixedFunctionState::Set_Transform_Matrix(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
+}
+
+void CacheIdentityTransform(TransformKind transform)
+{
+    Matrix4x4 identity(true);
+    CacheTransform(transform, identity);
+}
+
+bool IsCachedTransformIdentity(TransformKind transform)
+{
+    auto matrix = MakeIdentityLegacyCacheMatrix();
+    FixedFunctionState::Transform_Matrix(static_cast<unsigned>(transform), matrix);
+    for (int row = 0; row < 4; ++row)
+    {
+        for (int col = 0; col < 4; ++col)
+        {
+            const float expected = (row == col) ? 1.0f : 0.0f;
+            if (matrix.m[row][col] != expected)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static void GetPostParams(float * params)
+{
+    params[0] = kPostSharpenAmount;
+    params[1] = kPostSaturation;
+    params[2] = kPostContrast;
+    params[3] = kPostFxaaAmount;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxPostProcessParams(params);
+    params[0] = WWMath::Clamp(params[0], 0.0f, 1.0f);
+    params[1] = WWMath::Clamp(params[1], 0.0f, 2.0f);
+    params[2] = WWMath::Clamp(params[2], 0.0f, 2.0f);
+    params[3] = WWMath::Clamp(params[3], 0.0f, 1.0f);
+#endif
+    if (GetBgfxDiagnosticFlags().noPostFx)
+    {
+        params[0] = 0.0f;
+        params[1] = 1.0f;
+        params[2] = 1.0f;
+        params[3] = 0.0f;
+    }
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Drive the composite split-screen
+// wipe from engine state so any post effect can be compared before/after.
+static void GetWipeParams(float * params)
+{
+    params[0] = 0.5f;
+    params[1] = 0.0f;
+    params[2] = 0.0f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxWipeParams(params);
+#endif
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Pull color-grade params, with an
+// env override (GGC_BGFX_COLORGRADE) for dev iteration without editing INI.
+static void GetColorGradeParams(float * params)
+{
+    params[0] = 0.0f;
+    params[1] = 1.0f;
+    params[2] = 0.0f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxColorGradeParams(params);
+#endif
+    static int forced = -1;
+    if (forced < 0)
+    {
+        forced = (GgcFlags::Enabled(GgcFlag_BgfxColorGrade)) ? 1 : 0;
+    }
+    if (forced == 1)
+    {
+        params[0] = 1.0f;
+    }
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Pull bloom params, with an env
+// override (GGC_BGFX_BLOOM). params: x = enabled, y = threshold, z = intensity.
+static void GetBloomParams(float * params)
+{
+    params[0] = 0.0f;
+    params[1] = kBloomDefaultThreshold;
+    params[2] = 0.0f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxBloomParams(params);
+#endif
+    static int forced = -1;
+    if (forced < 0)
+    {
+        forced = (GgcFlags::Enabled(GgcFlag_BgfxBloom)) ? 1 : 0;
+    }
+    if (forced == 1)
+    {
+        params[0] = 1.0f;
+        if (params[2] <= 0.0f)
+        {
+            params[2] = kBloomForcedIntensity;
+        }
+    }
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Cheap fullscreen post effects with
+// per-effect env overrides for dev iteration. params: x = vignette strength,
+// y = chromatic aberration amount, z = film grain strength.
+static void GetPostFx2Params(float * params)
+{
+    params[0] = 0.0f;
+    params[1] = 0.0f;
+    params[2] = 0.0f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxPostFx2Params(params);
+#endif
+    static int forcedVig = -1;
+    static int forcedCa = -1;
+    static int forcedGrain = -1;
+    if (forcedVig < 0)
+    {
+        forcedVig = (GgcFlags::Enabled(GgcFlag_BgfxVignette)) ? 1 : 0;
+    }
+    if (forcedCa < 0)
+    {
+        forcedCa = (GgcFlags::Enabled(GgcFlag_BgfxChroma)) ? 1 : 0;
+    }
+    if (forcedGrain < 0)
+    {
+        forcedGrain = (GgcFlags::Enabled(GgcFlag_BgfxGrain)) ? 1 : 0;
+    }
+    if (forcedVig == 1 && params[0] <= 0.0f)
+    {
+        params[0] = kVignetteForcedStrength;
+    }
+    if (forcedCa == 1 && params[1] <= 0.0f)
+    {
+        params[1] = kChromaForcedAmount;
+    }
+    if (forcedGrain == 1 && params[2] <= 0.0f)
+    {
+        params[2] = kFilmGrainForcedStrength;
+    }
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 SSAO params: x = radius, y = intensity,
+// z = bias. Env GGC_BGFX_SSAO forces it on for dev iteration.
+static void GetSSAOParams(float * params)
+{
+    params[0] = kSsaoDefaultRadius;
+    params[1] = kSsaoDefaultIntensity;
+    params[2] = kSsaoDefaultBias;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    float bridge[4];
+    GGC_GetBgfxSSAOParams(bridge);
+    params[0] = bridge[1]; // radius
+    params[1] = bridge[2]; // intensity
+#endif
+}
+
+static void GetSoftParticleParams(float * params)
+{
+    params[0] = 1.0f;
+    params[1] = kSoftParticleDepthFadeScale;
+    params[2] = 0.0f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxSoftParticleParams(params);
+    params[0] = params[0] > 0.5f ? 1.0f : 0.0f;
+    params[1] = WWMath::Clamp(params[1], 0.0f, 500.0f);
+#endif
+}
+
+static bool IsBgfxSSAOEnabled();
+
+// TheSuperHackers @feature bobtista 15/06/2026 MSAA sample count for the offscreen
+// scene framebuffer (0/2/4/8). Env GGC_BGFX_MSAA overrides the INI BgfxMSAA.
+static int GetSceneMsaaSamples()
+{
+    int samples = 0;
+    const char * env = GgcFlags::StringValue(GgcFlag_BgfxMsaa);
+    if (env != nullptr)
+    {
+        samples = std::atoi(env);
+    }
+#ifdef RTS_ZEROHOUR
+    if (samples <= 0)
+    {
+        samples = GGC_GetBgfxMsaaSamples();
+    }
+#endif
+    if (samples >= 8) { return 8; }
+    if (samples >= 4) { return 4; }
+    if (samples >= 2) { return 2; }
+    return 0;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Internal render-scale (supersampling)
+// for the 3D scene framebuffer. Env GGC_BGFX_RENDER_SCALE overrides the INI value.
+// Clamped to [1.0, 2.0].
+static float GetSceneRenderScale()
+{
+    float scale = 1.0f;
+    const char * env = GgcFlags::StringValue(GgcFlag_BgfxRenderScale);
+    if (env != nullptr)
+    {
+        scale = static_cast<float>(std::atof(env));
+    }
+#ifdef RTS_ZEROHOUR
+    else
+    {
+        scale = GGC_GetBgfxRenderScale();
+    }
+#endif
+    if (scale < 1.0f) { scale = 1.0f; }
+    if (scale > 2.0f) { scale = 2.0f; }
+    return scale;
+}
+
+static bool IsReadableSceneDepthEnabled()
+{
+    if (GetBgfxDiagnosticFlags().noSceneFramebuffer)
+    {
+        return false;
+    }
+
+    float softParticleParams[4];
+    GetSoftParticleParams(softParticleParams);
+    return softParticleParams[0] > 0.5f || IsBgfxSSAOEnabled();
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Opt-in HDR scene color (RGBA16F +
+// ACES tonemap). Read at framebuffer creation, so it applies on startup/resize.
+static bool IsBgfxHdrEnabled()
+{
+    if (GgcFlags::Enabled(GgcFlag_BgfxHdr))
+    {
+        return true;
+    }
+#ifdef RTS_ZEROHOUR
+    if (GGC_GetBgfxHdrEnabled() != 0)
+    {
+        return true;
+    }
+#endif
+    return false;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 SSAO needs the readable scene depth,
+// so this also forces that target on (see IsReadableSceneDepthEnabled).
+static bool IsBgfxSSAOEnabled()
+{
+    if (GgcFlags::Enabled(GgcFlag_BgfxSsao))
+    {
+        return true;
+    }
+#ifdef RTS_ZEROHOUR
+    float params[4];
+    GGC_GetBgfxSSAOParams(params);
+    if (params[0] > 0.5f)
+    {
+        return true;
+    }
+#endif
+    return false;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Sun shadow map toggle. Renders a
+// light-POV depth pass and shadows the sun's diffuse term in the uber shader.
+static bool IsBgfxShadowMapEnabled()
+{
+    if (const char * sm = GgcFlags::StringValue(GgcFlag_BgfxShadowMap))
+    {
+        return sm[0] != '0'; // GGC_BGFX_SHADOWMAP=0 forces OFF (diagnostic A/B)
+    }
+#ifdef RTS_ZEROHOUR
+    if (GGC_GetBgfxShadowMapEnabled() != 0)
+    {
+        return true;
+    }
+#endif
+    return false;
+}
+
+// TheSuperHackers @tweak bobtista 18/06/2026 The [ggc] render diagnostics below are
+// development aids; keep them silent by default and surface them only when the operator
+// opts in via GGC_TRACE (the same switch that unmutes bgfx's own informational trace).
+static bool BgfxDiagVerbose()
+{
+    static const bool s_verbose = (GgcFlags::Enabled(GgcFlag_Trace));
+    return s_verbose;
+}
+
+// Diagnostic: number of caster draws submitted into the shadow map since the last frame.
+static int s_shadowCasterSubmitCount = 0;
+
+// TheSuperHackers @feature bobtista 17/06/2026 Sun-shadow caster cull region, published each frame
+// by SetupSunShadowView and read by the engine caster cull (RTS3DScene::Visibility_Check and
+// MeshClass::Render) via GGC_GetBgfxSunShadowCullBox / GGC_GetBgfxSunShadowDir. The sphere is
+// centered on the ground the camera looks at and sized to cover the cascade coverage; meshes whose
+// bounds intersect it are rendered even when off the camera frustum, so a caster that has scrolled
+// off-screen still casts into the visible ground (the camera frustum alone would drop it).
+static int   s_sunShadowCullActive = 0;
+static float s_sunShadowCullCenter[3] = { 0.0f, 0.0f, 0.0f };
+static float s_sunShadowCullRadius = 0.0f;
+// Clamped toward-sun direction (z > 0); the engine projects a caster's bounds down-sun with this
+// to test whether its shadow actually reaches the camera view (a tight keep that avoids submitting
+// every nearby object as a caster).
+static float s_sunShadowCullDir[3] = { 0.0f, 0.0f, 0.0f };
+
+// TheSuperHackers @bugfix bobtista 18/06/2026 Stable scene sun direction (toward the light), locked
+// in the first time a draw presents a clearly sun-like primary light (pointing well above the
+// horizon). The sun shadow CSM builds its cascades from this rather than the live per-draw slot-0
+// light: a bright dynamic light (e.g. the Particle Cannon charge/beam) can hijack slot 0, and the
+// first opaque draw's light is not always the sun either. The sun is map-constant, so locking the
+// first sun-like value keeps cast shadows steady. See MaybeCaptureSceneSun.
+static float s_sceneSunDir[3] = { 0.0f, 0.0f, 0.0f };
+static int s_sceneSunValid = 0;
+static void MaybeCaptureSceneSun()
+{
+    if (s_sceneSunValid != 0)
+    {
+        return;
+    }
+    const float x = g_draw.lightDirs[0][0];
+    const float y = g_draw.lightDirs[0][1];
+    const float z = g_draw.lightDirs[0][2];
+    const float len = sqrtf(x * x + y * y + z * z);
+    if (len < 1e-3f)
+    {
+        return;
+    }
+    // Only lock a clearly sun-like light: toward-the-light well above the horizon. Ground-level
+    // dynamic lights (the Particle Cannon charge) point near-horizontal/down and are skipped.
+    if ((z / len) < 0.2f)
+    {
+        return;
+    }
+    s_sceneSunDir[0] = x / len;
+    s_sceneSunDir[1] = y / len;
+    s_sceneSunDir[2] = z / len;
+    s_sceneSunValid = 1;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Build the sun's light view-projection
+// for this frame and arm the shadow-map view. The ortho box is centered on the ground
+// point the camera looks at and sized to a fixed world radius, so it follows scrolling.
+static void SetupSunShadowView()
+{
+    // Throttled diagnostic: confirm the caster pass actually fills the map every frame.
+    static int s_setupCalls = 0;
+    if (BgfxDiagVerbose() && (s_setupCalls++ % 120) == 0)
+    {
+        std::fprintf(stderr, "[ggc] sun shadow setup call %d: casters submitted last frame=%d, enabled=%d, fbValid=%d\n",
+                     s_setupCalls, s_shadowCasterSubmitCount,
+                     IsBgfxShadowMapEnabled() ? 1 : 0, bgfx::isValid(g_device.shadowMapFB) ? 1 : 0);
+    }
+    s_shadowCasterSubmitCount = 0;
+    g_frame.shadowActive = false;
+    // TheSuperHackers @bugfix bobtista 18/06/2026 Do NOT clear s_sunShadowCullActive up front.
+    // The scene is visibility-checked more than once per frame (shadow caster pass + main color
+    // pass), and the off-screen-caster keep in RTS3DScene::Visibility_Check reads this flag. A
+    // transient mid-frame clear made some passes see "no cull region" and drop a tall off-screen
+    // caster (e.g. the Strategy Center antenna at full zoom), so its shadow flickered out. The
+    // cull region is published atomically at the end of this function on success, and set inactive
+    // only on the genuine shadows-disabled early returns below; between frames it holds the last
+    // armed region (the camera barely moves frame-to-frame, so it stays valid).
+    if (!IsBgfxShadowMapEnabled() || !bgfx::isValid(g_device.shadowMapFB))
+    {
+        s_sunShadowCullActive = 0;
+        // Diagnostic: the toggle is on but the target is gone => the scene loses all shadows.
+        // Logged once per transition so a recreation that drops the target is visible.
+        static bool s_loggedNoFB = false;
+        if (IsBgfxShadowMapEnabled() && !bgfx::isValid(g_device.shadowMapFB))
+        {
+            if (!s_loggedNoFB)
+            {
+                std::fprintf(stderr, "[ggc] sun shadow ENABLED but target missing - no shadows this frame.\n");
+                s_loggedNoFB = true;
+            }
+        }
+        else
+        {
+            s_loggedNoFB = false;
+        }
+        // Neutralize the views so a stale framebuffer handle is never processed
+        // after the shadow map is toggled off and its target destroyed.
+        for (int c = 0; c < kNumShadowCascades; ++c)
+        {
+            bgfx::setViewFrameBuffer(kBgfxShadowMapView + c, BGFX_INVALID_HANDLE);
+            bgfx::setViewClear(kBgfxShadowMapView + c, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+        }
+        return;
+    }
+    // Sun direction (xyz = toward the light). Use the stable scene sun locked by MaybeCaptureSceneSun
+    // (the first sun-like draw of the level); only fall back to the current draw's slot-0 light if it
+    // has not been captured yet. The per-draw light is unreliable here: a bright dynamic light - e.g.
+    // the Particle Cannon charge/beam - can occupy slot 0 and swing/stretch the cascades, and even
+    // normally the first opaque draw's light is not guaranteed to be the sun.
+    float sx = (s_sceneSunValid != 0) ? s_sceneSunDir[0] : g_draw.lightDirs[0][0];
+    float sy = (s_sceneSunValid != 0) ? s_sceneSunDir[1] : g_draw.lightDirs[0][1];
+    float sz = (s_sceneSunValid != 0) ? s_sceneSunDir[2] : g_draw.lightDirs[0][2];
+    float slen = sqrtf(sx * sx + sy * sy + sz * sz);
+    if (slen < 1e-4f)
+    {
+        s_sunShadowCullActive = 0;
+        return;
+    }
+    sx /= slen; sy /= slen; sz /= slen;
+
+    // TheSuperHackers @tweak bobtista 16/06/2026 Clamp the sun ELEVATION used for shadow
+    // casting (not lighting). Maps like this one have a high afternoon sun (z~0.75, ~49deg),
+    // which makes ground objects throw a stubby shadow that hides under them and reads as
+    // "no shadows". Capping the elevation lengthens those shadows into clearly visible cast
+    // shadows while keeping the horizontal sun direction, so they still fall the right way.
+    const float kMaxShadowSunZ = 0.45f;
+    if (sz > kMaxShadowSunZ)
+    {
+        const float xyLen = sqrtf(sx * sx + sy * sy);
+        if (xyLen > 1e-4f)
+        {
+            const float targetXY = sqrtf(fmaxf(0.0f, 1.0f - kMaxShadowSunZ * kMaxShadowSunZ));
+            const float scale = targetXY / xyLen;
+            sx *= scale; sy *= scale; sz = kMaxShadowSunZ;
+        }
+    }
+
+    // Camera eye + forward recovered from the rigid camera view matrix.
+    const float * v = g_frame.cameraView;
+    float eye[3];
+    eye[0] = -(v[0] * v[12] + v[1] * v[13] + v[2] * v[14]);
+    eye[1] = -(v[4] * v[12] + v[5] * v[13] + v[6] * v[14]);
+    eye[2] = -(v[8] * v[12] + v[9] * v[13] + v[10] * v[14]);
+    float fwd[3] = { -v[2], -v[6], -v[10] };
+    float flen = sqrtf(fwd[0] * fwd[0] + fwd[1] * fwd[1] + fwd[2] * fwd[2]);
+    if (flen > 1e-5f)
+    {
+        fwd[0] /= flen; fwd[1] /= flen; fwd[2] /= flen;
+    }
+
+    // Ground (z=0) intersection of the camera's central ray = view center.
+    float center[3] = { eye[0], eye[1], 0.0f };
+    if (fabsf(fwd[2]) > 1e-4f)
+    {
+        float t = -eye[2] / fwd[2];
+        if (t > 0.0f && t < 100000.0f)
+        {
+            center[0] = eye[0] + fwd[0] * t;
+            center[1] = eye[1] + fwd[1] * t;
+            center[2] = eye[2] + fwd[2] * t;
+        }
+    }
+
+    const float D = 2000.0f; // light distance along the sun direction
+    const bgfx::Caps * caps = bgfx::getCaps();
+    const float shadowSize = static_cast<float>(g_device.shadowMapSize);
+
+    // TheSuperHackers @refactor bobtista 18/06/2026 Single camera-fit sun shadow map (replaces the
+    // 3 concentric cascades). The ortho is fit to the camera's visible ground footprint, so it is
+    // sharp when zoomed in (small footprint -> small texels) and only softens when zoomed far out.
+    // Key property: a caster and its ground shadow share the same light-space position, so fitting
+    // the ortho to the ground footprint automatically covers every caster whose shadow lands in
+    // view - no cascade, no tight/coarse caster-receiver mismatch, no per-zoom fall-through.
+
+    // Light right/up basis from a provisional look toward the view centre. Translating the eye does
+    // not change this rotation, so it is a stable axis frame for fitting and texel-snapping.
+    const bx::Vec3 up = (fabsf(sz) > 0.95f) ? bx::Vec3(0.0f, 1.0f, 0.0f) : bx::Vec3(0.0f, 0.0f, 1.0f);
+    float lightBasis[16];
+    bx::mtxLookAt(lightBasis, bx::Vec3(center[0] + sx * D, center[1] + sy * D, center[2] + sz * D),
+                  bx::Vec3(center[0], center[1], center[2]), up);
+    const float lrx = lightBasis[0], lry = lightBasis[4], lrz = lightBasis[8];
+    const float lux = lightBasis[1], luy = lightBasis[5], luz = lightBasis[9];
+
+    // Camera world-space basis (columns of the view rotation) + half-FOV tangents from the proj
+    // diagonal, used to shoot the four frustum-corner rays and intersect them with the ground.
+    const float * pj = g_frame.cameraProj;
+    const float tanX = (fabsf(pj[0]) > 1e-6f) ? (1.0f / pj[0]) : 1.0f;
+    const float tanY = (fabsf(pj[5]) > 1e-6f) ? (1.0f / pj[5]) : 1.0f;
+    const float rightW[3] = { v[0], v[4], v[8] };
+    const float upW[3]    = { v[1], v[5], v[9] };
+    float cR0 = center[0] * lrx + center[1] * lry + center[2] * lrz;
+    float cU0 = center[0] * lux + center[1] * luy + center[2] * luz;
+    float maxExtent = 0.0f;
+    for (int sR = -1; sR <= 1; sR += 2)
+    {
+        for (int sU = -1; sU <= 1; sU += 2)
+        {
+            float dir[3] = {
+                fwd[0] + float(sR) * tanX * rightW[0] + float(sU) * tanY * upW[0],
+                fwd[1] + float(sR) * tanX * rightW[1] + float(sU) * tanY * upW[1],
+                fwd[2] + float(sR) * tanX * rightW[2] + float(sU) * tanY * upW[2] };
+            float gx = center[0];
+            float gy = center[1];
+            if (dir[2] < -1e-3f) // ray heading down toward the ground
+            {
+                float t = -eye[2] / dir[2];
+                if (t > 0.0f)
+                {
+                    gx = eye[0] + dir[0] * t;
+                    gy = eye[1] + dir[1] * t;
+                }
+            }
+            const float gR = gx * lrx + gy * lry;
+            const float gU = gx * lux + gy * luy;
+            maxExtent = fmaxf(maxExtent, fmaxf(fabsf(gR - cR0), fabsf(gU - cU0)));
+        }
+    }
+    // TheSuperHackers @bugfix bobtista 18/07/2026 Keep an active shadow-casting dynamic light (the
+    // enhanced Particle Cannon beam) inside the ortho + caster cull. The fit above is camera-centered,
+    // so as the beam sweeps toward the footprint edge its dramatic tree shadows clipped at the box.
+    // Grow the extent to reach the beam plus a margin for its lit foliage; feeds H and the cull radius
+    // below, so both track the beam. Beam pos is last frame's (SetupPointShadowView runs after) - fine
+    // at this scale. Only active while a beam casts, so normal scenes keep their tight camera fit.
+    if (g_draw.pointShadowLightValid && g_draw.pointShadowParams[0] >= 0.5f)
+    {
+        const float bR = g_draw.pointShadowLightPos[0] * lrx + g_draw.pointShadowLightPos[1] * lry;
+        const float bU = g_draw.pointShadowLightPos[0] * lux + g_draw.pointShadowLightPos[1] * luy;
+        const float kBeamShadowMargin = 300.0f;
+        maxExtent = fmaxf(maxExtent, fabsf(bR - cR0) + kBeamShadowMargin);
+        maxExtent = fmaxf(maxExtent, fabsf(bU - cU0) + kBeamShadowMargin);
+    }
+    // TheSuperHackers @bugfix bobtista 18/06/2026 Size the ortho to the visible ground
+    // footprint plus a small margin; an oversized ortho collapses on-screen shadow resolution
+    // until thin shadows wash out and vanish.
+    const float kOrthoMarginScale = 1.2f;
+    const float kOrthoMarginPad   = 128.0f;
+    const float kOrthoMinH        = 256.0f;
+    const float kOrthoMaxH        = 2400.0f;
+    float H = maxExtent * kOrthoMarginScale + kOrthoMarginPad;
+    H = WWMath::Clamp(H, kOrthoMinH, kOrthoMaxH);
+    // Quantize H to discrete steps so it holds steady through a smooth zoom. With H constant, the
+    // texel-snapped centre lands on a fixed world grid every frame, so the shadow edge stays put
+    // instead of crawling/jittering as the continuously-changing H reshuffled the texel grid.
+    const float kHQuantum = 64.0f;
+    H = ceilf(H / kHQuantum) * kHQuantum;
+
+    // Texel-snap the centre along the light right/up axes so panning does not crawl the shadow edge.
+    const float unitsPerTexel = (2.0f * H) / shadowSize;
+    const float dR = floorf(cR0 / unitsPerTexel + 0.5f) * unitsPerTexel - cR0;
+    const float dU = floorf(cU0 / unitsPerTexel + 0.5f) * unitsPerTexel - cU0;
+    const bx::Vec3 snapCenter(center[0] + dR * lrx + dU * lux,
+                              center[1] + dR * lry + dU * luy,
+                              center[2] + dR * lrz + dU * luz);
+    const bx::Vec3 snapLightPos(snapCenter.x + sx * D, snapCenter.y + sy * D, snapCenter.z + sz * D);
+
+    float lightView[16];
+    bx::mtxLookAt(lightView, snapLightPos, snapCenter, up);
+    float lightProj[16];
+    bx::mtxOrtho(lightProj, -H, H, -H, H, 1.0f, 2.0f * D + H, 0.0f, caps->homogeneousDepth);
+    bx::mtxMul(&g_frame.shadowMatrices[0], lightView, lightProj);
+
+    // One full-resolution shadow view; neutralize the two legacy cascade tiles.
+    bgfx::setViewFrameBuffer(kBgfxShadowMapView, g_device.shadowMapFB);
+    bgfx::setViewRect(kBgfxShadowMapView, 0, 0,
+                      static_cast<uint16_t>(g_device.shadowMapSize), static_cast<uint16_t>(g_device.shadowMapSize));
+    bgfx::setViewClear(kBgfxShadowMapView, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
+    bgfx::setViewTransform(kBgfxShadowMapView, lightView, lightProj);
+    for (int c = 1; c < kNumShadowCascades; ++c)
+    {
+        bgfx::setViewFrameBuffer(kBgfxShadowMapView + c, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxShadowMapView + c, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    }
+    g_frame.shadowActive = true;
+
+    // Publish the cull region so RTS3DScene::Visibility_Check keeps casters that are off the camera
+    // frustum but whose shadow lands in the footprint. It matches the ortho half-extent (plus a small
+    // bbox allowance) so the engine keeps exactly the casters the ortho will actually render - keeping
+    // more would submit casters that get clipped out of the map (wasted) and keeping fewer would drop
+    // casters the ortho covers.
+    s_sunShadowCullCenter[0] = center[0];
+    s_sunShadowCullCenter[1] = center[1];
+    s_sunShadowCullCenter[2] = center[2];
+    // Decoupled from H: the cull radius is a 3D-distance test, so it must allow for a caster's full
+    // height (Z) and a generous edge slack, not just the ortho's R/U half-extent. Keeping it generous
+    // means a tall off-screen caster is never dropped from the caster pass; if such a caster's shadow
+    // is actually off-screen it simply gets clipped (in R/U) out of the tight ortho, costing nothing
+    // visible. Keeping H tight (above) is what preserves on-screen shadow resolution.
+    s_sunShadowCullRadius = fmaxf(H, maxExtent + 600.0f);
+    s_sunShadowCullDir[0] = sx;
+    s_sunShadowCullDir[1] = sy;
+    s_sunShadowCullDir[2] = sz;
+    s_sunShadowCullActive = 1;
+
+    static bool s_loggedShadow = false;
+    if (BgfxDiagVerbose() && !s_loggedShadow)
+    {
+        std::fprintf(stderr,
+            "[ggc] sun shadow single-map %ux%u armed: H=%.0f sunDir=(%.2f,%.2f,%.2f) center=(%.0f,%.0f,%.0f)\n",
+            g_device.shadowMapSize, g_device.shadowMapSize, H, sx, sy, sz, center[0], center[1], center[2]);
+        s_loggedShadow = true;
+    }
+}
+
+// TheSuperHackers @feature bobtista 23/06/2026 Build the perspective light view-projection for the
+// strongest shadow-casting dynamic light (e.g. nuke fireball) and arm the point-shadow view. The
+// eye is the light's world position; it looks toward the ground point the camera is focused on (the
+// same focus the sun setup fits to), and the perspective near/far are derived from the light's
+// attenuation range. When no caster light is active (or the feature is disabled) this sets
+// pointShadowParams[0] = -1 and skips the view so the pass is a no-op.
+// u_pointShadowParams layout: x=state(-1=none,0=glow only,1=light+shadow), y=bias, z=texel,
+// w=shadow darkening strength (per-light, 0 = glow only). The strength comes from the light itself.
+static void SetupPointShadowView()
+{
+    // Reset every frame so a vanished caster light cannot leave a stale position that
+    // accidentally matches a different point-light slot in Set_Light_Environment.
+    g_draw.pointShadowParams[0] = -1.0f;
+    g_draw.pointShadowLightValid = false;
+
+    int featureEnabled = 0;
+#ifdef RTS_ZEROHOUR
+    featureEnabled = GGC_GetBgfxDynamicLightShadowsEnabled();
+#endif
+    if (featureEnabled == 0 || !bgfx::isValid(g_device.pointShadowFB))
+    {
+        bgfx::setViewFrameBuffer(kBgfxPointShadowView, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxPointShadowView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+        return;
+    }
+
+    float posRange[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float diffuseBias[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float lightStrength = 1.0f;
+    int hasLight = 0;
+    int isTrackingLight = 0;
+#ifdef RTS_ZEROHOUR
+    hasLight = GGC_GetBgfxPointShadowLight(posRange, diffuseBias, &lightStrength, &isTrackingLight);
+#endif
+    g_draw.pointShadowLightTracking = (isTrackingLight != 0);
+    if (hasLight == 0)
+    {
+        bgfx::setViewFrameBuffer(kBgfxPointShadowView, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxPointShadowView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+        return;
+    }
+    // A glow-only light (strength 0) lights and glints surfaces but renders no shadow map.
+    const bool castsShadow = (lightStrength > 0.0f);
+
+    const float lightPos[3] = { posRange[0], posRange[1], posRange[2] };
+    // Dynamic point shadows are local effects (nuke fireball, particle-cannon column). Aim the
+    // single perspective map down the light column instead of toward the camera focus; otherwise a
+    // beam near the edge of the view can light receivers while its caster silhouettes land outside
+    // the point-shadow cone.
+    const float focus[3] = { lightPos[0], lightPos[1], lightPos[2] - 1.0f };
+    float toFocus[3] = { focus[0] - lightPos[0], focus[1] - lightPos[1], focus[2] - lightPos[2] };
+    float dist = sqrtf(toFocus[0] * toFocus[0] + toFocus[1] * toFocus[1] + toFocus[2] * toFocus[2]);
+    if (dist < 1e-3f)
+    {
+        // Light sits on top of its focus; aim straight down so the lookAt is well-defined.
+        toFocus[0] = 0.0f; toFocus[1] = 0.0f; toFocus[2] = -1.0f;
+        dist = 1.0f;
+    }
+
+    // Range drives the far plane; if the light has no explicit attenuation range, fall back to the
+    // light->focus distance so the frustum still covers the lit ground footprint.
+    const float range = (posRange[3] > 1.0f) ? posRange[3] : dist;
+    const float zfar = (range > dist) ? range : dist;
+    const float znear = fmaxf(1.0f, zfar * 0.01f);
+
+    // Wide cone so the beam's local shadow map covers nearby structures/vehicles instead of only the
+    // death-radius footprint directly under the light.
+    const float kPointShadowFovDegrees = 130.0f;
+
+    const bgfx::Caps * caps = bgfx::getCaps();
+    const float pointShadowSize = static_cast<float>(g_device.pointShadowMapSize);
+
+    const bx::Vec3 eyeV(lightPos[0], lightPos[1], lightPos[2]);
+    const bx::Vec3 atV(focus[0], focus[1], focus[2]);
+    // Up vector chosen to avoid degeneracy when the light looks nearly straight down/up.
+    const float dirZ = toFocus[2] / dist;
+    const bx::Vec3 up = (fabsf(dirZ) > 0.95f) ? bx::Vec3(0.0f, 1.0f, 0.0f) : bx::Vec3(0.0f, 0.0f, 1.0f);
+
+    if (castsShadow)
+    {
+        float lightView[16];
+        bx::mtxLookAt(lightView, eyeV, atV, up);
+        float lightProj[16];
+        // bx::mtxProj takes the vertical FOV in DEGREES (it applies toRad internally).
+        bx::mtxProj(lightProj, kPointShadowFovDegrees, 1.0f, znear, zfar, caps->homogeneousDepth);
+        bx::mtxMul(g_draw.pointShadowMatrix, lightView, lightProj);
+
+        bgfx::setViewFrameBuffer(kBgfxPointShadowView, g_device.pointShadowFB);
+        bgfx::setViewRect(kBgfxPointShadowView, 0, 0,
+                          static_cast<uint16_t>(g_device.pointShadowMapSize),
+                          static_cast<uint16_t>(g_device.pointShadowMapSize));
+        bgfx::setViewClear(kBgfxPointShadowView, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
+        bgfx::setViewTransform(kBgfxPointShadowView, lightView, lightProj);
+    }
+    else
+    {
+        // Glow-only light: light/glint surfaces but render no shadow map this frame.
+        bgfx::setViewFrameBuffer(kBgfxPointShadowView, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxPointShadowView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    }
+
+    // The dedicated light is applied in fs_uber (objects + terrain) from these uniforms; dynamic
+    // lights never reach the per-object LightEnvironment. params.x: 1 = light + shadow, 0 = glow
+    // only (no shadow sampling), -1 = no light. y = bias, z = texel, w = shadow darkening strength.
+    g_draw.pointShadowParams[0] = castsShadow ? 1.0f : 0.0f;
+    g_draw.pointShadowParams[1] = diffuseBias[3];
+    g_draw.pointShadowParams[2] = (pointShadowSize > 0.0f) ? (1.0f / pointShadowSize) : 0.0f;
+    g_draw.pointShadowParams[3] = castsShadow ? lightStrength : 0.0f;
+
+    // The dedicated light: world position (xyz) and outer attenuation range, plus diffuse colour.
+    g_draw.pointShadowLightPos[0] = lightPos[0];
+    g_draw.pointShadowLightPos[1] = lightPos[1];
+    g_draw.pointShadowLightPos[2] = lightPos[2];
+    g_draw.pointShadowLightPos[3] = range;
+    g_draw.pointShadowLightColor[0] = diffuseBias[0];
+    g_draw.pointShadowLightColor[1] = diffuseBias[1];
+    g_draw.pointShadowLightColor[2] = diffuseBias[2];
+    g_draw.pointShadowLightColor[3] = 1.0f;
+    g_draw.pointShadowLightValid = true;
+
+    static bool s_loggedPointShadow = false;
+    if (BgfxDiagVerbose() && !s_loggedPointShadow)
+    {
+        std::fprintf(stderr,
+            "[ggc] point shadow map armed: pos=(%.0f,%.0f,%.0f) range=%.0f near=%.1f far=%.1f bias=%.4f\n",
+            lightPos[0], lightPos[1], lightPos[2], range, znear, zfar, diffuseBias[1]);
+        s_loggedPointShadow = true;
+    }
+}
+
+// TheSuperHackers @feature bobtista 14/07/2026 Arm the second point-shadow view for the
+// second-strongest shadow-casting dynamic light (transient lightning-flash pulses near the
+// particle-cannon beam, or a nuke coinciding with a beam). Mirrors SetupPointShadowView with
+// the slot-2 state; a no-op publishing params.x = -1 when no second caster light exists.
+static void SetupPointShadowView2()
+{
+    g_draw.pointShadow2Params[0] = -1.0f;
+
+    int featureEnabled = 0;
+#ifdef RTS_ZEROHOUR
+    featureEnabled = GGC_GetBgfxDynamicLightShadowsEnabled();
+#endif
+    if (featureEnabled == 0 || !bgfx::isValid(g_device.pointShadow2FB))
+    {
+        bgfx::setViewFrameBuffer(kBgfxPointShadow2View, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxPointShadow2View, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+        return;
+    }
+
+    float posRange[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float diffuseBias[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float lightStrength = 0.0f;
+    int hasLight = 0;
+#ifdef RTS_ZEROHOUR
+    hasLight = GGC_GetBgfxPointShadowLight2(posRange, diffuseBias, &lightStrength);
+#endif
+    // The map renders whenever a second caster light exists; lightStrength only controls the
+    // occlusion-darkening term (0 = adds-only flash pulse, >0 = full beam shadows).
+    if (hasLight == 0)
+    {
+        bgfx::setViewFrameBuffer(kBgfxPointShadow2View, BGFX_INVALID_HANDLE);
+        bgfx::setViewClear(kBgfxPointShadow2View, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+        return;
+    }
+
+    const float lightPos[3] = { posRange[0], posRange[1], posRange[2] };
+    const float focus[3] = { lightPos[0], lightPos[1], lightPos[2] - 1.0f };
+    float toFocus[3] = { focus[0] - lightPos[0], focus[1] - lightPos[1], focus[2] - lightPos[2] };
+    float dist = sqrtf(toFocus[0] * toFocus[0] + toFocus[1] * toFocus[1] + toFocus[2] * toFocus[2]);
+    if (dist < 1e-3f)
+    {
+        toFocus[0] = 0.0f; toFocus[1] = 0.0f; toFocus[2] = -1.0f;
+        dist = 1.0f;
+    }
+    const float range = (posRange[3] > 1.0f) ? posRange[3] : dist;
+    const float zfar = (range > dist) ? range : dist;
+    const float znear = fmaxf(1.0f, zfar * 0.01f);
+    const bgfx::Caps * caps = bgfx::getCaps();
+    const bx::Vec3 eyeV(lightPos[0], lightPos[1], lightPos[2]);
+    const bx::Vec3 atV(focus[0], focus[1], focus[2]);
+    const float dirZ = toFocus[2] / dist;
+    const bx::Vec3 up = (fabsf(dirZ) > 0.95f) ? bx::Vec3(0.0f, 1.0f, 0.0f) : bx::Vec3(0.0f, 0.0f, 1.0f);
+    float lightView[16];
+    bx::mtxLookAt(lightView, eyeV, atV, up);
+    float lightProj[16];
+    bx::mtxProj(lightProj, 130.0f, 1.0f, znear, zfar, caps->homogeneousDepth);
+    bx::mtxMul(g_draw.pointShadow2Matrix, lightView, lightProj);
+    bgfx::setViewFrameBuffer(kBgfxPointShadow2View, g_device.pointShadow2FB);
+    bgfx::setViewRect(kBgfxPointShadow2View, 0, 0,
+                      static_cast<uint16_t>(g_device.pointShadowMapSize),
+                      static_cast<uint16_t>(g_device.pointShadowMapSize));
+    bgfx::setViewClear(kBgfxPointShadow2View, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
+    bgfx::setViewTransform(kBgfxPointShadow2View, lightView, lightProj);
+    // Force the clear even when zero casters land in the frustum (matches slot 1's behaviour
+    // now that view 25 is in the per-frame view order).
+    bgfx::touch(kBgfxPointShadow2View);
+
+    g_draw.pointShadow2Params[0] = 1.0f;
+    static int s_slot2Log = 0;
+    if (BgfxDiagVerbose() && (++s_slot2Log % 30) == 0)
+    {
+        std::fprintf(stderr, "[ggc] slot2 armed pos=(%.0f,%.0f,%.0f) range=%.0f strength=%.2f color=(%.2f,%.2f,%.2f)\n",
+            lightPos[0], lightPos[1], lightPos[2], range, lightStrength,
+            diffuseBias[0], diffuseBias[1], diffuseBias[2]);
+    }
+    g_draw.pointShadow2Params[1] = diffuseBias[3];
+    g_draw.pointShadow2Params[2] = (g_device.pointShadowMapSize > 0)
+        ? (1.0f / static_cast<float>(g_device.pointShadowMapSize)) : 0.0f;
+    g_draw.pointShadow2Params[3] = lightStrength;
+    g_draw.pointShadow2LightPos[0] = lightPos[0];
+    g_draw.pointShadow2LightPos[1] = lightPos[1];
+    g_draw.pointShadow2LightPos[2] = lightPos[2];
+    g_draw.pointShadow2LightPos[3] = range;
+    g_draw.pointShadow2LightColor[0] = diffuseBias[0];
+    g_draw.pointShadow2LightColor[1] = diffuseBias[1];
+    g_draw.pointShadow2LightColor[2] = diffuseBias[2];
+    g_draw.pointShadow2LightColor[3] = 1.0f;
+}
+
+// TheSuperHackers @feature bobtista 14/07/2026 GGC_PCANNON_ENHANCED per-frame lighting drama.
+// Runs right after SetupPointShadowView. While a shadow-casting dynamic light is active it
+// eases a dim level toward 0.68 and publishes it as a world-space radial falloff centred on
+// the light (u_dramaDim): the action around the beam keeps full brightness and the scene
+// darkens with distance, instead of a flat global dim that muddied the whole battlefield.
+// Eases back to 1.0 when the light goes away. Render-side only.
+static void UpdateDramaLighting()
+{
+    bool dramaEnabled = GgcFlags::Enabled(GgcFlag_PCannonEnhanced);
+#ifdef RTS_ZEROHOUR
+    dramaEnabled = dramaEnabled || (GGC_GetPCannonEnhancedEnabled() != 0);
+#endif
+    static const bool s_drama = dramaEnabled
+        && !GgcFlags::Enabled(GgcFlag_PCannonNoDim);
+    if (!s_drama)
+    {
+        return;
+    }
+    const bool active = g_draw.pointShadowLightValid && (g_draw.pointShadowParams[0] >= 0.5f);
+    // TheSuperHackers @tweak bobtista 09/08/2026 Scale the dim to the light that caused it. Slot 1
+    // holds whatever shadow-casting dynamic light is strongest, so a nuke-cannon shell or Helix
+    // bomb used to get the same scene dim as a superweapon detonation. The beam keeps its own
+    // hand-tuned pool; every blast light is scaled by its outer range against the superweapon
+    // nuke's, shrinking both the radius and the depth of the dip for smaller strikes.
+    const float kDimReferenceRange = 450.0f;
+    float dimScale = 1.0f;
+    if (active && !g_draw.pointShadowLightTracking)
+    {
+        const float range = g_draw.pointShadowLightPos[3];
+        dimScale = range / kDimReferenceRange;
+        if (dimScale > 1.0f)
+        {
+            dimScale = 1.0f;
+        }
+        else if (dimScale < 0.2f)
+        {
+            dimScale = 0.2f;
+        }
+    }
+    const float target = active ? (1.0f - (1.0f - GGC_GetPCannonDimTarget()) * dimScale) : 1.0f;
+    if (active)
+    {
+        // Electric-pattern clock for object receivers (see fs_uber): 2.0 + seconds, wrapping
+        // at 30s for shader sin-hash precision. 1.0 (the plain default) keeps the pattern off.
+        g_draw.pointShadowLightColor[3] = 2.0f + static_cast<float>(g_stats.frameIndex % 1800u) * (1.0f / 60.0f);
+    }
+    else
+    {
+        // Reset when the light dies: SetupPointShadowView's inactive paths never touch this
+        // field, and a stale clock kept frozen arcs rendering (clipping bright surfaces to
+        // white) long after the beam ended.
+        g_draw.pointShadowLightColor[3] = 1.0f;
+    }
+    static int s_dimLogCounter = 0;
+    if (BgfxDiagVerbose() && (++s_dimLogCounter % 120) == 0)
+    {
+        std::fprintf(stderr, "[ggc] dramaDim active=%d ease=%.3f params0=%.1f valid=%d tracking=%d range=%.0f scale=%.2f target=%.3f\n",
+            active ? 1 : 0, g_draw.dramaAmbientDim, g_draw.pointShadowParams[0],
+            g_draw.pointShadowLightValid ? 1 : 0, g_draw.pointShadowLightTracking ? 1 : 0,
+            g_draw.pointShadowLightPos[3], dimScale, target);
+    }
+    g_draw.dramaAmbientDim += (target - g_draw.dramaAmbientDim) * 0.02f;
+    if (g_draw.dramaAmbientDim > 0.999f)
+    {
+        g_draw.dramaAmbientDim = 1.0f;
+    }
+    if (active)
+    {
+        // Snap the primary dim centre to slot 1. When one beam ends and the other promotes from
+        // slot 2 to slot 1, the second beam already had its own glow pool (fs_uber reads the
+        // slot-2 light as a second centre), so snapping is seamless - the surviving beam's pool
+        // is continuous and only the ended beam's pool disappears. Easing here instead created a
+        // gap while the centre slid across.
+        g_draw.dramaDim[0] = g_draw.pointShadowLightPos[0];
+        g_draw.dramaDim[1] = g_draw.pointShadowLightPos[1];
+    }
+    // Falloff width: the dim pool eases from its floor (at the beam) back to normal over this
+    // many world units, so the darkening stays local to the beam area, not the whole map. Every
+    // distance in the shader is expressed as a multiple of this width, so scaling it here shrinks
+    // the whole pool - glow, dim ramp and outer fade together - for a smaller blast.
+    g_draw.dramaDim[2] = 1.0f / (170.0f * dimScale);
+    g_draw.dramaDim[3] = g_draw.dramaAmbientDim;
+}
+
+// TheSuperHackers @bugfix mirelle7 30/07/2026 Every pass using vs_scene_composite reads u_postTexelSize.z as
+// its V-flip flag, and uniforms persist between submits, so each submit sets it explicitly.
+// Render-target to render-target passes (bloom, SSAO, smudge copy) keep the target's native
+// orientation (flip = false) so the chain stays consistent for the composite to sample; a
+// pass that presents a render target to the swapchain (composite, point-shadow viz) flips
+// it on bottom-left-origin renderers.
+static void SetFullscreenPassFlip(bool flip, float texelX = 0.0f, float texelY = 0.0f)
+{
+    if (!bgfx::isValid(g_uniforms.uPostTexelSize))
+        return;
+    const float texel[4] = { texelX, texelY, flip ? 1.0f : 0.0f, 0.0f };
+    bgfx::setUniform(g_uniforms.uPostTexelSize, texel);
+}
+
+static bool RenderTargetOriginIsBottomLeft()
+{
+    return bgfx::getCaps()->originBottomLeft;
+}
+
+// TheSuperHackers @feature bobtista 23/06/2026 Debug blit: when GGC_POINT_SHADOW_VIZ is set,
+// draw the point shadow map R32F texture into a quarter-width corner quad at the top-left of
+// the screen (clear of the bottom command bar) so developers can confirm the shadow map has
+// caster depth. Reuses the copyProgram
+// (fs_copy) and fullscreenClearVB quad that the smudge path uses, constrained to a sub-rect.
+// Reads the env var once and caches it as a static bool.
+static void SubmitPointShadowViz()
+{
+    static const bool s_viz = (GgcFlags::Enabled(GgcFlag_PointShadowViz));
+    if (!s_viz)
+    {
+        bgfx::touch(kBgfxPointShadowVizView);
+        return;
+    }
+    if (!bgfx::isValid(g_device.pointShadowTex)
+        || !bgfx::isValid(g_device.copyProgram)
+        || !bgfx::isValid(g_device.fullscreenClearVB)
+        || !bgfx::isValid(g_uniforms.sTex0))
+    {
+        bgfx::touch(kBgfxPointShadowVizView);
+        return;
+    }
+
+    const uint16_t w = static_cast<uint16_t>(g_device.width  / 4);
+    const uint16_t h = static_cast<uint16_t>(g_device.height / 4);
+    const uint16_t x = static_cast<uint16_t>(g_device.presentOffsetX);
+    const uint16_t y = static_cast<uint16_t>(g_device.presentOffsetY);
+
+    float identity[16];
+    IdentityMatrix(identity);
+    bgfx::setViewFrameBuffer(kBgfxPointShadowVizView, BGFX_INVALID_HANDLE);
+    bgfx::setViewClear(kBgfxPointShadowVizView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxPointShadowVizView, x, y, w, h);
+    bgfx::setViewTransform(kBgfxPointShadowVizView, identity, identity);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.pointShadowTex,
+                     BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+    SetFullscreenPassFlip(RenderTargetOriginIsBottomLeft());
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_DEPTH_TEST_ALWAYS);
+    bgfx::submit(kBgfxPointShadowVizView, g_device.copyProgram);
+}
+
+// TheSuperHackers @refactor bobtista 16/04/2026 No aspect correction needed:
+// bgfx renders into the game's window and the engine's projection matrix
+// already matches the framebuffer aspect.
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Texture
+// capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
+// which is safe to lock read-only on the Intel UHD driver.
+// We can read the source d3d8 texture data on demand from inside
+// Set_Texture without an engine-side write hook. POOL_DEFAULT textures
+// (render targets, dynamic textures) are skipped to avoid the same
+// corruption that hit vertex buffers.
+
+} // end anonymous namespace (helpers moved to BgfxBackendTextures.cpp)
+
+// TheSuperHackers @feature bobtista 17/06/2026 Expose the sun-shadow caster cull sphere. Returns 1
+// when the sun shadow map is armed this frame and fills center3/radius with a world sphere covering
+// the cascade region; 0 otherwise. MeshClass::Render keeps meshes intersecting it even when they
+// fall outside the camera frustum, so off-screen casters still cast into the visible ground.
+extern "C" int GGC_GetBgfxSunShadowCullBox(float * center3, float * radius)
+{
+    if (center3 != nullptr)
+    {
+        center3[0] = s_sunShadowCullCenter[0];
+        center3[1] = s_sunShadowCullCenter[1];
+        center3[2] = s_sunShadowCullCenter[2];
+    }
+    if (radius != nullptr)
+    {
+        *radius = s_sunShadowCullRadius;
+    }
+    return s_sunShadowCullActive;
+}
+
+// TheSuperHackers @feature bobtista 17/06/2026 Clamped toward-sun direction (z > 0) for the frame;
+// returns the armed flag. The engine projects a caster down-sun with this to keep only casters
+// whose shadow reaches the camera view (see RTS3DScene::Visibility_Check).
+extern "C" int GGC_GetBgfxSunShadowDir(float * dir3)
+{
+    if (dir3 != nullptr)
+    {
+        dir3[0] = s_sunShadowCullDir[0];
+        dir3[1] = s_sunShadowCullDir[1];
+        dir3[2] = s_sunShadowCullDir[2];
+    }
+    return s_sunShadowCullActive;
+}
+
+
+namespace { // reopen anonymous namespace
+
+static void DestroySceneFramebuffer()
+{
+    if (bgfx::isValid(g_device.sceneFB))
+    {
+        bgfx::destroy(g_device.sceneFB);
+    }
+    if (bgfx::isValid(g_device.sceneReadableDepthFB))
+    {
+        bgfx::destroy(g_device.sceneReadableDepthFB);
+    }
+    if (bgfx::isValid(g_device.sceneSmudgeCopyFB))
+    {
+        bgfx::destroy(g_device.sceneSmudgeCopyFB);
+    }
+    if (bgfx::isValid(g_device.sceneSmudgeCopy))
+    {
+        bgfx::destroy(g_device.sceneSmudgeCopy);
+    }
+    if (bgfx::isValid(g_device.bloomBrightFB))
+    {
+        bgfx::destroy(g_device.bloomBrightFB);
+    }
+    if (bgfx::isValid(g_device.bloomBrightTex))
+    {
+        bgfx::destroy(g_device.bloomBrightTex);
+    }
+    if (bgfx::isValid(g_device.bloomBlurFB))
+    {
+        bgfx::destroy(g_device.bloomBlurFB);
+    }
+    if (bgfx::isValid(g_device.bloomBlurTex))
+    {
+        bgfx::destroy(g_device.bloomBlurTex);
+    }
+    if (bgfx::isValid(g_device.ssaoFB))
+    {
+        bgfx::destroy(g_device.ssaoFB);
+    }
+    if (bgfx::isValid(g_device.ssaoTex))
+    {
+        bgfx::destroy(g_device.ssaoTex);
+    }
+    if (bgfx::isValid(g_device.ssaoBlurFB))
+    {
+        bgfx::destroy(g_device.ssaoBlurFB);
+    }
+    if (bgfx::isValid(g_device.ssaoBlurTex))
+    {
+        bgfx::destroy(g_device.ssaoBlurTex);
+    }
+    g_device.bloomBrightFB = BGFX_INVALID_HANDLE;
+    g_device.bloomBrightTex = BGFX_INVALID_HANDLE;
+    g_device.bloomBlurFB = BGFX_INVALID_HANDLE;
+    g_device.bloomBlurTex = BGFX_INVALID_HANDLE;
+    g_device.ssaoFB = BGFX_INVALID_HANDLE;
+    g_device.ssaoTex = BGFX_INVALID_HANDLE;
+    g_device.ssaoBlurFB = BGFX_INVALID_HANDLE;
+    g_device.ssaoBlurTex = BGFX_INVALID_HANDLE;
+    if (bgfx::isValid(g_device.shadowMapFB))
+    {
+        bgfx::destroy(g_device.shadowMapFB);
+    }
+    g_device.shadowMapFB = BGFX_INVALID_HANDLE;
+    g_device.shadowMapTex = BGFX_INVALID_HANDLE;
+    g_device.shadowMapDepth = BGFX_INVALID_HANDLE;
+    g_device.shadowMapSize = 0;
+    if (bgfx::isValid(g_device.pointShadowFB))
+    {
+        bgfx::destroy(g_device.pointShadowFB);
+    }
+    g_device.pointShadowFB  = BGFX_INVALID_HANDLE;
+    g_device.pointShadowTex = BGFX_INVALID_HANDLE;
+    g_device.pointShadowMapSize = 0;
+    if (bgfx::isValid(g_device.pointShadow2FB))
+    {
+        bgfx::destroy(g_device.pointShadow2FB);
+    }
+    g_device.pointShadow2FB  = BGFX_INVALID_HANDLE;
+    g_device.pointShadow2Tex = BGFX_INVALID_HANDLE;
+    g_device.bloomWidth = 0;
+    g_device.bloomHeight = 0;
+    g_device.sceneFB = BGFX_INVALID_HANDLE;
+    g_device.sceneColor = BGFX_INVALID_HANDLE;
+    g_device.sceneDepth = BGFX_INVALID_HANDLE;
+    g_device.sceneSmudgeCopy = BGFX_INVALID_HANDLE;
+    g_device.sceneSmudgeCopyFB = BGFX_INVALID_HANDLE;
+    g_device.sceneReadableDepthFB = BGFX_INVALID_HANDLE;
+    g_device.sceneReadableDepth = BGFX_INVALID_HANDLE;
+    g_device.sceneReadableDepthTest = BGFX_INVALID_HANDLE;
+    g_device.sceneWidth = 0;
+    g_device.sceneHeight = 0;
+}
+
+static bool CreateSceneFramebuffer()
+{
+    DestroySceneFramebuffer();
+
+    const uint16_t cw = static_cast<uint16_t>(g_device.width > 0 ? g_device.width : 1);
+    const uint16_t ch = static_cast<uint16_t>(g_device.height > 0 ? g_device.height : 1);
+    // TheSuperHackers @feature bobtista 15/06/2026 Supersampling: the scene targets
+    // are sized at content * render scale and the composite downsamples to native.
+    const float renderScale = GetSceneRenderScale();
+    const uint16_t w = static_cast<uint16_t>(static_cast<float>(cw) * renderScale + 0.5f);
+    const uint16_t h = static_cast<uint16_t>(static_cast<float>(ch) * renderScale + 0.5f);
+    g_device.sceneRenderWidth = w;
+    g_device.sceneRenderHeight = h;
+    // TheSuperHackers @feature bobtista 15/06/2026 HDR opt-in: the scene, bloom,
+    // and smudge-copy targets share one color format. RGBA16F preserves highlights
+    // above 1.0 for HDR bloom + tonemap; RGBA8 is the default LDR path.
+    const bgfx::TextureFormat::Enum sceneColorFormat = IsBgfxHdrEnabled()
+        ? bgfx::TextureFormat::RGBA16F
+        : bgfx::TextureFormat::RGBA8;
+    // TheSuperHackers @feature bobtista 15/06/2026 True MSAA on the 3D scene: the
+    // scene color/depth are multisampled and bgfx auto-resolves the color when the
+    // composite samples it. RGBA16F (HDR) and MSAA combine. 0 = no MSAA.
+    const int msaaSamples = GetSceneMsaaSamples();
+    uint64_t msaaRtFlag = BGFX_TEXTURE_RT;
+    if (msaaSamples >= 8) { msaaRtFlag = BGFX_TEXTURE_RT_MSAA_X8; }
+    else if (msaaSamples >= 4) { msaaRtFlag = BGFX_TEXTURE_RT_MSAA_X4; }
+    else if (msaaSamples >= 2) { msaaRtFlag = BGFX_TEXTURE_RT_MSAA_X2; }
+    const uint64_t colorFlags = msaaRtFlag
+        | BGFX_SAMPLER_POINT
+        | BGFX_SAMPLER_U_CLAMP
+        | BGFX_SAMPLER_V_CLAMP;
+    bgfx::TextureHandle colorTex = bgfx::createTexture2D(
+        w, h, false, 1, sceneColorFormat, colorFlags);
+    bgfx::TextureHandle depthTex = bgfx::createTexture2D(
+        w, h, false, 1, bgfx::TextureFormat::D24S8, msaaRtFlag | BGFX_TEXTURE_RT_WRITE_ONLY);
+
+    bgfx::TextureHandle attachments[2] = { colorTex, depthTex };
+    bgfx::FrameBufferHandle fb = bgfx::createFrameBuffer(2, attachments, true);
+    if (!bgfx::isValid(fb))
+    {
+        if (bgfx::isValid(colorTex))
+        {
+            bgfx::destroy(colorTex);
+        }
+        if (bgfx::isValid(depthTex))
+        {
+            bgfx::destroy(depthTex);
+        }
+        WWDEBUG_SAY(("[BgfxBackend] Scene framebuffer creation FAILED (%dx%d).",
+                     w, h));
+        return false;
+    }
+
+    g_device.sceneFB = fb;
+    g_device.sceneColor = colorTex;
+    g_device.sceneDepth = depthTex;
+    // TheSuperHackers @tweak bobtista 15/06/2026 The smudge snapshot is now an RT
+    // single-sample target written by a fullscreen resolve-draw (not bgfx::blit),
+    // so it works when the scene color is multisampled.
+    g_device.sceneSmudgeCopy = bgfx::createTexture2D(
+        w, h, false, 1, sceneColorFormat,
+        BGFX_TEXTURE_RT
+        | BGFX_SAMPLER_U_CLAMP
+        | BGFX_SAMPLER_V_CLAMP);
+    if (bgfx::isValid(g_device.sceneSmudgeCopy))
+    {
+        g_device.sceneSmudgeCopyFB = bgfx::createFrameBuffer(1, &g_device.sceneSmudgeCopy, false);
+    }
+    g_device.sceneWidth = w;
+    g_device.sceneHeight = h;
+    bgfx::setName(g_device.sceneColor, "sceneColorRGBA8");
+    bgfx::setName(g_device.sceneDepth, "sceneDepthD24S8");
+    if (bgfx::isValid(g_device.sceneSmudgeCopy))
+    {
+        bgfx::setName(g_device.sceneSmudgeCopy, "sceneSmudgeCopyRGBA8");
+    }
+
+    // TheSuperHackers @feature bobtista 15/06/2026 Half-res bloom ping-pong
+    // targets. The bright-pass and separable blur run here; the result is added
+    // back over the scene in the composite.
+    {
+        const uint16_t bloomW = static_cast<uint16_t>(w > 1 ? w / 2 : 1);
+        const uint16_t bloomH = static_cast<uint16_t>(h > 1 ? h / 2 : 1);
+        const uint64_t bloomFlags = BGFX_TEXTURE_RT
+            | BGFX_SAMPLER_U_CLAMP
+            | BGFX_SAMPLER_V_CLAMP;
+        g_device.bloomBrightTex = bgfx::createTexture2D(
+            bloomW, bloomH, false, 1, sceneColorFormat, bloomFlags);
+        if (bgfx::isValid(g_device.bloomBrightTex))
+        {
+            g_device.bloomBrightFB = bgfx::createFrameBuffer(1, &g_device.bloomBrightTex, false);
+            bgfx::setName(g_device.bloomBrightTex, "bloomBright");
+        }
+        g_device.bloomBlurTex = bgfx::createTexture2D(
+            bloomW, bloomH, false, 1, sceneColorFormat, bloomFlags);
+        if (bgfx::isValid(g_device.bloomBlurTex))
+        {
+            g_device.bloomBlurFB = bgfx::createFrameBuffer(1, &g_device.bloomBlurTex, false);
+            bgfx::setName(g_device.bloomBlurTex, "bloomBlur");
+        }
+        g_device.bloomWidth = bloomW;
+        g_device.bloomHeight = bloomH;
+    }
+
+    // TheSuperHackers @feature bobtista 15/06/2026 Full-res SSAO targets (raw +
+    // blurred). Only allocated when SSAO is enabled; the AO is multiplied over the
+    // scene in the composite.
+    if (IsBgfxSSAOEnabled())
+    {
+        const uint64_t aoFlags = BGFX_TEXTURE_RT
+            | BGFX_SAMPLER_U_CLAMP
+            | BGFX_SAMPLER_V_CLAMP;
+        g_device.ssaoTex = bgfx::createTexture2D(w, h, false, 1, bgfx::TextureFormat::RGBA8, aoFlags);
+        if (bgfx::isValid(g_device.ssaoTex))
+        {
+            g_device.ssaoFB = bgfx::createFrameBuffer(1, &g_device.ssaoTex, false);
+            bgfx::setName(g_device.ssaoTex, "ssaoRGBA8");
+        }
+        g_device.ssaoBlurTex = bgfx::createTexture2D(w, h, false, 1, bgfx::TextureFormat::RGBA8, aoFlags);
+        if (bgfx::isValid(g_device.ssaoBlurTex))
+        {
+            g_device.ssaoBlurFB = bgfx::createFrameBuffer(1, &g_device.ssaoBlurTex, false);
+            bgfx::setName(g_device.ssaoBlurTex, "ssaoBlurRGBA8");
+        }
+    }
+
+    if (IsReadableSceneDepthEnabled())
+    {
+        // TheSuperHackers @feature bobtista 27/04/2026 Keep the main scene
+        // D24S8 attachment write-only for stencil shadows, and build a separate
+        // sampleable R32F depth texture for post effects and soft particles.
+        // TheSuperHackers @performance bobtista 29/04/2026 Only allocate and
+        // submit this readable depth path while an effect actively samples it.
+        const uint64_t readableDepthFlags = BGFX_TEXTURE_RT
+            | BGFX_SAMPLER_POINT
+            | BGFX_SAMPLER_U_CLAMP
+            | BGFX_SAMPLER_V_CLAMP;
+        bgfx::TextureHandle readableDepthTex = bgfx::createTexture2D(
+            w, h, false, 1, bgfx::TextureFormat::R32F, readableDepthFlags);
+        bgfx::TextureHandle readableDepthTest = bgfx::createTexture2D(
+            w, h, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::FrameBufferHandle depthFB = BGFX_INVALID_HANDLE;
+        if (bgfx::isValid(readableDepthTex) && bgfx::isValid(readableDepthTest))
+        {
+            bgfx::TextureHandle depthAttachments[2] = { readableDepthTex, readableDepthTest };
+            depthFB = bgfx::createFrameBuffer(2, depthAttachments, true);
+        }
+        if (bgfx::isValid(depthFB))
+        {
+            g_device.sceneReadableDepthFB = depthFB;
+            g_device.sceneReadableDepth = readableDepthTex;
+            g_device.sceneReadableDepthTest = readableDepthTest;
+            bgfx::setName(g_device.sceneReadableDepth, "sceneReadableDepthR32F");
+            bgfx::setName(g_device.sceneReadableDepthTest, "sceneReadableDepthD24S8");
+        }
+        else
+        {
+            if (bgfx::isValid(readableDepthTex))
+            {
+                bgfx::destroy(readableDepthTex);
+            }
+            if (bgfx::isValid(readableDepthTest))
+            {
+                bgfx::destroy(readableDepthTest);
+            }
+            WWDEBUG_SAY(("[BgfxBackend] Readable scene depth creation FAILED (%dx%d).",
+                         w, h));
+        }
+    }
+
+    // TheSuperHackers @feature bobtista 15/06/2026 Sun shadow map: a fixed-size
+    // R32F depth target (plus its own depth buffer) rendered from the sun's POV.
+    // TheSuperHackers @bugfix bobtista 16/06/2026 ALWAYS allocate it with the scene
+    // framebuffer, never gated on the toggle. The shell->game load transition recreates the
+    // scene framebuffer; if the shadow target is only made when the toggle reads enabled at
+    // that instant, any transient where it reads disabled (e.g. TheGlobalData mid-load)
+    // leaves the target gone for the rest of the session — the sun map then renders nothing
+    // and (because the toggle suppresses the legacy stencil/blob shadows) the scene loses ALL
+    // shadows after the first frame. The render-time toggle (SetupSunShadowView) decides
+    // whether to use it; the target itself is cheap (one 2048 R32F + D24S8) and harmless idle.
+    {
+        // TheSuperHackers @feature bobtista 17/06/2026 4096 atlas (2048 per cascade tile) halves the
+        // shadow texel size for crisp shadows when zoomed in; affordable now that the caster set is
+        // kept tight (only casters whose shadow reaches the view). One 4096 R32F + D24S8 ~= 96MB.
+        const uint16_t shadowSize = 4096;
+        const uint64_t shadowColorFlags = BGFX_TEXTURE_RT
+            | BGFX_SAMPLER_POINT
+            | BGFX_SAMPLER_U_CLAMP
+            | BGFX_SAMPLER_V_CLAMP;
+        bgfx::TextureHandle shadowColor = bgfx::createTexture2D(
+            shadowSize, shadowSize, false, 1, bgfx::TextureFormat::R32F, shadowColorFlags);
+        bgfx::TextureHandle shadowDepth = bgfx::createTexture2D(
+            shadowSize, shadowSize, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::FrameBufferHandle shadowFB = BGFX_INVALID_HANDLE;
+        if (bgfx::isValid(shadowColor) && bgfx::isValid(shadowDepth))
+        {
+            bgfx::TextureHandle shadowAttachments[2] = { shadowColor, shadowDepth };
+            shadowFB = bgfx::createFrameBuffer(2, shadowAttachments, true);
+        }
+        if (bgfx::isValid(shadowFB))
+        {
+            g_device.shadowMapFB = shadowFB;
+            g_device.shadowMapTex = shadowColor;
+            g_device.shadowMapDepth = shadowDepth;
+            g_device.shadowMapSize = shadowSize;
+            bgfx::setName(g_device.shadowMapTex, "sunShadowMapR32F");
+            bgfx::setName(g_device.shadowMapDepth, "sunShadowMapD24S8");
+            if (BgfxDiagVerbose())
+            {
+                std::fprintf(stderr, "[ggc] sun shadow map target allocated (%ux%u).\n",
+                             shadowSize, shadowSize);
+            }
+        }
+        else
+        {
+            if (bgfx::isValid(shadowColor))
+            {
+                bgfx::destroy(shadowColor);
+            }
+            if (bgfx::isValid(shadowDepth))
+            {
+                bgfx::destroy(shadowDepth);
+            }
+            WWDEBUG_SAY(("[BgfxBackend] Sun shadow map creation FAILED."));
+            std::fprintf(stderr, "[ggc] sun shadow map target allocation FAILED.\n");
+        }
+    }
+
+    // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map: 1024x1024 perspective
+    // depth target for the brightest dynamic point light (e.g. nuke fireball).
+    {
+        const uint16_t pointShadowSize = 1024;
+        const uint64_t pointShadowColorFlags = BGFX_TEXTURE_RT
+            | BGFX_SAMPLER_POINT
+            | BGFX_SAMPLER_U_CLAMP
+            | BGFX_SAMPLER_V_CLAMP;
+        bgfx::TextureHandle pointShadowColor = bgfx::createTexture2D(
+            pointShadowSize, pointShadowSize, false, 1, bgfx::TextureFormat::R32F, pointShadowColorFlags);
+        bgfx::TextureHandle pointShadowDepth = bgfx::createTexture2D(
+            pointShadowSize, pointShadowSize, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::FrameBufferHandle pointShadowFB = BGFX_INVALID_HANDLE;
+        if (bgfx::isValid(pointShadowColor) && bgfx::isValid(pointShadowDepth))
+        {
+            bgfx::TextureHandle pointShadowAttachments[2] = { pointShadowColor, pointShadowDepth };
+            pointShadowFB = bgfx::createFrameBuffer(2, pointShadowAttachments, true);
+        }
+        if (bgfx::isValid(pointShadowFB))
+        {
+            g_device.pointShadowFB  = pointShadowFB;
+            g_device.pointShadowTex = pointShadowColor;
+            g_device.pointShadowMapSize = pointShadowSize;
+            bgfx::setName(g_device.pointShadowTex, "pointShadowMapR32F");
+            bgfx::setName(pointShadowDepth, "pointShadowMapD24S8");
+            if (BgfxDiagVerbose())
+            {
+                std::fprintf(stderr, "[ggc] point shadow map target allocated (%ux%u).\n",
+                             pointShadowSize, pointShadowSize);
+            }
+        }
+        else
+        {
+            if (bgfx::isValid(pointShadowColor))
+            {
+                bgfx::destroy(pointShadowColor);
+            }
+            if (bgfx::isValid(pointShadowDepth))
+            {
+                bgfx::destroy(pointShadowDepth);
+            }
+            WWDEBUG_SAY(("[BgfxBackend] Point shadow map creation FAILED."));
+            std::fprintf(stderr, "[ggc] point shadow map target allocation FAILED.\n");
+        }
+
+        // TheSuperHackers @feature bobtista 14/07/2026 Second point-shadow slot: a transient
+        // flash light (particle-cannon lightning) or a second simultaneous caster shadows here
+        // without stealing the primary light's map.
+        bgfx::TextureHandle pointShadow2Color = bgfx::createTexture2D(
+            pointShadowSize, pointShadowSize, false, 1, bgfx::TextureFormat::R32F, pointShadowColorFlags);
+        bgfx::TextureHandle pointShadow2Depth = bgfx::createTexture2D(
+            pointShadowSize, pointShadowSize, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::FrameBufferHandle pointShadow2FB = BGFX_INVALID_HANDLE;
+        if (bgfx::isValid(pointShadow2Color) && bgfx::isValid(pointShadow2Depth))
+        {
+            bgfx::TextureHandle pointShadow2Attachments[2] = { pointShadow2Color, pointShadow2Depth };
+            pointShadow2FB = bgfx::createFrameBuffer(2, pointShadow2Attachments, true);
+        }
+        if (bgfx::isValid(pointShadow2FB))
+        {
+            g_device.pointShadow2FB  = pointShadow2FB;
+            g_device.pointShadow2Tex = pointShadow2Color;
+            bgfx::setName(g_device.pointShadow2Tex, "pointShadow2MapR32F");
+            bgfx::setName(pointShadow2Depth, "pointShadow2MapD24S8");
+        }
+        else
+        {
+            if (bgfx::isValid(pointShadow2Color))
+            {
+                bgfx::destroy(pointShadow2Color);
+            }
+            if (bgfx::isValid(pointShadow2Depth))
+            {
+                bgfx::destroy(pointShadow2Depth);
+            }
+            std::fprintf(stderr, "[ggc] point shadow 2 map target allocation FAILED.\n");
+        }
+    }
+
+    WWDEBUG_SAY(("[BgfxBackend] Scene framebuffer created %dx%d.", w, h));
+    return true;
+}
+
+static void ApplySceneFramebufferToViews()
+{
+    const BgfxDiagnosticFlags diagnostics = GetBgfxDiagnosticFlags();
+    const bool useSceneFramebuffer =
+        !diagnostics.noSceneFramebuffer
+        && bgfx::isValid(g_device.sceneFB)
+        && bgfx::isValid(g_device.sceneColor)
+        && bgfx::isValid(g_device.sceneCompositeProgram);
+    bgfx::FrameBufferHandle sceneFB = BGFX_INVALID_HANDLE;
+    if (useSceneFramebuffer)
+    {
+        sceneFB = g_device.sceneFB;
+    }
+    if (!useSceneFramebuffer)
+    {
+        bgfx::setViewFrameBuffer(kBgfxSceneCompositeView, BGFX_INVALID_HANDLE);
+    }
+    bgfx::setViewFrameBuffer(kBgfxEngineView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxEngineSortView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxWaterView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxEffectOverlayView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxShadowVolumeView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxShadowApplyView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxShroudOverlayView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxSmudgeCopyView, g_device.sceneSmudgeCopyFB);
+    bgfx::setViewFrameBuffer(kBgfxSmudgeView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxBloomBrightView, g_device.bloomBrightFB);
+    bgfx::setViewFrameBuffer(kBgfxBloomBlurHView, g_device.bloomBlurFB);
+    bgfx::setViewFrameBuffer(kBgfxBloomBlurVView, g_device.bloomBrightFB);
+    bgfx::setViewFrameBuffer(kBgfxSsaoView, g_device.ssaoFB);
+    bgfx::setViewFrameBuffer(kBgfxSsaoBlurHView, g_device.ssaoBlurFB);
+    bgfx::setViewFrameBuffer(kBgfxSsaoBlurVView, g_device.ssaoFB);
+    bgfx::setViewFrameBuffer(kBgfxSceneCompositeView, BGFX_INVALID_HANDLE);
+    bgfx::setViewFrameBuffer(kBgfxSceneDepthView, g_device.sceneReadableDepthFB);
+    bgfx::setViewFrameBuffer(kBgfxUIView, BGFX_INVALID_HANDLE);
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 SSAO: compute an ambient-occlusion
+// factor from the scene depth, then separable-blur it (reusing the bloom blur).
+// The result lands in ssaoTex for the composite to multiply over the scene.
+static void SubmitSSAO()
+{
+    const bool ready = IsBgfxSSAOEnabled()
+        && bgfx::isValid(g_device.ssaoFB)
+        && bgfx::isValid(g_device.ssaoBlurFB)
+        && bgfx::isValid(g_device.ssaoTex)
+        && bgfx::isValid(g_device.ssaoBlurTex)
+        && bgfx::isValid(g_device.ssaoProgram)
+        && bgfx::isValid(g_device.bloomBlurProgram)
+        && bgfx::isValid(g_device.sceneReadableDepth)
+        && bgfx::isValid(g_uniforms.sSceneDepth)
+        && bgfx::isValid(g_device.fullscreenClearVB);
+    if (!ready)
+    {
+        bgfx::touch(kBgfxSsaoView);
+        bgfx::touch(kBgfxSsaoBlurHView);
+        bgfx::touch(kBgfxSsaoBlurVView);
+        return;
+    }
+
+    float identity[16];
+    IdentityMatrix(identity);
+    const uint16_t w = g_device.sceneRenderWidth > 0 ? g_device.sceneRenderWidth : static_cast<uint16_t>(g_device.width);
+    const uint16_t h = g_device.sceneRenderHeight > 0 ? g_device.sceneRenderHeight : static_cast<uint16_t>(g_device.height);
+    const uint64_t sampleFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+    const uint64_t fullscreenState = BGFX_STATE_WRITE_RGB
+        | BGFX_STATE_WRITE_A
+        | BGFX_STATE_DEPTH_TEST_ALWAYS;
+
+    float invProj[16];
+    bx::mtxInverse(invProj, g_frame.cameraProj);
+    float ssaoParams[4];
+    GetSSAOParams(ssaoParams);
+
+    bgfx::setViewTransform(kBgfxSsaoView, identity, identity);
+    bgfx::setViewRect(kBgfxSsaoView, 0, 0, w, h);
+    bgfx::setViewClear(kBgfxSsaoView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(1, g_uniforms.sSceneDepth, g_device.sceneReadableDepth, sampleFlags);
+    bgfx::setUniform(g_uniforms.uSsaoInvProj, invProj);
+    bgfx::setUniform(g_uniforms.uSsaoProj, g_frame.cameraProj);
+    bgfx::setUniform(g_uniforms.uSsaoParams, ssaoParams);
+    SetFullscreenPassFlip(false, 1.0f / static_cast<float>(w), 1.0f / static_cast<float>(h));
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxSsaoView, g_device.ssaoProgram);
+
+    const float dirH[4] = { 1.0f / static_cast<float>(w), 0.0f, 0.0f, 0.0f };
+    bgfx::setViewTransform(kBgfxSsaoBlurHView, identity, identity);
+    bgfx::setViewRect(kBgfxSsaoBlurHView, 0, 0, w, h);
+    bgfx::setViewClear(kBgfxSsaoBlurHView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.ssaoTex, sampleFlags);
+    bgfx::setUniform(g_uniforms.uBloomBlurDir, dirH);
+    SetFullscreenPassFlip(false);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxSsaoBlurHView, g_device.bloomBlurProgram);
+
+    const float dirV[4] = { 0.0f, 1.0f / static_cast<float>(h), 0.0f, 0.0f };
+    bgfx::setViewTransform(kBgfxSsaoBlurVView, identity, identity);
+    bgfx::setViewRect(kBgfxSsaoBlurVView, 0, 0, w, h);
+    bgfx::setViewClear(kBgfxSsaoBlurVView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.ssaoBlurTex, sampleFlags);
+    bgfx::setUniform(g_uniforms.uBloomBlurDir, dirV);
+    SetFullscreenPassFlip(false);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxSsaoBlurVView, g_device.bloomBlurProgram);
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Bloom passes: extract highlights
+// above a threshold into a half-res target, separable-blur (H then V), leaving
+// the result in bloomBrightTex for the composite to add over the scene.
+static void SubmitBloom(const float * bloomParams)
+{
+    const bool ready = bloomParams[0] > 0.5f
+        && bgfx::isValid(g_device.bloomBrightFB)
+        && bgfx::isValid(g_device.bloomBlurFB)
+        && bgfx::isValid(g_device.bloomBrightProgram)
+        && bgfx::isValid(g_device.bloomBlurProgram)
+        && bgfx::isValid(g_device.sceneColor)
+        && bgfx::isValid(g_device.fullscreenClearVB)
+        && bgfx::isValid(g_uniforms.sTex0)
+        && g_device.bloomWidth > 0
+        && g_device.bloomHeight > 0;
+    if (!ready)
+    {
+        bgfx::touch(kBgfxBloomBrightView);
+        bgfx::touch(kBgfxBloomBlurHView);
+        bgfx::touch(kBgfxBloomBlurVView);
+        return;
+    }
+
+    float identity[16];
+    IdentityMatrix(identity);
+    const uint16_t bw = g_device.bloomWidth;
+    const uint16_t bh = g_device.bloomHeight;
+    const uint64_t sampleFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+    const uint64_t fullscreenState = BGFX_STATE_WRITE_RGB
+        | BGFX_STATE_WRITE_A
+        | BGFX_STATE_DEPTH_TEST_ALWAYS;
+    float bloomUniform[4] = { bloomParams[1], bloomParams[2], 0.0f, 0.0f };
+
+    bgfx::setViewTransform(kBgfxBloomBrightView, identity, identity);
+    bgfx::setViewRect(kBgfxBloomBrightView, 0, 0, bw, bh);
+    bgfx::setViewClear(kBgfxBloomBrightView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor, sampleFlags);
+    bgfx::setUniform(g_uniforms.uBloomParams, bloomUniform);
+    SetFullscreenPassFlip(false);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxBloomBrightView, g_device.bloomBrightProgram);
+
+    const float dirH[4] = { 1.0f / static_cast<float>(bw), 0.0f, 0.0f, 0.0f };
+    bgfx::setViewTransform(kBgfxBloomBlurHView, identity, identity);
+    bgfx::setViewRect(kBgfxBloomBlurHView, 0, 0, bw, bh);
+    bgfx::setViewClear(kBgfxBloomBlurHView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.bloomBrightTex, sampleFlags);
+    bgfx::setUniform(g_uniforms.uBloomBlurDir, dirH);
+    SetFullscreenPassFlip(false);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxBloomBlurHView, g_device.bloomBlurProgram);
+
+    const float dirV[4] = { 0.0f, 1.0f / static_cast<float>(bh), 0.0f, 0.0f };
+    bgfx::setViewTransform(kBgfxBloomBlurVView, identity, identity);
+    bgfx::setViewRect(kBgfxBloomBlurVView, 0, 0, bw, bh);
+    bgfx::setViewClear(kBgfxBloomBlurVView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.bloomBlurTex, sampleFlags);
+    bgfx::setUniform(g_uniforms.uBloomBlurDir, dirV);
+    SetFullscreenPassFlip(false);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(fullscreenState);
+    bgfx::submit(kBgfxBloomBlurVView, g_device.bloomBlurProgram);
+}
+
+static void SubmitSceneComposite()
+{
+    if (GetBgfxDiagnosticFlags().noSceneFramebuffer
+        || !bgfx::isValid(g_device.sceneFB)
+        || !bgfx::isValid(g_device.sceneColor)
+        || !bgfx::isValid(g_device.sceneCompositeProgram)
+        || !bgfx::isValid(g_device.fullscreenClearVB)
+        || !bgfx::isValid(g_uniforms.sTex0))
+    {
+        bgfx::touch(kBgfxSceneCompositeView);
+        return;
+    }
+
+    float identity[16];
+    IdentityMatrix(identity);
+    bgfx::setViewTransform(kBgfxSceneCompositeView, identity, identity);
+    bgfx::setViewRect(kBgfxSceneCompositeView,
+                      static_cast<uint16_t>(g_device.presentOffsetX),
+                      static_cast<uint16_t>(g_device.presentOffsetY),
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    // TheSuperHackers @feature bobtista 15/06/2026 Linear (not point) so a
+    // supersampled scene color downsamples by averaging; identical at scale 1.
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor,
+                     BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+    g_stats.textureBinds++;
+    if (bgfx::isValid(g_uniforms.sSceneDepth) && bgfx::isValid(g_device.sceneReadableDepth))
+    {
+        bgfx::setTexture(1, g_uniforms.sSceneDepth, g_device.sceneReadableDepth,
+                         BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        g_stats.textureBinds++;
+    }
+    // TheSuperHackers @feature bobtista 27/04/2026 Post controls come from
+    // Zero Hour GameData when available; the local defaults are deliberately
+    // subtle so the scene keeps the original Zero Hour art direction.
+    float postParams[4];
+    GetPostParams(postParams);
+    // Texel size of the (supersampled) scene color the composite samples.
+    const float texW = g_device.sceneRenderWidth > 0 ? static_cast<float>(g_device.sceneRenderWidth) : static_cast<float>(g_device.width);
+    const float texH = g_device.sceneRenderHeight > 0 ? static_cast<float>(g_device.sceneRenderHeight) : static_cast<float>(g_device.height);
+    // TheSuperHackers @bugfix mirelle7 30/07/2026 .z carries the V-flip flag for the
+    // composite. Render targets are bottom-left origin on GLES and WebGL but top-left on
+    // DX11 and Metal, so without it the whole 3D scene comes out of this pass upside down
+    // on those renderers, while the UI - drawn straight to the backbuffer - stays the right
+    // way up. The cap decides it, so DX11 and Metal pass 0.0 and are unaffected.
+    const float postTexelSize[4] = {
+        1.0f / texW,
+        1.0f / texH,
+        RenderTargetOriginIsBottomLeft() ? 1.0f : 0.0f,
+        0.0f
+    };
+    if (bgfx::isValid(g_uniforms.uPostParams))
+    {
+        bgfx::setUniform(g_uniforms.uPostParams, postParams);
+    }
+    if (bgfx::isValid(g_uniforms.uPostTexelSize))
+    {
+        bgfx::setUniform(g_uniforms.uPostTexelSize, postTexelSize);
+    }
+    float wipeParams[4];
+    GetWipeParams(wipeParams);
+    if (bgfx::isValid(g_uniforms.uWipeParams))
+    {
+        bgfx::setUniform(g_uniforms.uWipeParams, wipeParams);
+    }
+    float colorGradeParams[4];
+    GetColorGradeParams(colorGradeParams);
+    if (bgfx::isValid(g_uniforms.uColorGradeParams))
+    {
+        bgfx::setUniform(g_uniforms.uColorGradeParams, colorGradeParams);
+    }
+    float bloomParams[4];
+    GetBloomParams(bloomParams);
+    const float bloomUniform[4] = {
+        bloomParams[1],
+        bloomParams[0] > 0.5f ? bloomParams[2] : 0.0f,
+        0.0f,
+        0.0f
+    };
+    if (bgfx::isValid(g_uniforms.uBloomParams))
+    {
+        bgfx::setUniform(g_uniforms.uBloomParams, bloomUniform);
+    }
+    if (bgfx::isValid(g_uniforms.sBloom) && bgfx::isValid(g_device.bloomBrightTex))
+    {
+        bgfx::setTexture(2, g_uniforms.sBloom, g_device.bloomBrightTex,
+                         BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        g_stats.textureBinds++;
+    }
+    const float hdrEnabled = IsBgfxHdrEnabled() ? 1.0f : 0.0f;
+    const bool ssaoApply = IsBgfxSSAOEnabled() && bgfx::isValid(g_device.ssaoTex);
+    const float hdrParams[4] = { hdrEnabled, ssaoApply ? 1.0f : 0.0f, 0.0f, 0.0f };
+    if (bgfx::isValid(g_uniforms.uHdrParams))
+    {
+        bgfx::setUniform(g_uniforms.uHdrParams, hdrParams);
+    }
+    if (ssaoApply && bgfx::isValid(g_uniforms.sSsao))
+    {
+        bgfx::setTexture(3, g_uniforms.sSsao, g_device.ssaoTex,
+                         BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        g_stats.textureBinds++;
+    }
+    float postFx2[4];
+    GetPostFx2Params(postFx2);
+    postFx2[3] = static_cast<float>(g_stats.frameIndex & 1023); // film-grain time seed
+    if (bgfx::isValid(g_uniforms.uPostFx2Params))
+    {
+        bgfx::setUniform(g_uniforms.uPostFx2Params, postFx2);
+    }
+    static bool s_loggedComposite = false;
+    if (BgfxDiagVerbose() && !s_loggedComposite)
+    {
+        s_loggedComposite = true;
+        std::fprintf(stderr,
+                     "[ggc] composite post=(%.3f,%.3f,%.3f,%.3f) wipe=(split %.3f, enabled %.1f) grade=(on %.1f, str %.3f, temp %.3f, tint %.3f) bloom=(on %.1f, thr %.3f, int %.3f) hdr=%.1f\n",
+                     postParams[0], postParams[1], postParams[2], postParams[3],
+                     wipeParams[0], wipeParams[1],
+                     colorGradeParams[0], colorGradeParams[1], colorGradeParams[2], colorGradeParams[3],
+                     bloomParams[0], bloomParams[1], bloomParams[2], hdrEnabled);
+    }
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
+                   | BGFX_STATE_DEPTH_TEST_ALWAYS);
+    bgfx::submit(kBgfxSceneCompositeView, g_device.sceneCompositeProgram);
+    g_stats.sceneCompositeSubmits++;
+}
+
+}
+
+void BgfxBackend::Set_Present_Letterbox(bool enabled, float aspectW, float aspectH)
+{
+    g_device.letterboxRequested = enabled;
+    if (aspectW > 0.0f && aspectH > 0.0f)
+    {
+        g_device.letterboxAspectW = aspectW;
+        g_device.letterboxAspectH = aspectH;
+    }
+    // The per-frame resize check in Begin_Scene recomputes the content rect and rebuilds the scene
+    // framebuffer + view rects when the layout changes, so no immediate work is needed here.
+}
+
+bool BgfxBackend::Is_Present_Letterbox_Active() const { return g_device.letterboxActive; }
+int  BgfxBackend::Get_Present_Content_Width() const { return g_device.width; }
+int  BgfxBackend::Get_Present_Content_Height() const { return g_device.height; }
+int  BgfxBackend::Get_Present_Offset_X() const { return g_device.letterboxActive ? g_device.presentOffsetX : 0; }
+int  BgfxBackend::Get_Present_Offset_Y() const { return g_device.letterboxActive ? g_device.presentOffsetY : 0; }
+
+void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
+{
+#if defined(__APPLE__)
+    if (GgcFlags::Enabled(GgcFlag_Trace))
+    {
+        std::fprintf(stderr, "[ggc] BgfxBackend::Initialize hwnd=%p\n", hwnd);
+        std::fflush(stderr);
+    }
+#endif
+    if (g_device.initialized)
+    {
+        WWDEBUG_SAY(("[BgfxBackend] Initialize called twice; ignoring."));
+        return;
+    }
+
+    // TheSuperHackers @feature bobtista 16/04/2026 bgfx takes the
+    // main game window; DX8 moves to a secondary popup for reference.
+    g_device.window = static_cast<HWND>(hwnd);
+    if (g_device.window == nullptr)
+    {
+        WWDEBUG_SAY(("[BgfxBackend] hwnd is null. Backend will remain dormant."));
+        return;
+    }
+
+    GetBackendWindowSize(g_device.window, g_device.width, g_device.height);
+    if (g_device.width <= 0)
+    {
+        g_device.width = 800;
+    }
+    if (g_device.height <= 0)
+    {
+        g_device.height = 600;
+    }
+    // Letterbox starts off: swapchain == content, no offset. Begin_Scene reconciles this every frame.
+    g_device.swapWidth = g_device.width;
+    g_device.swapHeight = g_device.height;
+    g_device.presentOffsetX = 0;
+    g_device.presentOffsetY = 0;
+    g_device.letterboxActive = false;
+    WWDEBUG_SAY(("[BgfxBackend] Using main game window %p (%dx%d) for bgfx.",
+                 g_device.window, g_device.width, g_device.height));
+
+    if (!BgfxUseRenderThread())
+    {
+        // Single-threaded mode (default): this pre-init call tells bgfx::init() not to
+        // create an internal render thread, so bgfx::frame() runs renderFrame() inline.
+        bgfx::renderFrame();
+    }
+    else
+    {
+        WWDEBUG_SAY(("[BgfxBackend] GGC_BGFX_RENDER_THREAD set: using bgfx internal render thread."));
+    }
+
+    bgfx::PlatformData pd;
+    pd.ndt = GetNativeDisplayHandle(g_device.window);
+    pd.nwh = GetNativeWindowHandle(g_device.window);
+    pd.context = nullptr;
+    pd.backBuffer = nullptr;
+    pd.backBufferDS = nullptr;
+    bgfx::setPlatformData(pd);
+
+    bgfx::Init initArgs;
+    initArgs.type = GetConfiguredRendererType();
+    initArgs.callback = &g_bgfxCallback;
+    initArgs.resolution.width = static_cast<uint32_t>(g_device.width);
+    initArgs.resolution.height = static_cast<uint32_t>(g_device.height);
+    initArgs.resolution.reset = BGFX_RESET_NONE;
+    {
+        int msaaLevel = 0;
+        const char * msaaEnv = GgcFlags::StringValue(GgcFlag_BgfxMsaa);
+        if (msaaEnv != nullptr)
+        {
+            msaaLevel = std::atoi(msaaEnv);
+            if (msaaLevel <= 0) { msaaLevel = 4; }
+        }
+        if (msaaLevel >= 16) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X16; }
+        else if (msaaLevel >= 8) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X8; }
+        else if (msaaLevel >= 4) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X4; }
+        else if (msaaLevel >= 2) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X2; }
+        g_device.msaaResetFlags = initArgs.resolution.reset & (BGFX_RESET_MSAA_X2 | BGFX_RESET_MSAA_X4 | BGFX_RESET_MSAA_X8 | BGFX_RESET_MSAA_X16);
+    }
+    g_device.srgbEnabled = GgcFlags::Enabled(GgcFlag_BgfxSrgb) || GGC_GetBgfxSrgb() != 0;
+    if (g_device.srgbEnabled)
+    {
+        initArgs.resolution.reset |= BGFX_RESET_SRGB_BACKBUFFER;
+    }
+    // TheSuperHackers @bugfix bobtista 05/06/2026 Depth-clamp OFF by default. It set
+    // DX11 DepthClipEnable=FALSE, disabling near-plane clipping, which ballooned
+    // near-plane-straddling sorted geometry into a fullscreen tint and forced a
+    // shader guard that killed the Particle Uplink Cannon beam. With clipping
+    // restored the beam renders and the tint is gone (matches Metal). Opt back in
+    // via GGC_BGFX_DEPTH_CLAMP=1 if a shadow-volume near/far-clip regression appears.
+    if (GgcFlags::Enabled(GgcFlag_BgfxDepthClamp))
+    {
+        initArgs.resolution.reset |= BGFX_RESET_DEPTH_CLAMP;
+    }
+#if defined(__APPLE__)
+    // TheSuperHackers @performance bobtista 04/06/2026 BGFX_RESET_FLUSH_AFTER_RENDER
+    // serializes Metal command-buffer submission instead of pipelining a frame ahead.
+    // It was added (30/04/2026) to work around AGX losing internal helper-shader compiles
+    // when many encoders are in flight. With the render-thread split it instead serializes
+    // the GPU against the CPU and dominated the frame on heavy scenes (save 69: ~48% faster
+    // without it). After a multi-scene artifact soak + play-test it is now OFF by default.
+    // Re-enable with GGC_MACOS_FLUSH=1 if AGX shader-compile artifacts ever reappear.
+    if (GgcFlags::Enabled(GgcFlag_MacosFlush))
+    {
+        initArgs.resolution.reset |= BGFX_RESET_FLUSH_AFTER_RENDER;
+    }
+#endif
+    initArgs.platformData = pd;
+    // TheSuperHackers @bugfix bobtista 27/04/2026 Keep bgfx on a normal
+    // native device even in game Debug builds. The backend debug layer raises
+    // DXGI-facility exceptions inside bgfx::frame before the engine can
+    // reach shellmap or command-line save loads.
+    // TheSuperHackers @build bobtista 30/04/2026 Allow GGC_BGFX_DEBUG=1 to
+    // turn on bgfx's verbose diagnostics for macOS bring-up.
+    initArgs.debug = GgcFlags::Enabled(GgcFlag_BgfxDebug);
+
+#if defined(__APPLE__)
+    if (GgcFlags::Enabled(GgcFlag_Trace))
+    {
+        std::fprintf(stderr, "[ggc] calling bgfx::init nwh=%p\n", pd.nwh);
+        std::fflush(stderr);
+    }
+#endif
+
+    if (!bgfx::init(initArgs))
+    {
+        WWDEBUG_SAY(("[BgfxBackend] bgfx::init FAILED. Backend will remain dormant."));
+        g_device.window = nullptr;
+        return;
+    }
+
+    g_device.initialized = true;
+
+    static const bool s_exitHandlerRegistered = (std::atexit(MarkExitTeardownActive) == 0);
+    (void)s_exitHandlerRegistered;
+
+#if defined(__APPLE__)
+    if (GgcFlags::Enabled(GgcFlag_Trace))
+    {
+        std::fprintf(stderr, "[ggc] bgfx::init OK\n");
+        std::fflush(stderr);
+    }
+#endif
+
+    // TheSuperHackers @refactor bobtista 16/04/2026 The explicit
+    // bgfx::reset() after init is removed because it triggers a DXGI
+    // assertion when bgfx owns the main game HWND. The init call already
+    // configured the resolution and format correctly.
+    // TheSuperHackers @feature bobtista 27/04/2026 Create the full-canvas
+    // scene framebuffer. 3D views render here first, then view 9 composites
+    // the scene to the swapchain before UI draws.
+    if (!GetBgfxDiagnosticFlags().noSceneFramebuffer)
+    {
+        CreateSceneFramebuffer();
+    }
+    else
+    {
+        WWDEBUG_SAY(("[BgfxBackend] Diagnostic bgfxNoSceneFramebuffer enabled."));
+    }
+
+    // Configure view 0 to clear the debug window to a dark teal so it's
+    // visually obvious bgfx is running and alive. View 0 holds the test
+    // triangle (sentinel).
+    bgfx::setViewClear(kBgfxDebugView,
+                       BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
+                       0x000000ff,  // black
+                       1.0f,
+                       0);
+    bgfx::setViewFrameBuffer(kBgfxDebugView, BGFX_INVALID_HANDLE);
+    // The debug view clears + covers the whole swapchain (the full window), so the letterbox bars
+    // outside the content rect stay black.
+    bgfx::setViewRect(kBgfxDebugView, 0, 0,
+                      static_cast<uint16_t>(LbSwapWidth()),
+                      static_cast<uint16_t>(LbSwapHeight()));
+
+    // View 1 is the engine geometry view. Same render target, but its
+    // own clear/depth and (eventually) its own view+projection matrices
+    // captured from the engine's Set_Transform calls. Drawn after view 0
+    // so engine geometry overlays the test triangle.
+    // Clear depth AND color. The color clear initializes the framebuffer
+    // alpha to ~0.7 (m_minWaterOpacity) for the DESTALPHA water technique.
+    // Without this, deep water areas without shoreline tiles have alpha=0
+    // (transparent) and the water polygon edge creates a visible zigzag.
+    // The RGB clear is black; terrain overwrites it with its own color.
+    bgfx::setViewClear(kBgfxEngineView,
+                       BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL,
+                       0x000000ff,  // Alpha=1.0 matches TransparentWaterMinOpacity=1.0 from INI
+                       1.0f,
+                       0);
+    // Sequential mode preserves the engine's draw order: terrain
+    // first, then shadow decals on top at equal depth. Without this,
+    // Default sort can place decals before terrain → overwritten.
+    bgfx::setViewMode(kBgfxEngineView, bgfx::ViewMode::Sequential);
+    bgfx::setViewRect(kBgfxEngineView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+
+    // TheSuperHackers @refactor bobtista 11/04/2026 Sorted
+    // draws view. No clear (reuses view 1's color + depth so sorted
+    // particles z-test correctly against opaque geometry), same rect.
+    // View matrix is permanently identity; projection tracks view 1's
+    // via Set_Projection_Transform_With_Z_Bias.
+    bgfx::setViewClear(kBgfxEngineSortView,
+                       BGFX_CLEAR_NONE,
+                       0x00000000,
+                       1.0f,
+                       0);
+    bgfx::setViewMode(kBgfxEngineSortView, bgfx::ViewMode::Sequential);
+    bgfx::setViewRect(kBgfxEngineSortView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+
+    // Effect overlay view for dazzle draws with NDC-space vertices.
+    // Permanent identity view + identity projection; reuses the
+    // backbuffer + depth from earlier views. No clear.
+    bgfx::setViewClear(kBgfxEffectOverlayView,
+                       BGFX_CLEAR_NONE,
+                       0x00000000,
+                       1.0f,
+                       0);
+    bgfx::setViewRect(kBgfxEffectOverlayView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    // TheSuperHackers @bugfix bobtista 17/07/2026 Sequential like the other engine-content
+    // views: the frame-const uniform guards elide re-uploads assuming playback order equals
+    // submission order within a view, and translucent effect draws must play back in engine
+    // order anyway. Default mode reorders by sort key, which both broke the guard invariant
+    // and could reorder blended dazzle draws.
+    bgfx::setViewMode(kBgfxEffectOverlayView, bgfx::ViewMode::Sequential);
+    // Same invariant for the render-to-texture view: its framebuffer/rect are bound
+    // dynamically per capture, but the playback-order guarantee is established here.
+    bgfx::setViewMode(kBgfxRTTView, bgfx::ViewMode::Sequential);
+    {
+        float identityMtx[16];
+        IdentityMatrix(identityMtx);
+        bgfx::setViewTransform(kBgfxEffectOverlayView, identityMtx, identityMtx);
+    }
+
+    // Shadow-volume view. Sequential so the two-pass algorithm
+    // (front INCR / back DECR) runs in submit order. Clear stencil here,
+    // on the same view that writes/tests it; clearing only the earlier
+    // engine view does not establish the Metal stencil attachment for this
+    // pass reliably. View transform is pushed per-frame from the engine
+    // camera via the dirty-flag logic alongside view 1.
+    bgfx::setViewClear(kBgfxShadowVolumeView, BGFX_CLEAR_STENCIL, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxShadowVolumeView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxShadowVolumeView, bgfx::ViewMode::Sequential);
+
+    // Shadow darken apply pass. Sequential, identity transforms
+    // (the fullscreen quad is authored in clip space).
+    bgfx::setViewClear(kBgfxShadowApplyView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxShadowApplyView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxShadowApplyView, bgfx::ViewMode::Sequential);
+    {
+        float identityMtx[16];
+        IdentityMatrix(identityMtx);
+        bgfx::setViewTransform(kBgfxShadowApplyView, identityMtx, identityMtx);
+    }
+
+    bgfx::setViewClear(kBgfxShroudOverlayView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxShroudOverlayView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxShroudOverlayView, bgfx::ViewMode::Sequential);
+
+    bgfx::setViewClear(kBgfxSceneDepthView,
+                       BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
+                       0xffffffffu,
+                       1.0f,
+                       0);
+    bgfx::setViewRect(kBgfxSceneDepthView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxSceneDepthView, bgfx::ViewMode::Default);
+
+    bgfx::setViewClear(kBgfxSceneCompositeView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxSceneCompositeView,
+                      static_cast<uint16_t>(g_device.presentOffsetX),
+                      static_cast<uint16_t>(g_device.presentOffsetY),
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxSceneCompositeView, bgfx::ViewMode::Sequential);
+    bgfx::setViewClear(kBgfxSmudgeCopyView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxSmudgeCopyView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxSmudgeCopyView, bgfx::ViewMode::Sequential);
+    bgfx::setViewClear(kBgfxSmudgeView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxSmudgeView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxSmudgeView, bgfx::ViewMode::Sequential);
+    {
+        float identityMtx[16];
+        IdentityMatrix(identityMtx);
+        bgfx::setViewTransform(kBgfxSceneCompositeView, identityMtx, identityMtx);
+        bgfx::setViewTransform(kBgfxSmudgeCopyView, identityMtx, identityMtx);
+        bgfx::setViewTransform(kBgfxSmudgeView, identityMtx, identityMtx);
+    }
+
+    // UI overlay view. Sequential mode preserves draw order for
+    // 2D quads; identity view+projection; no clear so it composites over
+    // the 3D scene.
+    bgfx::setViewClear(kBgfxUIView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxUIView,
+                      static_cast<uint16_t>(g_device.presentOffsetX),
+                      static_cast<uint16_t>(g_device.presentOffsetY),
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxUIView, bgfx::ViewMode::Sequential);
+    {
+        float identityMtx[16];
+        IdentityMatrix(identityMtx);
+        bgfx::setViewTransform(kBgfxUIView, identityMtx, identityMtx);
+    }
+    ApplySceneFramebufferToViews();
+
+    // Default the cached transforms to identity until the engine writes
+    // real values via Set_Transform. This keeps the first few engine
+    // submits well-defined even if they fire before any matrices are
+    // captured.
+    IdentityMatrix(g_frame.world);
+    IdentityMatrix(g_frame.view);
+    IdentityMatrix(g_frame.proj);
+    IdentityMatrix(g_frame.sortWorld);
+    IdentityMatrix(g_frame.sortViewOnly);
+    CacheIdentityTransform(RB_TRANSFORM_WORLD);
+    CacheIdentityTransform(RB_TRANSFORM_VIEW);
+    CacheIdentityTransform(RB_TRANSFORM_PROJECTION);
+    g_frame.cameraProjDirty = true;
+
+    // Sort view gets identity view + current projection. setViewTransform
+    // persists for the life of the bgfx view; we re-apply the projection
+    // in Set_Projection_Transform_With_Z_Bias whenever it changes.
+    {
+        float identityView[16];
+        IdentityMatrix(identityView);
+        bgfx::setViewTransform(kBgfxEngineSortView, identityView, g_frame.proj);
+    }
+
+    // TheSuperHackers @refactor bobtista 11/04/2026 Create the
+    // passthrough shader program and vertex layout so End_Scene can submit
+    // a test triangle. If shader creation fails the backend still runs but
+    // the triangle is skipped.
+    g_device.triangleLayout
+        .begin()
+        .add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
+        .end();
+
+    BuildStandardVertexLayouts();
+
+    g_device.passthroughProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_passthrough), sizeof(GGC_BGFX_SHADER(vs_passthrough)), "vs_passthrough",
+        GGC_BGFX_SHADER(fs_passthrough), sizeof(GGC_BGFX_SHADER(fs_passthrough)), "fs_passthrough");
+
+    g_device.sceneCompositeProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
+        GGC_BGFX_SHADER(fs_scene_composite), sizeof(GGC_BGFX_SHADER(fs_scene_composite)), "fs_scene_composite");
+    g_device.bloomBrightProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
+        GGC_BGFX_SHADER(fs_bloom_bright), sizeof(GGC_BGFX_SHADER(fs_bloom_bright)), "fs_bloom_bright");
+    g_device.bloomBlurProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
+        GGC_BGFX_SHADER(fs_bloom_blur), sizeof(GGC_BGFX_SHADER(fs_bloom_blur)), "fs_bloom_blur");
+    g_device.ssaoProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
+        GGC_BGFX_SHADER(fs_ssao), sizeof(GGC_BGFX_SHADER(fs_ssao)), "fs_ssao");
+    g_device.copyProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
+        GGC_BGFX_SHADER(fs_copy), sizeof(GGC_BGFX_SHADER(fs_copy)), "fs_copy");
+    g_device.sceneDepthProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_depth), sizeof(GGC_BGFX_SHADER(vs_scene_depth)), "vs_scene_depth",
+        GGC_BGFX_SHADER(fs_scene_depth), sizeof(GGC_BGFX_SHADER(fs_scene_depth)), "fs_scene_depth");
+    g_device.sceneDepthInstancedProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_scene_depth_instanced), sizeof(GGC_BGFX_SHADER(vs_scene_depth_instanced)), "vs_scene_depth_instanced",
+        GGC_BGFX_SHADER(fs_scene_depth), sizeof(GGC_BGFX_SHADER(fs_scene_depth)), "fs_scene_depth");
+    g_device.shadowCasterProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_shadow_caster), sizeof(GGC_BGFX_SHADER(vs_shadow_caster)), "vs_shadow_caster",
+        GGC_BGFX_SHADER(fs_shadow_caster), sizeof(GGC_BGFX_SHADER(fs_shadow_caster)), "fs_shadow_caster");
+    g_device.shadowCasterInstancedProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_shadow_caster_instanced), sizeof(GGC_BGFX_SHADER(vs_shadow_caster_instanced)), "vs_shadow_caster_instanced",
+        GGC_BGFX_SHADER(fs_shadow_caster), sizeof(GGC_BGFX_SHADER(fs_shadow_caster)), "fs_shadow_caster");
+    g_device.smudgeProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_smudge), sizeof(GGC_BGFX_SHADER(vs_smudge)), "vs_smudge",
+        GGC_BGFX_SHADER(fs_smudge), sizeof(GGC_BGFX_SHADER(fs_smudge)), "fs_smudge");
+    ApplySceneFramebufferToViews();
+
+    // Fullscreen-clear VB. Single triangle in NDC that covers the entire
+    // clip-space rectangle; submitted to view 0 every frame (Begin_Scene).
+    {
+        struct ClearVert { float x, y, z; uint32_t rgba; };
+        static const ClearVert verts[3] = {
+            { -1.0f, -3.0f, 0.0f, 0xff000000u },
+            { -1.0f,  1.0f, 0.0f, 0xff000000u },
+            {  3.0f,  1.0f, 0.0f, 0xff000000u },
+        };
+        g_device.fullscreenClearVB = bgfx::createVertexBuffer(
+            bgfx::makeRef(verts, sizeof(verts)), g_device.triangleLayout);
+    }
+
+    g_uniforms.sTex0        = bgfx::createUniform("s_tex0",        bgfx::UniformType::Sampler);
+    g_uniforms.sTex1        = bgfx::createUniform("s_tex1",        bgfx::UniformType::Sampler);
+    g_uniforms.sTex2        = bgfx::createUniform("s_tex2",        bgfx::UniformType::Sampler);
+    g_uniforms.sTex3        = bgfx::createUniform("s_tex3",        bgfx::UniformType::Sampler);
+    g_uniforms.sSceneDepth  = bgfx::createUniform("s_sceneDepth",  bgfx::UniformType::Sampler);
+    g_uniforms.sTexArray    = bgfx::createUniform("s_texArray",    bgfx::UniformType::Sampler);
+    // TheSuperHackers @performance bobtista 15/06/2026 Single packed material array
+    // uploaded once per draw (see UploadMaterialUniforms_Body / MaterialUniformSlot).
+    g_uniforms.uMaterial    = bgfx::createUniform("u_material",    bgfx::UniformType::Vec4, MU_COUNT);
+    g_uniforms.uMatDiffuse  = bgfx::createUniform("u_matDiffuse",  bgfx::UniformType::Vec4);
+    g_uniforms.uMatAmbient  = bgfx::createUniform("u_matAmbient",  bgfx::UniformType::Vec4);
+    g_uniforms.uMatEmissive = bgfx::createUniform("u_matEmissive", bgfx::UniformType::Vec4);
+    g_uniforms.uMatSpecular = bgfx::createUniform("u_matSpecular", bgfx::UniformType::Vec4);
+    g_uniforms.uMatFx       = bgfx::createUniform("u_matFx",       bgfx::UniformType::Vec4);
+    g_uniforms.uEyePos      = bgfx::createUniform("u_eyePos",      bgfx::UniformType::Vec4);
+    // TheSuperHackers @performance bobtista The single camera-fit sun shadow uses only
+    // matrix [0]; the old [3]-cascade tail ([1]/[2]) was dead weight in every draw's uniform
+    // buffer. Upload just the one matrix the shader reads.
+    g_uniforms.uShadowMatrices = bgfx::createUniform("u_shadowMatrices", bgfx::UniformType::Mat4, 1);
+    g_uniforms.uShadowParams = bgfx::createUniform("u_shadowParams", bgfx::UniformType::Vec4);
+    g_uniforms.uShadowQuality = bgfx::createUniform("u_shadowQuality", bgfx::UniformType::Vec4);
+    g_uniforms.uSunShadowReceive = bgfx::createUniform("u_sunShadowReceive", bgfx::UniformType::Vec4);
+    g_uniforms.sShadowMap   = bgfx::createUniform("s_shadowMap",   bgfx::UniformType::Sampler);
+    g_uniforms.uPointShadowMatrix = bgfx::createUniform("u_pointShadowMatrix", bgfx::UniformType::Mat4);
+    g_uniforms.uPointShadowParams = bgfx::createUniform("u_pointShadowParams", bgfx::UniformType::Vec4);
+    g_uniforms.uPointShadowLightPos = bgfx::createUniform("u_pointShadowLightPos", bgfx::UniformType::Vec4);
+    g_uniforms.uPointShadowLightColor = bgfx::createUniform("u_pointShadowLightColor", bgfx::UniformType::Vec4);
+    g_uniforms.sPointShadowMap    = bgfx::createUniform("s_pointShadowMap",    bgfx::UniformType::Sampler);
+    g_uniforms.uPointShadow2Matrix = bgfx::createUniform("u_pointShadow2Matrix", bgfx::UniformType::Mat4);
+    g_uniforms.uPointShadow2Params = bgfx::createUniform("u_pointShadow2Params", bgfx::UniformType::Vec4);
+    g_uniforms.uPointShadow2LightPos = bgfx::createUniform("u_pointShadow2LightPos", bgfx::UniformType::Vec4);
+    g_uniforms.uPointShadow2LightColor = bgfx::createUniform("u_pointShadow2LightColor", bgfx::UniformType::Vec4);
+    g_uniforms.sPointShadowMap2   = bgfx::createUniform("s_pointShadowMap2",   bgfx::UniformType::Sampler);
+    g_uniforms.uDramaDim          = bgfx::createUniform("u_dramaDim",          bgfx::UniformType::Vec4);
+    g_uniforms.uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
+    g_uniforms.uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
+    g_uniforms.uTssOps1     = bgfx::createUniform("u_tssOps1",     bgfx::UniformType::Vec4);
+    g_uniforms.uLightDirs   = bgfx::createUniform("u_lightDirs",   bgfx::UniformType::Vec4, 4);
+    g_uniforms.uLightColors = bgfx::createUniform("u_lightColors", bgfx::UniformType::Vec4, 4);
+    g_uniforms.uLightAmbients = bgfx::createUniform("u_lightAmbients", bgfx::UniformType::Vec4, 4);
+    g_uniforms.uLightPositions = bgfx::createUniform("u_lightPositions", bgfx::UniformType::Vec4, 4);
+    g_uniforms.uLightParams = bgfx::createUniform("u_lightParams", bgfx::UniformType::Vec4, 4);
+    g_uniforms.uSceneAmbient  = bgfx::createUniform("u_sceneAmbient",   bgfx::UniformType::Vec4);
+    g_uniforms.uLightingEnabled = bgfx::createUniform("u_lightingEnabled", bgfx::UniformType::Vec4);
+    g_uniforms.uTexcoordSelect  = bgfx::createUniform("u_texcoordSelect",  bgfx::UniformType::Vec4);
+    g_uniforms.uTexcoordSelect2 = bgfx::createUniform("u_texcoordSelect2", bgfx::UniformType::Vec4);
+    g_uniforms.uProjectedDecalMode = bgfx::createUniform("u_projectedDecalMode", bgfx::UniformType::Vec4);
+    g_uniforms.uTexcoordSource  = bgfx::createUniform("u_texcoordSource",  bgfx::UniformType::Vec4);
+    g_uniforms.uVertexColorFlags = bgfx::createUniform("u_vertexColorFlags", bgfx::UniformType::Vec4);
+    g_uniforms.uGrayscaleEnable = bgfx::createUniform("u_grayscaleEnable", bgfx::UniformType::Vec4);
+    g_uniforms.uObjectShroudDim = bgfx::createUniform("u_objectShroudDim", bgfx::UniformType::Vec4);
+    g_uniforms.uShroudParams = bgfx::createUniform("u_shroudParams", bgfx::UniformType::Vec4);
+    g_uniforms.uCloudParams  = bgfx::createUniform("u_cloudParams",  bgfx::UniformType::Vec4);
+    g_uniforms.uTexTransform0 = bgfx::createUniform("u_texTransform0", bgfx::UniformType::Vec4);
+    g_uniforms.uTexTransform1 = bgfx::createUniform("u_texTransform1", bgfx::UniformType::Vec4);
+    g_uniforms.uTexTransform0Z = bgfx::createUniform("u_texTransform0Z", bgfx::UniformType::Vec4);
+    g_uniforms.uTex1Transform0 = bgfx::createUniform("u_tex1Transform0", bgfx::UniformType::Vec4);
+    g_uniforms.uTex1Transform1 = bgfx::createUniform("u_tex1Transform1", bgfx::UniformType::Vec4);
+    g_uniforms.uTex1TransformZ = bgfx::createUniform("u_tex1TransformZ", bgfx::UniformType::Vec4);
+    g_uniforms.uTex2Transform0 = bgfx::createUniform("u_tex2Transform0", bgfx::UniformType::Vec4);
+    g_uniforms.uTex2Transform1 = bgfx::createUniform("u_tex2Transform1", bgfx::UniformType::Vec4);
+    g_uniforms.uTexProjected = bgfx::createUniform("u_texProjected", bgfx::UniformType::Vec4);
+    g_uniforms.uLegacyPixelShaderMode = bgfx::createUniform("u_legacyPixelShaderMode", bgfx::UniformType::Vec4);
+    g_uniforms.uZBias = bgfx::createUniform("u_zBias", bgfx::UniformType::Vec4);
+    g_uniforms.sCloudMap     = bgfx::createUniform("s_cloudMap",     bgfx::UniformType::Sampler);
+    g_uniforms.sLightMap     = bgfx::createUniform("s_lightMap",     bgfx::UniformType::Sampler);
+
+    // Default 1x1 white texture. Used as fallback for missing textures.
+    // Multiplying by white is the identity operation.
+    static const uint8_t kWhitePixel[4] = { 0xff, 0xff, 0xff, 0xff };
+    g_device.defaultWhiteTexture = bgfx::createTexture2D(
+        1, 1, false, 1,
+        bgfx::TextureFormat::RGBA8,
+        BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT,
+        bgfx::copy(kWhitePixel, sizeof(kWhitePixel)));
+    // Transparent fallback for missing blended textures. The legacy missing
+    // texture is useful on opaque geometry, but particle/effect draws can
+    // amplify it into large black/magenta quads.
+    static const uint8_t kTransparentPixel[4] = { 0x00, 0x00, 0x00, 0x00 };
+    g_device.defaultTransparentTexture = bgfx::createTexture2D(
+        1, 1, false, 1,
+        bgfx::TextureFormat::RGBA8,
+        BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT,
+        bgfx::copy(kTransparentPixel, sizeof(kTransparentPixel)));
+
+    g_device.uberProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_uber), sizeof(GGC_BGFX_SHADER(vs_uber)), "vs_uber",
+        GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
+
+    g_device.uberInstancedProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_uber_instanced), sizeof(GGC_BGFX_SHADER(vs_uber_instanced)), "vs_uber_instanced",
+        GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
+
+    g_device.sortedArrayProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_uber_array), sizeof(GGC_BGFX_SHADER(vs_uber_array)), "vs_uber_array",
+        GGC_BGFX_SHADER(fs_uber_array), sizeof(GGC_BGFX_SHADER(fs_uber_array)), "fs_uber_array");
+
+    // TheSuperHackers @performance bobtista Frame-constant uber variant: same vs_uber, but the
+    // fragment shader reads the global per-frame constants (sun/point shadow + scene ambient)
+    // from frameConstTexture rather than per-draw uniforms, shrinking the fs_uber constant
+    // buffer by ~352B/draw so heavy scenes stay under bgfx's fixed 8MB Metal uniform arena.
+    g_device.uberFrameConstProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_uber), sizeof(GGC_BGFX_SHADER(vs_uber)), "vs_uber",
+        GGC_BGFX_SHADER(fs_uber_frameconst), sizeof(GGC_BGFX_SHADER(fs_uber_frameconst)), "fs_uber_frameconst");
+    g_uniforms.sFrameConst = bgfx::createUniform("s_frameConst", bgfx::UniformType::Sampler);
+    g_device.frameConstTexture = bgfx::createTexture2D(
+        kFrameConstTexels, 1, false, 1,
+        bgfx::TextureFormat::RGBA32F,
+        BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+
+    g_device.treeProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_trees), sizeof(GGC_BGFX_SHADER(vs_trees)), "vs_trees",
+        GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
+
+    g_device.shadowVolumeProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_shadow_volume), sizeof(GGC_BGFX_SHADER(vs_shadow_volume)), "vs_shadow_volume",
+        GGC_BGFX_SHADER(fs_shadow_volume), sizeof(GGC_BGFX_SHADER(fs_shadow_volume)), "fs_shadow_volume");
+
+    g_device.shadowApplyProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_shadow_apply), sizeof(GGC_BGFX_SHADER(vs_shadow_apply)), "vs_shadow_apply",
+        GGC_BGFX_SHADER(fs_shadow_apply), sizeof(GGC_BGFX_SHADER(fs_shadow_apply)), "fs_shadow_apply");
+    g_uniforms.uShadowColor = bgfx::createUniform("u_shadowColor", bgfx::UniformType::Vec4);
+    g_uniforms.uShadowBias  = bgfx::createUniform("u_shadowBias",  bgfx::UniformType::Vec4);
+    g_uniforms.uPostParams = bgfx::createUniform("u_postParams", bgfx::UniformType::Vec4);
+    g_uniforms.uPostTexelSize = bgfx::createUniform("u_postTexelSize", bgfx::UniformType::Vec4);
+    g_uniforms.uSmudgeClip = bgfx::createUniform("u_smudgeClip", bgfx::UniformType::Vec4);
+    g_uniforms.uWipeParams = bgfx::createUniform("u_wipeParams", bgfx::UniformType::Vec4);
+    g_uniforms.uColorGradeParams = bgfx::createUniform("u_colorGradeParams", bgfx::UniformType::Vec4);
+    g_uniforms.uBloomParams = bgfx::createUniform("u_bloomParams", bgfx::UniformType::Vec4);
+    g_uniforms.uBloomBlurDir = bgfx::createUniform("u_bloomBlurDir", bgfx::UniformType::Vec4);
+    g_uniforms.sBloom = bgfx::createUniform("s_bloom", bgfx::UniformType::Sampler);
+    g_uniforms.uHdrParams = bgfx::createUniform("u_hdrParams", bgfx::UniformType::Vec4);
+    g_uniforms.uPostFx2Params = bgfx::createUniform("u_postFx2Params", bgfx::UniformType::Vec4);
+    g_uniforms.uSsaoParams = bgfx::createUniform("u_ssaoParams", bgfx::UniformType::Vec4);
+    g_uniforms.uSsaoInvProj = bgfx::createUniform("u_ssaoInvProj", bgfx::UniformType::Mat4);
+    g_uniforms.uSsaoProj = bgfx::createUniform("u_ssaoProj", bgfx::UniformType::Mat4);
+    g_uniforms.sSsao = bgfx::createUniform("s_ssao", bgfx::UniformType::Sampler);
+    g_uniforms.uSoftParticleParams = bgfx::createUniform("u_softParticleParams", bgfx::UniformType::Vec4);
+
+    // Keep view order explicit. Stencil shadow volumes, sorted decals/effects,
+    // scene-depth copies, post effects, and UI all depend on stable ordering.
+    const bgfx::ViewId order[] = {
+        kBgfxDebugView,
+        kBgfxRTTView,
+        kBgfxShadowMapView,                                 // 20 — sun shadow cascades must
+        static_cast<bgfx::ViewId>(kBgfxShadowMapView + 1),  // 21   render BEFORE the engine
+        static_cast<bgfx::ViewId>(kBgfxShadowMapView + 2),  // 22   view that samples them
+        kBgfxPointShadowView,                               // 23 — point-light shadow must also
+        kBgfxPointShadow2View,                              // 25 — second point-light shadow slot
+        kBgfxEngineView,
+        kBgfxSceneDepthView,
+        kBgfxShadowVolumeView,
+        kBgfxShadowApplyView,
+        kBgfxWaterView,
+        kBgfxEngineSortView,
+        kBgfxEffectOverlayView,
+        kBgfxShroudOverlayView,
+        kBgfxSmudgeCopyView,
+        kBgfxSmudgeView,
+        kBgfxBloomBrightView,
+        kBgfxBloomBlurHView,
+        kBgfxBloomBlurVView,
+        kBgfxSsaoView,
+        kBgfxSsaoBlurHView,
+        kBgfxSsaoBlurVView,
+        kBgfxSceneCompositeView,
+        kBgfxPointShadowVizView,                            // 24 — GGC_POINT_SHADOW_VIZ debug blit
+        kBgfxUIView,
+    };
+    bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(order), order);
+
+    g_uniforms.uSwayTable    = bgfx::createUniform("u_swayTable",    bgfx::UniformType::Vec4, kSwayTableEntries);
+    g_uniforms.uShroudOffset = bgfx::createUniform("u_shroudOffset", bgfx::UniformType::Vec4);
+    g_uniforms.uShroudScale  = bgfx::createUniform("u_shroudScale",  bgfx::UniformType::Vec4);
+
+    const bgfx::RendererType::Enum selected = bgfx::getRendererType();
+    const char * rendererName = bgfx::getRendererName(selected);
+    const bgfx::Caps * caps = bgfx::getCaps();
+    WWDEBUG_SAY(("[BgfxBackend] bgfx::init OK on main window "
+                 "(renderer=%s, %dx%d, hwnd=%p, passthrough=%s, uber=%s).",
+                 rendererName, g_device.width, g_device.height,
+                 g_device.window,
+                 bgfx::isValid(g_device.passthroughProgram) ? "ok" : "FAILED",
+                 bgfx::isValid(g_device.uberProgram)        ? "ok" : "FAILED"));
+    (void)rendererName;
+    // Log whether RGBA8 is supported as a render target (needed for
+    // DESTALPHA water technique — back buffer must have alpha channel).
+    const bool rgba8Supported = (caps->formats[bgfx::TextureFormat::RGBA8] &
+                                  BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) != 0;
+    const bool bgra8Supported = (caps->formats[bgfx::TextureFormat::BGRA8] &
+                                  BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) != 0;
+    WWDEBUG_SAY(("[BgfxBackend] Caps: RGBA8_FB=%d BGRA8_FB=%d "
+                 "homogeneousDepth=%d originBottomLeft=%d",
+                 rgba8Supported ? 1 : 0, bgra8Supported ? 1 : 0,
+                 caps->homogeneousDepth ? 1 : 0,
+                 caps->originBottomLeft ? 1 : 0));
+    (void)rgba8Supported;
+    (void)bgra8Supported;
+
+    // TheSuperHackers @refactor bobtista 16/04/2026 Single-window build: there is
+    // no secondary reference window to create or move here.
+
+}
+
+template<typename H>
+static void DestroyBgfxHandle(H & h)
+{
+    if (bgfx::isValid(h))
+    {
+        bgfx::destroy(h);
+        h = BGFX_INVALID_HANDLE;
+    }
+}
+
+void BgfxBackend::Shutdown()
+{
+    if (GgcFlags::Enabled(GgcFlag_BgfxPerfLog))
+    {
+        PerfSessionPrintSummary();
+    }
+
+    if (g_device.initialized)
+    {
+        // TheSuperHackers @bugfix bobtista 02/06/2026 Unbind every view's framebuffer and pump
+        // empty frames before destroying resources: retires in-flight command-buffer references
+        // and flushes a partial frame that Metal would otherwise assert on at shutdown.
+        const bgfx::ViewId kBgfxMaxViewId = 15;
+        for (bgfx::ViewId v = 0; v <= kBgfxMaxViewId; ++v)
+        {
+            bgfx::setViewFrameBuffer(v, BGFX_INVALID_HANDLE);
+        }
+        const int kShutdownDrainFrames = 4;
+        for (int prep = 0; prep < kShutdownDrainFrames; ++prep)
+        {
+            bgfx::frame();
+        }
+
+        DestroyBgfxHandle(g_device.passthroughProgram);
+        DestroyBgfxHandle(g_device.sceneCompositeProgram);
+        DestroyBgfxHandle(g_device.bloomBrightProgram);
+        DestroyBgfxHandle(g_device.bloomBlurProgram);
+        DestroyBgfxHandle(g_device.ssaoProgram);
+        DestroyBgfxHandle(g_device.copyProgram);
+        DestroyBgfxHandle(g_device.sceneDepthProgram);
+        DestroyBgfxHandle(g_device.shadowCasterProgram);
+        DestroyBgfxHandle(g_device.smudgeProgram);
+        DestroyBgfxHandle(g_device.fullscreenClearVB);
+        DestroyBgfxHandle(g_device.uberProgram);
+        DestroyBgfxHandle(g_device.uberFrameConstProgram);
+        DestroyBgfxHandle(g_device.frameConstTexture);
+        DestroyBgfxHandle(g_device.sortedArrayProgram);
+        DestroyBgfxHandle(g_device.uberInstancedProgram);
+        DestroyBgfxHandle(g_device.treeProgram);
+        DestroyBgfxHandle(g_uniforms.uSwayTable);
+        DestroyBgfxHandle(g_uniforms.uShroudOffset);
+        DestroyBgfxHandle(g_uniforms.uShroudScale);
+        DestroyBgfxHandle(g_uniforms.sTex0);
+        DestroyBgfxHandle(g_uniforms.sTex1);
+        DestroyBgfxHandle(g_uniforms.sTex2);
+        DestroyBgfxHandle(g_uniforms.sTex3);
+        DestroyBgfxHandle(g_uniforms.sSceneDepth);
+        DestroyBgfxHandle(g_uniforms.sTexArray);
+        DestroyBgfxHandle(g_uniforms.sFrameConst);
+        BgfxSortedTextureArrayShutdown();
+        DestroyBgfxHandle(g_uniforms.uMatDiffuse);
+        DestroyBgfxHandle(g_uniforms.uMatAmbient);
+        DestroyBgfxHandle(g_uniforms.uAtestParams);
+        DestroyBgfxHandle(g_uniforms.uTssOps0);
+        DestroyBgfxHandle(g_uniforms.uTssOps1);
+        DestroyBgfxHandle(g_uniforms.uLightDirs);
+        DestroyBgfxHandle(g_uniforms.uLightColors);
+        DestroyBgfxHandle(g_uniforms.uLightAmbients);
+        DestroyBgfxHandle(g_uniforms.uLightPositions);
+        DestroyBgfxHandle(g_uniforms.uLightParams);
+        DestroyBgfxHandle(g_uniforms.uSceneAmbient);
+        DestroyBgfxHandle(g_uniforms.uLightingEnabled);
+        DestroyBgfxHandle(g_uniforms.uTexcoordSelect);
+        DestroyBgfxHandle(g_uniforms.uTexcoordSelect2);
+        DestroyBgfxHandle(g_uniforms.uProjectedDecalMode);
+        DestroyBgfxHandle(g_uniforms.uTexcoordSource);
+        DestroyBgfxHandle(g_uniforms.uVertexColorFlags);
+        DestroyBgfxHandle(g_uniforms.uObjectShroudDim);
+        DestroyBgfxHandle(g_uniforms.uShroudParams);
+        DestroyBgfxHandle(g_uniforms.uCloudParams);
+        DestroyBgfxHandle(g_uniforms.uTexTransform0);
+        DestroyBgfxHandle(g_uniforms.uTexTransform1);
+        DestroyBgfxHandle(g_uniforms.uTexTransform0Z);
+        DestroyBgfxHandle(g_uniforms.uTex1Transform0);
+        DestroyBgfxHandle(g_uniforms.uTex1Transform1);
+        DestroyBgfxHandle(g_uniforms.uTex1TransformZ);
+        DestroyBgfxHandle(g_uniforms.uTex2Transform0);
+        DestroyBgfxHandle(g_uniforms.uTex2Transform1);
+        DestroyBgfxHandle(g_uniforms.uTexProjected);
+        DestroyBgfxHandle(g_uniforms.uLegacyPixelShaderMode);
+        DestroyBgfxHandle(g_uniforms.uZBias);
+        DestroyBgfxHandle(g_uniforms.sCloudMap);
+        DestroyBgfxHandle(g_uniforms.sLightMap);
+        DestroyBgfxHandle(g_device.shadowVolumeProgram);
+        DestroyBgfxHandle(g_device.shadowApplyProgram);
+        DestroySceneFramebuffer();
+        DestroyBgfxHandle(g_uniforms.uShadowColor);
+        DestroyBgfxHandle(g_uniforms.uPostParams);
+        DestroyBgfxHandle(g_uniforms.uPostTexelSize);
+        DestroyBgfxHandle(g_uniforms.uSmudgeClip);
+        DestroyBgfxHandle(g_uniforms.uWipeParams);
+        DestroyBgfxHandle(g_uniforms.uColorGradeParams);
+        DestroyBgfxHandle(g_uniforms.uBloomParams);
+        DestroyBgfxHandle(g_uniforms.uBloomBlurDir);
+        DestroyBgfxHandle(g_uniforms.sBloom);
+        DestroyBgfxHandle(g_uniforms.uHdrParams);
+        DestroyBgfxHandle(g_uniforms.uPostFx2Params);
+        DestroyBgfxHandle(g_uniforms.uSsaoParams);
+        DestroyBgfxHandle(g_uniforms.uSsaoInvProj);
+        DestroyBgfxHandle(g_uniforms.uSsaoProj);
+        DestroyBgfxHandle(g_uniforms.sSsao);
+        DestroyBgfxHandle(g_uniforms.uSoftParticleParams);
+        DestroyBgfxHandle(g_uniforms.uShadowBias);
+        DestroyBgfxHandle(g_uniforms.uMatEmissive);
+        DestroyBgfxHandle(g_uniforms.uMatSpecular);
+        DestroyBgfxHandle(g_uniforms.uMatFx);
+        DestroyBgfxHandle(g_uniforms.uEyePos);
+        DestroyBgfxHandle(g_uniforms.uShadowMatrices);
+        DestroyBgfxHandle(g_uniforms.uShadowParams);
+        DestroyBgfxHandle(g_uniforms.uShadowQuality);
+        DestroyBgfxHandle(g_uniforms.uSunShadowReceive);
+        DestroyBgfxHandle(g_uniforms.sShadowMap);
+        DestroyBgfxHandle(g_uniforms.uPointShadowMatrix);
+        DestroyBgfxHandle(g_uniforms.uPointShadowParams);
+        DestroyBgfxHandle(g_uniforms.uPointShadowLightPos);
+        DestroyBgfxHandle(g_uniforms.uPointShadowLightColor);
+        DestroyBgfxHandle(g_uniforms.sPointShadowMap);
+        DestroyBgfxHandle(g_uniforms.uPointShadow2Matrix);
+        DestroyBgfxHandle(g_uniforms.uPointShadow2Params);
+        DestroyBgfxHandle(g_uniforms.uPointShadow2LightPos);
+        DestroyBgfxHandle(g_uniforms.uPointShadow2LightColor);
+        DestroyBgfxHandle(g_uniforms.sPointShadowMap2);
+        DestroyBgfxHandle(g_uniforms.uDramaDim);
+        DestroyBgfxHandle(g_uniforms.uGrayscaleEnable);
+        DestroyBgfxHandle(g_device.defaultWhiteTexture);
+        DestroyBgfxHandle(g_device.defaultTransparentTexture);
+        g_caches.renderTarget.clear();
+        for (auto & kv : g_caches.framebuffer)
+        {
+            if (bgfx::isValid(kv.second.fb))
+            {
+                bgfx::destroy(kv.second.fb);
+            }
+        }
+        g_caches.framebuffer.clear();
+        // Cached engine buffers. Destroy before bgfx::shutdown
+        // so the handles outlive nothing.
+        for (auto & kv : g_caches.vb)
+        {
+            if (bgfx::isValid(kv.second.handle))
+            {
+                bgfx::destroy(kv.second.handle);
+            }
+        }
+        g_caches.vb.clear();
+        g_caches.pendingVbRangeUploads.clear();
+        for (auto & kv : g_caches.ib)
+        {
+            if (bgfx::isValid(kv.second.handle))
+            {
+                bgfx::destroy(kv.second.handle);
+            }
+        }
+        g_caches.ib.clear();
+        g_caches.pendingIbRangeUploads.clear();
+        for (auto & kv : g_caches.texture)
+        {
+            if (bgfx::isValid(kv.second))
+            {
+                bgfx::destroy(kv.second);
+            }
+        }
+        g_caches.texture.clear();
+        for (auto & kv : g_caches.textureBaseMip)
+        {
+            if (bgfx::isValid(kv.second))
+            {
+                bgfx::destroy(kv.second);
+            }
+        }
+        g_caches.textureBaseMip.clear();
+        g_caches.textureInfo.clear();
+        g_caches.textureBaseMipInfo.clear();
+        g_draw.vb         = BGFX_INVALID_HANDLE;
+        g_draw.ib         = BGFX_INVALID_HANDLE;
+        g_draw.staticVB   = BGFX_INVALID_HANDLE;
+        g_draw.staticIB   = BGFX_INVALID_HANDLE;
+        g_draw.vbOwner    = nullptr;
+        g_draw.ibOwner    = nullptr;
+        g_draw.tex[0]   = BGFX_INVALID_HANDLE;
+        g_draw.tex[1]   = BGFX_INVALID_HANDLE;
+        g_draw.tex[2]   = BGFX_INVALID_HANDLE;
+        g_draw.tex[3]   = BGFX_INVALID_HANDLE;
+        g_draw.sourceTextures[0] = nullptr;
+        g_draw.sourceTextures[1] = nullptr;
+        g_draw.sourceTextures[2] = nullptr;
+        g_draw.sourceTextures[3] = nullptr;
+        g_draw.sourceMaterial = nullptr;
+        g_draw.explicitMaterialState = false;
+        g_draw.ibOffset       = 0;
+        g_draw.useStaticVB = false;
+        g_draw.useStaticIB = false;
+        g_draw.useTransientVB = false;
+        g_draw.useTransientIB = false;
+        g_draw.pendingVB.valid    = false;
+        g_draw.pendingVB.coplanarNormalBias = false;
+        g_draw.pendingIB.valid    = false;
+        g_draw.activeTransientVBOwner = nullptr;
+        g_draw.activeTransientIBOwner = nullptr;
+        g_draw.activeVertexNormalBias = false;
+        // Flush both deferred-destroy queues — bgfx::shutdown() tolerates stale handles but strict debug builds may assert.
+        for (auto & h : g_caches.deferredDestroys)
+        {
+            if (bgfx::isValid(h))
+            {
+                bgfx::destroy(h);
+            }
+        }
+        for (auto & h : g_caches.deferredDestroysPrev)
+        {
+            if (bgfx::isValid(h))
+            {
+                bgfx::destroy(h);
+            }
+        }
+        g_caches.deferredDestroys.clear();
+        g_caches.deferredDestroysPrev.clear();
+        // TheSuperHackers @bugfix bobtista 02/06/2026 Drain the dynamic VB/IB deferred-
+        // destroy queues too, so resized-out handles do not leak past shutdown.
+        for (auto & h : g_caches.deferredDestroyVB)     { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyVBPrev) { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyIB)     { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyIBPrev) { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        g_caches.deferredDestroyVB.clear();
+        g_caches.deferredDestroyVBPrev.clear();
+        g_caches.deferredDestroyIB.clear();
+        g_caches.deferredDestroyIBPrev.clear();
+        for (auto & h : g_caches.deferredDestroyStaticVB)     { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyStaticVBPrev) { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyStaticIB)     { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyStaticIBPrev) { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        g_caches.deferredDestroyStaticVB.clear();
+        g_caches.deferredDestroyStaticVBPrev.clear();
+        g_caches.deferredDestroyStaticIB.clear();
+        g_caches.deferredDestroyStaticIBPrev.clear();
+        // TheSuperHackers @bugfix bobtista 10/07/2026 Also drain the deferred framebuffer-destroy
+        // queues at shutdown so a framebuffer queued in the final frame is not leaked.
+        for (auto & h : g_caches.deferredDestroyFB)     { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyFBPrev) { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        g_caches.deferredDestroyFB.clear();
+        g_caches.deferredDestroyFBPrev.clear();
+        // TheSuperHackers @bugfix bobtista 02/06/2026 Destroy remaining registry entries at
+        // shutdown. The isValid guards make Register_* entries (whose handles live in the caches
+        // drained above) a safe no-op; Create_Texture entries own their texture/fb and need it.
+        for (auto & kv : g_resourceRegistry.table)
+        {
+            BgfxResourceEntry & entry = kv.second;
+            switch (entry.kind)
+            {
+                case BGFX_RR_KIND_VB:     DestroyBgfxHandle(entry.vb);  break;
+                case BGFX_RR_KIND_IB:     DestroyBgfxHandle(entry.ib);  break;
+                case BGFX_RR_KIND_TEXTURE:
+                    if (bgfx::isValid(entry.fb))
+                    {
+                        DestroyBgfxHandle(entry.fb);
+                    }
+                    else
+                    {
+                        DestroyBgfxHandle(entry.texture);
+                    }
+                    break;
+                default: break;
+            }
+        }
+        g_resourceRegistry.table.clear();
+        // TheSuperHackers @bugfix bobtista 02/06/2026 bgfx releases native GPU resources
+        // lazily across its frame-latency window, so a single bgfx::frame() after queuing
+        // all the destroys above leaves many still pending when bgfx::shutdown() runs,
+        // producing a flood of "RefCount is 1 (expected 0)" warnings at exit. Pump enough
+        // frames to fully drain the deferred native-release pipeline before shutdown.
+        // bgfx's internal BGFX_CONFIG_MAX_FRAME_LATENCY is not exposed in the public
+        // headers; its default is 3, so 4 frames covers the worst case with margin.
+        const int kShutdownFlushFrames = 4;
+        for (int flush = 0; flush < kShutdownFlushFrames; ++flush)
+        {
+            bgfx::frame();
+        }
+        bgfx::shutdown();
+        g_device.initialized = false;
+        WWDEBUG_SAY(("[BgfxBackend] bgfx::shutdown complete."));
+    }
+
+    // bgfx window is the single game window, do not destroy it.
+    g_device.window = nullptr;
+}
+
+// Assemble the full bgfx reset flag set from the persisted device state.
+// Used wherever a runtime bgfx::reset is issued (window resize, vsync toggle)
+// so every reset path keeps the same MSAA / sRGB / depth-clamp / flush / vsync
+// configuration instead of dropping bits.
+static uint32_t ComputeBgfxResetFlags()
+{
+    uint32_t resetFlags = BGFX_RESET_NONE | g_device.msaaResetFlags
+        | (g_device.srgbEnabled ? BGFX_RESET_SRGB_BACKBUFFER : 0)
+        | (g_device.vsyncEnabled ? BGFX_RESET_VSYNC : 0);
+    if (GgcFlags::Enabled(GgcFlag_BgfxDepthClamp))
+    {
+        resetFlags |= BGFX_RESET_DEPTH_CLAMP;
+    }
+#if defined(__APPLE__)
+    // TheSuperHackers @bugfix bobtista 06/06/2026 Match the init-time gate (opt-in via
+    // GGC_MACOS_FLUSH) so a runtime reset (window resize / vsync toggle) does not silently flip
+    // FLUSH_AFTER_RENDER back on and revert the ~48% perf win.
+    if (GgcFlags::Enabled(GgcFlag_MacosFlush))
+    {
+        resetFlags |= BGFX_RESET_FLUSH_AFTER_RENDER;
+    }
+#endif
+    return resetFlags;
+}
+
+// -- Device selection, windowing and display-mode control --------------------
+//
+// TheSuperHackers @refactor bobtista 11/06/2026 The bgfx backend owns its device lifecycle and a
+// single synthetic device entry natively, so dx8wrapper.cpp is no longer compiled on bgfx builds.
+// Init_Render_System brings up the render-state cache and the device enumeration; the real bgfx
+// device (Initialize) and the WW3D subsystems come up on the first Set_Render_Device, matching the
+// legacy Init -> Set_Render_Device -> Create_Device -> Do_Onetime_Device_Dependent_Inits sequence.
+// The resolution list feeds the options UI fallback (W3DDisplay::getDisplayMode enumerates SDL3
+// modes directly); caps and Set_Default_Global_Render_States are intentionally dropped because
+// bgfx reads neither (it routes fog/bump-env through FixedFunctionState and ignores CurrentCaps).
+
+void BgfxBackend::Ensure_Render_Device_Desc()
+{
+    if (m_renderDeviceDescBuilt)
+    {
+        return;
+    }
+    m_renderDeviceDescBuilt = true;
+    m_renderDeviceDesc.set_device_name("Generals bgfx standalone");
+    m_renderDeviceDesc.set_driver_name("bgfx");
+    m_renderDeviceDesc.set_driver_version("0.0.0.0");
+    // TheSuperHackers @refactor bobtista 12/06/2026 Only the device name/count are consumed on the
+    // bgfx path; the options-menu resolution list is built directly from SDL3 modes by
+    // W3DDisplay::Build_Options_Resolution_List. This small fixed list is only read by the non-SDL3
+    // bgfx fallback (W3DDisplay::getDisplayMode's else branch). Do NOT re-enumerate SDL3 modes here -
+    // that was dead on SDL3 builds and duplicated the W3DDisplay logic.
+    m_renderDeviceDesc.reset_resolution_list();
+    m_renderDeviceDesc.add_resolution(640, 480, 32);
+    m_renderDeviceDesc.add_resolution(800, 600, 32);
+    m_renderDeviceDesc.add_resolution(1024, 768, 32);
+    m_renderDeviceDesc.add_resolution(1280, 720, 32);
+    m_renderDeviceDesc.add_resolution(1280, 1024, 32);
+    m_renderDeviceDesc.add_resolution(1920, 1080, 32);
+}
+
+// Equivalent of DX8Wrapper::Reset_Device on the bgfx path: release the bound buffers and let the
+// texture/dynamic-buffer/shader subsystems recreate. The bgfx backbuffer and scene render targets
+// are resized to the live window every frame in Begin_Scene, so no explicit device reset is needed.
+bool BgfxBackend::Reset_Bgfx_Device(bool reload_assets)
+{
+    if (!m_deviceCreated)
+    {
+        return false;
+    }
+    WW3D::_Invalidate_Textures();
+    // TheSuperHackers @refactor bobtista 12/06/2026 Clear the bound buffers through the existing
+    // FixedFunctionState setter (the idiom the original DX8Wrapper::Reset_Device used) instead of a
+    // hand-rolled release loop. The setter also resets the changed-mask / vba bookkeeping the raw
+    // loop dropped.
+    for (unsigned i = 0; i < MAX_VERTEX_STREAMS; ++i)
+    {
+        FixedFunctionState::Set_Vertex_Buffer(nullptr, i);
+    }
+    FixedFunctionState::Set_Index_Buffer(nullptr, 0);
+    DynamicVBAccessClass::_Deinit();
+    DynamicIBAccessClass::_Deinit();
+    TextureResourceManagerClass::Release_Textures();
+    SHD_SHUTDOWN_SHADERS;
+    if (reload_assets)
+    {
+        TextureResourceManagerClass::Recreate_Textures();
+    }
+    Invalidate_Cached_Render_States();
+    SHD_INIT_SHADERS;
+    return true;
+}
+
+bool BgfxBackend::Init_Render_System(void * hwnd, bool lite)
+{
+    FixedFunctionState::Clear_Cached_State();
+    FixedFunctionState::Clear_Raw();
+    g_device.window = static_cast<HWND>(hwnd);
+    m_curRenderDevice = -1;
+    Render2DClass::Set_Screen_Resolution(RectClass(0, 0, 640, 480));
+    g_device.windowed = false;
+    g_device.bits = 32;
+    DX8Wrapper_IsWindowed = false;
+    if (!lite)
+    {
+        Ensure_Render_Device_Desc();
+    }
+    return true;
+}
+
+void BgfxBackend::Shutdown_Render_System()
+{
+    if (!m_deviceCreated)
+    {
+        return;
+    }
+    FixedFunctionState::Release_Raw_Textures();
+    for (unsigned i = 0; i < MAX_VERTEX_STREAMS; ++i)
+    {
+        if (FixedFunctionState::Render_State().vertex_buffers[i])
+        {
+            FixedFunctionState::Render_State().vertex_buffers[i]->Release_Engine_Ref();
+        }
+        REF_PTR_RELEASE(FixedFunctionState::Render_State().vertex_buffers[i]);
+    }
+    if (FixedFunctionState::Render_State().index_buffer)
+    {
+        FixedFunctionState::Render_State().index_buffer->Release_Engine_Ref();
+    }
+    REF_PTR_RELEASE(FixedFunctionState::Render_State().index_buffer);
+    Shutdown();
+    WW3DDeviceInit::Shutdown_Subsystems();
+    m_deviceCreated = false;
+}
+
+bool BgfxBackend::Set_Render_Device(const char * dev_name, int width, int height, int bits, int windowed, bool resize_window)
+{
+    Ensure_Render_Device_Desc();
+    return Set_Render_Device(0, width, height, bits, windowed, resize_window, m_deviceCreated, true);
+}
+
+bool BgfxBackend::Set_Render_Device(int dev, int width, int height, int bits, int windowed, bool resize_window, bool reset_device, bool restore_assets)
+{
+    Ensure_Render_Device_Desc();
+    if ((m_curRenderDevice == -1) && (dev == -1))
+    {
+        m_curRenderDevice = 0;
+    }
+    else if (dev != -1)
+    {
+        m_curRenderDevice = dev;
+    }
+    // TheSuperHackers @bugfix bobtista 11/06/2026 Do NOT write g_device.width/height here. Begin_Scene
+    // is their sole owner - it reads the live window every frame and recreates the scene framebuffer
+    // only when its contentChanged check fires. Pre-setting the new size defeats that check (scene FB
+    // kept at the old size while the swapchain resizes -> render freeze on resolution change).
+    // Initialize() sets them from the window at creation; bit-depth/windowed are mirrored here as before.
+    if (bits != -1)
+    {
+        g_device.bits = bits;
+    }
+    if (windowed != -1)
+    {
+        g_device.windowed = (windowed != 0);
+    }
+    DX8Wrapper_IsWindowed = g_device.windowed;
+
+    if (!reset_device)
+    {
+        // First creation: bring up the bgfx device, then the WW3D subsystems. Order matters - the
+        // subsystem _Init() calls allocate static buffers captured into the bgfx caches, so the
+        // backend must be live first (see the original Do_Onetime_Device_Dependent_Inits note).
+        Initialize(g_device.window, g_device.width, g_device.height);
+        WW3DDeviceInit::Init_Subsystems();
+        m_deviceCreated = true;
+    }
+    else
+    {
+        Reset_Bgfx_Device(restore_assets);
+    }
+    Render2DClass::Set_Screen_Resolution(RectClass(0, 0, g_device.width, g_device.height));
+    return true;
+}
+
+bool BgfxBackend::Set_Any_Render_Device()
+{
+    Ensure_Render_Device_Desc();
+    return Set_Render_Device(0, -1, -1, -1, -1, false, m_deviceCreated, true);
+}
+
+bool BgfxBackend::Set_Next_Render_Device()
+{
+    // Only one synthetic device, so "next" wraps back to it and resets.
+    return Set_Render_Device(m_curRenderDevice, -1, -1, -1, -1, false, true, true);
+}
+
+bool BgfxBackend::Toggle_Windowed()
+{
+    // TheSuperHackers @refactor bobtista 08/06/2026 DX8Wrapper::Toggle_Windowed is a no-op on bgfx
+    // builds (its body is WW3D_DX8-only and unconditionally returns false); match that directly.
+    return false;
+}
+
+bool BgfxBackend::Is_Windowed() const
+{
+    return g_device.windowed;
+}
+
+int BgfxBackend::Get_Render_Device() const
+{
+    return m_curRenderDevice;
+}
+
+const RenderDeviceDescClass & BgfxBackend::Get_Render_Device_Desc(int /*deviceidx*/)
+{
+    Ensure_Render_Device_Desc();
+    return m_renderDeviceDesc;
+}
+
+int BgfxBackend::Get_Render_Device_Count() const
+{
+    return 1;
+}
+
+const char * BgfxBackend::Get_Render_Device_Name(int /*device_index*/)
+{
+    Ensure_Render_Device_Desc();
+    return m_renderDeviceDesc.Get_Device_Name();
+}
+
+bool BgfxBackend::Set_Device_Resolution(int width, int height, int bits, int windowed, bool resize_window)
+{
+    if (!m_deviceCreated)
+    {
+        return false;
+    }
+    // TheSuperHackers @bugfix bobtista 11/06/2026 The caller (W3DDisplay::setDisplayMode) already
+    // resized the SDL window. Begin_Scene owns g_device.width/height/swap* and reconciles them against
+    // the live window every frame, recreating the scene framebuffer when the content size changes.
+    // Do NOT touch g_device here: writing the new size defeats Begin_Scene's contentChanged check, so
+    // the scene framebuffer is left at the old size while the swapchain resizes -> the render freezes
+    // (audio keeps running, the shellmap stops). The legacy D3D8 device reset is likewise unnecessary
+    // on bgfx (Begin_Scene does the resize) - mirrors W3DDisplay::applyExternalResize.
+    WWDEBUG_SAY(("BgfxBackend::Set_Device_Resolution requested %dx%d; Begin_Scene owns the resize", width, height));
+    return true;
+}
+
+// TheSuperHackers @refactor bobtista 08/06/2026 g_device is the source of truth for the device
+// resolution (width/height track the window every frame) and now for the bit depth and windowed flag
+// too. Reading them here - rather than DX8Wrapper's cached state, which is only refreshed on a full
+// device reset - keeps the 3D camera viewport (derived from this in CameraClass::Apply) correct across
+// an OS window resize. DX8Wrapper mirrors its IsWindowed/BitDepth into g_device, so no round-trip
+// through the legacy wrapper is needed. width/height are 0 until Initialize() runs (a deliberate
+// sentinel; see the field declaration), which is before any of these getters are read.
+void BgfxBackend::Get_Render_Target_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed)
+{
+    set_w = g_device.width;
+    set_h = g_device.height;
+    set_bits = g_device.bits;
+    set_windowed = g_device.windowed;
+}
+
+void BgfxBackend::Get_Device_Resolution(int & set_w, int & set_h, int & set_bits, bool & set_windowed)
+{
+    set_w = g_device.width;
+    set_h = g_device.height;
+    set_bits = g_device.bits;
+    set_windowed = g_device.windowed;
+}
+
+int BgfxBackend::Get_Device_Resolution_Width() const
+{
+    return g_device.width;
+}
+
+int BgfxBackend::Get_Device_Resolution_Height() const
+{
+    return g_device.height;
+}
+
+// TheSuperHackers @refactor bobtista 08/06/2026 Registry_Save/Load_Render_Device removed - they
+// only forwarded to DX8Wrapper and have no GameEngine callers on bgfx (macOS persistence is a no-op
+// stub). The IRenderBackend base stubs (return false) now apply.
+
+void BgfxBackend::Set_Swap_Interval(int swap)
+{
+    // Default is vsync OFF; render fps is CPU-capped by the FramePacer.
+    const bool enabled = (swap != 0);
+    if (g_device.vsyncEnabled == enabled)
+    {
+        return;
+    }
+    g_device.vsyncEnabled = enabled;
+    if (g_device.initialized)
+    {
+        bgfx::reset(LbSwapWidth(), LbSwapHeight(), ComputeBgfxResetFlags());
+    }
+}
+
+int BgfxBackend::Get_Swap_Interval() const
+{
+    return g_device.vsyncEnabled ? 1 : 0;
+}
+
+// -- Viewport ----------------------------------------------------------------
+
+void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
+{
+    // Do NOT call the DX8 base viewport setter here - this method is called
+    // FROM DX8Wrapper::Set_Viewport, so the legacy viewport is already set.
+    // Calling the base class would cause infinite recursion.
+
+    if (!g_device.initialized)
+    {
+        return;
+    }
+
+    // TheSuperHackers @fix bobtista 19/04/2026 Sync bgfx view rects with the
+    // game's viewport. Without this, bgfx uses the full window for the 3D
+    // scene while the game's picking/camera uses a smaller viewport (excluding
+    // the control bar), causing a vertical click offset when selecting units.
+    const uint16_t x = static_cast<uint16_t>(viewport.x);
+    const uint16_t y = static_cast<uint16_t>(viewport.y);
+    const uint16_t w = static_cast<uint16_t>(viewport.width);
+    const uint16_t h = static_cast<uint16_t>(viewport.height);
+
+    // TheSuperHackers @fix bobtista 20/04/2026 DX8Wrapper::Set_Viewport
+    // is called from TWO very different contexts each frame:
+    //   1. CameraClass::Apply() with the tactical 3D viewport
+    //      (e.g., 1280x640 when the control bar is visible)
+    //   2. Render2DClass::Render() with the full-canvas viewport
+    //      (1280x800) for 2D UI drawing
+    // The 2D UI has its own bgfx view (kBgfxUIView) so its rect is
+    // independent. If we let the Render2DClass call stomp the 3D engine
+    // views with the full-canvas rect, the 3D scene renders stretched
+    // while the picking code still normalizes mouse Y through the
+    // 640-tall tactical view — producing a vertical click offset that
+    // scales with Y position. Ignore updates whose dimensions match the
+    // full bgfx canvas: the 3D engine views should keep the smaller
+    // tactical rect set by CameraClass::Apply.
+    const bool isFullCanvas =
+        (x == 0 && y == 0 &&
+         static_cast<int>(w) == g_device.width &&
+         static_cast<int>(h) == g_device.height);
+    if (isFullCanvas)
+    {
+        return;
+    }
+
+    // TheSuperHackers @feature bobtista 15/06/2026 Scale the tactical viewport into
+    // the supersampled scene framebuffer. RTTView (water reflection) is a separate
+    // target and stays at content coords.
+    float renderScaleRatio = 1.0f;
+    if (g_device.width > 0 && g_device.sceneRenderWidth > 0)
+    {
+        renderScaleRatio = static_cast<float>(g_device.sceneRenderWidth) / static_cast<float>(g_device.width);
+    }
+    const uint16_t sx = static_cast<uint16_t>(static_cast<float>(x) * renderScaleRatio + 0.5f);
+    const uint16_t sy = static_cast<uint16_t>(static_cast<float>(y) * renderScaleRatio + 0.5f);
+    const uint16_t sw = static_cast<uint16_t>(static_cast<float>(w) * renderScaleRatio + 0.5f);
+    const uint16_t sh = static_cast<uint16_t>(static_cast<float>(h) * renderScaleRatio + 0.5f);
+
+    bgfx::setViewRect(kBgfxEngineView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxEngineSortView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxWaterView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxEffectOverlayView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxShadowVolumeView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxShadowApplyView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxSceneDepthView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxSmudgeCopyView, sx, sy, sw, sh);
+    bgfx::setViewRect(kBgfxSmudgeView, sx, sy, sw, sh);
+    g_views.sceneViewportX = sx;
+    g_views.sceneViewportY = sy;
+    g_views.sceneViewportW = sw;
+    g_views.sceneViewportH = sh;
+    bgfx::setViewRect(kBgfxRTTView, x, y, w, h);
+}
+
+// -- View capture / post-effect primitives ----------------------------------
+
+bool BgfxBackend::Initialize_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+    // Native bgfx post effects use the scene framebuffer directly. The legacy
+    // W3DShaderManager filter capture path is intentionally reported as
+    // unsupported until those filters are ported to scene-composite passes.
+    return false;
+}
+
+void BgfxBackend::Release_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+}
+
+bool BgfxBackend::Supports_View_Capture(RenderBackendViewCaptureKind kind) const
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Begin_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::End_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Is_View_Capture_Active(RenderBackendViewCaptureKind kind) const
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Has_View_Capture(RenderBackendViewCaptureKind kind) const
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Bind_View_Capture_Texture(RenderBackendViewCaptureKind kind, unsigned int stage)
+{
+    (void)kind;
+    (void)stage;
+    return false;
+}
+
+bool BgfxBackend::Draw_View_Capture_Quad(RenderBackendViewCaptureKind kind,
+                                         const RenderBackendScreenVertex * vertices,
+                                         unsigned int vertex_count,
+                                         bool use_second_uv)
+{
+    (void)kind;
+    (void)vertices;
+    (void)vertex_count;
+    (void)use_second_uv;
+    return false;
+}
+
+bool BgfxBackend::Draw_Screen_Quad(const RenderBackendScreenVertex * vertices,
+                                   unsigned int vertex_count,
+                                   bool use_second_uv)
+{
+    (void)vertices;
+    (void)vertex_count;
+    (void)use_second_uv;
+    return false;
+}
+
+bool BgfxBackend::Capture_Back_Buffer_RGBA(unsigned int display_width,
+                                           unsigned int display_height,
+                                           unsigned int image_size,
+                                           unsigned char * output_pixels,
+                                           unsigned int output_capacity,
+                                           unsigned int * output_width,
+                                           unsigned int * output_height)
+{
+    (void)display_width;
+    (void)display_height;
+    (void)image_size;
+    (void)output_pixels;
+    (void)output_capacity;
+    (void)output_width;
+    (void)output_height;
+    return false;
+}
+
+bool BgfxBackend::Request_Native_Screen_Shot(const char * path)
+{
+    if (!g_device.initialized || path == nullptr || path[0] == '\0')
+    {
+        return false;
+    }
+
+    bgfx::requestScreenShot(BGFX_INVALID_HANDLE, path);
+    return true;
+}
+
+// -- Frame lifecycle ---------------------------------------------------------
+
+// TheSuperHackers @perf bobtista 03/06/2026 Per-frame timing instrumentation.
+// GGC_BGFX_FRAME_TIMING_AFTER=N + GGC_BGFX_FRAME_TIMING_PATH=base activates
+// CSV logging at frame N onward, INTERVAL controls cadence (default 60).
+// Records the four stamps below; from them the analyzer can extract
+// inter-frame ms, end-scene work, and bgfx::frame() time.
+struct BgfxFrameTiming
+{
+    long long t0_begin_scene = 0;    // Begin_Scene entry
+    long long t1_end_scene = 0;      // End_Scene entry
+    long long t2_pre_frame = 0;      // just before bgfx::frame()
+    long long t3_post_frame = 0;     // just after bgfx::frame()
+    long long freq = 0;
+    int target_frame = -1;
+    int interval = 60;
+    char base_path[512] = {};
+    bool env_resolved = false;
+};
+static BgfxFrameTiming g_timing;
+
+// TheSuperHackers @perf bobtista 03/06/2026 In-code function profiler.
+// Buckets are reset at the top of every frame's End_Scene timing log and
+// accumulated by ScopedSectionTimer instances placed at the top of hot
+// BgfxBackend functions. Cumulative per-frame ticks + call counts get
+// written to the CSV alongside the frame timing.
+enum PerfSectionId {
+    PERF_SECT_SET_TEXTURE,
+    PERF_SECT_SET_VB,
+    PERF_SECT_SET_IB,
+    PERF_SECT_SUBMIT_DRAW,
+    PERF_SECT_DRAW_TRIANGLES,
+    PERF_SECT_APPLY_TEX,
+    PERF_SECT_UPLOAD_UNIFORMS,
+    PERF_SECT_UPLOAD_LIGHTS,
+    PERF_SECT_BEGIN_SCENE,
+    // TheSuperHackers @diag bobtista 04/06/2026 End_Dynamic_Vertex_Write ownership
+    // (the #1 sampled render self-time fn). DVW_END = whole End call; DVW_SCAN = the
+    // gated O(n^2) coplanar-pair scan within it; DVW_ALLOC = the transient-VB alloc in
+    // Begin. Proves whether the cost is the scan, the alloc, or per-call residue.
+    PERF_SECT_DVW_END,
+    PERF_SECT_DVW_SCAN,
+    PERF_SECT_DVW_ALLOC,
+    PERF_SECT_COUNT
+};
+struct PerfSection { long long total_ticks = 0; uint32_t calls = 0; };
+static PerfSection g_perf_sections[PERF_SECT_COUNT];
+// TheSuperHackers @diag bobtista 04/06/2026 Total verts through End_Dynamic_Vertex_Write
+// per frame (reset with g_perf_sections); with DVW_END.calls gives verts/call.
+static uint64_t g_dvwVerts = 0;
+
+class ScopedSectionTimer
+{
+    PerfSection * m_section;
+    long long m_start;
+public:
+    explicit ScopedSectionTimer(PerfSectionId id)
+        : m_section(nullptr)
+        , m_start(0)
+    {
+        if (g_timing.target_frame <= 0 || g_timing.base_path[0] == '\0')
+        {
+            return;
+        }
+        m_section = &g_perf_sections[id];
+        LARGE_INTEGER c; QueryPerformanceCounter(&c); m_start = c.QuadPart;
+    }
+    ~ScopedSectionTimer()
+    {
+        if (m_section == nullptr)
+        {
+            return;
+        }
+        LARGE_INTEGER c; QueryPerformanceCounter(&c);
+        m_section->total_ticks += c.QuadPart - m_start;
+        m_section->calls++;
+    }
+};
+#define PERF_TIME(id) ScopedSectionTimer _pst_##id(id)
+
+static long long QueryNow()
+{
+    LARGE_INTEGER c;
+    QueryPerformanceCounter(&c);
+    return c.QuadPart;
+}
+
+// TheSuperHackers @diag bobtista 04/06/2026 Cross-TU render-frame attribution
+// accumulators (declared in BgfxRenderProfile.h, used from W3DScene / particle
+// system / sorting renderer). Reset each frame next to g_perf_sections; emitted
+// to the frame-timing CSV with an unattributed remainder so the ~18ms engine-side
+// render CPU is accounted top-down.
+namespace GGCRenderProfile
+{
+    struct PhaseAcc { long long start = 0; long long total_ticks = 0; uint32_t calls = 0; };
+    static PhaseAcc g_phase_acc[PHASE_COUNT];
+    // Snapshot of the last fully-closed frame. EndFrame() (called at the top of the
+    // next W3DDisplay::draw) copies the accumulators here once every scope of the
+    // previous frame has closed, then zeroes them. The CSV emit reads this snapshot
+    // so the enclosing FRAME_DRAW / END_RENDER scopes (still open when the emit fires
+    // mid-frame, inside End_Render) report complete times with a one-frame lag.
+    static PhaseAcc g_phase_snapshot[PHASE_COUNT];
+
+    void Begin(Phase phase)
+    {
+        LARGE_INTEGER c; QueryPerformanceCounter(&c);
+        g_phase_acc[phase].start = c.QuadPart;
+    }
+    void End(Phase phase)
+    {
+        LARGE_INTEGER c; QueryPerformanceCounter(&c);
+        g_phase_acc[phase].total_ticks += c.QuadPart - g_phase_acc[phase].start;
+        g_phase_acc[phase].calls++;
+    }
+    long long SnapshotTicks(Phase phase)
+    {
+        return g_phase_snapshot[phase].total_ticks;
+    }
+    void EndFrame()
+    {
+        for (int i = 0; i < PHASE_COUNT; ++i)
+        {
+            g_phase_snapshot[i] = g_phase_acc[i];
+            g_phase_acc[i].total_ticks = 0;
+            g_phase_acc[i].calls = 0;
+        }
+    }
+}
+
+static void ResolveTimingEnv()
+{
+    if (g_timing.env_resolved) {
+        return;
+    }
+    g_timing.env_resolved = true;
+    // TheSuperHackers @perf bobtista 03/06/2026 QueryPerformanceCounter/Frequency
+    // are provided by the portable Windows-compat shim (already used for the
+    // PerfLog timers), so the per-section frame-timing profiler works on macOS
+    // too. The old _WIN32 guard left g_timing.freq == 0, silently disabling the
+    // submit_us/frame_us CSV on every non-Windows build.
+    LARGE_INTEGER f;
+    QueryPerformanceFrequency(&f);
+    g_timing.freq = f.QuadPart;
+    if (const char * e = GgcFlags::StringValue(GgcFlag_BgfxFrameTimingAfter)) {
+        g_timing.target_frame = std::atoi(e);
+    }
+    if (const char * e = GgcFlags::StringValue(GgcFlag_BgfxFrameTimingInterval)) {
+        int v = std::atoi(e);
+        if (v > 0) { g_timing.interval = v; }
+    }
+    if (const char * e = GgcFlags::StringValue(GgcFlag_BgfxFrameTimingPath)) {
+        std::strncpy(g_timing.base_path, e, sizeof(g_timing.base_path) - 1);
+    }
+}
+
+static bool TimingActive()
+{
+    return g_timing.target_frame > 0
+        && g_timing.base_path[0] != '\0'
+        && static_cast<int>(g_stats.frameIndex) >= g_timing.target_frame;
+}
+
+void BgfxBackend::Begin_Scene()
+{
+    PROFILER_SECTION_NAME("bgfx Begin_Scene");
+    if (!g_device.initialized)
+    {
+        return;
+    }
+
+    ResolveTimingEnv();
+    long long prev_t3 = g_timing.t3_post_frame;
+    // g_phase_acc is snapshot+reset by GGCRenderProfile::EndFrame() at the top of
+    // W3DDisplay::draw (so the enclosing FRAME_DRAW/END_RENDER scopes are closed);
+    // the emit below reads g_phase_snapshot rather than resetting here.
+    for (int i = 0; i < PERF_SECT_COUNT; ++i) {
+        g_perf_sections[i].total_ticks = 0;
+        g_perf_sections[i].calls = 0;
+    }
+    g_dvwVerts = 0;
+    if (TimingActive()) {
+        g_timing.t0_begin_scene = QueryNow();
+    }
+    (void)prev_t3;  // captured for inter-frame log below
+
+    const bool preserveRenderToTexture =
+        g_views.renderToTexture && g_views.renderTargetTexture != nullptr;
+
+    ResetFrameStats();
+
+    // Destroy PREVIOUS frame's deferred textures. These were queued in
+    // frame N-1, survived through bgfx::frame() at End_Scene of frame N-1,
+    // so all in-flight draws referencing them are guaranteed complete.
+    for (auto & h : g_caches.deferredDestroysPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroysPrev.clear();
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Same one-frame-delayed destroy for
+    // dynamic VB/IB handles orphaned by a resize last frame.
+    for (auto & h : g_caches.deferredDestroyVBPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroyVBPrev.clear();
+    for (auto & h : g_caches.deferredDestroyIBPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroyIBPrev.clear();
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Same one-frame-delayed destroy for static
+    // VB/IB handles dropped by a demotion-to-dynamic last frame.
+    for (auto & h : g_caches.deferredDestroyStaticVBPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroyStaticVBPrev.clear();
+    for (auto & h : g_caches.deferredDestroyStaticIBPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroyStaticIBPrev.clear();
+    for (auto & h : g_caches.deferredDestroyFBPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroyFBPrev.clear();
+
+
+    // Check if the game window was resized (e.g., by Set_Render_Device) and
+    // update bgfx's swapchain to match. Without this, bgfx renders at the
+    // old resolution while the game expects the new one.
+    if (g_device.window)
+    {
+        int sw = 0;
+        int sh = 0;
+        if (GetBackendWindowSize(g_device.window, sw, sh))
+        {
+            // TheSuperHackers @feature bobtista 08/06/2026 Reconcile the swapchain (= window) and the
+            // content (= render) size every frame. Without a letterbox request they are equal; with
+            // one the content is the centered aspect-fit box and the rest becomes black bars. The
+            // swapchain follows the window so bgfx presents at native size; the scene framebuffer and
+            // all render-target views follow the content size.
+            int cw = 0;
+            int ch = 0;
+            int ox = 0;
+            int oy = 0;
+            bool active = false;
+            ComputeLetterboxLayout(sw, sh, cw, ch, ox, oy, active);
+            const bool swapChanged = (sw != g_device.swapWidth || sh != g_device.swapHeight);
+            const bool contentChanged = (cw != g_device.width || ch != g_device.height);
+            if (swapChanged || contentChanged || active != g_device.letterboxActive)
+            {
+                WWDEBUG_SAY(("[BgfxBackend] Present resize: swap %dx%d -> %dx%d, content %dx%d -> %dx%d, letterbox=%d.",
+                             g_device.swapWidth, g_device.swapHeight, sw, sh,
+                             g_device.width, g_device.height, cw, ch, (int)active));
+                if (contentChanged)
+                {
+                    DestroySceneFramebuffer();
+                }
+                g_device.swapWidth = sw;
+                g_device.swapHeight = sh;
+                g_device.width = cw;
+                g_device.height = ch;
+                g_device.presentOffsetX = ox;
+                g_device.presentOffsetY = oy;
+                g_device.letterboxActive = active;
+                bgfx::reset(sw, sh, ComputeBgfxResetFlags());
+                if (contentChanged)
+                {
+                    CreateSceneFramebuffer();
+                    ApplySceneFramebufferToViews();
+                    // TheSuperHackers @bugfix bobtista 07/06/2026 bgfx::reset only rebuilds the
+                    // swapchain - it preserves all user textures, and TextureBaseClass::Invalidate is
+                    // a no-op on this backend, so the texture caches (g_caches.texture/textureBaseMip)
+                    // stay valid across a resolution change and must NOT be dropped here. Only the
+                    // render-target framebuffers (water reflection/refraction RTTs) are resolution
+                    // tied and need to be rebuilt; drop them deferred so the in-flight frame's command
+                    // buffers retire cleanly, and Ensure_Render_Target_Framebuffer recreates them
+                    // lazily at the new size.
+                    for (auto & kv : g_caches.framebuffer)
+                    {
+                        if (bgfx::isValid(kv.second.fb))
+                        {
+                            g_caches.deferredDestroyFB.push_back(kv.second.fb);
+                        }
+                    }
+                    g_caches.framebuffer.clear();
+                    g_caches.renderTarget.clear();
+                }
+            }
+        }
+    }
+
+    // TheSuperHackers @feature bobtista 15/06/2026 LOCAL DEV AID (uncommitted):
+    // honor a hotkey-requested framebuffer rebuild (HDR format toggle) at the same
+    // safe point the resize path uses.
+    if (g_requestSceneFramebufferRebuild)
+    {
+        g_requestSceneFramebufferRebuild = false;
+        DestroySceneFramebuffer();
+        CreateSceneFramebuffer();
+        ApplySceneFramebufferToViews();
+    }
+
+    // TheSuperHackers @fix bobtista 20/04/2026 Force a real draw on view 0
+    // each frame so bgfx actually processes the view and covers the
+    // backbuffer. Without this, touch-only activation leaves the backbuffer
+    // with stale content from prior frames — visible as flickering yellow
+    // strips from the chat button animation leaking under the control bar.
+    if (bgfx::isValid(g_device.passthroughProgram) && bgfx::isValid(g_device.fullscreenClearVB))
+    {
+        float identity[16];
+        IdentityMatrix(identity);
+        // Cover the whole swapchain (full window) so the letterbox bars are painted black.
+        bgfx::setViewRect(kBgfxDebugView, 0, 0,
+                          static_cast<uint16_t>(LbSwapWidth()),
+                          static_cast<uint16_t>(LbSwapHeight()));
+        bgfx::setViewTransform(kBgfxDebugView, identity, identity);
+        bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+        bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
+                       | BGFX_STATE_DEPTH_TEST_ALWAYS);
+        bgfx::submit(kBgfxDebugView, g_device.passthroughProgram);
+        g_stats.debugSubmits++;
+    }
+    else
+    {
+        bgfx::touch(kBgfxDebugView);
+    }
+    bgfx::touch(kBgfxEngineView);
+    bgfx::touch(kBgfxEngineSortView);
+    bgfx::touch(kBgfxWaterView);
+    bgfx::touch(kBgfxEffectOverlayView);
+    bgfx::touch(kBgfxShadowVolumeView);
+    bgfx::touch(kBgfxShadowApplyView);
+    bgfx::touch(kBgfxShroudOverlayView);
+    bgfx::touch(kBgfxSmudgeCopyView);
+    bgfx::touch(kBgfxSmudgeView);
+    if (bgfx::isValid(g_device.sceneReadableDepthFB))
+    {
+        bgfx::touch(kBgfxSceneDepthView);
+    }
+    bgfx::touch(kBgfxSceneCompositeView);
+    bgfx::touch(kBgfxPointShadowVizView);
+    bgfx::touch(kBgfxUIView);
+    g_views.overlay2DActive = false;
+    // TheSuperHackers @fix bobtista 21/04/2026 Reset ALL 3D view rects to full canvas at
+    // Begin_Scene so a frame that never calls Set_Viewport does not inherit the last
+    // tactical rect on some views but not others.
+    // TheSuperHackers @feature bobtista 15/06/2026 Scene views render into the
+    // supersampled scene framebuffer (content * render scale); the composite samples
+    // it normalized and downsamples to the native present rect.
+    const uint16_t srw = g_device.sceneRenderWidth > 0 ? g_device.sceneRenderWidth : static_cast<uint16_t>(g_device.width);
+    const uint16_t srh = g_device.sceneRenderHeight > 0 ? g_device.sceneRenderHeight : static_cast<uint16_t>(g_device.height);
+    bgfx::setViewRect(kBgfxEngineView,        0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxEngineSortView,    0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxWaterView,         0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxEffectOverlayView, 0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxShadowVolumeView,  0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxShadowApplyView,   0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxShroudOverlayView, 0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxSceneDepthView,    0, 0, srw, srh);
+    // Composite and UI present to the swapchain, so they go in the centered content rect; the
+    // remainder of the swapchain is the black-bar region painted by the debug view above.
+    bgfx::setViewRect(kBgfxSceneCompositeView, g_device.presentOffsetX, g_device.presentOffsetY, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxSmudgeCopyView,    0, 0, srw, srh);
+    bgfx::setViewRect(kBgfxSmudgeView,        0, 0, srw, srh);
+    if (!preserveRenderToTexture)
+    {
+        bgfx::setViewRect(kBgfxRTTView,       0, 0, g_device.width, g_device.height);
+    }
+    bgfx::setViewRect(kBgfxUIView,            g_device.presentOffsetX, g_device.presentOffsetY, g_device.width, g_device.height);
+    {
+        // TheSuperHackers @bugfix bobtista 30/04/2026 Keep the dedicated
+        // 2D UI view in sync with runtime window-size changes too. Leaving
+        // it at the startup rect makes control-bar/radar art render through
+        // an old canvas while text/widgets are laid out for the new size.
+        float identityMtx[16];
+        IdentityMatrix(identityMtx);
+        bgfx::setViewTransform(kBgfxUIView, identityMtx, identityMtx);
+    }
+    // No clear on water view — it composites over the opaque scene.
+    bgfx::setViewClear(kBgfxWaterView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    // TheSuperHackers @bugfix bobtista 28/04/2026 Preserve water submit
+    // order. Shore foam/water-track quads are submitted after the water
+    // surface; bgfx default sorting can place the surface last and cover
+    // the foam.
+    bgfx::setViewMode(kBgfxWaterView, bgfx::ViewMode::Sequential);
+    if (preserveRenderToTexture)
+    {
+        auto rtIt = g_caches.framebuffer.find(g_views.renderTargetTexture);
+        if (rtIt != g_caches.framebuffer.end())
+        {
+            const BgfxFramebufferEntry & entry = rtIt->second;
+            bgfx::setViewFrameBuffer(kBgfxRTTView, entry.fb);
+            bgfx::setViewRect(kBgfxRTTView, 0, 0, entry.width, entry.height);
+            bgfx::touch(kBgfxRTTView);
+            g_views.renderToTexture = true;
+        }
+    }
+    else
+    {
+        g_views.renderToTexture = false;
+        g_views.renderTargetTexture = nullptr;
+    }
+    g_views.smudgeActive = false;
+
+    // TheSuperHackers @fix bobtista 21/04/2026 Reset the terrain-blend flag each frame.
+    // Clear_State_Overrides deliberately preserves g_draw.texcoordSelect[1] because
+    // Override_Terrain_Blend runs BEFORE Set_Shader, so Begin_Scene must clear it instead.
+    g_draw.texcoordSelect[1] = 0.0f;
+
+    // TheSuperHackers @bugfix bobtista 23/04/2026 Clear cached sampler bindings every frame so
+    // the previous frame's final UI texture cannot leak into 3D draws that skip Set_Texture.
+    for (int i = 0; i < 4; ++i)
+    {
+        g_draw.tex[i] = BGFX_INVALID_HANDLE;
+        g_draw.samplerFlags[i] = 0;
+        g_draw.mipFilterDisabled[i] = false;
+        g_draw.textureIsMissing[i] = false;
+        g_draw.sourceTextures[i] = nullptr;
+    }
+    // TheSuperHackers @fix bobtista 21/04/2026 Defensively reset transient view flags at
+    // Begin_Scene; a map transition or early exit can skip an End_* call and leak stuck state.
+    g_views.waterOverrideActive      = false;
+    g_views.waterOverlayActive       = false;
+    g_views.effectOverlayActive      = false;
+    g_views.smudgeActive             = false;
+    g_views.inSortFlush              = false;
+    g_views.treeShaderActive         = false;
+    g_views.shadowVolumeActive       = false;
+    g_views.shroudTexturePassActive  = false;
+    g_views.shroudTexturePassStage   = 0;
+    g_views.projectedShadowDecalActive = false;
+    g_views.projectedDecalMode       = RB_PROJECTED_DECAL_NONE;
+    g_views.skipNextSubmitEngineDraw = false;
+}
+
+void BgfxBackend::Clear(bool clear_color, bool clear_z_stencil,
+                        const Vector3 & color,
+                        float dest_alpha, float z, unsigned int stencil)
+{
+    if (!g_device.initialized || !g_views.renderToTexture
+        || g_views.renderTargetTexture == nullptr)
+    {
+        return;
+    }
+
+    uint16_t clearFlags = BGFX_CLEAR_NONE;
+    if (clear_color)
+    {
+        clearFlags |= BGFX_CLEAR_COLOR;
+    }
+    if (clear_z_stencil)
+    {
+        clearFlags |= BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL;
+    }
+    if (clearFlags == BGFX_CLEAR_NONE)
+    {
+        return;
+    }
+
+    bgfx::setViewClear(kBgfxRTTView,
+                        clearFlags,
+                        MakeBgfxClearColor(color, dest_alpha),
+                        z,
+                        static_cast<uint8_t>(stencil));
+    bgfx::touch(kBgfxRTTView);
+}
+
+void BgfxBackend::End_Scene(bool /*flip_frame*/)
+{
+    PROFILER_SECTION_NAME("bgfx End_Scene");
+    if (!g_device.initialized)
+    {
+        return;
+    }
+
+    if (TimingActive()) {
+        g_timing.t1_end_scene = QueryNow();
+    }
+    // Re-apply captured camera transforms to both views. The engine calls
+    // Set_Projection_Transform_With_Z_Bias multiple times per frame
+    // (camera, water reflections, shadows, sneak attack). Since bgfx's
+    // setViewTransform is retroactive for the whole frame, the last call
+    // would stomp earlier draws. We re-apply the camera projection that
+    // was active at the first opaque draw (view 1) and at sort-flush
+    // time (view 2).
+    if (g_frame.cameraCaptured)
+    {
+        bgfx::setViewTransform(kBgfxEngineView, g_frame.cameraView, g_frame.cameraProj);
+        bgfx::setViewTransform(kBgfxWaterView, g_frame.cameraView, g_frame.cameraProj);
+        bgfx::setViewTransform(kBgfxShadowVolumeView, g_frame.cameraView, g_frame.cameraProj);
+        bgfx::setViewTransform(kBgfxShroudOverlayView, g_frame.cameraView, g_frame.cameraProj);
+        bgfx::setViewTransform(kBgfxSceneDepthView, g_frame.cameraView, g_frame.cameraProj);
+        g_frame.cameraCaptured = false;
+    }
+    if (g_frame.sortProjCaptured)
+    {
+        float identityView[16];
+        IdentityMatrix(identityView);
+        bgfx::setViewTransform(kBgfxEngineSortView, identityView, g_frame.sortProj);
+        g_frame.sortProjCaptured = false;
+    }
+    // Push identity transforms and current rect to the UI view
+    // so 2D overlay draws land in screen space over the 3D scene.
+    {
+        float identityMtx[16];
+        IdentityMatrix(identityMtx);
+        bgfx::setViewTransform(kBgfxUIView, identityMtx, identityMtx);
+    }
+    bgfx::setViewRect(kBgfxUIView,
+                      static_cast<uint16_t>(g_device.presentOffsetX),
+                      static_cast<uint16_t>(g_device.presentOffsetY),
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+
+    // Debug view (0) runs FIRST to emit the backbuffer clear quad. Then RTT
+    // (3), engine opaque (1), scene depth (11), shadow volume fill (6), shadow
+    // darken (7), water (4), sort (2), effect overlay (5), heat-haze smudge
+    // copy/draw (12/13), scene composite (9), UI overlay (10) last.
+    // TheSuperHackers @bugfix bobtista 20/04/2026 View 0 MUST be
+    // included — when omitted, bgfx defers it to the end with a 1x1
+    // viewport, and the full-canvas clear never fires (causing
+    // flickering UI leftovers under the control bar on frames where
+    // that area is not overdrawn).
+    bgfx::ViewId viewOrder[] = {
+        kBgfxDebugView,            // 0 — full-canvas clear quad, must run first
+        kBgfxRTTView,              // 3
+        kBgfxShadowMapView,        // 20 — sun shadow cascade 0 (before engine, which samples it)
+        static_cast<bgfx::ViewId>(kBgfxShadowMapView + 1), // 21 — sun shadow cascade 1
+        static_cast<bgfx::ViewId>(kBgfxShadowMapView + 2), // 22 — sun shadow cascade 2
+        kBgfxPointShadowView,      // 23 — point-light shadow map (before engine, which samples it)
+        kBgfxPointShadow2View,     // 25 — second point-light shadow map (two simultaneous casters)
+        kBgfxEngineView,           // 1
+        kBgfxSceneDepthView,       // 11 — readable opaque scene depth
+        kBgfxShadowVolumeView,     // 6 — stencil shadow volume fill
+        kBgfxShadowApplyView,      // 7 — stencil shadow darken
+        kBgfxWaterView,            // 4
+        kBgfxEngineSortView,       // 2
+        kBgfxEffectOverlayView,    // 5
+        kBgfxShroudOverlayView,    // 8 — shroud darkening after scene detail
+        kBgfxSmudgeCopyView,       // 12 — scene-color snapshot for heat haze
+        kBgfxSmudgeView,           // 13 — heat-haze/smudge distortion
+        kBgfxBloomBrightView,      // 14 — bloom bright-pass (half-res)
+        kBgfxBloomBlurHView,       // 15 — bloom horizontal blur
+        kBgfxBloomBlurVView,       // 16 — bloom vertical blur
+        kBgfxSsaoView,             // 17 — SSAO compute
+        kBgfxSsaoBlurHView,        // 18 — SSAO horizontal blur
+        kBgfxSsaoBlurVView,        // 19 — SSAO vertical blur
+        kBgfxSceneCompositeView,   // 9 — scene color to swapchain
+        kBgfxPointShadowVizView,   // 24 — GGC_POINT_SHADOW_VIZ debug blit (no-op when env unset)
+        kBgfxUIView,               // 10 — 2D UI overlay (last)
+    };
+    bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(viewOrder), viewOrder);
+
+    float bloomPass[4];
+    GetBloomParams(bloomPass);
+    SubmitBloom(bloomPass);
+    SubmitSSAO();
+    SubmitSceneComposite();
+    SubmitPointShadowViz();
+    LogFrameStats();
+    UpdateBgfxStatsLog();
+
+    // TheSuperHackers @feature bobtista 02/05/2026 -bgfxScreenshotAfter N
+    // arms a periodic native back-buffer capture: once frameIndex >= N, every
+    // 500 bgfx frames we request bgfx::requestScreenShot into a .NNNNNN.bmp
+    // suffixed file derived from the configured base path. Lets a developer
+    // (or automated harness) pick whichever frame corresponds to the
+    // gameplay state of interest, since early frames are loading screens.
+#ifdef RTS_ZEROHOUR
+    {
+        int captureFrame = GGC_GetBgfxScreenshotFrame();
+        if (captureFrame <= 0)
+        {
+            if (const char * frameEnv = GgcFlags::StringValue(GgcFlag_BgfxScreenshotAfter))
+            {
+                captureFrame = std::atoi(frameEnv);
+            }
+        }
+        uint32_t interval = 500;
+        if (const char * intervalEnv = GgcFlags::StringValue(GgcFlag_BgfxScreenshotInterval))
+        {
+            const int parsedInterval = std::atoi(intervalEnv);
+            if (parsedInterval > 0)
+            {
+                interval = static_cast<uint32_t>(parsedInterval);
+            }
+        }
+        static uint32_t s_lastShotFrame = 0;
+        if (captureFrame > 0
+            && static_cast<int>(g_stats.frameIndex) >= captureFrame
+            && (g_stats.frameIndex - s_lastShotFrame) >= interval)
+        {
+            s_lastShotFrame = g_stats.frameIndex;
+            const char * basePath = GGC_GetBgfxScreenshotPath();
+            if ((basePath == nullptr || basePath[0] == '\0'))
+            {
+                basePath = GgcFlags::StringValue(GgcFlag_BgfxScreenshotPath);
+            }
+            if (basePath != nullptr && basePath[0] != '\0')
+            {
+                size_t baseLen = 0;
+                const char * ext = BgfxScreenshotBaseExtension(basePath, &baseLen);
+                char numbered[512];
+                std::snprintf(numbered, sizeof(numbered), "%.*s.%06u.%s",
+                              static_cast<int>(baseLen), basePath, g_stats.frameIndex, ext);
+                bgfx::requestScreenShot(BGFX_INVALID_HANDLE, numbered);
+            }
+        }
+
+        // TheSuperHackers @feature bobtista 03/06/2026 Deterministic same-moment capture.
+        // GGC_BGFX_SCREENSHOT_LOGICFRAME=N writes exactly one screenshot at the first render
+        // frame where the simulation reaches logic frame N. Save replay at a fixed logic rate
+        // is deterministic, so the captured scene state is identical across runs and backends
+        // (unlike the render-frame trigger above, whose timing drifts with render speed). Use
+        // this for A/B comparisons. Output: <path>.L<logicframe>.bmp
+        static bool s_logicShotDone = false;
+        int targetLogicFrame = 0;
+        if (const char * logicEnv = GgcFlags::StringValue(GgcFlag_BgfxScreenshotLogicFrame))
+        {
+            targetLogicFrame = std::atoi(logicEnv);
+        }
+        if (targetLogicFrame > 0 && !s_logicShotDone)
+        {
+            const int curLogicFrame = GGC_GetCurrentLogicFrame();
+            if (curLogicFrame >= targetLogicFrame)
+            {
+                s_logicShotDone = true;
+                const char * basePath = GGC_GetBgfxScreenshotPath();
+                if ((basePath == nullptr || basePath[0] == '\0'))
+                {
+                    basePath = GgcFlags::StringValue(GgcFlag_BgfxScreenshotPath);
+                }
+                if (basePath != nullptr && basePath[0] != '\0')
+                {
+                    size_t baseLen = 0;
+                    const char * ext = BgfxScreenshotBaseExtension(basePath, &baseLen);
+                    char numbered[512];
+                    std::snprintf(numbered, sizeof(numbered), "%.*s.L%06d.%s",
+                                  static_cast<int>(baseLen), basePath, curLogicFrame, ext);
+                    bgfx::requestScreenShot(BGFX_INVALID_HANDLE, numbered);
+                }
+            }
+        }
+    }
+#endif
+
+    DrawCallLog_End_Frame();
+    RenderDoc_Maybe_Trigger_Capture();
+
+    if (TimingActive()) {
+        g_timing.t2_pre_frame = QueryNow();
+    }
+    bgfx::frame();
+    // TheSuperHackers @perf bobtista 24/06/2026 Feed per-frame bgfx stats to
+    // Tracy plots so CPU time, draw count, and GPU time share one timeline.
+#if defined(RTS_PROFILE_TRACY)
+    {
+        const bgfx::Stats * pstats = bgfx::getStats();
+        if (pstats != NULL && pstats->cpuTimerFreq != 0 && pstats->gpuTimerFreq != 0)
+        {
+            const double toMsCpu = 1000.0 / double(pstats->cpuTimerFreq);
+            const double toMsGpu = 1000.0 / double(pstats->gpuTimerFreq);
+            PROFILER_PLOT("draws", double(pstats->numDraw));
+            PROFILER_PLOT("cpu frame ms", double(pstats->cpuTimeEnd - pstats->cpuTimeBegin) * toMsCpu);
+            PROFILER_PLOT("gpu frame ms", double(pstats->gpuTimeEnd - pstats->gpuTimeBegin) * toMsGpu);
+            PROFILER_PLOT("transient vb kb", double(pstats->transientVbUsed) / 1024.0);
+        }
+    }
+#endif
+    if (TimingActive()) {
+        g_timing.t3_post_frame = QueryNow();
+        if (g_timing.freq > 0
+            && (g_stats.frameIndex % g_timing.interval) == 0)
+        {
+            char path[640];
+            std::snprintf(path, sizeof(path), "%s.csv", g_timing.base_path);
+            static bool s_headerWritten = false;
+            FILE * f = std::fopen(path, s_headerWritten ? "a" : "w");
+            if (f != nullptr) {
+                if (!s_headerWritten) {
+                    std::fprintf(f,
+                        "frame,logic_frame,inter_us,scene_us,frame_us,total_us,draws,binds,uniforms,"
+                        "world_draws,sort_draws,shadow_submits,water_draws,"
+                        "tex_creates,tex_uploads,inst_saved,"
+                        "set_tex_us,set_tex_n,set_vb_us,set_vb_n,set_ib_us,set_ib_n,"
+                        "submit_us,submit_n,draw_us,draw_n,"
+                        "apply_tex_us,apply_tex_n,uniforms_us,uniforms_n,light_us,light_n,"
+                        "dvw_us,dvw_n,dvw_scan_us,dvw_scan_n,dvw_alloc_us,dvw_alloc_n,dvw_verts,"
+                        "frame_draw_us,update_views_us,particle_update_us,rtt_us,draw_views_us,ui_draw_us,end_render_us,render_unattributed_us,main_loop_other_us,"
+                        "render_total_us,traversal_us,mesh_flush_us,sort_flush_us,particles_us,terrain_us,"
+                        "pointgroup_compress_us,pointgroup_view_xform_us,pointgroup_update_arrays_us,pointgroup_ground_fixup_us,pointgroup_vb_fill_us,"
+                        "sort_pool_build_us,sort_pool_sort_us,sort_pool_draw_us,"
+                        "gpu_us,cpu_us,wait_sub_us,wait_ren_us,bgfx_ndraw\n");
+                    s_headerWritten = true;
+                }
+                const double us_per_tick = 1000000.0 / static_cast<double>(g_timing.freq);
+                static long long s_prev_t3 = 0;
+                const long long inter_ticks = (s_prev_t3 > 0)
+                    ? (g_timing.t0_begin_scene - s_prev_t3) : 0;
+                const long long scene_ticks = g_timing.t2_pre_frame - g_timing.t1_end_scene;
+                const long long frame_ticks = g_timing.t3_post_frame - g_timing.t2_pre_frame;
+                const long long total_ticks = (s_prev_t3 > 0)
+                    ? (g_timing.t3_post_frame - s_prev_t3) : 0;
+                s_prev_t3 = g_timing.t3_post_frame;
+                int logicFrame = -1;
+#ifdef RTS_ZEROHOUR
+                logicFrame = GGC_GetCurrentLogicFrame();
+#endif
+                // TheSuperHackers @perf bobtista 03/06/2026 bgfx internal timers
+                // separate GPU time from CPU-submit time. High wait_ren = render
+                // thread idle waiting on submit (CPU-submit bound); high wait_sub
+                // = submit thread waiting on render thread (GPU/render bound).
+                const bgfx::Stats * bstats = bgfx::getStats();
+                double gpu_us = 0.0, cpu_us = 0.0, wait_sub_us = 0.0, wait_ren_us = 0.0;
+                unsigned bgfx_ndraw = 0;
+                if (bstats != nullptr) {
+                    if (bstats->gpuTimerFreq > 0) {
+                        gpu_us = double(bstats->gpuTimeEnd - bstats->gpuTimeBegin)
+                            * 1000000.0 / double(bstats->gpuTimerFreq);
+                    }
+                    if (bstats->cpuTimerFreq > 0) {
+                        cpu_us = double(bstats->cpuTimeFrame) * 1000000.0 / double(bstats->cpuTimerFreq);
+                        wait_sub_us = double(bstats->waitSubmit) * 1000000.0 / double(bstats->cpuTimerFreq);
+                        wait_ren_us = double(bstats->waitRender) * 1000000.0 / double(bstats->cpuTimerFreq);
+                    }
+                    bgfx_ndraw = bstats->numDraw;
+                }
+                std::fprintf(f,
+                    "%u,%d,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
+                    "%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,"
+                    "%.1f,%u,%.1f,%u,%.1f,%u,%llu,"
+                    "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
+                    "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,"
+                    "%.1f,%.1f,%.1f,%.1f,%.1f,"
+                    "%.1f,%.1f,%.1f,"
+                    "%.1f,%.1f,%.1f,%.1f,%u\n",
+                    g_stats.frameIndex,
+                    logicFrame,
+                    inter_ticks * us_per_tick,
+                    scene_ticks * us_per_tick,
+                    frame_ticks * us_per_tick,
+                    total_ticks * us_per_tick,
+                    g_stats.drawCalls,
+                    g_stats.textureBinds,
+                    g_stats.materialUniformUploads,
+                    g_stats.worldDraws,
+                    g_stats.sortedDraws,
+                    g_stats.shadowVolumeSubmits,
+                    g_stats.waterDraws,
+                    g_stats.textureCreates,
+                    g_stats.textureUploads,
+                    g_stats.instancedSavedDrawCalls,
+                    g_perf_sections[PERF_SECT_SET_TEXTURE].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_SET_TEXTURE].calls,
+                    g_perf_sections[PERF_SECT_SET_VB].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_SET_VB].calls,
+                    g_perf_sections[PERF_SECT_SET_IB].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_SET_IB].calls,
+                    g_perf_sections[PERF_SECT_SUBMIT_DRAW].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_SUBMIT_DRAW].calls,
+                    g_perf_sections[PERF_SECT_DRAW_TRIANGLES].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_DRAW_TRIANGLES].calls,
+                    g_perf_sections[PERF_SECT_APPLY_TEX].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_APPLY_TEX].calls,
+                    g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].calls,
+                    g_perf_sections[PERF_SECT_UPLOAD_LIGHTS].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_UPLOAD_LIGHTS].calls,
+                    g_perf_sections[PERF_SECT_DVW_END].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_DVW_END].calls,
+                    g_perf_sections[PERF_SECT_DVW_SCAN].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_DVW_SCAN].calls,
+                    g_perf_sections[PERF_SECT_DVW_ALLOC].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_DVW_ALLOC].calls,
+                    static_cast<unsigned long long>(g_dvwVerts),
+                    // Top-level sequential buckets of W3DDisplay::draw.
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::FRAME_DRAW].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UPDATE_VIEWS].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::PARTICLE_UPDATE].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::RTT].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::DRAW_VIEWS].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UI_DRAW].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::END_RENDER].total_ticks * us_per_tick,
+                    // render_unattributed = FRAME_DRAW minus the non-overlapping top-level buckets
+                    // (work inside W3DDisplay::draw not in any named bucket). NOT the whole-frame remainder.
+                    (GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::FRAME_DRAW].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UPDATE_VIEWS].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::PARTICLE_UPDATE].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::RTT].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::DRAW_VIEWS].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::UI_DRAW].total_ticks
+                        - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::END_RENDER].total_ticks) * us_per_tick,
+                    // main_loop_other = full frame (cpu_us) minus W3DDisplay::draw: the non-render
+                    // main-loop work between bgfx frames (client/drawable update + GPU backpressure).
+                    // 1-frame lag (cpu_us is current frame, frame_draw snapshot is previous) — fine for medians.
+                    cpu_us - GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::FRAME_DRAW].total_ticks * us_per_tick,
+                    // Nested detail inside DRAW_VIEWS/RTT (subsets, not subtracted above).
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::RENDER_TOTAL].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::TRAVERSAL].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::MESH_FLUSH].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::SORT_FLUSH].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::PARTICLES].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::TERRAIN].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::POINTGROUP_COMPRESS].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::POINTGROUP_VIEW_XFORM].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::POINTGROUP_UPDATE_ARRAYS].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::POINTGROUP_GROUND_FIXUP].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::POINTGROUP_VB_FILL].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::SORT_POOL_BUILD].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::SORT_POOL_SORT].total_ticks * us_per_tick,
+                    GGCRenderProfile::g_phase_snapshot[GGCRenderProfile::SORT_POOL_DRAW].total_ticks * us_per_tick,
+                    gpu_us, cpu_us, wait_sub_us, wait_ren_us, bgfx_ndraw);
+                std::fclose(f);
+            }
+        }
+    }
+
+#if defined(SAGE_USE_SDL3)
+    if (!g_device.mainWindowShown && g_device.window != nullptr)
+    {
+        SDL_ShowWindow(static_cast<SDL_Window *>(static_cast<void *>(g_device.window)));
+        g_device.mainWindowShown = true;
+    }
+#endif
+
+    // Rotate deferred texture destroy buffers. Current frame's deferred
+    // handles move to "prev" — they'll be destroyed at the NEXT Begin_Scene
+    // after one more bgfx::frame() guarantees all references are gone.
+    // Begin_Scene drained prev, so it is empty here; swap is cheaper than
+    // insert+clear and avoids any vector growth.
+    g_caches.deferredDestroysPrev.swap(g_caches.deferredDestroys);
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Rotate the dynamic VB/IB deferred-
+    // destroy queues the same way.
+    g_caches.deferredDestroyVBPrev.swap(g_caches.deferredDestroyVB);
+    g_caches.deferredDestroyIBPrev.swap(g_caches.deferredDestroyIB);
+    g_caches.deferredDestroyStaticVBPrev.swap(g_caches.deferredDestroyStaticVB);
+    g_caches.deferredDestroyStaticIBPrev.swap(g_caches.deferredDestroyStaticIB);
+    g_caches.deferredDestroyFBPrev.swap(g_caches.deferredDestroyFB);
+
+    // Transient buffers are freed at bgfx::frame time. Invalidate the
+    // pending and current slots so nothing next frame tries to reuse
+    // a dead handle.
+    g_draw.pendingVB.valid    = false;
+    g_draw.pendingVB.coplanarNormalBias = false;
+    g_draw.pendingIB.valid    = false;
+    g_draw.useTransientVB = false;
+    g_draw.useTransientIB = false;
+    g_draw.activeTransientVBOwner = nullptr;
+    g_draw.activeTransientIBOwner = nullptr;
+    g_draw.activeVertexNormalBias = false;
+}
+
+void BgfxBackend::Invalidate_Cached_Render_States()
+{
+    // TheSuperHackers @bugfix bobtista 05/06/2026 Intentionally a no-op on bgfx.
+    // This is called from ~20 sites (W3DShaderManager, W3DTreeBuffer) mid-frame
+    // after they fiddle DX8 render state. On bgfx those resets are unnecessary
+    // (the backend tracks its own state) and HARMFUL: forwarding to
+    // DX8Wrapper::Invalidate_Cached_Render_States() here resets the
+    // FixedFunctionState / ShaderClass caches mid-frame and collapses sorted
+    // eye-space effects - notably the Particle Uplink Cannon orbital beam.
+    // Do NOT forward this to DX8Wrapper.
+}
+
+WW3DFormat BgfxBackend::Get_Back_Buffer_Format() const
+{
+    return WW3D_FORMAT_A8R8G8B8;
+}
+
+void BgfxBackend::Set_Texture_Bitdepth(int bitdepth)
+{
+    WWASSERT(bitdepth == 16 || bitdepth == 32);
+    if (bitdepth == 16 || bitdepth == 32)
+    {
+        m_textureBitDepth = bitdepth;
+    }
+}
+
+int BgfxBackend::Get_Texture_Bitdepth() const
+{
+    return m_textureBitDepth;
+}
+
+bool BgfxBackend::Supports_Texture_Op(RenderBackendTextureOpCapability capability) const
+{
+    switch (capability)
+    {
+        case RB_TEXTURE_OP_SELECTARG1:
+        case RB_TEXTURE_OP_MODULATE:
+        case RB_TEXTURE_OP_MODULATE2X:
+        case RB_TEXTURE_OP_ADD:
+        case RB_TEXTURE_OP_ADDSMOOTH:
+        case RB_TEXTURE_OP_SUBTRACT:
+        case RB_TEXTURE_OP_BLENDTEXTUREALPHA:
+        case RB_TEXTURE_OP_BLENDCURRENTALPHA:
+        case RB_TEXTURE_OP_ADDSIGNED:
+        case RB_TEXTURE_OP_ADDSIGNED2X:
+        case RB_TEXTURE_OP_MODULATEALPHA_ADDCOLOR:
+            return true;
+        case RB_TEXTURE_OP_BUMPENVMAP:
+        case RB_TEXTURE_OP_BUMPENVMAPLUMINANCE:
+        default:
+            return false;
+    }
+}
+
+RenderBackendTextureLimits BgfxBackend::Get_Texture_Limits() const
+{
+    constexpr unsigned kTextureAspectRatioLimit = 8;
+    const bgfx::Caps * caps = bgfx::getCaps();
+    if (caps == nullptr)
+    {
+        return IRenderBackend::Get_Texture_Limits();
+    }
+
+    return {
+        caps->limits.maxTextureSize,
+        caps->limits.maxTextureSize,
+        caps->limits.maxTextureSize,
+        kTextureAspectRatioLimit
+    };
+}
+
+int BgfxBackend::Get_Max_Texture_Size() const
+{
+    const bgfx::Caps * caps = bgfx::getCaps();
+    return caps != nullptr ? (int)caps->limits.maxTextureSize : 4096;
+}
+
+int BgfxBackend::Get_Max_Texture_Stages() const
+{
+    return kBgfxTextureStages;
+}
+
+void BgfxBackend::Set_MSAA_Mode(RenderBackendMSAAMode mode)
+{
+    m_msaaMode = mode;
+}
+
+RenderBackendMSAAMode BgfxBackend::Get_MSAA_Mode() const
+{
+    return m_msaaMode;
+}
+
+bool BgfxBackend::Get_Device_Identity(RenderBackendDeviceIdentity & identity) const
+{
+    identity = {};
+    identity.max_simultaneous_textures = kBgfxTextureStages;
+    identity.pixel_shader_major = 2;
+    identity.pixel_shader_minor = 0;
+    return true;
+}
+
+static void LogBgfxTransientDiag(const char *event,
+                                 const char *kind,
+                                 const void *owner,
+                                 uint32_t count,
+                                 bool pendingValid,
+                                 bool pendingOwnerMatch,
+                                 bool active,
+                                 bool activeOwnerMatch,
+                                 const char *decision)
+{
+    if (!GgcFlags::Enabled(GgcFlag_BgfxTransientDiag))
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_bgfx_transient_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u kind=%s owner=%p count=%u pendingValid=%d pendingOwnerMatch=%d active=%d activeOwnerMatch=%d decision=%s inSort=%d\n",
+                     event,
+                     g_stats.frameIndex,
+                     kind,
+                     owner,
+                     count,
+                     pendingValid ? 1 : 0,
+                     pendingOwnerMatch ? 1 : 0,
+                     active ? 1 : 0,
+                     activeOwnerMatch ? 1 : 0,
+                     decision ? decision : "",
+                     g_views.inSortFlush ? 1 : 0);
+        std::fclose(diag);
+    }
+}
+
+namespace
+{
+bgfx::DynamicVertexBufferHandle FindResourceVertexBufferHandle(const VertexBufferClass * vb);
+bgfx::DynamicIndexBufferHandle FindResourceIndexBufferHandle(const IndexBufferClass * ib);
+bgfx::VertexBufferHandle FindResourceStaticVertexBufferHandle(const VertexBufferClass * vb);
+bgfx::IndexBufferHandle FindResourceStaticIndexBufferHandle(const IndexBufferClass * ib);
+void FlushPendingVertexRangeUpload(const VertexBufferClass * vb);
+void FlushPendingIndexRangeUpload(const IndexBufferClass * ib);
+void MirrorDynamicVertexHandleToResource(const VertexBufferClass * vb,
+                                         bgfx::DynamicVertexBufferHandle handle);
+void MirrorDynamicIndexHandleToResource(const IndexBufferClass * ib,
+                                        bgfx::DynamicIndexBufferHandle handle);
+}
+
+// -- Vertex / index buffers --------------------------------------------------
+
+void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
+{
+    PERF_TIME(PERF_SECT_SET_VB);
+    FixedFunctionState::Set_Vertex_Buffer(vb, stream);
+    (void)stream;
+    // Cache is populated by Upload_Vertex_Buffer_Data on the engine's own write
+    // lock. Set_Vertex_Buffer just looks up whatever is already there; on a
+    // miss it can rebuild from the buffer object's CPU-side write snapshot.
+    g_draw.useTransientVB = false;
+    g_draw.useStaticVB = false;
+    g_draw.staticVB = BGFX_INVALID_HANDLE;
+    g_draw.vbOwner = nullptr;
+    g_draw.activeTransientVBOwner = nullptr;
+    g_draw.activeVertexNormalBias = false;
+    // TheSuperHackers @bugfix bobtista 27/04/2026 Legacy fixed-function
+    // supplies a white diffuse color when the bound FVF has no COLOR0 element. bgfx
+    // missing attributes read as zero, so tell the shader when it must
+    // substitute the fixed-function default.
+    g_draw.vertexColorFlags[0] = (vb != nullptr
+        && vb->FVF_Info().Has_Diffuse()) ? 1.0f : 0.0f;
+    g_draw.fvfHasNormal = (vb != nullptr
+        && vb->FVF_Info().Has_Normal());
+    FlushPendingVertexRangeUpload(vb);
+    bgfx::VertexBufferHandle staticResourceHandle = FindResourceStaticVertexBufferHandle(vb);
+    if (bgfx::isValid(staticResourceHandle))
+    {
+        g_draw.staticVB = staticResourceHandle;
+        g_draw.vb = BGFX_INVALID_HANDLE;
+        g_draw.useStaticVB = true;
+    }
+    else
+    {
+        bgfx::DynamicVertexBufferHandle resourceHandle = FindResourceVertexBufferHandle(vb);
+        if (bgfx::isValid(resourceHandle))
+        {
+            g_draw.vb = resourceHandle;
+            g_draw.vbOwner = vb;
+        }
+        else
+        {
+            auto it = g_caches.vb.find(vb);
+            if (it != g_caches.vb.end())
+            {
+                g_draw.vb = it->second.handle;
+                g_draw.vbOwner = vb;
+                MirrorDynamicVertexHandleToResource(vb, it->second.handle);
+            }
+            else
+            {
+                g_draw.vb = BGFX_INVALID_HANDLE;
+                g_draw.vbOwner = nullptr;
+                // Last-resort capture for static VBs that were written before bgfx
+                // registration/capture was active. Do not lock the legacy buffer here:
+                // bgfx must consume the backend-neutral CPU snapshot maintained by
+                // the buffer write paths.
+                if (vb != nullptr && g_device.initialized && vb->Has_CPU_Buffer_Data())
+                {
+                    const unsigned int bytes =
+                        vb->Get_Vertex_Count() * vb->FVF_Info().Get_FVF_Size();
+                    if (vb->Get_CPU_Buffer_Size() >= bytes)
+                    {
+                        Upload_Vertex_Buffer_Data(vb, vb->Peek_CPU_Buffer_Data(), bytes);
+                        bgfx::VertexBufferHandle staticHandle = FindResourceStaticVertexBufferHandle(vb);
+                        if (bgfx::isValid(staticHandle))
+                        {
+                            g_draw.staticVB = staticHandle;
+                            g_draw.vb = BGFX_INVALID_HANDLE;
+                            g_draw.useStaticVB = true;
+                        }
+                        else
+                        {
+                            auto it2 = g_caches.vb.find(vb);
+                            if (it2 != g_caches.vb.end())
+                            {
+                                g_draw.vb = it2->second.handle;
+                                g_draw.vbOwner = vb;
+                                MirrorDynamicVertexHandleToResource(vb, it2->second.handle);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
+{
+    PERF_TIME(PERF_SECT_SET_VB);
+    FixedFunctionState::Set_Vertex_Buffer(vba);
+    g_draw.vertexColorFlags[0] =
+        vba.FVF_Info().Has_Diffuse() ? 1.0f : 0.0f;
+    g_draw.fvfHasNormal =
+        vba.FVF_Info().Has_Normal();
+    g_draw.useStaticVB = false;
+    g_draw.staticVB = BGFX_INVALID_HANDLE;
+    g_draw.vbOwner = nullptr;
+    // If the matching Capture_Dynamic_Vertex_Data already
+    // allocated a transient VB for this access class, claim it for the
+    // next draw. Otherwise miss the cache and skip the bgfx submit.
+    if (g_draw.pendingVB.valid && g_draw.pendingVB.owner == &vba)
+    {
+        LogBgfxTransientDiag("set", "vb", &vba,
+                             static_cast<uint32_t>(vba.Get_Vertex_Count()),
+                             g_draw.pendingVB.valid, true,
+                             g_draw.useTransientVB,
+                             g_draw.activeTransientVBOwner == &vba,
+                             "claim-pending");
+        g_draw.useTransientVB = true;
+        g_draw.transientVB    = g_draw.pendingVB.tvb;
+        g_draw.activeVertexNormalBias = g_draw.pendingVB.coplanarNormalBias;
+        g_draw.pendingVB.valid    = false;
+        g_draw.activeTransientVBOwner = &vba;
+    }
+    else if (g_draw.useTransientVB && g_draw.activeTransientVBOwner == &vba)
+    {
+        LogBgfxTransientDiag("set", "vb", &vba,
+                             static_cast<uint32_t>(vba.Get_Vertex_Count()),
+                             g_draw.pendingVB.valid,
+                             g_draw.pendingVB.owner == &vba,
+                             true,
+                             true,
+                             "reuse-active");
+        // The sorting renderer applies a saved material/texture state for
+        // each sorted run, then rebinds the same per-flush transient VB. A
+        // transient buffer remains valid until bgfx::frame(), so allow that
+        // same access object to be rebound after the first claim.
+    }
+    else
+    {
+        LogBgfxTransientDiag("set", "vb", &vba,
+                             static_cast<uint32_t>(vba.Get_Vertex_Count()),
+                             g_draw.pendingVB.valid,
+                             g_draw.pendingVB.owner == &vba,
+                             g_draw.useTransientVB,
+                             g_draw.activeTransientVBOwner == &vba,
+                             "miss");
+        g_draw.useTransientVB = false;
+        g_draw.vb         = BGFX_INVALID_HANDLE;
+        g_draw.vbOwner    = nullptr;
+        g_draw.activeTransientVBOwner = nullptr;
+        g_draw.activeVertexNormalBias = false;
+    }
+}
+
+void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset)
+{
+    PERF_TIME(PERF_SECT_SET_IB);
+    FixedFunctionState::Set_Index_Buffer(ib, index_base_offset);
+    g_draw.useTransientIB = false;
+    g_draw.useStaticIB = false;
+    g_draw.staticIB = BGFX_INVALID_HANDLE;
+    g_draw.ibOwner = nullptr;
+    g_draw.activeTransientIBOwner = nullptr;
+    FlushPendingIndexRangeUpload(ib);
+    bgfx::IndexBufferHandle staticResourceHandle = FindResourceStaticIndexBufferHandle(ib);
+    if (bgfx::isValid(staticResourceHandle))
+    {
+        g_draw.staticIB = staticResourceHandle;
+        g_draw.ib = BGFX_INVALID_HANDLE;
+        g_draw.useStaticIB = true;
+    }
+    else
+    {
+        bgfx::DynamicIndexBufferHandle resourceHandle = FindResourceIndexBufferHandle(ib);
+        if (bgfx::isValid(resourceHandle))
+        {
+            g_draw.ib = resourceHandle;
+            g_draw.ibOwner = ib;
+        }
+        else
+        {
+            auto it = g_caches.ib.find(ib);
+            if (it != g_caches.ib.end())
+            {
+                g_draw.ib = it->second.handle;
+                g_draw.ibOwner = ib;
+                MirrorDynamicIndexHandleToResource(ib, it->second.handle);
+            }
+            else
+            {
+                g_draw.ib = BGFX_INVALID_HANDLE;
+                g_draw.ibOwner = nullptr;
+                // Last-resort capture for static IBs not yet in cache. Use the
+                // backend-neutral CPU snapshot instead of locking a legacy index buffer.
+                if (ib != nullptr && g_device.initialized && ib->Has_CPU_Buffer_Data())
+                {
+                    const unsigned int bytes = ib->Get_Index_Count() * sizeof(unsigned short);
+                    if (ib->Get_CPU_Buffer_Size() >= bytes)
+                    {
+                        Upload_Index_Buffer_Data(ib, ib->Peek_CPU_Buffer_Data(), bytes);
+                        bgfx::IndexBufferHandle staticHandle = FindResourceStaticIndexBufferHandle(ib);
+                        if (bgfx::isValid(staticHandle))
+                        {
+                            g_draw.staticIB = staticHandle;
+                            g_draw.ib = BGFX_INVALID_HANDLE;
+                            g_draw.useStaticIB = true;
+                        }
+                        else
+                        {
+                            auto it2 = g_caches.ib.find(ib);
+                            if (it2 != g_caches.ib.end())
+                            {
+                                g_draw.ib = it2->second.handle;
+                                g_draw.ibOwner = ib;
+                                MirrorDynamicIndexHandleToResource(ib, it2->second.handle);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    g_draw.ibOffset = index_base_offset;
+}
+
+void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset)
+{
+    PERF_TIME(PERF_SECT_SET_IB);
+    FixedFunctionState::Set_Index_Buffer(iba, index_base_offset);
+    g_draw.useStaticIB = false;
+    g_draw.staticIB = BGFX_INVALID_HANDLE;
+    g_draw.ibOwner = nullptr;
+    if (g_draw.pendingIB.valid && g_draw.pendingIB.owner == &iba)
+    {
+        LogBgfxTransientDiag("set", "ib", &iba,
+                             static_cast<uint32_t>(iba.Get_Index_Count()),
+                             g_draw.pendingIB.valid, true,
+                             g_draw.useTransientIB,
+                             g_draw.activeTransientIBOwner == &iba,
+                             "claim-pending");
+        g_draw.useTransientIB = true;
+        g_draw.transientIB    = g_draw.pendingIB.tib;
+        g_draw.pendingIB.valid    = false;
+        g_draw.activeTransientIBOwner = &iba;
+    }
+    else if (g_draw.useTransientIB && g_draw.activeTransientIBOwner == &iba)
+    {
+        LogBgfxTransientDiag("set", "ib", &iba,
+                             static_cast<uint32_t>(iba.Get_Index_Count()),
+                             g_draw.pendingIB.valid,
+                             g_draw.pendingIB.owner == &iba,
+                             true,
+                             true,
+                             "reuse-active");
+        // See Set_Vertex_Buffer(DynamicVBAccessClass&): sorted runs reuse
+        // the same transient IB several times before the frame boundary.
+    }
+    else
+    {
+        LogBgfxTransientDiag("set", "ib", &iba,
+                             static_cast<uint32_t>(iba.Get_Index_Count()),
+                             g_draw.pendingIB.valid,
+                             g_draw.pendingIB.owner == &iba,
+                             g_draw.useTransientIB,
+                             g_draw.activeTransientIBOwner == &iba,
+                             "miss");
+        g_draw.useTransientIB = false;
+        g_draw.ib         = BGFX_INVALID_HANDLE;
+        g_draw.ibOwner    = nullptr;
+        g_draw.activeTransientIBOwner = nullptr;
+    }
+    g_draw.ibOffset = index_base_offset;
+}
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Override
+// Set_Index_Buffer_Index_Offset so we capture the per-mesh base vertex
+// offset. DX8PolygonRendererClass::Render calls this once per mesh
+// before Draw_Triangles to shift which vertex slot in the shared
+// category VB each index resolves to. Without this override the bgfx
+// path keeps using the stale offset from Set_Index_Buffer, so every
+// mesh inside the same rigid FVF category would draw using the first
+// mesh's vertex slots.
+void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int offset)
+{
+    g_draw.ibOffset = static_cast<unsigned short>(offset);
+}
+
+// -- Write-side capture ----------------------------------------------------
+//
+// Called from VertexBufferClass::WriteLockClass / IndexBufferClass::WriteLockClass
+// destructors after the engine has finished writing data through the
+// CPU-mapped lock pointer. The pointer is still valid (Unlock has not yet
+// been called) so we can safely copy the bytes into bgfx-managed memory and
+// stamp out a static bgfx VB/IB. Cached by source pointer; reused on every
+// subsequent Set_Vertex_Buffer that references the same engine VB.
+//
+// Cleanly bypasses the Intel UHD POOL_DEFAULT lock corruption: we never lock
+// the source d3d8 buffer ourselves. We piggyback on the engine's own write
+// lock, which the engine has to do anyway and which the driver handles
+// correctly because it is a real WRITE lock.
+
+namespace
+{
+static void LogBgfxBufferUpdate(const char *kind,
+                                const void *owner,
+                                const void *src,
+                                unsigned int offset,
+                                unsigned int size_bytes,
+                                uint16_t handle_idx,
+                                const bgfx::Memory *mem)
+{
+    if (!GgcFlags::Enabled(GgcFlag_BgfxBufferUpdateDiag))
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_bgfx_buffer_update_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u owner=%p src=%p offset=%u size=%u handle=%u mem=%p memData=%p memSize=%u\n",
+                     kind,
+                     g_stats.frameIndex,
+                     owner,
+                     src,
+                     offset,
+                     size_bytes,
+                     handle_idx,
+                     static_cast<const void *>(mem),
+                     mem != nullptr ? static_cast<const void *>(mem->data) : nullptr,
+                     mem != nullptr ? mem->size : 0);
+        std::fclose(diag);
+    }
+}
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Dynamic buffer
+// ensure helpers. Return the cached dynamic VB / IB handle for the given
+// engine buffer, creating it sized to the full capacity on first sight.
+// Returned handle is guaranteed valid on success; invalid handle on
+// failure. Used by both the full-buffer (WriteLockClass) and sub-range
+// (AppendLockClass) capture paths.
+BgfxResourceEntry * FindVertexBufferResourceEntry(const VertexBufferClass * vb)
+{
+    if (vb == nullptr || !vb->Has_Backend_Resource())
+    {
+        return nullptr;
+    }
+    auto it = g_resourceRegistry.table.find(vb->Get_Backend_Resource().id);
+    if (it == g_resourceRegistry.table.end())
+    {
+        return nullptr;
+    }
+    BgfxResourceEntry & entry = it->second;
+    if (entry.kind != BGFX_RR_KIND_VB || entry.owner != vb)
+    {
+        return nullptr;
+    }
+    return &entry;
+}
+
+BgfxResourceEntry * FindIndexBufferResourceEntry(const IndexBufferClass * ib)
+{
+    if (ib == nullptr || !ib->Has_Backend_Resource())
+    {
+        return nullptr;
+    }
+    auto it = g_resourceRegistry.table.find(ib->Get_Backend_Resource().id);
+    if (it == g_resourceRegistry.table.end())
+    {
+        return nullptr;
+    }
+    BgfxResourceEntry & entry = it->second;
+    if (entry.kind != BGFX_RR_KIND_IB || entry.owner != ib)
+    {
+        return nullptr;
+    }
+    return &entry;
+}
+
+void MirrorDynamicVertexHandleToResource(const VertexBufferClass * vb,
+                                         bgfx::DynamicVertexBufferHandle handle)
+{
+    if (BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        entry->dvb = handle;
+    }
+}
+
+void MirrorDynamicIndexHandleToResource(const IndexBufferClass * ib,
+                                        bgfx::DynamicIndexBufferHandle handle)
+{
+    if (BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        entry->dib = handle;
+    }
+}
+
+void ClearDynamicVertexHandleFromResource(const VertexBufferClass * vb,
+                                          bgfx::DynamicVertexBufferHandle stale)
+{
+    if (BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        if (!bgfx::isValid(entry->dvb) || entry->dvb.idx == stale.idx)
+        {
+            entry->dvb = BGFX_INVALID_HANDLE;
+        }
+    }
+}
+
+void ClearDynamicIndexHandleFromResource(const IndexBufferClass * ib,
+                                         bgfx::DynamicIndexBufferHandle stale)
+{
+    if (BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        if (!bgfx::isValid(entry->dib) || entry->dib.idx == stale.idx)
+        {
+            entry->dib = BGFX_INVALID_HANDLE;
+        }
+    }
+}
+
+bgfx::DynamicVertexBufferHandle FindResourceVertexBufferHandle(const VertexBufferClass * vb)
+{
+    if (BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        if (bgfx::isValid(entry->dvb))
+        {
+            return entry->dvb;
+        }
+    }
+    return BGFX_INVALID_HANDLE;
+}
+
+bgfx::DynamicIndexBufferHandle FindResourceIndexBufferHandle(const IndexBufferClass * ib)
+{
+    if (BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        if (bgfx::isValid(entry->dib))
+        {
+            return entry->dib;
+        }
+    }
+    return BGFX_INVALID_HANDLE;
+}
+
+bgfx::VertexBufferHandle FindResourceStaticVertexBufferHandle(const VertexBufferClass * vb)
+{
+    if (BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        if (bgfx::isValid(entry->vb))
+        {
+            return entry->vb;
+        }
+    }
+    return BGFX_INVALID_HANDLE;
+}
+
+bgfx::IndexBufferHandle FindResourceStaticIndexBufferHandle(const IndexBufferClass * ib)
+{
+    if (BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        if (bgfx::isValid(entry->ib))
+        {
+            return entry->ib;
+        }
+    }
+    return BGFX_INVALID_HANDLE;
+}
+
+void DestroyStaticVertexResource(BgfxResourceEntry & entry)
+{
+    if (!bgfx::isValid(entry.vb))
+    {
+        return;
+    }
+    if (g_draw.useStaticVB
+        && bgfx::isValid(g_draw.staticVB)
+        && g_draw.staticVB.idx == entry.vb.idx)
+    {
+        g_draw.staticVB = BGFX_INVALID_HANDLE;
+        g_draw.useStaticVB = false;
+    }
+    bgfx::destroy(entry.vb);
+    entry.vb = BGFX_INVALID_HANDLE;
+}
+
+void DestroyStaticIndexResource(BgfxResourceEntry & entry)
+{
+    if (!bgfx::isValid(entry.ib))
+    {
+        return;
+    }
+    if (g_draw.useStaticIB
+        && bgfx::isValid(g_draw.staticIB)
+        && g_draw.staticIB.idx == entry.ib.idx)
+    {
+        g_draw.staticIB = BGFX_INVALID_HANDLE;
+        g_draw.useStaticIB = false;
+    }
+    bgfx::destroy(entry.ib);
+    entry.ib = BGFX_INVALID_HANDLE;
+}
+
+// TheSuperHackers @bugfix bobtista 02/06/2026 Like DestroyStaticVertexResource but defers
+// the bgfx::destroy by one frame. Used when a static-eligible buffer demotes to the dynamic
+// path mid-frame: the immutable buffer may still be referenced by a draw recorded earlier
+// this frame, so destroying it now triggers a "RefCount is 1 (expected 0)" warning.
+void DeferDestroyStaticVertexResource(BgfxResourceEntry & entry)
+{
+    if (!bgfx::isValid(entry.vb))
+    {
+        return;
+    }
+    if (g_draw.useStaticVB
+        && bgfx::isValid(g_draw.staticVB)
+        && g_draw.staticVB.idx == entry.vb.idx)
+    {
+        g_draw.staticVB = BGFX_INVALID_HANDLE;
+        g_draw.useStaticVB = false;
+    }
+    g_caches.deferredDestroyStaticVB.push_back(entry.vb);
+    entry.vb = BGFX_INVALID_HANDLE;
+}
+
+void DeferDestroyStaticIndexResource(BgfxResourceEntry & entry)
+{
+    if (!bgfx::isValid(entry.ib))
+    {
+        return;
+    }
+    if (g_draw.useStaticIB
+        && bgfx::isValid(g_draw.staticIB)
+        && g_draw.staticIB.idx == entry.ib.idx)
+    {
+        g_draw.staticIB = BGFX_INVALID_HANDLE;
+        g_draw.useStaticIB = false;
+    }
+    g_caches.deferredDestroyStaticIB.push_back(entry.ib);
+    entry.ib = BGFX_INVALID_HANDLE;
+}
+
+// TheSuperHackers @perf bobtista 02/06/2026 FNV-1a 64-bit content hash used to detect
+// byte-identical re-uploads of static-eligible buffers so the GPU buffer recreate can be
+// skipped. size_bytes seeds the hash so a size change can never collide with a content match.
+static uint64_t HashBufferContent(const void * data, unsigned int size_bytes)
+{
+    uint64_t hash = 1469598103934665603ULL ^ static_cast<uint64_t>(size_bytes);
+    const unsigned char * bytes = static_cast<const unsigned char *>(data);
+    for (unsigned int i = 0; i < size_bytes; ++i)
+    {
+        hash ^= static_cast<uint64_t>(bytes[i]);
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
+
+bool TryCaptureStaticVertexBuffer(const VertexBufferClass * vb,
+                                  const void * data,
+                                  unsigned int size_bytes)
+{
+    if (vb == nullptr || data == nullptr || !vb->Is_Backend_Static_Eligible())
+    {
+        return false;
+    }
+    BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb);
+    if (entry == nullptr || bgfx::isValid(entry->dvb))
+    {
+        return false;
+    }
+    const uint32_t stride = vb->FVF_Info().Get_FVF_Size();
+    const uint32_t buffer_bytes = static_cast<uint32_t>(vb->Get_Vertex_Count()) * stride;
+    if (stride == 0 || buffer_bytes == 0 || size_bytes != buffer_bytes)
+    {
+        return false;
+    }
+    const uint64_t contentHash = HashBufferContent(data, size_bytes);
+    if (bgfx::isValid(entry->vb))
+    {
+        if (entry->vbContentHash == contentHash)
+        {
+            return true;
+        }
+        // TheSuperHackers @perf bobtista 02/06/2026 Content changed, so this
+        // static-eligible buffer is effectively dynamic. Drop the immutable buffer and
+        // fall through to the in-place dynamic path, which reuses one native buffer for
+        // the buffer's lifetime. Recreating an immutable buffer (and orphaning the old
+        // one) every frame was the dominant source of the "RefCount is 1 (expected 0)"
+        // leak warnings at shutdown. EnsureDynamicVertexBuffer marks entry->dvb valid,
+        // so subsequent uploads skip this static path entirely.
+        DeferDestroyStaticVertexResource(*entry);
+        return false;
+    }
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vb->FVF_Info(), layout) || layout.getStride() != stride)
+    {
+        DestroyStaticVertexResource(*entry);
+        return false;
+    }
+
+    bgfx::VertexBufferHandle h = bgfx::createVertexBuffer(bgfx::copy(data, size_bytes), layout);
+    DestroyStaticVertexResource(*entry);
+    if (!bgfx::isValid(h))
+    {
+        return false;
+    }
+    entry->vb = h;
+    entry->vbContentHash = contentHash;
+    return true;
+}
+
+bool TryCaptureStaticIndexBuffer(const IndexBufferClass * ib,
+                                 const void * data,
+                                 unsigned int size_bytes)
+{
+    if (ib == nullptr || data == nullptr || !ib->Is_Backend_Static_Eligible())
+    {
+        return false;
+    }
+    BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib);
+    if (entry == nullptr || bgfx::isValid(entry->dib))
+    {
+        return false;
+    }
+    const uint32_t buffer_bytes = static_cast<uint32_t>(ib->Get_Index_Count()) * sizeof(uint16_t);
+    if (buffer_bytes == 0 || size_bytes != buffer_bytes)
+    {
+        return false;
+    }
+    const uint64_t contentHash = HashBufferContent(data, size_bytes);
+    if (bgfx::isValid(entry->ib))
+    {
+        if (entry->ibContentHash == contentHash)
+        {
+            return true;
+        }
+        // TheSuperHackers @perf bobtista 02/06/2026 Content changed: demote to the in-place
+        // dynamic path instead of recreating an immutable buffer every frame. See the
+        // matching note in TryCaptureStaticVertexBuffer.
+        DeferDestroyStaticIndexResource(*entry);
+        return false;
+    }
+    bgfx::IndexBufferHandle h = bgfx::createIndexBuffer(bgfx::copy(data, size_bytes));
+    DestroyStaticIndexResource(*entry);
+    if (!bgfx::isValid(h))
+    {
+        return false;
+    }
+    entry->ib = h;
+    entry->ibContentHash = contentHash;
+    return true;
+}
+
+bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClass * vb)
+{
+    const uint32_t num_verts = static_cast<uint32_t>(vb->Get_Vertex_Count());
+    const uint32_t engine_stride = vb->FVF_Info().Get_FVF_Size();
+
+    auto it = g_caches.vb.find(vb);
+    if (it != g_caches.vb.end())
+    {
+        // TheSuperHackers @perf bobtista 02/06/2026 Grow-only reuse. The cached
+        // num_verts is the bgfx buffer's CAPACITY. As long as the layout (stride) is
+        // unchanged and the buffer is at least as large as the engine now needs, reuse
+        // it and let the upload write only the live sub-range. The engine resizes these
+        // dynamic buffers nearly every frame; recreating a GPU buffer each time wasted
+        // CPU and (because bgfx keeps frames in flight) produced an unbounded stream of
+        // "RefCount is 1 (expected 0)" destroy warnings. Only recreate to GROW, or when
+        // the vertex layout changes.
+        if (it->second.stride == engine_stride
+            && it->second.num_verts >= num_verts
+            && bgfx::isValid(it->second.handle))
+        {
+            MirrorDynamicVertexHandleToResource(vb, it->second.handle);
+            return it->second.handle;
+        }
+        ClearDynamicVertexHandleFromResource(vb, it->second.handle);
+        if (bgfx::isValid(it->second.handle))
+        {
+            // Defer the destroy of the grown-out handle by one frame: a draw recorded
+            // earlier this frame may still reference it until bgfx::frame() executes.
+            g_caches.deferredDestroyVB.push_back(it->second.handle);
+        }
+        g_caches.pendingVbRangeUploads.erase(vb);
+        g_caches.vb.erase(it);
+    }
+
+    if (num_verts == 0)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vb->FVF_Info(), layout))
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+    // Mismatched stride (typically for skinned-mesh weighted-position FVFs
+    // that BuildBgfxLayoutForFVF does not fully cover)
+    // would create a too-small bgfx buffer and cause truncation
+    // warnings + native buffer creation crashes when the engine writes
+    // a larger per-vertex stride than bgfx allocated.
+    const uint32_t layout_stride = layout.getStride();
+    if (layout_stride == 0 || layout_stride != engine_stride)
+    {
+        static bool s_loggedVbStrideSkip = false;
+        if (!s_loggedVbStrideSkip)
+        {
+            s_loggedVbStrideSkip = true;
+            WWDEBUG_SAY(("[BgfxBackend] skip VB cache: layout stride=%u != "
+                         "engine stride=%u (fvf=0x%x num_verts=%u) - unsupported FVF",
+                         layout_stride, engine_stride,
+                         vb->FVF_Info().Get_FVF(), num_verts));
+        }
+        BgfxVbCacheEntry e{ BGFX_INVALID_HANDLE, num_verts, engine_stride };
+        g_caches.vb[vb] = e;
+        MirrorDynamicVertexHandleToResource(vb, BGFX_INVALID_HANDLE);
+        return BGFX_INVALID_HANDLE;
+    }
+    bgfx::DynamicVertexBufferHandle h = bgfx::createDynamicVertexBuffer(num_verts, layout);
+    g_stats.dynamicVbAllocations++;
+    BgfxVbCacheEntry e{ h, num_verts, engine_stride };
+    g_caches.vb[vb] = e;
+    MirrorDynamicVertexHandleToResource(vb, h);
+    return h;
+}
+
+bgfx::DynamicIndexBufferHandle EnsureDynamicIndexBuffer(const IndexBufferClass * ib)
+{
+    const uint32_t num_indices = static_cast<uint32_t>(ib->Get_Index_Count());
+
+    auto it = g_caches.ib.find(ib);
+    if (it != g_caches.ib.end())
+    {
+        // TheSuperHackers @perf bobtista 02/06/2026 Grow-only reuse; cached num_indices
+        // is the buffer CAPACITY. See the matching note in EnsureDynamicVertexBuffer.
+        if (it->second.num_indices >= num_indices && bgfx::isValid(it->second.handle))
+        {
+            MirrorDynamicIndexHandleToResource(ib, it->second.handle);
+            return it->second.handle;
+        }
+        ClearDynamicIndexHandleFromResource(ib, it->second.handle);
+        if (bgfx::isValid(it->second.handle))
+        {
+            // Defer the destroy of the grown-out handle by one frame.
+            g_caches.deferredDestroyIB.push_back(it->second.handle);
+        }
+        g_caches.pendingIbRangeUploads.erase(ib);
+        g_caches.ib.erase(it);
+    }
+    if (num_indices == 0)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+    bgfx::DynamicIndexBufferHandle h = bgfx::createDynamicIndexBuffer(num_indices);
+    g_stats.dynamicIbAllocations++;
+    BgfxIbCacheEntry e{ h, num_indices };
+    g_caches.ib[ib] = e;
+    MirrorDynamicIndexHandleToResource(ib, h);
+    return h;
+}
+
+void MarkPendingRangeUpload(BgfxPendingRangeUpload & pending,
+                            uint32_t start_byte,
+                            uint32_t size_bytes)
+{
+    const uint64_t end_byte64 = static_cast<uint64_t>(start_byte) + size_bytes;
+    const uint32_t end_byte = end_byte64 > UINT32_MAX
+        ? UINT32_MAX
+        : static_cast<uint32_t>(end_byte64);
+    if (!pending.valid)
+    {
+        pending.startByte = start_byte;
+        pending.endByte = end_byte;
+        pending.valid = true;
+        return;
+    }
+    if (start_byte < pending.startByte)
+    {
+        pending.startByte = start_byte;
+    }
+    if (end_byte > pending.endByte)
+    {
+        pending.endByte = end_byte;
+    }
+}
+
+void FlushPendingVertexRangeUpload(const VertexBufferClass * vb)
+{
+    auto it = g_caches.pendingVbRangeUploads.find(vb);
+    if (it == g_caches.pendingVbRangeUploads.end() || !it->second.valid)
+    {
+        return;
+    }
+
+    BgfxPendingRangeUpload pending = it->second;
+    g_caches.pendingVbRangeUploads.erase(it);
+
+    const uint32_t stride = vb != nullptr ? vb->FVF_Info().Get_FVF_Size() : 0;
+    const uint32_t buffer_bytes =
+        (vb != nullptr) ? static_cast<uint32_t>(vb->Get_Vertex_Count()) * stride : 0;
+    if (!g_device.initialized
+        || vb == nullptr
+        || stride == 0
+        || buffer_bytes == 0
+        || !vb->Has_CPU_Buffer_Data()
+        || vb->Get_CPU_Buffer_Size() < buffer_bytes)
+    {
+        return;
+    }
+
+    uint32_t start_byte = pending.startByte - (pending.startByte % stride);
+    uint32_t end_byte = pending.endByte;
+    if (end_byte > buffer_bytes)
+    {
+        end_byte = buffer_bytes;
+    }
+    const uint32_t end_remainder = end_byte % stride;
+    if (end_remainder != 0)
+    {
+        end_byte += stride - end_remainder;
+        if (end_byte > buffer_bytes)
+        {
+            end_byte = buffer_bytes;
+        }
+    }
+    if (end_byte <= start_byte)
+    {
+        return;
+    }
+
+    bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
+    if (!bgfx::isValid(h))
+    {
+        return;
+    }
+
+    const uint32_t start_vertex = start_byte / stride;
+    const uint32_t size_bytes = end_byte - start_byte;
+    const unsigned char * src = vb->Peek_CPU_Buffer_Data() + start_byte;
+    const bgfx::Memory * mem = bgfx::copy(src, size_bytes);
+    LogBgfxBufferUpdate("vb-range-flush", vb, src, start_vertex, size_bytes, h.idx, mem);
+    bgfx::update(h, start_vertex, mem);
+}
+
+void FlushPendingIndexRangeUpload(const IndexBufferClass * ib)
+{
+    auto it = g_caches.pendingIbRangeUploads.find(ib);
+    if (it == g_caches.pendingIbRangeUploads.end() || !it->second.valid)
+    {
+        return;
+    }
+
+    BgfxPendingRangeUpload pending = it->second;
+    g_caches.pendingIbRangeUploads.erase(it);
+
+    const uint32_t index_size = sizeof(uint16_t);
+    const uint32_t buffer_bytes =
+        (ib != nullptr) ? static_cast<uint32_t>(ib->Get_Index_Count()) * index_size : 0;
+    if (!g_device.initialized
+        || ib == nullptr
+        || buffer_bytes == 0
+        || !ib->Has_CPU_Buffer_Data()
+        || ib->Get_CPU_Buffer_Size() < buffer_bytes)
+    {
+        return;
+    }
+
+    uint32_t start_byte = pending.startByte - (pending.startByte % index_size);
+    uint32_t end_byte = pending.endByte;
+    if (end_byte > buffer_bytes)
+    {
+        end_byte = buffer_bytes;
+    }
+    if ((end_byte % index_size) != 0)
+    {
+        end_byte += index_size - (end_byte % index_size);
+        if (end_byte > buffer_bytes)
+        {
+            end_byte = buffer_bytes;
+        }
+    }
+    if (end_byte <= start_byte)
+    {
+        return;
+    }
+
+    bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
+    if (!bgfx::isValid(h))
+    {
+        return;
+    }
+
+    const uint32_t start_index = start_byte / index_size;
+    const uint32_t size_bytes = end_byte - start_byte;
+    const unsigned char * src = ib->Peek_CPU_Buffer_Data() + start_byte;
+    const bgfx::Memory * mem = bgfx::copy(src, size_bytes);
+    LogBgfxBufferUpdate("ib-range-flush", ib, src, start_index, size_bytes, h.idx, mem);
+    bgfx::update(h, start_index, mem);
+}
+}
+
+// TheSuperHackers @feature bobtista 17/04/2026 Shroud texture capture for
+// bgfx. The shroud destination texture is POOL_DEFAULT, which the bgfx
+// texture-upload path in EnsureBgfxTexture skips (cannot lock). Instead,
+// the shroud system pushes its system-memory pixel data here every frame
+// after CopyRects. We create a bgfx texture on first call and updateTexture2D
+// on subsequent frames, storing the handle in g_caches.texture keyed by the
+// engine's destination TextureClass so EnsureBgfxTexture finds it on lookup
+// before reaching the POOL_DEFAULT early-out.
+
+void BgfxBackend::Upload_Vertex_Buffer_Data(const VertexBufferClass * vb,
+                                      const void * data,
+                                      unsigned int size_bytes)
+{
+    if (!g_device.initialized || vb == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+    // Guard: clamp write to the dynamic VB allocation so bgfx's
+    // E_INVALIDARG path at renderer_d3d11.cpp:4038 (CreateBuffer for
+    // staging) never fires.
+    const uint32_t stride = vb->FVF_Info().Get_FVF_Size();
+    const uint32_t buffer_bytes = static_cast<uint32_t>(vb->Get_Vertex_Count()) * stride;
+    if (stride == 0 || buffer_bytes == 0 || size_bytes > buffer_bytes)
+    {
+        static bool s_loggedVbCaptureSkip = false;
+        if (!s_loggedVbCaptureSkip)
+        {
+            s_loggedVbCaptureSkip = true;
+            WWDEBUG_SAY(("[BgfxBackend] skip VB full-upload: "
+                         "size_bytes=%u stride=%u total=%u",
+                         size_bytes, stride, buffer_bytes));
+        }
+        return;
+    }
+    g_caches.pendingVbRangeUploads.erase(vb);
+    if (TryCaptureStaticVertexBuffer(vb, data, size_bytes))
+    {
+        return;
+    }
+
+    bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
+    if (!bgfx::isValid(h))
+    {
+        return;
+    }
+    const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    LogBgfxBufferUpdate("vb-full", vb, data, 0, size_bytes, h.idx, mem);
+    bgfx::update(h, 0, mem);
+}
+
+void BgfxBackend::Upload_Index_Buffer_Data(const IndexBufferClass * ib,
+                                     const void * data,
+                                     unsigned int size_bytes)
+{
+    if (!g_device.initialized || ib == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+    const uint32_t buffer_bytes = static_cast<uint32_t>(ib->Get_Index_Count()) * sizeof(uint16_t);
+    if (buffer_bytes == 0 || size_bytes > buffer_bytes)
+    {
+        static bool s_loggedIbCaptureSkip = false;
+        if (!s_loggedIbCaptureSkip)
+        {
+            s_loggedIbCaptureSkip = true;
+            WWDEBUG_SAY(("[BgfxBackend] skip IB full-upload: "
+                         "size_bytes=%u total=%u", size_bytes, buffer_bytes));
+        }
+        return;
+    }
+    g_caches.pendingIbRangeUploads.erase(ib);
+    if (TryCaptureStaticIndexBuffer(ib, data, size_bytes))
+    {
+        return;
+    }
+    bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
+    if (!bgfx::isValid(h))
+    {
+        return;
+    }
+    const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    LogBgfxBufferUpdate("ib-full", ib, data, 0, size_bytes, h.idx, mem);
+    bgfx::update(h, 0, mem);
+}
+
+void BgfxBackend::Upload_Vertex_Buffer_Sub_Range(const VertexBufferClass * vb,
+                                           const void * data,
+                                           unsigned int start_vertex,
+                                           unsigned int size_bytes)
+{
+    if (!g_device.initialized || vb == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+    // Guard: total update must fit in the dynamic VB allocation.
+    const uint32_t stride = vb->FVF_Info().Get_FVF_Size();
+    if (stride == 0)
+    {
+        static bool s_loggedVbStrideZero = false;
+        if (!s_loggedVbStrideZero)
+        {
+            s_loggedVbStrideZero = true;
+            WWDEBUG_SAY(("[BgfxBackend] skip VB upload: stride=0 vb=%p", vb));
+        }
+        return;
+    }
+    const uint32_t buffer_bytes = static_cast<uint32_t>(vb->Get_Vertex_Count()) * stride;
+    const uint64_t end_byte = static_cast<uint64_t>(start_vertex) * stride + size_bytes;
+    if (end_byte > buffer_bytes)
+    {
+        static bool s_loggedVbSubRangeOor = false;
+        if (!s_loggedVbSubRangeOor)
+        {
+            s_loggedVbSubRangeOor = true;
+            WWDEBUG_SAY(("[BgfxBackend] skip VB upload: out-of-range "
+                         "start_vert=%u size_bytes=%u stride=%u total=%u",
+                         start_vertex, size_bytes, stride, buffer_bytes));
+        }
+        return;
+    }
+    if (BgfxResourceEntry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        // TheSuperHackers @bugfix bobtista 06/06/2026 Defer the static-buffer destroy (matching
+        // TryCaptureStaticVertexBuffer) so a buffer still referenced by an earlier draw this frame
+        // is not freed before bgfx::frame() - the RefCount-leak / one-frame use-after-free case.
+        DeferDestroyStaticVertexResource(*entry);
+    }
+    bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
+    if (!bgfx::isValid(h))
+    {
+        return;
+    }
+    const uint32_t byte_offset = start_vertex * stride;
+    if (CoalesceDynamicRangeUploadsEnabled()
+        && vb->Has_CPU_Buffer_Data()
+        && vb->Get_CPU_Buffer_Size() >= buffer_bytes)
+    {
+        MarkPendingRangeUpload(g_caches.pendingVbRangeUploads[vb],
+                               byte_offset,
+                               size_bytes);
+        LogBgfxBufferUpdate("vb-range-defer", vb, data, start_vertex, size_bytes, h.idx, nullptr);
+        return;
+    }
+    const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    LogBgfxBufferUpdate("vb-range", vb, data, start_vertex, size_bytes, h.idx, mem);
+    bgfx::update(h, start_vertex, mem);
+
+}
+
+void BgfxBackend::Upload_Index_Buffer_Sub_Range(const IndexBufferClass * ib,
+                                          const void * data,
+                                          unsigned int start_index,
+                                          unsigned int size_bytes)
+{
+    if (!g_device.initialized || ib == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+    const uint32_t buffer_bytes = static_cast<uint32_t>(ib->Get_Index_Count()) * sizeof(uint16_t);
+    const uint64_t end_byte = static_cast<uint64_t>(start_index) * sizeof(uint16_t) + size_bytes;
+    if (end_byte > buffer_bytes)
+    {
+        static bool s_loggedIbSubRangeOor = false;
+        if (!s_loggedIbSubRangeOor)
+        {
+            s_loggedIbSubRangeOor = true;
+            WWDEBUG_SAY(("[BgfxBackend] skip IB upload: out-of-range "
+                         "start_idx=%u size_bytes=%u total=%u",
+                         start_index, size_bytes, buffer_bytes));
+        }
+        return;
+    }
+    if (BgfxResourceEntry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        // TheSuperHackers @bugfix bobtista 06/06/2026 Defer the static-buffer destroy (matching
+        // TryCaptureStaticIndexBuffer) so a buffer still referenced by an earlier draw this frame
+        // is not freed before bgfx::frame().
+        DeferDestroyStaticIndexResource(*entry);
+    }
+    bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
+    if (!bgfx::isValid(h))
+    {
+        return;
+    }
+    const uint32_t byte_offset = start_index * sizeof(uint16_t);
+    if (CoalesceDynamicRangeUploadsEnabled()
+        && ib->Has_CPU_Buffer_Data()
+        && ib->Get_CPU_Buffer_Size() >= buffer_bytes)
+    {
+        MarkPendingRangeUpload(g_caches.pendingIbRangeUploads[ib],
+                               byte_offset,
+                               size_bytes);
+        LogBgfxBufferUpdate("ib-range-defer", ib, data, start_index, size_bytes, h.idx, nullptr);
+        return;
+    }
+    const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    LogBgfxBufferUpdate("ib-range", ib, data, start_index, size_bytes, h.idx, mem);
+    bgfx::update(h, start_index, mem);
+
+}
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Sorted draw pass routing. Begin/End flip
+// the flag that routes SubmitEngineDraw to kBgfxEngineSortView; Capture stores the
+// per-batch world as sortView^T * sortWorld^T directly in bgfx column-major layout.
+
+static bool s_sortedTransformCacheValid = false;
+static unsigned char s_sortedTransformWorldCache[sizeof(Matrix4x4)];
+static unsigned char s_sortedTransformViewCache[sizeof(Matrix4x4)];
+
+static void InvalidateSortedTransformCache()
+{
+    s_sortedTransformCacheValid = false;
+}
+
+static bool DisableSortedMaterialRecaptureSkip()
+{
+    static const bool s_disabled =
+        GgcFlags::Enabled(GgcFlag_BgfxDisableSortedMaterialRecaptureSkip);
+    return s_disabled;
+}
+
+static bool DisableSortedMaterialSnapshot()
+{
+    static const bool s_disabled =
+        GgcFlags::Enabled(GgcFlag_BgfxDisableSortedMaterialSnapshot);
+    return s_disabled;
+}
+
+static void ApplySortedMaterialSnapshotForBgfx(const RenderBackendSortedMaterialSnapshot & material,
+                                               const VertexMaterialClass * sourceMaterial)
+{
+    g_draw.sourceMaterial = sourceMaterial;
+    g_draw.explicitMaterialState = false;
+    for (int i = 0; i < 4; ++i)
+    {
+        g_draw.matDiffuse[i] = material.diffuse[i];
+        g_draw.matAmbient[i] = material.ambient[i];
+        g_draw.matEmissive[i] = material.emissive[i];
+        g_draw.matSpecular[i] = material.specular[i];
+    }
+    // TheSuperHackers @bugfix bobtista 02/07/2026 Mirror Set_Material exactly: it
+    // writes only vertexColorFlags[1..3] (the material color sources) and
+    // lightingEnabled[0]. vertexColorFlags[0] is owned by Set_Vertex_Buffer (the
+    // "bound FVF has a per-vertex diffuse" flag) and must not be touched here. The
+    // snapshot never populated index [0], so copying all four stomped it to 0,
+    // making the shader substitute the fixed-function white default and rendering
+    // every per-vertex-colored sorted particle white (propaganda, smoke, EMP rings).
+    g_draw.vertexColorFlags[1] = material.vertex_color_flags[1];
+    g_draw.vertexColorFlags[2] = material.vertex_color_flags[2];
+    g_draw.vertexColorFlags[3] = material.vertex_color_flags[3];
+    g_draw.lightingEnabled[0] = material.lighting_enabled[0];
+}
+
+void BgfxBackend::Begin_Sorted_Batch_Pass()
+{
+    g_views.inSortFlush = true;
+    g_views.sortedBatchMaterialCaptured = false;
+    InvalidateSortedTransformCache();
+    if (!g_frame.sortProjCaptured)
+    {
+        std::memcpy(g_frame.sortProj, g_frame.proj, sizeof(g_frame.sortProj));
+        g_frame.sortProjCaptured = true;
+    }
+}
+
+void BgfxBackend::End_Sorted_Batch_Pass()
+{
+    g_views.inSortFlush = false;
+    g_views.sortedBatchDrawFlags = RB_SORTED_DRAW_NONE;
+    g_views.sortedBatchMaterialCaptured = false;
+    InvalidateSortedTransformCache();
+}
+
+static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
+                                                const Matrix4x4 & sortView)
+{
+    // Compute the legacy row-major product sortWorld * sortView, then store
+    // it as row-major float[16] (r*4+c). bgfx native backends interpret the
+    // raw bytes as column-major HLSL float4x4, which makes mul(M, v) use
+    // the ROWS of our stored matrix — matching D3D's row-vector convention.
+    // The previous [c*4+r] storage put the translation at the W component
+    // of each column (indices 3,7,11) instead of row 3 (indices 12,13,14),
+    // which works for identity transforms (particles) but breaks for mesh
+    // transforms with translation (helicopter rotors).
+    for (int r = 0; r < 4; ++r)
+    {
+        for (int c = 0; c < 4; ++c)
+        {
+            float s = 0.0f;
+            for (int k = 0; k < 4; ++k)
+            {
+                s += sortWorld[r][k] * sortView[k][c];
+            }
+            g_frame.sortWorld[r * 4 + c] = s;
+            // Store raw model (no camera view baked in)
+            // for shadow caster submissions.
+        }
+    }
+    // Store raw sortWorld (model-to-world only). sortWorld is captured from
+    // RenderStateStruct's legacy D3DMATRIX storage, reinterpreted as Matrix4x4
+    // by the sorting renderer; do not run it through the normal W3D matrix
+    // conversion helper or it gets transposed a second time. Sorted local-model
+    // cards such as the Comanche rotor blur render through the normal camera
+    // view and need this raw per-mesh world matrix.
+    for (int r = 0; r < 4; ++r)
+    {
+        for (int c = 0; c < 4; ++c)
+        {
+            g_frame.sortWorldRaw[r * 4 + c] = sortWorld[r][c];
+            // View with identity world, for runs whose vertices were baked to
+            // world space at sorted-pool fill time.
+            g_frame.sortViewOnly[r * 4 + c] = sortView[r][c];
+        }
+    }
+}
+
+static void ApplyMaterialMappersForBgfx(BgfxBackend * backend, const VertexMaterialClass * material);
+
+void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state)
+{
+    static const bool s_trackSortedReplayPhases = IsBgfxStatsLoggingEnabled();
+    LARGE_INTEGER replayStart;
+    LARGE_INTEGER segmentStart;
+    LARGE_INTEGER segmentEnd;
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&replayStart);
+        g_stats.sortedReplayCalls++;
+    }
+
+    g_views.sortedBatchDrawFlags = state.draw_flags;
+    if (state.shader != nullptr)
+    {
+        if (s_trackSortedReplayPhases)
+        {
+            QueryPerformanceCounter(&segmentStart);
+        }
+        Set_Shader(*state.shader);
+        // TheSuperHackers @bugfix bobtista 10/06/2026 The sorted replay restores the captured shader's
+        // depth state through Set_Shader, but the cull face is read from the separate semantic cull
+        // (FixedFunctionState::Cull_Mode), which Set_Shader does not update. A captured CULL_MODE_DISABLE
+        // - used by two-sided segmented-line ribbons such as rally/waypoint lines - was therefore lost,
+        // and whatever cull was last set (typically CW) culled the backward-wound ribbon segments,
+        // making parts of the line vanish. Restore the captured shader's cull mode so two-sided sorted
+        // geometry draws both faces, matching the DX8 path where applying a shader set the cull state.
+        Set_Cull_Mode(state.shader->Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE ? RB_CULL_CW : RB_CULL_NONE);
+        if (s_trackSortedReplayPhases)
+        {
+            QueryPerformanceCounter(&segmentEnd);
+            g_stats.sortedReplayShaderTicks += segmentEnd.QuadPart - segmentStart.QuadPart;
+        }
+    }
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentStart);
+    }
+    const bool sortedMaterialSnapshotEnabled =
+        state.material_snapshot.valid
+        && !DisableSortedMaterialSnapshot()
+        && !DisableSortedMaterialRecaptureSkip();
+    if (sortedMaterialSnapshotEnabled)
+    {
+        ApplySortedMaterialSnapshotForBgfx(state.material_snapshot, state.material);
+        // The snapshot bypasses Set_Material, so run the mappers explicitly or
+        // sorted meshes with animated UV mappers replay stale texture transforms.
+        ApplyMaterialMappersForBgfx(this, state.material);
+        g_views.sortedBatchMaterialCaptured = true;
+    }
+    else
+    {
+        Set_Material(state.material);
+        g_views.sortedBatchMaterialCaptured = !DisableSortedMaterialRecaptureSkip();
+    }
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentEnd);
+        g_stats.sortedReplayMaterialTicks += segmentEnd.QuadPart - segmentStart.QuadPart;
+    }
+
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentStart);
+    }
+    for (unsigned i = 0; i < RB_MAX_TEXTURE_STAGES; ++i)
+    {
+        Set_Texture(i, state.textures[i]);
+    }
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentEnd);
+        g_stats.sortedReplayTextureTicks += segmentEnd.QuadPart - segmentStart.QuadPart;
+    }
+
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentStart);
+    }
+    if (state.world != nullptr && state.view != nullptr)
+    {
+        static const bool s_disableSortedTransformRestoreSkip =
+            GgcFlags::Enabled(GgcFlag_BgfxDisableSortedTransformRestoreSkip);
+        const bool sameTransform =
+            !s_disableSortedTransformRestoreSkip
+            && s_sortedTransformCacheValid
+            && std::memcmp(s_sortedTransformWorldCache, state.world, sizeof(Matrix4x4)) == 0
+            && std::memcmp(s_sortedTransformViewCache, state.view, sizeof(Matrix4x4)) == 0;
+        if (!sameTransform)
+        {
+            CaptureSortedBatchTransformsForBgfx(*state.world, *state.view);
+            std::memcpy(s_sortedTransformWorldCache, state.world, sizeof(Matrix4x4));
+            std::memcpy(s_sortedTransformViewCache, state.view, sizeof(Matrix4x4));
+            s_sortedTransformCacheValid = true;
+        }
+    }
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentEnd);
+        g_stats.sortedReplayTransformTicks += segmentEnd.QuadPart - segmentStart.QuadPart;
+    }
+
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentStart);
+    }
+    for (int i = 0; i < 4; ++i)
+    {
+        const RenderBackendLight & light = state.lights.lights[i];
+        if (state.lights.enabled[i])
+        {
+            g_draw.lightDirs[i][0] = -light.direction[0];
+            g_draw.lightDirs[i][1] = -light.direction[1];
+            g_draw.lightDirs[i][2] = -light.direction[2];
+            g_draw.lightDirs[i][3] = 1.0f;
+            g_draw.lightColors[i][0] = light.diffuse[0];
+            g_draw.lightColors[i][1] = light.diffuse[1];
+            g_draw.lightColors[i][2] = light.diffuse[2];
+            g_draw.lightColors[i][3] = 1.0f;
+            g_draw.lightAmbients[i][0] = light.ambient[0];
+            g_draw.lightAmbients[i][1] = light.ambient[1];
+            g_draw.lightAmbients[i][2] = light.ambient[2];
+            g_draw.lightAmbients[i][3] = 1.0f;
+            // TheSuperHackers @bugfix bobtista 17/07/2026 Reconstruct point lights from the
+            // captured legacy encoding (range = orad, attenuation1 = 0.1/irad) instead of
+            // flattening every light to directional; a zero direction would otherwise hit the
+            // NaN guard and light the node from straight above.
+            if (light.type == 1 /* legacy D3DLIGHT_POINT */)
+            {
+                g_draw.lightPositions[i][0] = light.position[0];
+                g_draw.lightPositions[i][1] = light.position[1];
+                g_draw.lightPositions[i][2] = light.position[2];
+                g_draw.lightPositions[i][3] = 1.0f;
+                g_draw.lightParams[i][0] = (light.attenuation[1] > 1e-8f)
+                    ? 0.1f / light.attenuation[1] : light.range;
+                g_draw.lightParams[i][1] = light.range;
+                g_draw.lightParams[i][2] = 1.0f;
+            }
+            else
+            {
+                g_draw.lightParams[i][0] = 0.0f;
+                g_draw.lightParams[i][1] = 0.0f;
+                g_draw.lightParams[i][2] = 0.0f;
+            }
+            g_draw.lightParams[i][3] = 1.0f;
+        }
+        else
+        {
+            g_draw.lightDirs[i][3] = 0.0f;
+            g_draw.lightParams[i][3] = 0.0f;
+        }
+    }
+    if (s_trackSortedReplayPhases)
+    {
+        QueryPerformanceCounter(&segmentEnd);
+        g_stats.sortedReplayLightTicks += segmentEnd.QuadPart - segmentStart.QuadPart;
+        g_stats.sortedReplayTotalTicks += segmentEnd.QuadPart - replayStart.QuadPart;
+    }
+}
+
+void BgfxBackend::Set_Point_Group_Render_Active(bool active)
+{
+    g_views.pointGroupRenderActive = active;
+}
+
+void BgfxBackend::Set_Streak_Render_Active(bool active)
+{
+    g_views.streakRenderActive = active;
+}
+
+void BgfxBackend::Set_Mesh_Render_Active(bool active)
+{
+    g_views.meshRenderActive = active;
+}
+
+// TheSuperHackers @feature bobtista 07/07/2026 GGC_BGFX_DISABLE_SORTED_MESH_ROUTING
+// restores the texture-name-only routing of model-space sorted draws for A/B
+// comparison and as a fallback if the mesh-origin routing ever regresses.
+static bool SortedMeshRoutingDisabled()
+{
+    static const bool s_disabled =
+        GgcFlags::Enabled(GgcFlag_BgfxDisableSortedMeshRouting);
+    return s_disabled;
+}
+
+static const char * TextureDebugName(TextureBaseClass * texture);
+static bool IsCommandCenterEmblemTextureName(const char *name);
+static bool IsRotorBlurTextureName(const char *name);
+
+// Logs (once per texture, under GGC_TRACE) mesh-origin sorted draws that no
+// texture-name predicate covers - the cases the name-keyed routing used to
+// silently misplace, and the first place to look when a model-space sorted
+// effect misbehaves on a new faction variant.
+static void LogSortedMeshDrawWithoutNamePredicate(TextureBaseClass * texture, const char * texName)
+{
+    static const bool s_trace = (GgcFlags::Enabled(GgcFlag_Trace));
+    if (!s_trace)
+    {
+        return;
+    }
+    static TextureBaseClass * s_seen[16];
+    static int s_seenCount = 0;
+    for (int i = 0; i < s_seenCount; ++i)
+    {
+        if (s_seen[i] == texture)
+        {
+            return;
+        }
+    }
+    if (s_seenCount < 16)
+    {
+        s_seen[s_seenCount++] = texture;
+    }
+    std::fprintf(stderr,
+        "[ggc] mesh-origin sorted draw handled by origin flag (no name predicate): tex=%s\n",
+        texName != nullptr ? texName : "(null)");
+}
+
+static void ComputeSortedTextureArraySlot(RenderStateStruct & state);
+static uint64_t ComputeFinalDrawState(bool triangle_strip);
+
+void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
+{
+    GGC_RPROFILE(SORTED_CAPTURE);
+    // Transitional boundary for sorted replay. SortingRenderer snapshots a
+    // full fixed-function state so it can replay translucent geometry later.
+    // bgfx still mirrors draw state into FixedFunctionState for that snapshot
+    // today; future phases should make that state shape backend-neutral too.
+    FixedFunctionState::Capture_Render_State(state);
+    state.sorted_array_page = -1;
+    state.sorted_array_layer = -1;
+    state.sorted_array_scale_u = 1.0f;
+    state.sorted_array_scale_v = 1.0f;
+    if (g_views.pointGroupRenderActive)
+    {
+        state.sorted_draw_flags |= RB_SORTED_DRAW_POINT_GROUP;
+    }
+    if (g_views.streakRenderActive)
+    {
+        state.sorted_draw_flags |= RB_SORTED_DRAW_STREAK;
+    }
+    const bool meshLocalModelDraw = g_views.meshRenderActive && !SortedMeshRoutingDisabled();
+    if (meshLocalModelDraw)
+    {
+        state.sorted_draw_flags |= RB_SORTED_DRAW_MESH;
+    }
+
+    // TheSuperHackers @bugfix bobtista 17/05/2026 These sorted meshes are authored in local
+    // model space, but FixedFunctionState's world is hard-wired to identity on bgfx; capture
+    // the live per-mesh world so the replay places and rotates them correctly.
+    // TheSuperHackers @feature bobtista 07/07/2026 Mesh-origin sorted draws always capture
+    // their world via the RB_SORTED_DRAW_MESH flag; the texture-name list remains for
+    // non-mesh special cases and as the name-only fallback behind
+    // GGC_BGFX_DISABLE_SORTED_MESH_ROUTING.
+    const char *texName = TextureDebugName(g_draw.sourceTextures[0]);
+    const bool namedLocalModelDraw = texName != nullptr
+        && (IsCommandCenterEmblemTextureName(texName)
+            || IsRotorBlurTextureName(texName)
+            || ContainsCaseInsensitive(texName, "ubsnkatak_01")
+            || ContainsCaseInsensitive(texName, "coplight"));
+    if (meshLocalModelDraw && !namedLocalModelDraw)
+    {
+        LogSortedMeshDrawWithoutNamePredicate(g_draw.sourceTextures[0], texName);
+    }
+    if (namedLocalModelDraw || meshLocalModelDraw)
+    {
+        FixedFunctionState::Transform_Matrix(
+            static_cast<unsigned>(RB_TRANSFORM_WORLD), state.world);
+    }
+    else
+    {
+        ComputeSortedTextureArraySlot(state);
+    }
+    // TheSuperHackers @performance bobtista 10/07/2026 Resolve the final
+    // pipeline-state word now, while g_draw holds the exact translated state
+    // this node's replayed submit will apply. The packet submit consumes it
+    // instead of re-deriving per draw when the resolved-pipeline flag is on.
+    // The replay context differs from the capture context in three ways that
+    // feed the state word: the sorted-draw flag predicates read
+    // g_views.sortedBatchDrawFlags, which Apply_Sorted_Batch_State populates
+    // from this node's flags; the replay derives the cull mode from the
+    // captured shader (two-sided sorted geometry keeps CULL_MODE_DISABLE)
+    // rather than from the inserting renderer's live cull; and the flush-only
+    // predicates (rotor-blur cull exemption and friends) require
+    // g_views.inSortFlush. Mirror all three around the resolve.
+    {
+        const unsigned int savedBatchDrawFlags = g_views.sortedBatchDrawFlags;
+        const CullMode savedCullMode = Get_Cull_Mode();
+        const bool savedInSortFlush = g_views.inSortFlush;
+        g_views.sortedBatchDrawFlags = state.sorted_draw_flags;
+        g_views.inSortFlush = true;
+        Set_Cull_Mode(state.shader.Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE
+            ? RB_CULL_CW
+            : RB_CULL_NONE);
+        const uint64_t resolved = ComputeFinalDrawState(false);
+        Set_Cull_Mode(savedCullMode);
+        g_views.inSortFlush = savedInSortFlush;
+        g_views.sortedBatchDrawFlags = savedBatchDrawFlags;
+        state.resolved_state_lo = static_cast<unsigned int>(resolved & 0xffffffffu);
+        state.resolved_state_hi = static_cast<unsigned int>(resolved >> 32);
+        state.resolved_state_valid = true;
+    }
+}
+
+void BgfxBackend::Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state)
+{
+    (void)state;
+}
+
+void BgfxBackend::Release_Legacy_Render_State_For_Sorted_Draw()
+{
+    FixedFunctionState::Release_Render_State();
+}
+
+// TheSuperHackers @refactor bobtista 26/04/2026 Shared submit helpers used by
+// both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
+static uint64_t ApplyCullModeOverride(uint64_t state)
+{
+    CullMode cullMode = static_cast<CullMode>(FixedFunctionState::Cull_Mode(RB_CULL_NONE));
+    state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
+    if (cullMode == RB_CULL_CW)
+    {
+        state |= BGFX_STATE_CULL_CW;
+    }
+    else if (cullMode == RB_CULL_CCW)
+    {
+        state |= BGFX_STATE_CULL_CCW;
+    }
+    return state;
+}
+
+static uint64_t ApplyColorWriteOverride(uint64_t state)
+{
+    if (g_overrides.colorWriteOverride >= 0)
+    {
+        state &= ~(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+        state |= static_cast<uint64_t>(g_overrides.colorWriteOverride);
+    }
+    return state;
+}
+
+static uint64_t ApplyBlendEquation(uint64_t state)
+{
+    state &= ~BGFX_STATE_BLEND_EQUATION_MASK;
+    if ((state & BGFX_STATE_BLEND_MASK) != 0)
+    {
+        state |= g_draw.blendEquationBits;
+    }
+    return state;
+}
+
+static bool IsOpaqueBlend(BlendFactor src, BlendFactor dest)
+{
+    return src == RB_BLEND_ONE && dest == RB_BLEND_ZERO;
+}
+
+static uint64_t ApplyBlendState(uint64_t state)
+{
+    state &= ~(BGFX_STATE_BLEND_MASK | BGFX_STATE_BLEND_EQUATION_MASK);
+    const bool blendEnabled = g_overrides.blendEnableActive
+        ? g_overrides.blendEnableValue
+        : g_draw.alphaBlendEnabled;
+    if (blendEnabled)
+    {
+        const uint64_t blendBits = g_overrides.blendActive
+            ? g_overrides.blendBits
+            : g_draw.blendFuncBits;
+        state |= blendBits;
+        state |= g_draw.blendEquationBits;
+    }
+    return state;
+}
+
+static uint64_t ApplyDepthState(uint64_t state)
+{
+    state &= ~(BGFX_STATE_DEPTH_TEST_MASK | BGFX_STATE_WRITE_Z);
+    if (g_draw.depthTestEnabled)
+    {
+        state |= g_draw.depthFuncBits;
+        if (g_draw.depthWriteEnabled)
+        {
+            state |= BGFX_STATE_WRITE_Z;
+        }
+    }
+    return state;
+}
+
+static uint64_t GetEffectiveDrawState()
+{
+    uint64_t state = (g_draw.state != 0)
+        ? g_draw.state
+        : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+    state = ApplyDepthState(state);
+    state = ApplyBlendState(state);
+    return state;
+}
+
+static bool LegacyStencilShadowsEnabled()
+{
+    return BgfxStencilShadowsEnabled()
+        || GgcFlags::Enabled(GgcFlag_EnableLegacyStencilShadows);
+}
+
+static bool ShouldLogBgfxStencilShadows()
+{
+    return GgcFlags::Enabled(GgcFlag_StencilShadowDiag)
+        || GgcFlags::Enabled(GgcFlag_ShadowPathDiag);
+}
+
+static bool BgfxPreMeshStencilShadows()
+{
+    // bgfx view order is global, not call-order based. Submitting the legacy
+    // stencil volumes into the engine view preserves the W3D call order used
+    // by the bgfx path: terrain/projected decals first, stencil darken next,
+    // opaque meshes later. That keeps volume shadows on terrain without
+    // multiplying the lighting on units/buildings/effects.
+    return !GgcFlags::Enabled(GgcFlag_BgfxLegacyPostMeshStencilShadows);
+}
+
+static bgfx::ViewId BgfxShadowVolumeSubmitView()
+{
+    return BgfxPreMeshStencilShadows() ? kBgfxEngineView : kBgfxShadowVolumeView;
+}
+
+static uint64_t BgfxShadowVolumeDepthState()
+{
+    const char *depth = GgcFlags::StringValue(GgcFlag_BgfxStencilDepth);
+    if (depth != nullptr && std::strcmp(depth, "less") == 0)
+    {
+        return BGFX_STATE_DEPTH_TEST_LESS;
+    }
+    if (depth != nullptr && std::strcmp(depth, "always") == 0)
+    {
+        return BGFX_STATE_DEPTH_TEST_ALWAYS;
+    }
+    return BGFX_STATE_DEPTH_TEST_LEQUAL;
+}
+
+static bool BgfxTwoSidedStencilVolumes()
+{
+    // TheSuperHackers @bugfix bobtista 04/06/2026 Keep two-sided stencil
+    // shadow volumes opt-in. Defaulting it on (the attempt to halve
+    // shadow-volume submissions) miscounts the stencil for elevated casters:
+    // aircraft, helicopters and tall/stilted buildings draw a dark band or
+    // fan instead of a ground shadow. The legacy two-pass submit is correct;
+    // opt in with GGC_BGFX_STENCIL_TWO_SIDED only for A/B testing.
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxStencilTwoSided);
+    return cached;
+}
+
+static unsigned BgfxShadowCullModeBits()
+{
+    // Use the same face selection as the W3D/DX8 shadow-volume pass. The
+    // earlier bgfx-only inversion made the default z-pass counts cancel out
+    // on useful receivers, leaving vehicles and aircraft without shadows.
+    if (!GgcFlags::Enabled(GgcFlag_BgfxStencilInvertCull))
+    {
+        return g_draw.cullModeBits;
+    }
+    if (g_draw.cullModeBits == 1)
+    {
+        return 2;
+    }
+    if (g_draw.cullModeBits == 2)
+    {
+        return 1;
+    }
+    return g_draw.cullModeBits;
+}
+
+static void BindShadowVolumeBiasUniform()
+{
+    if (!bgfx::isValid(g_uniforms.uShadowBias))
+    {
+        return;
+    }
+
+    float bias[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    if (GgcFlags::Enabled(GgcFlag_BgfxStencilClampClip))
+    {
+        bias[1] = 1.0f;
+    }
+    bgfx::setUniform(g_uniforms.uShadowBias, bias);
+}
+
+static bool BgfxSwapTwoSidedStencilVolumeOps()
+{
+    const char *algo = GgcFlags::StringValue(GgcFlag_BgfxStencilAlgo);
+    return algo != nullptr && std::strcmp(algo, "zpass-swap") == 0;
+}
+
+static void LogBgfxStencilShadowEvent(const char *event, const char *reason,
+                                      unsigned countA, unsigned countB)
+{
+    if (!ShouldLogBgfxStencilShadows())
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_stencil_shadow_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u enabled=%d mode=%d active=%d submits=%u a=%u b=%u reason=%s\n",
+                     event,
+                     g_stats.frameIndex,
+                     LegacyStencilShadowsEnabled() ? 1 : 0,
+                     static_cast<int>(GetBgfxShadowMode()),
+                     g_views.shadowVolumeActive ? 1 : 0,
+                     g_stats.shadowVolumeSubmits,
+                     countA,
+                     countB,
+                     reason != nullptr ? reason : "");
+        std::fclose(diag);
+    }
+}
+
+static bool IsStandardAlphaBlend(uint64_t state)
+{
+    const uint64_t kAlphaSA_ISA = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
+                                                        BGFX_STATE_BLEND_INV_SRC_ALPHA);
+    return (state & BGFX_STATE_BLEND_MASK) == kAlphaSA_ISA;
+}
+
+static bool IsOneOneAdditiveBlend(uint64_t state)
+{
+    const uint64_t kAddOneOne = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ONE,
+                                                      BGFX_STATE_BLEND_ONE);
+    return (state & BGFX_STATE_BLEND_MASK) == kAddOneOne;
+}
+
+static bool IsAnyAdditiveBlend(uint64_t state)
+{
+    const uint64_t blend = state & BGFX_STATE_BLEND_MASK;
+    const uint64_t kOneOne = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ONE,
+                                                    BGFX_STATE_BLEND_ONE);
+    const uint64_t kSaOne  = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
+                                                    BGFX_STATE_BLEND_ONE);
+    return blend == kOneOne || blend == kSaOne;
+}
+
+static bool IsMultiplicativeBlend(uint64_t state)
+{
+    const uint64_t blend = state & BGFX_STATE_BLEND_MASK;
+    const uint64_t kZeroSrcColor = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO,
+                                                          BGFX_STATE_BLEND_SRC_COLOR);
+    const uint64_t kDstColorZero = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_DST_COLOR,
+                                                          BGFX_STATE_BLEND_ZERO);
+    return blend == kZeroSrcColor || blend == kDstColorZero;
+}
+
+static bool IsSoftParticleCandidate(uint64_t state)
+{
+    // Soft depth fading is only appropriate for particle-style sorted quads.
+    // Some sorted alpha draws are world decals/material passes (for example
+    // command-center floor emblems) that sit directly on opaque geometry and
+    // must not be faded out against the scene depth.
+    return IsStandardAlphaBlend(state) && g_draw.tssOps0[0] < 1.5f;
+}
+
+static bool IsSortedMaterialDecal(uint64_t state)
+{
+    return IsStandardAlphaBlend(state)
+        && !IsSoftParticleCandidate(state)
+        && g_draw.tssOps0[0] > 2.5f && g_draw.tssOps0[0] < 3.5f
+        && g_draw.tssOps0[3] > 0.5f;
+}
+
+static const char * TextureDebugName(TextureBaseClass * texture);
+static bool IsCommandCenterEmblemTextureName(const char *name);
+
+// TheSuperHackers @performance bobtista 15/06/2026 The sorted-draw routing predicates
+// scan the stage-0 texture name for special-case effect markers. During the sort flush
+// these run for ~1k particle draws/frame. Get_Full_Path returns a stable member ref (no
+// alloc), but the repeated case-insensitive scans add up. Cache the marker results
+// keyed by the bound texture pointer so consecutive draws of one texture reuse them.
+struct SortedTexNameFlags { bool snk01; bool snk0; bool rotor; bool coplight; bool commandCenterEmblem; bool lightbeam; };
+static const SortedTexNameFlags & GetSortedTexNameFlags();
+
+static bool IsSortedAlphaDepthDecal(uint64_t state)
+{
+    const unsigned particleFlags = RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK;
+    return g_views.inSortFlush
+        && (g_views.sortedBatchDrawFlags & particleFlags) == 0
+        && IsStandardAlphaBlend(state)
+        && !IsSoftParticleCandidate(state)
+        && (state & BGFX_STATE_WRITE_Z) == 0
+        && g_draw.tssOps0[0] > 2.5f && g_draw.tssOps0[0] < 3.5f
+        && g_draw.tssOps0[1] > 2.5f && g_draw.tssOps0[1] < 3.5f
+        && g_draw.tssOps0[2] < 0.5f
+        && g_draw.tssOps0[3] < 0.5f
+        && (g_draw.texcoordSelect2[0] < 0.5f
+            || GetSortedTexNameFlags().snk01);
+}
+
+static bool IsSortedParticleEffect(uint64_t state)
+{
+    const unsigned particleFlags = RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK;
+    return g_views.inSortFlush
+        && (g_views.sortedBatchDrawFlags & particleFlags) != 0
+        && (state & BGFX_STATE_BLEND_MASK) != 0;
+}
+
+static bool IsSneakAttackAlphaDepthDecal(uint64_t state)
+{
+    return IsSortedAlphaDepthDecal(state)
+        && GetSortedTexNameFlags().snk01;
+}
+
+static bool IsSneakAttackCoplanarSurface()
+{
+    const SortedTexNameFlags & f = GetSortedTexNameFlags();
+    return f.snk0 && !f.snk01;
+}
+
+static bool ShouldApplySubmittedNormalBias(uint64_t state)
+{
+    return IsSortedMaterialDecal(state)
+        || IsSortedAlphaDepthDecal(state)
+        || IsSneakAttackCoplanarSurface();
+}
+
+static bool CoplanarBiasGateEnabled()
+{
+    // TheSuperHackers @performance bobtista 04/06/2026 GGC_NO_COPLANAR_BIAS_GATE
+    // restores the unconditional O(n^2) coplanar-pair scan on every dynamic vertex
+    // write (the pre-gate behavior) for A/B measurement and as a fallback if a
+    // sorted-decal depth-bias regression is ever observed.
+    static const bool s_enabled = (!GgcFlags::Enabled(GgcFlag_NoCoplanarBiasGate));
+    return s_enabled;
+}
+
+static bool ShouldScanSubmittedNormalBiasForCurrentDynamicWrite()
+{
+    if (!CoplanarBiasGateEnabled())
+    {
+        return true;
+    }
+
+    if (g_views.pointGroupRenderActive || g_views.streakRenderActive)
+    {
+        return false;
+    }
+
+    return ShouldApplySubmittedNormalBias(GetEffectiveDrawState());
+}
+
+// TheSuperHackers @feature bobtista 07/07/2026 A replayed sorted batch flagged as
+// mesh-origin carries its live per-mesh world (captured above) and is authored in
+// model space, so it must render through the engine view with that raw world. This
+// covers every model mesh generically; the name predicates below remain for the
+// non-mesh special cases and their extra per-effect handling.
+static bool IsSortedMeshModelDraw(uint64_t /*state*/)
+{
+    return g_views.inSortFlush
+        && (g_views.sortedBatchDrawFlags & RB_SORTED_DRAW_MESH) != 0;
+}
+
+static bool IsSortedRotorBlur(uint64_t state)
+{
+    return g_views.inSortFlush
+        && IsStandardAlphaBlend(state)
+        && ((g_draw.tssOps0[0] > 0.5f && g_draw.tssOps0[0] < 1.5f)
+            || (g_draw.tssOps0[0] > 2.5f && g_draw.tssOps0[0] < 3.5f))
+        && ((g_draw.tssOps0[1] > 0.5f && g_draw.tssOps0[1] < 1.5f)
+            || (g_draw.tssOps0[1] > 2.5f && g_draw.tssOps0[1] < 3.5f))
+        && g_draw.tssOps0[2] < 0.5f
+        && g_draw.tssOps0[3] < 0.5f
+        && GetSortedTexNameFlags().rotor;
+}
+
+// TheSuperHackers @bugfix bobtista 25/05/2026 Police-car lightbar glow meshes
+// (CopLight*.tga) live in model space and rely on the per-mesh world transform
+// the same way the Chinook rotor blur and Sneak Attack dirt plane do. Routing
+// them through the sort view, whose pre-view-multiplied matrix and Z-biased
+// projection are tuned for camera-facing particles, washes them out and leaves
+// the glow dim/invisible. Route through the engine view with the raw model
+// world so each animated coplight quad lands at the lightbar with normal
+// brightness, exactly like the other model-space sorted meshes above.
+static bool IsSortedCopLightSprite(uint64_t /*state*/)
+{
+    return g_views.inSortFlush
+        && GetSortedTexNameFlags().coplight;
+}
+
+// TheSuperHackers @bugfix bobtista 01/07/2026 Structure searchlight/beacon beams (lightbeam*.tga,
+// e.g. the China power-plant beacons) are model-space sorted quads. Left on the sort view they fold
+// through its pre-view-multiplied matrix and land in screen space, drawing a fixed diagonal light
+// streak across the map. Route them like the coplight/rotor sprites: engine view + raw model world.
+static bool IsSortedLightBeam(uint64_t /*state*/)
+{
+    return g_views.inSortFlush
+        && GetSortedTexNameFlags().lightbeam;
+}
+
+static bool IsSortedLocalModelEffectDraw(uint64_t state)
+{
+    return IsSortedMeshModelDraw(state)
+        || IsSortedRotorBlur(state)
+        || IsSneakAttackAlphaDepthDecal(state)
+        || IsSortedCopLightSprite(state)
+        || IsSortedLightBeam(state)
+        || (g_views.inSortFlush
+            && GetSortedTexNameFlags().commandCenterEmblem);
+}
+
+// TheSuperHackers @bugfix bobtista 30/06/2026 A draw whose material carries an
+// explicit emissive color is deliberately self-illuminated and depends on the
+// uber shader's lit branch to add that emissive. The force-unlit-for-baked-color
+// heuristic below targets particles/decals/additive sprites that bake intensity
+// into vertex color (no material emissive), so emissive-bearing passes must be
+// exempt. The detected-stealth "heat vision" pass is the case in point: it is an
+// additive (ONE/ONE) textureless pass whose only visible output is the orange
+// material emissive. Forcing it unlit drops the emissive and the additive pass
+// renders black, leaving detected stealth objects invisible.
+static bool DrawHasSelfIllumEmissive()
+{
+    return g_draw.matEmissive[0] > 0.001f
+        || g_draw.matEmissive[1] > 0.001f
+        || g_draw.matEmissive[2] > 0.001f;
+}
+
+static bool ShouldForceUnlitForBakedColorDraw(uint64_t state)
+{
+    // TheSuperHackers @bugfix bobtista 02/07/2026 The force-unlit exists to keep
+    // additive particles/dazzles that bake their intensity into vertex diffuse
+    // from being overwritten by the shader's computed lighting. A real geometry
+    // mesh with material lighting enabled but NO baked vertex color (e.g. the
+    // additive night-detail pass on building roofs, atcemwall04) has no baked
+    // color to preserve — forcing it unlit dumps the raw full-bright texture,
+    // so it glows tan at night. Keep such draws lit.
+    if (g_draw.lightingEnabled[0] > 0.5f
+        && g_draw.vertexColorFlags[0] <= 0.5f
+        && g_draw.fvfHasNormal)
+    {
+        return false;
+    }
+    if (DrawHasSelfIllumEmissive())
+    {
+        static const bool s_trace = (GgcFlags::Enabled(GgcFlag_Trace));
+        static bool s_loggedSelfIllumExempt = false;
+        if (s_trace && !s_loggedSelfIllumExempt && IsAnyAdditiveBlend(state))
+        {
+            std::fprintf(stderr,
+                "[ggc] heat-vision/self-illum additive pass kept lit: emissive=(%.2f,%.2f,%.2f) priColorOp=%.0f lightingEnabled=%.0f\n",
+                g_draw.matEmissive[0], g_draw.matEmissive[1], g_draw.matEmissive[2],
+                g_draw.tssOps0[0], g_draw.lightingEnabled[0]);
+            s_loggedSelfIllumExempt = true;
+        }
+        return false;
+    }
+    return IsAnyAdditiveBlend(state)
+        || IsSortedParticleEffect(state)
+        || IsSoftParticleCandidate(state)
+        || IsSortedMaterialDecal(state)
+        || IsSortedAlphaDepthDecal(state)
+        || IsSortedRotorBlur(state);
+}
+
+static uint64_t ApplySortedMaterialDecalDepthState(uint64_t state)
+{
+    if (!IsSortedMaterialDecal(state) && !IsSortedAlphaDepthDecal(state))
+    {
+        return state;
+    }
+
+    // W3DBibBuffer's legacy shader is PASS_ALWAYS because the DX8 path relied
+    // on draw order plus fixed-function z-bias for driveway bibs/faction
+    // emblems. In bgfx these draws are routed through the sorted view after
+    // units, so PASS_ALWAYS makes the ground decal alpha-blend over bulldozers
+    // as they exit the command center. Keep the decal z-bias that prevents
+    // coplanar ground fighting, but still test against scene depth so vehicles
+    // and other opaque meshes occlude the decal.
+    state &= ~BGFX_STATE_DEPTH_TEST_MASK;
+    state |= BGFX_STATE_DEPTH_TEST_LEQUAL;
+    state &= ~BGFX_STATE_WRITE_Z;
+    return state;
+}
+
+static uint64_t ApplyDelayedObjectShroudDepthState(uint64_t state)
+{
+    // The object shroud overlay is submitted in a later bgfx view so building
+    // detail passes cannot draw over it. Keep DX8's depth-equal behavior:
+    // alpha-tested base pixels write object depth, while transparent card
+    // pixels leave terrain depth behind and must not receive object shroud.
+    state &= ~BGFX_STATE_DEPTH_TEST_MASK;
+    state |= BGFX_STATE_DEPTH_TEST_EQUAL;
+    state &= ~BGFX_STATE_WRITE_Z;
+    return state;
+}
+
+static bool ShouldHideMissingTextureForCurrentDraw(uint64_t state)
+{
+    // Keep missing textures visible on opaque geometry so bad assets are still
+    // diagnosable. In blended/sorted/effect passes, the checker texture becomes
+    // the artifact itself, e.g. missing spy-satellite smoke particles drawing
+    // black radiating blocks.
+    return (state & BGFX_STATE_BLEND_MASK) != 0
+        || g_views.inSortFlush
+        || g_views.effectOverlayActive;
+}
+
+static bool ShouldSkipHiddenMissingTextureDraw(uint64_t state)
+{
+    if (!ShouldHideMissingTextureForCurrentDraw(state))
+    {
+        return false;
+    }
+
+    const bool usesStage1 = g_draw.tssOps0[2] > 0.5f || g_draw.tssOps0[3] > 0.5f;
+    const bool usesLateStages = usesStage1 && g_draw.texcoordSelect[1] > 0.5f;
+    if (g_draw.textureIsMissing[0]
+        || (usesStage1 && g_draw.textureIsMissing[1])
+        || (usesLateStages && (g_draw.textureIsMissing[2] || g_draw.textureIsMissing[3])))
+    {
+        return true;
+    }
+    return false;
+}
+
+static bool IsMissingOrUnavailableTexture(TextureBaseClass * texture, bgfx::TextureHandle handle)
+{
+    if (texture == nullptr)
+    {
+        return false;
+    }
+    if (texture->Is_Missing_Texture())
+    {
+        return true;
+    }
+    return !bgfx::isValid(handle);
+}
+
+static bool ShouldLogBgfxShroudPass()
+{
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxShroudPassDiag);
+    return cached;
+}
+
+static bool ShouldLogBgfxSortedDecals()
+{
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxSortedDecalDiag);
+    return cached;
+}
+
+static bool ShouldLogBgfxRevealDiag()
+{
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxRevealDiag);
+    return cached;
+}
+
+static bool ShouldLogBgfxRevealDiagVerbose()
+{
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxRevealDiagVerbose);
+    return cached;
+}
+
+static bool ShouldLogBgfxEffectSubmitDiag()
+{
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxEffectSubmitDiag);
+    return cached;
+}
+
+static uint32_t GetCurrentStageSamplerFlags(unsigned stage);
+
+static bool ShouldAllowBgfxDiagnosticDrawOverrides()
+{
+    static const bool cached = GgcFlags::Enabled(GgcFlag_BgfxEnableDiagnosticOverrides);
+    return cached;
+}
+
+static const char * TextureDebugName(TextureBaseClass * texture)
+{
+    TextureClass * tex2d = texture ? texture->As_TextureClass() : nullptr;
+    return tex2d ? tex2d->Get_Full_Path().str() : "(null)";
+}
+
+static bool IsCommandCenterEmblemTextureName(const char *name)
+{
+    // The command-center driveway/bib emblems use this small faction texture
+    // family. Do not match every ZHCA_* texture; that prefix also appears on
+    // infantry, hero, and UI materials in W3DZH.big.
+    return ContainsCaseInsensitive(name, "zhca_ab")
+        || ContainsCaseInsensitive(name, "zhca_atlaser")
+        || ContainsCaseInsensitive(name, "zhca_ch")
+        || ContainsCaseInsensitive(name, "zhca_nb")
+        || ContainsCaseInsensitive(name, "zhca_gl")
+        || ContainsCaseInsensitive(name, "zhca_gdemo")
+        || ContainsCaseInsensitive(name, "zhca_gstlth")
+        || ContainsCaseInsensitive(name, "zhca_gtoxin");
+}
+
+// TheSuperHackers @bugfix bobtista 07/07/2026 The rotor-blur routing matched only
+// avcomanche_p (base Comanche and Chinook), so the Air Force General Comanche's
+// dedicated avcomancheag_p blur texture missed both the per-mesh world capture and
+// the engine-view routing, leaving its main rotor invisible.
+static bool IsRotorBlurTextureName(const char *name)
+{
+    return ContainsCaseInsensitive(name, "avcomanche_p")
+        || ContainsCaseInsensitive(name, "avcomancheag_p");
+}
+
+static const SortedTexNameFlags & GetSortedTexNameFlags()
+{
+    static const TextureBaseClass * s_cachedTex = nullptr;
+    static bool s_valid = false;
+    static SortedTexNameFlags s_flags = { false, false, false, false, false, false };
+    TextureBaseClass * tex = g_draw.sourceTextures[0];
+    if (!s_valid || tex != s_cachedTex)
+    {
+        const char * n = TextureDebugName(tex);
+        s_flags.snk01    = ContainsCaseInsensitive(n, "ubsnkatak_01");
+        s_flags.snk0     = ContainsCaseInsensitive(n, "ubsnkatak_0");
+        s_flags.rotor    = IsRotorBlurTextureName(n);
+        s_flags.coplight = ContainsCaseInsensitive(n, "coplight");
+        s_flags.commandCenterEmblem = IsCommandCenterEmblemTextureName(n);
+        s_flags.lightbeam = ContainsCaseInsensitive(n, "lightbeam");
+        s_cachedTex = tex;
+        s_valid = true;
+    }
+    return s_flags;
+}
+
+static bool IsCommandCenterEmblemTexture(TextureBaseClass *texture)
+{
+    if (texture == g_draw.sourceTextures[0])
+    {
+        return GetSortedTexNameFlags().commandCenterEmblem;
+    }
+
+    const char *name = TextureDebugName(texture);
+    return IsCommandCenterEmblemTextureName(name);
+}
+
+static bool IsRevealRelevantTextureName(const char *name)
+{
+    return ContainsCaseInsensitive(name, "exgrid")
+        || ContainsCaseInsensitive(name, "exredsmokepuff")
+        || ContainsCaseInsensitive(name, "smoke")
+        || ContainsCaseInsensitive(name, "shadow");
+}
+
+static bool IsRevealGridTexture(TextureBaseClass *texture)
+{
+    return ContainsCaseInsensitive(TextureDebugName(texture), "exgrid");
+}
+
+static bool IsEffectTextureName(const char *name)
+{
+    return ContainsCaseInsensitive(name, "ex")
+        || ContainsCaseInsensitive(name, "fire")
+        || ContainsCaseInsensitive(name, "missile")
+        || ContainsCaseInsensitive(name, "flame")
+        || ContainsCaseInsensitive(name, "smoke")
+        || ContainsCaseInsensitive(name, "noise");
+}
+
+static void LogBgfxEffectSubmit(const char *event,
+                                bgfx::ViewId view,
+                                unsigned short polygonCount,
+                                unsigned short vertexCount,
+                                uint64_t state,
+                                const char *decision)
+{
+    if (!ShouldLogBgfxEffectSubmitDiag())
+    {
+        return;
+    }
+
+    const char *tex0 = TextureDebugName(g_draw.sourceTextures[0]);
+    const char *tex1 = TextureDebugName(g_draw.sourceTextures[1]);
+    const char *tex2 = TextureDebugName(g_draw.sourceTextures[2]);
+    const char *tex3 = TextureDebugName(g_draw.sourceTextures[3]);
+    const bool effectTex = IsEffectTextureName(tex0)
+        || IsEffectTextureName(tex1)
+        || IsEffectTextureName(tex2)
+        || IsEffectTextureName(tex3);
+    const bool interestingState = IsAnyAdditiveBlend(state)
+        || IsStandardAlphaBlend(state)
+        || view == kBgfxEngineSortView
+        || view == kBgfxEffectOverlayView;
+    if (!effectTex && !interestingState)
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_bgfx_effect_submit_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u view=%u polys=%u verts=%u decision=%s raw=0x%llx state=0x%llx blend=0x%llx depth=0x%llx wz=%d inSort=%d effect=%d programValid=%d texValid=(%d,%d,%d,%d) missing=(%d,%d,%d,%d) tex=(%s|%s|%s|%s) tss0=(%.1f,%.1f,%.1f,%.1f) tss1=(%.1f,%.1f,%.1f,%.1f) texSel=(%.1f,%.1f,%.1f,%.1f) texSel2=(%.1f,%.1f,%.1f,%.1f) lighting=%.1f\n",
+                     event,
+                     g_stats.frameIndex,
+                     static_cast<unsigned>(view),
+                     static_cast<unsigned>(polygonCount),
+                     static_cast<unsigned>(vertexCount),
+                     decision ? decision : "",
+                     static_cast<unsigned long long>(g_draw.state),
+                     static_cast<unsigned long long>(state),
+                     static_cast<unsigned long long>(state & BGFX_STATE_BLEND_MASK),
+                     static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
+                     (state & BGFX_STATE_WRITE_Z) != 0 ? 1 : 0,
+                     g_views.inSortFlush ? 1 : 0,
+                     g_views.effectOverlayActive ? 1 : 0,
+                     bgfx::isValid(g_draw.program) ? 1 : 0,
+                     bgfx::isValid(g_draw.tex[0]) ? 1 : 0,
+                     bgfx::isValid(g_draw.tex[1]) ? 1 : 0,
+                     bgfx::isValid(g_draw.tex[2]) ? 1 : 0,
+                     bgfx::isValid(g_draw.tex[3]) ? 1 : 0,
+                     g_draw.textureIsMissing[0] ? 1 : 0,
+                     g_draw.textureIsMissing[1] ? 1 : 0,
+                     g_draw.textureIsMissing[2] ? 1 : 0,
+                     g_draw.textureIsMissing[3] ? 1 : 0,
+                     tex0, tex1, tex2, tex3,
+                     g_draw.tssOps0[0], g_draw.tssOps0[1],
+                     g_draw.tssOps0[2], g_draw.tssOps0[3],
+                     g_draw.tssOps1[0], g_draw.tssOps1[1],
+                     g_draw.tssOps1[2], g_draw.tssOps1[3],
+                     g_draw.texcoordSelect[0], g_draw.texcoordSelect[1],
+                     g_draw.texcoordSelect[2], g_draw.texcoordSelect[3],
+                     g_draw.texcoordSelect2[0], g_draw.texcoordSelect2[1],
+                     g_draw.texcoordSelect2[2], g_draw.texcoordSelect2[3],
+                     g_draw.lightingEnabled[0]);
+        std::fclose(diag);
+    }
+}
+
+static void LogBgfxRevealDraw(const char *event,
+                              bgfx::ViewId view,
+                              unsigned short polygonCount,
+                              unsigned short vertexCount,
+                              uint64_t state,
+                              const char *decision)
+{
+    if (!ShouldLogBgfxRevealDiag())
+    {
+        return;
+    }
+
+    const char *tex0 = TextureDebugName(g_draw.sourceTextures[0]);
+    const char *tex1 = TextureDebugName(g_draw.sourceTextures[1]);
+    const char *tex2 = TextureDebugName(g_draw.sourceTextures[2]);
+    const char *tex3 = TextureDebugName(g_draw.sourceTextures[3]);
+    const bool relevantTexture =
+        IsRevealRelevantTextureName(tex0)
+        || IsRevealRelevantTextureName(tex1)
+        || IsRevealRelevantTextureName(tex2)
+        || IsRevealRelevantTextureName(tex3);
+    const bool relevantState =
+        g_views.projectedShadowDecalActive
+        || g_views.projectedDecalMode != RB_PROJECTED_DECAL_NONE
+        || g_draw.textureIsMissing[0]
+        || g_draw.textureIsMissing[1]
+        || g_draw.textureIsMissing[2]
+        || g_draw.textureIsMissing[3]
+        || (ShouldLogBgfxRevealDiagVerbose() && IsAnyAdditiveBlend(state))
+        || IsMultiplicativeBlend(state);
+    if (!relevantTexture && !relevantState)
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_bgfx_reveal_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u view=%u polys=%u verts=%u decision=%s raw=0x%llx state=0x%llx blend=0x%llx depth=0x%llx wz=%d sort=%d effect=%d decalMode=%u missing=(%d,%d,%d,%d) tex=(%s|%s|%s|%s) tss0=(%.1f,%.1f,%.1f,%.1f) tss1=(%.1f,%.1f,%.1f,%.1f) texSel=(%.1f,%.1f,%.1f,%.1f) texSel2=(%.1f,%.1f,%.1f,%.1f)\n",
+                     event,
+                     g_stats.frameIndex,
+                     static_cast<unsigned>(view),
+                     static_cast<unsigned>(polygonCount),
+                     static_cast<unsigned>(vertexCount),
+                     decision ? decision : "",
+                     static_cast<unsigned long long>(g_draw.state),
+                     static_cast<unsigned long long>(state),
+                     static_cast<unsigned long long>(state & BGFX_STATE_BLEND_MASK),
+                     static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
+                     (state & BGFX_STATE_WRITE_Z) != 0 ? 1 : 0,
+                     g_views.inSortFlush ? 1 : 0,
+                     g_views.effectOverlayActive ? 1 : 0,
+                     g_views.projectedDecalMode,
+                     g_draw.textureIsMissing[0] ? 1 : 0,
+                     g_draw.textureIsMissing[1] ? 1 : 0,
+                     g_draw.textureIsMissing[2] ? 1 : 0,
+                     g_draw.textureIsMissing[3] ? 1 : 0,
+                     tex0, tex1, tex2, tex3,
+                     g_draw.tssOps0[0], g_draw.tssOps0[1],
+                     g_draw.tssOps0[2], g_draw.tssOps0[3],
+                     g_draw.tssOps1[0], g_draw.tssOps1[1],
+                     g_draw.tssOps1[2], g_draw.tssOps1[3],
+                     g_draw.texcoordSelect[0], g_draw.texcoordSelect[1],
+                     g_draw.texcoordSelect[2], g_draw.texcoordSelect[3],
+                     g_draw.texcoordSelect2[0], g_draw.texcoordSelect2[1],
+                     g_draw.texcoordSelect2[2], g_draw.texcoordSelect2[3]);
+        std::fclose(diag);
+    }
+}
+
+static void LogBgfxSortedMaterialDecal(const char *event,
+                                       bgfx::ViewId view,
+                                       unsigned short polygonCount,
+                                       unsigned short vertexCount,
+                                       uint64_t state)
+{
+    if (!ShouldLogBgfxSortedDecals() || !IsSortedMaterialDecal(GetEffectiveDrawState()))
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_bgfx_sorted_decal_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u view=%u polys=%u verts=%u state=0x%llx final=0x%llx depth=0x%llx zbias=%.6f rawZBias=%u tex0=%s tex1=%s tss0=(%.1f,%.1f,%.1f,%.1f) texSel=(%.1f,%.1f,%.1f,%.1f)\n",
+                     event,
+                     g_stats.frameIndex,
+                     static_cast<unsigned>(view),
+                     static_cast<unsigned>(polygonCount),
+                     static_cast<unsigned>(vertexCount),
+                     static_cast<unsigned long long>(g_draw.state),
+                     static_cast<unsigned long long>(state),
+                     static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
+                     g_draw.zBias[0],
+                     g_draw.zBiasUnits,
+                     TextureDebugName(g_draw.sourceTextures[0]),
+                     TextureDebugName(g_draw.sourceTextures[1]),
+                     g_draw.tssOps0[0], g_draw.tssOps0[1],
+                     g_draw.tssOps0[2], g_draw.tssOps0[3],
+                     g_draw.texcoordSelect[0], g_draw.texcoordSelect[1],
+                     g_draw.texcoordSelect[2], g_draw.texcoordSelect[3]);
+        std::fclose(diag);
+    }
+}
+
+static bool IsDefaultInfantryBlobShadowTexture(TextureBaseClass * texture)
+{
+    TextureClass * tex2d = texture ? texture->As_TextureClass() : nullptr;
+    if (tex2d == nullptr)
+    {
+        return false;
+    }
+
+    const char *name = tex2d->Get_Full_Path().str();
+    const char *base = name;
+    for (const char *p = name; *p != '\0'; ++p)
+    {
+        if (*p == '\\' || *p == '/')
+        {
+            base = p + 1;
+        }
+    }
+
+    return stricmp(base, "shadowi.tga") == 0
+        || stricmp(base, "shadowi.dds") == 0;
+}
+
+static void UpdateAlphaMaskedShadowDecalMode()
+{
+    const uint64_t multiplicativeBlend =
+        BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
+    uint64_t state = GetEffectiveDrawState();
+    const bool isAlphaMaskedShadow =
+        IsDefaultInfantryBlobShadowTexture(g_draw.sourceTextures[0])
+        && ((state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
+    g_draw.texcoordSelect2[2] = isAlphaMaskedShadow ? 1.0f : 0.0f;
+}
+
+static void UpdateAlphaMaskAndSortedModes(uint64_t state)
+{
+    UpdateAlphaMaskedShadowDecalMode();
+    if (IsSortedRotorBlur(state))
+    {
+        // avcomanche_p stores the rotor blur as a sorted mask. The legacy
+        // fixed-function path keeps it independent from the vehicle material
+        // opacity; the shader's normal MODULATE path can otherwise multiply it
+        // away after replaying the sorted pool.
+        g_draw.texcoordSelect2[2] = 2.0f;
+    }
+    else if (IsSneakAttackAlphaDepthDecal(state))
+    {
+        // UBSnkAtak_01 is the Sneak Attack's authored dirt/mound alpha quad.
+        // Its sorted replay can inherit a zero-opacity material from the W3D
+        // pass, which makes the wide dirt stain disappear while the opaque
+        // mound geometry remains. Keep this path texture-alpha driven.
+        g_draw.texcoordSelect2[2] = 3.0f;
+    }
+    else if (IsCommandCenterEmblemTexture(g_draw.sourceTextures[0]))
+    {
+        // ZH command-center driveway emblems are sorted local-model decals
+        // with player color baked into tex0 and black RGB used as the matte.
+        // Keep them out of the generic material-opacity path, which can
+        // inherit zero alpha from surrounding water/shroud submits.
+        g_draw.texcoordSelect2[2] = 4.0f;
+    }
+}
+
+static RenderBackendProjectedDecalMode GetEffectiveProjectedDecalModeForCurrentDraw()
+{
+    RenderBackendProjectedDecalMode mode =
+        static_cast<RenderBackendProjectedDecalMode>(g_views.projectedDecalMode);
+    if (mode != RB_PROJECTED_DECAL_BLOB_SHADOW)
+    {
+        return mode;
+    }
+
+    const uint64_t multiplicativeBlend =
+        BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
+    uint64_t state = GetEffectiveDrawState();
+    const bool validBlobShadow =
+        IsDefaultInfantryBlobShadowTexture(g_draw.sourceTextures[0])
+        && ((state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
+
+    return validBlobShadow ? RB_PROJECTED_DECAL_BLOB_SHADOW : RB_PROJECTED_DECAL_MULTIPLY;
+}
+
+static void UpdateProjectedDecalModeForCurrentDraw()
+{
+    const RenderBackendProjectedDecalMode mode = GetEffectiveProjectedDecalModeForCurrentDraw();
+    g_draw.projectedDecalMode[0] = static_cast<float>(mode);
+    g_draw.projectedDecalMode[1] = 0.0f;
+    g_draw.projectedDecalMode[2] = 0.0f;
+    g_draw.projectedDecalMode[3] = 0.0f;
+}
+
+static bool IsEffectiveProjectedBlobShadowDraw()
+{
+    return GetEffectiveProjectedDecalModeForCurrentDraw() == RB_PROJECTED_DECAL_BLOB_SHADOW;
+}
+
+static bool IsEffectiveProjectedShadowDraw()
+{
+    const RenderBackendProjectedDecalMode mode = GetEffectiveProjectedDecalModeForCurrentDraw();
+    return mode == RB_PROJECTED_DECAL_BLOB_SHADOW
+        || mode == RB_PROJECTED_DECAL_MULTIPLY;
+}
+
+static bool IsProjectedAdditiveDecalDraw()
+{
+    return g_views.projectedDecalMode == RB_PROJECTED_DECAL_ADDITIVE;
+}
+
+static uint64_t ApplyProjectedAdditiveDecalDrawState(uint64_t state)
+{
+    if (!IsProjectedAdditiveDecalDraw())
+    {
+        return state;
+    }
+
+    // DX8 projected additive decals write visual RGB into a backbuffer whose
+    // alpha is not sampled later. The bgfx path renders world passes through an
+    // intermediate scene target, so keep additive decal alpha isolated while
+    // preserving the original RGB ONE/ONE blend.
+    return state & ~BGFX_STATE_WRITE_A;
+}
+
+// TheSuperHackers @refactor bobtista 10/07/2026 The one derivation of the
+// final bgfx pipeline-state word from the live translated draw state. Shared
+// by the per-draw engine submit and by the sorted capture (which resolves the
+// word once at insertion), so the two can never drift apart.
+static uint64_t ComputeFinalDrawState(bool triangle_strip)
+{
+    uint64_t state = GetEffectiveDrawState();
+    state |= BGFX_STATE_MSAA;
+
+    state = ApplyCullModeOverride(state);
+    if (IsSortedRotorBlur(state))
+    {
+        // The rotor blur is built from camera-facing sorted cards. Once the
+        // cards are replayed through the normal engine view, culling can drop
+        // one side of the blur depending on the camera angle.
+        state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
+    }
+    state = ApplyBlendEquation(state);
+
+    state = ApplyColorWriteOverride(state);
+    if (triangle_strip)
+    {
+        state &= ~BGFX_STATE_PT_MASK;
+        state |= BGFX_STATE_PT_TRISTRIP;
+    }
+    state = ApplyProjectedAdditiveDecalDrawState(state);
+    state = ApplySortedMaterialDecalDepthState(state);
+    if (g_draw.delayedObjectShroudPass)
+    {
+        state = ApplyDelayedObjectShroudDepthState(state);
+    }
+    return state;
+}
+
+static void LogBgfxShroudPass(const char *event,
+                              bgfx::ViewId view,
+                              unsigned short polygonCount,
+                              unsigned depthFunc,
+                              unsigned tci0,
+                              bool shroudDetected,
+                              const float *shroudParams)
+{
+    if (!ShouldLogBgfxShroudPass())
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_bgfx_shroud_pass_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s bgfxFrame=%u view=%u polys=%u depthFunc=%u stencil=%d active=%d objectActive=%d objectDim=%.3f activeStage=%u state=0x%llx tex0=%u tex1=%u tex2=%u tex3=%u sampler0=0x%x tci0=0x%x tss0=(%.1f,%.1f,%.1f,%.1f) texSel=(%.1f,%.1f,%.1f,%.1f) shroud=%d params=(%.6f,%.6f,%.6f,%.6f) names=(%s|%s|%s|%s)\n",
+                     event,
+                     g_stats.frameIndex,
+                     static_cast<unsigned>(view),
+                     static_cast<unsigned>(polygonCount),
+                     depthFunc,
+                     g_draw.stencilEnabled ? 1 : 0,
+                     g_views.shroudTexturePassActive ? 1 : 0,
+                     g_views.objectShroudTexturePassActive ? 1 : 0,
+                     g_draw.objectShroudDim[0],
+                     g_views.shroudTexturePassStage,
+                     static_cast<unsigned long long>(g_draw.state),
+                     bgfx::isValid(g_draw.tex[0]) ? g_draw.tex[0].idx : 0xffff,
+                     bgfx::isValid(g_draw.tex[1]) ? g_draw.tex[1].idx : 0xffff,
+                     bgfx::isValid(g_draw.tex[2]) ? g_draw.tex[2].idx : 0xffff,
+                     bgfx::isValid(g_draw.tex[3]) ? g_draw.tex[3].idx : 0xffff,
+                     g_draw.samplerFlags[0],
+                     tci0,
+                     g_draw.tssOps0[0], g_draw.tssOps0[1], g_draw.tssOps0[2], g_draw.tssOps0[3],
+                     g_draw.texcoordSelect[0], g_draw.texcoordSelect[1], g_draw.texcoordSelect[2], g_draw.texcoordSelect[3],
+                     shroudDetected ? 1 : 0,
+                     shroudParams[0], shroudParams[1], shroudParams[2], shroudParams[3],
+                     TextureDebugName(g_draw.sourceTextures[0]),
+                     TextureDebugName(g_draw.sourceTextures[1]),
+                     TextureDebugName(g_draw.sourceTextures[2]),
+                     TextureDebugName(g_draw.sourceTextures[3]));
+        std::fclose(diag);
+    }
+}
+
+// TheSuperHackers @bugfix bobtista 09/07/2026 Legacy D3DRS_ZBIAS shifted depth
+// by a few depth-buffer ULPs per unit - just enough to break coplanar ties.
+// The previous emulation of 0.001 NDC per unit was ~2000x stronger and pulled
+// biased draws through solid terrain at RTS camera distances: Fortress
+// Avalanche's stale vanilla shore surf (authored below the ZH map's raised
+// hill) rendered on top of the grass instead of being depth-rejected as on
+// DX8. Two ULPs of a 24-bit depth buffer per unit keeps hundreds of ULPs of
+// tie-break margin at the legacy maximum of 8 while lifting geometry well
+// under a world unit at gameplay depths. Sorted material decals are
+// unaffected: they clamp to their own tuned floor below.
+static const float kZBiasPerUnit = 0.000002f;
+
+static void TraceLegacyZBiasTranslation()
+{
+    static const bool s_trace = GgcFlags::Enabled(GgcFlag_Trace);
+    static bool s_logged = false;
+    if (s_trace && !s_logged && g_draw.zBiasUnits != 0)
+    {
+        s_logged = true;
+        std::fprintf(stderr, "[ggc] legacy z-bias %d translates to %.3g ndc\n",
+            static_cast<int>(g_draw.zBiasUnits),
+            static_cast<double>(g_draw.zBiasUnits) * kZBiasPerUnit);
+    }
+}
+
+// NDC z-pull applied to coplanar sorted decals so they win the LEQUAL test
+// against the opaque sub-mesh they sit on. Keep this much smaller than the
+// generic legacy z-bias conversion: a large clip-space pull makes command-center
+// floor emblems render in front of bulldozers as they leave the building.
+static const float kSortedDecalMinZBias = 0.00025f;
+static const float kSortedDecalMaxZBias = 0.00075f;
+// UBSnkAtak_01 sits under the entrance mesh as part of the model art. Do not
+// pull it toward the camera or the dirt quad blends over the tunnel shell.
+static const float kSneakAttackDecalMinZBias = 0.0f;
+static const float kSneakAttackDecalMaxZBias = 0.0f;
+
+static void ClampSortedMaterialDecalZBias()
+{
+    const uint64_t state = GetEffectiveDrawState();
+    if (!IsSortedMaterialDecal(state) && !IsSortedAlphaDepthDecal(state))
+    {
+        return;
+    }
+
+    const float minZBias = IsSneakAttackAlphaDepthDecal(state)
+        ? kSneakAttackDecalMinZBias
+        : kSortedDecalMinZBias;
+    const float maxZBias = IsSneakAttackAlphaDepthDecal(state)
+        ? kSneakAttackDecalMaxZBias
+        : kSortedDecalMaxZBias;
+
+    if (g_draw.zBias[0] < minZBias)
+    {
+        g_draw.zBias[0] = minZBias;
+    }
+    else if (g_draw.zBias[0] > maxZBias)
+    {
+        g_draw.zBias[0] = maxZBias;
+    }
+}
+
+static void BindSoftParticleDepth(bool enable)
+{
+    float params[4];
+    GetSoftParticleParams(params);
+
+    if (!enable || params[1] <= 0.0f)
+    {
+        params[0] = 0.0f;
+    }
+
+    if (params[0] > 0.5f
+        && g_device.width > 0
+        && g_device.height > 0
+        && bgfx::isValid(g_device.sceneReadableDepth)
+        && bgfx::isValid(g_uniforms.sSceneDepth))
+    {
+        params[0] = 1.0f;
+        params[2] = 1.0f / static_cast<float>(g_device.width);
+        params[3] = 1.0f / static_cast<float>(g_device.height);
+        bgfx::setTexture(kBgfxSceneDepthSamplerStage, g_uniforms.sSceneDepth,
+                         g_device.sceneReadableDepth,
+                         BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        g_stats.textureBinds++;
+    }
+    else
+    {
+        params[0] = 0.0f;
+        // TheSuperHackers @bugfix bobtista 30/04/2026 fs_uber declares
+        // SAMPLER2D(s_sceneDepth, 6); Metal validation requires slot 6
+        // to be bound on every draw even though u_softParticleParams.x
+        // = 0 makes the shader skip the sample. defaultWhiteTexture is
+        // a 1x1 RGBA8 placeholder that satisfies the validator without
+        // creating a read/write hazard against the real depth target.
+        if (bgfx::isValid(g_uniforms.sSceneDepth) && bgfx::isValid(g_device.defaultWhiteTexture))
+        {
+            bgfx::setTexture(kBgfxSceneDepthSamplerStage, g_uniforms.sSceneDepth,
+                             g_device.defaultWhiteTexture,
+                             BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        }
+    }
+
+    if (bgfx::isValid(g_uniforms.uSoftParticleParams))
+    {
+        // TheSuperHackers @feature bobtista 27/04/2026 Use the readable
+        // opaque scene-depth target for conservative soft particles. This
+        // starts with standard alpha-blended sorted draws only so additive
+        // lasers, fire, and scanner effects keep their legacy intensity.
+        bgfx::setUniform(g_uniforms.uSoftParticleParams, params);
+    }
+}
+
+// TheSuperHackers @feature bobtista 16/06/2026 Debug toggle to force nearest/point
+// texture filtering on the game texture stages, so the smooth linear/trilinear
+// renderer baseline can be A/B'd against the old blocky look. Cached per frame so the
+// global is read once rather than on every texture bind.
+static bool ForcePointFilterEnabled()
+{
+    static uint32_t s_frame = 0xFFFFFFFFu;
+    static bool s_value = false;
+    if (s_frame != g_stats.frameIndex)
+    {
+        s_frame = g_stats.frameIndex;
+        s_value = GgcFlags::Enabled(GgcFlag_BgfxPointFilter);
+#ifdef RTS_ZEROHOUR
+        if (!s_value && GGC_GetBgfxPointFilter() != 0)
+        {
+            s_value = true;
+        }
+#endif
+    }
+    return s_value;
+}
+
+static bool IsStrategyCenterSlabTexture(TextureBaseClass *texture);
+
+static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
+{
+    uint32_t flags = (stage < 4) ? g_draw.samplerFlags[stage] : 0;
+    if (stage == 0 && IsStrategyCenterSlabTexture(g_draw.sourceTextures[stage]))
+    {
+        flags &= ~(BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC);
+        flags |= BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MIP_POINT;
+    }
+    if (ForcePointFilterEnabled())
+    {
+        flags |= BGFX_SAMPLER_POINT;
+    }
+    return flags;
+}
+
+static bool IsCurrentStageMipFilterDisabled(unsigned stage)
+{
+    return stage < 4 && g_draw.mipFilterDisabled[stage];
+}
+
+static bool ShouldBindSortedParticleBaseMip(unsigned stage)
+{
+    // Point-group and streak renderers generate camera-facing particle quads
+    // in the sorted pass. Under bgfx/Metal the authored lower effect mips can
+    // erase thin smoke/contrail sprites at normal gameplay zoom, while the
+    // legacy particle path keeps these sprites legible. Bind stage 0 through
+    // the existing one-mip sibling for those dynamic particle draws only; do
+    // not apply this to sorted decals or their detail stages.
+    // TheSuperHackers @bugfix bobtista 25/05/2026 The police-car lightbar glow
+    // sprites (CopLight*.tga) are tiny sorted additive meshes whose authored
+    // lower mips carry the red/blue/yellow color. Binding the one-mip
+    // compatibility texture collapses them back to a dull level-0 hotspot, so
+    // exclude them from this remap and let them sample the full mip chain.
+    if (stage == 0
+        && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "coplight"))
+    {
+        return false;
+    }
+    return stage == 0
+        && IsSortedParticleEffect(GetEffectiveDrawState());
+}
+
+static bool IsStrategyCenterSlabTexture(TextureBaseClass *texture)
+{
+    static TextureBaseClass *s_lastTexture = nullptr;
+    static bool s_lastResult = false;
+    if (texture == s_lastTexture)
+    {
+        return s_lastResult;
+    }
+
+    s_lastTexture = texture;
+    const char *name = TextureDebugName(texture);
+    s_lastResult = ContainsCaseInsensitive(name, "atstratslab");
+    return s_lastResult;
+}
+
+static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
+{
+    if (stage >= 4)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+
+    TextureBaseClass *texture = g_draw.sourceTextures[stage];
+    if (stage == 0 && texture != nullptr && IsStrategyCenterSlabTexture(texture))
+    {
+        // The Strategy Center side ledge maps ATStratSlab across a very short
+        // vertical face. Its authored lower mips average the black atlas inset
+        // into the entire slab, which appears as a zoom-dependent black band.
+        return EnsureBgfxTexture(texture, true);
+    }
+    if (texture != nullptr && ShouldBindSortedParticleBaseMip(stage))
+    {
+        return EnsureBgfxTexture(texture, true);
+    }
+    if (texture != nullptr && IsCurrentStageMipFilterDisabled(stage))
+    {
+        // bgfx has point/linear mip selection flags but no sampler flag for
+        // disabled mip filtering. Bind a one-mip sibling texture to preserve
+        // the legacy "sample level 0 only" behavior.
+        return EnsureBgfxTexture(texture, true);
+    }
+    return g_draw.tex[stage];
+}
+
+static bool DisableUnlitLightInputSkip()
+{
+    static const bool s_disabled =
+        GgcFlags::Enabled(GgcFlag_BgfxDisableUnlitLightInputSkip);
+    return s_disabled;
+}
+
+static bool DisableInactiveShadowUniformSkip()
+{
+    static const bool s_disabled =
+        GgcFlags::Enabled(GgcFlag_BgfxDisableInactiveShadowUniformSkip);
+    return s_disabled;
+}
+
+static bool UniformCommandCountersEnabled()
+{
+    return true;
+}
+
+static void CountUniformCommand(uint32_t & bucket)
+{
+    if (!UniformCommandCountersEnabled())
+    {
+        return;
+    }
+    g_stats.uniformCommands++;
+    bucket++;
+}
+
+// TheSuperHackers @performance bobtista 11/07/2026 Frame-constant uniform
+// elision. bgfx uniform values persist across draws in PLAYBACK order, and
+// playback is sorted by view id, not submission order — so skipping a
+// redundant upload is only sound when the previously uploaded identical value
+// is what playback will have live at this draw. Guarding per (frame, view)
+// with a forced first upload per view makes that hold: within one view,
+// playback order equals submission order, and the first draw of each view
+// never inherits from another view. All upload sites of a guarded handle must
+// route through its guard.
+static bool UniformFrequencySplitDisabled()
+{
+    static const bool s_disabled = GgcFlags::Enabled(GgcFlag_BgfxDisableUniformFrequencySplit);
+    return s_disabled;
+}
+
+struct FrameConstUniformGuard
+{
+    uint32_t frameIndex = 0xffffffffu;
+    uint16_t viewId = 0xffffu;
+    uint16_t sizeBytes = 0;
+    uint8_t value[512]; // fits the packed material block (MU_COUNT vec4s) and the cascade matrices
+};
+
+static bool ShouldUploadFrameConstUniform(FrameConstUniformGuard & guard,
+                                          bgfx::ViewId view,
+                                          const void * data,
+                                          unsigned sizeBytes)
+{
+    if (UniformFrequencySplitDisabled() || sizeBytes > sizeof(guard.value))
+    {
+        return true;
+    }
+    if (guard.frameIndex == g_stats.frameIndex
+        && guard.viewId == static_cast<uint16_t>(view)
+        && guard.sizeBytes == sizeBytes
+        && std::memcmp(guard.value, data, sizeBytes) == 0)
+    {
+        return false;
+    }
+    guard.frameIndex = g_stats.frameIndex;
+    guard.viewId = static_cast<uint16_t>(view);
+    guard.sizeBytes = static_cast<uint16_t>(sizeBytes);
+    std::memcpy(guard.value, data, sizeBytes);
+    return true;
+}
+
+static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded, bgfx::ViewId submitView)
+{
+    PERF_TIME(PERF_SECT_UPLOAD_LIGHTS);
+    g_stats.lightUniformUploads++;
+    if (BgfxProbeFlag("GGC_PROBE_FREEZE_STATE")
+        || BgfxProbeFlag("GGC_PROBE_NO_LIGHTUNIFORM"))
+    {
+        return;
+    }
+    const bool uploadFixedFunctionLightInputs =
+        fixedFunctionLightInputsNeeded || DisableUnlitLightInputSkip();
+    if (uploadFixedFunctionLightInputs)
+    {
+        if (bgfx::isValid(g_uniforms.uLightDirs))
+        {
+            static FrameConstUniformGuard s_lightDirsGuard;
+            if (ShouldUploadFrameConstUniform(s_lightDirsGuard, submitView,
+                                              g_draw.lightDirs, sizeof(g_draw.lightDirs)))
+            {
+                bgfx::setUniform(g_uniforms.uLightDirs, g_draw.lightDirs, 4);
+                CountUniformCommand(g_stats.lightUniformCommands);
+            }
+        }
+        if (bgfx::isValid(g_uniforms.uLightColors))
+        {
+            static FrameConstUniformGuard s_lightColorsGuard;
+            if (ShouldUploadFrameConstUniform(s_lightColorsGuard, submitView,
+                                              g_draw.lightColors, sizeof(g_draw.lightColors)))
+            {
+                bgfx::setUniform(g_uniforms.uLightColors, g_draw.lightColors, 4);
+                CountUniformCommand(g_stats.lightUniformCommands);
+            }
+        }
+        if (bgfx::isValid(g_uniforms.uLightAmbients))
+        {
+            static FrameConstUniformGuard s_lightAmbientsGuard;
+            if (ShouldUploadFrameConstUniform(s_lightAmbientsGuard, submitView,
+                                              g_draw.lightAmbients, sizeof(g_draw.lightAmbients)))
+            {
+                bgfx::setUniform(g_uniforms.uLightAmbients, g_draw.lightAmbients, 4);
+                CountUniformCommand(g_stats.lightUniformCommands);
+            }
+        }
+        if (bgfx::isValid(g_uniforms.uLightPositions))
+        {
+            static FrameConstUniformGuard s_lightPositionsGuard;
+            if (ShouldUploadFrameConstUniform(s_lightPositionsGuard, submitView,
+                                              g_draw.lightPositions, sizeof(g_draw.lightPositions)))
+            {
+                bgfx::setUniform(g_uniforms.uLightPositions, g_draw.lightPositions, 4);
+                CountUniformCommand(g_stats.lightUniformCommands);
+            }
+        }
+        if (bgfx::isValid(g_uniforms.uLightParams))
+        {
+            static FrameConstUniformGuard s_lightParamsGuard;
+            if (ShouldUploadFrameConstUniform(s_lightParamsGuard, submitView,
+                                              g_draw.lightParams, sizeof(g_draw.lightParams)))
+            {
+                bgfx::setUniform(g_uniforms.uLightParams, g_draw.lightParams, 4);
+                CountUniformCommand(g_stats.lightUniformCommands);
+            }
+        }
+    }
+    const bool uploadEyePos =
+        uploadFixedFunctionLightInputs || g_draw.pointShadowParams[0] >= 0.0f;
+    if (uploadEyePos && bgfx::isValid(g_uniforms.uEyePos))
+    {
+        // World-space camera position recovered from the rigid view matrix:
+        // eye = -transpose(R) * T (column-major bgfx layout).
+        const float * v = g_frame.view;
+        float eye[4];
+        eye[0] = -(v[0] * v[12] + v[1] * v[13] + v[2] * v[14]);
+        eye[1] = -(v[4] * v[12] + v[5] * v[13] + v[6] * v[14]);
+        eye[2] = -(v[8] * v[12] + v[9] * v[13] + v[10] * v[14]);
+        eye[3] = 0.0f;
+        static FrameConstUniformGuard s_eyePosGuard;
+        if (ShouldUploadFrameConstUniform(s_eyePosGuard, submitView, eye, sizeof(eye)))
+        {
+            bgfx::setUniform(g_uniforms.uEyePos, eye);
+            CountUniformCommand(g_stats.lightUniformCommands);
+        }
+    }
+    const bool shadowMapActive = g_frame.shadowActive && bgfx::isValid(g_device.shadowMapTex)
+        && g_device.shadowMapSize > 0;
+    const bool uploadInactiveShadowInputs =
+        shadowMapActive || DisableInactiveShadowUniformSkip();
+    if (uploadInactiveShadowInputs && bgfx::isValid(g_uniforms.uShadowMatrices))
+    {
+        static FrameConstUniformGuard s_shadowMatricesGuard;
+        if (ShouldUploadFrameConstUniform(s_shadowMatricesGuard, submitView,
+                                          g_frame.shadowMatrices,
+                                          16 * sizeof(float)))
+        {
+            bgfx::setUniform(g_uniforms.uShadowMatrices, g_frame.shadowMatrices, 1);
+            CountUniformCommand(g_stats.shadowUniformCommands);
+        }
+    }
+    if (bgfx::isValid(g_uniforms.uShadowParams))
+    {
+        float shadowParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        if (shadowMapActive)
+        {
+            float p[4] = { 0.0015f, 1.0f, 0.0f, 0.0f };
+            GGC_GetBgfxShadowMapParams(p);
+            shadowParams[0] = 1.0f / static_cast<float>(g_device.shadowMapSize); // texel size
+            shadowParams[1] = p[0]; // depth bias
+            shadowParams[2] = p[1]; // shadow strength
+            shadowParams[3] = 1.0f; // enabled
+        }
+        static int s_lastRecvState = -1;
+        const int recvState = (shadowParams[3] > 0.5f) ? 1 : 0;
+        if (BgfxDiagVerbose() && recvState != s_lastRecvState)
+        {
+            std::fprintf(stderr,
+                "[ggc] shadow receiver enabled=%d (active=%d tex=%d size=%u) at content %dx%d swap %dx%d\n",
+                recvState, g_frame.shadowActive ? 1 : 0,
+                bgfx::isValid(g_device.shadowMapTex) ? 1 : 0, g_device.shadowMapSize,
+                g_device.width, g_device.height, g_device.swapWidth, g_device.swapHeight);
+            s_lastRecvState = recvState;
+        }
+        static FrameConstUniformGuard s_shadowParamsGuard;
+        if (ShouldUploadFrameConstUniform(s_shadowParamsGuard, submitView,
+                                          shadowParams, sizeof(shadowParams)))
+        {
+            bgfx::setUniform(g_uniforms.uShadowParams, shadowParams);
+            CountUniformCommand(g_stats.shadowUniformCommands);
+        }
+    }
+    if (uploadInactiveShadowInputs && bgfx::isValid(g_uniforms.uShadowQuality))
+    {
+        // TheSuperHackers @performance bobtista 28/06/2026 Default reduced 9-fetch PCF;
+        // GGC_BGFX_SHADOW_FULL_PCF=1 restores the original 36-fetch path for a quality/perf A/B.
+        static const float s_fullPcf = (GgcFlags::Enabled(GgcFlag_BgfxShadowFullPcf) || GGC_GetBgfxShadowFullPcf() != 0) ? 1.0f : 0.0f;
+        const float shadowQuality[4] = { s_fullPcf, 0.0f, 0.0f, 0.0f };
+        static FrameConstUniformGuard s_shadowQualityGuard;
+        if (ShouldUploadFrameConstUniform(s_shadowQualityGuard, submitView,
+                                          shadowQuality, sizeof(shadowQuality)))
+        {
+            bgfx::setUniform(g_uniforms.uShadowQuality, shadowQuality);
+            CountUniformCommand(g_stats.shadowUniformCommands);
+        }
+    }
+    if (uploadInactiveShadowInputs && bgfx::isValid(g_uniforms.sShadowMap))
+    {
+        const bgfx::TextureHandle shadowTex =
+            shadowMapActive
+                ? g_device.shadowMapTex
+                : g_device.defaultWhiteTexture;
+        if (bgfx::isValid(shadowTex))
+        {
+            bgfx::setTexture(kBgfxShadowMapSamplerStage, g_uniforms.sShadowMap, shadowTex,
+                             BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        }
+    }
+    // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow uniforms + sampler. The shader
+    // does not sample these yet (Task 5); pointShadowParams[0] = -1 keeps the term inert until then.
+    const bool pointShadowLightActive = g_draw.pointShadowParams[0] >= 0.0f;
+    const bool pointShadowMapActive = g_draw.pointShadowParams[0] >= 0.5f;
+    if (bgfx::isValid(g_uniforms.uPointShadowMatrix))
+    {
+        static FrameConstUniformGuard s_pointShadowParamsGuard;
+        if (ShouldUploadFrameConstUniform(s_pointShadowParamsGuard, submitView,
+                                          g_draw.pointShadowParams,
+                                          sizeof(g_draw.pointShadowParams)))
+        {
+            bgfx::setUniform(g_uniforms.uPointShadowParams, g_draw.pointShadowParams);
+            CountUniformCommand(g_stats.pointShadowUniformCommands);
+        }
+        if (pointShadowLightActive)
+        {
+            static FrameConstUniformGuard s_pointShadowMatrixGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadowMatrixGuard, submitView,
+                                              g_draw.pointShadowMatrix,
+                                              sizeof(g_draw.pointShadowMatrix)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadowMatrix, g_draw.pointShadowMatrix);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+            static FrameConstUniformGuard s_pointShadowLightPosGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadowLightPosGuard, submitView,
+                                              g_draw.pointShadowLightPos,
+                                              sizeof(g_draw.pointShadowLightPos)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadowLightPos, g_draw.pointShadowLightPos);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+            static FrameConstUniformGuard s_pointShadowLightColorGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadowLightColorGuard, submitView,
+                                              g_draw.pointShadowLightColor,
+                                              sizeof(g_draw.pointShadowLightColor)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadowLightColor, g_draw.pointShadowLightColor);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+        }
+    }
+    if ((pointShadowMapActive || DisableInactiveShadowUniformSkip())
+        && bgfx::isValid(g_uniforms.sPointShadowMap))
+    {
+        const bgfx::TextureHandle pointShadowTex =
+            pointShadowMapActive && bgfx::isValid(g_device.pointShadowTex)
+                ? g_device.pointShadowTex
+                : g_device.defaultWhiteTexture;
+        if (bgfx::isValid(pointShadowTex))
+        {
+            bgfx::setTexture(kBgfxPointShadowMapSamplerStage, g_uniforms.sPointShadowMap, pointShadowTex,
+                             BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        }
+    }
+    // TheSuperHackers @feature bobtista 14/07/2026 Second point-shadow slot uniforms + sampler
+    // (transient lightning-flash lights). Mirrors the slot-1 upload above.
+    const bool pointShadow2Active = g_draw.pointShadow2Params[0] >= 0.5f;
+    if (bgfx::isValid(g_uniforms.uPointShadow2Matrix))
+    {
+        static FrameConstUniformGuard s_pointShadow2ParamsGuard;
+        if (ShouldUploadFrameConstUniform(s_pointShadow2ParamsGuard, submitView,
+                                          g_draw.pointShadow2Params,
+                                          sizeof(g_draw.pointShadow2Params)))
+        {
+            bgfx::setUniform(g_uniforms.uPointShadow2Params, g_draw.pointShadow2Params);
+            CountUniformCommand(g_stats.pointShadowUniformCommands);
+        }
+        if (pointShadow2Active)
+        {
+            static FrameConstUniformGuard s_pointShadow2MatrixGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadow2MatrixGuard, submitView,
+                                              g_draw.pointShadow2Matrix,
+                                              sizeof(g_draw.pointShadow2Matrix)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadow2Matrix, g_draw.pointShadow2Matrix);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+            static FrameConstUniformGuard s_pointShadow2LightPosGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadow2LightPosGuard, submitView,
+                                              g_draw.pointShadow2LightPos,
+                                              sizeof(g_draw.pointShadow2LightPos)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadow2LightPos, g_draw.pointShadow2LightPos);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+            static FrameConstUniformGuard s_pointShadow2LightColorGuard;
+            if (ShouldUploadFrameConstUniform(s_pointShadow2LightColorGuard, submitView,
+                                              g_draw.pointShadow2LightColor,
+                                              sizeof(g_draw.pointShadow2LightColor)))
+            {
+                bgfx::setUniform(g_uniforms.uPointShadow2LightColor, g_draw.pointShadow2LightColor);
+                CountUniformCommand(g_stats.pointShadowUniformCommands);
+            }
+        }
+    }
+    if ((pointShadow2Active || DisableInactiveShadowUniformSkip())
+        && bgfx::isValid(g_uniforms.sPointShadowMap2))
+    {
+        const bgfx::TextureHandle pointShadow2Tex =
+            pointShadow2Active && bgfx::isValid(g_device.pointShadow2Tex)
+                ? g_device.pointShadow2Tex
+                : g_device.defaultWhiteTexture;
+        if (bgfx::isValid(pointShadow2Tex))
+        {
+            bgfx::setTexture(kBgfxPointShadow2MapSamplerStage, g_uniforms.sPointShadowMap2, pointShadow2Tex,
+                             BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        }
+    }
+    if (bgfx::isValid(g_uniforms.uDramaDim))
+    {
+        // TheSuperHackers @bugfix bobtista 15/07/2026 Drama lighting is world-space only.
+        // 2D/UI draws (control bar) run through the same uber shader with screen coordinates
+        // in v_worldPos; without this gate the radial dim read them as "far from the beam"
+        // and visibly darkened the HUD while the cannon fired. w = -1 tells the shader to
+        // skip the dedicated point lights and the dim entirely for this view.
+        const bool worldView = (submitView == kBgfxEngineView
+                                || submitView == kBgfxEngineSortView
+                                || submitView == kBgfxWaterView
+                                || submitView == kBgfxEffectOverlayView);
+        float dramaDim[4] = { 0.0f, 0.0f, 0.0f, -1.0f };
+        if (worldView)
+        {
+            std::memcpy(dramaDim, g_draw.dramaDim, sizeof(dramaDim));
+            // Blended translucents (foliage passes, effects) receive the scene dim but NOT the
+            // drama point lights: leaf passes carry no alpha-test flag - whether they arrive
+            // through the sorted flush or drawn directly blended into the engine view (tree
+            // buffer) - so the flash speckled canopies/fences with bright blotches through
+            // every cutout gate. A negative falloff scale flags "dim only" to the shader.
+            const bool drawIsBlended =
+                (GetEffectiveDrawState() & BGFX_STATE_BLEND_MASK) != 0;
+            if (submitView == kBgfxEngineSortView || drawIsBlended)
+            {
+                dramaDim[2] = -dramaDim[2];
+            }
+        }
+        static FrameConstUniformGuard s_dramaDimGuard;
+        if (ShouldUploadFrameConstUniform(s_dramaDimGuard, submitView,
+                                          dramaDim, sizeof(dramaDim)))
+        {
+            static int s_upLog = 0;
+            if (BgfxDiagVerbose() && (++s_upLog % 500) == 0)
+            {
+                std::fprintf(stderr, "[ggc] dramaDim upload view=%u {%.1f,%.1f,%.5f,%.3f}\n",
+                    (unsigned)submitView, dramaDim[0], dramaDim[1], dramaDim[2], dramaDim[3]);
+            }
+            bgfx::setUniform(g_uniforms.uDramaDim, dramaDim);
+            CountUniformCommand(g_stats.pointShadowUniformCommands);
+        }
+    }
+    if (bgfx::isValid(g_uniforms.uMatFx))
+    {
+        float matFx[4];
+        GGC_GetBgfxMaterialFxParams(matFx);
+        bgfx::setUniform(g_uniforms.uMatFx, matFx);
+        CountUniformCommand(g_stats.materialUniformCommands);
+        static bool s_loggedMatFx = false;
+        if (BgfxDiagVerbose() && !s_loggedMatFx && (matFx[0] > 0.0f || matFx[1] > 0.0f || matFx[3] != 1.0f))
+        {
+            std::fprintf(stderr,
+                "[ggc] material FX active: spec=%.2f rim=%.2f rimPow=%.2f emissive=%.2f"
+                " (sample matSpecular rgb=%.2f,%.2f,%.2f shin=%.1f)\n",
+                matFx[0], matFx[1], matFx[2], matFx[3],
+                g_draw.matSpecular[0], g_draw.matSpecular[1], g_draw.matSpecular[2],
+                g_draw.matSpecular[3]);
+            s_loggedMatFx = true;
+        }
+    }
+}
+
+// TheSuperHackers @performance bobtista Kill switch for the frame-constant texture path.
+// Default on; set GGC_BGFX_NO_UNIFORM_FRAME_TEXTURE to fall back to the byte-identical plain
+// uber program (uniform reads) for A/B verification or bisection.
+static bool UniformFrameTextureEnabled()
+{
+    static const bool s_disabled = (getenv("GGC_BGFX_NO_UNIFORM_FRAME_TEXTURE") != nullptr);
+    return !s_disabled;
+}
+
+// TheSuperHackers @performance bobtista Pack the global per-frame constants (sun/point shadow,
+// scene ambient) into frameConstTexture. These are identical for every fs_uber draw in a frame,
+// so uploading them once per frame and having the fs_uber_frameconst variant sample them removes
+// ~352B/draw from the per-draw constant buffer. Texel layout MUST match fs_uber.sc.
+static void PackAndUploadFrameConstTexture()
+{
+    if (!bgfx::isValid(g_device.frameConstTexture))
+    {
+        return;
+    }
+    float texels[kFrameConstTexels * 4];
+    std::memset(texels, 0, sizeof(texels));
+
+    // texel 0: scene ambient
+    texels[0] = g_draw.sceneAmbient[0];
+    texels[1] = g_draw.sceneAmbient[1];
+    texels[2] = g_draw.sceneAmbient[2];
+    texels[3] = 1.0f;
+
+    // texel 1: shadow params (must match UploadLightUniforms)
+    const bool shadowMapActive = g_frame.shadowActive && bgfx::isValid(g_device.shadowMapTex)
+        && g_device.shadowMapSize > 0;
+    if (shadowMapActive)
+    {
+        float p[4] = { 0.0015f, 1.0f, 0.0f, 0.0f };
+        GGC_GetBgfxShadowMapParams(p);
+        texels[4] = 1.0f / static_cast<float>(g_device.shadowMapSize); // texel size
+        texels[5] = p[0]; // depth bias
+        texels[6] = p[1]; // shadow strength
+        texels[7] = 1.0f; // enabled
+    }
+
+    // texel 2: shadow quality
+    static const float s_fullPcf =
+        (GgcFlags::Enabled(GgcFlag_BgfxShadowFullPcf) || GGC_GetBgfxShadowFullPcf() != 0) ? 1.0f : 0.0f;
+    texels[8] = s_fullPcf;
+
+    // texels 3-6: sun shadow matrix (bgfx column-major float[16]: texel = one column;
+    // the shader rebuilds with mtxFromCols, the same convention as the instanced i_data path)
+    std::memcpy(&texels[12], g_frame.shadowMatrices, 16 * sizeof(float));
+
+    // texel 7: point shadow params, 8: light pos, 9: light color
+    std::memcpy(&texels[28], g_draw.pointShadowParams, sizeof(g_draw.pointShadowParams));
+    std::memcpy(&texels[32], g_draw.pointShadowLightPos, sizeof(g_draw.pointShadowLightPos));
+    std::memcpy(&texels[36], g_draw.pointShadowLightColor, sizeof(g_draw.pointShadowLightColor));
+
+    // texels 10-13: point shadow matrix
+    std::memcpy(&texels[40], g_draw.pointShadowMatrix, sizeof(g_draw.pointShadowMatrix));
+
+    // texel 14: point shadow 2 params, 15: light pos, 16: light color, 17-20: matrix
+    std::memcpy(&texels[56], g_draw.pointShadow2Params, sizeof(g_draw.pointShadow2Params));
+    std::memcpy(&texels[60], g_draw.pointShadow2LightPos, sizeof(g_draw.pointShadow2LightPos));
+    std::memcpy(&texels[64], g_draw.pointShadow2LightColor, sizeof(g_draw.pointShadow2LightColor));
+    std::memcpy(&texels[68], g_draw.pointShadow2Matrix, sizeof(g_draw.pointShadow2Matrix));
+
+    bgfx::updateTexture2D(g_device.frameConstTexture, 0, 0, 0, 0,
+                          kFrameConstTexels, 1, bgfx::copy(texels, sizeof(texels)));
+}
+
+static void BindTextureStages()
+{
+    PERF_TIME(PERF_SECT_APPLY_TEX);
+    if (BgfxProbeFlag("GGC_PROBE_FREEZE_STATE")
+        || BgfxProbeFlag("GGC_PROBE_NO_TEXBIND"))
+    {
+        return;
+    }
+    const uint64_t state = GetEffectiveDrawState();
+    if (bgfx::isValid(g_uniforms.sTex0))
+    {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(0);
+        const bgfx::TextureHandle bound =
+            g_draw.textureIsMissing[0] && ShouldHideMissingTextureForCurrentDraw(state)
+                ? g_device.defaultTransparentTexture
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(0, g_uniforms.sTex0, bound, GetCurrentStageSamplerFlags(0));
+            g_stats.textureBinds++;
+        }
+    }
+    if (bgfx::isValid(g_uniforms.sTex1))
+    {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(1);
+        const bgfx::TextureHandle bound =
+            g_draw.textureIsMissing[1] && ShouldHideMissingTextureForCurrentDraw(state)
+                ? g_device.defaultTransparentTexture
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(1, g_uniforms.sTex1, bound, GetCurrentStageSamplerFlags(1));
+            g_stats.textureBinds++;
+        }
+    }
+    if (bgfx::isValid(g_uniforms.sTex2))
+    {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(2);
+        const bgfx::TextureHandle bound =
+            g_draw.textureIsMissing[2] && ShouldHideMissingTextureForCurrentDraw(state)
+                ? g_device.defaultTransparentTexture
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(2, g_uniforms.sTex2, bound, GetCurrentStageSamplerFlags(2));
+            g_stats.textureBinds++;
+        }
+    }
+    if (bgfx::isValid(g_uniforms.sTex3))
+    {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(3);
+        const bgfx::TextureHandle bound =
+            g_draw.textureIsMissing[3] && ShouldHideMissingTextureForCurrentDraw(state)
+                ? g_device.defaultTransparentTexture
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(3, g_uniforms.sTex3, bound, GetCurrentStageSamplerFlags(3));
+            g_stats.textureBinds++;
+        }
+    }
+}
+
+static float GetTexcoordSource(unsigned texcoordGen)
+{
+    if (texcoordGen == kTexcoordGenCameraNormal)
+    {
+        return 1.0f;
+    }
+    if (texcoordGen == kTexcoordGenCameraReflection)
+    {
+        return 2.0f;
+    }
+    if (texcoordGen == kTexcoordGenCameraPosition)
+    {
+        return 3.0f;
+    }
+    return 0.0f;
+}
+
+static void SetIdentityTextureTransform(float * row0, float * row1)
+{
+    row0[0] = 1.0f;
+    row0[1] = 0.0f;
+    row0[2] = 0.0f;
+    row0[3] = 0.0f;
+    row1[0] = 0.0f;
+    row1[1] = 1.0f;
+    row1[2] = 0.0f;
+    row1[3] = 0.0f;
+}
+
+static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
+{
+    auto texMtx = MakeIdentityLegacyCacheMatrix();
+    FixedFunctionState::Transform_Matrix(kTextureTransformStage0 + stage, texMtx);
+    row0[0] = texMtx.m[0][0];
+    row0[1] = texMtx.m[1][0];
+    row0[2] = texMtx.m[2][0];
+    row0[3] = texMtx.m[3][0];
+    row1[0] = texMtx.m[0][1];
+    row1[1] = texMtx.m[1][1];
+    row1[2] = texMtx.m[2][1];
+    row1[3] = texMtx.m[3][1];
+}
+
+// TheSuperHackers @feature bobtista 30/04/2026 Read column 2 of the texture
+// matrix for projected 3-component stages - TexProjectClass uses
+// this column (= ViewToPixel row 3 in MatrixMapperClass::Apply) as the
+// projected W. The shader divides UV.xy by this value at vertex time.
+static void ReadTextureTransformZ(unsigned stage, float * rowZ)
+{
+    auto texMtx = MakeIdentityLegacyCacheMatrix();
+    FixedFunctionState::Transform_Matrix(kTextureTransformStage0 + stage, texMtx);
+    rowZ[0] = texMtx.m[0][2];
+    rowZ[1] = texMtx.m[1][2];
+    rowZ[2] = texMtx.m[2][2];
+    rowZ[3] = texMtx.m[3][2];
+}
+
+static void UpdateTextureTransforms()
+{
+    g_stats.textureTransformUpdates++;
+    // TheSuperHackers @bugfix bobtista 25/04/2026 Honor material-stage texture
+    // matrices in the bgfx uber shader. W3D atlas mappers animate tank
+    // treads, bike wheels, and other sub-materials by setting
+    // cached texture transform plus two-coordinate transform mode. Passing raw UVs sampled the
+    // unused black padding in those atlases; stage 1 matters for detail
+    // and environment-mapped sub-materials.
+    const unsigned texcoordIndex = g_draw.texcoordIndex[0];
+    const unsigned uvIndex = texcoordIndex & 0xFFFF;
+    const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
+    // TheSuperHackers @info bobtista 26/04/2026 Only UV sets 0 and 1 are
+    // supported. The legacy fixed-function path allows up to 8 UV sets but
+    // the uber shader only has v_texcoord0/v_texcoord1. Extend if any
+    // material is found using UV set 2+.
+    if (uvIndex > 1)
+    {
+        static bool s_loggedUV2 = false;
+        if (!s_loggedUV2)
+        {
+            s_loggedUV2 = true;
+            WWDEBUG_SAY(("[BgfxBackend] Stage 0 TEXCOORDINDEX uses UV set %u (only 0/1 supported)", uvIndex));
+        }
+    }
+    g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
+    g_draw.texcoordSource[0] = GetTexcoordSource(texcoordGen);
+
+    const unsigned texFlags = g_draw.textureTransformFlags[0];
+    const unsigned texCount = texFlags & 0xFFu;
+    const bool texProjected0 = (texFlags & kTextureTransformProjected) != 0
+        && texCount >= kTextureTransformCount3;
+    if (texCount >= kTextureTransformCount2)
+    {
+        g_draw.texcoordSelect[3] = 1.0f;
+        ReadTextureTransform(0, g_draw.texTransform0, g_draw.texTransform1);
+        if (texProjected0)
+        {
+            ReadTextureTransformZ(0, g_draw.texTransform0Z);
+        }
+    }
+    else
+    {
+        g_draw.texcoordSelect[3] = 0.0f;
+        SetIdentityTextureTransform(g_draw.texTransform0, g_draw.texTransform1);
+    }
+    g_draw.texProjected[0] = texProjected0 ? 1.0f : 0.0f;
+
+    const unsigned texcoordIndex1 = g_draw.texcoordIndex[1];
+    const unsigned uvIndex1 = texcoordIndex1 & 0xFFFF;
+    const unsigned texcoordGen1 = texcoordIndex1 & 0xFFFF0000;
+    if (uvIndex1 > 1)
+    {
+        static bool s_loggedUV2_s1 = false;
+        if (!s_loggedUV2_s1)
+        {
+            s_loggedUV2_s1 = true;
+            WWDEBUG_SAY(("[BgfxBackend] Stage 1 TEXCOORDINDEX uses UV set %u (only 0/1 supported)", uvIndex1));
+        }
+    }
+    g_draw.texcoordSelect2[0] = (uvIndex1 == 1) ? 1.0f : 0.0f;
+    g_draw.texcoordSource[1] = GetTexcoordSource(texcoordGen1);
+
+    const unsigned texFlags1 = g_draw.textureTransformFlags[1];
+    const unsigned texCount1 = texFlags1 & 0xFFu;
+    const bool texProjected1 = (texFlags1 & kTextureTransformProjected) != 0
+        && texCount1 >= kTextureTransformCount3;
+    if (texCount1 >= kTextureTransformCount2)
+    {
+        g_draw.texcoordSelect2[1] = 1.0f;
+        ReadTextureTransform(1, g_draw.tex1Transform0, g_draw.tex1Transform1);
+        if (texProjected1)
+        {
+            ReadTextureTransformZ(1, g_draw.tex1TransformZ);
+        }
+    }
+    else
+    {
+        g_draw.texcoordSelect2[1] = 0.0f;
+        SetIdentityTextureTransform(g_draw.tex1Transform0, g_draw.tex1Transform1);
+    }
+    g_draw.texProjected[1] = texProjected1 ? 1.0f : 0.0f;
+
+    const unsigned texcoordIndex2 = g_draw.texcoordIndex[2];
+    const unsigned texcoordGen2 = texcoordIndex2 & 0xFFFF0000;
+    g_draw.texcoordSource[2] = GetTexcoordSource(texcoordGen2);
+
+    const unsigned texFlags2 = g_draw.textureTransformFlags[2];
+    const unsigned texCount2 = texFlags2 & 0xFFu;
+    if (texCount2 >= kTextureTransformCount2)
+    {
+        ReadTextureTransform(2, g_draw.tex2Transform0, g_draw.tex2Transform1);
+    }
+    else
+    {
+        SetIdentityTextureTransform(g_draw.tex2Transform0, g_draw.tex2Transform1);
+    }
+}
+
+static void UploadMaterialUniforms_Body(bgfx::ViewId submitView);
+static void UploadMaterialUniforms(bgfx::ViewId submitView)
+{
+    PERF_TIME(PERF_SECT_UPLOAD_UNIFORMS);
+    if (BgfxProbeFlag("GGC_PROBE_FREEZE_STATE")
+        || BgfxProbeFlag("GGC_PROBE_NO_MATUNIFORM"))
+    {
+        return;
+    }
+    UploadMaterialUniforms_Body(submitView);
+}
+static void UploadMaterialUniforms_Body(bgfx::ViewId submitView)
+{
+    g_stats.materialUniformUploads++;
+    if (bgfx::isValid(g_uniforms.uMaterial))
+    {
+        // Pack the per-draw material block and upload it in a single setUniform.
+        // Slot order MUST match MaterialUniformSlot and the shader #define block.
+        float m[MU_COUNT][4];
+        std::memcpy(m[MU_MatDiffuse],  g_draw.matDiffuse,  sizeof(float) * 4);
+        std::memcpy(m[MU_MatAmbient],  g_draw.matAmbient,  sizeof(float) * 4);
+        std::memcpy(m[MU_MatEmissive], g_draw.matEmissive, sizeof(float) * 4);
+        m[MU_TssOps0][0] = g_draw.tssOps0[0];
+        m[MU_TssOps0][1] = g_draw.tssOps0[1];
+        // TheSuperHackers @bugfix bobtista 09/08/2026 Take the secondary stage ops from tssOps0
+        // like every other stage-1 predicate in the backend does. Set_Shader rewrites these from
+        // the ShaderClass, so the shader-derived value is still the default; reading the separate
+        // shaderTssOps0 copy instead discarded the ops that call sites program directly, which
+        // dropped the shroud multiply W3DShaderManager::setShroudTex installs on stage 1.
+        m[MU_TssOps0][2] = g_draw.tssOps0[2];
+        m[MU_TssOps0][3] = g_draw.tssOps0[3];
+        std::memcpy(m[MU_TssOps1], g_draw.tssOps1, sizeof(float) * 4);
+        {
+            const float effectiveAtestRef = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
+            const float effectiveAtestFunc = g_overrides.atestActive ? g_overrides.atestFunc : (g_draw.atestEnabled ? g_draw.atestFunc : 0.0f);
+            m[MU_AtestParams][0] = effectiveAtestRef;
+            m[MU_AtestParams][1] = effectiveAtestFunc;
+            m[MU_AtestParams][2] = 0.0f;
+            m[MU_AtestParams][3] = 0.0f;
+        }
+        std::memcpy(m[MU_TexcoordSource],     g_draw.texcoordSource,     sizeof(float) * 4);
+        std::memcpy(m[MU_VertexColorFlags],   g_draw.vertexColorFlags,   sizeof(float) * 4);
+        std::memcpy(m[MU_TexcoordSelect2],    g_draw.texcoordSelect2,    sizeof(float) * 4);
+        std::memcpy(m[MU_ProjectedDecalMode], g_draw.projectedDecalMode, sizeof(float) * 4);
+        std::memcpy(m[MU_GrayscaleEnable],    g_draw.grayscaleEnable,    sizeof(float) * 4);
+        m[MU_ObjectShroudDim][0] = g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[0] : 1.0f;
+        m[MU_ObjectShroudDim][1] = g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[1] : 0.0f;
+        m[MU_ObjectShroudDim][2] = g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[2] : 0.0f;
+        m[MU_ObjectShroudDim][3] = g_draw.objectShroudDim[3];
+        std::memcpy(m[MU_CloudParams],        g_draw.cloudParams,        sizeof(float) * 4);
+        std::memcpy(m[MU_TexTransform0],      g_draw.texTransform0,      sizeof(float) * 4);
+        std::memcpy(m[MU_TexTransform1],      g_draw.texTransform1,      sizeof(float) * 4);
+        std::memcpy(m[MU_TexTransform0Z],     g_draw.texTransform0Z,     sizeof(float) * 4);
+        std::memcpy(m[MU_Tex1Transform0],     g_draw.tex1Transform0,     sizeof(float) * 4);
+        std::memcpy(m[MU_Tex1Transform1],     g_draw.tex1Transform1,     sizeof(float) * 4);
+        std::memcpy(m[MU_Tex1TransformZ],     g_draw.tex1TransformZ,     sizeof(float) * 4);
+        std::memcpy(m[MU_Tex2Transform0],     g_draw.tex2Transform0,     sizeof(float) * 4);
+        std::memcpy(m[MU_Tex2Transform1],     g_draw.tex2Transform1,     sizeof(float) * 4);
+        std::memcpy(m[MU_TexProjected],       g_draw.texProjected,       sizeof(float) * 4);
+        std::memcpy(m[MU_LegacyPixelShaderMode], g_draw.legacyPixelShaderMode, sizeof(float) * 4);
+        std::memcpy(m[MU_ZBias],              g_draw.zBias,              sizeof(float) * 4);
+        std::memcpy(m[MU_LightMapParams],     g_draw.lightMapParams,     sizeof(float) * 4);
+        // TheSuperHackers @performance bobtista 11/07/2026 Consecutive draws in
+        // one view frequently share the whole packed block (rigid category
+        // meshes, grouped sorted runs) — elide the re-upload when unchanged.
+        static FrameConstUniformGuard s_materialBlockGuard;
+        if (ShouldUploadFrameConstUniform(s_materialBlockGuard, submitView, m, sizeof(m)))
+        {
+            bgfx::setUniform(g_uniforms.uMaterial, m, MU_COUNT);
+            CountUniformCommand(g_stats.materialUniformCommands);
+        }
+    }
+    // u_matSpecular is not part of the packed material array, so upload it individually.
+    if (bgfx::isValid(g_uniforms.uMatSpecular))
+    {
+        static FrameConstUniformGuard s_matSpecularGuard;
+        if (ShouldUploadFrameConstUniform(s_matSpecularGuard, submitView,
+                                          g_draw.matSpecular, sizeof(g_draw.matSpecular)))
+        {
+            bgfx::setUniform(g_uniforms.uMatSpecular, g_draw.matSpecular);
+            CountUniformCommand(g_stats.materialUniformCommands);
+        }
+    }
+    if (bgfx::isValid(g_uniforms.uSunShadowReceive))
+    {
+        static FrameConstUniformGuard s_sunShadowReceiveGuard;
+        if (ShouldUploadFrameConstUniform(s_sunShadowReceiveGuard, submitView,
+                                          g_draw.sunShadowReceive, sizeof(g_draw.sunShadowReceive)))
+        {
+            bgfx::setUniform(g_uniforms.uSunShadowReceive, g_draw.sunShadowReceive);
+            CountUniformCommand(g_stats.materialUniformCommands);
+        }
+    }
+    if (bgfx::isValid(g_uniforms.sCloudMap))
+    {
+        // WRAP addressing matches the DX8 cloud pass at W3DShaderManager.cpp:1742.
+        // TheSuperHackers @bugfix bobtista 30/04/2026 fs_uber declares
+        // SAMPLER2D(s_cloudMap, 5); Metal validation requires slot 5
+        // to be bound on every draw even when u_cloudParams.w = 0
+        // disables the cloud blend. Fall back to defaultWhiteTexture
+        // when no cloud texture has been set yet (early frames, UI).
+        bgfx::TextureHandle h = bgfx::isValid(g_draw.cloudTex)
+            ? g_draw.cloudTex
+            : g_device.defaultWhiteTexture;
+        if (bgfx::isValid(h))
+        {
+            bgfx::setTexture(5, g_uniforms.sCloudMap, h, BGFX_SAMPLER_NONE);
+            g_stats.textureBinds++;
+        }
+    }
+    if (bgfx::isValid(g_uniforms.sLightMap))
+    {
+        // White fallback = multiply identity when the lightmap is disabled or unset.
+        bgfx::TextureHandle lm = bgfx::isValid(g_draw.lightMapTex)
+            ? g_draw.lightMapTex
+            : g_device.defaultWhiteTexture;
+        if (bgfx::isValid(lm))
+        {
+            bgfx::setTexture(11, g_uniforms.sLightMap, lm, BGFX_SAMPLER_NONE);
+            g_stats.textureBinds++;
+        }
+    }
+}
+
+// TheSuperHackers @bugfix bobtista 16/07/2026 Run the material's UV mappers at
+// material bind. The DX8 path applies them in Commit_Deferred_Render_State_Changes
+// via VertexMaterialClass::Apply, but that block is compiled out of the bgfx build
+// and nothing replaced it, so animated mappers (Grid flipbooks, Linear Offset
+// scrolls, Rotate) never rebuilt their texture matrices or texcoord routing and
+// rendered frozen at their initial frame. Mirrors the mapper loop of
+// VertexMaterialClass::Apply for the two stages a W3D vertex material carries;
+// stages 2+ hold terrain cloud/noise state owned by other passes and stay untouched.
+static void ApplyMaterialMappersForBgfx(BgfxBackend * backend, const VertexMaterialClass * material)
+{
+    static const bool s_disabled = GgcFlags::Enabled(GgcFlag_BgfxNoMapperApply);
+    if (s_disabled)
+    {
+        return;
+    }
+    for (int stage = 0; stage < 2; ++stage)
+    {
+        if (material != nullptr)
+        {
+            VertexMaterialClass * mutableMaterial = const_cast<VertexMaterialClass *>(material);
+            TextureMapperClass * mapper = mutableMaterial->Peek_Mapper(stage);
+            if (mapper != nullptr)
+            {
+                mapper->Apply(mutableMaterial->Get_UV_Source(stage));
+                continue;
+            }
+            backend->Set_Texture_Coord_Source(stage, RB_TEXCOORD_MESH_UV, mutableMaterial->Get_UV_Source(stage));
+        }
+        else
+        {
+            backend->Set_Texture_Coord_Source(stage, RB_TEXCOORD_MESH_UV, stage);
+        }
+        backend->Set_Texture_Transform_Mode(stage, 0, false);
+    }
+}
+
+// Mirror the material fields used by fs_uber without applying DX8 state.
+// This is called from Set_Material and again at submit time because
+// DX8Wrapper::Draw can apply pending material state directly through
+// VertexMaterialClass::Apply after the bgfx backend saw the original setter.
+static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
+{
+    if (material != nullptr)
+    {
+        Vector3 diffuse(1.0f, 1.0f, 1.0f);
+        Vector3 ambient(1.0f, 1.0f, 1.0f);
+        const VertexMaterialClass::ColorSourceType diffuseSource =
+            const_cast<VertexMaterialClass *>(material)->Get_Diffuse_Color_Source();
+        const VertexMaterialClass::ColorSourceType ambientSource =
+            const_cast<VertexMaterialClass *>(material)->Get_Ambient_Color_Source();
+        const VertexMaterialClass::ColorSourceType emissiveSource =
+            const_cast<VertexMaterialClass *>(material)->Get_Emissive_Color_Source();
+        if (diffuseSource == VertexMaterialClass::MATERIAL)
+        {
+            material->Get_Diffuse(&diffuse);
+        }
+        if (ambientSource == VertexMaterialClass::MATERIAL)
+        {
+            material->Get_Ambient(&ambient);
+        }
+        g_draw.matDiffuse[0] = diffuse.X;
+        g_draw.matDiffuse[1] = diffuse.Y;
+        g_draw.matDiffuse[2] = diffuse.Z;
+        g_draw.matDiffuse[3] = material->Get_Opacity();
+        g_draw.matAmbient[0] = ambient.X;
+        g_draw.matAmbient[1] = ambient.Y;
+        g_draw.matAmbient[2] = ambient.Z;
+        g_draw.matAmbient[3] = 1.0f;
+        g_draw.vertexColorFlags[1] =
+            (diffuseSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
+        g_draw.vertexColorFlags[2] =
+            (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
+        g_draw.vertexColorFlags[3] =
+            (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
+        g_draw.lightingEnabled[0] =
+            (material->Get_Lighting()
+             && FixedFunctionState::Lighting_Enabled(false)
+             && !WW3D::Is_Coloring_Enabled()) ? 1.0f : 0.0f;
+
+        Vector3 emissive(0.0f, 0.0f, 0.0f);
+        material->Get_Emissive(&emissive);
+        g_draw.matEmissive[0] = emissive.X;
+        g_draw.matEmissive[1] = emissive.Y;
+        g_draw.matEmissive[2] = emissive.Z;
+        g_draw.matEmissive[3] = 0.0f;
+
+        Vector3 specular(0.0f, 0.0f, 0.0f);
+        material->Get_Specular(&specular);
+        g_draw.matSpecular[0] = specular.X;
+        g_draw.matSpecular[1] = specular.Y;
+        g_draw.matSpecular[2] = specular.Z;
+        g_draw.matSpecular[3] = material->Get_Shininess();
+    }
+    else
+    {
+        g_draw.matDiffuse[0] = 1.0f;
+        g_draw.matDiffuse[1] = 1.0f;
+        g_draw.matDiffuse[2] = 1.0f;
+        g_draw.matDiffuse[3] = 1.0f;
+        g_draw.matAmbient[0] = 1.0f;
+        g_draw.matAmbient[1] = 1.0f;
+        g_draw.matAmbient[2] = 1.0f;
+        g_draw.matAmbient[3] = 1.0f;
+        g_draw.matEmissive[0] = 0.0f;
+        g_draw.matEmissive[1] = 0.0f;
+        g_draw.matEmissive[2] = 0.0f;
+        g_draw.matEmissive[3] = 0.0f;
+        g_draw.matSpecular[0] = 0.0f;
+        g_draw.matSpecular[1] = 0.0f;
+        g_draw.matSpecular[2] = 0.0f;
+        g_draw.matSpecular[3] = 1.0f;
+        g_draw.vertexColorFlags[1] = 0.0f;
+        g_draw.vertexColorFlags[2] = 0.0f;
+        g_draw.vertexColorFlags[3] = 0.0f;
+        g_draw.lightingEnabled[0] = 0.0f;
+    }
+}
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Sorted VB direct-draw submit: claims the
+// transients Capture_Dynamic_* stashed for Draw_Sorting_IB_VB's inner buffers, submits to
+// the sorted view with remapped args, and skips the outer Draw_Triangles submit.
+
+// TheSuperHackers @performance bobtista 08/07/2026 Sorted texture-array merge.
+// A sorted node is page-eligible when its draw samples exactly one stage-0
+// texture through UV channel 0; such nodes can share one merged draw with
+// neighbors that differ only by that texture, selecting the layer per vertex.
+// Eligibility is decided here at capture time, when g_draw holds the exact
+// translated state the replayed submit will apply: interrogating the material
+// object at pool-fill time gave divergent answers (prelit particle materials
+// carry a nonzero object-level emissive that their unlit draws never read).
+static void ComputeSortedTextureArraySlot(RenderStateStruct & state)
+{
+    // Default ON since the 2026-07-11 Windows benchmark verdict; see
+    // Sorted_Texture_Array_Merge_Enabled in sortingrenderer.cpp.
+    static const bool s_enabled = !GgcFlags::Enabled(GgcFlag_BgfxNoSortedTextureArray);
+    if (!s_enabled || !g_device.initialized || !bgfx::isValid(g_device.sortedArrayProgram))
+    {
+        return;
+    }
+    // Point groups author their vertices in world space with an identity or
+    // camera-only world, so the fill loop's world bake is exact for them.
+    // TheSuperHackers @bugfix bobtista 10/07/2026 Streaks are excluded:
+    // StreakRendererClass::RenderStreak transforms its points into eye space
+    // on the CPU (modelview = view * transform) and inserts with identity
+    // world AND view, so the bake's world multiply is a no-op and the merged
+    // submit's view-only transform would re-apply the camera view to
+    // eye-space vertices, throwing the geometry off screen. Other sorted
+    // classes (local-model mesh sprites, seglines, decals, reveal grids)
+    // also stay on the classic per-run replay until each earns its way in
+    // with a verified bake contract.
+    if ((state.sorted_draw_flags & RB_SORTED_DRAW_POINT_GROUP) == 0)
+    {
+        return;
+    }
+    if (state.shader.Get_Texturing() != ShaderClass::TEXTURING_ENABLE)
+    {
+        return;
+    }
+    if (state.Textures[0] == nullptr || state.Textures[0]->As_TextureClass() == nullptr)
+    {
+        return;
+    }
+    for (int stage = 1; stage < MAX_TEXTURE_STAGES; ++stage)
+    {
+        if (state.Textures[stage] != nullptr)
+        {
+            return;
+        }
+    }
+    // The merged path carries the layer in the vertex normal's z and the
+    // page-scaled UVs in the second UV channel, so it is restricted to draws
+    // whose normals are guaranteed unused and whose UVs are plain channel 0.
+    const ShaderClass & shader = state.shader;
+    if (shader.Get_Depth_Mask() != ShaderClass::DEPTH_WRITE_DISABLE
+        || shader.Get_Alpha_Test() != ShaderClass::ALPHATEST_DISABLE)
+    {
+        return;
+    }
+    const ShaderClass::SrcBlendFuncType srcBlend = shader.Get_Src_Blend_Func();
+    const ShaderClass::DstBlendFuncType dstBlend = shader.Get_Dst_Blend_Func();
+    const bool particleBlend =
+        (srcBlend == ShaderClass::SRCBLEND_ONE && dstBlend == ShaderClass::DSTBLEND_ONE)
+        || (srcBlend == ShaderClass::SRCBLEND_SRC_ALPHA && dstBlend == ShaderClass::DSTBLEND_ONE)
+        || (srcBlend == ShaderClass::SRCBLEND_SRC_ALPHA && dstBlend == ShaderClass::DSTBLEND_ONE_MINUS_SRC_ALPHA);
+    if (!particleBlend)
+    {
+        return;
+    }
+    // TheSuperHackers @bugfix bobtista 17/07/2026 Peek, don't Get: Get_Mapper Add_Refs the
+    // mapper and the reference was never released, leaking one ref per captured point-group
+    // node per frame.
+    if (state.material == nullptr
+        || state.material->Get_UV_Source(0) != 0
+        || state.material->Peek_Mapper(0) != nullptr)
+    {
+        return;
+    }
+    // The vertex normal is only safe to repurpose when the shader never reads
+    // it: either the draw is unlit outright (prelit particle materials), or
+    // the baked-color force-unlit will fire at submit. Both sides of this
+    // predicate read the same translated g_draw state the submit reads, so
+    // they cannot drift apart.
+    const bool unlit = g_draw.lightingEnabled[0] <= 0.5f;
+    if (!unlit && !ShouldForceUnlitForBakedColorDraw(GetEffectiveDrawState()))
+    {
+        return;
+    }
+    int layer = -1;
+    float scaleU = 1.0f;
+    float scaleV = 1.0f;
+    const int page = BgfxSortedTextureArrayGetSlot(state.Textures[0], &layer, &scaleU, &scaleV);
+    if (page < 0)
+    {
+        return;
+    }
+    state.sorted_array_page = page;
+    state.sorted_array_layer = layer;
+    state.sorted_array_scale_u = scaleU;
+    state.sorted_array_scale_v = scaleV;
+}
+
+void BgfxBackend::Set_Sorted_Texture_Array_Page(int page)
+{
+    g_draw.sortedArrayPage = page;
+}
+
+void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
+                                     const DynamicIBAccessClass & dyn_ib,
+                                     unsigned short polygon_count,
+                                     unsigned short vertex_count)
+{
+    if (!g_device.initialized)
+    {
+        return;
+    }
+    g_stats.sortedDraws++;
+    if (BgfxProbeFlag("GGC_PROBE_NO_SORTED")
+        || BgfxProbeFlag("GGC_PROBE_NULL_SUBMIT"))
+    {
+        g_views.skipNextSubmitEngineDraw = true;
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+
+    // The inner dynamic buffers' WriteLockClass dtors already ran, so
+    // Capture_Dynamic_Vertex_Data / Capture_Dynamic_Index_Data should
+    // have stashed their transients keyed by &dyn_vb / &dyn_ib.
+    // TheSuperHackers @bugfix bobtista 08/07/2026 A texture-array run's pool
+    // vertices were baked into world space at fill time, so the classic
+    // fallback submit (which applies the captured world*view again) would
+    // double-transform them; drop the run for this frame instead.
+    if (!g_draw.pendingVB.valid || g_draw.pendingVB.owner != &dyn_vb)
+    {
+        static bool s_loggedSkipVB = false;
+        if (!s_loggedSkipVB)
+        {
+            s_loggedSkipVB = true;
+            WWDEBUG_SAY(("[BgfxBackend] Submit_Sorted_Draw SKIP: pendingDynVB not "
+                         "claimable (valid=%d ownerMatch=%d)",
+                         int(g_draw.pendingVB.valid),
+                         int(g_draw.pendingVB.owner == &dyn_vb)));
+        }
+        if (g_draw.sortedArrayPage >= 0)
+        {
+            g_views.skipNextSubmitEngineDraw = true;
+        }
+        g_stats.skippedDraws++;
+        return;
+    }
+    if (!g_draw.pendingIB.valid || g_draw.pendingIB.owner != &dyn_ib)
+    {
+        static bool s_loggedSkipIB = false;
+        if (!s_loggedSkipIB)
+        {
+            s_loggedSkipIB = true;
+            WWDEBUG_SAY(("[BgfxBackend] Submit_Sorted_Draw SKIP: pendingDynIB not "
+                         "claimable (valid=%d ownerMatch=%d)",
+                         int(g_draw.pendingIB.valid),
+                         int(g_draw.pendingIB.owner == &dyn_ib)));
+        }
+        if (g_draw.sortedArrayPage >= 0)
+        {
+            g_views.skipNextSubmitEngineDraw = true;
+        }
+        g_stats.skippedDraws++;
+        return;
+    }
+
+    const bgfx::TransientVertexBuffer vb = g_draw.pendingVB.tvb;
+    const bgfx::TransientIndexBuffer  ib = g_draw.pendingIB.tib;
+    g_draw.activeVertexNormalBias = g_draw.pendingVB.coplanarNormalBias;
+    g_draw.pendingVB.valid = false;
+    g_draw.pendingIB.valid = false;
+
+    if (!bgfx::isValid(g_draw.program))
+    {
+        g_views.skipNextSubmitEngineDraw = true;
+        g_stats.skippedDraws++;
+        return;
+    }
+
+    // Sort view's view+proj were set up at init (identity view,
+    // projection tracks opaque view via Set_Projection_Transform_With_Z_Bias).
+    // World is the current g_frame.sortWorld if we are inside a sort batch,
+    // otherwise the regular g_frame.world (rigid FVF category with sorting=true
+    // has no batch-wrapped Apply_Render_State - it uses the per-mesh world
+    // set by the caller via Renderer::Set_Transform).
+    const uint64_t earlyState = GetEffectiveDrawState();
+    const bool localModelSortedDraw = IsSortedLocalModelEffectDraw(earlyState);
+    const bgfx::ViewId submitView = localModelSortedDraw ? kBgfxEngineView : kBgfxEngineSortView;
+    const float * worldMtx = g_views.inSortFlush ? g_frame.sortWorld : g_frame.world;
+    if (localModelSortedDraw)
+    {
+        // These sorted quads are authored in model space. Use the raw per-mesh
+        // world so animated local geometry lands on the object instead of
+        // folding through the sort view's pre-multiplied matrix.
+        worldMtx = g_frame.sortWorldRaw;
+    }
+    if (g_draw.sortedArrayPage >= 0)
+    {
+        // World-baked run: positions were transformed to world space when the
+        // sorted pool was filled, so apply the view only (identity for the
+        // engine-view local-model route, which carries the real camera view).
+        static const float s_identity[16] = {
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f };
+        worldMtx = localModelSortedDraw ? s_identity : g_frame.sortViewOnly;
+    }
+    bgfx::setTransform(worldMtx);
+
+    bgfx::setVertexBuffer(0, &vb, 0, vertex_count);
+    bgfx::setIndexBuffer(&ib, 0, static_cast<uint32_t>(polygon_count) * 3);
+
+    BindTextureStages();
+    UpdateTextureTransforms();
+    if (IsSortedMaterialDecal(GetEffectiveDrawState()))
+    {
+        // Terrain rendering leaves this flag set until reset by the
+        // shader manager. Sorted material decals, including command-center
+        // driveway emblems, use the fixed-function TSS path and must not
+        // inherit the terrain pixel-shader branch. Submit_Sorted_Draw can
+        // be reached by rigid sorting draws even when g_views.inSortFlush
+        // is false, so key this reset to the draw signature itself.
+        g_draw.texcoordSelect[1] = 0.0f;
+    }
+    {
+        g_draw.zBias[0] = static_cast<float>(g_draw.zBiasUnits) * kZBiasPerUnit;
+        TraceLegacyZBiasTranslation();
+        const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(GetEffectiveDrawState());
+        const bool normalBiasFromGeometry =
+            g_draw.normalBias[0] != 0.0f
+            || (g_draw.activeVertexNormalBias && applySubmittedNormalBias)
+            || IsSneakAttackCoplanarSurface();
+        g_draw.zBias[1] = normalBiasFromGeometry
+            ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
+            : 0.0f;
+        ClampSortedMaterialDecalZBias();
+    }
+    UpdateProjectedDecalModeForCurrentDraw();
+    uint64_t state = GetEffectiveDrawState();
+    {
+        g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(state)
+            ? 1.0f
+            : 0.0f;
+    }
+    UpdateAlphaMaskAndSortedModes(state);
+    UploadMaterialUniforms(submitView);
+    if (bgfx::isValid(g_uniforms.uTexcoordSelect))
+    {
+        bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
+    }
+    const bool forceUnlitLighting = ShouldForceUnlitForBakedColorDraw(state);
+    const bool fixedFunctionLightInputsNeeded =
+        g_draw.lightingEnabled[0] > 0.5f
+        && !forceUnlitLighting;
+    UploadLightUniforms(fixedFunctionLightInputsNeeded, submitView);
+    // Match SubmitEngineDraw for sorted dynamic particles/effects. Additive
+    // sprites, soft alpha particles, and material decals bake intensity in
+    // vertex diffuse or the source texture; the shader's lit branch would
+    // ignore that baked color and multiply by scene light instead.
+    if (bgfx::isValid(g_uniforms.uLightingEnabled))
+    {
+        float lit[4] = { g_draw.lightingEnabled[0], 0.0f, 0.0f, 0.0f };
+        if (forceUnlitLighting)
+        {
+            lit[0] = 0.0f;
+        }
+        bgfx::setUniform(g_uniforms.uLightingEnabled, lit);
+    }
+
+    state = ApplyCullModeOverride(state);
+    state = ApplyBlendEquation(state);
+    state = ApplyProjectedAdditiveDecalDrawState(state);
+    state = ApplyColorWriteOverride(state);
+    state = ApplySortedMaterialDecalDepthState(state);
+    // TheSuperHackers @bugfix bobtista 12/06/2026 Match SubmitEngineDraw: enable MSAA so sorted
+    // translucent effects get the same edge antialiasing as opaque geometry on a multisampled target.
+    state |= BGFX_STATE_MSAA;
+    LogBgfxSortedMaterialDecal("submit-sorted", submitView,
+                               polygon_count, vertex_count, state);
+    LogBgfxEffectSubmit("submit-sorted", submitView,
+                        polygon_count, vertex_count, state, "pre-skip");
+    LogBgfxRevealDraw("submit-sorted", submitView,
+                      polygon_count, vertex_count, state, "pre-skip");
+
+    if (ShouldAllowBgfxDiagnosticDrawOverrides()
+        && GgcFlags::Enabled(GgcFlag_BgfxSkipRevealGrid)
+        && IsRevealGridTexture(g_draw.sourceTextures[0]))
+    {
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        // A skipped sorted draw must also suppress the fallback
+        // SubmitEngineDraw, matching the skip-missing path below.
+        g_views.skipNextSubmitEngineDraw = true;
+        return;
+    }
+
+    if (ShouldSkipHiddenMissingTextureDraw(state))
+    {
+        LogBgfxRevealDraw("submit-sorted", submitView,
+                          polygon_count, vertex_count, state, "skip-missing");
+        g_stats.skippedDraws++;
+        // TheSuperHackers @bugfix bobtista 06/06/2026 Discard the queued encoder state (transform/
+        // VB/IB/textures/uniforms) and suppress the fallback SubmitEngineDraw, matching the success
+        // path below. Without this the queued state leaks into the next draw and the outer
+        // Draw_Triangles re-submits with stale sorting-VB args.
+        bgfx::discard(BGFX_DISCARD_ALL);
+        g_views.skipNextSubmitEngineDraw = true;
+        return;
+    }
+
+    bgfx::setState(state);
+    // TheSuperHackers @bugfix bobtista 12/06/2026 Sorted translucent effects never use the stencil;
+    // clear it explicitly so a preceding stencil pass (shadow volumes / shroud) can't leak its
+    // stencil test into this submit. SubmitEngineDraw achieves the same via its applyStencil gate.
+    bgfx::setStencil(BGFX_STENCIL_NONE);
+    BindSoftParticleDepth(submitView == kBgfxEngineSortView
+                          && IsSoftParticleCandidate(state));
+    bgfx::ProgramHandle program = g_draw.program;
+    if (g_draw.sortedArrayPage >= 0)
+    {
+        const bgfx::TextureHandle pageTex = BgfxSortedTextureArrayPageHandle(g_draw.sortedArrayPage);
+        if (bgfx::isValid(pageTex) && bgfx::isValid(g_device.sortedArrayProgram))
+        {
+            bgfx::setTexture(kBgfxSortedArraySamplerStage, g_uniforms.sTexArray,
+                             pageTex,
+                             g_draw.samplerFlags[0] | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+            program = g_device.sortedArrayProgram;
+        }
+    }
+    bgfx::submit(submitView, program);
+    LogBgfxEffectSubmit("submit-sorted", submitView,
+                        polygon_count, vertex_count, state, "submit");
+    LogBgfxRevealDraw("submit-sorted", submitView,
+                      polygon_count, vertex_count, state, "submit");
+    g_stats.baseSubmits++;
+    g_stats.transientVbDraws++;
+    g_stats.transientIbDraws++;
+    g_views.skipNextSubmitEngineDraw = true;
+}
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Dynamic
+// capture. DynamicVBAccessClass / DynamicIBAccessClass are CPU-side
+// views onto a ring buffer that changes every frame (particles, sprites,
+// skinned meshes, HUD). Creating a bgfx VB per frame would churn the
+// GPU allocator, so the bgfx side uses transient buffers which are
+// auto-freed at the next bgfx::frame.
+//
+// Flow: engine's WriteLockClass destructor calls this with the locked
+// sub-range. We alloc a transient buffer of exactly that size, memcpy
+// the data in, and stash the handle keyed by the access class pointer.
+// The matching Set_Vertex_Buffer(DynamicVBAccessClass&) later sees its
+// own pointer in g_draw.pendingVB and claims the transient for the draw.
+
+static bool SameSubmittedPosition(const float * a, const float * b)
+{
+    const float dx = a[0] - b[0];
+    const float dy = a[1] - b[1];
+    const float dz = a[2] - b[2];
+    return dx * dx + dy * dy + dz * dz < 0.000001f;
+}
+
+static bool HasSubmittedOppositeNormalPairs(const FVFInfoClass & fvf,
+                                            const void * data,
+                                            uint32_t numVerts)
+{
+    if (!fvf.Has_Normal() || data == nullptr || numVerts < 2 || numVerts > 4096)
+    {
+        return false;
+    }
+
+    const uint8_t * bytes = static_cast<const uint8_t *>(data);
+    const unsigned stride = fvf.Get_FVF_Size();
+    const unsigned positionOffset = fvf.Get_Location_Offset();
+    const unsigned normalOffset = fvf.Get_Normal_Offset();
+    for (uint32_t i = 0; i < numVerts; ++i)
+    {
+        const float * pi = reinterpret_cast<const float *>(bytes + i * stride + positionOffset);
+        const float * ni = reinterpret_cast<const float *>(bytes + i * stride + normalOffset);
+        for (uint32_t j = i + 1; j < numVerts; ++j)
+        {
+            const float * pj = reinterpret_cast<const float *>(bytes + j * stride + positionOffset);
+            if (!SameSubmittedPosition(pi, pj))
+            {
+                continue;
+            }
+            const float * nj = reinterpret_cast<const float *>(bytes + j * stride + normalOffset);
+            const float dot = ni[0] * nj[0] + ni[1] * nj[1] + ni[2] * nj[2];
+            if (dot < -0.9f)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
+                                              const void * data,
+                                              unsigned int size_bytes)
+{
+    if (!g_device.initialized || vba == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vba->FVF_Info(), layout))
+    {
+        return;
+    }
+
+    const uint32_t num_verts = static_cast<uint32_t>(vba->Get_Vertex_Count());
+    if (num_verts == 0)
+    {
+        return;
+    }
+    if (bgfx::getAvailTransientVertexBuffer(num_verts, layout) < num_verts)
+    {
+        LogBgfxTransientDiag("capture", "vb", vba, num_verts,
+                             g_draw.pendingVB.valid,
+                             g_draw.pendingVB.owner == vba,
+                             g_draw.useTransientVB,
+                             g_draw.activeTransientVBOwner == vba,
+                             "no-avail");
+        g_draw.pendingVB.valid = false;
+        g_draw.pendingVB.coplanarNormalBias = false;
+        return;
+    }
+
+    bgfx::allocTransientVertexBuffer(&g_draw.pendingVB.tvb, num_verts, layout);
+    g_stats.transientVbAllocations++;
+    const uint32_t copy_bytes = num_verts * layout.getStride();
+    const uint32_t bytes = (size_bytes < copy_bytes) ? size_bytes : copy_bytes;
+    std::memcpy(g_draw.pendingVB.tvb.data, data, bytes);
+    g_draw.pendingVB.owner = vba;
+    g_draw.pendingVB.valid = true;
+    // TheSuperHackers @performance bobtista 04/06/2026 Gate the O(n^2) coplanar scan
+    // on ShouldApplySubmittedNormalBias (see End_Dynamic_Vertex_Write) so it only runs
+    // for the rare sorted decals that consume the result, not every particle batch.
+    g_draw.pendingVB.coplanarNormalBias =
+        ShouldScanSubmittedNormalBiasForCurrentDynamicWrite()
+        && HasSubmittedOppositeNormalPairs(vba->FVF_Info(), data, num_verts);
+    LogBgfxTransientDiag("capture", "vb", vba, num_verts,
+                         true,
+                         true,
+                         g_draw.useTransientVB,
+                         g_draw.activeTransientVBOwner == vba,
+                         "ok");
+
+    // TheSuperHackers @bugfix bobtista 30/04/2026 Track FVF normal presence
+    // for transient-VB submits so the engine-view targeted lit-on override
+    // in SubmitEngineDraw works for translucent meshes and other paths that
+    // never go through Set_Vertex_Buffer.
+    g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
+}
+
+void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
+                                             const void * data,
+                                             unsigned int size_bytes)
+{
+    if (!g_device.initialized || iba == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+
+    const uint32_t num_indices = static_cast<uint32_t>(iba->Get_Index_Count());
+    if (num_indices == 0)
+    {
+        return;
+    }
+    if (bgfx::getAvailTransientIndexBuffer(num_indices) < num_indices)
+    {
+        LogBgfxTransientDiag("capture", "ib", iba, num_indices,
+                             g_draw.pendingIB.valid,
+                             g_draw.pendingIB.owner == iba,
+                             g_draw.useTransientIB,
+                             g_draw.activeTransientIBOwner == iba,
+                             "no-avail");
+        g_draw.pendingIB.valid = false;
+        return;
+    }
+
+    bgfx::allocTransientIndexBuffer(&g_draw.pendingIB.tib, num_indices);
+    g_stats.transientIbAllocations++;
+    const uint32_t copy_bytes = num_indices * sizeof(uint16_t);
+    const uint32_t bytes = (size_bytes < copy_bytes) ? size_bytes : copy_bytes;
+    std::memcpy(g_draw.pendingIB.tib.data, data, bytes);
+    g_draw.pendingIB.owner = iba;
+    g_draw.pendingIB.valid = true;
+    LogBgfxTransientDiag("capture", "ib", iba, num_indices,
+                         true,
+                         true,
+                         g_draw.useTransientIB,
+                         g_draw.activeTransientIBOwner == iba,
+                         "ok");
+}
+
+void * BgfxBackend::Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
+                                                unsigned int size_bytes)
+{
+    // TheSuperHackers @bugfix bobtista 05/06/2026 Reset valid up front so any early
+    // return below leaves a previous draw's transient buffer marked invalid; only a
+    // successful allocation re-validates it (End must not blindly mark it valid).
+    g_draw.pendingVB.valid = false;
+    if (!g_device.initialized || vba == nullptr || size_bytes == 0) {
+        return nullptr;
+    }
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vba->FVF_Info(), layout)) {
+        return nullptr;
+    }
+    const uint32_t num_verts = static_cast<uint32_t>(vba->Get_Vertex_Count());
+    if (num_verts == 0 || bgfx::getAvailTransientVertexBuffer(num_verts, layout) < num_verts) {
+        return nullptr;
+    }
+    {
+        PERF_TIME(PERF_SECT_DVW_ALLOC);
+        bgfx::allocTransientVertexBuffer(&g_draw.pendingVB.tvb, num_verts, layout);
+    }
+    g_draw.pendingVB.valid = true;
+    g_stats.transientVbAllocations++;
+    return g_draw.pendingVB.tvb.data;
+}
+
+void BgfxBackend::End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
+                                            const void * data,
+                                            unsigned int size_bytes)
+{
+    if (!g_device.initialized || vba == nullptr) {
+        return;
+    }
+    // TheSuperHackers @bugfix bobtista 05/06/2026 If Begin failed to allocate a
+    // transient buffer (pendingVB.valid stayed false), do not finalize a stale buffer.
+    if (!g_draw.pendingVB.valid) {
+        return;
+    }
+    PERF_TIME(PERF_SECT_DVW_END);
+    g_draw.pendingVB.owner = vba;
+    g_dvwVerts += static_cast<uint64_t>(vba->Get_Vertex_Count());
+    // TheSuperHackers @performance bobtista 04/06/2026 HasSubmittedOppositeNormalPairs
+    // is an O(n^2) coplanar-pair scan and dynamic_fvf_type carries a normal, so it
+    // ran on every sorted-translucent batch (particles/smoke/water) — ~40% of render
+    // CPU on heavy scenes. The result only matters when ShouldApplySubmittedNormalBias
+    // is true (a handful of sorted decals / sneak-attack surfaces per frame), which is
+    // re-checked identically at draw time, so gate the scan on it. Particles short-circuit.
+    // (Split for measurement; semantics identical to the original (A||B)&&C short-circuit.)
+    bool coplanarBias = false;
+    if (ShouldScanSubmittedNormalBiasForCurrentDynamicWrite())
+    {
+        PERF_TIME(PERF_SECT_DVW_SCAN);
+        coplanarBias = HasSubmittedOppositeNormalPairs(
+            vba->FVF_Info(), data, vba->Get_Vertex_Count());
+    }
+    g_draw.pendingVB.coplanarNormalBias = coplanarBias;
+    g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
+}
+
+void * BgfxBackend::Begin_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
+                                               unsigned int size_bytes)
+{
+    // TheSuperHackers @bugfix bobtista 06/06/2026 Mirror Begin_Dynamic_Vertex_Write: reset valid up
+    // front so any early return leaves a previous draw's transient buffer marked invalid; only a
+    // successful allocation re-validates it (End must not blindly mark it valid).
+    g_draw.pendingIB.valid = false;
+    if (!g_device.initialized || iba == nullptr || size_bytes == 0) {
+        return nullptr;
+    }
+    const uint32_t num_indices = static_cast<uint32_t>(iba->Get_Index_Count());
+    if (num_indices == 0 || bgfx::getAvailTransientIndexBuffer(num_indices) < num_indices) {
+        return nullptr;
+    }
+    bgfx::allocTransientIndexBuffer(&g_draw.pendingIB.tib, num_indices);
+    g_draw.pendingIB.valid = true;
+    g_stats.transientIbAllocations++;
+    return g_draw.pendingIB.tib.data;
+}
+
+void BgfxBackend::End_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
+                                           const void * data,
+                                           unsigned int size_bytes)
+{
+    if (!g_device.initialized || iba == nullptr) {
+        return;
+    }
+    // TheSuperHackers @bugfix bobtista 06/06/2026 If Begin failed to allocate a transient buffer
+    // (pendingIB.valid stayed false), do not finalize a stale buffer.
+    if (!g_draw.pendingIB.valid) {
+        return;
+    }
+    g_draw.pendingIB.owner = iba;
+}
+
+// -- Instancing -------------------------------------------------------------
+
+bool BgfxBackend::Supports_Instancing() const
+{
+    return g_device.initialized
+        && (bgfx::getCaps()->supported & BGFX_CAPS_INSTANCING) != 0;
+}
+
+bool BgfxBackend::Begin_Instanced_Batch(unsigned max_instances)
+{
+    if (!Supports_Instancing() || max_instances == 0) {
+        return false;
+    }
+
+    // TheSuperHackers @bugfix bobtista 12/06/2026 Clamp to what the per-frame transient instance pool
+    // can actually provide. bgfx::allocInstanceDataBuffer may hand back fewer instances than requested
+    // when the pool is low; without this, instanceMax stayed at the (larger) request and Add_Instance
+    // would memcpy past the end of the allocated buffer.
+    const unsigned avail = bgfx::getAvailInstanceDataBuffer(max_instances, 64);
+    // TheSuperHackers @bugfix bobtista 17/07/2026 Refuse a partial grant instead of clamping.
+    // The mesh renderer consumes and deletes all batched render tasks once this returns true,
+    // and Add_Instance silently ignores instances past the clamp, so a partial grant made the
+    // tail of the batch vanish for the frame. Returning false keeps every mesh on the
+    // per-draw fallback path, which renders correctly under instance-pool pressure.
+    if (avail < max_instances) {
+        return false;
+    }
+
+    bgfx::allocInstanceDataBuffer(&g_draw.instanceBatch, max_instances, 64);
+    if (g_draw.instanceBatch.data == nullptr) {
+        return false;
+    }
+
+    g_draw.instanceCount = 0;
+    g_draw.instanceMax = max_instances;
+    g_draw.instanceBatchActive = true;
+    return true;
+}
+
+void BgfxBackend::Add_Instance(const float * world_matrix_4x4)
+{
+    if (!g_draw.instanceBatchActive || g_draw.instanceCount >= g_draw.instanceMax) {
+        return;
+    }
+    static const bool s_probeIdentityInstances = GgcFlags::Enabled(GgcFlag_ProbeIdentityInstances);
+    if (s_probeIdentityInstances)
+    {
+        IdentityMatrix(reinterpret_cast<float *>(g_draw.instanceBatch.data + g_draw.instanceCount * 64));
+        g_draw.instanceCount++;
+        return;
+    }
+    // TheSuperHackers @bugfix bobtista 28/06/2026 The engine passes a W3D Matrix3D (3x4 row-major,
+    // 48 bytes); the instanced VS reads a column-major 4x4 via mtxFromCols, exactly like the
+    // non-instanced setTransform path (Set_Transform -> W3DMatrix3DToBgfx). The old raw 64-byte
+    // memcpy used the wrong layout AND over-read 16 bytes past the 48-byte matrix, so instanced
+    // opaque meshes (vehicles/ships) got garbage transforms and vanished. Convert properly.
+    float converted[16];
+    W3DMatrix3DToBgfx(*reinterpret_cast<const Matrix3D *>(world_matrix_4x4), converted);
+    float * dst = reinterpret_cast<float *>(g_draw.instanceBatch.data + g_draw.instanceCount * 64);
+    static const bool s_probeTransposeInstances = GgcFlags::Enabled(GgcFlag_ProbeTransposeInstances);
+    if (s_probeTransposeInstances)
+    {
+        for (unsigned r = 0; r < 4; ++r)
+        {
+            for (unsigned c = 0; c < 4; ++c)
+            {
+                dst[r * 4 + c] = converted[c * 4 + r];
+            }
+        }
+    }
+    else
+    {
+        std::memcpy(dst, converted, sizeof(converted));
+    }
+    g_draw.instanceCount++;
+}
+
+void BgfxBackend::Submit_Instanced_Batch(unsigned index_offset,
+                                          unsigned triangle_count,
+                                          unsigned min_vertex_index,
+                                          unsigned vertex_count)
+{
+    if (DrawCallLog_Is_Active()) {
+        const TextureBaseClass * tex0 = FixedFunctionState::Render_State().Textures[0];
+        const char * tex_name = (tex0 != nullptr) ? tex0->Get_Texture_Name().str() : "";
+        DrawCallLog_Record(
+            4, triangle_count, vertex_count,
+            FixedFunctionState::Render_State().vertex_buffer_types[0],
+            FixedFunctionState::Render_State().index_buffer_type,
+            FixedFunctionState::Render_State().shader.Get_Bits(),
+            FixedFunctionState::Render_State().sorted_draw_flags,
+            tex_name);
+    }
+    if (!g_draw.instanceBatchActive || g_draw.instanceCount == 0) {
+        g_draw.instanceBatchActive = false;
+        return;
+    }
+    g_draw.instanceBatchActive = false;
+
+    bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+
+    float identity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+    bgfx::setTransform(identity);
+
+    bgfx::ProgramHandle savedProgram = g_draw.program;
+    g_draw.program = g_device.uberInstancedProgram;
+    g_draw.drawIsInstanced = true;
+
+    Draw_Triangles(
+        static_cast<unsigned short>(index_offset),
+        static_cast<unsigned short>(triangle_count),
+        static_cast<unsigned short>(min_vertex_index),
+        static_cast<unsigned short>(vertex_count));
+
+    g_draw.drawIsInstanced = false;
+    g_draw.program = savedProgram;
+    g_stats.instancedSavedDrawCalls += g_draw.instanceCount - 1;
+}
+
+// -- State: shaders, materials, textures ------------------------------------
+
+void BgfxBackend::Set_Shader(const ShaderClass & shader)
+{
+    FixedFunctionState::Set_Shader(shader);
+    // DX8 applies the shader's cull mode as part of the fixed-function state. bgfx keeps
+    // that semantic cull state separately for legacy overrides, so keep it synchronized
+    // here; otherwise a two-sided effect shader can leak RB_CULL_NONE into later opaque
+    // draws and make their sun-shadow caster duplicate render both sides.
+    Set_Cull_Mode(shader.Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE ? RB_CULL_CW : RB_CULL_NONE);
+    g_draw.program = g_device.uberProgram;
+    g_draw.state   = BuildBgfxStateForShader(shader);
+    const uint64_t srcBits = TranslateBlendFactor(shader.Get_Src_Blend_Func());
+    const uint64_t dstBits = TranslateBlendFactor(shader.Get_Dst_Blend_Func());
+    g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
+    g_draw.shaderBlendFuncBits = g_draw.blendFuncBits;
+    g_draw.blendEquationBits = BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
+    {
+        bool newBlend = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
+        g_draw.alphaBlendEnabled = newBlend;
+        g_draw.shaderAlphaBlendEnabled = newBlend;
+    }
+    g_draw.alphaBlendExplicitlySet = false;
+    g_draw.alphaTestExplicitlySet = false;
+    g_draw.depthTestEnabled = true;
+    g_draw.depthWriteEnabled = shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE;
+    g_draw.depthFuncBits = TranslateDepthCompare(shader.Get_Depth_Compare());
+    g_draw.depthFunc = static_cast<unsigned>(MapShaderDepthCompareToBackendCompare(shader.Get_Depth_Compare()));
+    BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef, &g_draw.atestFunc);
+    // Keep pristine copies of the shader-derived alpha test, so Draw can restore them when
+    // nothing set the alpha test explicitly. BuildTssOpsForShader depends only on the shader,
+    // so recomputing it here would produce the values just written.
+    g_draw.shaderAtestRef = g_draw.atestRef;
+    g_draw.shaderAtestFunc = g_draw.atestFunc;
+    g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
+    g_draw.legacyPixelShaderMode[0] = static_cast<float>(RB_LEGACY_PIXEL_SHADER_NONE);
+    Clear_State_Overrides();
+}
+
+void BgfxBackend::Set_Material(const VertexMaterialClass * material)
+{
+    g_draw.sourceMaterial = material;
+    FixedFunctionState::Set_Material(material);
+    const bool lightingEnabled =
+        material != nullptr
+        && material->Get_Lighting()
+        && !WW3D::Is_Coloring_Enabled();
+    FixedFunctionState::Set_Lighting_Enabled(lightingEnabled);
+    g_draw.explicitMaterialState = false;
+    CaptureMaterialStateForBgfx(material);
+    ApplyMaterialMappersForBgfx(this, material);
+}
+
+void BgfxBackend::Apply_Material_State(const RenderBackendMaterialState & material)
+{
+    g_draw.explicitMaterialState = true;
+    for (int i = 0; i < 4; ++i)
+    {
+        g_draw.matDiffuse[i] = material.diffuse[i];
+        g_draw.matAmbient[i] = material.ambient[i];
+        g_draw.matEmissive[i] = material.emissive[i];
+    }
+    g_draw.matSpecular[0] = 0.0f;
+    g_draw.matSpecular[1] = 0.0f;
+    g_draw.matSpecular[2] = 0.0f;
+    g_draw.matSpecular[3] = 1.0f;
+}
+
+void BgfxBackend::Set_Material_Color_Source(RenderBackendMaterialColorSource ambient_source,
+                                            RenderBackendMaterialColorSource diffuse_source,
+                                            RenderBackendMaterialColorSource emissive_source)
+{
+    FixedFunctionState::Set_Material_Color_Sources(
+        static_cast<unsigned>(ambient_source),
+        static_cast<unsigned>(diffuse_source),
+        static_cast<unsigned>(emissive_source));
+    g_draw.vertexColorFlags[1] = (diffuse_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
+    g_draw.vertexColorFlags[2] = (ambient_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
+    g_draw.vertexColorFlags[3] = (emissive_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
+}
+
+void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
+{
+    PERF_TIME(PERF_SECT_SET_TEXTURE);
+    FixedFunctionState::Set_Texture(stage, texture);
+    // Stages 0-3 wired. Covers terrain base + detail
+    // + cloud + noise, the standard 4-stage layout used by the
+    // FlatHeightMap pixel shader family. Stages above 3 still fall
+    // through unmigrated.
+    {
+        TextureClass * t2d_name = texture ? texture->As_TextureClass() : nullptr;
+        if (t2d_name != nullptr)
+        {
+            // DX8 applies the texture object's filter/address state when the
+            // deferred texture bind is flushed. Apply it before later bind
+            // logic interprets the current stage sampler state.
+            t2d_name->Get_Filter().Apply(stage);
+
+            // TheSuperHackers @bugfix bobtista 16/07/2026 Retail kicks texture loading from
+            // TextureClass::Apply at draw commit, which never runs on this backend; a file
+            // texture constructed before thumbnails were disabled (or off the render thread)
+            // stayed uninitialized and bound the white fallback forever. Kick the loader at
+            // bind time instead; this runs on the main render thread so the foreground-load
+            // path behaves exactly as the retail Apply did. Must happen before
+            // EnsureBgfxTexture so the refreshed snapshot revision is picked up in this bind.
+            if (!t2d_name->Is_Initialized()
+                && t2d_name->Get_Asset_Type() == TextureBaseClass::TEX_REGULAR)
+            {
+                t2d_name->Init();
+            }
+        }
+
+        bgfx::TextureHandle h = EnsureBgfxTexture(texture);
+        const bool missingOrUnavailable = IsMissingOrUnavailableTexture(texture, h);
+        if (!bgfx::isValid(h) && texture != nullptr &&
+            g_caches.renderTarget.count(texture) == 0)
+        {
+            static bool s_loggedWhiteFallback = false;
+            if (!s_loggedWhiteFallback)
+            {
+                s_loggedWhiteFallback = true;
+                TextureClass * t2d_fb = texture->As_TextureClass();
+                WWDEBUG_SAY(("[BgfxBackend] WHITE FALLBACK: stage=%u tex=%s pool=%d",
+                             stage,
+                             t2d_fb ? t2d_fb->Get_Full_Path().str() : "(null)",
+                             texture->Get_Pool()));
+                (void)t2d_fb;
+            }
+        }
+        // TextureFilterClass::Apply() updates the semantic sampler state above.
+        // Preserve those bits when recording the bind; bridge atlases and thin
+        // particles depend on mip filtering staying disabled after Set_Texture.
+        const uint32_t samplerFlags = stage < 4 ? g_draw.samplerFlags[stage] : 0;
+        const bool mipFilterDisabled = stage < 4 && g_draw.mipFilterDisabled[stage];
+        switch (stage)
+        {
+            case 0: g_draw.tex[0] = h;
+                    g_draw.sourceTextures[0] = texture;
+                    g_draw.samplerFlags[0] = samplerFlags;
+                    g_draw.mipFilterDisabled[0] = mipFilterDisabled;
+                    g_draw.textureIsMissing[0] = missingOrUnavailable; break;
+            case 1: g_draw.tex[1] = h;
+                    g_draw.sourceTextures[1] = texture;
+                    g_draw.samplerFlags[1] = samplerFlags;
+                    g_draw.mipFilterDisabled[1] = mipFilterDisabled;
+                    g_draw.textureIsMissing[1] = missingOrUnavailable; break;
+            case 2: g_draw.tex[2] = h;
+                    g_draw.sourceTextures[2] = texture;
+                    g_draw.samplerFlags[2] = samplerFlags;
+                    g_draw.mipFilterDisabled[2] = mipFilterDisabled;
+                    g_draw.textureIsMissing[2] = missingOrUnavailable; break;
+            case 3: g_draw.tex[3] = h;
+                    g_draw.sourceTextures[3] = texture;
+                    g_draw.samplerFlags[3] = samplerFlags;
+                    g_draw.mipFilterDisabled[3] = mipFilterDisabled;
+                    g_draw.textureIsMissing[3] = missingOrUnavailable; break;
+            default: break;
+        }
+    }
+}
+
+void BgfxBackend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture)
+{
+    Set_Texture(stage, texture);
+}
+
+void BgfxBackend::Set_Ambient(const Vector3 & color)
+{
+    FixedFunctionState::Set_Ambient_Color(MakeLegacyARGBColor(color, 0.0f));
+    g_draw.sceneAmbient[0] = color.X;
+    g_draw.sceneAmbient[1] = color.Y;
+    g_draw.sceneAmbient[2] = color.Z;
+}
+
+const Vector3 & BgfxBackend::Get_Ambient() const
+{
+    m_ambient.Set(g_draw.sceneAmbient[0], g_draw.sceneAmbient[1], g_draw.sceneAmbient[2]);
+    return m_ambient;
+}
+
+void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float end)
+{
+    (void)enable;
+    (void)color;
+    (void)start;
+    (void)end;
+}
+
+void BgfxBackend::Set_Fog_Enable(bool enable)
+{
+    FixedFunctionState::Set_Fog_Enabled(enable);
+}
+
+void BgfxBackend::Set_Fog_Color(unsigned argb)
+{
+    FixedFunctionState::Set_Fog_Color(argb);
+}
+
+unsigned BgfxBackend::Get_Fog_Color() const
+{
+    return FixedFunctionState::Fog_Color(0);
+}
+
+void BgfxBackend::Set_Specular_Enable(bool enable)
+{
+    FixedFunctionState::Set_Specular_Enabled(enable);
+}
+
+void BgfxBackend::Set_Patch_Segments(float level)
+{
+    FixedFunctionState::Set_Patch_Segments_Bits(FloatAsDword(level));
+}
+
+void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
+{
+    if (index >= 4)
+    {
+        return;
+    }
+
+    Vector3 color;
+    light.Get_Diffuse(&color);
+    color *= light.Get_Intensity();
+    g_draw.lightColors[index][0] = color.X;
+    g_draw.lightColors[index][1] = color.Y;
+    g_draw.lightColors[index][2] = color.Z;
+    g_draw.lightColors[index][3] = 1.0f;
+
+    light.Get_Ambient(&color);
+    color *= light.Get_Intensity();
+    g_draw.lightAmbients[index][0] = color.X;
+    g_draw.lightAmbients[index][1] = color.Y;
+    g_draw.lightAmbients[index][2] = color.Z;
+    g_draw.lightAmbients[index][3] = 1.0f;
+
+    Vector3 position = light.Get_Position();
+    g_draw.lightPositions[index][0] = position.X;
+    g_draw.lightPositions[index][1] = position.Y;
+    g_draw.lightPositions[index][2] = position.Z;
+    g_draw.lightPositions[index][3] = 1.0f;
+
+    Vector3 direction;
+    light.Get_Spot_Direction(direction);
+    g_draw.lightDirs[index][0] = -direction.X;
+    g_draw.lightDirs[index][1] = -direction.Y;
+    g_draw.lightDirs[index][2] = -direction.Z;
+    g_draw.lightDirs[index][3] = 1.0f;
+
+    g_draw.lightParams[index][0] = 0.0f;
+    g_draw.lightParams[index][1] = light.Get_Attenuation_Range();
+    // TheSuperHackers @info bobtista 16/07/2026 SPOT is approximated as a point light with no
+    // cone falloff. This is latent: no spot LightClass is ever constructed in this game, and
+    // this setter's only game caller sits in dead code (SimpleSceneClass::Customized_Render);
+    // real lighting arrives through Set_Light_Environment, which folds spots CPU-side.
+    g_draw.lightParams[index][2] =
+        (light.Get_Type() == LightClass::POINT || light.Get_Type() == LightClass::SPOT) ? 1.0f : 0.0f;
+    g_draw.lightParams[index][3] = 1.0f;
+}
+
+void BgfxBackend::Clear_Light(unsigned int index)
+{
+    if (index >= 4)
+    {
+        return;
+    }
+
+    g_draw.lightDirs[index][3] = 0.0f;
+    g_draw.lightColors[index][3] = 0.0f;
+    g_draw.lightAmbients[index][3] = 0.0f;
+    g_draw.lightParams[index][3] = 0.0f;
+}
+
+// Maps WW3D BlendFactor enum (1..11) to bgfx blend-factor bits. Index 0 unused.
+static const uint64_t kBgfxBlendMap[12] = {
+    0,
+    BGFX_STATE_BLEND_ZERO,           // 1 = RB_BLEND_ZERO
+    BGFX_STATE_BLEND_ONE,            // 2 = RB_BLEND_ONE
+    BGFX_STATE_BLEND_SRC_COLOR,      // 3 = RB_BLEND_SRC_COLOR
+    BGFX_STATE_BLEND_INV_SRC_COLOR,  // 4 = RB_BLEND_INV_SRC_COLOR
+    BGFX_STATE_BLEND_SRC_ALPHA,      // 5 = RB_BLEND_SRC_ALPHA
+    BGFX_STATE_BLEND_INV_SRC_ALPHA,  // 6 = RB_BLEND_INV_SRC_ALPHA
+    BGFX_STATE_BLEND_DST_ALPHA,      // 7 = RB_BLEND_DEST_ALPHA
+    BGFX_STATE_BLEND_INV_DST_ALPHA,  // 8 = RB_BLEND_INV_DEST_ALPHA
+    BGFX_STATE_BLEND_DST_COLOR,      // 9 = RB_BLEND_DEST_COLOR
+    BGFX_STATE_BLEND_INV_DST_COLOR,  // 10 = RB_BLEND_INV_DEST_COLOR
+    BGFX_STATE_BLEND_SRC_ALPHA_SAT   // 11 = RB_BLEND_SRC_ALPHA_SAT
+};
+
+static uint64_t TranslateBlendOp(BlendOp op)
+{
+    switch (op)
+    {
+        case RB_BLEND_OP_SUBTRACT:
+            return BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_SUB);
+        case RB_BLEND_OP_REV_SUBTRACT:
+            return BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_REVSUB);
+        case RB_BLEND_OP_MIN:
+            return BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_MIN);
+        case RB_BLEND_OP_MAX:
+            return BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_MAX);
+        case RB_BLEND_OP_ADD:
+        default:
+            return BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
+    }
+}
+
+// TheSuperHackers @fix bobtista 20/04/2026 Water rendering relies on this
+// to restore SRC_ALPHA / INV_SRC_ALPHA blending after its DESTALPHA shoreline
+// pass. Otherwise the DESTALPHA state set by Override_Material_Opacity()
+// persists into the next draw (e.g. the faction-emblem quad on the
+// command-center bib), painting it black.
+void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
+{
+    const unsigned s = static_cast<unsigned>(src);
+    const unsigned d = static_cast<unsigned>(dest);
+    FixedFunctionState::Set_Blend_Factors(s, d);
+    if (s >= 1 && s <= 11 && d >= 1 && d <= 11)
+    {
+        g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[s], kBgfxBlendMap[d]);
+        // TheSuperHackers @bugfix bobtista 26/05/2026 If a shader override
+        // (Override_Alpha_Blend_Enable / Override_Blend) is already active,
+        // propagate the explicit Set_Blend_Factors into the override so the
+        // engine's intent wins. ApplyBlendState prefers g_overrides.blendBits
+        // over g_draw.blendFuncBits when an override is active, which silently
+        // dropped the water surface's DEST_ALPHA / INV_DEST_ALPHA shoreline
+        // feather (Override_Alpha_Blend_Enable had stamped the override at
+        // SRC_ALPHA / INV_SRC_ALPHA just above the explicit Set_Blend_Factors).
+        if (g_overrides.blendActive)
+        {
+            g_overrides.SetBlend(g_draw.blendFuncBits);
+        }
+        if (!g_draw.alphaBlendExplicitlySet && !IsOpaqueBlend(src, dest))
+        {
+            g_draw.alphaBlendEnabled = true;
+        }
+        // TheSuperHackers @bugfix bobtista 06/06/2026 Mark blend as explicitly set (like
+        // Set_Alpha_Blend_Enable) so SubmitEngineDraw does not reset blendFuncBits back to the
+        // shader's default, which silently dropped explicit factors (e.g. the m_gForceMultiply
+        // DEST_COLOR/SRC_COLOR multiply) when no blend override was active.
+        g_draw.alphaBlendExplicitlySet = true;
+    }
+}
+
+void BgfxBackend::Set_Blend_Op(BlendOp op)
+{
+    FixedFunctionState::Set_Blend_Op(static_cast<unsigned>(op));
+    g_draw.blendEquationBits = TranslateBlendOp(op);
+}
+
+void BgfxBackend::Set_Alpha_Blend_Enable(bool enable)
+{
+    FixedFunctionState::Set_Alpha_Blend_Enabled(enable);
+    g_draw.alphaBlendEnabled = enable;
+    g_draw.alphaBlendExplicitlySet = true;
+}
+
+// TheSuperHackers @bugfix bobtista 28/05/2026 Each single-knob alpha-test setter now writes only its own bucket through Set_Cached_Render_State; the prior code routed through Set_Alpha_Test_State and clobbered the other two buckets with zeros whenever their semantic cache flags were still false.
+// TheSuperHackers @bugfix bobtista 16/07/2026 Mark alpha-test state as explicitly set (like
+// Set_Blend_Factors does for blend) so SubmitEngineDraw does not reset it back to the shader's
+// snapshot. The mesh renderer's Alpha_Override fade scales the alpha-test reference after
+// Set_Shader (dx8renderer.cpp:1919); without the flag the scaled reference was silently
+// clobbered back to the default 0x60 and fading alpha-tested meshes popped instead of thinning.
+void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
+{
+    FixedFunctionState::Set_Cached_Render_State(RS::ALPHATESTENABLE, enable ? 1U : 0U);
+    g_draw.atestEnabled = enable;
+    g_draw.alphaTestExplicitlySet = true;
+}
+
+void BgfxBackend::Set_Alpha_Test_Reference(unsigned ref)
+{
+    FixedFunctionState::Set_Cached_Render_State(RS::ALPHAREF, ref);
+    g_draw.atestRef = ref / 255.0f;
+    g_draw.alphaTestExplicitlySet = true;
+}
+
+void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
+{
+    FixedFunctionState::Set_Cached_Render_State(RS::ALPHAFUNC, static_cast<unsigned>(func));
+    g_draw.atestFunc = static_cast<float>(func);
+    g_draw.alphaTestExplicitlySet = true;
+}
+
+void BgfxBackend::Set_Normalize_Normals(bool enable)
+{
+    FixedFunctionState::Set_Normalize_Normals_Enabled(enable);
+}
+
+void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
+{
+    const unsigned srcIdx = static_cast<unsigned>(srcBlend);
+    const unsigned dstIdx = static_cast<unsigned>(dstBlend);
+    if (srcIdx >= 1 && srcIdx <= 11 && dstIdx >= 1 && dstIdx <= 11)
+    {
+        g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[srcIdx], kBgfxBlendMap[dstIdx]));
+        g_overrides.SetBlendEnable(true);
+    }
+    else
+    {
+        static bool s_loggedBlendBad = false;
+        if (!s_loggedBlendBad)
+        {
+            s_loggedBlendBad = true;
+            WWDEBUG_SAY(("[BgfxBackend] BLEND OVERRIDE BAD VALUES: src=%u dst=%u (out of range 1-11)",
+                         srcIdx, dstIdx));
+        }
+    }
+    FixedFunctionState::Set_Blend_Factors(srcIdx, dstIdx);
+}
+
+void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func)
+{
+    g_overrides.atestActive = enable;
+    g_overrides.atestRef = enable ? (ref / 255.0f) : 0.0f;
+    g_overrides.atestFunc = enable ? static_cast<float>(func) : 0.0f;
+    // TheSuperHackers @bugfix bobtista 28/05/2026 When disabling the override, only clear ALPHATESTENABLE; preserve the existing ALPHAFUNC/ALPHAREF so downstream code observes the unmodified shader state.
+    if (enable)
+    {
+        FixedFunctionState::Set_Alpha_Test_State(enable, ref, static_cast<unsigned>(func));
+    }
+    else
+    {
+        FixedFunctionState::Set_Cached_Render_State(RS::ALPHATESTENABLE, 0U);
+    }
+}
+
+void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
+{
+    g_overrides.SetBlendEnable(enable);
+    if (enable)
+    {
+        g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
+                                                  BGFX_STATE_BLEND_INV_SRC_ALPHA));
+    }
+    FixedFunctionState::Set_Alpha_Blend_Enabled(enable);
+}
+
+void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
+{
+    if (stage < 4)
+    {
+        g_draw.texcoordIndex[stage] = uvIndex;
+    }
+    if (stage == 0)
+    {
+        g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
+    }
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, uvIndex);
+}
+
+void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
+{
+    auto cacheMatrix = MakeLegacyCacheMatrix(matrix);
+    FixedFunctionState::Set_Transform_Matrix(kTextureTransformStage0 + stage, cacheMatrix);
+
+    if (stage == 0)
+    {
+        ReadTextureTransform(0, g_draw.texTransform0, g_draw.texTransform1);
+        ReadTextureTransformZ(0, g_draw.texTransform0Z);
+        g_draw.texcoordSelect[3] = 1.0f;
+    }
+    else if (stage == 1)
+    {
+        ReadTextureTransform(1, g_draw.tex1Transform0, g_draw.tex1Transform1);
+        ReadTextureTransformZ(1, g_draw.tex1TransformZ);
+        g_draw.texcoordSelect2[1] = 1.0f;
+    }
+}
+
+void BgfxBackend::Clear_Texture_Transform(unsigned stage)
+{
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, stage);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, kTextureTransformDisable);
+
+    if (stage < 4)
+    {
+        g_draw.texcoordIndex[stage] = stage;
+        g_draw.textureTransformFlags[stage] = kTextureTransformDisable;
+        g_draw.texcoordSource[stage] = 0.0f;
+        g_draw.texProjected[stage] = 0.0f;
+    }
+
+    if (stage == 0)
+    {
+        g_draw.texcoordSelect[3] = 0.0f;
+        SetIdentityTextureTransform(g_draw.texTransform0, g_draw.texTransform1);
+        g_draw.texTransform0Z[0] = 0.0f;
+        g_draw.texTransform0Z[1] = 0.0f;
+        g_draw.texTransform0Z[2] = 1.0f;
+        g_draw.texTransform0Z[3] = 0.0f;
+    }
+    else if (stage == 1)
+    {
+        g_draw.texcoordSelect2[1] = 0.0f;
+        SetIdentityTextureTransform(g_draw.tex1Transform0, g_draw.tex1Transform1);
+        g_draw.tex1TransformZ[0] = 0.0f;
+        g_draw.tex1TransformZ[1] = 0.0f;
+        g_draw.tex1TransformZ[2] = 1.0f;
+        g_draw.tex1TransformZ[3] = 0.0f;
+    }
+}
+
+void BgfxBackend::Set_Texture_Coord_Source(unsigned stage,
+                                           RenderBackendTexcoordSource source,
+                                           unsigned uv_array_index)
+{
+    unsigned tci = uv_array_index;
+    switch (source)
+    {
+    case RB_TEXCOORD_MESH_UV:
+        tci = kTexcoordGenPassthru | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_NORMAL:
+        tci = kTexcoordGenCameraNormal | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_REFLECTION:
+        tci = kTexcoordGenCameraReflection | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_POSITION:
+        tci = kTexcoordGenCameraPosition | uv_array_index;
+        break;
+    }
+
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, tci);
+    if (stage < 4)
+    {
+        g_draw.texcoordIndex[stage] = tci;
+        g_draw.texcoordSource[stage] = static_cast<float>(source);
+    }
+    if (stage == 0)
+    {
+        g_draw.texcoordSelect[0] = (uv_array_index == 1) ? 1.0f : 0.0f;
+    }
+    else if (stage == 1)
+    {
+        g_draw.texcoordSelect2[0] = (uv_array_index == 1) ? 1.0f : 0.0f;
+    }
+}
+
+void BgfxBackend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count, bool projected)
+{
+    const unsigned flags = (coord_count == 0 ? kTextureTransformDisable : coord_count)
+        | (projected ? kTextureTransformProjected : 0);
+
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, flags);
+    if (stage < 4)
+    {
+        g_draw.textureTransformFlags[stage] = flags;
+        g_draw.texProjected[stage] = projected && coord_count >= 3 ? 1.0f : 0.0f;
+    }
+}
+
+void BgfxBackend::Set_Texture_Bump_Env_Matrix(unsigned stage,
+                                              float m00,
+                                              float m01,
+                                              float m10,
+                                              float m11)
+{
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT00, FloatAsDword(m00));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT01, FloatAsDword(m01));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT10, FloatAsDword(m10));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT11, FloatAsDword(m11));
+}
+
+void BgfxBackend::Set_Texture_Bump_Env_Luminance(unsigned stage,
+                                                 float scale,
+                                                 float offset)
+{
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVLSCALE, FloatAsDword(scale));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVLOFFSET, FloatAsDword(offset));
+}
+
+void BgfxBackend::Set_Texture_Color_Operation(unsigned stage, RenderBackendTextureOperation op)
+{
+    Set_Texture_Stage_State(stage, TSS::COLOROP, static_cast<unsigned>(op));
+}
+
+void BgfxBackend::Set_Texture_Alpha_Operation(unsigned stage, RenderBackendTextureOperation op)
+{
+    Set_Texture_Stage_State(stage, TSS::ALPHAOP, static_cast<unsigned>(op));
+}
+
+void BgfxBackend::Set_Texture_Color_Argument(unsigned stage,
+                                             unsigned argument_index,
+                                             RenderBackendTextureArgument arg)
+{
+    static const unsigned states[] = {
+        TSS::COLORARG0,
+        TSS::COLORARG1,
+        TSS::COLORARG2,
+    };
+    if (argument_index >= sizeof(states) / sizeof(states[0]))
+        return;
+
+    Set_Texture_Stage_State(stage, states[argument_index], static_cast<unsigned>(arg));
+}
+
+void BgfxBackend::Set_Texture_Alpha_Argument(unsigned stage,
+                                             unsigned argument_index,
+                                             RenderBackendTextureArgument arg)
+{
+    static const unsigned states[] = {
+        TSS::ALPHAARG0,
+        TSS::ALPHAARG1,
+        TSS::ALPHAARG2,
+    };
+    if (argument_index >= sizeof(states) / sizeof(states[0]))
+        return;
+
+    Set_Texture_Stage_State(stage, states[argument_index], static_cast<unsigned>(arg));
+}
+
+void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
+{
+    Set_Texture_Coord_Source(stage,
+                             cameraPosEnabled ? RB_TEXCOORD_CAMERA_SPACE_POSITION : RB_TEXCOORD_MESH_UV,
+                             stage);
+}
+
+void BgfxBackend::Set_Texture_UV_Wrap(unsigned stage, bool enable)
+{
+    if (stage == 0)
+    {
+        g_draw.objectShroudDim[3] = enable ? 1.0f : 0.0f;
+    }
+}
+
+static unsigned TextureAddressModeToLegacyStageState(RenderBackendTextureAddressMode mode)
+{
+    switch (mode)
+    {
+        case RB_TEXTURE_ADDRESS_CLAMP:
+            return kTextureAddressClamp;
+        case RB_TEXTURE_ADDRESS_BORDER:
+            return kTextureAddressBorder;
+        case RB_TEXTURE_ADDRESS_WRAP:
+        default:
+            return kTextureAddressWrap;
+    }
+}
+
+void BgfxBackend::Set_Texture_Address_Mode(unsigned stage,
+                                           RenderBackendTextureAddressMode u,
+                                           RenderBackendTextureAddressMode v,
+                                           RenderBackendTextureAddressMode w)
+{
+    Set_Texture_Stage_State(stage, TSS::ADDRESSU, TextureAddressModeToLegacyStageState(u));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSV, TextureAddressModeToLegacyStageState(v));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSW, TextureAddressModeToLegacyStageState(w));
+}
+
+static unsigned TextureSampleFilterToLegacyStageState(RenderBackendTextureSampleFilter filter)
+{
+    switch (filter)
+    {
+        case RB_TEXTURE_SAMPLE_NONE:
+            return kTextureSampleNone;
+        case RB_TEXTURE_SAMPLE_POINT:
+            return kTextureSamplePoint;
+        case RB_TEXTURE_SAMPLE_ANISOTROPIC:
+            return kTextureSampleAnisotropic;
+        case RB_TEXTURE_SAMPLE_LINEAR:
+        default:
+            return kTextureSampleLinear;
+    }
+}
+
+void BgfxBackend::Set_Texture_Sample_Filter(unsigned stage,
+                                            RenderBackendTextureSampleFilter min_filter,
+                                            RenderBackendTextureSampleFilter mag_filter,
+                                            RenderBackendTextureSampleFilter mip_filter)
+{
+    Set_Texture_Stage_State(stage, TSS::MINFILTER, TextureSampleFilterToLegacyStageState(min_filter));
+    Set_Texture_Stage_State(stage, TSS::MAGFILTER, TextureSampleFilterToLegacyStageState(mag_filter));
+    Set_Texture_Stage_State(stage, TSS::MIPFILTER, TextureSampleFilterToLegacyStageState(mip_filter));
+}
+
+void BgfxBackend::Set_Texture_Min_Mag_Filter(unsigned stage,
+                                             RenderBackendTextureSampleFilter min_filter,
+                                             RenderBackendTextureSampleFilter mag_filter)
+{
+    Set_Texture_Stage_State(stage, TSS::MINFILTER, TextureSampleFilterToLegacyStageState(min_filter));
+    Set_Texture_Stage_State(stage, TSS::MAGFILTER, TextureSampleFilterToLegacyStageState(mag_filter));
+}
+
+void BgfxBackend::Set_Texture_Mip_Filter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
+{
+    Set_Texture_Stage_State(stage, TSS::MIPFILTER, TextureSampleFilterToLegacyStageState(mip_filter));
+}
+
+void BgfxBackend::Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisotropy)
+{
+    Set_Texture_Stage_State(stage, TSS::MAXANISOTROPY, max_anisotropy);
+}
+
+void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
+{
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::ADDRESSU,
+        clampU ? kTextureAddressClamp : kTextureAddressWrap);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::ADDRESSV,
+        clampV ? kTextureAddressClamp : kTextureAddressWrap);
+
+    if (stage < 4)
+    {
+        g_draw.samplerFlags[stage] &= ~(BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        if (clampU)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_U_CLAMP;
+        }
+        if (clampV)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_V_CLAMP;
+        }
+    }
+}
+
+void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
+{
+    FixedFunctionState::Set_Texture_Stage_State(stage, state, value);
+    if (stage >= 4)
+    {
+        return;
+    }
+
+    if (stage == 0)
+    {
+        if (state == TSS::COLOROP)
+        {
+            g_draw.tssOps0[0] = TextureOpToTssOp(value);
+        }
+        else if (state == TSS::ALPHAOP)
+        {
+            g_draw.tssOps0[1] = TextureOpToTssOp(value);
+        }
+        else if (state == TSS::COLORARG1)
+        {
+            g_draw.tssOps1[0] = TextureArgToTssArg(value);
+        }
+        else if (state == TSS::ALPHAARG1)
+        {
+            g_draw.tssOps1[1] = TextureArgToTssArg(value);
+        }
+    }
+    else if (stage == 1)
+    {
+        if (state == TSS::COLOROP)
+        {
+            g_draw.tssOps0[2] = TextureOpToTssOp(value);
+        }
+        else if (state == TSS::ALPHAOP)
+        {
+            g_draw.tssOps0[3] = TextureOpToTssOp(value);
+        }
+        else if (state == TSS::COLORARG1)
+        {
+            g_draw.tssOps1[2] = TextureArgToTssArg(value);
+        }
+        else if (state == TSS::ALPHAARG1)
+        {
+            g_draw.tssOps1[3] = TextureArgToTssArg(value);
+        }
+    }
+
+    if (state == TSS::ADDRESSU)
+    {
+        g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_U_CLAMP;
+        if (value == kTextureAddressClamp)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_U_CLAMP;
+        }
+    }
+    else if (state == TSS::ADDRESSV)
+    {
+        g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_V_CLAMP;
+        if (value == kTextureAddressClamp)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_V_CLAMP;
+        }
+    }
+    else if (state == TSS::MINFILTER)
+    {
+        g_draw.samplerFlags[stage] &= ~(BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MIN_ANISOTROPIC);
+        if (value == kTextureSamplePoint)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIN_POINT;
+        }
+        else if (value == kTextureSampleAnisotropic)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIN_ANISOTROPIC;
+        }
+    }
+    else if (state == TSS::MAGFILTER)
+    {
+        g_draw.samplerFlags[stage] &= ~(BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MAG_ANISOTROPIC);
+        if (value == kTextureSamplePoint)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MAG_POINT;
+        }
+        else if (value == kTextureSampleAnisotropic)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MAG_ANISOTROPIC;
+        }
+    }
+    else if (state == TSS::MIPFILTER)
+    {
+        g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_MIP_POINT;
+        g_draw.mipFilterDisabled[stage] = value == kTextureSampleNone;
+        if (value == kTextureSamplePoint)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIP_POINT;
+        }
+    }
+    else if (state == TSS::TEXCOORDINDEX)
+    {
+        g_draw.texcoordIndex[stage] = value;
+        const unsigned uvIndex = value & 0xFFFFu;
+        const unsigned texcoordGen = value & 0xFFFF0000u;
+        if (stage == 3 && texcoordGen == kTexcoordGenCameraPosition)
+        {
+            g_draw.texcoordSource[3] = 3.0f;
+        }
+        else if (stage == 3)
+        {
+            g_draw.texcoordSource[3] = (uvIndex == 1) ? 1.0f : 0.0f;
+        }
+    }
+    else if (state == TSS::TEXTURETRANSFORMFLAGS)
+    {
+        g_draw.textureTransformFlags[stage] = value;
+    }
+}
+
+void BgfxBackend::Configure_Custom_Edging_Cloud_Texture_Stages()
+{
+    Set_Texture_Stage_State(0, TSS::ALPHAARG1, kTextureArgCurrent);
+    Set_Texture_Stage_State(0, TSS::ALPHAOP, kTextureOpSelectArg1);
+
+    Set_Texture_Stage_State(1, TSS::COLORARG1, kTextureArgCurrent);
+    Set_Texture_Stage_State(1, TSS::COLORARG2, kTextureArgTexture);
+    Set_Texture_Stage_State(1, TSS::COLOROP, kTextureOpSelectArg1);
+    Set_Texture_Stage_State(1, TSS::ALPHAARG1, kTextureArgCurrent);
+    Set_Texture_Stage_State(1, TSS::ALPHAARG2, kTextureArgTexture);
+    Set_Texture_Stage_State(1, TSS::ALPHAOP, kTextureOpSelectArg2);
+    Set_Texture_Stage_State(1, TSS::TEXCOORDINDEX, 1);
+}
+
+void BgfxBackend::Configure_Shadow_Volume_Fill_Texture_Stages()
+{
+    Set_Texture_Stage_State(0, TSS::COLORARG1, kTextureArgTexture);
+    Set_Texture_Stage_State(0, TSS::COLORARG2, kTextureArgDiffuse);
+    Set_Texture_Stage_State(0, TSS::COLOROP, kTextureOpSelectArg2);
+    Set_Texture_Stage_State(0, TSS::ALPHAOP, kTextureOpDisable);
+    Set_Texture_Stage_State(0, TSS::TEXCOORDINDEX, 0);
+
+    Set_Texture_Stage_State(1, TSS::COLOROP, kTextureOpDisable);
+    Set_Texture_Stage_State(1, TSS::ALPHAOP, kTextureOpDisable);
+    Set_Texture_Stage_State(1, TSS::TEXCOORDINDEX, 1);
+}
+
+void BgfxBackend::Set_Shroud_Texture_Pass_Active(bool active, unsigned stage)
+{
+    g_views.shroudTexturePassActive = active;
+    g_views.shroudTexturePassStage = stage;
+    if (!active)
+    {
+        g_draw.shroudTextureParamsValid = false;
+        g_views.objectShroudTexturePassActive = false;
+    }
+    if (!active || stage != 0)
+    {
+        g_draw.texcoordSelect[2] = 0.0f;
+    }
+}
+
+void BgfxBackend::Set_Object_Shroud_Texture_Pass_Active(bool active)
+{
+    g_views.objectShroudTexturePassActive = active;
+}
+
+void BgfxBackend::Set_Object_Shroud_Alpha_Mask_Texture(TextureBaseClass * texture)
+{
+    g_draw.objectShroudDim[1] = texture != nullptr ? 1.0f : 0.0f;
+    // The delayed object-shroud shader uses the object's base texture as an
+    // alpha mask, but it renders under the shroud shader rather than the
+    // object's original shader. Preserve WW3D's cutout coverage by applying
+    // the same default alpha-test cutoff used by alpha-tested meshes.
+    g_draw.objectShroudDim[2] = texture != nullptr ? kDefaultAlphaTestRef : 0.0f;
+    if (texture == nullptr)
+    {
+        return;
+    }
+
+    bgfx::TextureHandle h = EnsureBgfxTexture(texture);
+    g_draw.tex[1] = h;
+    g_draw.sourceTextures[1] = texture;
+    g_draw.textureIsMissing[1] = IsMissingOrUnavailableTexture(texture, h);
+
+    g_draw.samplerFlags[1] = 0;
+    if (TextureClass * t2d = texture->As_TextureClass())
+    {
+        const TextureFilterClass & flt = t2d->Get_Filter();
+        if (flt.Get_U_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
+        {
+            g_draw.samplerFlags[1] |= BGFX_SAMPLER_U_CLAMP;
+        }
+        if (flt.Get_V_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
+        {
+            g_draw.samplerFlags[1] |= BGFX_SAMPLER_V_CLAMP;
+        }
+    }
+}
+
+void BgfxBackend::Set_Shroud_Texture_Params(float offset_x, float offset_y,
+                                             float scale_x, float scale_y)
+{
+    g_draw.shroudTextureParams[0] = offset_x;
+    g_draw.shroudTextureParams[1] = offset_y;
+    g_draw.shroudTextureParams[2] = scale_x;
+    g_draw.shroudTextureParams[3] = scale_y;
+    g_draw.shroudTextureParamsValid = true;
+}
+
+// The ground maps of an effect apply to its own draws only. The previous ground maps are restored afterwards,
+// so they do not leak into later draws.
+struct SavedGroundMaps
+{
+    float cloud_params[4];
+    float light_map_params[4];
+    bgfx::TextureHandle cloud_texture;
+    bgfx::TextureHandle light_map_texture;
+};
+
+static SavedGroundMaps Save_Ground_Maps()
+{
+    SavedGroundMaps saved;
+    memcpy(saved.cloud_params, g_draw.cloudParams, sizeof(saved.cloud_params));
+    memcpy(saved.light_map_params, g_draw.lightMapParams, sizeof(saved.light_map_params));
+    saved.cloud_texture = g_draw.cloudTex;
+    saved.light_map_texture = g_draw.lightMapTex;
+    return saved;
+}
+
+static void Restore_Ground_Maps(const SavedGroundMaps & saved)
+{
+    memcpy(g_draw.cloudParams, saved.cloud_params, sizeof(saved.cloud_params));
+    memcpy(g_draw.lightMapParams, saved.light_map_params, sizeof(saved.light_map_params));
+    g_draw.cloudTex = saved.cloud_texture;
+    g_draw.lightMapTex = saved.light_map_texture;
+}
+
+void BgfxBackend::Set_Ground_Maps(const RenderBackendGroundMaps & maps)
+{
+    // The uber shader projects the cloud map as (world * stretch) + scroll and the light map as
+    // world * stretch, so neither takes a world offset.
+    Set_Cloud_Shadow_Params(maps.cloud_texture != nullptr, maps.cloud_projection.bias_u, maps.cloud_projection.bias_v,
+                            maps.cloud_projection.scale_x, maps.cloud_texture);
+    Set_Light_Map_Params(maps.light_map_texture != nullptr, maps.light_map_projection.scale_x, maps.light_map_texture);
+}
+
+void BgfxBackend::Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count,
+                            unsigned short min_vertex_index, unsigned short vertex_count)
+{
+    const SavedGroundMaps saved = Save_Ground_Maps();
+    Set_Ground_Maps(road.maps);
+
+    Override_Terrain_Blend(false);
+    Apply_Render_State_Changes();
+
+    Set_Depth_Func(RB_CMP_LESS_EQUAL);
+    Set_Depth_Write_Enable(false);
+    Set_Lighting_Enable(false);
+
+    Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+    Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
+    Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+    Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+    Set_Texture_Alpha_Argument(0, 2, RB_TEXARG_DIFFUSE);
+    Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
+    Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+
+    Set_Alpha_Blend_Enable(true);
+    Override_Alpha_Blend_Enable(true);
+    Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
+
+    Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+    Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
+
+    Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
+
+    ShaderClass::Invalidate();
+    Clear_Texture_Projection(0);
+    Clear_Texture_Projection(1);
+
+    Restore_Ground_Maps(saved);
+}
+
+void BgfxBackend::Begin_Shroud_Overlay(const RenderBackendShroud & shroud)
+{
+    // The overlay reuses the vertex buffers of the base draws, so it must not take the terrain branch.
+    Override_Terrain_Blend(false);
+
+    VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
+    Set_Material(vmat);
+    REF_PTR_RELEASE(vmat);
+    Bind_Texture_Immediate(0, shroud.texture);
+    Set_Shroud_Texture_Pass_Active(true, 0);
+
+    Set_Shader(ShaderClass::_PresetMultiplicativeSpriteShader);
+    Apply_Render_State_Changes();
+    Set_Depth_Func(RB_CMP_EQUAL);
+
+    Set_World_Texture_Projection(0, shroud.projection);
+}
+
+void BgfxBackend::End_Shroud_Overlay()
+{
+    Set_Shroud_Texture_Pass_Active(false, 0);
+    Set_Texture(0, nullptr);
+    Set_Depth_Func(RB_CMP_LESS_EQUAL);
+    Clear_Texture_Projection(0);
+}
+
+void BgfxBackend::Create_Effect_Resources(bool allow_pixel_shaders)
+{
+    Release_Effect_Resources();
+
+    if (allow_pixel_shaders)
+    {
+        Create_Water_Shaders(*this, m_waterShaders);
+    }
+}
+
+void BgfxBackend::Release_Effect_Resources()
+{
+    Release_Water_Shaders(*this, m_waterShaders);
+}
+
+void BgfxBackend::Draw_Water(const RenderBackendWaterDraw & water, unsigned short start_index, unsigned short polygon_count,
+                             unsigned short min_vertex_index, unsigned short vertex_count)
+{
+    Draw_Water_Stages(*this, m_waterShaders, water, start_index, polygon_count, min_vertex_index, vertex_count);
+}
+
+static RenderBackendTextureSampleFilter Terrain_Min_Mag_Filter(RenderBackendTerrainFiltering filtering)
+{
+    return filtering != RB_TERRAIN_FILTER_POINT ? RB_TEXTURE_SAMPLE_LINEAR : RB_TEXTURE_SAMPLE_POINT;
+}
+
+void BgfxBackend::Draw_Terrain(const RenderBackendTerrainDraw & terrain, VertexBufferClass * const * vertex_buffers,
+                               unsigned int vertex_buffer_count, unsigned short polygon_count, unsigned short vertex_count)
+{
+    const SavedGroundMaps saved = Save_Ground_Maps();
+    Set_Ground_Maps(terrain.maps);
+
+    // Bind every terrain stage, so 2D atlas bindings from earlier passes cannot leak into the terrain draw.
+    Set_Texture(0, terrain.atlas_texture);
+    Set_Texture(1, terrain.atlas_texture);
+    Set_Texture(2, terrain.maps.cloud_texture);
+    Set_Texture(3, terrain.maps.light_map_texture);
+
+    // The uber shader blends the two atlas tiles by vertex alpha in its terrain branch.
+    Override_Terrain_Blend(true);
+    Apply_Render_State_Changes();
+
+    Bind_Texture_Immediate(0, terrain.atlas_texture);
+    Bind_Texture_Immediate(1, terrain.atlas_texture);
+    Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_WRAP);
+    Set_Texture_Address_Mode(1, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_WRAP);
+    Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+    Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
+
+    const RenderBackendTextureSampleFilter min_mag_filter = Terrain_Min_Mag_Filter(terrain.filtering);
+    const RenderBackendTextureSampleFilter stage0_mip_filter =
+        terrain.filtering == RB_TERRAIN_FILTER_TRILINEAR ? RB_TEXTURE_SAMPLE_LINEAR : RB_TEXTURE_SAMPLE_POINT;
+    Set_Texture_Sample_Filter(0, min_mag_filter, min_mag_filter, stage0_mip_filter);
+    Set_Texture_Sample_Filter(1, min_mag_filter, min_mag_filter, RB_TEXTURE_SAMPLE_LINEAR);
+
+    if (terrain.maps.cloud_texture && terrain.maps.light_map_texture)
+    {
+        Set_Texture_Address_Mode(2, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
+        Set_Texture_Address_Mode(3, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
+        Bind_Texture_Immediate(2, terrain.maps.cloud_texture);
+        Bind_Texture_Immediate(3, terrain.maps.light_map_texture);
+        Set_Texture_Min_Mag_Filter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
+        Set_Texture_Min_Mag_Filter(3, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
+        Set_World_Texture_Projection(2, terrain.maps.cloud_projection);
+        Set_World_Texture_Projection(3, terrain.maps.light_map_projection);
+    }
+    else if (terrain.maps.cloud_texture)
+    {
+        Set_Texture_Address_Mode(2, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
+        Bind_Texture_Immediate(2, terrain.maps.cloud_texture);
+        Set_Texture_Min_Mag_Filter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
+        Set_World_Texture_Projection(2, terrain.maps.cloud_projection);
+    }
+    else if (terrain.maps.light_map_texture)
+    {
+        Set_Texture_Address_Mode(2, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
+        Bind_Texture_Immediate(2, terrain.maps.light_map_texture);
+        Set_Texture_Min_Mag_Filter(2, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
+        Set_World_Texture_Projection(2, terrain.maps.light_map_projection);
+    }
+    Set_Pixel_Shader(0);
+
+    for (unsigned int i = 0; i < vertex_buffer_count; ++i)
+    {
+        Set_Vertex_Buffer(vertex_buffers[i], 0);
+        Draw_Triangles(0, polygon_count, 0, vertex_count);
+    }
+
+    Override_Terrain_Blend(false);
+    Bind_Texture_Immediate(2, nullptr);
+    Bind_Texture_Immediate(3, nullptr);
+    Bind_Texture_Immediate(0, nullptr);
+    Bind_Texture_Immediate(1, nullptr);
+    Clear_Texture_Projection(0);
+    Clear_Texture_Projection(1);
+    Clear_Texture_Projection(2);
+    Clear_Texture_Projection(3);
+    Invalidate_Cached_Render_States();
+
+    Restore_Ground_Maps(saved);
+}
+
+void BgfxBackend::Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection)
+{
+    Matrix4x4 view;
+    Get_Transform(RB_TRANSFORM_VIEW, view);
+
+    const Matrix4x4 offset(
+        1.0f, 0.0f, 0.0f, projection.offset_x,
+        0.0f, 1.0f, 0.0f, projection.offset_y,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
+    const Matrix4x4 scale(
+        projection.scale_x, 0.0f, 0.0f, 0.0f,
+        0.0f, projection.scale_y, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
+    const Matrix4x4 bias(
+        1.0f, 0.0f, 0.0f, projection.bias_u,
+        0.0f, 1.0f, 0.0f, projection.bias_v,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
+
+    Set_Texture_Coord_Source(stage, RB_TEXCOORD_CAMERA_SPACE_POSITION, 0);
+    Set_Texture_Transform_Mode(stage, 2, false);
+    Set_Texture_Transform(stage, bias * (scale * (offset * view.Inverse())));
+
+    // The shroud shader samples from world position directly, so it takes the
+    // projection itself instead of the camera-space matrix.
+    if (g_views.shroudTexturePassActive && g_views.shroudTexturePassStage == stage)
+    {
+        Set_Shroud_Texture_Params(projection.offset_x, projection.offset_y, projection.scale_x, projection.scale_y);
+    }
+}
+
+void BgfxBackend::Clear_Texture_Projection(unsigned stage)
+{
+    Set_Texture_Coord_Source(stage, RB_TEXCOORD_MESH_UV, stage);
+    Set_Texture_Transform_Mode(stage, 0, false);
+}
+
+void BgfxBackend::Override_Terrain_Blend(bool enable)
+{
+    g_draw.texcoordSelect[1] = enable ? 1.0f : 0.0f;
+}
+
+void BgfxBackend::Override_Material_Opacity(float opacity)
+{
+    // TheSuperHackers @fix bobtista 20/04/2026 Only override the opacity uniform; the water
+    // code sets DESTALPHA explicitly via Set_Blend_Factors when soft water edge is enabled.
+    g_draw.matDiffuse[3] = opacity;
+    g_views.waterOverrideActive = true;
+}
+
+void BgfxBackend::Begin_Water_Overlay()
+{
+    g_views.waterOverlayActive = true;
+}
+
+void BgfxBackend::End_Water_Overlay()
+{
+    g_views.waterOverlayActive = false;
+}
+
+void BgfxBackend::Begin_Effect_Overlay()
+{
+    if (GgcFlags::Enabled(GgcFlag_NoEffectOverlay))
+    {
+        return;
+    }
+    g_views.effectOverlayActive = true;
+}
+
+void BgfxBackend::End_Effect_Overlay()
+{
+    g_views.effectOverlayActive = false;
+}
+
+bool BgfxBackend::Begin_Smudge_Distortion(float tactical_width_fraction,
+                                          float tactical_height_fraction)
+{
+    const BgfxDiagnosticFlags diagnostics = GetBgfxDiagnosticFlags();
+    if (diagnostics.noSceneFramebuffer
+        || diagnostics.noPostFx
+        || !bgfx::isValid(g_device.sceneColor)
+        || !bgfx::isValid(g_device.sceneSmudgeCopy)
+        || !bgfx::isValid(g_device.sceneSmudgeCopyFB)
+        || !bgfx::isValid(g_device.copyProgram)
+        || !bgfx::isValid(g_device.fullscreenClearVB)
+        || !bgfx::isValid(g_uniforms.sTex0)
+        || !bgfx::isValid(g_device.smudgeProgram))
+    {
+        return false;
+    }
+
+    const float sceneWidth = static_cast<float>(g_device.sceneRenderWidth != 0 ? g_device.sceneRenderWidth : g_device.width);
+    const float sceneHeight = static_cast<float>(g_device.sceneRenderHeight != 0 ? g_device.sceneRenderHeight : g_device.height);
+    uint16_t viewportX = g_views.sceneViewportW != 0 ? g_views.sceneViewportX : 0;
+    uint16_t viewportY = g_views.sceneViewportH != 0 ? g_views.sceneViewportY : 0;
+    uint16_t viewportW = g_views.sceneViewportW != 0 ? g_views.sceneViewportW : static_cast<uint16_t>(sceneWidth);
+    uint16_t viewportH = g_views.sceneViewportH != 0 ? g_views.sceneViewportH : static_cast<uint16_t>(sceneHeight);
+    const float passedClipX = WWMath::Clamp(tactical_width_fraction, 0.0f, 1.0f);
+    const float passedClipY = WWMath::Clamp(tactical_height_fraction, 0.0f, 1.0f);
+    if (sceneWidth > 0.0f && sceneHeight > 0.0f
+        && (passedClipX < 0.999f || passedClipY < 0.999f))
+    {
+        viewportX = 0;
+        viewportY = 0;
+        viewportW = static_cast<uint16_t>(sceneWidth * passedClipX + 0.5f);
+        viewportH = static_cast<uint16_t>(sceneHeight * passedClipY + 0.5f);
+    }
+    bgfx::setViewRect(kBgfxSmudgeCopyView, 0, 0,
+                      static_cast<uint16_t>(sceneWidth),
+                      static_cast<uint16_t>(sceneHeight));
+    bgfx::setViewRect(kBgfxSmudgeView, viewportX, viewportY, viewportW, viewportH);
+    g_views.smudgeClip[0] = sceneWidth > 0.0f ? 1.0f / sceneWidth : 1.0f;
+    g_views.smudgeClip[1] = sceneHeight > 0.0f ? 1.0f / sceneHeight : 1.0f;
+    g_views.smudgeClip[2] = sceneWidth > 0.0f
+        ? WWMath::Clamp(static_cast<float>(viewportX + viewportW) / sceneWidth, 0.0f, 1.0f)
+        : passedClipX;
+    g_views.smudgeClip[3] = sceneHeight > 0.0f
+        ? WWMath::Clamp(static_cast<float>(viewportY + viewportH) / sceneHeight, 0.0f, 1.0f)
+        : passedClipY;
+
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor,
+                     BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+    SetFullscreenPassFlip(false);
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_DEPTH_TEST_ALWAYS);
+    bgfx::submit(kBgfxSmudgeCopyView, g_device.copyProgram);
+    g_views.smudgeActive = true;
+    return true;
+}
+
+void BgfxBackend::End_Smudge_Distortion()
+{
+    g_views.smudgeActive = false;
+}
+
+void BgfxBackend::Set_Tree_Shader_Constants(const float swayTable[11][4],
+                                            const float shroudOffset[4],
+                                            const float shroudScale[4])
+{
+    std::memcpy(g_draw.swayTable,    swayTable,    sizeof(g_draw.swayTable));
+    std::memcpy(g_draw.shroudOffset, shroudOffset, sizeof(g_draw.shroudOffset));
+    std::memcpy(g_draw.shroudScale,  shroudScale,  sizeof(g_draw.shroudScale));
+}
+
+void BgfxBackend::Set_Tree_Vertex_Shader_Active(bool active)
+{
+    g_views.treeShaderActive = active;
+}
+
+void BgfxBackend::Set_Grayscale_Mode(bool enable)
+{
+    g_draw.grayscaleEnable[0] = enable ? 1.0f : 0.0f;
+}
+
+void BgfxBackend::Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scroll_y,
+                                          float stretch, TextureClass * cloud_tex)
+{
+    if (GgcFlags::Enabled(GgcFlag_NoCloudShadows))
+    {
+        enable = false;
+        cloud_tex = nullptr;
+    }
+
+    g_draw.cloudParams[0] = scroll_x;
+    g_draw.cloudParams[1] = scroll_y;
+    g_draw.cloudParams[2] = stretch;
+    g_draw.cloudParams[3] = enable ? 1.0f : 0.0f;
+
+    if (enable && cloud_tex != nullptr)
+    {
+        g_draw.cloudTex = EnsureBgfxTexture(cloud_tex);
+    }
+    else
+    {
+        g_draw.cloudTex = BGFX_INVALID_HANDLE;
+    }
+}
+
+// TheSuperHackers @feature bobtista 17/07/2026 Static noise/lightmap layer (the DX8
+// ST_TERRAIN_BASE_NOISE2 pass): world-XY projected multiplicative texture, applied by
+// fs_uber to terrain and other ground draws alongside the cloud shadow. Kill switch
+// GGC_NO_LIGHTMAP restores the previous no-lightmap rendering.
+void BgfxBackend::Set_Light_Map_Params(bool enable, float stretch, TextureClass * noise_tex)
+{
+    if (GgcFlags::Enabled(GgcFlag_NoLightMap))
+    {
+        enable = false;
+        noise_tex = nullptr;
+    }
+
+    g_draw.lightMapParams[0] = stretch;
+    g_draw.lightMapParams[1] = 0.0f;
+    g_draw.lightMapParams[2] = 0.0f;
+    g_draw.lightMapParams[3] = enable ? 1.0f : 0.0f;
+
+    if (enable && noise_tex != nullptr)
+    {
+        g_draw.lightMapTex = EnsureBgfxTexture(noise_tex);
+    }
+    else
+    {
+        g_draw.lightMapTex = BGFX_INVALID_HANDLE;
+    }
+}
+
+void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha)
+{
+    uint64_t mask = 0;
+    if (red)
+    {
+        mask |= BGFX_STATE_WRITE_R;
+    }
+    if (green)
+    {
+        mask |= BGFX_STATE_WRITE_G;
+    }
+    if (blue)
+    {
+        mask |= BGFX_STATE_WRITE_B;
+    }
+    if (alpha)
+    {
+        mask |= BGFX_STATE_WRITE_A;
+    }
+    unsigned d3dMask = 0;
+    if (red)
+    {
+        d3dMask |= RB_COLOR_RED;
+    }
+    if (green)
+    {
+        d3dMask |= RB_COLOR_GREEN;
+    }
+    if (blue)
+    {
+        d3dMask |= RB_COLOR_BLUE;
+    }
+    if (alpha)
+    {
+        d3dMask |= RB_COLOR_ALPHA;
+    }
+    FixedFunctionState::Set_Color_Write_Mask(d3dMask);
+    g_overrides.colorWriteOverride = static_cast<int>(mask);
+    g_overrides.suppressDraw = false;
+}
+
+// TheSuperHackers @refactor bobtista 15/04/2026 Mirror the
+// DWORD variant into g_overrides.colorWriteOverride so stencil shadow volume
+// passes that call Set_Color_Write_Mask(0) actually disable bgfx color writes.
+unsigned BgfxBackend::Get_Color_Write_Mask() const
+{
+    return FixedFunctionState::Color_Write_Mask(
+        RB_COLOR_RED | RB_COLOR_GREEN | RB_COLOR_BLUE | RB_COLOR_ALPHA);
+}
+
+void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
+{
+    FixedFunctionState::Set_Color_Write_Mask(mask);
+    uint64_t bgfxMask = 0;
+    if (mask & RB_COLOR_RED)
+    {
+        bgfxMask |= BGFX_STATE_WRITE_R;
+    }
+    if (mask & RB_COLOR_GREEN)
+    {
+        bgfxMask |= BGFX_STATE_WRITE_G;
+    }
+    if (mask & RB_COLOR_BLUE)
+    {
+        bgfxMask |= BGFX_STATE_WRITE_B;
+    }
+    if (mask & RB_COLOR_ALPHA)
+    {
+        bgfxMask |= BGFX_STATE_WRITE_A;
+    }
+    g_overrides.colorWriteOverride = static_cast<int>(bgfxMask);
+    g_overrides.suppressDraw = false;
+}
+
+void BgfxBackend::Set_Lighting_Enable(bool enable)
+{
+    FixedFunctionState::Set_Lighting_Enabled(enable);
+    g_draw.lightingEnabled[0] = enable ? 1.0f : 0.0f;
+}
+
+void BgfxBackend::Set_Point_Sprite_Enable(bool enable)
+{
+    FixedFunctionState::Set_Point_Sprite_Enabled(enable);
+}
+
+void BgfxBackend::Set_Point_Scale_Enable(bool enable)
+{
+    FixedFunctionState::Set_Point_Scale_Enabled(enable);
+}
+
+void BgfxBackend::Set_Point_Size(float size, float min_size, float max_size)
+{
+    FixedFunctionState::Set_Point_Size_Bits(
+        FloatAsDword(size),
+        FloatAsDword(min_size),
+        FloatAsDword(max_size));
+}
+
+void BgfxBackend::Set_Point_Scale(float a, float b, float c)
+{
+    FixedFunctionState::Set_Point_Scale_Bits(
+        FloatAsDword(a),
+        FloatAsDword(b),
+        FloatAsDword(c));
+}
+
+void BgfxBackend::Skip_Next_Bgfx_Submit()
+{
+    g_views.skipNextSubmitEngineDraw = true;
+}
+
+void BgfxBackend::Set_Projected_Shadow_Decal_Active(bool active)
+{
+    Set_Projected_Decal_Mode(active ? RB_PROJECTED_DECAL_BLOB_SHADOW : RB_PROJECTED_DECAL_NONE);
+}
+
+void BgfxBackend::Set_Projected_Decal_Mode(RenderBackendProjectedDecalMode mode)
+{
+    g_views.projectedDecalMode = static_cast<unsigned>(mode);
+    g_views.projectedShadowDecalActive = mode != RB_PROJECTED_DECAL_NONE;
+}
+
+// TheSuperHackers @fix bobtista 16/04/2026 Remove g_draw.matDiffuse aliasing from texture factor.
+// The shadow decal draw is now skipped via Skip_Next_Bgfx_Submit so the aliasing
+// is unnecessary and it clobbers team colors.
+void BgfxBackend::Set_Texture_Factor(unsigned argb)
+{
+    FixedFunctionState::Set_Texture_Factor(argb);
+}
+
+void BgfxBackend::Set_Shadow_Volume_Shader_Active(bool active)
+{
+    g_views.shadowVolumeActive = active;
+    UpdateShadowStencilState();
+}
+
+void BgfxBackend::Submit_Shadow_Volume_Caps(unsigned strip_start_vertex,
+                                            unsigned num_silhouette_verts)
+{
+    // Called after the engine's side-wall Draw_Triangles for a volume.
+    // Generates a front cap (fan of caster-level verts, preserving the
+    // engine's silhouette winding) and a back cap (fan of extruded verts,
+    // reversed winding so outward normals point away from the light)
+    // as a transient index buffer referencing the already-bound dynamic
+    // vertex buffer. Submits to view 6 with the same stencil/cull state
+    // the side walls used — the caller is mid-pass (INCR or DECRSAT).
+
+    if (!LegacyStencilShadowsEnabled()
+        || !g_device.initialized
+        || !g_views.shadowVolumeActive
+        || !bgfx::isValid(g_device.shadowVolumeProgram)
+        || !bgfx::isValid(g_draw.vb)
+        || num_silhouette_verts < 3)
+    {
+        LogBgfxStencilShadowEvent("caps-skip", "disabled-or-invalid",
+                                  num_silhouette_verts, 0);
+        return;
+    }
+
+    const unsigned tris_per_cap = num_silhouette_verts - 2;
+    const unsigned total_indices = 2 * tris_per_cap * 3;
+
+    if (bgfx::getAvailTransientIndexBuffer(total_indices) < total_indices)
+    {
+        LogBgfxStencilShadowEvent("caps-skip", "no-transient-index-buffer",
+                                  num_silhouette_verts, total_indices);
+        return;
+    }
+
+    bgfx::TransientIndexBuffer tib;
+    bgfx::allocTransientIndexBuffer(&tib, total_indices);
+    g_stats.transientIbAllocations++;
+    uint16_t * idx = reinterpret_cast<uint16_t *>(tib.data);
+
+    // Front cap: fan around caster-level verts. Winding FLIPPED vs
+    // initial guess — the engine's silhouette traversal direction may
+    // not match our assumed "outward = up" for the front cap.
+    for (unsigned i = 1; i < num_silhouette_verts - 1; ++i)
+    {
+        *idx++ = static_cast<uint16_t>(strip_start_vertex + 0);
+        *idx++ = static_cast<uint16_t>(strip_start_vertex + 2 * (i + 1));
+        *idx++ = static_cast<uint16_t>(strip_start_vertex + 2 * i);
+    }
+    // Back cap: fan around extruded verts (odd offsets), winding opposite
+    // of front cap (so opposite outward normal).
+    for (unsigned i = 1; i < num_silhouette_verts - 1; ++i)
+    {
+        *idx++ = static_cast<uint16_t>(strip_start_vertex + 1);
+        *idx++ = static_cast<uint16_t>(strip_start_vertex + 2 * i + 1);
+        *idx++ = static_cast<uint16_t>(strip_start_vertex + 2 * (i + 1) + 1);
+    }
+
+    // Skip second pass — single-pass two-sided handles both faces.
+    if (g_draw.stencilPassOpBits == BGFX_STENCIL_OP_PASS_Z_DECR
+        || g_draw.stencilPassOpBits == BGFX_STENCIL_OP_PASS_Z_DECRSAT)
+    {
+        LogBgfxStencilShadowEvent("caps-skip", "second-pass-two-sided",
+                                  num_silhouette_verts, total_indices);
+        return;
+    }
+
+    // No face culling, two-sided stencil matching the side-wall submit.
+    uint64_t state = BgfxShadowVolumeDepthState();
+    bgfx::setState(state);
+    const uint32_t commonBits = g_draw.stencilFuncBits
+        | BGFX_STENCIL_FUNC_REF(g_draw.stencilRef & 0xFF)
+        | BGFX_STENCIL_FUNC_RMASK(g_draw.stencilReadMask & 0xFF)
+        | g_draw.stencilFailOpBits
+        | g_draw.stencilZFailOpBits;
+    bgfx::setStencil(commonBits | BGFX_STENCIL_OP_PASS_Z_DECRSAT,
+                     commonBits | BGFX_STENCIL_OP_PASS_Z_INCRSAT);
+
+    bgfx::setVertexBuffer(0, g_draw.vb);
+    bgfx::setIndexBuffer(&tib);
+    bgfx::setTransform(g_frame.world);
+    BindShadowVolumeBiasUniform();
+
+    bgfx::submit(BgfxShadowVolumeSubmitView(), g_device.shadowVolumeProgram);
+    g_stats.shadowVolumeSubmits++;
+    LogBgfxStencilShadowEvent("caps-submit", nullptr,
+                              num_silhouette_verts, total_indices);
+}
+
+void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
+    unsigned strip_start_vertex,
+    const short * local_cap_indices,
+    unsigned cap_index_count)
+{
+    if (!LegacyStencilShadowsEnabled()
+        || !g_device.initialized
+        || !g_views.shadowVolumeActive
+        || !bgfx::isValid(g_device.shadowVolumeProgram)
+        || !bgfx::isValid(g_draw.vb)
+        || local_cap_indices == nullptr
+        || cap_index_count < 3)
+    {
+        LogBgfxStencilShadowEvent("tri-caps-skip", "disabled-or-invalid",
+                                  cap_index_count, 0);
+        return;
+    }
+
+    // front cap + back cap (reversed winding)
+    const unsigned total_indices = cap_index_count * 2;
+
+    if (bgfx::getAvailTransientIndexBuffer(total_indices) < total_indices)
+    {
+        LogBgfxStencilShadowEvent("tri-caps-skip", "no-transient-index-buffer",
+                                  cap_index_count, total_indices);
+        return;
+    }
+
+    bgfx::TransientIndexBuffer tib;
+    bgfx::allocTransientIndexBuffer(&tib, total_indices);
+    g_stats.transientIbAllocations++;
+    uint16_t * idx = reinterpret_cast<uint16_t *>(tib.data);
+
+    // Front cap: local indices map to caster-level verts at
+    // strip_start + 2*local (even offsets). Winding preserved.
+    for (unsigned i = 0; i + 2 < cap_index_count; i += 3)
+    {
+        *idx++ = static_cast<uint16_t>(
+            strip_start_vertex + 2 * static_cast<unsigned>(local_cap_indices[i + 0]));
+        *idx++ = static_cast<uint16_t>(
+            strip_start_vertex + 2 * static_cast<unsigned>(local_cap_indices[i + 1]));
+        *idx++ = static_cast<uint16_t>(
+            strip_start_vertex + 2 * static_cast<unsigned>(local_cap_indices[i + 2]));
+    }
+    // Back cap: local indices map to extruded verts at
+    // strip_start + 2*local + 1 (odd offsets). Winding REVERSED so
+    // outward normal points away from light (opposite of front cap).
+    for (unsigned i = 0; i + 2 < cap_index_count; i += 3)
+    {
+        *idx++ = static_cast<uint16_t>(
+            strip_start_vertex + 2 * static_cast<unsigned>(local_cap_indices[i + 0]) + 1);
+        *idx++ = static_cast<uint16_t>(
+            strip_start_vertex + 2 * static_cast<unsigned>(local_cap_indices[i + 2]) + 1);
+        *idx++ = static_cast<uint16_t>(
+            strip_start_vertex + 2 * static_cast<unsigned>(local_cap_indices[i + 1]) + 1);
+    }
+
+    // Mirror the side-wall submit's state.
+    uint64_t state = BgfxShadowVolumeDepthState();
+    if (g_draw.cullModeBits == 1)
+    {
+        state |= BGFX_STATE_CULL_CW;
+    }
+    else if (g_draw.cullModeBits == 2)
+    {
+        state |= BGFX_STATE_CULL_CCW;
+    }
+    bgfx::setState(state);
+    bgfx::setStencil(g_draw.shadowStencilFront, g_draw.shadowStencilBack);
+
+    bgfx::setVertexBuffer(0, g_draw.vb);
+    bgfx::setIndexBuffer(&tib);
+    bgfx::setTransform(g_frame.world);
+    BindShadowVolumeBiasUniform();
+
+    bgfx::submit(BgfxShadowVolumeSubmitView(), g_device.shadowVolumeProgram);
+    g_stats.shadowVolumeSubmits++;
+    LogBgfxStencilShadowEvent("tri-caps-submit", nullptr,
+                              cap_index_count, total_indices);
+}
+
+bool BgfxBackend::Needs_Closed_Shadow_Volumes() const
+{
+    return LegacyStencilShadowsEnabled()
+        && GgcFlags::Enabled(GgcFlag_BgfxClosedShadowVolumes);
+}
+
+void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
+                                              unsigned stencil_read_mask,
+                                              unsigned stencil_ref,
+                                              int /*x*/,
+                                              int /*y*/,
+                                              int /*width*/,
+                                              int /*height*/)
+{
+    if (!LegacyStencilShadowsEnabled()
+        || GgcFlags::Enabled(GgcFlag_BgfxStencilNoApply)
+        || !g_device.initialized
+        || !bgfx::isValid(g_device.shadowApplyProgram))
+    {
+        LogBgfxStencilShadowEvent("darken-skip", "disabled-or-invalid",
+                                  stencil_read_mask, stencil_ref);
+        return;
+    }
+    // The legacy DX8 shadow manager draws its volume geometry through raw D3D
+    // state in some paths. bgfx only sees stencil writes that are explicitly
+    // submitted through this backend. If no bgfx shadow volume touched stencil
+    // this frame, the fullscreen darken quad would read stale stencil contents
+    // left by unrelated passes and darken buildings/terrain based on camera
+    // position. Only apply the darken pass when bgfx populated the matching
+    // shadow stencil first.
+    if (g_stats.shadowVolumeSubmits == 0)
+    {
+        LogBgfxStencilShadowEvent("darken-skip", "no-volume-submits",
+                                  stencil_read_mask, stencil_ref);
+        return;
+    }
+
+    bgfx::TransientVertexBuffer tvb;
+    bgfx::TransientIndexBuffer tib;
+    bgfx::VertexLayout layout;
+    layout.begin().add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float).end();
+
+    if (!bgfx::allocTransientBuffers(&tvb, layout, 4, &tib, 6))
+    {
+        LogBgfxStencilShadowEvent("darken-skip", "no-transient-buffers",
+                                  stencil_read_mask, stencil_ref);
+        return;
+    }
+    g_stats.transientVbAllocations++;
+    g_stats.transientIbAllocations++;
+
+    float * verts = (float *)tvb.data;
+    verts[0] = -1.0f; verts[1] = -1.0f; verts[2] = 0.0f;
+    verts[3] =  1.0f; verts[4] = -1.0f; verts[5] = 0.0f;
+    verts[6] = -1.0f; verts[7] =  1.0f; verts[8] = 0.0f;
+    verts[9] =  1.0f; verts[10] =  1.0f; verts[11] = 0.0f;
+
+    uint16_t * idx = (uint16_t *)tib.data;
+    idx[0] = 0; idx[1] = 1; idx[2] = 2;
+    idx[3] = 2; idx[4] = 1; idx[5] = 3;
+
+    bgfx::setVertexBuffer(0, &tvb);
+    bgfx::setIndexBuffer(&tib);
+
+    float color[4];
+    color[0] = static_cast<float>((shadow_color >> 16) & 0xFF) / 255.0f;
+    color[1] = static_cast<float>((shadow_color >>  8) & 0xFF) / 255.0f;
+    color[2] = static_cast<float>((shadow_color      ) & 0xFF) / 255.0f;
+    color[3] = static_cast<float>((shadow_color >> 24) & 0xFF) / 255.0f;
+    if (bgfx::isValid(g_uniforms.uShadowColor))
+    {
+        bgfx::setUniform(g_uniforms.uShadowColor, color);
+    }
+
+    uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
+        | BGFX_STATE_DEPTH_TEST_ALWAYS
+        | BGFX_STATE_MSAA
+        | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_DST_COLOR, BGFX_STATE_BLEND_ZERO);
+    bgfx::setState(state);
+
+    // Shadow volumes leave a non-zero count in stencil where the fullscreen
+    // darken quad should apply. Use an explicit front/back state because the
+    // clip-space quad winding differs across backends.
+    uint32_t stencil = BGFX_STENCIL_TEST_NOTEQUAL
+        | BGFX_STENCIL_FUNC_REF(0)
+        | BGFX_STENCIL_FUNC_RMASK(stencil_read_mask & 0xFF)
+        | BGFX_STENCIL_OP_FAIL_S_KEEP
+        | BGFX_STENCIL_OP_FAIL_Z_KEEP
+        | BGFX_STENCIL_OP_PASS_Z_KEEP;
+    bgfx::setStencil(stencil, stencil);
+
+    bgfx::submit(BgfxShadowVolumeSubmitView(), g_device.shadowApplyProgram);
+    g_stats.shadowApplySubmits++;
+    LogBgfxStencilShadowEvent("darken-submit", nullptr,
+                              stencil_read_mask, stencil_ref);
+}
+
+void BgfxBackend::Set_Stencil_Enable(bool enable)
+{
+    FixedFunctionState::Set_Stencil_Enabled(enable);
+    g_draw.stencilEnabled = enable;
+    UpdateShadowStencilState();
+}
+
+void BgfxBackend::Set_Stencil_Func(CompareFunc f)
+{
+    FixedFunctionState::Set_Stencil_Function(static_cast<unsigned>(f));
+    g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(f);
+    UpdateShadowStencilState();
+}
+
+void BgfxBackend::Set_Stencil_Ref(unsigned ref)
+{
+    FixedFunctionState::Set_Stencil_Reference(ref);
+    g_draw.stencilRef = ref;
+    UpdateShadowStencilState();
+}
+
+void BgfxBackend::Set_Stencil_Mask(unsigned mask)
+{
+    FixedFunctionState::Set_Stencil_Read_Mask(mask);
+    g_draw.stencilReadMask = mask;
+    UpdateShadowStencilState();
+}
+
+void BgfxBackend::Set_Stencil_Write_Mask(unsigned mask)
+{
+    FixedFunctionState::Set_Stencil_Write_Mask(mask);
+    UpdateShadowStencilState();
+}
+
+void BgfxBackend::Set_Stencil_Pass_Op(StencilOp op)
+{
+    FixedFunctionState::Set_Stencil_Pass_Op(static_cast<unsigned>(op));
+    g_draw.stencilPassOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_PASS_Z_SHIFT);
+    UpdateShadowStencilState();
+}
+
+void BgfxBackend::Set_Stencil_Fail_Op(StencilOp op)
+{
+    FixedFunctionState::Set_Stencil_Fail_Op(static_cast<unsigned>(op));
+    g_draw.stencilFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_S_SHIFT);
+    UpdateShadowStencilState();
+}
+
+void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
+{
+    FixedFunctionState::Set_Stencil_ZFail_Op(static_cast<unsigned>(op));
+    g_draw.stencilZFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_Z_SHIFT);
+    UpdateShadowStencilState();
+}
+
+CullMode BgfxBackend::Get_Cull_Mode() const
+{
+    return static_cast<CullMode>(FixedFunctionState::Cull_Mode(RB_CULL_NONE));
+}
+
+void BgfxBackend::Set_Cull_Mode(CullMode mode)
+{
+    FixedFunctionState::Set_Cull_Mode(static_cast<unsigned>(mode));
+    switch (mode)
+    {
+        case RB_CULL_CW:  g_draw.cullModeBits = 1; break;
+        case RB_CULL_CCW: g_draw.cullModeBits = 2; break;
+        case RB_CULL_NONE:
+        default:          g_draw.cullModeBits = 0; break;
+    }
+}
+
+void BgfxBackend::Set_Z_Bias(int bias)
+{
+    FixedFunctionState::Set_Z_Bias(bias);
+    g_draw.zBiasUnits = static_cast<unsigned>(bias) & 0xFFu;
+}
+
+void BgfxBackend::Set_Normal_Bias(float bias)
+{
+    g_draw.normalBias[0] = bias;
+}
+
+void BgfxBackend::Set_Fill_Mode(FillMode mode)
+{
+    FixedFunctionState::Set_Fill_Mode(static_cast<unsigned>(mode));
+}
+
+void BgfxBackend::Set_Shade_Mode(ShadeMode mode)
+{
+    FixedFunctionState::Set_Shade_Mode(static_cast<unsigned>(mode));
+}
+
+void BgfxBackend::Set_Depth_Test_Enable(bool enable)
+{
+    FixedFunctionState::Set_Depth_Test_Enabled(enable);
+    g_draw.depthTestEnabled = enable;
+}
+
+void BgfxBackend::Set_Depth_Write_Enable(bool enable)
+{
+    FixedFunctionState::Set_Depth_Write_Enabled(enable);
+    g_draw.depthWriteEnabled = enable;
+}
+
+void BgfxBackend::Set_Depth_Func(CompareFunc func)
+{
+    const unsigned idx = static_cast<unsigned>(func);
+    FixedFunctionState::Set_Depth_Function(idx);
+    g_draw.depthFunc = idx;
+    static const uint64_t kDepthMap[] = {
+        0,                              // 0 (unused)
+        BGFX_STATE_DEPTH_TEST_NEVER,    // RB_CMP_NEVER = 1
+        BGFX_STATE_DEPTH_TEST_LESS,     // RB_CMP_LESS = 2
+        BGFX_STATE_DEPTH_TEST_EQUAL,    // RB_CMP_EQUAL = 3
+        BGFX_STATE_DEPTH_TEST_LEQUAL,   // RB_CMP_LESS_EQUAL = 4
+        BGFX_STATE_DEPTH_TEST_GREATER,  // RB_CMP_GREATER = 5
+        BGFX_STATE_DEPTH_TEST_NOTEQUAL, // RB_CMP_NOT_EQUAL = 6
+        BGFX_STATE_DEPTH_TEST_GEQUAL,   // RB_CMP_GREATER_EQUAL = 7
+        BGFX_STATE_DEPTH_TEST_ALWAYS,   // RB_CMP_ALWAYS = 8
+    };
+    if (idx < 9)
+    {
+        g_draw.depthFuncBits = kDepthMap[idx];
+    }
+}
+
+static bgfx::TextureFormat::Enum Resolve_Render_Target_Color_Format(WW3DFormat format)
+{
+    bgfx::TextureFormat::Enum bgfxFormat = TranslateWW3DFormat(format);
+    const bgfx::Caps *caps = bgfx::getCaps();
+    if (caps != nullptr
+        && bgfxFormat != bgfx::TextureFormat::Unknown
+        && (caps->formats[bgfxFormat] & BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) != 0)
+    {
+        return bgfxFormat;
+    }
+
+    if (caps != nullptr
+        && (caps->formats[bgfx::TextureFormat::BGRA8] & BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) != 0)
+    {
+        return bgfx::TextureFormat::BGRA8;
+    }
+    return bgfx::TextureFormat::RGBA8;
+}
+
+static const BgfxFramebufferEntry *Ensure_Render_Target_Framebuffer(TextureClass *texture)
+{
+    if (texture == nullptr || !g_device.initialized)
+    {
+        return nullptr;
+    }
+
+    auto it = g_caches.framebuffer.find(texture);
+    if (it != g_caches.framebuffer.end())
+    {
+        // TheSuperHackers @bugfix bobtista 12/06/2026 Revalidate the cached framebuffer against the
+        // texture's current size. A render-target texture can be resized (e.g. on a resolution
+        // change), which would otherwise return a stale framebuffer at the old dimensions and a
+        // mismatched setViewRect. Defer-destroy the stale FB so the in-flight frame retires cleanly,
+        // then fall through to rebuild it at the new size.
+        const uint16_t curW = static_cast<uint16_t>(texture->Get_Width());
+        const uint16_t curH = static_cast<uint16_t>(texture->Get_Height());
+        if (it->second.width != curW || it->second.height != curH)
+        {
+            if (bgfx::isValid(it->second.fb))
+            {
+                g_caches.deferredDestroyFB.push_back(it->second.fb);
+            }
+            g_caches.framebuffer.erase(it);
+            it = g_caches.framebuffer.end();
+        }
+    }
+    if (it == g_caches.framebuffer.end())
+    {
+        const uint16_t w = static_cast<uint16_t>(texture->Get_Width());
+        const uint16_t h = static_cast<uint16_t>(texture->Get_Height());
+        const bgfx::TextureFormat::Enum colorFormat =
+            Resolve_Render_Target_Color_Format(texture->Get_Texture_Format());
+
+        bgfx::TextureHandle colorTex = bgfx::createTexture2D(
+            w, h, false, 1, colorFormat,
+            BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        bgfx::TextureHandle depthTex = bgfx::createTexture2D(
+            w, h, false, 1, bgfx::TextureFormat::D24S8,
+            BGFX_TEXTURE_RT_WRITE_ONLY);
+
+        bgfx::TextureHandle attachments[2] = { colorTex, depthTex };
+        bgfx::FrameBufferHandle fb = bgfx::createFrameBuffer(2, attachments, true);
+        if (!bgfx::isValid(fb))
+        {
+            if (bgfx::isValid(colorTex)) {
+                bgfx::destroy(colorTex);
+            }
+            if (bgfx::isValid(depthTex)) {
+                bgfx::destroy(depthTex);
+            }
+            return nullptr;
+        }
+
+        BgfxFramebufferEntry entry = { fb, colorTex, w, h };
+        g_caches.framebuffer[texture] = entry;
+        it = g_caches.framebuffer.find(texture);
+
+        WWDEBUG_SAY(("[BgfxBackend] RTT framebuffer created %dx%d for tex=%p",
+                     w, h, texture));
+    }
+
+    return &it->second;
+}
+
+void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
+{
+    // The engine-supplied depth target is intentionally unused; the bgfx framebuffer allocates its own D24S8 attachment.
+    (void)ztexture;
+    if (texture == nullptr || !g_device.initialized)
+    {
+        g_views.renderToTexture = false;
+        g_views.renderTargetTexture = nullptr;
+        return;
+    }
+
+    const BgfxFramebufferEntry *entry = Ensure_Render_Target_Framebuffer(texture);
+    if (entry == nullptr) {
+        g_views.renderToTexture = false;
+        g_views.renderTargetTexture = nullptr;
+        return;
+    }
+
+    bgfx::setViewFrameBuffer(kBgfxRTTView, entry->fb);
+    bgfx::setViewRect(kBgfxRTTView, 0, 0, entry->width, entry->height);
+    bgfx::setViewClear(kBgfxRTTView,
+                        BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
+                        0x000000ff, 1.0f, 0);
+    bgfx::touch(kBgfxRTTView);
+
+    g_views.renderToTexture = true;
+    g_views.renderTargetTexture = texture;
+}
+
+void BgfxBackend::Clear_State_Overrides()
+{
+    g_overrides.Reset();
+    g_draw.texcoordSelect[0] = 0.0f;
+    g_draw.objectShroudDim[3] = 0.0f;
+    g_draw.delayedObjectShroudPass = false;
+    // Do NOT clear g_draw.texcoordSelect[1] (terrain blend) here.
+    // Override_Terrain_Blend is called from the shader manager BEFORE
+    // Set_Shader, so clearing it in Set_Shader (which calls us) would
+    // undo the terrain blend flag every frame. Terrain blend is reset
+    // at Begin_Scene (above) and by Override_Terrain_Blend(false).
+}
+
+static LightEnvironmentClass * g_lastLightEnv = nullptr;
+
+void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
+{
+    if (light_env != nullptr)
+    {
+        g_lastLightEnv = light_env;
+        const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
+        FixedFunctionState::Set_Ambient_Color(MakeLegacyARGBColor(ambient, 0.0f));
+        g_draw.sceneAmbient[0] = ambient.X;
+        g_draw.sceneAmbient[1] = ambient.Y;
+        g_draw.sceneAmbient[2] = ambient.Z;
+
+        // TheSuperHackers @bugfix bobtista 17/07/2026 Mirror the lights into
+        // FixedFunctionState like the retail Set_Light chain did. The sorting
+        // renderer snapshots FixedFunctionState per node and replays it at flush;
+        // with the mirror missing every sorted node captured "no lights" and lit
+        // translucent SORT meshes replayed with scene ambient only, darker than
+        // the DX8 build. Encoding matches retail Set_Light_Environment (D3D
+        // direction = -toward-light; point attenuation 0.1/irad and 8/orad^2,
+        // range = orad) so the replay's inverse mapping recovers the same values.
+        RenderStateStruct & rsLights = FixedFunctionState::Render_State();
+        const int count = light_env->Get_Light_Count();
+        for (int i = 0; i < 4; ++i)
+        {
+            LegacyFixedFunctionLight & mirrored = rsLights.Lights[i];
+            std::memset(&mirrored, 0, sizeof(mirrored));
+            rsLights.LightEnable[i] = (i < count);
+            if (i < count)
+            {
+                const Vector3 & dir = light_env->Get_Light_Direction(i);
+                g_draw.lightDirs[i][0] = dir.X;
+                g_draw.lightDirs[i][1] = dir.Y;
+                g_draw.lightDirs[i][2] = dir.Z;
+                g_draw.lightDirs[i][3] = 1.0f; // enabled
+                mirrored.Direction.x = -dir.X;
+                mirrored.Direction.y = -dir.Y;
+                mirrored.Direction.z = -dir.Z;
+                if (light_env->isPointLight(i))
+                {
+                    const Vector3 & dif = light_env->getPointDiffuse(i);
+                    const Vector3 & amb = light_env->getPointAmbient(i);
+                    const Vector3 & pos = light_env->getPointCenter(i);
+                    g_draw.lightColors[i][0] = dif.X;
+                    g_draw.lightColors[i][1] = dif.Y;
+                    g_draw.lightColors[i][2] = dif.Z;
+                    g_draw.lightAmbients[i][0] = amb.X;
+                    g_draw.lightAmbients[i][1] = amb.Y;
+                    g_draw.lightAmbients[i][2] = amb.Z;
+                    g_draw.lightPositions[i][0] = pos.X;
+                    g_draw.lightPositions[i][1] = pos.Y;
+                    g_draw.lightPositions[i][2] = pos.Z;
+                    g_draw.lightParams[i][0] = light_env->getPointIrad(i);
+                    g_draw.lightParams[i][1] = light_env->getPointOrad(i);
+                    g_draw.lightParams[i][2] = 1.0f;
+                    g_draw.lightParams[i][3] = 1.0f;
+                    const float irad = light_env->getPointIrad(i);
+                    const float orad = light_env->getPointOrad(i);
+                    mirrored.Type = 1; // legacy D3DLIGHT_POINT
+                    mirrored.Position.x = pos.X;
+                    mirrored.Position.y = pos.Y;
+                    mirrored.Position.z = pos.Z;
+                    mirrored.Diffuse.r = dif.X;
+                    mirrored.Diffuse.g = dif.Y;
+                    mirrored.Diffuse.b = dif.Z;
+                    mirrored.Ambient.r = amb.X;
+                    mirrored.Ambient.g = amb.Y;
+                    mirrored.Ambient.b = amb.Z;
+                    mirrored.Range = orad;
+                    mirrored.Attenuation0 = 1.0f;
+                    mirrored.Attenuation1 = (WWMath::Fabs(irad - orad) < 1e-5f || irad <= 0.0f)
+                        ? 0.0f : 0.1f / irad;
+                    mirrored.Attenuation2 = (orad > 0.0f) ? 8.0f / (orad * orad) : 0.0f;
+                }
+                else
+                {
+                    const Vector3 & dif = light_env->Get_Light_Diffuse(i);
+                    g_draw.lightColors[i][0] = dif.X;
+                    g_draw.lightColors[i][1] = dif.Y;
+                    g_draw.lightColors[i][2] = dif.Z;
+                    g_draw.lightAmbients[i][0] = 0.0f;
+                    g_draw.lightAmbients[i][1] = 0.0f;
+                    g_draw.lightAmbients[i][2] = 0.0f;
+                    g_draw.lightPositions[i][0] = 0.0f;
+                    g_draw.lightPositions[i][1] = 0.0f;
+                    g_draw.lightPositions[i][2] = 0.0f;
+                    g_draw.lightParams[i][0] = 0.0f;
+                    g_draw.lightParams[i][1] = 0.0f;
+                    g_draw.lightParams[i][2] = 0.0f;
+                    g_draw.lightParams[i][3] = 1.0f;
+                    mirrored.Type = 3; // legacy D3DLIGHT_DIRECTIONAL
+                    mirrored.Diffuse.r = dif.X;
+                    mirrored.Diffuse.g = dif.Y;
+                    mirrored.Diffuse.b = dif.Z;
+                }
+                g_draw.lightColors[i][3] = 1.0f;
+            }
+            else
+            {
+                g_draw.lightDirs[i][3] = 0.0f; // disabled
+                g_draw.lightColors[i][3] = 0.0f;
+                g_draw.lightAmbients[i][3] = 0.0f;
+                g_draw.lightParams[i][3] = 0.0f;
+            }
+        }
+    }
+}
+
+// -- Transforms --------------------------------------------------------------
+
+void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
+{
+    CacheTransform(transform, m);
+    switch (transform)
+    {
+        case RB_TRANSFORM_WORLD:
+            W3DMatrix4ToBgfx(m, g_frame.world);
+            break;
+        case RB_TRANSFORM_VIEW:
+            W3DMatrix4ToBgfx(m, g_frame.view);
+            g_frame.cameraProjDirty = true;
+            g_views.overlay2DActive = false;
+            break;
+        case RB_TRANSFORM_PROJECTION:
+            W3DMatrix4ToBgfx(m, g_frame.proj);
+            g_frame.cameraProjDirty = true;
+            break;
+        default:
+            break;
+    }
+}
+
+void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
+{
+    CacheTransform(transform, m);
+    switch (transform)
+    {
+        case RB_TRANSFORM_WORLD:
+            W3DMatrix3DToBgfx(m, g_frame.world);
+            break;
+        case RB_TRANSFORM_VIEW:
+            W3DMatrix3DToBgfx(m, g_frame.view);
+            g_frame.cameraProjDirty = true;
+            g_views.overlay2DActive = false;
+            break;
+        default:
+            break;
+    }
+}
+
+void BgfxBackend::Get_Transform(TransformKind transform, Matrix4x4 & m) const
+{
+    auto matrix = MakeIdentityLegacyCacheMatrix();
+    FixedFunctionState::Transform_Matrix(static_cast<unsigned>(transform), matrix);
+    m = To_Matrix4x4(matrix);
+}
+
+void BgfxBackend::Set_World_Identity()
+{
+    CacheIdentityTransform(RB_TRANSFORM_WORLD);
+    FixedFunctionState::Set_World_Identity();
+    IdentityMatrix(g_frame.world);
+}
+
+void BgfxBackend::Set_View_Identity()
+{
+    CacheIdentityTransform(RB_TRANSFORM_VIEW);
+    FixedFunctionState::Set_View_Identity();
+    IdentityMatrix(g_frame.view);
+    g_frame.cameraProjDirty = true;
+    g_views.overlay2DActive = true;
+}
+
+bool BgfxBackend::Is_World_Identity() const
+{
+    return IsCachedTransformIdentity(RB_TRANSFORM_WORLD);
+}
+
+bool BgfxBackend::Is_View_Identity() const
+{
+    return IsCachedTransformIdentity(RB_TRANSFORM_VIEW);
+}
+
+void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
+                                                       float znear, float zfar)
+{
+    (void)znear;
+    (void)zfar;
+    CacheTransform(RB_TRANSFORM_PROJECTION, matrix);
+    W3DMatrix4ToBgfx(matrix, g_frame.proj);
+    g_frame.cameraProjDirty = true;
+
+}
+
+void BgfxBackend::Draw_Screen_Multiply_Quad(unsigned color, int x, int y, int width, int height)
+{
+    if (!g_device.initialized || !bgfx::isValid(g_device.passthroughProgram)
+        || !Is_Triangle_Draw_Enabled())
+    {
+        return;
+    }
+
+    const float left = (2.0f * static_cast<float>(x) / g_device.width) - 1.0f;
+    const float right = (2.0f * static_cast<float>(x + width) / g_device.width) - 1.0f;
+    const float top = 1.0f - (2.0f * static_cast<float>(y) / g_device.height);
+    const float bottom = 1.0f - (2.0f * static_cast<float>(y + height) / g_device.height);
+
+    struct ScreenVert { float x, y, z; uint32_t rgba; };
+    bgfx::TransientVertexBuffer vb;
+    if (bgfx::getAvailTransientVertexBuffer(6, g_device.triangleLayout) < 6)
+    {
+        return;
+    }
+    bgfx::allocTransientVertexBuffer(&vb, 6, g_device.triangleLayout);
+    const ScreenVert verts[6] = {
+        { left, bottom, 0.0f, color }, { left, top, 0.0f, color }, { right, top, 0.0f, color },
+        { left, bottom, 0.0f, color }, { right, top, 0.0f, color }, { right, bottom, 0.0f, color },
+    };
+    std::memcpy(vb.data, verts, sizeof(verts));
+
+    float identity[16];
+    IdentityMatrix(identity);
+    bgfx::setViewTransform(kBgfxUIView, identity, identity);
+    bgfx::setVertexBuffer(0, &vb);
+    bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
+                   | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR));
+    bgfx::submit(kBgfxUIView, g_device.passthroughProgram);
+}
+
+// -- Draw calls --------------------------------------------------------------
+
+namespace
+{
+// TheSuperHackers @refactor bobtista 11/04/2026 bgfx submit. Called from
+// both Draw_Triangles overloads when we have a valid cached VB + IB +
+// program. State and program were cached by Set_Shader; the buffers were
+// cached by Set_Vertex_Buffer / Set_Index_Buffer.
+void FlushPendingBoundDynamicRangeUploads()
+{
+    if (!g_draw.useTransientVB && !g_draw.useStaticVB && g_draw.vbOwner != nullptr)
+    {
+        const VertexBufferClass * owner = g_draw.vbOwner;
+        FlushPendingVertexRangeUpload(owner);
+        bgfx::DynamicVertexBufferHandle h = FindResourceVertexBufferHandle(owner);
+        if (!bgfx::isValid(h))
+        {
+            auto it = g_caches.vb.find(owner);
+            if (it != g_caches.vb.end())
+            {
+                h = it->second.handle;
+            }
+        }
+        if (bgfx::isValid(h))
+        {
+            g_draw.vb = h;
+        }
+    }
+
+    if (!g_draw.useTransientIB && !g_draw.useStaticIB && g_draw.ibOwner != nullptr)
+    {
+        const IndexBufferClass * owner = g_draw.ibOwner;
+        FlushPendingIndexRangeUpload(owner);
+        bgfx::DynamicIndexBufferHandle h = FindResourceIndexBufferHandle(owner);
+        if (!bgfx::isValid(h))
+        {
+            auto it = g_caches.ib.find(owner);
+            if (it != g_caches.ib.end())
+            {
+                h = it->second.handle;
+            }
+        }
+        if (bgfx::isValid(h))
+        {
+            g_draw.ib = h;
+        }
+    }
+}
+
+void SubmitEngineDraw(unsigned short start_index,
+                      unsigned short polygon_count,
+                      unsigned short min_vertex_index,
+                      unsigned short vertex_count,
+                      bool triangle_strip = false)
+{
+    PERF_TIME(PERF_SECT_SUBMIT_DRAW);
+    if (g_overrides.suppressDraw)
+    {
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+    if (!g_device.initialized)
+    {
+        return;
+    }
+    g_stats.drawCalls++;
+    // Lock in the scene sun for the shadow CSM from the first sun-like draw of the level (before
+    // SetupSunShadowView runs below), so dynamic lights cannot later swing the cast shadows.
+    MaybeCaptureSceneSun();
+    if (!g_draw.alphaBlendExplicitlySet)
+    {
+        g_draw.alphaBlendEnabled = g_draw.shaderAlphaBlendEnabled;
+        if (g_draw.alphaBlendEnabled)
+        {
+            g_draw.blendFuncBits = g_draw.shaderBlendFuncBits;
+        }
+    }
+    if (!g_draw.alphaTestExplicitlySet)
+    {
+        g_draw.atestRef = g_draw.shaderAtestRef;
+        g_draw.atestFunc = g_draw.shaderAtestFunc;
+        g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
+    }
+    if (!bgfx::isValid(g_draw.program))
+    {
+        LogBgfxEffectSubmit("submit-engine",
+                            g_views.inSortFlush ? kBgfxEngineSortView : kBgfxEngineView,
+                            polygon_count,
+                            vertex_count,
+                            g_draw.state,
+                            "skip-no-program");
+        g_stats.skippedDraws++;
+        // TheSuperHackers @bugfix bobtista 17/07/2026 Discard pending encoder state like every
+        // other skip path in this function. An instanced batch has already bound its instance
+        // buffer by the time this runs; without the discard that state leaks into the next
+        // submit, which then draws instanceCount overlapping copies.
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+    FlushPendingBoundDynamicRangeUploads();
+    const bool have_vb = g_draw.useTransientVB
+        || (g_draw.useStaticVB && bgfx::isValid(g_draw.staticVB))
+        || bgfx::isValid(g_draw.vb);
+    const bool have_ib = g_draw.useTransientIB
+        || (g_draw.useStaticIB && bgfx::isValid(g_draw.staticIB))
+        || bgfx::isValid(g_draw.ib);
+    if (!have_vb || !have_ib)
+    {
+        LogBgfxEffectSubmit("submit-engine",
+                            g_views.inSortFlush ? kBgfxEngineSortView : kBgfxEngineView,
+                            polygon_count,
+                            vertex_count,
+                            g_draw.state,
+                            !have_vb && !have_ib ? "skip-no-vb-ib" : (!have_vb ? "skip-no-vb" : "skip-no-ib"));
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+    if (g_draw.useTransientVB)
+    {
+        g_stats.transientVbDraws++;
+    }
+    if (g_draw.useTransientIB)
+    {
+        g_stats.transientIbDraws++;
+    }
+
+    // Route to the dedicated sorted view when the sort
+    // flush has activated it. The sort view's view+proj were set at
+    // init and are refreshed by Set_Projection_Transform_With_Z_Bias,
+    // so it never needs a per-submit setViewTransform - only view 1
+    // (the opaque view) uses the dirty flag.
+    // Secondary 2D detection: if the view matrix is identity and the
+    // projection has no perspective (w-divide), this is a 2D overlay
+    // draw even if Set_View_Identity wasn't called. This catches draws
+    // where DX8 state restores clear g_views.overlay2DActive between the
+    // Set_View_Identity call and the actual Draw_Triangles.
+    bool is2D = g_views.overlay2DActive;
+    if (!is2D && !g_views.renderToTexture && !g_views.waterOverrideActive
+        && !g_views.waterOverlayActive
+        && !g_views.effectOverlayActive && !g_views.inSortFlush)
+    {
+        // Camera-space particles and smudges also draw with an identity view,
+        // but keep the camera perspective projection. Only infer 2D when both
+        // the view and projection match screen-space drawing.
+        if (IsIdentityViewMatrix(g_frame.view) && IsNonPerspectiveProjection(g_frame.proj))
+        {
+            is2D = true;
+        }
+    }
+
+    bgfx::ViewId submitView;
+    if (g_views.smudgeActive)
+    {
+        submitView = kBgfxSmudgeView;
+    }
+    else if (g_views.effectOverlayActive)
+    {
+        submitView = kBgfxEffectOverlayView;
+    }
+    else if (is2D)
+    {
+        submitView = kBgfxUIView;
+    }
+    else if (g_views.renderToTexture)
+    {
+        submitView = kBgfxRTTView;
+    }
+    else if (g_views.waterOverrideActive || g_views.waterOverlayActive)
+    {
+        submitView = kBgfxWaterView;
+    }
+    else if (g_views.inSortFlush)
+    {
+        submitView = kBgfxEngineSortView;
+    }
+    else
+    {
+        submitView = kBgfxEngineView;
+    }
+    const uint64_t routeState = GetEffectiveDrawState();
+    if (IsSortedLocalModelEffectDraw(routeState))
+    {
+        // These sorted meshes need their raw model world matrix and the normal
+        // camera view. The pre-view-multiplied sort matrix lands local W3D
+        // model quads away from the object.
+        submitView = kBgfxEngineView;
+    }
+    const BgfxDiagnosticFlags diagnostics = GetBgfxDiagnosticFlags();
+    switch (submitView)
+    {
+        case kBgfxUIView:          g_stats.uiDraws++; break;
+        case kBgfxWaterView:       g_stats.waterDraws++; break;
+        case kBgfxEngineSortView:  g_stats.sortedDraws++; break;
+        case kBgfxEffectOverlayView: g_stats.effectDraws++; break;
+        case kBgfxRTTView:         g_stats.rttDraws++; break;
+        case kBgfxSmudgeView:      g_stats.smudgeDraws++; break;
+        default:                   g_stats.worldDraws++; break;
+    }
+    if (BgfxProbeFlag("GGC_PROBE_NULL_SUBMIT")
+        || (BgfxProbeFlag("GGC_PROBE_NO_SORTED") && submitView == kBgfxEngineSortView))
+    {
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+    if (ShouldAllowBgfxDiagnosticDrawOverrides()
+        && GgcFlags::Enabled(GgcFlag_BgfxSkipEffectOverlayDraws)
+        && submitView == kBgfxEffectOverlayView)
+    {
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+    if (ShouldAllowBgfxDiagnosticDrawOverrides()
+        && GgcFlags::Enabled(GgcFlag_BgfxSkipSortedDraws)
+        && submitView == kBgfxEngineSortView)
+    {
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+    // Push the engine view+projection when they change. setViewTransform
+    // applies until the next change so we do not need to call it per
+    // submit, only when the engine has updated either matrix. Sort view
+    // draws never touch g_frame.view so the opaque view is never stomped.
+    if (!g_views.inSortFlush && !g_views.renderToTexture && !g_views.overlay2DActive && g_frame.cameraProjDirty)
+    {
+        // Capture the camera view+proj at the first opaque draw of each
+        // frame. Later Set_Projection calls (water, shadows, sneak attack)
+        // may overwrite g_frame.proj with a different frustum. We re-apply
+        // the camera projection to view 1 at End_Scene time.
+        if (!g_frame.cameraCaptured)
+        {
+            std::memcpy(g_frame.cameraView, g_frame.view, sizeof(g_frame.cameraView));
+            std::memcpy(g_frame.cameraProj, g_frame.proj, sizeof(g_frame.cameraProj));
+            g_frame.cameraCaptured = true;
+            // The sun shadow view is fit to the camera, so arm it once the camera
+            // matrices are known (before any caster is submitted into view 20).
+            SetupSunShadowView();
+            // TheSuperHackers @feature bobtista 23/06/2026 Arm the perspective point-shadow view for
+            // the strongest caster dynamic light alongside the sun map (before any caster submit).
+            SetupPointShadowView();
+            SetupPointShadowView2();
+            UpdateDramaLighting();
+        }
+        bgfx::setViewTransform(kBgfxEngineView, g_frame.view, g_frame.proj);
+        // Shadow-volume view shares the engine camera; push the same
+        // view+proj so the extrusion geometry lands where the opaque
+        // geometry in view 1 landed.
+        bgfx::setViewTransform(kBgfxShadowVolumeView, g_frame.view, g_frame.proj);
+        bgfx::setViewTransform(kBgfxShroudOverlayView, g_frame.view, g_frame.proj);
+        bgfx::setViewTransform(kBgfxSceneDepthView, g_frame.view, g_frame.proj);
+        g_frame.cameraProjDirty = false;
+    }
+    // During RTT, push the current (reflected/shadow) view+proj to the RTT view.
+    if (g_views.renderToTexture && g_frame.cameraProjDirty)
+    {
+        bgfx::setViewTransform(kBgfxRTTView, g_frame.view, g_frame.proj);
+        g_frame.cameraProjDirty = false;
+    }
+    if (g_views.smudgeActive)
+    {
+        float identityView[16];
+        IdentityMatrix(identityView);
+        bgfx::setViewTransform(kBgfxSmudgeView, identityView, g_frame.proj);
+    }
+
+    float identityWorld[16];
+    const float * worldMtx = g_views.inSortFlush
+        ? g_frame.sortWorld
+        : g_frame.world;
+    if (IsSortedLocalModelEffectDraw(routeState))
+    {
+        worldMtx = g_frame.sortWorldRaw;
+    }
+    // TheSuperHackers @bugfix bobtista 10/07/2026 World-baked texture-array
+    // run: the sorted fill transformed these positions into world space, so
+    // apply the captured view only. The equivalent handling in
+    // Submit_Sorted_Draw is unreachable on bgfx builds (its only caller lives
+    // in dx8wrapper.cpp, which the bgfx build excludes); the live sorted-pool
+    // path is this function.
+    if (g_views.inSortFlush && g_draw.sortedArrayPage >= 0)
+    {
+        worldMtx = g_frame.sortViewOnly;
+    }
+    if (is2D)
+    {
+        // TheSuperHackers @bugfix bobtista 30/04/2026 2D UI vertices are
+        // authored in screen/clip space for the UI view. Do not let a stale
+        // world matrix from the preceding 3D draw offset textured control-bar
+        // quads away from their text/widgets.
+        IdentityMatrix(identityWorld);
+        worldMtx = identityWorld;
+    }
+
+    // TheSuperHackers @bugfix bobtista 08/07/2026 Camera-space draws (identity view with the
+    // camera perspective projection, e.g. ground-aligned particles that no longer sort) land in
+    // the engine view, but that view's transform is retroactively the camera view because
+    // End_Scene re-applies it for the whole frame. Fold the inverse camera view into the model
+    // matrix so the pre-transformed vertices are not view-transformed twice.
+    float cameraSpaceWorld[16];
+    static const bool cameraSpaceWorldFixDisabled = GgcFlags::Enabled(GgcFlag_BgfxNoCameraSpaceWorldFix);
+    if (!cameraSpaceWorldFixDisabled
+        && !is2D
+        && submitView == kBgfxEngineView
+        && !g_views.inSortFlush
+        && !IsSortedLocalModelEffectDraw(routeState)
+        && g_frame.cameraCaptured
+        && IsIdentityViewMatrix(g_frame.view)
+        && !IsNonPerspectiveProjection(g_frame.proj))
+    {
+        float invCameraView[16];
+        bx::mtxInverse(invCameraView, g_frame.cameraView);
+        bx::mtxMul(cameraSpaceWorld, worldMtx, invCameraView);
+        worldMtx = cameraSpaceWorld;
+        LogBgfxEffectSubmit("submit-engine", submitView,
+                            polygon_count, vertex_count, g_draw.state, "camera-space-world");
+    }
+
+    bgfx::setTransform(worldMtx);
+
+    // TheSuperHackers @refactor bobtista 11/04/2026 d3d8's BaseVertexIndex maps to bgfx's
+    // setVertexBuffer _startVertex, not an IB start offset: it biases which vertex an index
+    // resolves to, not which indices are read.
+    const uint32_t base_vertex = static_cast<uint32_t>(g_draw.ibOffset);
+    const uint32_t bindVertexCount =
+        static_cast<uint32_t>(min_vertex_index) + static_cast<uint32_t>(vertex_count);
+
+    if (g_draw.useTransientVB)
+    {
+        if (g_views.inSortFlush)
+        {
+            // Sort flush: use 2-arg overload (binds entire buffer).
+            // Sort indices are absolute offsets into the full transient,
+            // so no base vertex offset is needed. The 4-arg overload
+            // would restrict the vertex range and clip high indices.
+            bgfx::setVertexBuffer(0, &g_draw.transientVB);
+        }
+        else
+        {
+            // Skin/dynamic draws: apply base_vertex as startVertex.
+            // Each mesh part within the shared transient VB has a
+            // different base offset (from Set_Index_Buffer_Index_Offset).
+            // Without this, all mesh parts read from vertex 0 and
+            // infantry/vehicles are invisible or garbled.
+            bgfx::setVertexBuffer(0, &g_draw.transientVB,
+                                  base_vertex, bindVertexCount);
+        }
+    }
+    else
+    {
+        if (g_draw.useStaticVB)
+        {
+            bgfx::setVertexBuffer(0, g_draw.staticVB, base_vertex, bindVertexCount);
+        }
+        else
+        {
+            bgfx::setVertexBuffer(0, g_draw.vb, base_vertex, bindVertexCount);
+        }
+    }
+
+    const uint32_t indexCount = triangle_strip
+        ? static_cast<uint32_t>(polygon_count) + 2
+        : static_cast<uint32_t>(polygon_count) * 3;
+    uint32_t indexStart = start_index;
+
+    if (g_draw.useTransientIB)
+    {
+        bgfx::setIndexBuffer(&g_draw.transientIB,
+                             indexStart,
+                             indexCount);
+    }
+    else
+    {
+        if (g_draw.useStaticIB)
+        {
+            bgfx::setIndexBuffer(g_draw.staticIB,
+                                 indexStart,
+                                 indexCount);
+        }
+        else
+        {
+            bgfx::setIndexBuffer(g_draw.ib,
+                                 indexStart,
+                                 indexCount);
+        }
+    }
+
+    if (g_views.smudgeActive)
+    {
+        if (bgfx::isValid(g_device.smudgeProgram))
+        {
+            bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneSmudgeCopy,
+                             BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+            if (bgfx::isValid(g_uniforms.uSmudgeClip))
+            {
+                bgfx::setUniform(g_uniforms.uSmudgeClip, g_views.smudgeClip);
+            }
+            bgfx::setState(BGFX_STATE_WRITE_RGB
+                           | BGFX_STATE_DEPTH_TEST_ALWAYS
+                           | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
+                                                   BGFX_STATE_BLEND_INV_SRC_ALPHA)
+                           | BGFX_STATE_MSAA);
+            bgfx::submit(kBgfxSmudgeView, g_device.smudgeProgram);
+            g_stats.smudgeSubmits++;
+        }
+        else
+        {
+            g_stats.skippedDraws++;
+            bgfx::discard(BGFX_DISCARD_ALL);
+        }
+        return;
+    }
+
+    // Bind engine textures with the 1x1 white fallback (identity for vertex color and for the
+    // stage-1 multiply). Sampler flags 0 = the sampler's creation-time defaults, i.e. trilinear
+    // when the texture has mips.
+
+    BindTextureStages();
+    UpdateTextureTransforms();
+
+    // TheSuperHackers @bugfix bobtista 12/06/2026 The 2D override below overwrites persistent g_draw
+    // texcoord-routing fields. Those are only rewritten when texcoord generation is reconfigured, so a
+    // later 3D draw that reuses the prior routing would inherit the 2D values and sample black atlas
+    // padding. Restore them on every exit path of this function (texTransform* are rebuilt by
+    // UpdateTextureTransforms each draw and so do not leak).
+    struct TexcoordRoutingGuard
+    {
+        bool active = false;
+        float select0 = 0.0f;
+        float select3 = 0.0f;
+        float select2_0 = 0.0f;
+        float select2_1 = 0.0f;
+        float source[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        float projected0 = 0.0f;
+        float projected1 = 0.0f;
+        ~TexcoordRoutingGuard()
+        {
+            if (!active)
+            {
+                return;
+            }
+            g_draw.texcoordSelect[0] = select0;
+            g_draw.texcoordSelect[3] = select3;
+            g_draw.texcoordSelect2[0] = select2_0;
+            g_draw.texcoordSelect2[1] = select2_1;
+            for (unsigned s = 0; s < 4; ++s)
+            {
+                g_draw.texcoordSource[s] = source[s];
+            }
+            g_draw.texProjected[0] = projected0;
+            g_draw.texProjected[1] = projected1;
+        }
+    } texcoordRoutingGuard;
+
+    if (is2D)
+    {
+        texcoordRoutingGuard.active = true;
+        texcoordRoutingGuard.select0 = g_draw.texcoordSelect[0];
+        texcoordRoutingGuard.select3 = g_draw.texcoordSelect[3];
+        texcoordRoutingGuard.select2_0 = g_draw.texcoordSelect2[0];
+        texcoordRoutingGuard.select2_1 = g_draw.texcoordSelect2[1];
+        for (unsigned s = 0; s < 4; ++s)
+        {
+            texcoordRoutingGuard.source[s] = g_draw.texcoordSource[s];
+        }
+        texcoordRoutingGuard.projected0 = g_draw.texProjected[0];
+        texcoordRoutingGuard.projected1 = g_draw.texProjected[1];
+
+        // Render2DClass-authored quads only carry UV0 in screen space.
+        // Stale world texture coordinate routing/transform state can
+        // otherwise redirect video/UI samples into black atlas padding.
+        g_draw.texcoordSelect[0] = 0.0f;
+        g_draw.texcoordSelect[3] = 0.0f;
+        g_draw.texcoordSelect2[0] = 0.0f;
+        g_draw.texcoordSelect2[1] = 0.0f;
+        for (unsigned stage = 0; stage < 4; ++stage)
+        {
+            g_draw.texcoordSource[stage] = 0.0f;
+        }
+        g_draw.texProjected[0] = 0.0f;
+        g_draw.texProjected[1] = 0.0f;
+        SetIdentityTextureTransform(g_draw.texTransform0, g_draw.texTransform1);
+        SetIdentityTextureTransform(g_draw.tex1Transform0, g_draw.tex1Transform1);
+        SetIdentityTextureTransform(g_draw.tex2Transform0, g_draw.tex2Transform1);
+        g_draw.texTransform0Z[0] = 0.0f;
+        g_draw.texTransform0Z[1] = 0.0f;
+        g_draw.texTransform0Z[2] = 1.0f;
+        g_draw.texTransform0Z[3] = 0.0f;
+        g_draw.tex1TransformZ[0] = 0.0f;
+        g_draw.tex1TransformZ[1] = 0.0f;
+        g_draw.tex1TransformZ[2] = 1.0f;
+        g_draw.tex1TransformZ[3] = 0.0f;
+    }
+    const bool skipSortedMaterialRecapture =
+        g_views.inSortFlush
+        && g_views.sortedBatchMaterialCaptured
+        && !DisableSortedMaterialRecaptureSkip();
+    if (!g_draw.explicitMaterialState && !skipSortedMaterialRecapture)
+    {
+        CaptureMaterialStateForBgfx(g_draw.sourceMaterial);
+    }
+    g_views.sortedBatchMaterialCaptured = false;
+    if (IsSortedMaterialDecal(GetEffectiveDrawState()))
+    {
+        // Terrain rendering leaves this flag set until reset by the shader
+        // manager. Sorted material decals use the fixed-function TSS path and
+        // must not inherit the terrain pixel-shader branch.
+        g_draw.texcoordSelect[1] = 0.0f;
+    }
+    // TheSuperHackers @bugfix bobtista 30/04/2026 Z-bias must be picked
+    // BEFORE UploadMaterialUniforms — that helper is what actually pushes
+    // u_zBias to the GPU. Setting g_draw.zBias afterward leaves the uniform
+    // at the previous (or default) value and defeats the whole fix.
+    {
+        g_draw.zBias[0] = static_cast<float>(g_draw.zBiasUnits) * kZBiasPerUnit;
+        TraceLegacyZBiasTranslation();
+        const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(routeState);
+        const bool normalBiasFromGeometry =
+            !is2D
+            && (g_draw.normalBias[0] != 0.0f
+                || (g_draw.activeVertexNormalBias && applySubmittedNormalBias)
+                || IsSneakAttackCoplanarSurface());
+        g_draw.zBias[1] = normalBiasFromGeometry
+            ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
+            : 0.0f;
+        // TheSuperHackers @feature bobtista 17/06/2026 Mark opaque/alpha-tested objects (units,
+        // structures, props) as sun-shadow RECEIVERS via u_zBias.z so the fragment shader darkens
+        // them when they stand in a cast shadow. Mirrors the caster set (engine view, writes depth,
+        // not blended), so blended effects/particles are excluded and cannot be wrongly darkened.
+        // Terrain and ground decals already receive via their own shader paths; this adds the
+        // object path. Self-shadowing is avoided by the normal-offset bias in sampleSunShadow,
+        // which uses the object's real vertex normal.
+        static const bool s_noPropShadows = (GgcFlags::Enabled(GgcFlag_NoPropShadows));
+        const bool sunShadowReceiver =
+            !s_noPropShadows
+            && g_frame.shadowActive
+            && submitView == kBgfxEngineView
+            && !is2D
+            && (routeState & BGFX_STATE_WRITE_Z) != 0
+            && (routeState & BGFX_STATE_BLEND_MASK) == 0;
+        g_draw.sunShadowReceive[0] = sunShadowReceiver ? 1.0f : 0.0f;
+        // TheSuperHackers @bugfix bobtista 02/05/2026 Sorted material decals
+        // (alpha-blend + DEPTH_WRITE_OFF + postdetail-alpha) such as the USA
+        // strategy center floor emblem (ABBTCMDHQS.SWORD) sit coplanar with
+        // an opaque sub-mesh. DX8 LEQUAL wins ties; bgfx's projection rounds
+        // slightly so the decal ends up just behind the slab and is occluded.
+        // Pull the NDC z slightly toward the camera so coplanar decals beat
+        // the surface they sit on, but clamp the pull tightly so the ground
+        // decal still loses to vehicles sitting above it.
+        ClampSortedMaterialDecalZBias();
+    }
+    UpdateProjectedDecalModeForCurrentDraw();
+    const uint64_t earlyState = GetEffectiveDrawState();
+    if (IsMultiplicativeBlend(earlyState)
+        && (earlyState & BGFX_STATE_WRITE_Z) == 0
+        && (earlyState & BGFX_STATE_DEPTH_TEST_MASK) != BGFX_STATE_DEPTH_TEST_EQUAL
+        && !IsEffectiveProjectedShadowDraw())
+    {
+        LogBgfxRevealDraw("submit-engine", submitView,
+                          polygon_count, vertex_count, earlyState,
+                          "skip-multiply");
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+    // TheSuperHackers @bugfix bobtista 17/07/2026 Shroud detection must run BEFORE the
+    // guarded uniform uploads below: it can reassign submitView to the shroud overlay
+    // view, and FrameConstUniformGuard keys on the view. Keying the uploads to the
+    // pre-reassignment engine view let elision skip uploads the shroud view never saw
+    // (shroud overlay inheriting lit state) and let later engine draws reuse guard
+    // entries whose values actually played in the shroud view.
+    // Detect the shroud overlay: an explicit shroud pass on stage 0, drawn at equal depth with
+    // the world projection. Its world-space params come from Set_World_Texture_Projection.
+    bool shroudDetected = false;
+    {
+        unsigned depthFunc = g_draw.depthFunc;
+        const unsigned stg = 0;
+        unsigned tci = g_draw.texcoordIndex[stg];
+        const bool explicitShroudPass =
+            g_views.shroudTexturePassActive && g_views.shroudTexturePassStage == stg;
+        if (explicitShroudPass)
+        {
+            // Shroud setup is explicit backend state. It must not inherit a
+            // stale stencil test from previous shadow/player-color passes.
+            g_draw.stencilEnabled = false;
+        }
+        if (depthFunc == static_cast<unsigned>(RB_CMP_EQUAL)
+            && explicitShroudPass
+            && (tci & kTexcoordGenCameraPosition)
+            && g_draw.shroudTextureParamsValid)
+        {
+            shroudDetected = true;
+            g_draw.texcoordSelect[2] = 1.0f;
+            if (bgfx::isValid(g_uniforms.uShroudParams))
+            {
+                bgfx::setUniform(g_uniforms.uShroudParams, g_draw.shroudTextureParams);
+            }
+        }
+        if (!shroudDetected)
+        {
+            g_draw.texcoordSelect[2] = 0.0f;
+        }
+        else if (ShouldAllowBgfxDiagnosticDrawOverrides()
+            && GgcFlags::Enabled(GgcFlag_BgfxSkipShroudOverlay))
+        {
+            bgfx::discard(BGFX_DISCARD_ALL);
+            return;
+        }
+        const bool delayedObjectShroudPass =
+            shroudDetected
+            && g_views.objectShroudTexturePassActive
+            && submitView == kBgfxEngineView;
+        if (delayedObjectShroudPass)
+        {
+            submitView = kBgfxShroudOverlayView;
+        }
+        g_draw.delayedObjectShroudPass = delayedObjectShroudPass;
+        if ((tci & kTexcoordGenCameraPosition)
+            || depthFunc == static_cast<unsigned>(RB_CMP_EQUAL)
+            || shroudDetected)
+        {
+            LogBgfxShroudPass("shroud-candidate", submitView, polygon_count, depthFunc, tci, shroudDetected, g_draw.shroudTextureParams);
+        }
+    }
+
+    {
+        uint64_t blendState = earlyState;
+        g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState)
+            ? 1.0f
+            : 0.0f;
+        UpdateAlphaMaskAndSortedModes(blendState);
+    }
+    UploadMaterialUniforms(submitView);
+    // TheSuperHackers @bugfix bobtista 17/07/2026 Skip the fixed-function light fallback
+    // during the sorted flush: the replay has authoritatively restored the captured light
+    // state, and a node captured under a zero-light environment must stay unlit instead of
+    // inheriting the current frame's mirrored lights. Point lights (Type 1) are also skipped
+    // here since this directional fallback would leave stale point parameters in lightParams.
+    if (g_draw.lightDirs[0][3] < 0.5f && !g_views.inSortFlush)
+    {
+        const auto &rs = FixedFunctionState::Render_State();
+        for (int i = 0; i < 4; ++i)
+        {
+            if (rs.LightEnable[i] && rs.Lights[i].Type != 1)
+            {
+                const auto &dl = rs.Lights[i];
+                g_draw.lightDirs[i][0] = -dl.Direction.x;
+                g_draw.lightDirs[i][1] = -dl.Direction.y;
+                g_draw.lightDirs[i][2] = -dl.Direction.z;
+                g_draw.lightDirs[i][3] = 1.0f;
+                g_draw.lightColors[i][0] = dl.Diffuse.r;
+                g_draw.lightColors[i][1] = dl.Diffuse.g;
+                g_draw.lightColors[i][2] = dl.Diffuse.b;
+                g_draw.lightColors[i][3] = 1.0f;
+                g_draw.lightAmbients[i][0] = dl.Ambient.r;
+                g_draw.lightAmbients[i][1] = dl.Ambient.g;
+                g_draw.lightAmbients[i][2] = dl.Ambient.b;
+                g_draw.lightAmbients[i][3] = 1.0f;
+                g_draw.lightParams[i][0] = 0.0f;
+                g_draw.lightParams[i][1] = 0.0f;
+                g_draw.lightParams[i][2] = 0.0f;
+                g_draw.lightParams[i][3] = 1.0f;
+            }
+        }
+    }
+    const bool forceUnlitLighting = ShouldForceUnlitForBakedColorDraw(earlyState);
+    const bool fixedFunctionLightInputsNeeded =
+        g_draw.lightingEnabled[0] > 0.5f
+        && !forceUnlitLighting;
+    UploadLightUniforms(fixedFunctionLightInputsNeeded, submitView);
+    if (bgfx::isValid(g_uniforms.uSceneAmbient))
+    {
+        static FrameConstUniformGuard s_sceneAmbientGuard;
+        if (ShouldUploadFrameConstUniform(s_sceneAmbientGuard, submitView,
+                                          g_draw.sceneAmbient,
+                                          sizeof(g_draw.sceneAmbient)))
+        {
+            bgfx::setUniform(g_uniforms.uSceneAmbient, g_draw.sceneAmbient);
+        }
+    }
+    if (bgfx::isValid(g_uniforms.uLightingEnabled))
+    {
+        // TheSuperHackers @bugfix bobtista 15/04/2026 Force lighting off for additive/alpha
+        // particle and sorted-decal draws that bake intensity or final color into vertex diffuse
+        // or recolored tex0; the lit branch would otherwise ignore that baking.
+        const float forced[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        const float * lightingEnabledValue = forceUnlitLighting ? forced : g_draw.lightingEnabled;
+        static FrameConstUniformGuard s_lightingEnabledGuard;
+        if (ShouldUploadFrameConstUniform(s_lightingEnabledGuard, submitView,
+                                          lightingEnabledValue, sizeof(forced)))
+        {
+            bgfx::setUniform(g_uniforms.uLightingEnabled, lightingEnabledValue);
+        }
+    }
+
+    if (bgfx::isValid(g_uniforms.uTexcoordSelect))
+    {
+        static FrameConstUniformGuard s_texcoordSelectGuard;
+        if (ShouldUploadFrameConstUniform(s_texcoordSelectGuard, submitView,
+                                          g_draw.texcoordSelect, sizeof(g_draw.texcoordSelect)))
+        {
+            bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
+        }
+    }
+
+    // TheSuperHackers @performance bobtista 10/07/2026 Sorted packet submits
+    // carry a pipeline-state word resolved at capture time. With the
+    // resolved-pipeline flag on (and no trace comparison requested) the live
+    // per-draw derivation is skipped entirely; under trace both are computed
+    // and divergences are reported once per differing bit pattern.
+    uint64_t state;
+    {
+        static const bool s_useResolved = GgcFlags::Enabled(GgcFlag_BgfxSortedResolvedPipeline);
+        static const bool s_traceResolved = GgcFlags::Enabled(GgcFlag_Trace);
+        const bool haveResolved = g_draw.sortedResolvedStateValid;
+        if (haveResolved && s_useResolved && !s_traceResolved)
+        {
+            state = g_draw.sortedResolvedState;
+        }
+        else
+        {
+            state = ComputeFinalDrawState(triangle_strip);
+            if (haveResolved && s_traceResolved && state != g_draw.sortedResolvedState)
+            {
+                static uint64_t s_reportedDiffMasks[8] = {};
+                static int s_reportedDiffCount = 0;
+                const uint64_t diff = state ^ g_draw.sortedResolvedState;
+                bool seen = false;
+                for (int i = 0; i < s_reportedDiffCount; ++i)
+                {
+                    if (s_reportedDiffMasks[i] == diff)
+                    {
+                        seen = true;
+                        break;
+                    }
+                }
+                if (!seen && s_reportedDiffCount < 8)
+                {
+                    s_reportedDiffMasks[s_reportedDiffCount++] = diff;
+                    std::fprintf(stderr,
+                        "[ggc] resolved-pipeline mismatch: live=0x%llx resolved=0x%llx diff=0x%llx tex=%s\n",
+                        static_cast<unsigned long long>(state),
+                        static_cast<unsigned long long>(g_draw.sortedResolvedState),
+                        static_cast<unsigned long long>(diff),
+                        TextureDebugName(g_draw.sourceTextures[0]));
+                    std::fflush(stderr);
+                }
+            }
+            if (haveResolved && s_useResolved)
+            {
+                state = g_draw.sortedResolvedState;
+            }
+        }
+    }
+    if (g_views.waterOverrideActive)
+    {
+        g_views.waterOverrideActive = false;
+    }
+    LogBgfxSortedMaterialDecal("submit-engine", submitView,
+                               polygon_count, vertex_count, state);
+    LogBgfxEffectSubmit("submit-engine", submitView,
+                        polygon_count, vertex_count, state, "pre-skip");
+    LogBgfxRevealDraw("submit-engine", submitView,
+                      polygon_count, vertex_count, state, "pre-skip");
+    if (ShouldAllowBgfxDiagnosticDrawOverrides()
+        && GgcFlags::Enabled(GgcFlag_BgfxSkipRevealGrid)
+        && IsRevealGridTexture(g_draw.sourceTextures[0]))
+    {
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+
+    if (ShouldSkipHiddenMissingTextureDraw(state))
+    {
+        LogBgfxRevealDraw("submit-engine", submitView,
+                          polygon_count, vertex_count, state, "skip-missing");
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+
+    if (g_views.shadowVolumeActive && bgfx::isValid(g_device.shadowVolumeProgram))
+    {
+        if (LegacyStencilShadowsEnabled())
+        {
+            if (BgfxTwoSidedStencilVolumes()
+                && (g_draw.stencilPassOpBits == BGFX_STENCIL_OP_PASS_Z_DECR
+                    || g_draw.stencilPassOpBits == BGFX_STENCIL_OP_PASS_Z_DECRSAT))
+            {
+                g_stats.skippedDraws++;
+                bgfx::discard(BGFX_DISCARD_ALL);
+                return;
+            }
+            uint64_t volumeState = BgfxShadowVolumeDepthState() | (state & BGFX_STATE_PT_MASK);
+            const unsigned shadowCullModeBits = BgfxShadowCullModeBits();
+            if (!BgfxTwoSidedStencilVolumes() && shadowCullModeBits == 1)
+            {
+                volumeState |= BGFX_STATE_CULL_CW;
+            }
+            else if (!BgfxTwoSidedStencilVolumes() && shadowCullModeBits == 2)
+            {
+                volumeState |= BGFX_STATE_CULL_CCW;
+            }
+            bgfx::setState(volumeState);
+            if (BgfxTwoSidedStencilVolumes())
+            {
+                const uint32_t common = g_draw.stencilFuncBits
+                    | BGFX_STENCIL_FUNC_REF(g_draw.stencilRef & 0xFF)
+                    | BGFX_STENCIL_FUNC_RMASK(g_draw.stencilReadMask & 0xFF)
+                    | g_draw.stencilFailOpBits
+                    | g_draw.stencilZFailOpBits;
+                if (BgfxSwapTwoSidedStencilVolumeOps())
+                {
+                    bgfx::setStencil(common | BGFX_STENCIL_OP_PASS_Z_DECRSAT,
+                                     common | BGFX_STENCIL_OP_PASS_Z_INCR);
+                }
+                else
+                {
+                    bgfx::setStencil(common | BGFX_STENCIL_OP_PASS_Z_INCR,
+                                     common | BGFX_STENCIL_OP_PASS_Z_DECRSAT);
+                }
+            }
+            else
+            {
+                bgfx::setStencil(BuildCurrentStencilState());
+            }
+            BindShadowVolumeBiasUniform();
+            bgfx::submit(BgfxShadowVolumeSubmitView(), g_device.shadowVolumeProgram);
+            g_stats.shadowVolumeSubmits++;
+            LogBgfxStencilShadowEvent("side-wall-submit", nullptr,
+                                      polygon_count, vertex_count);
+            return;
+        }
+        LogBgfxStencilShadowEvent("side-wall-skip", "legacy-stencil-disabled",
+                                  polygon_count, vertex_count);
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+
+    const bool writesDepth = (state & BGFX_STATE_WRITE_Z) != 0;
+    const bool isBlended = (state & BGFX_STATE_BLEND_MASK) != 0;
+    const bool isAlphaTested = g_overrides.atestActive ? (g_overrides.atestFunc > 0.0f) : g_draw.atestEnabled;
+    // Projected decals are receiver-space overlays, not physical casters.
+    const bool isProjectedDecal =
+        GetEffectiveProjectedDecalModeForCurrentDraw() != RB_PROJECTED_DECAL_NONE;
+    const bool isSceneDepthCaster =
+        submitView == kBgfxEngineView
+        && !g_views.overlay2DActive
+        && writesDepth
+        && !isBlended
+        && !isAlphaTested;
+    // TheSuperHackers @feature bobtista 16/06/2026 The sun shadow map also accepts alpha-tested
+    // cutout geometry (infantry, foliage) so they cast a real silhouette; the caster shader
+    // re-applies the alpha test. Blended effects/particles and projected decals stay out.
+    // Off-camera casters reach this path because MeshClass::Render keeps meshes inside the
+    // sun-shadow cull box (see mesh.cpp), so a caster that has scrolled off the screen still casts
+    // into the visible ground.
+    // Projected decals are visual receiver-space overlays, not physical casters. Mirroring them
+    // into the sun shadow map would turn effects/ground marks into real occluders.
+    const bool isShadowCaster =
+        submitView == kBgfxEngineView
+        && !g_views.overlay2DActive
+        && writesDepth
+        && !isBlended
+        && !isProjectedDecal;
+
+    // Sorted translucent/effect draws (particles, lasers, material decals)
+    // are submitted after the world pass and should not inherit stale stencil
+    // state from shroud/player-color/shadow passes. Keeping stencil active
+    // here clips effects such as the particle-cannon beam against buildings.
+    const bool sortedTranslucentEffect = submitView == kBgfxEngineSortView
+        && isBlended;
+    const bool sortedMaterialDecal = submitView == kBgfxEngineSortView
+        && (IsSortedMaterialDecal(state)
+            || IsSortedAlphaDepthDecal(state)
+            || IsSortedRotorBlur(state));
+    const bool localModelMaterialDecal =
+        g_views.inSortFlush
+        && IsCommandCenterEmblemTexture(g_draw.sourceTextures[0])
+        && IsSortedMaterialDecal(state);
+    // Sort-flushed material decals (command-center driveway emblems, upgrade
+    // floor marks) are ordinary alpha decals. The wrapper can still have
+    // stencil state cached from shroud/player-color passes; applying it here
+    // clips revealed decals out completely.
+    const bool applyStencil = g_draw.stencilEnabled
+        && submitView != kBgfxUIView
+        && !sortedTranslucentEffect
+        && !sortedMaterialDecal
+        && !localModelMaterialDecal;
+
+    bgfx::setState(state);
+    if (applyStencil)
+    {
+        bgfx::setStencil(BuildCurrentStencilState());
+    }
+
+    BindSoftParticleDepth(submitView == kBgfxEngineSortView
+                          && isBlended
+                          && IsSoftParticleCandidate(state));
+
+    // Tree / grass sway shader takes over the program slot
+    // and uploads its own constants when active. Otherwise fall back
+    // to whatever ShaderClass picked (g_draw.program).
+    bgfx::ProgramHandle program = g_draw.program;
+    if (g_views.treeShaderActive && bgfx::isValid(g_device.treeProgram))
+    {
+        program = g_device.treeProgram;
+        if (bgfx::isValid(g_uniforms.uSwayTable))
+        {
+            bgfx::setUniform(g_uniforms.uSwayTable, g_draw.swayTable, kSwayTableEntries);
+        }
+        if (bgfx::isValid(g_uniforms.uShroudOffset))
+        {
+            bgfx::setUniform(g_uniforms.uShroudOffset, g_draw.shroudOffset);
+        }
+        if (bgfx::isValid(g_uniforms.uShroudScale))
+        {
+            bgfx::setUniform(g_uniforms.uShroudScale, g_draw.shroudScale);
+        }
+    }
+    // TheSuperHackers @bugfix bobtista 10/07/2026 Bind the sorted texture-array
+    // page on the live sorted-pool submit path. Without this, merged runs were
+    // submitted with the uber program and the representative node's stage-0
+    // texture, collapsing every absorbed node's texture onto one.
+    if (g_views.inSortFlush && g_draw.sortedArrayPage >= 0)
+    {
+        const bgfx::TextureHandle pageTex = BgfxSortedTextureArrayPageHandle(g_draw.sortedArrayPage);
+        if (bgfx::isValid(pageTex) && bgfx::isValid(g_device.sortedArrayProgram))
+        {
+            bgfx::setTexture(kBgfxSortedArraySamplerStage, g_uniforms.sTexArray,
+                             pageTex,
+                             g_draw.samplerFlags[0] | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+            program = g_device.sortedArrayProgram;
+        }
+    }
+    if (program.idx == g_device.uberProgram.idx)
+    {
+        // TheSuperHackers @performance bobtista Route plain uber draws to the frame-constant
+        // variant: it reads the global sun/point-shadow + scene-ambient constants from a data
+        // texture (updated once per frame) instead of per-draw uniforms, shrinking the per-draw
+        // constant buffer so heavy scenes stay under bgfx's fixed 8MB Metal uniform arena.
+        if (UniformFrameTextureEnabled()
+            && bgfx::isValid(g_device.uberFrameConstProgram)
+            && bgfx::isValid(g_device.frameConstTexture))
+        {
+            static uint32_t s_frameConstUpdatedFrame = 0xffffffffu;
+            if (s_frameConstUpdatedFrame != g_stats.frameIndex)
+            {
+                s_frameConstUpdatedFrame = g_stats.frameIndex;
+                PackAndUploadFrameConstTexture();
+            }
+            bgfx::setTexture(kBgfxFrameConstSamplerStage, g_uniforms.sFrameConst,
+                             g_device.frameConstTexture,
+                             BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+            program = g_device.uberFrameConstProgram;
+        }
+    }
+    bgfx::submit(submitView, program);
+    LogBgfxEffectSubmit("submit-engine", submitView,
+                        polygon_count, vertex_count, state, "submit");
+    LogBgfxRevealDraw("submit-engine", submitView,
+                      polygon_count, vertex_count, state, "submit");
+    g_stats.baseSubmits++;
+
+    const bool hasVB = g_draw.useTransientVB
+        || (g_draw.useStaticVB && bgfx::isValid(g_draw.staticVB))
+        || bgfx::isValid(g_draw.vb);
+    const bool casterToDepth = isSceneDepthCaster
+        && bgfx::isValid(g_draw.drawIsInstanced ? g_device.sceneDepthInstancedProgram : g_device.sceneDepthProgram)
+        && bgfx::isValid(g_device.sceneReadableDepthFB);
+    bool casterToShadow = isShadowCaster
+        && g_frame.shadowActive
+        && bgfx::isValid(g_device.shadowMapFB)
+        && bgfx::isValid(g_draw.drawIsInstanced ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram);
+    // TheSuperHackers @feature bobtista 18/06/2026 The spinning Chinook rotor renders as an
+    // alpha-blended "rotor blur" disc in the sorted pass, so it is excluded from the normal caster
+    // set (opaque, engine view). Cast it into the sun shadow map anyway, as an alpha-tested
+    // silhouette of the blur texture, so the rotor throws a disc shadow on the ground like retail.
+    static const bool s_noRotorShadow = (GgcFlags::Enabled(GgcFlag_NoRotorShadow));
+    const bool rotorShadowCaster = !s_noRotorShadow
+        && IsSortedRotorBlur(state)
+        && g_frame.shadowActive
+        && bgfx::isValid(g_device.shadowMapFB)
+        && bgfx::isValid(g_device.shadowCasterProgram);
+    if (rotorShadowCaster)
+    {
+        casterToShadow = true;
+    }
+    const bool pointShadowArmed = g_draw.pointShadowParams[0] >= 0.5f
+        && bgfx::isValid(g_device.pointShadowFB)
+        && bgfx::isValid(g_draw.drawIsInstanced ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram);
+    // TheSuperHackers @bugfix bobtista 15/07/2026 Terrain must not cast into either point-shadow
+    // map: these lights sit close to the ground, so its self-comparison fails at grazing angles
+    // across the whole frustum and prints the map footprint as a large dark patch. Alpha-tested
+    // cutouts (foliage, infantry) DO cast into the primary map - the beam's moving unit/tree
+    // shadows are the heart of the effect, and the primary light hovers over the beam impact,
+    // far enough that canopy self-shadow speckle stays invisible. They stay excluded from the
+    // transient flash map (slot 2): flash pulses spawn right beside trees, where per-texel leaf
+    // self-shadowing speckled canopies with isolated lit pixels.
+    const bool drawIsTerrain = (g_draw.texcoordSelect[1] > 0.5f);
+    const bool casterToPointShadow = pointShadowArmed && !drawIsTerrain
+        && (isSceneDepthCaster || isShadowCaster || rotorShadowCaster);
+    const bool pointShadow2Armed = g_draw.pointShadow2Params[0] >= 0.5f
+        && bgfx::isValid(g_device.pointShadow2FB)
+        && bgfx::isValid(g_draw.drawIsInstanced ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram);
+    // Cutouts stay OUT of the flash map: re-submitting them as casters there corrupts their
+    // main-view draw with flickering bright edge texels (blotches), and their per-texel
+    // self-shadow made receiving speckle historically. Solid objects carry the flash shadows.
+    // TheSuperHackers @bugfix bobtista 16/07/2026 Slot 2 casts real shadows again now that its
+    // view (25) is in the per-frame view order. Without that, view 25 was deferred to a 1x1
+    // viewport so its map stayed black (read as fully occluded = a dark circle) and stray
+    // caster pixels leaked to the backbuffer as white silhouettes. Cutouts stay excluded (their
+    // per-texel self-shadowing speckles canopies); terrain never casts (grazing-angle acne).
+    const bool casterToPointShadow2 = pointShadow2Armed && !drawIsTerrain && !isAlphaTested
+        && (isSceneDepthCaster || isShadowCaster || rotorShadowCaster);
+    // Diagnostic: GGC_LOG_SHADOW_CASTER_AUDIT=1 dumps each world draw that could feed the
+    // sun shadow map, including excluded candidates. Use GGC_LOG_SHADOW_CASTER_START/END
+    // to bracket the particle-cannon firing window without filling stderr for the whole run.
+    static const bool s_logShadowCasterAudit = (GgcFlags::Enabled(GgcFlag_LogShadowCasterAudit));
+    if (s_logShadowCasterAudit)
+    {
+        static const int s_logShadowCasterStart =
+            (GgcFlags::Enabled(GgcFlag_LogShadowCasterStart))
+                ? std::atoi(GgcFlags::StringValue(GgcFlag_LogShadowCasterStart)) : 0;
+        static const int s_logShadowCasterEnd =
+            (GgcFlags::Enabled(GgcFlag_LogShadowCasterEnd))
+                ? std::atoi(GgcFlags::StringValue(GgcFlag_LogShadowCasterEnd)) : 0x7fffffff;
+        const int frame = static_cast<int>(g_stats.frameIndex);
+        const bool inAuditWindow = frame >= s_logShadowCasterStart && frame <= s_logShadowCasterEnd;
+        const bool auditCandidate =
+            ((submitView == kBgfxEngineView
+              && !g_views.overlay2DActive
+              && writesDepth
+              && !isBlended
+              && hasVB)
+             || (rotorShadowCaster && hasVB));
+        if (inAuditWindow && auditCandidate)
+        {
+            const TextureBaseClass * at = FixedFunctionState::Render_State().Textures[0];
+            const char * an = (at != nullptr && at->Get_Texture_Name().str() != nullptr
+                               && at->Get_Texture_Name().str()[0] != '\0')
+                ? at->Get_Texture_Name().str() : "<none>";
+            const unsigned texW = (at != nullptr) ? at->Get_Width() : 0;
+            const unsigned texH = (at != nullptr) ? at->Get_Height() : 0;
+            std::fprintf(stderr,
+                "[ggc-shadowcaster] f=%u cast=%d view=%u polys=%u verts=%u idx=%u "
+                "world=(%.1f,%.1f,%.1f) tex=%s texSize=%ux%u atest=%d blend=%d "
+                "proj=%d terrain=%d high=%d untex=%d rotor=%d transientVB=%d transientIB=%d "
+                "tcsel=(%.1f,%.1f) state=0x%llx\n",
+                g_stats.frameIndex, casterToShadow ? 1 : 0, submitView,
+                polygon_count, vertex_count, indexCount,
+                worldMtx[12], worldMtx[13], worldMtx[14],
+                an, texW, texH, isAlphaTested ? 1 : 0, isBlended ? 1 : 0,
+                static_cast<int>(GetEffectiveProjectedDecalModeForCurrentDraw()),
+                (g_draw.texcoordSelect[1] > 0.5f) ? 1 : 0,
+                (worldMtx[14] > 100.0f) ? 1 : 0,
+                (at == nullptr) ? 1 : 0,
+                rotorShadowCaster ? 1 : 0, g_draw.useTransientVB ? 1 : 0,
+                g_draw.useTransientIB ? 1 : 0,
+                g_draw.texcoordSelect[0], g_draw.texcoordSelect[1],
+                static_cast<unsigned long long>(state));
+        }
+    }
+    if ((casterToDepth || casterToShadow || casterToPointShadow || casterToPointShadow2) && hasVB)
+    {
+        // TheSuperHackers @feature bobtista 27/04/2026 Duplicate opaque
+        // non-alpha-tested world geometry into a sampleable R32F scene-depth target.
+        // TheSuperHackers @feature bobtista 16/06/2026 The same geometry feeds the sun
+        // shadow cascades from the light's POV. Alpha-tested cutouts (infantry, foliage)
+        // are excluded from the scene-depth target but still cast into the shadow map via
+        // the alpha-aware caster shader.
+        if (g_draw.useTransientVB)
+        {
+            bgfx::setVertexBuffer(0, &g_draw.transientVB,
+                                  static_cast<uint32_t>(g_draw.ibOffset),
+                                  bindVertexCount);
+        }
+        else
+        {
+            if (g_draw.useStaticVB)
+            {
+                bgfx::setVertexBuffer(0, g_draw.staticVB,
+                                      static_cast<uint32_t>(g_draw.ibOffset),
+                                      bindVertexCount);
+            }
+            else
+            {
+                bgfx::setVertexBuffer(0, g_draw.vb,
+                                      static_cast<uint32_t>(g_draw.ibOffset),
+                                      bindVertexCount);
+            }
+        }
+        if (g_draw.useTransientIB)
+        {
+            bgfx::setIndexBuffer(&g_draw.transientIB,
+                                 start_index,
+                                 indexCount);
+        }
+        else
+        {
+            if (g_draw.useStaticIB)
+            {
+                bgfx::setIndexBuffer(g_draw.staticIB,
+                                     start_index,
+                                     indexCount);
+            }
+            else
+            {
+                bgfx::setIndexBuffer(g_draw.ib,
+                                     start_index,
+                                     indexCount);
+            }
+        }
+        bgfx::setTransform(worldMtx);
+        const uint64_t depthState =
+            BGFX_STATE_WRITE_RGB
+            | BGFX_STATE_WRITE_Z
+            | BGFX_STATE_DEPTH_TEST_LESS
+            | (state & BGFX_STATE_CULL_MASK)
+            | (state & BGFX_STATE_PT_MASK);
+        bgfx::setState(depthState);
+        // The alpha-aware shadow caster shader samples the base texture and re-applies
+        // the draw's alpha test; bind both so cutout geometry casts its real silhouette.
+        // Opaque draws pass an inactive test (y = 0) and skip the discard. Preserved
+        // across the cascade submits via BGFX_DISCARD_NONE.
+        if (casterToShadow || casterToPointShadow || casterToPointShadow2)
+        {
+            bgfx::TextureHandle baseTex = g_draw.tex[0];
+            if (!bgfx::isValid(baseTex))
+            {
+                baseTex = g_device.defaultWhiteTexture;
+            }
+            if (bgfx::isValid(baseTex) && bgfx::isValid(g_uniforms.sTex0))
+            {
+                bgfx::setTexture(0, g_uniforms.sTex0, baseTex, GetCurrentStageSamplerFlags(0));
+            }
+            if (bgfx::isValid(g_uniforms.uAtestParams))
+            {
+                float shadowAtest[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+                if (isAlphaTested)
+                {
+                    shadowAtest[0] = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
+                    shadowAtest[1] = 1.0f;
+                }
+                else if (rotorShadowCaster)
+                {
+                    // The rotor blur has no alpha test of its own; force a threshold so the caster
+                    // shader discards the transparent corners and casts only the blur disc. The
+                    // disc is intentionally faint - a spinning rotor is mostly air.
+                    shadowAtest[0] = 0.12f;
+                    shadowAtest[1] = 1.0f;
+                }
+                bgfx::setUniform(g_uniforms.uAtestParams, shadowAtest);
+            }
+        }
+        if (casterToDepth)
+        {
+            const uint8_t discard = (casterToShadow || casterToPointShadow || casterToPointShadow2) ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL;
+            // Instanced batches cast every instance in one submit via the instanced caster program;
+            // the instance buffer is consumed per submit, so re-bind it before each recast submit.
+            if (g_draw.drawIsInstanced)
+            {
+                bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+            }
+            const bgfx::ProgramHandle depthProg = g_draw.drawIsInstanced
+                ? g_device.sceneDepthInstancedProgram : g_device.sceneDepthProgram;
+            bgfx::submit(kBgfxSceneDepthView, depthProg, 0, discard);
+            g_stats.sceneDepthSubmits++;
+        }
+        if (casterToPointShadow)
+        {
+            if (g_draw.drawIsInstanced)
+            {
+                bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+            }
+            const bgfx::ProgramHandle pointProg = g_draw.drawIsInstanced
+                ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram;
+            // TheSuperHackers @feature bobtista 23/06/2026 Cast eligible world geometry into the
+            // perspective point-shadow map when a caster dynamic light is armed this frame. This is not
+            // limited to the sun-shadow caster set: solid buildings/vehicles can be ordinary depth
+            // casters even when they are not otherwise being submitted to the sun map, and the particle
+            // cannon beam still needs their silhouettes.
+            bgfx::submit(kBgfxPointShadowView, pointProg, 0,
+                         (casterToShadow || casterToPointShadow2) ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL);
+        }
+        if (casterToPointShadow2)
+        {
+            if (g_draw.drawIsInstanced)
+            {
+                bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+            }
+            const bgfx::ProgramHandle point2Prog = g_draw.drawIsInstanced
+                ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram;
+            bgfx::submit(kBgfxPointShadow2View, point2Prog, 0,
+                         casterToShadow ? BGFX_DISCARD_NONE : BGFX_DISCARD_ALL);
+        }
+        if (casterToShadow)
+        {
+            // TheSuperHackers @refactor bobtista 18/06/2026 Submit the caster into the single
+            // camera-fit shadow view (the cascades were retired - see SetupSunShadowView).
+            if (g_draw.drawIsInstanced)
+            {
+                bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+            }
+            const bgfx::ProgramHandle sunProg = g_draw.drawIsInstanced
+                ? g_device.shadowCasterInstancedProgram : g_device.shadowCasterProgram;
+            bgfx::submit(kBgfxShadowMapView, sunProg, 0, BGFX_DISCARD_ALL);
+            ++s_shadowCasterSubmitCount;
+            static int s_loggedAlphaCaster = 0;
+            if (BgfxDiagVerbose() && isAlphaTested && s_loggedAlphaCaster < 1)
+            {
+                std::fprintf(stderr, "[ggc] alpha-tested shadow caster submitted (atestRef=%.2f) "
+                                     "- infantry/foliage now cast real silhouettes\n",
+                             g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef);
+                s_loggedAlphaCaster = 1;
+            }
+        }
+    }
+}
+}
+
+// TheSuperHackers @refactor bobtista 10/07/2026 Single-call sorted-pool run
+// submit. This is the packet-shaped entry the sorted flush uses on the shader
+// pipeline; it applies the captured batch packet and hands the draw to the
+// shared engine-submit core directly, without the Draw_Triangles wrapper and
+// its skip-next handshake (only the retired dx8wrapper sorted path ever armed
+// that flag for pool runs). The kill switch reverts the flush to the legacy
+// call sequence.
+bool BgfxBackend::Submit_Sorted_Packet(const RenderBackendSortedBatchState & packet,
+                                       unsigned int start_index,
+                                       unsigned int polygon_count,
+                                       unsigned int vertex_count,
+                                       int array_page)
+{
+    static const bool s_disabled = GgcFlags::Enabled(GgcFlag_BgfxDisableSortedPacketSubmit);
+    if (s_disabled || !g_device.initialized)
+    {
+        return false;
+    }
+    if (array_page >= 0)
+    {
+        Set_Sorted_Texture_Array_Page(array_page);
+    }
+    Apply_Sorted_Batch_State(packet);
+    g_draw.sortedResolvedState = packet.resolved_state;
+    g_draw.sortedResolvedStateValid = packet.resolved_state_valid;
+    {
+        PERF_TIME(PERF_SECT_DRAW_TRIANGLES);
+        if (DrawCallLog_Is_Active())
+        {
+            const TextureBaseClass * tex0 = FixedFunctionState::Render_State().Textures[0];
+            const char * tex_name = (tex0 != nullptr) ? tex0->Get_Texture_Name().str() : "";
+            DrawCallLog_Record(
+                4, polygon_count, vertex_count,
+                FixedFunctionState::Render_State().vertex_buffer_types[0],
+                FixedFunctionState::Render_State().index_buffer_type,
+                FixedFunctionState::Render_State().shader.Get_Bits(),
+                FixedFunctionState::Render_State().sorted_draw_flags,
+                tex_name);
+        }
+        if (g_triangleDrawEnabled)
+        {
+            SubmitEngineDraw(static_cast<unsigned short>(start_index),
+                             static_cast<unsigned short>(polygon_count),
+                             0,
+                             static_cast<unsigned short>(vertex_count));
+        }
+    }
+    g_draw.sortedResolvedStateValid = false;
+    if (array_page >= 0)
+    {
+        Set_Sorted_Texture_Array_Page(-1);
+    }
+    return true;
+}
+
+// TheSuperHackers @refactor bobtista 11/07/2026 Single-call rigid mesh draw.
+// Same operations the polygon renderer used to issue as two backend calls
+// (index-base offset, then the indexed draw); one entry keeps the whole draw
+// visible to the backend. The kill switch reverts to the legacy pair.
+bool BgfxBackend::Submit_Rigid_Packet(int ib_base_offset,
+                                      unsigned int start_index,
+                                      unsigned int primitive_count,
+                                      unsigned int min_vertex_index,
+                                      unsigned int vertex_count,
+                                      bool triangle_strip)
+{
+    static const bool s_disabled = GgcFlags::Enabled(GgcFlag_BgfxDisableRigidPacketSubmit);
+    if (s_disabled || !g_device.initialized)
+    {
+        return false;
+    }
+    Set_Index_Buffer_Index_Offset(static_cast<unsigned int>(ib_base_offset));
+    if (triangle_strip)
+    {
+        Draw_Strip(static_cast<unsigned short>(start_index),
+                   static_cast<unsigned short>(primitive_count),
+                   static_cast<unsigned short>(min_vertex_index),
+                   static_cast<unsigned short>(vertex_count));
+    }
+    else
+    {
+        Draw_Triangles(static_cast<unsigned short>(start_index),
+                       static_cast<unsigned short>(primitive_count),
+                       static_cast<unsigned short>(min_vertex_index),
+                       static_cast<unsigned short>(vertex_count));
+    }
+    return true;
+}
+
+void BgfxBackend::Draw_Triangles(unsigned short start_index,
+                                 unsigned short polygon_count,
+                                 unsigned short min_vertex_index,
+                                 unsigned short vertex_count)
+{
+    PERF_TIME(PERF_SECT_DRAW_TRIANGLES);
+    if (DrawCallLog_Is_Active()) {
+        const TextureBaseClass * tex0 = FixedFunctionState::Render_State().Textures[0];
+        const char * tex_name = (tex0 != nullptr) ? tex0->Get_Texture_Name().str() : "";
+        DrawCallLog_Record(
+            4, polygon_count, vertex_count,
+            FixedFunctionState::Render_State().vertex_buffer_types[0],
+            FixedFunctionState::Render_State().index_buffer_type,
+            FixedFunctionState::Render_State().shader.Get_Bits(),
+            FixedFunctionState::Render_State().sorted_draw_flags,
+            tex_name);
+    }
+    // If DX8Wrapper::Draw_Sorting_IB_VB already submitted
+    // the draw with correctly remapped args against its internal dynamic
+    // buffers, skip the outer submit.
+    if (g_views.skipNextSubmitEngineDraw)
+    {
+        g_views.skipNextSubmitEngineDraw = false;
+        return;
+    }
+    if (!g_triangleDrawEnabled)
+    {
+        if (g_device.initialized)
+        {
+            bgfx::discard(BGFX_DISCARD_ALL);
+        }
+        return;
+    }
+    SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
+}
+
+void BgfxBackend::Draw_Triangles(unsigned int buffer_type,
+                                 unsigned short start_index,
+                                 unsigned short polygon_count,
+                                 unsigned short min_vertex_index,
+                                 unsigned short vertex_count)
+{
+    PERF_TIME(PERF_SECT_DRAW_TRIANGLES);
+    (void)buffer_type;
+    if (g_views.skipNextSubmitEngineDraw)
+    {
+        g_views.skipNextSubmitEngineDraw = false;
+        return;
+    }
+    if (!g_triangleDrawEnabled)
+    {
+        if (g_device.initialized)
+        {
+            bgfx::discard(BGFX_DISCARD_ALL);
+        }
+        return;
+    }
+    SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
+}
+
+bool BgfxBackend::Is_Triangle_Draw_Enabled() const
+{
+    return g_triangleDrawEnabled;
+}
+
+void BgfxBackend::Set_Triangle_Draw_Enabled(bool enable)
+{
+    g_triangleDrawEnabled = enable;
+}
+
+// TheSuperHackers @feature bobtista 16/04/2026 Draw_Strip override so strip-based
+// geometry (e.g. water tracks) goes through bgfx instead of silently falling back
+// to the DX8-only base class.
+void BgfxBackend::Draw_Strip(unsigned short start_index,
+                             unsigned short index_count,
+                             unsigned short min_vertex_index,
+                             unsigned short vertex_count)
+{
+    if (g_views.skipNextSubmitEngineDraw)
+    {
+        g_views.skipNextSubmitEngineDraw = false;
+        return;
+    }
+    if (!g_triangleDrawEnabled)
+    {
+        return;
+    }
+
+    SubmitEngineDraw(start_index, index_count, min_vertex_index, vertex_count, true);
+}
+
+// -- Programmable pipeline compatibility ------------------------------------
+
+bool BgfxBackend::Load_Legacy_Shader(const char * path,
+                                     const unsigned int * declaration,
+                                     unsigned int usage,
+                                     RenderBackendShaderKind kind,
+                                     unsigned long * handle)
+{
+    (void)path;
+    (void)declaration;
+    (void)usage;
+    (void)kind;
+    if (handle == nullptr) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    return true;
+}
+
+bool BgfxBackend::Create_Vertex_Shader(const unsigned int * declaration,
+                                       const unsigned int * shader,
+                                       unsigned int usage,
+                                       unsigned long * handle)
+{
+    (void)declaration;
+    (void)shader;
+    (void)usage;
+    if (handle == nullptr) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    return true;
+}
+
+bool BgfxBackend::Create_Pixel_Shader(const unsigned int * shader,
+                                      unsigned long * handle)
+{
+    (void)shader;
+    if (handle == nullptr) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    return true;
+}
+
+bool BgfxBackend::Create_Legacy_Pixel_Shader(RenderBackendLegacyPixelShaderMode mode,
+                                             unsigned long * handle)
+{
+    if (handle == nullptr || mode == RB_LEGACY_PIXEL_SHADER_NONE) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    g_legacyPixelShaderModes[*handle] = mode;
+    return true;
+}
+
+void BgfxBackend::Delete_Vertex_Shader(unsigned long vertex_shader)
+{
+    (void)vertex_shader;
+}
+
+void BgfxBackend::Delete_Pixel_Shader(unsigned long pixel_shader)
+{
+    g_legacyPixelShaderModes.erase(pixel_shader);
+}
+
+void BgfxBackend::Set_Vertex_Shader(unsigned long vertex_shader)
+{
+    (void)vertex_shader;
+}
+
+void BgfxBackend::Set_Pixel_Shader(unsigned long pixel_shader)
+{
+    RenderBackendLegacyPixelShaderMode mode = RB_LEGACY_PIXEL_SHADER_NONE;
+    auto it = g_legacyPixelShaderModes.find(pixel_shader);
+    if (it != g_legacyPixelShaderModes.end())
+    {
+        mode = it->second;
+    }
+    g_draw.legacyPixelShaderMode[0] = static_cast<float>(mode);
+}
+
+// ===========================================================================
+// Asset-ingress resource creation
+// ===========================================================================
+//
+// The returned RenderResource.id is a monotonically-increasing key into
+// g_resourceRegistry.table; the entry holds the bgfx handle(s). Owner-backed resources
+// still enter through the transitional *_Resource hooks and the older caches
+// keyed by their owner objects.
+//
+namespace {
+
+unsigned __int64 AllocResourceId()
+{
+    const unsigned __int64 id = g_resourceRegistry.next_id++;
+    if (g_resourceRegistry.next_id == 0) {
+        // Roll-over guard — rarely hit; start back at 1 to avoid colliding
+        // with kInvalidRenderResource.
+        g_resourceRegistry.next_id = 1;
+    }
+    return id;
+}
+
+bool IsCompressedTextureFormat(WW3DFormat format)
+{
+    return format == WW3D_FORMAT_DXT1
+        || format == WW3D_FORMAT_DXT2
+        || format == WW3D_FORMAT_DXT3
+        || format == WW3D_FORMAT_DXT4
+        || format == WW3D_FORMAT_DXT5;
+}
+
+unsigned CompressedTextureBlockSize(WW3DFormat format)
+{
+    return format == WW3D_FORMAT_DXT1 ? 8 : 16;
+}
+
+// Copy a MipSlice into tightly packed bgfx memory for updateTexture2D.
+const bgfx::Memory * CopySliceToBgfxMemory(const TextureDesc & desc, const MipSlice & slice)
+{
+    if (slice.data == nullptr || slice.size_bytes == 0 || slice.width == 0 || slice.height == 0) {
+        return nullptr;
+    }
+
+    const bool compressed = IsCompressedTextureFormat(desc.format);
+    const unsigned rows = compressed ? DXT_SurfaceRows(slice.height) : slice.height;
+    const unsigned expectedPitch = compressed
+        ? DXT_SurfacePitch(slice.width, CompressedTextureBlockSize(desc.format))
+        : slice.width * Get_Bytes_Per_Pixel(desc.format);
+    if (rows == 0 || expectedPitch == 0) {
+        return nullptr;
+    }
+
+    const unsigned sourcePitch = slice.pitch != 0 ? slice.pitch : expectedPitch;
+    const unsigned requiredSourceBytes = (rows - 1) * sourcePitch + expectedPitch;
+    if (slice.size_bytes < requiredSourceBytes) {
+        return nullptr;
+    }
+
+    const unsigned uploadBytes = rows * expectedPitch;
+    const bgfx::Memory * mem = bgfx::alloc(uploadBytes);
+    const uint8_t * src = static_cast<const uint8_t *>(slice.data);
+    uint8_t * dst = mem->data;
+    for (unsigned row = 0; row < rows; ++row) {
+        std::memcpy(dst, src, expectedPitch);
+        src += sourcePitch;
+        dst += expectedPitch;
+    }
+    return mem;
+}
+
+RenderResource RegisterResourceEntry(const BgfxResourceEntry & entry)
+{
+    RenderResource rr;
+    rr.id = AllocResourceId();
+    g_resourceRegistry.table[rr.id] = entry;
+    return rr;
+}
+
+BgfxResourceEntry MakeVertexBufferResourceEntry(VertexBufferClass * owner)
+{
+    BgfxResourceEntry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_VB;
+    entry.vb = BGFX_INVALID_HANDLE;
+    entry.dvb = BGFX_INVALID_HANDLE;
+    entry.d3d_mirror = nullptr;
+    entry.owner = owner;
+    return entry;
+}
+
+BgfxResourceEntry MakeIndexBufferResourceEntry(IndexBufferClass * owner)
+{
+    BgfxResourceEntry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_IB;
+    entry.ib = BGFX_INVALID_HANDLE;
+    entry.dib = BGFX_INVALID_HANDLE;
+    entry.d3d_mirror = nullptr;
+    entry.owner = owner;
+    return entry;
+}
+
+bgfx::VertexBufferHandle CreateStaticVertexBufferFromInitialData(const BufferDesc & desc,
+                                                                 const void * initial_data)
+{
+    if (initial_data == nullptr
+        || desc.size_bytes == 0
+        || desc.layout.fvf == 0
+        || desc.layout.stride == 0
+        || (desc.size_bytes % desc.layout.stride) != 0)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+
+    FVFInfoClass fvf(desc.layout.fvf);
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(fvf, layout) || layout.getStride() != desc.layout.stride)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+
+    bgfx::VertexBufferHandle h = bgfx::createVertexBuffer(bgfx::copy(initial_data, desc.size_bytes), layout);
+    return h;
+}
+
+bgfx::IndexBufferHandle CreateStaticIndexBufferFromInitialData(const BufferDesc & desc,
+                                                               const void * initial_data,
+                                                               bool indices_are_32bit)
+{
+    const unsigned int indexSize = indices_are_32bit ? sizeof(uint32_t) : sizeof(uint16_t);
+    if (initial_data == nullptr
+        || desc.size_bytes == 0
+        || (desc.size_bytes % indexSize) != 0)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+
+    const uint64_t flags = indices_are_32bit ? BGFX_BUFFER_INDEX32 : BGFX_BUFFER_NONE;
+    bgfx::IndexBufferHandle h = bgfx::createIndexBuffer(bgfx::copy(initial_data, desc.size_bytes), flags);
+    return h;
+}
+
+} // namespace
+
+bool BgfxBackend::Requires_Legacy_Buffer_Resources() const
+{
+    return false;
+}
+
+RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
+{
+    BgfxResourceEntry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_TEXTURE;
+    entry.d3d_mirror = nullptr;
+    entry.texture = BGFX_INVALID_HANDLE;
+    entry.fb = BGFX_INVALID_HANDLE;
+    entry.width = desc.width;
+    entry.height = desc.height;
+
+    if (desc.is_render_target) {
+        const bgfx::TextureFormat::Enum colorFormat =
+            Resolve_Render_Target_Color_Format(desc.format);
+        bgfx::TextureHandle colorTex = bgfx::createTexture2D(
+            desc.width, desc.height, false, 1, colorFormat,
+            BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        bgfx::TextureHandle depthTex = bgfx::createTexture2D(
+            desc.width, desc.height, false, 1, bgfx::TextureFormat::D24S8,
+            BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::TextureHandle attachments[2] = { colorTex, depthTex };
+        entry.fb = bgfx::createFrameBuffer(2, attachments, true);
+        if (bgfx::isValid(entry.fb)) {
+            entry.texture = colorTex;
+        } else {
+            if (bgfx::isValid(colorTex)) {
+                bgfx::destroy(colorTex);
+            }
+            if (bgfx::isValid(depthTex)) {
+                bgfx::destroy(depthTex);
+            }
+        }
+    } else if (desc.mips != nullptr && desc.mip_count > 0) {
+        const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(desc.format);
+        if (bgfxFmt != bgfx::TextureFormat::Unknown) {
+            const uint64_t texFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+            entry.texture = bgfx::createTexture2D(
+                desc.width, desc.height,
+                desc.mip_count > 1,
+                1, bgfxFmt, texFlags, nullptr);
+            if (bgfx::isValid(entry.texture)) {
+                bool uploadedAllLevels = true;
+                for (unsigned mip = 0; mip < desc.mip_count; ++mip) {
+                    const MipSlice & slice = desc.mips[mip];
+                    const bgfx::Memory * mem = CopySliceToBgfxMemory(desc, slice);
+                    if (mem == nullptr) {
+                        uploadedAllLevels = false;
+                        break;
+                    }
+                    bgfx::updateTexture2D(
+                        entry.texture,
+                        0,
+                        static_cast<uint8_t>(mip),
+                        0,
+                        0,
+                        slice.width,
+                        slice.height,
+                        mem);
+                }
+                if (!uploadedAllLevels) {
+                    g_caches.deferredDestroys.push_back(entry.texture);
+                    entry.texture = BGFX_INVALID_HANDLE;
+                }
+            }
+        }
+    }
+
+    return RegisterResourceEntry(entry);
+}
+
+RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data)
+{
+    BgfxResourceEntry entry = MakeVertexBufferResourceEntry(nullptr);
+    entry.vb = CreateStaticVertexBufferFromInitialData(desc, initial_data);
+    return RegisterResourceEntry(entry);
+}
+
+RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit)
+{
+    BgfxResourceEntry entry = MakeIndexBufferResourceEntry(nullptr);
+    entry.ib = CreateStaticIndexBufferFromInitialData(desc, initial_data, indices_are_32bit);
+    return RegisterResourceEntry(entry);
+}
+
+void BgfxBackend::Destroy_Resource(RenderResource h)
+{
+    if (s_exitTeardownActive)
+    {
+        return;
+    }
+    auto it = g_resourceRegistry.table.find(h.id);
+    if (it == g_resourceRegistry.table.end()) {
+        return;
+    }
+    BgfxResourceEntry & entry = it->second;
+
+    // Destroy bgfx side.
+    switch (entry.kind) {
+        case BGFX_RR_KIND_TEXTURE:
+            if (bgfx::isValid(entry.fb)) {
+                bgfx::destroy(entry.fb);
+            } else if (bgfx::isValid(entry.texture)) {
+                g_caches.deferredDestroys.push_back(entry.texture);
+            }
+            break;
+        case BGFX_RR_KIND_VB:
+        {
+            const VertexBufferClass *owner = static_cast<const VertexBufferClass *>(entry.owner);
+            g_caches.pendingVbRangeUploads.erase(owner);
+            if (g_draw.vbOwner == owner)
+            {
+                g_draw.vb = BGFX_INVALID_HANDLE;
+                g_draw.vbOwner = nullptr;
+            }
+            bool destroyedDynamic = false;
+            auto vbIt = g_caches.vb.find(owner);
+            if (vbIt != g_caches.vb.end())
+            {
+                if (bgfx::isValid(vbIt->second.handle))
+                {
+                    if (bgfx::isValid(g_draw.vb) && g_draw.vb.idx == vbIt->second.handle.idx)
+                    {
+                        g_draw.vb = BGFX_INVALID_HANDLE;
+                    }
+                    // TheSuperHackers @bugfix bobtista 02/06/2026 Defer one frame: the
+                    // engine frees this dynamic VB mid-frame, but a draw recorded earlier
+                    // this frame may still reference the handle until bgfx::frame(). Immediate
+                    // destroy here was the source of the per-frame "RefCount is 1 (expected 0)"
+                    // warnings (the texture case above already defers for the same reason).
+                    g_caches.deferredDestroyVB.push_back(vbIt->second.handle);
+                    destroyedDynamic = bgfx::isValid(entry.dvb) && entry.dvb.idx == vbIt->second.handle.idx;
+                }
+                g_caches.vb.erase(vbIt);
+            }
+            if (bgfx::isValid(entry.dvb) && !destroyedDynamic)
+            {
+                if (bgfx::isValid(g_draw.vb) && g_draw.vb.idx == entry.dvb.idx)
+                {
+                    g_draw.vb = BGFX_INVALID_HANDLE;
+                }
+                g_caches.deferredDestroyVB.push_back(entry.dvb);
+            }
+            DestroyStaticVertexResource(entry);
+            break;
+        }
+        case BGFX_RR_KIND_IB:
+        {
+            const IndexBufferClass *owner = static_cast<const IndexBufferClass *>(entry.owner);
+            g_caches.pendingIbRangeUploads.erase(owner);
+            if (g_draw.ibOwner == owner)
+            {
+                g_draw.ib = BGFX_INVALID_HANDLE;
+                g_draw.ibOwner = nullptr;
+            }
+            bool destroyedDynamic = false;
+            auto ibIt = g_caches.ib.find(owner);
+            if (ibIt != g_caches.ib.end())
+            {
+                if (bgfx::isValid(ibIt->second.handle))
+                {
+                    if (bgfx::isValid(g_draw.ib) && g_draw.ib.idx == ibIt->second.handle.idx)
+                    {
+                        g_draw.ib = BGFX_INVALID_HANDLE;
+                    }
+                    // TheSuperHackers @bugfix bobtista 02/06/2026 Defer one frame; see the
+                    // matching note in the VB case above.
+                    g_caches.deferredDestroyIB.push_back(ibIt->second.handle);
+                    destroyedDynamic = bgfx::isValid(entry.dib) && entry.dib.idx == ibIt->second.handle.idx;
+                }
+                g_caches.ib.erase(ibIt);
+            }
+            if (bgfx::isValid(entry.dib) && !destroyedDynamic)
+            {
+                if (bgfx::isValid(g_draw.ib) && g_draw.ib.idx == entry.dib.idx)
+                {
+                    g_draw.ib = BGFX_INVALID_HANDLE;
+                }
+                g_caches.deferredDestroyIB.push_back(entry.dib);
+            }
+            DestroyStaticIndexResource(entry);
+            break;
+        }
+        case BGFX_RR_KIND_NONE:
+        default:
+            break;
+    }
+
+    g_resourceRegistry.table.erase(it);
+}
+
+// -- Transitional owner-backed resource hooks -------------------------------
+
+RenderResource BgfxBackend::Register_Texture_Resource(TextureBaseClass * tex)
+{
+    if (tex == nullptr) {
+        return kInvalidRenderResource;
+    }
+    // Ensure the bgfx-side texture exists (peek+lock+upload from the legacy
+    // mirror that the legacy loader already created). The returned handle
+    // is owned by g_caches.texture (keyed on TextureBaseClass*), NOT by
+    // this registry entry — Release_Cached_Texture in the dtor queues it
+    // for deferred destroy. We leave entry.texture invalid so
+    // Destroy_Resource doesn't try to destroy the same handle twice.
+    if (tex->Is_Render_Target())
+    {
+        Ensure_Render_Target_Framebuffer(tex->As_TextureClass());
+    }
+    else
+    {
+        EnsureBgfxTexture(tex);
+    }
+
+    BgfxResourceEntry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind       = BGFX_RR_KIND_TEXTURE;
+    entry.texture    = BGFX_INVALID_HANDLE;
+    entry.fb         = BGFX_INVALID_HANDLE;
+    entry.d3d_mirror = nullptr;
+    entry.owner      = tex;
+
+    return RegisterResourceEntry(entry);
+}
+
+RenderResource BgfxBackend::Register_Vertex_Buffer_Resource(VertexBufferClass * vb)
+{
+    if (vb == nullptr) {
+        return kInvalidRenderResource;
+    }
+    // IMPORTANT: do NOT store the VertexBufferClass* as d3d_mirror —
+    // Destroy_Resource would cast it to IUnknown* and call Release(), which
+    // lands on whatever the third virtual of VertexBufferClass happens to
+    // be and crashes. The VB's legacy resource lifetime is owned by the
+    // render wrapper dtor; we have no cleanup to do on the reference side.
+    return RegisterResourceEntry(MakeVertexBufferResourceEntry(vb));
+}
+
+RenderResource BgfxBackend::Register_Index_Buffer_Resource(IndexBufferClass * ib)
+{
+    if (ib == nullptr) {
+        return kInvalidRenderResource;
+    }
+    // Same rationale as Register_Vertex_Buffer_Resource — leave d3d_mirror
+    // null so Destroy_Resource's reference-side Release does nothing.
+    return RegisterResourceEntry(MakeIndexBufferResourceEntry(ib));
+}

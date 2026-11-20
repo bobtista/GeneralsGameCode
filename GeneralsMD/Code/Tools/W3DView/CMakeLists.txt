@@ -16,6 +16,8 @@ target_link_libraries(z_w3dview PRIVATE
     zi_always
 )
 
+target_compile_definitions(z_w3dview PRIVATE GGC_ALLOW_DX8WRAPPER)
+
 if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
     target_compile_definitions(z_w3dview PRIVATE _AFXDLL)
     set_target_properties(z_w3dview PROPERTIES OUTPUT_NAME "W3DViewZH${RTS_BUILD_OUTPUT_SUFFIX}")

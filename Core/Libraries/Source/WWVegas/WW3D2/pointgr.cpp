@@ -71,8 +71,8 @@
  *   PointGroupClass::Peek_Texture -- Peeks texture                        *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 #include "pointgr.h"
-#include "WW3D2/vertmaterial.h"
-#include "WW3D2/ww3d.h"
+#include "vertmaterial.h"
+#include "ww3d.h"
 #include "WWMath/aabox.h"
 #include "statistics.h"
 #include "WWLib/simplevec.h"
@@ -80,14 +80,25 @@
 #include "WWLib/Vector.h"
 #include "WWMath/vp.h"
 #include "WWMath/matrix4.h"
+#include "ww3dcolor.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
-#include "WW3D2/rinfo.h"
-#include "WW3D2/camera.h"
+#include "rinfo.h"
+#include "camera.h"
 #include "dx8fvf.h"
-#include "d3dx8math.h"
 #include "sortingrenderer.h"
+#include "Renderer.h"
+#include "renderbufferclasses.h"
+#include "BgfxRenderProfile.h"
+#include "GgcRuntimeFlags.h"
+
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 // Upgraded to DX8 2/2/01 HY
 
@@ -126,14 +137,25 @@ VectorClass<Vector3>			VertexLoc;		// camera-space vertex locations
 VectorClass<Vector4>			VertexDiffuse;	// vertex diffuse/alpha colors
 VectorClass<Vector2>			VertexUV;		// vertex texture coords
 
-// Some DX 8 variables
+// TheSuperHackers @performance bobtista 03/06/2026 Scratch accumulators used to
+// merge the per-depth-layer draws of one volume particle emitter into a single
+// Draw_Triangles. Reused across calls (grow-only) to avoid per-frame allocation.
+static VectorClass<Vector3>			s_volMergeLoc;
+static VectorClass<Vector2>			s_volMergeUV;
+static VectorClass<unsigned int>	s_volMergeColor;
+static int							s_volMergeCount = 0;
+static int							s_volMergeVerticesPerPrimitive = 3;
+static bool							s_volMergeSort = false;
+static IndexBufferClass *			s_volMergeIndexBuffer = nullptr;
+
+// Some render buffer constants
 #define MAX_VB_SIZE			2048
 #define MAX_TRI_POINTS		MAX_VB_SIZE/3
 #define MAX_TRI_IB_SIZE		3*MAX_TRI_POINTS
 #define MAX_QUAD_POINTS		MAX_VB_SIZE/4
 #define MAX_QUAD_IB_SIZE	6*MAX_QUAD_POINTS
 
-DX8IndexBufferClass			*Tris, *Quads;						// Index buffers.
+RenderIndexBufferClass		*Tris, *Quads;					// Index buffers.
 SortingIndexBufferClass		*SortingTris, *SortingQuads;	// Sorting index buffers.
 
 /**************************************************************************
@@ -819,6 +841,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	// If there is an active point table, use it to compress the point
 	// locations/colors/alphas/sizes/orientations/frames.
 	if (APT) {
+		GGC_RPROFILE(POINTGROUP_COMPRESS);
 		// Resize compressed result arrays if needed (2x guardband to prevent
 		// frequent reallocations):
 
@@ -880,7 +903,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Get the world and view matrices
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+	Renderer::Get_Transform(RB_TRANSFORM_VIEW, view);
 
 	// Transform the point locations from worldspace to camera space if needed
 	// (i.e. if they are not already in camera space):
@@ -890,6 +913,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 
 	// (gth) changed this 'if' to use OR rather than AND... The way it was caused all emitters to break
 	if (Get_Flag(TRANSFORM) && Billboard) {
+		GGC_RPROFILE(POINTGROUP_VIEW_XFORM);
 		// Resize transformed location array if needed (2x guardband to prevent
 		// frequent reallocations):
 		if (transformed_loc.Length() < PointCount) {
@@ -912,27 +936,67 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	// Update the arrays with the offsets.
 	int vnum, pnum;
 
-	Update_Arrays(current_loc, current_diffuse, current_size, current_orient, current_frame,
-		PointCount, PointLoc->Get_Count(), vnum, pnum);
+	{
+		GGC_RPROFILE(POINTGROUP_UPDATE_ARRAYS);
+		Update_Arrays(current_loc, current_diffuse, current_size, current_orient, current_frame,
+			PointCount, PointLoc->Get_Count(), vnum, pnum);
+	}
+
+// TheSuperHackers @bugfix bobtista 17/07/2026 The 28/05 ground-alignment fixup that
+	// re-built these vertices from the billboard orientation tables is removed: it overwrote
+	// Update_Arrays' retail ground geometry with half-size, opposite-spin, mirrored quads.
+	// Update_Arrays already outputs camera-space vertices for ground-aligned groups, and the
+	// backend's camera-space world fix reprojects them correctly on the engine view
+	// (kill switch GGC_BGFX_NO_CAMERA_SPACE_WORLD_FIX).
 
 	// the locations are now in view space
 	// so set world and view matrices to identity and render
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW, identity);
 
-	DX8Wrapper::Set_Material(PointMaterial);
-	DX8Wrapper::Set_Shader(Shader);
-	DX8Wrapper::Set_Texture(0,Texture);
+	Renderer::Set_Material(PointMaterial);
+	Renderer::Set_Shader(Shader);
+	Renderer::Set_Texture(0,Texture);
 
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 	// TheSuperHackers @bugfix stephanmeesters 30/06/2026 However, do not apply sorting to ground-aligned particles.
 	// This improves performance and resolves rendering artifacts caused by clipping between ground-aligned particles and billboard particles.
+	const bool isGroundAdditive = !Billboard
+		&& Shader.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_ONE
+		&& Shader.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE;
 	const bool sort = Billboard &&
 	                  Shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO &&
 	                  Shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE &&
 	                  WW3D::Is_Sorting_Enabled();
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Cache the env probe once at startup; getenv() is not cheap to call every frame per particle group.
+	static const bool pointGroupDiag = GgcFlags::Enabled(GgcFlag_PointGroupDiag);
+	if (pointGroupDiag)
+	{
+		if (FILE *diag = std::fopen("ggc_pointgroup_diag.txt", "a"))
+		{
+			std::fprintf(diag,
+				"pointgroup texture=%s points=%d vnum=%d pnum=%d sort=%d billboard=%d mode=%d shader=0x%08x srcBlend=%d dstBlend=%d alphaTest=%d sortingEnabled=%d isGroundAdd=%d first=(%.2f,%.2f,%.2f)\n",
+				Texture != nullptr ? Texture->Get_Texture_Name().str() : "<none>",
+				PointCount,
+				vnum,
+				pnum,
+				sort ? 1 : 0,
+				Billboard ? 1 : 0,
+				static_cast<int>(PointMode),
+				Shader.Get_Bits(),
+				static_cast<int>(Shader.Get_Src_Blend_Func()),
+				static_cast<int>(Shader.Get_Dst_Blend_Func()),
+				static_cast<int>(Shader.Get_Alpha_Test()),
+				WW3D::Is_Sorting_Enabled() ? 1 : 0,
+				isGroundAdditive ? 1 : 0,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].X : 0.0f,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].Y : 0.0f,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].Z : 0.0f);
+			std::fclose(diag);
+		}
+	}
 
 	IndexBufferClass *indexbuffer;
 	int	verticesperprimitive;/// lorenzen fixed
@@ -949,13 +1013,18 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	}
 
 	current = 0;
+	if (sort)
+	{
+		Renderer::Set_Point_Group_Render_Active(true);
+	}
 	while (current<vnum)
 	{
 		delta=MIN(vnum-current,MAX_VB_SIZE);
-		DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, delta);
+		DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, delta);
 
 		// Copy in the data to the VB
 		{
+			GGC_RPROFILE(POINTGROUP_VB_FILL);
 			DynamicVBAccessClass::WriteLockClass Lock(&PointVerts);
 			int i;
 			unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
@@ -969,19 +1038,19 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 				// Copy Locations
 				*(Vector3*)(vb+fvfinfo.Get_Location_Offset())=VertexLoc[i];
 				if (current_diffuse) {
-					unsigned color=DX8Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
+					unsigned color=WW3DColor::To_ARGB_Clamp(VertexDiffuse[i]);
 					*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=color;
 				}
 				else
 					*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=
-						DX8Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
+						WW3DColor::To_ARGB_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
 				*(Vector2*)(vb+fvfinfo.Get_Tex_Offset(0))=VertexUV[i];
 				vb+=fvfinfo.Get_FVF_Size();
 			}
 		}
 
-		DX8Wrapper::Set_Index_Buffer (indexbuffer, 0);
-		DX8Wrapper::Set_Vertex_Buffer (PointVerts);
+		Renderer::Set_Index_Buffer (indexbuffer, 0);
+		Renderer::Set_Vertex_Buffer (PointVerts);
 
 		if ( sort )
 		{
@@ -989,14 +1058,18 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		}
 		else
 		{
-			DX8Wrapper::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
+			Renderer::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
 		}
 
 		current+=delta;
 	}
+	if (sort)
+	{
+		Renderer::Set_Point_Group_Render_Active(false);
+	}
 
 	// restore the matrices
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,view);
 }
 
 
@@ -1106,6 +1179,8 @@ void PointGroupClass::Update_Arrays(
 
 		case TRIS_SIZE_NOORIENT:
 			{
+				WWASSERT(point_size);
+
 				// Scale vertex offsets and add them to point locations to get vertex locations
 				for (i = 0; i < active_points; i++) {
 					vertex_loc[vert + 0] = point_loc[i] +
@@ -1121,6 +1196,8 @@ void PointGroupClass::Update_Arrays(
 
 		case TRIS_NOSIZE_ORIENT:
 			{
+				WWASSERT(point_orientation);
+
 				// Scale vertex offsets and add them to point locations to get vertex locations
 				for (i = 0; i < active_points; i++) {
 					vertex_loc[vert + 0] = point_loc[i] +
@@ -1136,6 +1213,8 @@ void PointGroupClass::Update_Arrays(
 
 		case TRIS_SIZE_ORIENT:
 			{
+				WWASSERT(point_size && point_orientation);
+
 				// Scale vertex offsets and add them to point locations to get vertex locations
 				for (i = 0; i < active_points; i++) {
 					vertex_loc[vert + 0] = point_loc[i] +
@@ -1171,6 +1250,8 @@ void PointGroupClass::Update_Arrays(
 
 		case QUADS_SIZE_NOORIENT:
 			{
+				WWASSERT(point_size);
+
 				// Scale vertex offsets and add them to point locations to get vertex locations
 				for (i = 0; i < active_points; i++) {
 					vertex_loc[vert + 0] = point_loc[i] +
@@ -1188,6 +1269,8 @@ void PointGroupClass::Update_Arrays(
 
 		case QUADS_NOSIZE_ORIENT:
 			{
+				WWASSERT(point_orientation);
+
 				// Scale vertex offsets and add them to point locations to get vertex locations
 				for (i = 0; i < active_points; i++) {
 					vertex_loc[vert + 0] = point_loc[i] +
@@ -1205,21 +1288,31 @@ void PointGroupClass::Update_Arrays(
 
 		case QUADS_SIZE_ORIENT:
 			{
+				WWASSERT(point_size && point_orientation);
+
 				Matrix4x4 view;
 				Vector4 result;
 				if (!Billboard) {
-					DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+					Renderer::Get_Transform(RB_TRANSFORM_VIEW, view);
 				}
 
 				// Scale vertex offsets and add them to point locations to get vertex locations
-				for (i = 0; i < active_points; i++) {
-					if (!Billboard) {
-						// If we're not billboarding, then the coordinate we have is in screen space.
-						Matrix4x4 rotMat;
-						D3DXMatrixRotationZ(&(D3DXMATRIX&) rotMat, ((float)point_orientation[i] / 255.0f * 2 * D3DX_PI));
-
-						Vector4 orientedVecX = rotMat * GroundMultiplierX;
-						Vector4 orientedVecY = rotMat * GroundMultiplierY;
+					for (i = 0; i < active_points; i++) {
+						if (!Billboard) {
+							// If we're not billboarding, then the coordinate we have is in screen space.
+							const float angle = static_cast<float>(point_orientation[i]) / 255.0f * WWMATH_TWO_PI;
+							const float c = std::cos(angle);
+							const float s = std::sin(angle);
+							const Vector4 orientedVecX(
+								GroundMultiplierX.X * c + GroundMultiplierX.Y * s,
+								GroundMultiplierX.X * -s + GroundMultiplierX.Y * c,
+								GroundMultiplierX.Z,
+								1.0f);
+							const Vector4 orientedVecY(
+								GroundMultiplierY.X * c + GroundMultiplierY.Y * s,
+								GroundMultiplierY.X * -s + GroundMultiplierY.Y * c,
+								GroundMultiplierY.Z,
+								1.0f);
 
 						vertex_loc[vert + 0].X = point_loc[i].X +	(orientedVecX.X + orientedVecY.X) * point_size[i];
 						vertex_loc[vert + 0].Y = point_loc[i].Y +	(orientedVecX.Y + orientedVecY.Y) * point_size[i];
@@ -1312,6 +1405,8 @@ void PointGroupClass::Update_Arrays(
 		case SCREEN_SIZE_NOORIENT:
 		case SCREEN_SIZE_ORIENT:
 			{
+				WWASSERT(point_size);
+
 				// Offsets need to be scaled to the current screen resolution
 
    			// First find x and y scale factors (sizes in pixels need to be
@@ -1531,21 +1626,21 @@ void PointGroupClass::_Init()
 	}
 
 	// Create the IBs
-	Tris=NEW_REF(DX8IndexBufferClass,(MAX_TRI_IB_SIZE));
-	Quads=NEW_REF(DX8IndexBufferClass,(MAX_QUAD_IB_SIZE));
+	Tris=NEW_REF(RenderIndexBufferClass,(MAX_TRI_IB_SIZE));
+	Quads=NEW_REF(RenderIndexBufferClass,(MAX_QUAD_IB_SIZE));
 	SortingTris=NEW_REF(SortingIndexBufferClass,(MAX_TRI_IB_SIZE));
 	SortingQuads=NEW_REF(SortingIndexBufferClass,(MAX_QUAD_IB_SIZE));
 
 	// Fill up the IBs
 	{
-		DX8IndexBufferClass::WriteLockClass locktris(Tris);
+		RenderIndexBufferClass::WriteLockClass locktris(Tris);
 		unsigned short *ib=locktris.Get_Index_Array();
 		for (i=0; i<MAX_TRI_IB_SIZE; i++) ib[i]=(unsigned short) i;
 	}
 
 	{
 		unsigned short vert=0;
-		DX8IndexBufferClass::WriteLockClass lockquads(Quads);
+		RenderIndexBufferClass::WriteLockClass lockquads(Quads);
 		unsigned short *ib=lockquads.Get_Index_Array();
 		vert=0;
 		for (i=0; i<MAX_QUAD_IB_SIZE; i+=6)
@@ -1644,11 +1739,12 @@ void PointGroupClass::_Shutdown()
  *   12/03/2002	Mark Lorenzen		Created.                                  *
  *																		                                    *
  *========================================================================*/
+#define DEFAULT_VOLUME_PARTICLE_DEPTH ( 1 )
 #define MAX_VOLUME_PARTICLE_DEPTH ( 16 )
 void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int depth )
 {
 
-	if ( depth <= 1 ) //oops,wrong number
+	if ( depth <= DEFAULT_VOLUME_PARTICLE_DEPTH) //oops,wrong number
 	{
 		Render( rinfo );
 		return;
@@ -1695,9 +1791,20 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 		// Get the world and view matrices
 		Matrix4x4 view;
-		DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+		Renderer::Get_Transform(RB_TRANSFORM_VIEW, view);
 
 
+
+	// TheSuperHackers @performance bobtista 03/06/2026 On the bgfx shader
+	// pipeline, merge this emitter's depth layers into one draw instead of one
+	// per layer. GGC_NO_VOLUME_MERGE forces the legacy per-layer path. The DX8
+	// fixed-function path keeps the original per-layer loop byte-identical.
+	static const bool s_volumeMergeDisabled = GgcFlags::Enabled(GgcFlag_NoVolumeMerge);
+	const bool mergeVolume = Renderer::Has_Shader_Pipeline() && !s_volumeMergeDisabled;
+	if (mergeVolume)
+	{
+		s_volMergeCount = 0;
+	}
 
 	//// VOLUME_PARTICLE LOOP ///////////////
 	for ( unsigned int t = 0; t < depth; ++t )
@@ -1710,6 +1817,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		// If there is an active point table, use it to compress the point
 		// locations/colors/alphas/sizes/orientations/frames.
 		if (APT) {
+			GGC_RPROFILE(POINTGROUP_COMPRESS);
 			// Resize compressed result arrays if needed (2x guardband to prevent
 			// frequent reallocations):
 
@@ -1779,6 +1887,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		// need to interrupt this processing. If we are not billboarding, then we need the actual position
 		// of the vertice to lay it down flat.
 		if (Get_Flag(TRANSFORM) && Billboard) {
+			GGC_RPROFILE(POINTGROUP_VIEW_XFORM);
 			// Resize transformed location array if needed (2x guardband to prevent
 			// frequent reallocations):
 			if (transformed_loc.Length() < PointCount) {
@@ -1789,7 +1898,8 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 			// 3 times per particle when we can do it once
 			float recipDepth = 0.1f / (float)depth;
 
-			float shiftInc = ( t *  *current_size * recipDepth );
+			const float pointSize = current_size ? *current_size : DefaultPointSize;
+			float shiftInc = t * pointSize * recipDepth;
 
 			Vector3 volumeLayerShift;
 			Vector3 cameraPosition = rinfo.Camera.Get_Position();
@@ -1826,19 +1936,22 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		//current_diffuse->Z *= attenuator;
 		//current_diffuse->W *= attenuator;
 
-		Update_Arrays(current_loc, current_diffuse, current_size, current_orient, current_frame,
-			PointCount, PointLoc->Get_Count(), vnum, pnum);
+		{
+			GGC_RPROFILE(POINTGROUP_UPDATE_ARRAYS);
+			Update_Arrays(current_loc, current_diffuse, current_size, current_orient, current_frame,
+				PointCount, PointLoc->Get_Count(), vnum, pnum);
+		}
 
 		// the locations are now in view space
 		// so set world and view matrices to identity and render
 
 		Matrix4x4 identity(true);
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-		DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
+		Renderer::Set_Transform(RB_TRANSFORM_VIEW, identity);
 
-		DX8Wrapper::Set_Material(PointMaterial);
-		DX8Wrapper::Set_Shader(Shader);
-		DX8Wrapper::Set_Texture(0,Texture);
+		Renderer::Set_Material(PointMaterial);
+		Renderer::Set_Shader(Shader);
+		Renderer::Set_Texture(0,Texture);
 
 		// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 		// TheSuperHackers @info Volumetric particles, both billboarded and ground-aligned, must have sorting enabled to
@@ -1859,17 +1972,49 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 			indexbuffer = sort ? static_cast <IndexBufferClass*> (SortingTris) : static_cast <IndexBufferClass*> (Tris);
 		}
 
-
-		float nudge = 0;
+		if (mergeVolume)
+		{
+			// Append this layer's vertices to the shared merge scratch in
+			// near-to-far t order. Submission order within the merged buffer
+			// equals the original per-layer order, so additive/alpha/multiply
+			// blending and the sort-pool z-ordering are unchanged.
+			const int mergeBase = s_volMergeCount;
+			const int mergeNeeded = mergeBase + vnum;
+			if (s_volMergeLoc.Length() < mergeNeeded)
+			{
+				s_volMergeLoc.Resize(mergeNeeded * 2);
+				s_volMergeUV.Resize(mergeNeeded * 2);
+				s_volMergeColor.Resize(mergeNeeded * 2);
+			}
+			const unsigned int defaultVolColor = WW3DColor::To_ARGB_Clamp(
+				Vector4(DefaultPointColor[0], DefaultPointColor[1], DefaultPointColor[2], DefaultPointAlpha));
+			for (int mi = 0; mi < vnum; mi++)
+			{
+				s_volMergeLoc[mergeBase + mi] = VertexLoc[mi];
+				s_volMergeUV[mergeBase + mi] = VertexUV[mi];
+				s_volMergeColor[mergeBase + mi] = current_diffuse
+					? WW3DColor::To_ARGB_Clamp(VertexDiffuse[mi]) : defaultVolColor;
+			}
+			s_volMergeCount = mergeNeeded;
+			s_volMergeVerticesPerPrimitive = verticesperprimitive;
+			s_volMergeSort = sort;
+			s_volMergeIndexBuffer = indexbuffer;
+			continue;
+		}
 
 		current = 0;
+		if (sort)
+		{
+			Renderer::Set_Point_Group_Render_Active(true);
+		}
 		while (current<vnum)
 		{
 			delta=MIN(vnum-current,MAX_VB_SIZE);
-			DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, delta);
+			DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, delta);
 
 			// Copy in the data to the VB
 			{
+				GGC_RPROFILE(POINTGROUP_VB_FILL);
 				DynamicVBAccessClass::WriteLockClass Lock(&PointVerts);
 				int i;
 				unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
@@ -1885,19 +2030,19 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 					*(Vector3*)(vb+fvfinfo.Get_Location_Offset()) = VertexLoc[i];
 
 					if (current_diffuse) {
-						unsigned color=DX8Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
+						unsigned color=WW3DColor::To_ARGB_Clamp(VertexDiffuse[i]);
 						*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=color;
 					}
 					else
 						*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=
-							DX8Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
+							WW3DColor::To_ARGB_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
 					*(Vector2*)(vb+fvfinfo.Get_Tex_Offset(0))=VertexUV[i];
 					vb+=fvfinfo.Get_FVF_Size();
 				}
 			}
 
-			DX8Wrapper::Set_Index_Buffer (indexbuffer, 0);
-			DX8Wrapper::Set_Vertex_Buffer (PointVerts);
+			Renderer::Set_Index_Buffer (indexbuffer, 0);
+			Renderer::Set_Vertex_Buffer (PointVerts);
 
 			/// @todo lorenzen sez: precompute these params, above
 
@@ -1905,19 +2050,72 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 			if ( sort )
 					SortingRendererClass::Insert_Triangles (0, delta / verticesperprimitive, 0, delta);
 			else
-				DX8Wrapper::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
+				Renderer::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
 
 
 			current+=delta;
+		}
+		if (sort)
+		{
+			Renderer::Set_Point_Group_Render_Active(false);
 		}
 
 
 
 	}
 
-
-
+	// TheSuperHackers @performance bobtista 03/06/2026 Emit the accumulated
+	// volume layers as a single Draw_Triangles (chunked only if the merged
+	// vertex count exceeds the dynamic VB cap), replacing the per-layer draws
+	// skipped above. Chunk size is aligned down to whole primitives.
+	if (mergeVolume && s_volMergeCount > 0)
+	{
+		const int vpp = s_volMergeVerticesPerPrimitive;
+		if (s_volMergeSort)
+		{
+			Renderer::Set_Point_Group_Render_Active(true);
+		}
+		int mergedCurrent = 0;
+		while (mergedCurrent < s_volMergeCount)
+		{
+			int mergedDelta = MIN(s_volMergeCount - mergedCurrent, MAX_VB_SIZE);
+			mergedDelta -= (mergedDelta % vpp);
+			if (mergedDelta <= 0)
+			{
+				break;
+			}
+			DynamicVBAccessClass PointVerts(s_volMergeSort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, mergedDelta);
+			{
+				GGC_RPROFILE(POINTGROUP_VB_FILL);
+				DynamicVBAccessClass::WriteLockClass Lock(&PointVerts);
+				unsigned char *vb = (unsigned char*)Lock.Get_Formatted_Vertex_Array();
+				const FVFInfoClass& fvfinfo = PointVerts.FVF_Info();
+				for (int mi = mergedCurrent; mi < mergedCurrent + mergedDelta; mi++)
+				{
+					*(Vector3*)(vb + fvfinfo.Get_Location_Offset()) = s_volMergeLoc[mi];
+					*(unsigned int*)(vb + fvfinfo.Get_Diffuse_Offset()) = s_volMergeColor[mi];
+					*(Vector2*)(vb + fvfinfo.Get_Tex_Offset(0)) = s_volMergeUV[mi];
+					vb += fvfinfo.Get_FVF_Size();
+				}
+			}
+			Renderer::Set_Index_Buffer(s_volMergeIndexBuffer, 0);
+			Renderer::Set_Vertex_Buffer(PointVerts);
+			if (s_volMergeSort)
+			{
+				SortingRendererClass::Insert_Triangles(0, mergedDelta / vpp, 0, mergedDelta);
+			}
+			else
+			{
+				Renderer::Draw_Triangles(0, mergedDelta / vpp, 0, mergedDelta);
+			}
+			mergedCurrent += mergedDelta;
+		}
+		if (s_volMergeSort)
+		{
+			Renderer::Set_Point_Group_Render_Active(false);
+		}
+	}
 
 	// restore the matrices
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,view);
 }

@@ -35,13 +35,18 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "dynamesh.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
+#include "ww3dcolor.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "sortingrenderer.h"
-#include "WW3D2/rinfo.h"
-#include "WW3D2/camera.h"
+#include "rinfo.h"
+#include "camera.h"
 #include "dx8fvf.h"
+#include "Renderer.h"
 
 
 
@@ -179,7 +184,7 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	// Process texture reductions:
 //	MatInfo->Process_Texture_Reduction();
 
-	unsigned buffer_type=(Get_Flag(MeshGeometryClass::SORT)&& WW3D::Is_Sorting_Enabled()) ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	unsigned buffer_type=(Get_Flag(MeshGeometryClass::SORT)&& WW3D::Is_Sorting_Enabled()) ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC;
 
 	/*
 	** Write the vertex data to the vertex buffer. We assume the FVF contains positions, normals,
@@ -189,7 +194,8 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	DynamicVBAccessClass dynamic_vb(buffer_type,dynamic_fvf_type,DynamicMeshVNum);
 	const FVFInfoClass &fvf_info = dynamic_vb.FVF_Info();
 
-	{ // scope for lock
+	{
+		// scope for lock
 
 		DynamicVBAccessClass::WriteLockClass lock(&dynamic_vb);
 		unsigned char *vertices = (unsigned char*)lock.Get_Formatted_Vertex_Array();
@@ -232,7 +238,8 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	DynamicIBAccessClass dynamic_ib(buffer_type,DynamicMeshPNum * 3);
 	const TriIndex *tris = Get_Polygon_Array();
 
-	{ // scope for lock
+	{
+		// scope for lock
 
 		DynamicIBAccessClass::WriteLockClass lock(&dynamic_ib);
 		unsigned short * indices = lock.Get_Index_Array();
@@ -248,8 +255,8 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	/*
 	** Set vertex and index buffers
 	*/
-	DX8Wrapper::Set_Vertex_Buffer(dynamic_vb);
-	DX8Wrapper::Set_Index_Buffer(dynamic_ib,0);
+	Renderer::Set_Vertex_Buffer(dynamic_vb);
+	Renderer::Set_Index_Buffer(dynamic_ib,0);
 
 	/*
 	** Draw dynamesh, one pass at a time
@@ -301,26 +308,26 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 
 		// Set the DX8 state to the first triangle's state
 		if (texture_array0) {
-			DX8Wrapper::Set_Texture(0,texture_array0[0]);
+			Renderer::Set_Texture(0,texture_array0[0]);
 		} else {
-			DX8Wrapper::Set_Texture(0,MatDesc->Peek_Single_Texture(pass, 0));
+			Renderer::Set_Texture(0,MatDesc->Peek_Single_Texture(pass, 0));
 		}
 
 		if (texture_array1) {
-			DX8Wrapper::Set_Texture(1,texture_array1[0]);
+			Renderer::Set_Texture(1,texture_array1[0]);
 		} else {
-			DX8Wrapper::Set_Texture(1,MatDesc->Peek_Single_Texture(pass, 1));
+			Renderer::Set_Texture(1,MatDesc->Peek_Single_Texture(pass, 1));
 		}
 
 		if (material_array) {
-			DX8Wrapper::Set_Material(material_array[tris[0].I]);
+			Renderer::Set_Material(material_array[tris[0].I]);
 		} else {
-			DX8Wrapper::Set_Material(MatDesc->Peek_Single_Material(pass));
+			Renderer::Set_Material(MatDesc->Peek_Single_Material(pass));
 		}
 		if (shader_array) {
-			DX8Wrapper::Set_Shader(shader_array[0]);
+			Renderer::Set_Shader(shader_array[0]);
 		} else {
-			DX8Wrapper::Set_Shader(MatDesc->Get_Single_Shader(pass));
+			Renderer::Set_Shader(MatDesc->Get_Single_Shader(pass));
 		}
 
 		SphereClass sphere;
@@ -332,7 +339,7 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 				SortingRendererClass::Insert_Triangles(sphere,0, DynamicMeshPNum, 0, DynamicMeshVNum);
 			}
 			else {
-				DX8Wrapper::Draw_Triangles(0, DynamicMeshPNum, 0, DynamicMeshVNum);
+				Renderer::Draw_Triangles(0, DynamicMeshPNum, 0, DynamicMeshVNum);
 			}
 			continue;
 		}
@@ -372,7 +379,7 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 						1 + max_vert_idx - min_vert_idx);
 				}
 				else {
-					DX8Wrapper::Draw_Triangles(
+					Renderer::Draw_Triangles(
 						(start_tri_idx * 3),
 						(1 + cur_tri_idx - start_tri_idx),
 						min_vert_idx,
@@ -381,10 +388,10 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 				start_tri_idx = next_tri_idx;
 				min_vert_idx = DynamicMeshVNum - 1;
 				max_vert_idx = 0;
-				if (texture_changed) DX8Wrapper::Set_Texture(0,texture_array0[next_tri_idx]);
-				if (texture1_changed) DX8Wrapper::Set_Texture(1,texture_array1[next_tri_idx]);
-				if (material_changed) DX8Wrapper::Set_Material(material_array[tris[next_tri_idx].I]);
-				if (shader_changed) DX8Wrapper::Set_Shader(shader_array[next_tri_idx]);
+				if (texture_changed) Renderer::Set_Texture(0,texture_array0[next_tri_idx]);
+				if (texture1_changed) Renderer::Set_Texture(1,texture_array1[next_tri_idx]);
+				if (material_changed) Renderer::Set_Material(material_array[tris[next_tri_idx].I]);
+				if (shader_changed) Renderer::Set_Shader(shader_array[next_tri_idx]);
 			}
 
 			cur_tri_idx = next_tri_idx;
@@ -430,7 +437,7 @@ void DynamicMeshClass::Render(RenderInfoClass & rinfo)
 		const FrustumClass & frustum = rinfo.Camera.Get_Frustum();
 
 		if (CollisionMath::Overlap_Test(frustum, Get_Bounding_Box()) != CollisionMath::OUTSIDE) {
-			DX8Wrapper::Set_Transform(D3DTS_WORLD, Transform);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD, Transform);
 			Model->Render(rinfo);
 		}
 	}
@@ -461,7 +468,7 @@ bool DynamicMeshClass::End_Vertex()
 //			color->Z = CurVertexColor[color_array_index].Z;
 //			color->W = CurVertexColor[color_array_index].W;
 			unsigned * color = &((Model->Get_Color_Array(color_array_index))[VertCount]);
-			*color=DX8Wrapper::Convert_Color_Clamp(CurVertexColor[color_array_index]);
+			*color=WW3DColor::To_ARGB_Clamp(CurVertexColor[color_array_index]);
 		}
 	}
 
@@ -827,5 +834,3 @@ void DynamicScreenMeshClass::Reset()
 	Reset_Flags();
 	Reset_Mesh_Counters();
 }
-
-

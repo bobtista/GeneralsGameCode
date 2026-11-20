@@ -78,6 +78,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "assetmgr.h"
+#include "GgcRuntimeFlags.h"
 #include <assert.h>
 
 #include "WWLib/bittype.h"
@@ -88,37 +89,77 @@
 
 #include "htreemgr.h"
 #include "hanimmgr.h"
-#include "WW3D2/texture.h"
-#include "WW3D2/font3d.h"
-#include "WW3D2/render2dsentence.h"		// for FontCharsClass
-#include "WW3D2/proto.h"
-#include "WW3D2/hanim.h"
-#include "WW3D2/hcanim.h"
-#include "WW3D2/htree.h"
-#include "WW3D2/collect.h"
+#include "texture.h"
+#include "font3d.h"
+#include "render2dsentence.h"		// for FontCharsClass
+#include "proto.h"
+#include "hanim.h"
+#include "hcanim.h"
+#include "htree.h"
+#include "collect.h"
 #include "ww3d.h"
 #include "WWLib/ffactory.h"
 #include "boxrobj.h"
 #include "nullrobj.h"
-#include "WW3D2/distlod.h"
+#include "distlod.h"
 #include "hlod.h"
-#include "WW3D2/agg_def.h"
+#include "agg_def.h"
 #include "WWLib/wwstring.h"
 #include "WWDebug/wwmemlog.h"
 #include "dazzle.h"
-#include "WW3D2/dx8wrapper.h"
-#include "WW3D2/dx8renderer.h"
-#include "WW3D2/metalmap.h"
-#include "WW3D2/w3dexclusionlist.h"
+#include "dx8renderer.h"
+#include "metalmap.h"
+#include "w3dexclusionlist.h"
 #include <WWLib/INI.h>
 #include <windows.h>
-#include <d3dx8core.h>
 #include "WWDebug/wwprofile.h"
-#include "WW3D2/assetstatus.h"
-#include "WW3D2/ringobj.h"
-#include "WW3D2/sphereobj.h"
+#include "assetstatus.h"
+#include "ringobj.h"
+#include "sphereobj.h"
 
-#include "WW3D2/shdlib.h"
+#include "shdlib.h"
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+namespace
+{
+static bool WW3DLoadDiagEnabled()
+{
+	static int enabled = -1;
+	if (enabled == -1)
+	{
+		enabled = GgcFlags::Enabled(GgcFlag_Ww3dLoadDiag) ? 1 : 0;
+	}
+	return enabled != 0;
+}
+
+static FILE *WW3DLoadDiagFile()
+{
+	static FILE *fp = nullptr;
+	if (fp == nullptr && WW3DLoadDiagEnabled())
+	{
+		fp = fopen("ggc_ww3d_load_diag.txt", "wt");
+	}
+	return fp;
+}
+
+static void WW3DLoadDiagLog(const char *fmt, ...)
+{
+	FILE *fp = WW3DLoadDiagFile();
+	if (fp == nullptr)
+	{
+		return;
+	}
+
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(fp, fmt, args);
+	va_end(args);
+	fflush(fp);
+}
+}
 
 /*
 ** Static member variable which keeps track of the single instanced asset manager
@@ -266,7 +307,7 @@ WW3DAssetManager::~WW3DAssetManager()
 
 static void Create_Number_String(StringClass& number, unsigned value)
 {
-	unsigned miljoonat=value/(1024*1028);
+	unsigned miljoonat=value/(1024*1024);
 	unsigned tuhannet=(value/1024)%1024;
 	unsigned ykkoset=value%1024;
 	if (miljoonat) {
@@ -305,51 +346,8 @@ static void Log_Textures(bool inited,unsigned& total_count, unsigned& total_mem)
 		TextureClass * tex=ite.Peek_Value();
 		if (tex->Is_Initialized()!=inited) continue;
 
-		D3DSURFACE_DESC desc;
-		IDirect3DTexture8* d3d_texture=tex->Peek_D3D_Texture();
-		if (!d3d_texture) continue;
-		DX8_ErrorCode(d3d_texture->GetLevelDesc(0,&desc));
-
-		StringClass tex_format="Unknown";
-		switch (desc.Format) {
-		case D3DFMT_A8R8G8B8: tex_format="D3DFMT_A8R8G8B8"; break;
-		case D3DFMT_R8G8B8: tex_format="D3DFMT_R8G8B8"; break;
-		case D3DFMT_A4R4G4B4: tex_format="D3DFMT_A4R4G4B4"; break;
-		case D3DFMT_A1R5G5B5: tex_format="D3DFMT_A1R5G5B5"; break;
-		case D3DFMT_R5G6B5: tex_format="D3DFMT_R5G6B5"; break;
-		case D3DFMT_L8: tex_format="D3DFMT_L8"; break;
-		case D3DFMT_A8: tex_format="D3DFMT_A8"; break;
-		case D3DFMT_P8: tex_format="D3DFMT_P8"; break;
-		case D3DFMT_X8R8G8B8: tex_format="D3DFMT_X8R8G8B8"; break;
-		case D3DFMT_X1R5G5B5: tex_format="D3DFMT_X1R5G5B5"; break;
-		case D3DFMT_R3G3B2: tex_format="D3DFMT_R3G3B2"; break;
-		case D3DFMT_A8R3G3B2: tex_format="D3DFMT_A8R3G3B2"; break;
-		case D3DFMT_X4R4G4B4: tex_format="D3DFMT_X4R4G4B4"; break;
-		case D3DFMT_A8P8: tex_format="D3DFMT_A8P8"; break;
-		case D3DFMT_A8L8: tex_format="D3DFMT_A8L8"; break;
-		case D3DFMT_A4L4: tex_format="D3DFMT_A4L4"; break;
-		case D3DFMT_V8U8: tex_format="D3DFMT_V8U8"; break;
-		case D3DFMT_L6V5U5: tex_format="D3DFMT_L6V5U5"; break;
-		case D3DFMT_X8L8V8U8: tex_format="D3DFMT_X8L8V8U8"; break;
-		case D3DFMT_Q8W8V8U8: tex_format="D3DFMT_Q8W8V8U8"; break;
-		case D3DFMT_V16U16: tex_format="D3DFMT_V16U16"; break;
-		case D3DFMT_W11V11U10: tex_format="D3DFMT_W11V11U10"; break;
-		case D3DFMT_UYVY: tex_format="D3DFMT_UYVY"; break;
-		case D3DFMT_YUY2: tex_format="D3DFMT_YUY2"; break;
-		case D3DFMT_DXT1: tex_format="D3DFMT_DXT1"; break;
-		case D3DFMT_DXT2: tex_format="D3DFMT_DXT2"; break;
-		case D3DFMT_DXT3: tex_format="D3DFMT_DXT3"; break;
-		case D3DFMT_DXT4: tex_format="D3DFMT_DXT4"; break;
-		case D3DFMT_DXT5: tex_format="D3DFMT_DXT5"; break;
-		case D3DFMT_D16_LOCKABLE: tex_format="D3DFMT_D16_LOCKABLE"; break;
-		case D3DFMT_D32: tex_format="D3DFMT_D32"; break;
-		case D3DFMT_D15S1: tex_format="D3DFMT_D15S1"; break;
-		case D3DFMT_D24S8: tex_format="D3DFMT_D24S8"; break;
-		case D3DFMT_D16: tex_format="D3DFMT_D16"; break;
-		case D3DFMT_D24X8: tex_format="D3DFMT_D24X8"; break;
-		case D3DFMT_D24X4S4: tex_format="D3DFMT_D24X4S4"; break;
-		default:	break;
-		}
+		StringClass tex_format;
+		Get_WW3D_Format_Name(tex->Get_Texture_Format(), tex_format);
 
 		unsigned texmem=tex->Get_Texture_Memory_Usage();
 		total_mem+=texmem;
@@ -359,8 +357,8 @@ static void Log_Textures(bool inited,unsigned& total_count, unsigned& total_mem)
 
 		WWDEBUG_SAY(("%32s	%4d * %4d (%15s), init %d, size: %14s bytes, refs: %d",
 			tex->Get_Texture_Name().str(),
-			desc.Width,
-			desc.Height,
+			tex->Get_Width(),
+			tex->Get_Height(),
 			tex_format.str(),
 			tex->Is_Initialized(),
 			number.str(),
@@ -627,8 +625,11 @@ bool WW3DAssetManager::Load_3D_Assets( const char * filename )
 			result = WW3DAssetManager::Load_3D_Assets( *file );
 		} else {
 			WWDEBUG_SAY(("Missing asset '%s'.", filename));
+			WW3DLoadDiagLog("file-unavailable name=%s\n", filename);
 		}
 		_TheFileFactory->Return_File( file );
+	} else {
+		WW3DLoadDiagLog("file-get-fail name=%s\n", filename);
 	}
 
 	return result;
@@ -650,13 +651,26 @@ bool WW3DAssetManager::Load_3D_Assets( const char * filename )
 bool WW3DAssetManager::Load_3D_Assets(FileClass & w3dfile)
 {
 	WWPROFILE( "WW3DAssetManager::Load_3D_Assets" );
+	WW3DLoadDiagLog("file-load-begin name=%s available=%d\n", w3dfile.File_Name(), w3dfile.Is_Available() ? 1 : 0);
 	if (!w3dfile.Open()) {
+		WW3DLoadDiagLog("file-open-fail name=%s\n", w3dfile.File_Name());
 		return false;
 	}
+	WW3DLoadDiagLog("file-open-ok name=%s size=%d\n", w3dfile.File_Name(), w3dfile.Size());
 
 	ChunkLoadClass cload(&w3dfile);
+	int chunk_count = 0;
 
 	while (cload.Open_Chunk()) {
+		++chunk_count;
+		if (chunk_count <= 80)
+		{
+			WW3DLoadDiagLog("chunk name=%s index=%d id=0x%08x len=%u\n",
+				w3dfile.File_Name(),
+				chunk_count,
+				cload.Cur_Chunk_ID(),
+				cload.Cur_Chunk_Length());
+		}
 
 		switch (cload.Cur_Chunk_ID()) {
 
@@ -671,7 +685,17 @@ bool WW3DAssetManager::Load_3D_Assets(FileClass & w3dfile)
 				break;
 
 			default:
-				Load_Prototype(cload);
+				{
+					bool protoLoaded = Load_Prototype(cload);
+					if (chunk_count <= 80)
+					{
+						WW3DLoadDiagLog("prototype-load name=%s index=%d id=0x%08x result=%d\n",
+							w3dfile.File_Name(),
+							chunk_count,
+							cload.Cur_Chunk_ID(),
+							protoLoaded ? 1 : 0);
+					}
+				}
 				break;
 		}
 
@@ -679,6 +703,7 @@ bool WW3DAssetManager::Load_3D_Assets(FileClass & w3dfile)
 	}
 
 	w3dfile.Close();
+	WW3DLoadDiagLog("file-load-end name=%s chunks=%d\n", w3dfile.File_Name(), chunk_count);
 
 	return true;
 }
@@ -793,13 +818,14 @@ RenderObjClass * WW3DAssetManager::Create_Render_Obj(const char * name)
 	// Try to find a prototype
 	PrototypeClass * proto = Find_Prototype(name);
 
-	if (WW3D_Load_On_Demand && proto == nullptr) {	// If we didn't find one, try to load on demand
+	if (WW3D_Load_On_Demand && proto == nullptr) {
+		// If we didn't find one, try to load on demand
 		AssetStatusClass::Peek_Instance()->Report_Load_On_Demand_RObj(name);
 
 		char filename [MAX_PATH];
 		const char *mesh_name = ::strchr (name, '.');
 		if (mesh_name != nullptr) {
-			::lstrcpyn (filename, name, ((int)mesh_name) - ((int)name) + 1);
+			::lstrcpyn (filename, name, (int)(mesh_name - name) + 1);
 			::lstrcat (filename, ".w3d");
 		} else {
 			snprintf( filename, ARRAY_SIZE(filename), "%s.w3d", name);
@@ -822,6 +848,7 @@ RenderObjClass * WW3DAssetManager::Create_Render_Obj(const char * name)
 			if (++warning_count <= 20) {
 				WWDEBUG_SAY(("WARNING: Failed to create Render Object: %s",name));
 			}
+			WW3DLoadDiagLog("render-obj-fail name=%s\n", name);
 			AssetStatusClass::Peek_Instance()->Report_Missing_RObj(name);
 		}
 		return nullptr;		// Failed to find a prototype
@@ -971,9 +998,11 @@ HAnimClass *	WW3DAssetManager::Get_HAnim(const char * name)
 	// Try to find the hanim
 	HAnimClass * anim = HAnimManager.Get_Anim(name);
 
-	if (WW3D_Load_On_Demand && anim == nullptr) {	// If we didn't find it, try to load on demand
+	if (WW3D_Load_On_Demand && anim == nullptr) {
+		// If we didn't find it, try to load on demand
 
-		if ( !HAnimManager.Is_Missing( name ) ) {	// if this is NOT a known missing anim
+		if ( !HAnimManager.Is_Missing( name ) ) {
+			// if this is NOT a known missing anim
 
 			AssetStatusClass::Peek_Instance()->Report_Load_On_Demand_HAnim(name);
 
@@ -1025,7 +1054,8 @@ HTreeClass *	WW3DAssetManager::Get_HTree(const char * name)
 	// Try to find the htree
 	HTreeClass * htree = HTreeManager.Get_Tree(name);
 
-	if (WW3D_Load_On_Demand && htree == nullptr) {	// If we didn't find it, try to load on demand
+	if (WW3D_Load_On_Demand && htree == nullptr) {
+		// If we didn't find it, try to load on demand
 
 		AssetStatusClass::Peek_Instance()->Report_Load_On_Demand_HTree(name);
 
@@ -1247,14 +1277,13 @@ void WW3DAssetManager::Log_All_Textures()
 		if (!t->Is_Lightmap()) continue;
 
 		StringClass tmp(true);
-		unsigned bytes=t->Get_Texture_Memory_Usage();
 		if (!t->Is_Initialized()) {
 			tmp+="*";
 		}
 		else {
 			tmp+=" ";
 		}
-		WWDEBUG_SAY(("%4.4dkb %s%s",bytes/1024,tmp.str(),t->Get_Texture_Name().str()));
+		WWDEBUG_SAY(("%4.4dkb %s%s",t->Get_Texture_Memory_Usage()/1024,tmp.str(),t->Get_Texture_Name().str()));
 	}
 
 	// Log procedural textures -------------------------------
@@ -1271,14 +1300,13 @@ void WW3DAssetManager::Log_All_Textures()
 		if (!t->Is_Procedural()) continue;
 
 		StringClass tmp(true);
-		unsigned bytes=t->Get_Texture_Memory_Usage();
 		if (!t->Is_Initialized()) {
 			tmp+="*";
 		}
 		else {
 			tmp+=" ";
 		}
-		WWDEBUG_SAY(("%4.4dkb %s%s",bytes/1024,tmp.str(),t->Get_Texture_Name().str()));
+		WWDEBUG_SAY(("%4.4dkb %s%s",t->Get_Texture_Memory_Usage()/1024,tmp.str(),t->Get_Texture_Name().str()));
 	}
 
 	// Log "ordinary" textures -------------------------------
@@ -1296,14 +1324,13 @@ void WW3DAssetManager::Log_All_Textures()
 		if (t->Is_Lightmap()) continue;
 
 		StringClass tmp(true);
-		unsigned bytes=t->Get_Texture_Memory_Usage();
 		if (!t->Is_Initialized()) {
 			tmp+="*";
 		}
 		else {
 			tmp+=" ";
 		}
-		WWDEBUG_SAY(("%4.4dkb %s%s",bytes/1024,tmp.str(),t->Get_Texture_Name().str()));
+		WWDEBUG_SAY(("%4.4dkb %s%s",t->Get_Texture_Memory_Usage()/1024,tmp.str(),t->Get_Texture_Name().str()));
 	}
 
 }
@@ -1493,6 +1520,17 @@ void	WW3DAssetManager::Release_All_FontChars()
 	while ( FontCharsList.Count() ) {
 		FontCharsList[0]->Release_Ref();
 		FontCharsList.Delete( 0 );
+	}
+}
+
+
+/***********************************************************************************************
+ * WW3DAssetManager::Free_All_FontChars_Glyph_Caches -- Discards all cached glyphs              *
+ *=============================================================================================*/
+void	WW3DAssetManager::Free_All_FontChars_Glyph_Caches()
+{
+	for ( int i = 0; i < FontCharsList.Count(); i++ ) {
+		FontCharsList[i]->Free_Glyph_Cache();
 	}
 }
 
@@ -1724,5 +1762,3 @@ const char * HTreeIterator::Current_Item_Name()
 {
 	return WW3DAssetManager::Get_Instance()->HTreeManager.Get_Tree(Index)->Get_Name();
 }
-
-

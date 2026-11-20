@@ -958,6 +958,7 @@ ControlBar::ControlBar()
 	m_generalsScreenAnimate = nullptr;
 	m_animateWindowManagerForGenShortcuts = nullptr;
 	m_flash = FALSE;
+	m_lastUpdateFrame = ~0u;
 	m_toggleButtonUpIn = nullptr;
 	m_toggleButtonUpOn = nullptr;
 	m_toggleButtonUpPushed = nullptr;
@@ -1401,8 +1402,18 @@ void ControlBar::update()
 {
 	if (TheGlobalData->m_headless)
 		return;
+
+	// TheSuperHackers @bugfix bobtista 14/10/2026 Advance the radar glow and button flashes once per logic frame.
+	// They advanced on every render update, so they ran too fast above 30 render FPS.
+	const UnsignedInt frame = TheGameClient->getFrame();
+	const Bool isNewFrame = frame != m_lastUpdateFrame;
+	m_lastUpdateFrame = frame;
+
 	getStarImage();
-	updateRadarAttackGlow();
+	if (isNewFrame)
+	{
+		updateRadarAttackGlow();
+	}
 	if(m_controlBarSchemeManager)
 		m_controlBarSchemeManager->update();
 
@@ -1495,7 +1506,7 @@ void ControlBar::update()
 				const CommandButton *commandButton = (const CommandButton *)GadgetButtonGetData(button);
 				if( commandButton != nullptr )
 				{
-					if( commandButton->getFlashCount() > 0 && TheGameClient->getFrame() % 10 == 0 )
+					if( commandButton->getFlashCount() > 0 && isNewFrame && frame % 10 == 0 )
 					{
 						if( commandButton->getFlashCount() % 2 == 0 )
 						{
@@ -3305,6 +3316,29 @@ void ControlBar::initSpecialPowershortcutBar( Player *player)
 		}
 	}
 
+}
+
+// TheSuperHackers @bugfix bobtista 20/07/2026 On a mid-match resolution change the generals-powers
+// shortcut bar must be recreated to rescale, but initSpecialPowershortcutBar leaves it hidden, which
+// makes updateSpecialPowerShortcut replay the 500ms slide-in every resize - a screenshot taken right
+// after a resize catches the bar mid-slide, clipped off the right edge. If the bar was already
+// visible, unhide it at its (correct, flush-right) rest position and populate it directly so the
+// hidden->show transition, and therefore the slide, never fires.
+void ControlBar::rebuildSpecialPowerShortcutBarForResolution( Player *player )
+{
+	initSpecialPowershortcutBar( player );
+
+	// recreateControlBar() rebuilt the whole ControlBar object just before this call, wiping any record
+	// of whether the shortcut bar was showing (m_specialPowerShortcutParent starts null on the new
+	// object). Decide from player state instead: if the local player has shortcut powers, unhide the
+	// freshly rebuilt bar at its rest position and populate it directly, so the hidden->show transition
+	// in updateSpecialPowerShortcut - and its 500ms slide-in that a resize would otherwise replay - never fires.
+	const Bool shouldShow = (m_specialPowerShortcutParent != nullptr) && canShowSpecialPowerShortcut();
+	if( shouldShow )
+	{
+		m_specialPowerShortcutParent->winHide( FALSE );
+		populateSpecialPowerShortcut( player );
+	}
 }
 
 void ControlBar::populateSpecialPowerShortcut( Player *player)

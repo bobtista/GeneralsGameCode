@@ -38,7 +38,6 @@
 /*		7/18/2002 : Initial creation                                           */
 /*---------------------------------------------------------------------------*/
 
-#include <dsound.h>
 #include "Lib/BaseType.h"
 #include "MilesAudioDevice/MilesAudioManager.h"
 
@@ -67,7 +66,9 @@
 #include "Common/file.h"
 
 #include <Utility/interlocked_adapter.h>
+#include "MilesLoader.h"
 
+#include <dsound.h>
 
 enum { INFINITE_LOOP_COUNT = 1000000 };
 
@@ -91,6 +92,8 @@ MilesAudioManager::MilesAudioManager() :
 	m_num2DSamples(0),
 	m_num3DSamples(0),
 	m_numStreams(0),
+	m_deviceOpened(false),
+	m_milesLoaded(false),
 	m_delayFilter(nullptr),
 	m_binkHandle(nullptr),
 	m_pref3DProvider(AsciiString::TheEmptyString),
@@ -242,7 +245,7 @@ void MilesAudioManager::audioDebugDisplay(DebugDisplayInterface *dd, void *, FIL
 
 			AudioEventRTS *event = playing->m_audioEventRTS.Peek();
 			filenameNoSlashes = event->getFilename();
-			filenameNoSlashes = filenameNoSlashes.reverseFind('\\') + 1;
+			filenameNoSlashes = getFileName(filenameNoSlashes.str());
 
 			// Calculate Sample volume
 			volume = 100.0f;
@@ -262,7 +265,7 @@ void MilesAudioManager::audioDebugDisplay(DebugDisplayInterface *dd, void *, FIL
 			playing = *it;
 			AudioEventRTS *event = playing->m_audioEventRTS.Peek();
 			filenameNoSlashes = event->getFilename();
-			filenameNoSlashes = filenameNoSlashes.reverseFind( '\\' ) + 1;
+			filenameNoSlashes = getFileName(filenameNoSlashes.str());
 
 			// Calculate Sample volume
 			volume = 100.0f;
@@ -299,7 +302,7 @@ void MilesAudioManager::audioDebugDisplay(DebugDisplayInterface *dd, void *, FIL
 
 			AudioEventRTS *event = playing->m_audioEventRTS.Peek();
 			filenameNoSlashes = event->getFilename();
-			filenameNoSlashes = filenameNoSlashes.reverseFind('\\') + 1;
+			filenameNoSlashes = getFileName(filenameNoSlashes.str());
 
 			// Calculate Sample volume
 			volume = 100.0f;
@@ -351,7 +354,7 @@ void MilesAudioManager::audioDebugDisplay(DebugDisplayInterface *dd, void *, FIL
 			playing = *it;
 			AudioEventRTS *event = playing->m_audioEventRTS.Peek();
 			filenameNoSlashes = event->getFilename();
-			filenameNoSlashes = filenameNoSlashes.reverseFind('\\') + 1;
+			filenameNoSlashes = getFileName(filenameNoSlashes.str());
 
 			// Calculate Sample volume
 			volume = 100.0f;
@@ -375,7 +378,7 @@ void MilesAudioManager::audioDebugDisplay(DebugDisplayInterface *dd, void *, FIL
 			playing = *it;
 			AudioEventRTS *event = playing->m_audioEventRTS.Peek();
 			filenameNoSlashes = event->getFilename();
-			filenameNoSlashes = filenameNoSlashes.reverseFind('\\') + 1;
+			filenameNoSlashes = getFileName(filenameNoSlashes.str());
 
 			// Calculate Sample volume
 			volume = 100.0f;
@@ -399,7 +402,7 @@ void MilesAudioManager::audioDebugDisplay(DebugDisplayInterface *dd, void *, FIL
 			playing = *it;
 			AudioEventRTS *event = playing->m_audioEventRTS.Peek();
 			filenameNoSlashes = event->getFilename();
-			filenameNoSlashes = filenameNoSlashes.reverseFind('\\') + 1;
+			filenameNoSlashes = getFileName(filenameNoSlashes.str());
 
 			// Calculate Sample volume
 			volume = 100.0f;
@@ -1050,6 +1053,11 @@ void MilesAudioManager::releaseMilesHandles( PlayingAudio *playing )
 				AIL_register_stream_callback(playing->m_stream, nullptr);
 				AIL_close_stream(playing->m_stream);
 				playing->m_stream = nullptr;
+				// TheSuperHackers @bugfix arcticdolphin 25/10/2026 The speech lock ends when the stream that set it is released.
+				if (playing->m_audioEventRTS->getAudioEventInfo()->m_soundType == AT_Streaming
+					&& playing->m_audioEventRTS->getUninterruptible()) {
+					setDisallowSpeech(FALSE);
+				}
 			}
 			break;
 		}
@@ -1413,6 +1421,18 @@ void MilesAudioManager::openDevice()
 		return;
 	}
 
+	m_deviceOpened = true;
+
+	// Load the Miles Sound System on runtime here instead of importing it into the executable.
+	if (!MilesLoader::load())
+	{
+		DEBUG_LOG(("Failed to load mss32.dll (error %d). Audio will be turned off.", MilesLoader::getLastError()));
+		setOn(false, AudioAffect_All);
+		return;
+	}
+
+	m_milesLoaded = true;
+
 	AIL_set_redist_directory("MSS\\");
 	AIL_startup();
 	Int retval = 0;
@@ -1448,9 +1468,18 @@ void MilesAudioManager::openDevice()
 //-------------------------------------------------------------------------------------------------
 void MilesAudioManager::closeDevice()
 {
-	freeAllMilesHandles();
-	unselectProvider();
-	AIL_shutdown();
+	if (m_deviceOpened)
+	{
+		if (m_milesLoaded)
+		{
+			freeAllMilesHandles();
+			unselectProvider();
+			AIL_shutdown();
+			m_milesLoaded = false;
+		}
+		MilesLoader::unload();
+		m_deviceOpened = false;
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1509,10 +1538,6 @@ void MilesAudioManager::notifyOfAudioCompletion( UnsignedInt handle, UnsignedInt
 	if (!playing) {
 		DEBUG_CRASH(("Audio has completed playing, but we can't seem to find it. - jkmcd"));
 		return;
-	}
-
-	if (getDisallowSpeech() && playing->m_audioEventRTS->getAudioEventInfo()->m_soundType == AT_Streaming) {
-		setDisallowSpeech(FALSE);
 	}
 
 	if (playing->m_audioEventRTS->getAudioEventInfo()->m_control & AC_LOOP) {
@@ -1727,7 +1752,7 @@ void MilesAudioManager::selectProvider( UnsignedInt providerNdx )
 	{
 		providerNdx = getProviderIndex( "Miles Fast 2D Positional Audio" );
 	}
-	success = AIL_open_3D_provider( m_provider3D[providerNdx].id ) == 0;
+	success = providerNdx < m_providerCount && AIL_open_3D_provider( m_provider3D[providerNdx].id ) == 0;
 
 	//if (providerNdx < m_providerCount)
 	//{
@@ -1741,7 +1766,7 @@ void MilesAudioManager::selectProvider( UnsignedInt providerNdx )
 		m_selectedProvider = PROVIDER_ERROR;
 		// try to select a failsafe
 		providerNdx = getProviderIndex( "Miles Fast 2D Positional Audio" );
-		success = AIL_open_3D_provider( m_provider3D[providerNdx].id ) == 0;
+		success = providerNdx < m_providerCount && AIL_open_3D_provider( m_provider3D[providerNdx].id ) == 0;
 	}
 
 	if ( success )
@@ -2326,9 +2351,10 @@ void MilesAudioManager::processPlayingList()
 			{
 				Real volForConsideration = getEffectiveVolume(playing->m_audioEventRTS.Peek());
 				volForConsideration /= (m_sound3DVolume > 0.0f ? m_soundVolume : 1.0f);
-				Bool playAnyways = BitIsSet( playing->m_audioEventRTS->getAudioEventInfo()->m_type, ST_GLOBAL)
-					|| playing->m_audioEventRTS->getAudioEventInfo()->m_priority == AP_CRITICAL;
-				if( volForConsideration < m_audioSettings->m_minVolume && !playAnyways )
+				Bool playAnyways = BitIsSet( playing->m_audioEventRTS->getAudioEventInfo()->m_type, ST_GLOBAL) ||
+					playing->m_audioEventRTS->getAudioEventInfo()->m_priority == AP_CRITICAL;
+				// TheSuperHackers @bugfix bobtista 14/10/2026 Also stop sounds whose source became shrouded. The shroud was only checked when the sound started.
+				if( ( volForConsideration < m_audioSettings->m_minVolume || isShroudedAt(playing->m_audioEventRTS.Peek(), pos) ) && !playAnyways )
 				{
 					stopPlayingAudio(playing);
 				}
@@ -2871,7 +2897,7 @@ void MilesAudioManager::initSamplePools()
 		DEBUG_ASSERTCRASH(sample, ("Couldn't get %d 2D samples", i + 1));
 		if (sample) {
 			AIL_init_sample(sample);
-			AIL_set_sample_user_data(sample, 0, (void *)(i + 1));
+			AIL_set_sample_user_data(sample, 0, i + 1);
 			m_availableSamples.push_back(sample);
 			++m_num2DSamples;
 		}
@@ -2881,7 +2907,7 @@ void MilesAudioManager::initSamplePools()
 		H3DSAMPLE sample = AIL_allocate_3D_sample_handle(m_provider3D[m_selectedProvider].id);
 		DEBUG_ASSERTCRASH(sample, ("Couldn't get %d 3D samples", i + 1));
 		if (sample) {
-			AIL_set_3D_user_data(sample, 0, (void *)(i + 1));
+			AIL_set_3D_user_data(sample, 0, i + 1);
 			m_available3DSamples.push_back(sample);
 			++m_num3DSamples;
 		}
@@ -3118,9 +3144,6 @@ void *AudioFileCache::openFile( AudioEventRTS *eventToOpenFrom )
 
 	UnsignedInt fileSize = file->size();
 	char* buffer = file->readEntireAndClose();
-	if (buffer == nullptr) {
-		return nullptr;
-	}
 
 	OpenAudioFile openedAudioFile;
 	openedAudioFile.m_eventInfo = eventToOpenFrom->getAudioEventInfo();

@@ -1,4 +1,8 @@
-add_executable(z_generals WIN32)
+if(WIN32)
+    add_executable(z_generals WIN32)
+else()
+    add_executable(z_generals)
+endif()
 
 # Use a binary name that doesn't conflict with original game.
 if("${CMAKE_SYSTEM}" MATCHES "Windows")
@@ -8,22 +12,44 @@ else()
 endif()
 
 target_link_libraries(z_generals PRIVATE
-    binkstub
-    comctl32
-    core_debug
     core_profile_legacy
-    d3d8
-    d3dx8
-    dinput8
-    dxguid
-    imm32
-    milesstub
-    vfw32
-    winmm
     z_gameengine
     z_gameenginedevice
     zi_always
 )
+
+if(WIN32)
+    target_link_libraries(z_generals PRIVATE
+        binkstub
+        comctl32
+        core_debug
+        dinput8
+        dxguid
+        imm32
+        milesstub
+        vfw32
+        winmm
+    )
+endif()
+
+if(SAGE_USE_SDL3)
+    target_link_libraries(z_generals PRIVATE sdl3lib)
+    # TheSuperHackers @build bobtista 07/06/2026 SDL3Main.cpp uses a cross-platform int main(),
+    # but on Windows the exe is built with the GUI subsystem whose default entry is WinMainCRTStartup
+    # (expects WinMain). Point the entry at mainCRTStartup so the CRT calls main() directly while
+    # staying in the WINDOWS subsystem (no console window), avoiding an SDL_main/WinMain shim.
+    if(WIN32 AND MSVC)
+        target_link_options(z_generals PRIVATE "/ENTRY:mainCRTStartup")
+    endif()
+endif()
+
+# TheSuperHackers @build bobtista 22/04/2026
+# Standalone bgfx owns the device through bgfx and supplies the remaining
+# D3DX helper symbols in-tree, so neither d3d8.lib nor d3dx8.lib is needed.
+# Ref-popup keeps both for the real DX8 reference path.
+if(NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
+    target_link_libraries(z_generals PRIVATE d3d8 d3dx8)
+endif()
 
 # TODO Originally referred to build host and user, replace with git info perhaps?
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/GeneratedVersion.h
@@ -49,15 +75,30 @@ if(MSVC)
     target_link_options(z_generals PRIVATE "/NODEFAULTLIB:libci.lib")
 endif()
 
+# TheSuperHackers @build bobtista 09/08/2026 The staged Linux zip keeps its bundled
+# SDL3/OpenAL/FFmpeg in libs/ beside the executable, but the shipped binary's RUNPATH holds
+# only build-tree paths, so it found them solely through the LD_LIBRARY_PATH that run.sh
+# exports and launching ./generalszh directly failed. BUILD_RPATH appends rather than
+# replaces, so deploy-linux-generalsmd.sh keeps reading those build-tree entries to walk the
+# transitive closure.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set_target_properties(z_generals PROPERTIES BUILD_RPATH "$ORIGIN/libs")
+endif()
+
 target_include_directories(z_generals PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# TheSuperHackers @build bobtista 07/06/2026 SDL3 is the entry point whenever SAGE_USE_SDL3 is
+# set, including on Windows (win32-generalsmd-sdl3-bgfx). The Win32 WinMain entry is only used for
+# the non-SDL3 Windows build. Previously SDL3Main was gated on NOT WIN32, so the Windows SDL3 build
+# linked WinMain and left TheSDL3Window (defined in SDL3Main.cpp) unresolved.
 target_sources(z_generals PRIVATE
-    VCRuntimeCheck.cpp
-    WinMain.cpp
-    WinMain.h
+    $<$<BOOL:${WIN32}>:VCRuntimeCheck.cpp>
+    $<$<AND:$<BOOL:${WIN32}>,$<NOT:$<BOOL:${SAGE_USE_SDL3}>>>:WinMain.cpp>
+    $<$<AND:$<BOOL:${WIN32}>,$<NOT:$<BOOL:${SAGE_USE_SDL3}>>>:WinMain.h>
+    $<$<BOOL:${SAGE_USE_SDL3}>:SDL3Main.cpp>
 )
 
 # Stamp the file version of the runtime this toolset ships, the minimum VCRuntimeCheck.cpp accepts

@@ -54,7 +54,6 @@
 #include <WW3D2/coltest.h>
 #include <WW3D2/rinfo.h>
 #include <WW3D2/camera.h>
-#include <d3dx8core.h>
 
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
@@ -76,13 +75,17 @@
 #include "W3DDevice/GameClient/W3DRoadBuffer.h"
 #include "W3DDevice/GameClient/W3DBridgeBuffer.h"
 #include "W3DDevice/GameClient/W3DWaypointBuffer.h"
-#include "W3DDevice/GameClient/W3DCustomEdging.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
+#include "W3DDevice/GameClient/W3DScorch.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
+#include "WW3D2/Renderer.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/vertexbuffer.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
 #include "W3DDevice/GameClient/W3DPoly.h"
@@ -136,7 +139,6 @@ void oversizeTheTerrain(Int amount)
 #define DEFAULT_MAX_MAP_SHORELINE_TILES		4096	//default size of array allocated to hold all map shoreline tiles.
 
 #define ADJUST_FROM_INDEX_TO_REAL(k) ((k-m_map->getBorderSizeInline())*MAP_XY_FACTOR)
-inline Int IABS(Int x) {	if (x>=0) return x; return -x;};
 
 //-----------------------------------------------------------------------------
 //         Private Functions
@@ -149,9 +151,9 @@ inline Int IABS(Int x) {	if (x>=0) return x; return -x;};
 //=============================================================================
 Int BaseHeightMapRenderObjClass::freeMapResources()
 {
-#ifdef DO_SCORCH
-	freeScorchBuffers();
-#endif
+	m_scorches->freeBuffers();
+	m_staticScorches->freeBuffers();
+
 	REF_PTR_RELEASE(m_vertexMaterialClass);
 	REF_PTR_RELEASE(m_stageZeroTexture);
 	REF_PTR_RELEASE(m_stageOneTexture);
@@ -163,7 +165,6 @@ Int BaseHeightMapRenderObjClass::freeMapResources()
 	return 0;
 }
 
-#ifdef DO_SCORCH
 //=============================================================================
 // BaseHeightMapRenderObjClass::drawScorches
 //=============================================================================
@@ -171,22 +172,12 @@ Int BaseHeightMapRenderObjClass::freeMapResources()
 //=============================================================================
 void BaseHeightMapRenderObjClass::drawScorches()
 {
-
-	updateScorches();
-	if (m_curNumScorchIndices == 0) {
-		return;
-	}
-	DX8Wrapper::Set_Index_Buffer(m_indexScorch,0);
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexScorch);
-	DX8Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
-
-	DX8Wrapper::Set_Texture(0,m_scorchTexture);
-	if (Is_Hidden() == 0) {
-		DX8Wrapper::Draw_Triangles(	0,m_curNumScorchIndices/3, 0,	m_curNumScorchVertices);
+	ShaderClass::Invalidate();
+	if (m_map && Is_Hidden() == 0 && !ShaderClass::Is_Backface_Culling_Inverted()) {
+		m_staticScorches->drawScorches(*m_map);
+		m_scorches->drawScorches(*m_map);
 	}
 }
-#endif
-
 
 //-----------------------------------------------------------------------------
 //         Public Functions
@@ -223,6 +214,12 @@ BaseHeightMapRenderObjClass::~BaseHeightMapRenderObjClass()
 
 	delete m_shroud;
 	m_shroud = nullptr;
+
+	delete m_scorches;
+	m_scorches = nullptr;
+
+	delete m_staticScorches;
+	m_staticScorches = nullptr;
 
 	delete [] m_shoreLineTilePositions;
 	m_shoreLineTilePositions = nullptr;
@@ -280,12 +277,12 @@ BaseHeightMapRenderObjClass::BaseHeightMapRenderObjClass()
 #ifdef DO_ROADS
 	m_roadBuffer = nullptr;
 #endif
-#ifdef DO_SCORCH
-	m_vertexScorch = nullptr;
-	m_indexScorch = nullptr;
-	m_scorchTexture = nullptr;
-	clearAllScorches();
-	m_shroud = nullptr;
+#if DO_SCORCH
+	m_scorches = NEW W3DScorch(true);
+	m_staticScorches = NEW W3DScorch(false);
+#else
+	m_scorches = NEW W3DScorchDummy;
+	m_staticScorches = NEW W3DScorchDummy;
 #endif
 	m_bridgeBuffer = NEW W3DBridgeBuffer;
 
@@ -306,10 +303,14 @@ BaseHeightMapRenderObjClass::BaseHeightMapRenderObjClass()
 #if ENABLE_CONFIGURABLE_SHROUD
 	if (TheGlobalData->m_shroudOn)
 		m_shroud = NEW W3DShroud;
+	else
+		m_shroud = nullptr;
 #else
 	m_shroud = NEW W3DShroud;
 #endif
-	DX8Wrapper::SetCleanupHook(this);
+	if (Renderer::Is_Initialized()) {
+		Renderer::Set_Device_Cleanup_Hook(this);
+	}
 }
 
 void BaseHeightMapRenderObjClass::scheduleFullUpdate()
@@ -326,6 +327,8 @@ void BaseHeightMapRenderObjClass::setTextureLOD(Int lod)
 		m_treeBuffer->setTextureLOD(lod);
 	if (m_map)
 		m_map->setTextureLOD(lod);
+	m_scorches->invalidateTexture();
+	m_staticScorches->invalidateTexture();
 }
 
 //=============================================================================
@@ -504,7 +507,7 @@ static lights into account as well.  It is possible to just use the normal in th
 vertex and let D3D do the lighting, but it is slower to render, and can only
 handle 4 lights at this point. */
 //=============================================================================
-void BaseHeightMapRenderObjClass::doTheLight(VERTEX_FORMAT *vb, Vector3*light, Vector3*normal, RefRenderObjListIterator *pLightsIterator, UnsignedByte alpha)
+void BaseHeightMapRenderObjClass::doTheLight(VERTEX_FORMAT *vb, const Vector3*light, Vector3*normal, RefRenderObjListIterator *pLightsIterator, UnsignedByte alpha)
 {
 #ifdef USE_NORMALS
 	vb->nx = normal->X;
@@ -596,7 +599,8 @@ void BaseHeightMapRenderObjClass::doTheLight(VERTEX_FORMAT *vb, Vector3*light, V
 	if(shadeB < 0.0f) shadeB = 0.0f;
 
 	if (m_useDepthFade && vb->z <= TheGlobalData->m_waterPositionZ)
-	{	//height is below water level
+	{
+		//height is below water level
 		//reduce lighting values based on light fall off as it travels through water.
 		float depthScale = (1.4f - vb->z)/TheGlobalData->m_waterPositionZ;
 		shadeR *= 1.0f - depthScale * (1.0f-m_depthFade.X);
@@ -639,9 +643,6 @@ void BaseHeightMapRenderObjClass::reset()
 		m_propBuffer->clearAllProps();
 	}
 	clearAllScorches();
-#ifdef TEST_CUSTOM_EDGING
-	m_customEdging ->clearAllEdging();
-#endif
 #ifdef DO_ROADS
 	if (m_roadBuffer) {
 		m_roadBuffer->clearAllRoads();
@@ -663,10 +664,6 @@ void BaseHeightMapRenderObjClass::reset()
 	}
 }
 
-/**@todo: Ray intersection needs to be optimized with some sort of grid-tracing
-(ala line drawing).  We should also try making the search in a front->back order
-relative to the ray so we can early exit as soon as we have a hit.
-*
 //=============================================================================
 // BaseHeightMapRenderObjClass::Cast_Ray
 //=============================================================================
@@ -678,18 +675,27 @@ map plane so this is very quick (small bounding box).  But it can become slow
 for arbitrary rays such as those used in AI visibility checks(2 units on
 opposite corners of the map would check every polygon in the map).
 */
+/** @todo: Ray intersection needs to be optimized with some sort of grid-tracing
+(ala line drawing).  We should also try making the search in a front->back order
+relative to the ray so we can early exit as soon as we have a hit.
+*/
+// TheSuperHackers @fix The ray cast can now correctly collide with the initial
+// hit boxes even if the ray starts inside of it and no longer falls back to an
+// infinitely large search region if the initial boxes cannot be collided with.
 //=============================================================================
 bool BaseHeightMapRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 {
+	if (!m_map)
+		return false;	//need valid pointer to heightmap samples
+
 	TriClass tri;
 	Bool hit = false;
 	Int X,Y;
 	Vector3 normal,P0,P1,P2,P3;
-	Bool hasP0 = false;
-	Bool hasP1 = false;
-
-	if (!m_map)
-		return false;	//need valid pointer to heightmap samples
+	P0.Set(FLT_MAX, FLT_MAX, FLT_MAX); // Set initial bogus value
+	P1.Set(FLT_MAX, FLT_MAX, FLT_MAX); // Set initial bogus value
+	Int P0HitCount = 0;
+	Int P1HitCount = 0;
 
 	//Clip ray to extents of height map
 	AABoxClass hbox;
@@ -701,16 +707,19 @@ bool BaseHeightMapRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 	Int endCellY = 0;
 	const Int borderSize = m_map->getBorderSizeInline();
 	const Int overhang = 2*VERTEX_BUFFER_TILE_LENGTH + borderSize; // Allow picking past the edge for scrolling & objects.
- 	Vector3 minPt(MAP_XY_FACTOR*(-overhang), MAP_XY_FACTOR*(-overhang), -MAP_XY_FACTOR);
-	Vector3 maxPt(MAP_XY_FACTOR*(m_map->getXExtent()+overhang),
-		MAP_XY_FACTOR*(m_map->getYExtent()+overhang), MAP_HEIGHT_SCALE*m_map->getMaxHeightValue()+MAP_XY_FACTOR);
-	MinMaxAABoxClass mmbox(minPt, maxPt);
+
+	// The initial hit boxes are very rough and are only meant to narrow the search before the triangle intersection.
+	const Real mapMinHeight = MAP_HEIGHT_SCALE * m_map->getMinHeightValue();
+	const Real mapMaxHeight = MAP_HEIGHT_SCALE * m_map->getMaxHeightValue();
+	const Vector3 minPt(MAP_XY_FACTOR*(-overhang), MAP_XY_FACTOR*(-overhang), mapMinHeight);
+	const Vector3 maxPt(MAP_XY_FACTOR*(m_map->getXExtent()+overhang), MAP_XY_FACTOR*(m_map->getYExtent()+overhang), mapMaxHeight);
+	const MinMaxAABoxClass mmbox(minPt, maxPt);
 	hbox.Init(mmbox);
 
 	lineseg=raytest.Ray;
 
-	Int p;
-	for (p=0; p<3; p++) {
+	Int terrainIntersectionIteration = 0;
+	for (; ; ++terrainIntersectionIteration) {
 		//find intersection point of ray and terrain bounding box
 		result.Reset();
 		result.ComputeContactPoint=true;
@@ -719,13 +728,9 @@ bool BaseHeightMapRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 
 		if (CollisionMath::Collide(lineseg,hbox,&result))
 		{
-			//ray intersects terrain or starts inside the terrain.
-			if (!result.StartBad)	//check if start point inside terrain
-			{
-				newP0 = P0 != result.ContactPoint;
-				hasP0 = true;
-				P0 = result.ContactPoint;	//make intersection point the new start of the ray.
-			}
+			newP0 = P0 != result.ContactPoint;
+			P0 = result.ContactPoint;	//make intersection point the new start of the ray.
+			++P0HitCount;
 
 			//reverse direction of original ray and clip again to extent of heightmap
 			result.Fraction=1.0f;	//reset the result
@@ -733,34 +738,42 @@ bool BaseHeightMapRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 			lineseg2.Set(lineseg.Get_P1(),lineseg.Get_P0());	//reverse line segment
 			if (CollisionMath::Collide(lineseg2,hbox,&result))
 			{
-				if (!result.StartBad)	//check if end point inside terrain
-				{
-					newP1 = P1 != result.ContactPoint;
-					hasP1 = true;
-					P1 = result.ContactPoint;	//make intersection point the new end point of ray
-				}
+				newP1 = P1 != result.ContactPoint;
+				P1 = result.ContactPoint;	//make intersection point the new end point of ray
+				++P1HitCount;
 			}
 		}
 
-		if (!newP0 || !newP1)
+		// Has not even hit the first hit box?
+		if (P0HitCount == 0 || P1HitCount == 0)
+			return false;
+
+		// Has no new hit points?
+		if (!newP0 && !newP1)
 			break;
 
 		// Take the 2D bounding box of ray and check heights
 		// inside this box for intersection.
-		if (P0.X > P1.X) {	//flip start/end points
+		if (P0.X > P1.X) {
+			//flip start/end points
 			startCellX = REAL_TO_INT_FLOOR(P1.X/MAP_XY_FACTOR);
 			endCellX = REAL_TO_INT_CEIL(P0.X/MAP_XY_FACTOR);
 		}	else {
 			startCellX = REAL_TO_INT_FLOOR(P0.X/MAP_XY_FACTOR);
 			endCellX = REAL_TO_INT_CEIL(P1.X/MAP_XY_FACTOR);
 		}
-		if (P0.Y > P1.Y) {	//flip start/end points
+		if (P0.Y > P1.Y) {
+			//flip start/end points
 			startCellY = REAL_TO_INT_FLOOR(P1.Y/MAP_XY_FACTOR);
 			endCellY = REAL_TO_INT_CEIL(P0.Y/MAP_XY_FACTOR);
 		}	else {
 			startCellY = REAL_TO_INT_FLOOR(P0.Y/MAP_XY_FACTOR);
 			endCellY = REAL_TO_INT_CEIL(P1.Y/MAP_XY_FACTOR);
 		}
+
+		// Stop narrowing after the third iteration
+		if (terrainIntersectionIteration == 2)
+			break;
 
 		Int i, j, minHt, maxHt;
 
@@ -780,9 +793,6 @@ bool BaseHeightMapRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 		hbox.Init(mmbox);
 	}
 
-	if (!hasP0 || !hasP1)
-		return false;
-
 	raytest.Result->ComputeContactPoint=true;	//tell CollisionMath that we need point.
 
 	// Adjust indexes into the bordered height map.
@@ -795,7 +805,6 @@ bool BaseHeightMapRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 	Int offset;
 	for (offset = 1; offset < 5; offset *= 3) {
 		for (Y=startCellY-offset; Y<=endCellY+offset; Y++) {
-
 			for (X=startCellX-offset; X<=endCellX+offset; X++) {
 				//test the 2 triangles in this cell
 				//	3-----2
@@ -903,8 +912,13 @@ Real BaseHeightMapRenderObjClass::getHeightMapHeight(Real x, Real y, Coord3D* no
 	float xdiv = x * MAP_XY_FACTOR_INV;
 	float ydiv = y * MAP_XY_FACTOR_INV;
 
-	float ixf = FAST_REAL_FLOOR(xdiv);
-	float iyf = FAST_REAL_FLOOR(ydiv);
+#if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
+	float ixf = fast_float_floor(xdiv);
+	float iyf = fast_float_floor(ydiv);
+#else
+	float ixf = WWMath::Floorf(xdiv);
+	float iyf = WWMath::Floorf(ydiv);
+#endif
 
 	float fx = xdiv - ixf; //get fraction
 	float fy = ydiv - iyf; //get fraction
@@ -1163,7 +1177,7 @@ Bool BaseHeightMapRenderObjClass::isClearLineOfSight(const Coord3D& pos, const C
 	// seems acceptable accuracy. If performance here is inadequate,
 	// we can try increasing the step size, but be sure to retest
 	// accuracy.
-	Real len = ceilf(sqrtf(fdx*fdx + fdy*fdy));
+	Real len = WWMath::Ceilf(WWMath::Sqrtf(fdx*fdx + fdy*fdy));
 	const Real STEP_LEN = 2.0f;
 	Int numSteps = REAL_TO_INT_CEIL(len / STEP_LEN);
 	if (numSteps < 1) numSteps = 1;
@@ -1218,7 +1232,8 @@ Real BaseHeightMapRenderObjClass::getMaxCellHeight(Real x, Real y) const
 	//Find surrounding grid points
 
 	if (m_map == nullptr)
-	{	//sample point is not on the heightmap
+	{
+		//sample point is not on the heightmap
 		return 0.0f;	//return default height
 	}
 
@@ -1261,7 +1276,8 @@ Bool BaseHeightMapRenderObjClass::isCliffCell(Real x, Real y)
 {
 
 	if (m_map == nullptr)
-	{	//sample point is not on the heightmap
+	{
+		//sample point is not on the heightmap
 		return false;
 	}
 
@@ -1305,7 +1321,7 @@ Bool BaseHeightMapRenderObjClass::evaluateAsVisibleCliff(Int xIndex, Int yIndex,
 	{
 		0.0f,
 		1.0 * MAP_XY_FACTOR,
-		sqrt(2.0f) * MAP_XY_FACTOR,
+		(Real)(WWMath::Sqrt(2.0) * MAP_XY_FACTOR),
 		1.0 * MAP_XY_FACTOR,
 	};
 
@@ -1330,7 +1346,7 @@ Bool BaseHeightMapRenderObjClass::evaluateAsVisibleCliff(Int xIndex, Int yIndex,
 	Bool anyImpassable = FALSE;
 
 	for (Int i = 1; i < 4 && !anyImpassable; ++i) {
-		if (fabs((heights[i] - heights[0]) / distance[i]) > valuesGreaterThanRad) {
+		if (WWMath::Fabs((heights[i] - heights[0]) / distance[i]) > valuesGreaterThanRad) {
 			anyImpassable = TRUE;
 		}
 	}
@@ -1402,7 +1418,8 @@ Bool BaseHeightMapRenderObjClass::getMaximumVisibleBox(const FrustumClass &frust
 	for (Int i=0; i<4; i++)
 	{	ClippedCorners[i]=frustum.Corners[i];
 		if (groundPlane.Compute_Intersection(frustum.Corners[i],frustum.Corners[i+4],&clipFraction) == PlaneClass::INSIDE_SEGMENT)
-		{	//edge intersects the terrain
+		{
+			//edge intersects the terrain
 			ClippedCorners[i+4]=frustum.Corners[i]+(frustum.Corners[i+4]-frustum.Corners[i])*clipFraction;
 		}
 		else
@@ -1443,7 +1460,7 @@ RenderObjClass *	 BaseHeightMapRenderObjClass::Clone() const
 //=============================================================================
 void BaseHeightMapRenderObjClass::loadRoadsAndBridges(W3DTerrainLogic *pTerrainLogic, Bool saveGame)
 {
-	if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+	if (Renderer::Is_Initialized() && Renderer::Is_Device_Lost())
 		return;	//device not ready to render anything
 
 #ifdef DO_ROADS
@@ -1536,7 +1553,8 @@ void BaseHeightMapRenderObjClass::recordShoreLineSortInfos()
 			minY=maxY=m_shoreLineTilePositions[i].m_xy >> 16;
 
 			while ((m_shoreLineTilePositions[j].m_xy & 0xffff) == x && j < m_numShoreLineTiles)
-			{	//keep track of highest y coordinate.
+			{
+				//keep track of highest y coordinate.
 				Int y = m_shoreLineTilePositions[j].m_xy >> 16;
 				if (y > maxY)
 					maxY=y;
@@ -1569,7 +1587,8 @@ void BaseHeightMapRenderObjClass::recordShoreLineSortInfos()
 			minX=maxX=m_shoreLineTilePositions[i].m_xy & 0xffff;
 
 			while ((m_shoreLineTilePositions[j].m_xy >> 16) == y && j < m_numShoreLineTiles)
-			{	//keep track of highest x coordinate.
+			{
+				//keep track of highest x coordinate.
 				Int x = m_shoreLineTilePositions[j].m_xy & 0xffff;
 				if (x > maxX)
 					maxX=x;
@@ -1611,11 +1630,13 @@ void BaseHeightMapRenderObjClass::updateShorelineTile(Int i, Int j, Int border, 
 
 	//Check if mix of under/over water vertices or some vertices within depth fade region.
 	if (waterSide < 0xf || (waterZ0 - terrainZ0) < transparentDepth ||
-		(waterZ1 - terrainZ1) < transparentDepth || (waterZ2 - terrainZ2) < transparentDepth
-		|| (waterZ3 - terrainZ3) < transparentDepth)
-	{	//add tile to set that needs shoreline blending.
+		(waterZ1 - terrainZ1) < transparentDepth || (waterZ2 - terrainZ2) < transparentDepth ||
+		(waterZ3 - terrainZ3) < transparentDepth)
+	{
+		//add tile to set that needs shoreline blending.
 		if (m_numShoreLineTiles >= m_shoreLineTilePositionsSize)
-		{	//no more room to store extra blend tiles so enlarge the buffer.
+		{
+			//no more room to store extra blend tiles so enlarge the buffer.
 			shoreLineTileInfo *tempPositions=NEW shoreLineTileInfo[m_shoreLineTilePositionsSize+512];
 			memcpy(tempPositions, m_shoreLineTilePositions, m_shoreLineTilePositionsSize*sizeof(shoreLineTileInfo));
 			delete [] m_shoreLineTilePositions;
@@ -1656,7 +1677,8 @@ void BaseHeightMapRenderObjClass::updateShorelineTiles(Int minX, Int minY, Int m
 		maxY = (pMap->getYExtent() - 1);
 
 	if (!m_shoreLineTilePositions)
-	{	//Need to allocate memory
+	{
+		//Need to allocate memory
 		m_shoreLineTilePositions = NEW shoreLineTileInfo[DEFAULT_MAX_MAP_SHORELINE_TILES];
 		m_shoreLineTilePositionsSize = DEFAULT_MAX_MAP_SHORELINE_TILES;
 	}
@@ -1668,7 +1690,8 @@ void BaseHeightMapRenderObjClass::updateShorelineTiles(Int minX, Int minY, Int m
 		Int y = m_shoreLineTilePositions[j].m_xy >> 16;
 		if (x >= minX && x < maxX &&
 			y >= minY && y < maxY)
-		{	//this tile is inside region being updated so remove it by shifting tile array
+		{
+			//this tile is inside region being updated so remove it by shifting tile array
 			memcpy(m_shoreLineTilePositions+j,m_shoreLineTilePositions+j+1,(m_numShoreLineTiles-1-j)*sizeof(shoreLineTileInfo));
 			m_numShoreLineTiles--;
 			j--;	//look at current tile again since it was removed.
@@ -1720,7 +1743,7 @@ void BaseHeightMapRenderObjClass::updateViewImpassableAreas(Bool partial, Int mi
 	}
 
 	// save calculating the tangent over and over again.
-	Real tanImpassableRad = tan(m_curImpassableSlope / 360.f * 2 * PI);
+	Real tanImpassableRad = WWMath::Tan(m_curImpassableSlope / 360.f * 2 * PI);
 	for (Int j = minY; j < maxY; ++j) {
 		for (Int i = minX; i < maxX; ++i) {
 			m_showAsVisibleCliff[i + j * xSize] = evaluateAsVisibleCliff(i, j, tanImpassableRad);
@@ -1736,33 +1759,30 @@ void BaseHeightMapRenderObjClass::initDestAlphaLUT()
 	if (!m_destAlphaTexture)
 		return;
 
-	SurfaceClass *surf=m_destAlphaTexture->Get_Surface_Level();
-
-	if (surf)
+	TextureClass::MutableTextureMipView mip = m_destAlphaTexture->Begin_Mip_Write(0);
+	if (mip.Is_Valid() && mip.Format == WW3D_FORMAT_A8R8G8B8 && mip.Width >= 256)
 	{
-		Int pitch;
-		UnsignedInt *pData=(UnsignedInt*)surf->Lock(&pitch);
+		UnsignedInt *pData = reinterpret_cast<UnsignedInt *>(mip.Data);
 
 		Int maxOpacity=(Int)(TheWaterTransparency->m_minWaterOpacity * 255.0f);
 		Int alpha;
 
-		if (pData)
+		// Fill texture with alpha gradient.
+		for (Int x=0; x<256; x++)
 		{
-			//Fill texture with alpha gradient
-			for (Int x=0; x<256; x++)
-			{
-				alpha = x;
-				if (alpha > maxOpacity)
-					alpha = maxOpacity;
-				*pData=(alpha<<24)|0x00ffffff;
-				pData++;
-			}
-			surf->Unlock();
+			alpha = x;
+			if (alpha > maxOpacity)
+				alpha = maxOpacity;
+			*pData=(alpha<<24)|0x00ffffff;
+			pData++;
 		}
+		m_destAlphaTexture->End_Mip_Write(0);
 
+		m_destAlphaTexture->Get_Filter().Set_Min_Filter(TextureFilterClass::FILTER_TYPE_FAST);
+		m_destAlphaTexture->Get_Filter().Set_Mag_Filter(TextureFilterClass::FILTER_TYPE_FAST);
+		m_destAlphaTexture->Get_Filter().Set_Mip_Mapping(TextureFilterClass::FILTER_TYPE_NONE);
 		m_destAlphaTexture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 		m_destAlphaTexture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
-		REF_PTR_RELEASE(surf);
 		m_currentMinWaterOpacity = TheWaterTransparency->m_minWaterOpacity;
 	}
 }
@@ -1833,16 +1853,17 @@ Int BaseHeightMapRenderObjClass::initHeightData(Int x, Int y, WorldHeightMap *pM
 	Set_Force_Visible(TRUE);	//terrain is always visible.
 	scheduleFullUpdate();
 
-	m_scorchesInBuffer = 0;
-	m_curNumScorchVertices=0;
-	m_curNumScorchIndices=0;
+	m_scorches->invalidateBuffers();
+	m_staticScorches->invalidateBuffers();
+
 	// If the textures aren't allocated (usually because of a hardware reset) need to allocate.
 	Bool needToAllocate = false;
 	if (m_stageTwoTexture == nullptr && m_treeBuffer) {
 		needToAllocate = true;
 	}
 	if (data && needToAllocate)
-	{	//requested heightmap different from old one.
+	{
+		//requested heightmap different from old one.
 		//allocate a new one.
 		freeMapResources();	//free old data and ib/vb
 		REF_PTR_SET(m_map,pMap);	//update our heightmap pointer in case it changed since last call.
@@ -1850,9 +1871,8 @@ Int BaseHeightMapRenderObjClass::initHeightData(Int x, Int y, WorldHeightMap *pM
 		m_stageThreeTexture=NEW LightMapTerrainTextureClass(m_macroTextureName);
 		m_destAlphaTexture=MSGNEW("TextureClass") TextureClass(256,1,WW3D_FORMAT_A8R8G8B8,MIP_LEVELS_1);
 		initDestAlphaLUT();
-#ifdef DO_SCORCH
-		allocateScorchBuffers();
-#endif
+		m_scorches->allocateBuffers();
+		m_staticScorches->allocateBuffers();
 
 		m_vertexMaterialClass=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 
@@ -1862,168 +1882,6 @@ Int BaseHeightMapRenderObjClass::initHeightData(Int x, Int y, WorldHeightMap *pM
 	return 0;
 }
 
-#ifdef DO_SCORCH
-//=============================================================================
-// BaseHeightMapRenderObjClass::freeScorchBuffers
-//=============================================================================
-/** Frees the vertex buffers for scorches.*/
-//=============================================================================
-void BaseHeightMapRenderObjClass::freeScorchBuffers()
-{
-	REF_PTR_RELEASE(m_vertexScorch);
-	REF_PTR_RELEASE(m_indexScorch);
-	REF_PTR_RELEASE(m_scorchTexture);
-}
-
-//=============================================================================
-// BaseHeightMapRenderObjClass::allocateScorchBuffers
-//=============================================================================
-/** Allocates the vertex buffer and texture for scorches.*/
-//=============================================================================
-void BaseHeightMapRenderObjClass::allocateScorchBuffers()
-{
-	m_vertexScorch=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,MAX_SCORCH_VERTEX,DX8VertexBufferClass::USAGE_DEFAULT));
-	m_indexScorch=NEW_REF(DX8IndexBufferClass,(MAX_SCORCH_INDEX));
-	m_scorchTexture=NEW ScorchTextureClass;
-	m_scorchesInBuffer = 0; // If we just allocated the buffers, we got no scorches in the buffer.
-	m_curNumScorchVertices=0;
-	m_curNumScorchIndices=0;
-#ifdef RTS_DEBUG
-	Vector3 loc(4*MAP_XY_FACTOR,4*MAP_XY_FACTOR,0);
-	addScorch(loc, 1*MAP_XY_FACTOR, SCORCH_1);
-	loc.Y += 10*MAP_XY_FACTOR;
-	loc.X += 5*MAP_XY_FACTOR;
-	addScorch(loc, 3*MAP_XY_FACTOR, SCORCH_1);
-#endif
-
-}
-
-//=============================================================================
-// BaseHeightMapRenderObjClass::updateScorches
-//=============================================================================
-/** Builds the vertex buffer data for drawing the scorches.*/
-//=============================================================================
-void BaseHeightMapRenderObjClass::updateScorches()
-{
-	if (m_scorchesInBuffer > 1) {
-		return;
-	}
-	if (m_numScorches==0) {
-		return;
-	}
-	if (!m_indexScorch || !m_vertexScorch) {
-		return;
-	}
-	m_curNumScorchVertices = 0;
-	m_curNumScorchIndices = 0;
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexScorch);
-	UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
-	UnsignedShort *curIb = ib;
-
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexScorch);
-	VertexFormatXYZDUV1 *vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
-	VertexFormatXYZDUV1 *curVb = vb;
-
-	Int curScorch;
-	Real shadeR, shadeG, shadeB;
-	shadeR = TheGlobalData->m_terrainAmbient[0].red;
-	shadeG = TheGlobalData->m_terrainAmbient[0].green;
-	shadeB = TheGlobalData->m_terrainAmbient[0].blue;
-	shadeR += TheGlobalData->m_terrainDiffuse[0].red/2;
-	shadeG += TheGlobalData->m_terrainDiffuse[0].green/2;
-	shadeB += TheGlobalData->m_terrainDiffuse[0].blue/2;
-	shadeR*=255.0f;
-	shadeG*=255.0f;
-	shadeB*=255.0f;
-	Int diffuse=REAL_TO_INT(shadeB) | (REAL_TO_INT(shadeG) << 8) | (REAL_TO_INT(shadeR) << 16) | ((int)255 << 24);
-	m_scorchesInBuffer = 0;
-	for (curScorch=m_numScorches-1; curScorch>=0; curScorch--) {
-		m_scorchesInBuffer++;
-		Real radius = m_scorches[curScorch].radius;
-		Vector3 loc = m_scorches[curScorch].location;
-		Int type = m_scorches[curScorch].scorchType;
-		if (type<0) {
-			type = 0;
-		}
-		if (type >= SCORCH_MARKS_IN_TEXTURE) {
-			type = 0;
-		}
-		Real amtToFloat = 0;
-		amtToFloat = MAP_HEIGHT_SCALE/10;
-
-		Int minX = REAL_TO_INT_FLOOR((loc.X-radius)/MAP_XY_FACTOR);
-		Int minY = REAL_TO_INT_FLOOR((loc.Y-radius)/MAP_XY_FACTOR);
-		if (minX<-m_map->getBorderSizeInline()) minX=-m_map->getBorderSizeInline();
-		if (minY<-m_map->getBorderSizeInline()) minY=-m_map->getBorderSizeInline();
-		Int maxX = REAL_TO_INT_CEIL((loc.X+radius)/MAP_XY_FACTOR);
-		Int maxY = REAL_TO_INT_CEIL((loc.Y+radius)/MAP_XY_FACTOR);
-		maxX++; maxY++;
-		if (maxX > m_map->getXExtent()-m_map->getBorderSizeInline()) {
-			maxX = m_map->getXExtent()-m_map->getBorderSizeInline();
-		}
-		if (maxY > m_map->getYExtent()-m_map->getBorderSizeInline()) {
-			maxY = m_map->getYExtent()-m_map->getBorderSizeInline();
-		}
-		Int startVertex = m_curNumScorchVertices;
-		Int i, j;
-		for (j=minY; j<maxY; j++) {
-			for (i=minX; i<maxX; i++) {
-				if (m_curNumScorchVertices >= MAX_SCORCH_VERTEX) return;
-				curVb->diffuse = diffuse;
-				Real theZ;
-				theZ = amtToFloat+((float)getClipHeight(i+m_map->getBorderSizeInline(),j+m_map->getBorderSizeInline())*MAP_HEIGHT_SCALE);
-				// The scorchmarks are spaced out by 1.5 in the texture.
-				Real uOffset = (type%SCORCH_PER_ROW) * 1.5f;
-				Real vOffset = (type/SCORCH_PER_ROW) * 1.5f;
-				Real X = i*MAP_XY_FACTOR;
-				Real Y = j*MAP_XY_FACTOR;
-				curVb->u1 = (uOffset + 0.5f + (X - loc.X)/(2*radius)) / (SCORCH_PER_ROW+1);
-				curVb->v1 = (vOffset + 0.5f + (Y - loc.Y)/(2*radius)) / (SCORCH_PER_ROW+1);
-				curVb->x = X;
-				curVb->y = Y;
-				curVb->z = theZ;
-				curVb++;
-				m_curNumScorchVertices++;
-			}
-		}
-		Int yOffset = maxX-minX;
-		for (j=0; j<maxY-minY-1; j++) {
-			for (i=0; i<maxX-minX-1; i++) {
-				if (m_curNumScorchIndices+6 > MAX_SCORCH_INDEX) return;
-				Int xNdx = i+minX+m_map->getBorderSizeInline();
-				Int yNdx = j+minY+m_map->getBorderSizeInline();
-				Bool flipForBlend = m_map->getFlipState(xNdx, yNdx);
-#if 0
-				UnsignedByte alpha[4];
-				float UA[4], VA[4];
-				m_map->getAlphaUVData(xNdx, yNdx, UA, VA, alpha, &flipForBlend);
-#endif
-				if (flipForBlend) {
-					*curIb++ = startVertex + j*yOffset + i+1;
- 					*curIb++ = startVertex + j*yOffset + i+yOffset;
-					*curIb++ = startVertex + j*yOffset + i;
- 					*curIb++ = startVertex + j*yOffset + i+1;
- 					*curIb++ = startVertex + j*yOffset + i+1+yOffset;
-					*curIb++ = startVertex + j*yOffset + i+yOffset;
-				}
-				else
-				{
-					*curIb++ = startVertex + j*yOffset + i;
-					*curIb++ = startVertex + j*yOffset + i+1+yOffset;
-					*curIb++ = startVertex + j*yOffset + i+yOffset;
-					*curIb++ = startVertex + j*yOffset + i;
-					*curIb++ = startVertex + j*yOffset + i+1;
-					*curIb++ = startVertex + j*yOffset + i+1+yOffset;
-				}
-				m_curNumScorchIndices+=6;
-			}
-		}
-	}
-
-}
-
-#endif
-
 //=============================================================================
 // BaseHeightMapRenderObjClass::clearAllScorches
 //=============================================================================
@@ -2031,10 +1889,8 @@ void BaseHeightMapRenderObjClass::updateScorches()
 //=============================================================================
 void BaseHeightMapRenderObjClass::clearAllScorches()
 {
-#ifdef DO_SCORCH
-	m_numScorches=0;
-	m_scorchesInBuffer=0;
-#endif
+	m_scorches->clearAllScorches();
+	m_staticScorches->clearAllScorches();
 }
 
 //=============================================================================
@@ -2044,34 +1900,19 @@ void BaseHeightMapRenderObjClass::clearAllScorches()
 //=============================================================================
 void BaseHeightMapRenderObjClass::addScorch(Vector3 location, Real radius, Scorches type)
 {
-#ifdef DO_SCORCH
-	if (m_numScorches >= MAX_SCORCH_MARKS) {
-		Int i;
-		for (i=0; i<MAX_SCORCH_MARKS-1; i++) {
-			m_scorches[i] = m_scorches[i+1];
-		}
-		m_numScorches--;
-	}
-
-	Int i;
-	Real limit = radius/4;
-	for (i=0; i<m_numScorches; i++) {
-		if ( abs(location.X-m_scorches[i].location.X) < limit &&
-				 abs(location.Y-m_scorches[i].location.Y) < limit &&
-				 abs(radius - m_scorches[i].radius) < limit &&
-				 m_scorches[i].scorchType == type) {
-			return; // basically a duplicate.
-		}
-	}
-
-	m_scorches[m_numScorches].location = location;
-	m_scorches[m_numScorches].radius = radius;
-	m_scorches[m_numScorches].scorchType = type;
-	m_numScorches++;
-	m_scorchesInBuffer = 0; // force buffer regenerations.
-#endif
+	m_scorches->addScorch(location, radius, type);
 }
 
+//=============================================================================
+// BaseHeightMapRenderObjClass::addStaticScorch
+//=============================================================================
+/** TheSuperHackers @feature stephanmeesters 13/08/2026 Adds a permanent scorch mark loaded from the map. Static
+ * scorch marks are managed separately so adding gameplay scorch marks cannot evict them. */
+//=============================================================================
+void BaseHeightMapRenderObjClass::addStaticScorch(Vector3 location, Real radius, Scorches type)
+{
+	m_staticScorches->addScorch(location, radius, type);
+}
 
 //=============================================================================
 // BaseHeightMapRenderObjClass::getStaticDiffuse
@@ -2363,9 +2204,9 @@ void BaseHeightMapRenderObjClass::staticLightingChanged()
 	scheduleFullUpdate();
 
 	// Cause the scorches to get updated with new lighting.
-	m_scorchesInBuffer = 0; // If we just allocated the buffers, we got no scorches in the buffer.
-	m_curNumScorchVertices=0;
-	m_curNumScorchIndices=0;
+	m_scorches->invalidateBuffers();
+	m_staticScorches->invalidateBuffers();
+
 	if (m_roadBuffer)
 		m_roadBuffer->updateLighting();
 
@@ -2457,16 +2298,17 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 	m_numVisibleShoreLineTiles=0;
 
-	if (!TheGlobalData->m_showSoftWaterEdge || TheWaterTransparency->m_transparentWaterDepth==0 || m_numShoreLineTiles == 0)
+	// TheSuperHackers @bugfix bobtista 22/06/2026 The dx8 reference authors the
+	// shoreline dest-alpha gradient here for the soft water edge and restores the
+	// RGB mask on exit, same as the original. Do not gate this off for dx8.
+	if (!TheGlobalData->m_showSoftWaterEdge
+		|| TheWaterTransparency->m_transparentWaterDepth==0
+		|| m_numShoreLineTiles == 0)
 		return;
 
 	//Check if video card is capable of using this effect
-	if (DX8Wrapper::getBackBufferFormat() != WW3D_FORMAT_A8R8G8B8)
+	if (Renderer::Get_Back_Buffer_Format() != WW3D_FORMAT_A8R8G8B8)
 		return;	//can't apply effect on cards without destination alpha
-
-	// Safety check: ensure m_map is valid before dereferencing
-	if (!m_map)
-		return;
 
 	Int vertexCount = 0;
 	Int indexCount = 0;
@@ -2482,29 +2324,36 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 	ShaderClass unlitShader=ShaderClass::_PresetOpaque2DShader;
 	unlitShader.Set_Depth_Compare(ShaderClass::PASS_LEQUAL);
-	DX8Wrapper::Set_Shader(unlitShader);
+	Renderer::Set_Shader(unlitShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	DX8Wrapper::Set_Texture(0,m_destAlphaTexture);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Matrix3D(true));
+	Renderer::Set_Texture(0,m_destAlphaTexture);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
 	//Enabled writes to destination alpha only
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	Renderer::Set_Color_Write_Enable(false, false, false, true);
+	Renderer::Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+	Renderer::Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+	Renderer::Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
+	Renderer::Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+	Renderer::Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
+	Renderer::Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+	Renderer::Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 
 
 	while (j != m_numShoreLineTiles)
 	{
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
 
-		{	//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
+		{
+			//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 			VertexFormatXYZNDUV2 *vb= lock.Get_Formatted_Vertex_Array();
 			DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
 			UnsignedShort *ib=lockib.Get_Index_Array();
 			if (!ib || !vb)
-			{	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			{	Renderer::Set_Color_Write_Enable(true, true, true, false);
 				return;
 			}
 
@@ -2520,7 +2369,8 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 				Int y = shoreInfo->m_xy >> 16;
 
 				if (x >= drawStartX && x < drawEdgeX &&	y >= drawStartY && y < drawEdgeY)
-				{	//this tile is inside visible region
+				{
+					//this tile is inside visible region
 
 					vb->x = shoreInfo->verts[0];
 					vb->y = shoreInfo->verts[1];
@@ -2601,9 +2451,9 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 		if (indexCount > 0 && vertexCount > 0)
 		{
-			DX8Wrapper::Set_Index_Buffer(ib_access,0);
-			DX8Wrapper::Set_Vertex_Buffer(vb_access);
-			DX8Wrapper::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
+			Renderer::Set_Index_Buffer(ib_access,0);
+			Renderer::Set_Vertex_Buffer(vb_access);
+			Renderer::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 			m_numVisibleShoreLineTiles += indexCount/6;
 		}
 
@@ -2612,7 +2462,7 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 	}
 
 	//Disable writes to destination alpha
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+	Renderer::Set_Color_Write_Enable(true, true, true, false);
 	ShaderClass::Invalidate();
 }
 
@@ -2624,16 +2474,14 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 {
 	m_numVisibleShoreLineTiles=0;
 
-	if (!TheGlobalData->m_showSoftWaterEdge || TheWaterTransparency->m_transparentWaterDepth==0 || m_numShoreLineTiles == 0)
+	if (!TheGlobalData->m_showSoftWaterEdge
+		|| TheWaterTransparency->m_transparentWaterDepth==0
+		|| m_numShoreLineTiles == 0)
 		return;
 
 	//Check if video card is capable of using this effect
-	if (DX8Wrapper::getBackBufferFormat() != WW3D_FORMAT_A8R8G8B8)
+	if (Renderer::Get_Back_Buffer_Format() != WW3D_FORMAT_A8R8G8B8)
 		return;	//can't apply effect on cards without destination alpha
-
-	// Safety check: ensure m_map is valid before dereferencing
-	if (!m_map)
-		return;
 
 	Int vertexCount = 0;
 	Int indexCount = 0;
@@ -2670,31 +2518,38 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 
 	ShaderClass unlitShader=ShaderClass::_PresetOpaque2DShader;
 	unlitShader.Set_Depth_Compare(ShaderClass::PASS_LEQUAL);
-	DX8Wrapper::Set_Shader(unlitShader);
+	Renderer::Set_Shader(unlitShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	DX8Wrapper::Set_Texture(0,m_destAlphaTexture);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Matrix3D(true));
+	Renderer::Set_Texture(0,m_destAlphaTexture);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
 	//Enabled writes to destination alpha only
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	Renderer::Set_Color_Write_Enable(false, false, false, true);
+	Renderer::Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+	Renderer::Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+	Renderer::Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
+	Renderer::Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+	Renderer::Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
+	Renderer::Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+	Renderer::Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 
 	Bool isDone=FALSE;
 	Int lastRenderedTile=0;
 
 	while (!isDone)
 	{
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
 
-		{	//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
+		{
+			//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 			VertexFormatXYZNDUV2 *vb= lock.Get_Formatted_Vertex_Array();
 			DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
 			UnsignedShort *ib=lockib.Get_Index_Array();
 			if (!ib || !vb)
-			{	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			{	Renderer::Set_Color_Write_Enable(true, true, true, false);
 				return;
 			}
 
@@ -2703,7 +2558,8 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 			{
 				Int x=drawStartX;
 				for (; x<drawEdgeX; x++)
-				{	//figure out how many tiles are available in this column
+				{
+					//figure out how many tiles are available in this column
 					shoreLineTileSortInfo *sortInfo=&m_shoreLineSortInfos[x];
 
 					if (!sortInfo->numTiles)
@@ -2824,7 +2680,8 @@ flushVertexBuffer0:
 			{
 				Int y=drawStartY;
 				for (; y<drawEdgeY; y++)
-				{	//figure out how many tiles are available in this row
+				{
+					//figure out how many tiles are available in this row
 					shoreLineTileSortInfo *sortInfo=&m_shoreLineSortInfos[y];
 
 					if (!sortInfo->numTiles)
@@ -2945,9 +2802,9 @@ flushVertexBuffer1:
 
 		if (indexCount > 0 && vertexCount > 0)
 		{
-			DX8Wrapper::Set_Index_Buffer(ib_access,0);
-			DX8Wrapper::Set_Vertex_Buffer(vb_access);
-			DX8Wrapper::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
+			Renderer::Set_Index_Buffer(ib_access,0);
+			Renderer::Set_Vertex_Buffer(vb_access);
+			Renderer::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 			m_numVisibleShoreLineTiles += indexCount/6;
 		}
 
@@ -2956,7 +2813,7 @@ flushVertexBuffer1:
 	}
 
 	//Disable writes to destination alpha
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+	Renderer::Set_Color_Write_Enable(true, true, true, false);
 	ShaderClass::Invalidate();
 }
 
@@ -2969,15 +2826,15 @@ called after flush. */
 void BaseHeightMapRenderObjClass::renderTrees(CameraClass * camera)
 {
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableObjects) {
+	if (g_renderDebugStats.m_disableObjects) {
 		return;
 	}
 #endif
 	if (m_map==nullptr) return;
 	if (Scene==nullptr) return;
 	if (m_treeBuffer) {
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
-		DX8Wrapper::Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);
+		Renderer::Set_Material(m_vertexMaterialClass);
 		RTS3DScene *pMyScene = (RTS3DScene *)Scene;
 		RefRenderObjListIterator pDynamicLightsIterator(pMyScene->getDynamicLights());
 		m_treeBuffer->drawTrees(camera, &pDynamicLightsIterator);

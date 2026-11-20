@@ -43,6 +43,16 @@
 #include "WWLib/wwstring.h"
 #include "WWLib/win.h"
 
+#if !defined(_WIN32) && !defined(__APPLE__)
+// TheSuperHackers @build bobtista 24/07/2026 Forward-declare the FreeType handle
+// types (both are pointers) so this public header does not pull in <ft2build.h>.
+// Consumers of the WW3D2 headers (e.g. GameEngineDevice) do not link FreeType's
+// include directory; the real FreeType headers are included in render2dsentence.cpp
+// where the FT_Library / FT_Face objects are actually used.
+typedef struct FT_LibraryRec_ *FT_Library;
+typedef struct FT_FaceRec_    *FT_Face;
+#endif
+
 /*
 ** FontCharsClass
 */
@@ -51,22 +61,44 @@ class	SurfaceClass;
 //
 //	Private data structures
 //
+// TheSuperHackers @bugfix bobtista 07/08/2026 Width is the glyph bitmap width and
+// Advance is the pen advance. They are equal on Windows, where GDI reports one
+// extent, but differ on backends that must widen the bitmap to fit ink that
+// overhangs the advance. Spacing text by Width there made per-glyph pen advances
+// vary within a proportional font whose digits are actually tabular.
 class FontCharsClassCharDataStruct
 {
 	W3DMPO_CODE(FontCharsClassCharDataStruct)
 public:
 	WCHAR				Value;
 	short				Width;
-	uint16 *		Buffer;
+	short				Advance;
+	uint8 *			Buffer;
 };
 
-enum { CHAR_BUFFER_LEN		= 32768 };
+// TheSuperHackers @tweak Glyph blocks are sized from the font's own glyph cell so that both the
+// relative waste and the allocation count stay bounded at any point size. GLYPH_BLOCK_MIN_BYTES
+// holds as many glyphs as the original fixed 64KB block did at one texel (2 bytes) per pixel,
+// which keeps Arial up to roughly 19 point at the original density. GLYPH_BLOCK_MAX_BYTES
+// bounds the allocation count for very large fonts, and only engages for Arial above roughly 80 point.
+enum
+{
+	GLYPH_BLOCK_MIN_BYTES = 32768,
+	GLYPH_BLOCK_MAX_BYTES = 524288,
+	GLYPH_BLOCK_TARGET_CELLS = 16
+};
 
 class FontCharsBuffer
 {
-	W3DMPO_CODE(FontCharsBuffer)
 public:
-	uint16			Buffer[CHAR_BUFFER_LEN];
+	FontCharsBuffer() : Length( 0 ), Buffer( nullptr ) {}
+	FontCharsBuffer( int length, uint8 *buffer ) : Length( length ), Buffer( buffer ) {}
+
+	bool operator== (const FontCharsBuffer &src) const { return Length == src.Length && Buffer == src.Buffer; }
+	bool operator!= (const FontCharsBuffer &src) const { return !(*this == src); }
+
+	int				Length;
+	uint8 *			Buffer;
 };
 
 
@@ -94,6 +126,8 @@ public:
 
 	void	Blit_Char( WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, int y );
 
+	void	Free_Glyph_Cache();
+
 private:
 
 	//
@@ -104,6 +138,7 @@ private:
 	const FontCharsClassCharDataStruct *	Store_GDI_Char( WCHAR ch );
 	void							Update_Current_Buffer( int char_width );
 	const FontCharsClassCharDataStruct	*	Get_Char_Data( WCHAR ch );
+	const FontCharsClass *			Get_Char_Font( WCHAR ch ) const;
 
 	void							Grow_Unicode_Array( WCHAR ch );
 	void							Free_Character_Arrays();
@@ -112,12 +147,16 @@ private:
 	//	Private member data
 	//
 	StringClass							Name;
-	DynamicVectorClass<FontCharsBuffer*>	BufferList;
+	DynamicVectorClass<FontCharsBuffer>	BufferList;
 	int									CurrPixelOffset;
 	int									CharHeight;
 	int									CharAscent;
 	int									CharOverhang;
 	int									PixelOverlap;
+	int									GlyphBitmapWidth; // extents of the GDI scratch bitmap, derived from the font metrics
+	int									GlyphBitmapHeight;
+	int									GlyphCellBytes; // worst case bytes for one glyph of this font
+	int									GlyphBlockBytes; // size the glyph blocks ramp up to
 	int									PointSize;
 	StringClass							GDIFontName;
 	HFONT									OldGDIFont;
@@ -126,6 +165,10 @@ private:
 	HFONT									GDIFont;
 	uint8 *								GDIBitmapBits;
 	HDC									MemDC;
+#if !defined(_WIN32) && !defined(__APPLE__)
+	FT_Library							FTLibrary;
+	FT_Face								FTFace;
+#endif
 	FontCharsClassCharDataStruct *					ASCIICharArray[256];
 	FontCharsClassCharDataStruct **					UnicodeCharArray;
 	uint16								FirstUnicodeChar;
@@ -189,14 +232,13 @@ public:
 	//
 	void	Build_Sentence (const WCHAR *text, int *hkX, int *hkY);
 	void	Draw_Sentence (uint32 color = 0xFFFFFFFF);
+	bool	Has_Sentence_Data () const						{ return SentenceData.Count () > 0; }
 
 	//
 	//	Texture hint
 	//
 	void	Set_Texture_Size_Hint( int hint )				{ TextureSizeHint = hint; }
 	int	Get_Texture_Size_Hint() const				{ return TextureSizeHint; }
-
-	void	Set_Mono_Spaced( bool onoff )						{ MonoSpaced = onoff; }
 
 private:
 
@@ -253,7 +295,6 @@ private:
 	int													CurrTextureSize;
 	int													TextureSizeHint;
 	SurfaceClass *							CurSurface;
-	bool												MonoSpaced;
 	float												WrapWidth;
 	bool												Centered;			// Determines whether or not to center each line
 	RectClass										ClipRect;
@@ -264,6 +305,5 @@ private:
 
 	uint16 *										LockedPtr;
 	int													LockedStride;
-	TextureClass *							CurTexture;
 	ShaderClass									Shader;
 };

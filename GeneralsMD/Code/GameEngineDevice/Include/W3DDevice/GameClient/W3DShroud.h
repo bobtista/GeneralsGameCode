@@ -25,9 +25,12 @@
 #pragma once
 
 #include "WW3D2/matpass.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/texturefilter.h"
 
 class AABoxClass;
+class CameraClass;
+class SurfaceClass;
+class TextureClass;
 class WorldHeightMap;
 
 typedef UnsignedByte W3DShroudLevel;
@@ -42,13 +45,15 @@ typedef UnsignedByte W3DShroudLevel;
 class W3DShroudMaterialPassClass : public MaterialPassClass
 {
 public:
-	W3DShroudMaterialPassClass() : m_isTransparentObjectPass(FALSE) {}
+	W3DShroudMaterialPassClass() : m_isTransparentObjectPass(FALSE), m_contextTexture(nullptr) {}
 	virtual void	Install_Materials() const override;
 	virtual void	UnInstall_Materials() const override;
+	virtual void	Set_Context_Texture(TextureClass * Texture,int stage = 0) override { if (stage == 0) m_contextTexture = Texture; }
 	void enableTransparentObjectPass(Bool enable) {m_isTransparentObjectPass = enable;}
 protected:
 	//customized version to deal with transparent (alpha-tested) polys.
 	Bool m_isTransparentObjectPass;
+	mutable TextureClass *m_contextTexture;
 };
 
 /** Custom W3D material pass which has been modified to apply
@@ -117,9 +122,15 @@ protected:
 	Real m_drawOriginY;
 	Bool m_drawFogOfWar;					///<switch to draw alternate fog style instead of solid black
 	Bool m_clearDstTexture;				///<flag indicating we must clear video memory destination texture
+	Bool m_shroudDirty;					///<true when setShroudLevel has written new data since last render
+	Int m_dirtyMinX;
+	Int m_dirtyMinY;
+	Int m_dirtyMaxX;
+	Int m_dirtyMaxY;
 	W3DShroudLevel m_boderShroudLevel;			///<color used to clear the shroud border
 	W3DShroudLevel *m_finalFogData;			///<copy of logical shroud in an easier to access array.
 	W3DShroudLevel *m_currentFogData;		///<copy of intermediate logical shroud while it's interpolated.
 	void interpolateFogLevels(RECT *rect);		///<fade current fog levels to actual logic side levels.
 	void fillBorderShroudData(W3DShroudLevel level, SurfaceClass* pDestSurface);	///<fill the destination texture with a known value
+	UnsignedShort computeShroudPixel(W3DShroudLevel level);	///<convert a shroud level to the source texture pixel format
 };

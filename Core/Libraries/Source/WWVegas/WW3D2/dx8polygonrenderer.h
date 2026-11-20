@@ -43,7 +43,7 @@
 #include "dx8list.h"
 #include "sortingrenderer.h"
 #include "WW3D2/mesh.h"
-#include "dx8wrapper.h"
+#include "Renderer.h"
 
 class DX8PolygonRendererClass;
 class DX8TextureCategoryClass;
@@ -79,6 +79,7 @@ public:
 	virtual ~DX8PolygonRendererClass() override;
 
 	void								Render(/*const Matrix3D & tm,*/int base_vertex_offset);
+	void								Render_Instanced(int base_vertex_offset);
 	void								Render_Sorted(/*const Matrix3D & tm,*/int base_vertex_offset,const SphereClass & bounding_sphere);
 	void								Set_Vertex_Index_Range(unsigned min_vertex_index_,unsigned vertex_index_range_);
 
@@ -110,14 +111,26 @@ inline void DX8PolygonRendererClass::Set_Vertex_Index_Range(unsigned min_vertex_
 
 inline void DX8PolygonRendererClass::Render(/*const Matrix3D & tm,*/int base_vertex_offset)
 {
-//	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
-//	SNAPSHOT_SAY(("Set_Transform"));
+	// TheSuperHackers @refactor bobtista 11/07/2026 Shader-pipeline backends
+	// take the whole rigid draw as one packet call; the legacy pair below
+	// remains for DX8 and for the rigid packet kill switch.
+	if (Renderer::Has_Shader_Pipeline()
+		&& Renderer::Submit_Rigid_Packet(
+			base_vertex_offset,
+			index_offset,
+			strip ? index_count-2 : index_count/3,
+			min_vertex_index,
+			vertex_index_range,
+			strip))
+	{
+		return;
+	}
 	SNAPSHOT_SAY(("Set_Index_Buffer_Index_Offset(%d)",base_vertex_offset));
 
-	DX8Wrapper::Set_Index_Buffer_Index_Offset(base_vertex_offset);
+	Renderer::Set_Index_Buffer_Index_Offset(base_vertex_offset);
 	if (strip) {
 		SNAPSHOT_SAY(("Draw_Strip(%d,%d,%d,%d)",index_offset,index_count-2,min_vertex_index,vertex_index_range));
-		DX8Wrapper::Draw_Strip(
+		Renderer::Draw_Strip(
 			index_offset,
 			index_count-2,
 			min_vertex_index,
@@ -125,7 +138,7 @@ inline void DX8PolygonRendererClass::Render(/*const Matrix3D & tm,*/int base_ver
 	}
 	else {
 		SNAPSHOT_SAY(("Draw_Triangles(%d,%d,%d,%d)",index_offset,index_count-2,min_vertex_index,vertex_index_range));
-		DX8Wrapper::Draw_Triangles(
+		Renderer::Draw_Triangles(
 			index_offset,
 			index_count/3,
 			min_vertex_index,
@@ -133,20 +146,33 @@ inline void DX8PolygonRendererClass::Render(/*const Matrix3D & tm,*/int base_ver
 	}
 }
 
+inline void DX8PolygonRendererClass::Render_Instanced(int base_vertex_offset)
+{
+	Renderer::Set_Index_Buffer_Index_Offset(base_vertex_offset);
+	Renderer::Submit_Instanced_Batch(
+		index_offset,
+		strip ? index_count - 2 : index_count / 3,
+		min_vertex_index,
+		vertex_index_range);
+}
+
 inline void DX8PolygonRendererClass::Render_Sorted(/*const Matrix3D & tm,*/int base_vertex_offset,const SphereClass & bounding_sphere)
 {
 	WWASSERT(!strip);	// Strips can't be sorted for now
-//	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
-//	SNAPSHOT_SAY(("Set_Transform"));
 	SNAPSHOT_SAY(("Set_Index_Buffer_Index_Offset(%d)",base_vertex_offset));
 	SNAPSHOT_SAY(("Insert_Sorting_Triangles(%d,%d,%d,%d)",index_offset,index_count-2,min_vertex_index,vertex_index_range));
 
-	DX8Wrapper::Set_Index_Buffer_Index_Offset(base_vertex_offset);
+	Renderer::Set_Index_Buffer_Index_Offset(base_vertex_offset);
+	// TheSuperHackers @feature bobtista 07/07/2026 Mark the insert as mesh-origin so the
+	// backend captures the live per-mesh world for the sorted replay instead of relying
+	// on per-texture special cases.
+	Renderer::Set_Mesh_Render_Active(true);
 	SortingRendererClass::Insert_Triangles(
 		bounding_sphere,
 		index_offset,
 		index_count/3,
 		min_vertex_index,
 		vertex_index_range);
+	Renderer::Set_Mesh_Render_Active(false);
 
 }

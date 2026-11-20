@@ -107,6 +107,8 @@
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 
 #include "Common/version.h"
+#include <rts/profile.h>
+#include "GgcRuntimeFlags.h"
 
 #include "../NextGenMP_defines.h"
 
@@ -226,7 +228,10 @@ void initSubsystem(
 
 //-------------------------------------------------------------------------------------------------
 extern HINSTANCE ApplicationHInstance;  ///< our application instance
+// TheSuperHackers @build bobtista 29/04/2026 CComModule is ATL; only on Win.
+#ifdef _WIN32
 extern CComModule _Module;
+#endif
 
 //-------------------------------------------------------------------------------------------------
 static void updateTGAtoDDS();
@@ -309,7 +314,9 @@ GameEngine::GameEngine()
 	m_isActive = FALSE;
 	m_discordRichPresence = nullptr;
 
+#ifdef _WIN32
 	_Module.Init(nullptr, ApplicationHInstance, nullptr);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -361,7 +368,9 @@ GameEngine::~GameEngine()
 	NGMP_OnlineServicesManager::DestroyInstance();
 	Drawable::killStaticImages();
 
+#ifdef _WIN32
 	_Module.Term();
+#endif
 
 #ifdef PERF_TIMERS
 	PerfGather::termPerfDump();
@@ -534,6 +543,19 @@ void GameEngine::init()
 		// If we're in Debug, load the Debug settings as well.
 		ini.loadFileDirectory("Data\\INI\\GameDataDebug", INI_LOAD_OVERWRITE, nullptr);
 #endif
+
+		// TheSuperHackers @feature bobtista 14/07/2026 Load optional bgfx render settings from a
+		// separate file so they never require a modified GameData.ini. Excluded from the INI CRC
+		// because the settings are client render only.
+		if (TheFileSystem->doesFileExist("Data\\INI\\Bgfx.ini"))
+		{
+			ini.load("Data\\INI\\Bgfx.ini", INI_LOAD_OVERWRITE, nullptr);
+			DEBUG_LOG(("GameEngine::init() - loaded Data\\INI\\Bgfx.ini"));
+		}
+
+		// TheSuperHackers @tweak bobtista 27/09/2026 Widen the camera height limits in code instead of GameData.ini so the INI CRC stays unchanged.
+		TheWritableGlobalData->m_maxCameraHeight = 400.0f;
+		TheWritableGlobalData->m_minCameraHeight = 40.0f;
 
 		// special-case: parse command-line parameters after loading global data
 		CommandLine::parseCommandLineForEngineInit();
@@ -810,7 +832,11 @@ void GameEngine::init()
 			MapCache::const_iterator it = TheMapCache->find(lowerName);
 			if (it == TheMapCache->end())
 			{
-				TheWritableGlobalData->m_shellMapOn = FALSE;
+				const Bool shellMapFileExists = TheFileSystem && TheFileSystem->doesFileExist(TheGlobalData->m_shellMapName.str());
+				if (!shellMapFileExists)
+				{
+					TheWritableGlobalData->m_shellMapOn = FALSE;
+				}
 			}
 		}
 
@@ -974,6 +1000,7 @@ void GameEngine::update()
 	USE_PERF_TIMER(GameEngine_update)
 	{
 		{
+			PROFILER_SECTION_NAME("client update");
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
 
@@ -1026,12 +1053,33 @@ void GameEngine::update()
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
 		{
+			PROFILER_SECTION_NAME("logic update");
 			TheGameLogic->UPDATE();
 
 			if (!TheFramePacer->isTimeFrozen())
 			{
 				TheGameClient->step();
 			}
+		}
+
+		// TheSuperHackers @feature bobtista 03/06/2026 Render benchmark freeze.
+		// GGC_FREEZE_LOGIC_AFTER=N freezes the simulation once logic reaches frame
+		// N (rendering continues). The scene then becomes byte-identical across
+		// runs, eliminating the save-forward divergence that otherwise makes
+		// sub-fps render-backend comparisons unmeasurable. Freeze early (small N)
+		// for the most reproducible scene.
+		static int s_freezeAfter = -2;
+		if (s_freezeAfter == -2)
+		{
+			s_freezeAfter = GgcFlags::IntValue(GgcFlag_FreezeLogicAfter);
+		}
+		if (s_freezeAfter > 0
+			&& TheGameLogic != nullptr
+			&& TheGameLogic->getFrame() >= (UnsignedInt)s_freezeAfter
+			&& TheFramePacer != nullptr
+			&& !TheFramePacer->isTimeFrozen())
+		{
+			TheFramePacer->setTimeFrozen(TRUE);
 		}
 	}
 }

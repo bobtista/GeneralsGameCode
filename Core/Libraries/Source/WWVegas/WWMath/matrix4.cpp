@@ -44,8 +44,12 @@
 #include <assert.h>
 
 #include "WWLib/win.h"
-#include <d3d8types.h>
+#include "legacyd3dmatrix.h"
+#if defined(GGC_RENDER_BACKEND_BGFX)
+struct D3DXMATRIX : public D3DMATRIX {};
+#else
 #include <d3dx8math.h>
+#endif
 
 /***********************************************************************************************
  * Matrix4x4::Multiply -- Multiply two Matrix4x4's together                                        *

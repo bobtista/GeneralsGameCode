@@ -25,9 +25,6 @@
 #include "WWLib/wwstring.h"
 #include "WWMath/vector3.h"
 
-struct IDirect3DSurface8;
-struct IDirect3DVolume8;
-
 // ----------------------------------------------------------------------------
 //
 // This structure represents the old DX7 color key structure. It is needed
@@ -138,7 +135,7 @@ struct LegacyDDSURFACEDESC2 {
 	};
 	unsigned AlphaBitDepth;
 	unsigned Reserved;
-	void* Surface;
+	unsigned Surface;
 	union
 	{
 		LegacyDDCOLORKEY CKDestOverlay;
@@ -151,6 +148,8 @@ struct LegacyDDSURFACEDESC2 {
 	LegacyDDSCAPS2 Caps;
 	unsigned TextureStage;
 };
+
+static_assert(sizeof(LegacyDDSURFACEDESC2) == 124, "DDS surface descriptor must match on-disk size.");
 
 
 enum DDSType
@@ -215,7 +214,6 @@ public:
 	DDSType Get_Type() const { return Type; }
 
 	// Copy pixels to the destination surface.
-	void Copy_Level_To_Surface(unsigned level,IDirect3DSurface8* d3d_surface,const Vector3& hsv_shift=Vector3(0.0f,0.0f,0.0f));
 	void Copy_Level_To_Surface(
 		unsigned level,
 		WW3DFormat dest_format,

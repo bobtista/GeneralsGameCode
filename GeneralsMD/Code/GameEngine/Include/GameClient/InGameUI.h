@@ -585,6 +585,7 @@ public:  // ********************************************************************
 	static std::vector<Object*> getUniqueIdleWorkers(const ObjectList& idleWorkers);
 
 	virtual void recreateControlBar();
+	virtual void onResolutionChanged();										///< Rebuild the whole in-game HUD after a resolution/window-size change
 	virtual void refreshCustomUiResources();
 	virtual void refreshNetworkLatencyResources();
 	virtual void refreshRenderFpsResources();
@@ -849,6 +850,12 @@ protected:
 	UnsignedInt									m_lastRenderFpsLimit;
 	UnsignedInt									m_lastRenderFpsUpdateMs;
 
+	// TheSuperHackers @bugfix bobtista 20/07/2026 Money/income last-displayed cache, moved off
+	// function-local statics in update() so a mid-match resolution change can reset it and force
+	// the freshly recreated MoneyDisplay gadget to repaint.
+	UnsignedInt									m_lastMoneyDisplayed;
+	UnsignedInt									m_lastIncomeDisplayed;
+
 	// System Time
 	DisplayString* m_systemTimeString;
 	AsciiString											m_systemTimeFont;
@@ -867,6 +874,8 @@ protected:
 	Coord2D												m_gameTimePosition;
 	Color												m_gameTimeColor;
 	Color												m_gameTimeDropColor;
+	Int													m_gameTimeReservedWidth;
+	Int													m_gameTimeFrameReservedWidth;
 
 		// Observer Stats Overlay
 	DisplayString* m_observerStatsString;

@@ -37,12 +37,12 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "meshmatdesc.h"
-#include "WW3D2/texture.h"
+#include "texture.h"
 #include "vertmaterial.h"
 #include "WWLib/realcrc.h"
-#include	"WW3D2/dx8wrapper.h"
-#include "WW3D2/dx8caps.h"
+#include "ww3dcolor.h"
 #include "meshmdl.h"
+#include "WW3D2/Renderer.h"
 
 
 /**************************************************************************************************
@@ -640,6 +640,8 @@ void MeshMatDescClass::Install_UV_Array(int pass,int stage,Vector2 * uvs,int cou
 }
 
 
+// TheSuperHackers @bugfix Cryo 10/09/2026 Skip null materials to prevent crashes and
+// use each vertex's material colors to avoid incorrect ambient/emissive vertex colors.
 void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * parent)
 {
 	/*
@@ -682,66 +684,38 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 
 		if (!ColorArray[0] && !ColorArray[1]) continue;	// If no color arrays, we don't have a problem
 
-		Vector3 single_diffuse(0.0f,0.0f,0.0f);
-		Vector3 single_ambient(0.0f,0.0f,0.0f);
-		Vector3 single_emissive(0.0f,0.0f,0.0f);
-		float single_opacity=1.0f;
-		bool single_diffuse_used=true;
-		bool single_ambient_used=true;
-		bool single_emissive_used=true;
-		bool single_opacity_used=true;
 		bool diffuse_used=false;
 		bool ambient_used=false;
 		bool emissive_used=false;
-		bool opacity_used=false;
 
-		Vector3 mtl_diffuse;
-		Vector3 mtl_ambient;
-		Vector3 mtl_emissive;
-		float mtl_opacity = 1.0f;
+		VertexMaterialClass* prev_mtl = nullptr;
+		for (int vidx=0; vidx<VertexCount; vidx++)
+		{
+			VertexMaterialClass* mtl = Peek_Material(vidx,pass);
+			if (mtl == nullptr)
+			{
+				continue;
+			}
 
-		VertexMaterialClass * prev_mtl = nullptr;
-		VertexMaterialClass * mtl = Peek_Material(0, pass);
-		if (mtl) {
-			mtl->Get_Diffuse(&single_diffuse);
-			single_opacity = mtl->Get_Opacity();
-			mtl->Get_Ambient(&single_ambient);
-			mtl->Get_Emissive(&single_emissive);
-
-			if (single_diffuse.X || single_diffuse.Y || single_diffuse.Z) diffuse_used=true;
-			if (single_ambient.X || single_ambient.Y || single_ambient.Z) ambient_used=true;
-			if (single_emissive.X || single_emissive.Y || single_emissive.Z) emissive_used=true;
-			if (single_opacity!=1.0f) opacity_used=true;
-		}
-
-		for (int vidx=0; vidx<VertexCount; vidx++) {
-			mtl = Peek_Material(vidx,pass);
-			if (mtl != prev_mtl) {
+			if (mtl != prev_mtl)
+			{
 				prev_mtl = mtl;
+				Vector3 mtl_diffuse;
+				Vector3 mtl_ambient;
+				Vector3 mtl_emissive;
 				mtl->Get_Diffuse(&mtl_diffuse);
-				mtl_opacity = mtl->Get_Opacity();
 				mtl->Get_Ambient(&mtl_ambient);
 				mtl->Get_Emissive(&mtl_emissive);
-			}
 
-			if (mtl_diffuse.X!=single_diffuse.X || mtl_diffuse.Y!=single_diffuse.Y || mtl_diffuse.Z!=single_diffuse.Z) {
-				single_diffuse_used=false;
-			}
-			if (mtl_ambient.X!=single_ambient.X || mtl_ambient.Y!=single_ambient.Y || mtl_ambient.Z!=single_ambient.Z) {
-				single_ambient_used=false;
-			}
-			if (mtl_emissive.X!=single_emissive.X || mtl_emissive.Y!=single_emissive.Y || mtl_emissive.Z!=single_emissive.Z) {
-				single_emissive_used=false;
-			}
-			if (mtl_opacity!=single_opacity) {
-				single_opacity_used=false;
-			}
+				diffuse_used = diffuse_used || mtl_diffuse.X || mtl_diffuse.Y || mtl_diffuse.Z;
+				ambient_used = ambient_used || mtl_ambient.X || mtl_ambient.Y || mtl_ambient.Z;
+				emissive_used = emissive_used || mtl_emissive.X || mtl_emissive.Y || mtl_emissive.Z;
 
-			if (mtl_diffuse.X || mtl_diffuse.Y || mtl_diffuse.Z) diffuse_used=true;
-			if (mtl_ambient.X || mtl_ambient.Y || mtl_ambient.Z) ambient_used=true;
-			if (mtl_emissive.X || mtl_emissive.Y || mtl_emissive.Z) emissive_used=true;
-			if (mtl_opacity!=1.0f) opacity_used=true;
-
+				if (diffuse_used && ambient_used && emissive_used)
+				{
+					break;
+				}
+			}
 		}
 
 		// If both DCG and DIG arrays are submitted, multiply them together to DCG channel
@@ -751,12 +725,12 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 			unsigned * emissive_array = ColorArray[1]->Get_Array();
 
 			for (int vidx=0; vidx<VertexCount; vidx++) {
-				Vector4 diffuse=DX8Wrapper::Convert_Color(diffuse_array[vidx]);
-				Vector4 emissive=DX8Wrapper::Convert_Color(emissive_array[vidx]);
+				Vector4 diffuse=WW3DColor::From_ARGB(diffuse_array[vidx]);
+				Vector4 emissive=WW3DColor::From_ARGB(emissive_array[vidx]);
 				diffuse.X *= emissive.X;
 				diffuse.Y *= emissive.Y;
 				diffuse.Z *= emissive.Z;
-				diffuse_array[vidx]=DX8Wrapper::Convert_Color(diffuse);
+				diffuse_array[vidx]=WW3DColor::To_ARGB(diffuse);
 			}
 		}
 		DIGSource[pass]=VertexMaterialClass::MATERIAL;	// DIG channel no more
@@ -764,7 +738,9 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 		if ((DCGSource[pass] != VertexMaterialClass::MATERIAL) && (ColorArray[0] != nullptr)) {
 			unsigned * diffuse_array = ColorArray[0]->Get_Array();
 			Vector3 mtl_diffuse;
-			float mtl_opacity = 1.0f;
+			Vector3 mtl_ambient;
+			Vector3 mtl_emissive;
+			float mtl_opacity;
 
 			VertexMaterialClass * prev_mtl = nullptr;
 			VertexMaterialClass * mtl = Peek_Material(0,pass);
@@ -772,20 +748,26 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 			for (int vidx=0; vidx<VertexCount; vidx++) {
 
 				mtl = Peek_Material(vidx,pass);
+				if (mtl == nullptr) {
+					continue;
+				}
+
 				if (mtl != prev_mtl) {
 					prev_mtl = mtl;
 					mtl->Get_Diffuse(&mtl_diffuse);
+					mtl->Get_Ambient(&mtl_ambient);
+					mtl->Get_Emissive(&mtl_emissive);
 					mtl_opacity = mtl->Get_Opacity();
 				}
 
 				// If only diffuse is used apply diffuse to color channel and set diffuse source to color 1
 				if (diffuse_used && !ambient_used && !emissive_used) {
-					Vector4 diffuse=DX8Wrapper::Convert_Color(diffuse_array[vidx]);
+					Vector4 diffuse=WW3DColor::From_ARGB(diffuse_array[vidx]);
 					diffuse.X *= mtl_diffuse.X;
 					diffuse.Y *= mtl_diffuse.Y;
 					diffuse.Z *= mtl_diffuse.Z;
 					diffuse.W *= mtl_opacity;
-					diffuse_array[vidx]=DX8Wrapper::Convert_Color(diffuse);
+					diffuse_array[vidx]=WW3DColor::To_ARGB(diffuse);
 
 					mtl->Set_Ambient_Color_Source(VertexMaterialClass::MATERIAL);
 					mtl->Set_Diffuse_Color_Source(VertexMaterialClass::COLOR1);
@@ -797,12 +779,12 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 				// ambient are different but is probably the most reasonable thing to do. Why set
 				// diffuse and ambient differently anyway?)
 				if (diffuse_used && ambient_used && !emissive_used) {
-					Vector4 diffuse=DX8Wrapper::Convert_Color(diffuse_array[vidx]);
+					Vector4 diffuse=WW3DColor::From_ARGB(diffuse_array[vidx]);
 					diffuse.X *= mtl_diffuse.X;
 					diffuse.Y *= mtl_diffuse.Y;
 					diffuse.Z *= mtl_diffuse.Z;
 					diffuse.W *= mtl_opacity;
-					diffuse_array[vidx]=DX8Wrapper::Convert_Color(diffuse);
+					diffuse_array[vidx]=WW3DColor::To_ARGB(diffuse);
 
 					mtl->Set_Ambient_Color_Source(VertexMaterialClass::COLOR1);
 					mtl->Set_Diffuse_Color_Source(VertexMaterialClass::COLOR1);
@@ -811,12 +793,12 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 
 				// If only ambient is used apply ambient to color channel and set ambient source to color 1
 				if (!diffuse_used && ambient_used && !emissive_used) {
-					Vector4 diffuse=DX8Wrapper::Convert_Color(diffuse_array[vidx]);
+					Vector4 diffuse=WW3DColor::From_ARGB(diffuse_array[vidx]);
 					diffuse.X *= mtl_ambient.X;
 					diffuse.Y *= mtl_ambient.Y;
 					diffuse.Z *= mtl_ambient.Z;
 					diffuse.W *= mtl_opacity;
-					diffuse_array[vidx]=DX8Wrapper::Convert_Color(diffuse);
+					diffuse_array[vidx]=WW3DColor::To_ARGB(diffuse);
 
 					mtl->Set_Ambient_Color_Source(VertexMaterialClass::COLOR1);
 					mtl->Set_Diffuse_Color_Source(VertexMaterialClass::MATERIAL);
@@ -825,12 +807,12 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 
 				// If only emissive is used apply emissive to color channel, set diffuse source to color 1, and turn off lighting
 				if (!diffuse_used && !ambient_used && emissive_used) {
-					Vector4 diffuse=DX8Wrapper::Convert_Color(diffuse_array[vidx]);
+					Vector4 diffuse=WW3DColor::From_ARGB(diffuse_array[vidx]);
 					diffuse.X *= mtl_emissive.X;
 					diffuse.Y *= mtl_emissive.Y;
 					diffuse.Z *= mtl_emissive.Z;
 					diffuse.W *= mtl_opacity;
-					diffuse_array[vidx]=DX8Wrapper::Convert_Color(diffuse);
+					diffuse_array[vidx]=WW3DColor::To_ARGB(diffuse);
 
 					mtl->Set_Ambient_Color_Source(VertexMaterialClass::MATERIAL);
 					mtl->Set_Diffuse_Color_Source(VertexMaterialClass::COLOR1);
@@ -858,13 +840,13 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 		// HY: Earth and beyond uses a different fallback from Renegade with regards to bump environment maps
 		// we keep the pass but change it to an unbumped environment
 		if ( (Shader[pass].Get_Primary_Gradient() == ShaderClass::GRADIENT_BUMPENVMAP) &&
-			  (!DX8Wrapper::Is_Initted() || DX8Wrapper::Get_Current_Caps()->Support_Bump_Envmap() == false) )
+			  (!Renderer::Is_Initialized() || Renderer::Supports_Bump_Envmap() == false) )
 		{
 			kill_pass = true;
 		}
 
 		if ( (Shader[pass].Get_Primary_Gradient() == ShaderClass::GRADIENT_BUMPENVMAPLUMINANCE) &&
-			  (!DX8Wrapper::Is_Initted() || DX8Wrapper::Get_Current_Caps()->Support_Bump_Envmap_Luminance() == false) )
+			  (!Renderer::Is_Initialized() || Renderer::Supports_Bump_Envmap_Luminance() == false) )
 		{
 			kill_pass = true;
 		}
@@ -884,54 +866,57 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 		}
 		// Set lighting to false if requested in all passes...
 		else if (set_lighting_to_false) {
-			Vector3 single_diffuse(0.0f,0.0f,0.0f);
-			Vector3 single_ambient(0.0f,0.0f,0.0f);
-			Vector3 single_emissive(0.0f,0.0f,0.0f);
 			bool diffuse_used=false;
 			bool ambient_used=false;
 			bool emissive_used=false;
 
-			Vector3 mtl_diffuse;
-			Vector3 mtl_ambient;
-			Vector3 mtl_emissive;
+			VertexMaterialClass* prev_mtl = nullptr;
+			for (int vidx=0; vidx<VertexCount; vidx++)
+			{
+				VertexMaterialClass* mtl = Peek_Material(vidx,pass);
+				if (mtl == nullptr)
+				{
+					continue;
+				}
 
-			VertexMaterialClass * prev_mtl = nullptr;
-			VertexMaterialClass * mtl = Peek_Material(0, pass);
-			if (mtl) {
-				mtl->Get_Diffuse(&single_diffuse);
-				mtl->Get_Ambient(&single_ambient);
-				mtl->Get_Emissive(&single_emissive);
-
-				if (single_diffuse.X || single_diffuse.Y || single_diffuse.Z) diffuse_used=true;
-				if (single_ambient.X || single_ambient.Y || single_ambient.Z) ambient_used=true;
-				if (single_emissive.X || single_emissive.Y || single_emissive.Z) emissive_used=true;
-			}
-
-			for (int vidx=0; vidx<VertexCount; vidx++) {
-				mtl = Peek_Material(vidx,pass);
-				if (mtl != prev_mtl) {
+				if (mtl != prev_mtl)
+				{
 					prev_mtl = mtl;
+					Vector3 mtl_diffuse;
+					Vector3 mtl_ambient;
+					Vector3 mtl_emissive;
 					mtl->Get_Diffuse(&mtl_diffuse);
 					mtl->Get_Ambient(&mtl_ambient);
 					mtl->Get_Emissive(&mtl_emissive);
-				}
 
-				if (mtl_diffuse.X || mtl_diffuse.Y || mtl_diffuse.Z) diffuse_used=true;
-				if (mtl_ambient.X || mtl_ambient.Y || mtl_ambient.Z) ambient_used=true;
-				if (mtl_emissive.X || mtl_emissive.Y || mtl_emissive.Z) emissive_used=true;
+					diffuse_used = diffuse_used || mtl_diffuse.X || mtl_diffuse.Y || mtl_diffuse.Z;
+					ambient_used = ambient_used || mtl_ambient.X || mtl_ambient.Y || mtl_ambient.Z;
+					emissive_used = emissive_used || mtl_emissive.X || mtl_emissive.Y || mtl_emissive.Z;
+
+					if (diffuse_used && ambient_used && emissive_used)
+					{
+						break;
+					}
+				}
 			}
 
-			if ((DCGSource[pass] != VertexMaterialClass::MATERIAL) && (ColorArray[0] != nullptr)) {
-				VertexMaterialClass * prev_mtl = nullptr;
-				VertexMaterialClass * mtl = Peek_Material(0,pass);
-				for (int vidx=0; vidx<VertexCount; vidx++) {
-					mtl = Peek_Material(vidx,pass);
-					if (mtl != prev_mtl) {
+			// Turn off lighting only for emissive-only materials using vertex colors.
+			if (!diffuse_used && !ambient_used && emissive_used &&
+				(DCGSource[pass] != VertexMaterialClass::MATERIAL) && (ColorArray[0] != nullptr))
+			{
+				VertexMaterialClass* prev_mtl = nullptr;
+				for (int vidx=0; vidx<VertexCount; vidx++)
+				{
+					VertexMaterialClass* mtl = Peek_Material(vidx,pass);
+					if (mtl == nullptr)
+					{
+						continue;
+					}
+
+					if (mtl != prev_mtl)
+					{
 						prev_mtl = mtl;
-						// If only emissive is used apply emissive to color channel, set diffuse source to color 1, and turn off lighting
-						if (!diffuse_used && !ambient_used && emissive_used) {
-							mtl->Set_Lighting(false);
-						}
+						mtl->Set_Lighting(false);
 					}
 				}
 			}
@@ -957,7 +942,7 @@ void MeshMatDescClass::Configure_Material(VertexMaterialClass * mtl,int pass,boo
 
 bool MeshMatDescClass::Do_Mappers_Need_Normals()
 {
-	if (DX8Wrapper::Is_Initted() && DX8Wrapper::Get_Current_Caps()->Support_NPatches() && WW3D::Get_NPatches_Level()>1) return true;
+	if (Renderer::Is_Initialized() && Renderer::Supports_NPatches() && WW3D::Get_NPatches_Level()>1) return true;
 
 	for (int pass=0; pass<PassCount; pass++) {
 		/*

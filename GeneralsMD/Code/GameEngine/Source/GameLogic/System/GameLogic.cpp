@@ -51,6 +51,7 @@
 #include "Common/Radar.h"
 #include "Common/RandomValue.h"
 #include "Common/Recorder.h"
+#include "Common/SpecialPower.h"
 #include "Common/StatsCollector.h"
 #include "Common/ThingFactory.h"
 #include "Common/Team.h"
@@ -63,6 +64,7 @@
 #include "Common/XferDeepCRC.h"
 #include "Common/GameSpyMiscPreferences.h"
 
+#include "GameClient/CommandXlat.h"
 #include "GameClient/ControlBar.h"
 #include "GameClient/Drawable.h"
 #include "GameClient/GameClient.h"
@@ -91,6 +93,7 @@
 #include "GameLogic/Module/CreateModule.h"
 #include "GameLogic/Module/DestroyModule.h"
 #include "GameLogic/Module/OpenContain.h"
+#include "GameLogic/Module/SpecialPowerModule.h"
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/PolygonTrigger.h"
 #include "GameLogic/ScriptActions.h"
@@ -112,6 +115,12 @@
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 
 #include <rts/profile.h>
+#include "GgcRuntimeFlags.h"
+
+#ifndef _WIN32
+#include <cstdio>
+#include <cstdlib>
+#endif
 
 struct QuitGameException {};
 
@@ -246,6 +255,240 @@ const char* toString(GameMode mode)
 			return "GAME_UNKNOWN";
 	}
 }
+
+#if !defined(_WIN32) && (defined(RTS_DEBUG) || defined(GGC_ENABLE_GAMEPLAY_DIAGNOSTIC_ENV_HOOKS))
+static void ggcForceNonObserverLocalPlayer(GameMode mode)
+{
+	if (mode == GAME_REPLAY || !ThePlayerList)
+		return;
+
+	Player *local = ThePlayerList->getLocalPlayer();
+	if (local && !local->isPlayerObserver())
+		return;
+
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		Player *candidate = ThePlayerList->getNthPlayer(i);
+		if (!candidate || candidate == ThePlayerList->getNeutralPlayer() || candidate->isPlayerObserver())
+			continue;
+
+		const PlayerTemplate *candidateTemplate = candidate->getPlayerTemplate();
+		if (candidate->getSide() == "Civilian" ||
+			(candidateTemplate && candidateTemplate->getName() == "FactionCivilian"))
+			continue;
+
+		candidate->setPlayerType(PLAYER_HUMAN, false);
+		ThePlayerList->setLocalPlayer(candidate);
+		return;
+	}
+}
+
+struct GgcSpecialPowerTriggerContext
+{
+	const SpecialPowerTemplate *power = nullptr;
+	Object *source = nullptr;
+};
+
+static void ggcFindSpecialPowerSource(Object *obj, void *userData)
+{
+	GgcSpecialPowerTriggerContext *context = static_cast<GgcSpecialPowerTriggerContext *>(userData);
+	if (!context || context->source || !obj || !context->power)
+		return;
+
+	if (obj->getSpecialPowerModule(context->power))
+		context->source = obj;
+}
+
+static void ggcDumpLocalObject(Object *obj, void *)
+{
+	if (!obj || !obj->getTemplate())
+		return;
+
+	const Coord3D *pos = obj->getPosition();
+	if (!pos)
+		return;
+
+	std::fprintf(stderr,
+		"[GGC_OBJECT_DUMP] id=%u template=%s pos=(%.2f,%.2f,%.2f)\n",
+		obj->getID(),
+		obj->getTemplate()->getName().str(),
+		pos->x,
+		pos->y,
+		pos->z);
+}
+
+static Bool ggcParseWorldCoord(const char *value, Coord3D *out)
+{
+	if (!value || !out)
+		return FALSE;
+
+	float x = 0.0f;
+	float y = 0.0f;
+	float z = 0.0f;
+	if (std::sscanf(value, "%f,%f,%f", &x, &y, &z) >= 2)
+	{
+		out->x = x;
+		out->y = y;
+		out->z = z;
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+static void ggcMaybeTriggerSpecialPowerDiagnostic()
+{
+	if (GgcFlags::Enabled(GgcFlag_DumpLocalObjects))
+	{
+		static Bool dumpedObjects = FALSE;
+		if (!dumpedObjects && ThePlayerList)
+		{
+			Player *player = ThePlayerList->getLocalPlayer();
+			if (player && !player->isPlayerObserver())
+			{
+				player->iterateObjects(ggcDumpLocalObject, nullptr);
+				dumpedObjects = TRUE;
+			}
+		}
+	}
+
+	const char *guiCommandName = GgcFlags::StringValue(GgcFlag_TriggerGuiCommand);
+	if (guiCommandName && *guiCommandName)
+	{
+		static Bool initializedGuiCommand = FALSE;
+		static Bool firedGuiCommand = FALSE;
+		static UnsignedInt triggerGuiCommandFrame = 0;
+
+		if (firedGuiCommand)
+			return;
+
+		if (!initializedGuiCommand)
+		{
+			Int delayFrames = GgcFlags::IntValue(GgcFlag_TriggerDelayFrames);
+			if (delayFrames < 0)
+				delayFrames = 0;
+			triggerGuiCommandFrame = TheGameLogic->getFrame() + delayFrames;
+			initializedGuiCommand = TRUE;
+			std::fprintf(stderr, "[GGC_TRIGGER_GUI_COMMAND] armed command=%s frame=%u\n", guiCommandName, triggerGuiCommandFrame);
+		}
+
+		if (TheGameLogic->getFrame() < triggerGuiCommandFrame)
+			return;
+
+		if (!TheControlBar || !TheInGameUI || !TheGameClient || !ThePlayerList || !TheTacticalView)
+			return;
+
+		Player *player = ThePlayerList->getLocalPlayer();
+		if (!player || player->isPlayerObserver())
+			return;
+
+		const CommandButton *command = TheControlBar->findCommandButton(AsciiString(guiCommandName));
+		if (!command)
+		{
+			firedGuiCommand = TRUE;
+			std::fprintf(stderr, "[GGC_TRIGGER_GUI_COMMAND] missing command=%s\n", guiCommandName);
+			return;
+		}
+
+		if (const SpecialPowerTemplate *power = command->getSpecialPowerTemplate())
+		{
+			Object *unit = player->findMostReadyShortcutSpecialPowerOfType(power->getSpecialPowerType());
+			if (unit)
+			{
+				if (SpecialPowerModuleInterface *module = unit->getSpecialPowerModule(power))
+					module->setReadyFrame(TheGameLogic->getFrame());
+			}
+		}
+
+		Coord3D target = TheTacticalView->getPosition();
+		ggcParseWorldCoord(GgcFlags::StringValue(GgcFlag_TriggerWorld), &target);
+
+		TheInGameUI->setGUICommand(command);
+		GameMessage::Type msgType = TheGameClient->evaluateContextCommand(nullptr, &target, CommandTranslator::DO_COMMAND);
+		firedGuiCommand = TRUE;
+		std::fprintf(stderr,
+			"[GGC_TRIGGER_GUI_COMMAND] fired command=%s msg=%d target=(%.2f,%.2f,%.2f) frame=%u\n",
+			guiCommandName,
+			static_cast<int>(msgType),
+			target.x,
+			target.y,
+			target.z,
+			TheGameLogic->getFrame());
+		return;
+	}
+
+	const char *powerName = GgcFlags::StringValue(GgcFlag_TriggerSpecialPower);
+	if (!powerName || !*powerName)
+		return;
+
+	static Bool initialized = FALSE;
+	static Bool fired = FALSE;
+	static UnsignedInt triggerFrame = 0;
+
+	if (fired)
+		return;
+
+	if (!initialized)
+	{
+		Int delayFrames = GgcFlags::IntValue(GgcFlag_TriggerDelayFrames);
+		if (delayFrames < 0)
+			delayFrames = 0;
+		triggerFrame = TheGameLogic->getFrame() + delayFrames;
+		initialized = TRUE;
+		std::fprintf(stderr, "[GGC_TRIGGER_SPECIAL_POWER] armed power=%s frame=%u\n", powerName, triggerFrame);
+	}
+
+	if (TheGameLogic->getFrame() < triggerFrame)
+		return;
+
+	if (!ThePlayerList || !TheSpecialPowerStore || !TheTacticalView)
+		return;
+
+	Player *player = ThePlayerList->getLocalPlayer();
+	if (!player || player->isPlayerObserver())
+		return;
+
+	const SpecialPowerTemplate *power = TheSpecialPowerStore->findSpecialPowerTemplate(AsciiString(powerName));
+	if (!power)
+	{
+		fired = TRUE;
+		std::fprintf(stderr, "[GGC_TRIGGER_SPECIAL_POWER] missing power=%s\n", powerName);
+		return;
+	}
+
+	Coord3D target = TheTacticalView->getPosition();
+	ggcParseWorldCoord(GgcFlags::StringValue(GgcFlag_TriggerWorld), &target);
+
+	GgcSpecialPowerTriggerContext context;
+	context.power = power;
+	player->iterateObjects(ggcFindSpecialPowerSource, &context);
+	if (!context.source)
+	{
+		fired = TRUE;
+		std::fprintf(stderr, "[GGC_TRIGGER_SPECIAL_POWER] no source for power=%s player=%d\n", powerName, player->getPlayerIndex());
+		return;
+	}
+
+	SpecialPowerModuleInterface *module = context.source->getSpecialPowerModule(power);
+	if (!module)
+	{
+		fired = TRUE;
+		return;
+	}
+
+	module->setReadyFrame(TheGameLogic->getFrame());
+	module->doSpecialPowerAtLocation(&target, INVALID_ANGLE, COMMAND_FIRED_BY_SCRIPT);
+	fired = TRUE;
+	std::fprintf(stderr,
+		"[GGC_TRIGGER_SPECIAL_POWER] fired power=%s source=%u target=(%.2f,%.2f,%.2f) frame=%u\n",
+		powerName,
+		context.source->getID(),
+		target.x,
+		target.y,
+		target.z,
+		TheGameLogic->getFrame());
+}
+#endif
 
 // ------------------------------------------------------------------------------------------------
 /** GameLogic class constructor */
@@ -828,6 +1071,22 @@ static void populateRandomSideAndColor(GameInfo* game)
 
 		startSlots.push_back(i);
 	}
+
+	if (startSlots.empty())
+	{
+		DEBUG_CRASH(("No unlocked playable factions were available for random skirmish selection."));
+		for (i = 0; i < ThePlayerTemplateStore->getPlayerTemplateCount(); ++i)
+		{
+			const PlayerTemplate* ptTest = ThePlayerTemplateStore->getNthPlayerTemplate(i);
+			if (!ptTest || ptTest->isObserver() || ptTest->getStartingBuilding().isEmpty())
+				continue;
+
+			if ( game->oldFactionsOnly() && !ptTest->isOldFaction() )
+				continue;
+
+			startSlots.push_back(i);
+		}
+	}
 #endif
 
 	for (i = 0; i < MAX_SLOTS; ++i)
@@ -844,6 +1103,9 @@ static void populateRandomSideAndColor(GameInfo* game)
 		{
 			DEBUG_ASSERTCRASH(playerTemplateIdx == PLAYERTEMPLATE_RANDOM, ("Non-random bad playerTemplate %d in slot %d", playerTemplateIdx, i));
 #ifdef MORE_RANDOM
+			if (startSlots.empty())
+				break;
+
 			// our RNG is basically shit -- horribly nonrandom at the start of the sequence.
 			// get a few values at random to get rid of the dreck.
 			// there's no mathematical basis for this, but empirically, it helps a lot.
@@ -1678,6 +1940,9 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// update the player list to match the new map.
 	TheTeamFactory->reset();
 	ThePlayerList->newGame();
+#if !defined(_WIN32) && (defined(RTS_DEBUG) || defined(GGC_ENABLE_GAMEPLAY_DIAGNOSTIC_ENV_HOOKS))
+	ggcForceNonObserverLocalPlayer(m_gameMode);
+#endif
 
 	// update the loadscreen
 	updateLoadProgress(LOAD_PROGRESS_POST_PLAYER_LIST_RESET);
@@ -2212,6 +2477,11 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// update the loadscreen
 	updateLoadProgress(LOAD_PROGRESS_POST_PRELOAD_ASSETS);
 
+	// TheSuperHackers @fix Mauller 08/05/2026 Apply the aspect-ratio-scaled default view before defaulting the camera
+	TheTacticalView->setDefaultView(
+		DEG_TO_RADF(TheGlobalData->m_cameraPitch),
+		DEG_TO_RADF(TheGlobalData->m_cameraYaw),
+		1.0f);
 	TheTacticalView->setAngleToDefault();
 	TheTacticalView->setPitchToDefault();
 	TheTacticalView->setZoomToDefault();
@@ -3993,6 +4263,39 @@ void GameLogic::update()
 		TheTerrainLogic->UPDATE();
 	}
 
+	// TheSuperHackers @feature bobtista 13/07/2026 Optional per-frame fingerprint of the sleepy update
+	// scheduler. The pop order of equal-priority modules depends on the heap operation history, which the
+	// game CRC does not cover, so a record-versus-playback divergence can stay invisible until it reorders
+	// two updates and desyncs the replay much later. Comparing these lines between the recording session's
+	// log and a replay simulation of it pinpoints the exact frame the scheduler first skews. The layout
+	// hash follows the heap array order; the content values are order-independent, so a divergent layout
+	// with equal content isolates a pure ordering difference.
+	static Int s_logSleepyFingerprint = -1;
+	if (s_logSleepyFingerprint == -1)
+	{
+		s_logSleepyFingerprint = GgcFlags::Enabled(GgcFlag_LogSleepyFingerprint) ? 1 : 0;
+	}
+	if (s_logSleepyFingerprint == 1 && isInGame() && !isInShellGame())
+	{
+		UnsignedInt layoutHash = 2166136261u;
+		UnsignedInt contentSum = 0;
+		UnsignedInt contentXor = 0;
+		for (size_t hfi = 0; hfi < m_sleepyUpdates.size(); ++hfi)
+		{
+			UpdateModule *hm = m_sleepyUpdates[hfi];
+			const Object *hobj = hm->friend_getObject();
+			UnsignedInt hid = hobj ? (UnsignedInt)hobj->getID() : 0xFFFFFFFFu;
+			UnsignedInt hpri = hm->friend_getPriority();
+			layoutHash = (layoutHash ^ hid) * 16777619u;
+			layoutHash = (layoutHash ^ hpri) * 16777619u;
+			UnsignedInt hcombined = (hid * 2654435761u) ^ hpri;
+			contentSum += hcombined;
+			contentXor ^= hcombined;
+		}
+		DEBUG_LOG(("GGC-HEAPFP frame=%d n=%d layout=%08X csum=%08X cxor=%08X",
+			m_frame, (Int)m_sleepyUpdates.size(), layoutHash, contentSum, contentXor));
+	}
+
 	// force CRC calculation, so we can keep a cache of the last N CRCs.  We do this right where the recorder
 	// would be getting the CRC anyway, so replays can get the CRCs from the exact instant in time as the original.
 	Bool isMPGameOrReplay = (TheRecorder && TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
@@ -4040,6 +4343,10 @@ void GameLogic::update()
 	{
 		processCommandList(TheCommandList);
 	}
+
+#if !defined(_WIN32) && (defined(RTS_DEBUG) || defined(GGC_ENABLE_GAMEPLAY_DIAGNOSTIC_ENV_HOOKS))
+	ggcMaybeTriggerSpecialPowerDiagnostic();
+#endif
 
 #ifdef ALLOW_NONSLEEPY_UPDATES
 	{

@@ -369,8 +369,9 @@ Int LocalFile::readChar()
 
 	Int ret = read( &character, sizeof(character) );
 
+	// TheSuperHackers @fix bobtista 14/10/2026 Return the byte as unsigned so 0xFF is not mistaken for EOF.
 	if (ret == sizeof(character))
-		return (Int)character;
+		return (Int)(UnsignedByte)character;
 
 	return EOF;
 }
@@ -381,12 +382,21 @@ Int LocalFile::readChar()
 
 Int LocalFile::readWideChar()
 {
+#ifdef _WIN32
 	WideChar character = L'\0';
 
 	Int ret = read( &character, sizeof(character) );
 
 	if (ret == sizeof(character))
+		return (Int)(intptr_t)character;
+#else
+	UnsignedShort character = 0;
+
+	Int ret = read( &character, sizeof(character) );
+
+	if (ret == sizeof(character))
 		return (Int)character;
+#endif
 
 	return WEOF;
 }
@@ -440,7 +450,14 @@ Int LocalFile::writeFormat( const WideChar* format, ... )
 	Int length = vswprintf(buffer, sizeof(buffer) / sizeof(WideChar), format, args);
 	va_end(args);
 
+#ifdef _WIN32
 	return write( buffer, length * sizeof(WideChar) );
+#else
+	UnsignedShort diskBuffer[1024];
+	for( Int i = 0; i < length; ++i )
+		diskBuffer[ i ] = (UnsignedShort)buffer[ i ];
+	return write( diskBuffer, length * sizeof(UnsignedShort) );
+#endif
 }
 
 //=================================================================
@@ -449,6 +466,7 @@ Int LocalFile::writeFormat( const WideChar* format, ... )
 
 Int LocalFile::writeChar( const Char* character )
 {
+	// TheSuperHackers @fix bobtista 14/10/2026 Return the character written instead of its address.
 	if ( write( character, sizeof(Char) ) == sizeof(Char) ) {
 		return (Int)character;
 	}
@@ -462,9 +480,17 @@ Int LocalFile::writeChar( const Char* character )
 
 Int LocalFile::writeChar( const WideChar* character )
 {
+	// TheSuperHackers @fix bobtista 14/10/2026 Return the character written instead of its address.
+#ifdef _WIN32
 	if ( write( character, sizeof(WideChar) ) == sizeof(WideChar) ) {
 		return (Int)character;
 	}
+#else
+	UnsignedShort diskCharacter = (UnsignedShort)(*character);
+	if ( write( &diskCharacter, sizeof(diskCharacter) ) == sizeof(diskCharacter) ) {
+		return (Int)diskCharacter;
+	}
+#endif
 
 	return WEOF;
 }

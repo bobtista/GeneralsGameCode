@@ -45,7 +45,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 // SYSTEM INCLUDES
-
+#include <cstddef>
 // USER INCLUDES
 #include "Common/GameMemory.h"
 #include "Common/CriticalSection.h"
@@ -492,6 +492,7 @@ public:
 	Int getFreeBlockCount();
 	Int getUsedBlockCount();
 	Int getTotalBlockCount();
+	Bool ownsUserBlockPointer(void *pBlock);
 
 #ifdef MEMORYPOOL_DEBUG
 	void debugMemoryVerifyBlob();
@@ -715,6 +716,31 @@ inline Int MemoryPoolBlob::getFreeBlockCount() { return getTotalBlockCount() - g
 inline Int MemoryPoolBlob::getUsedBlockCount() { return m_usedBlocksInBlob; }
 /// accessor
 inline Int MemoryPoolBlob::getTotalBlockCount() { return m_totalBlocksInBlob; }
+
+Bool MemoryPoolBlob::ownsUserBlockPointer(void *pBlock)
+{
+	if (pBlock == nullptr || m_blockData == nullptr || m_owningPool == nullptr)
+	{
+		return false;
+	}
+
+	const Int rawBlockSize = MemoryPoolSingleBlock::calcRawBlockSize(m_owningPool->getAllocationSize());
+	const char *blockData = m_blockData;
+	const char *userPtr = static_cast<const char *>(pBlock);
+	const char *end = blockData + (rawBlockSize * m_totalBlocksInBlob);
+
+	if (userPtr < blockData || userPtr >= end)
+	{
+		return false;
+	}
+
+	Int userOffset = sizeof(MemoryPoolSingleBlock);
+#ifdef MEMORYPOOL_BOUNDINGWALL
+	userOffset += WALLSIZE;
+#endif
+	const ptrdiff_t offset = userPtr - blockData - userOffset;
+	return offset >= 0 && (offset % rawBlockSize) == 0;
+}
 
 //-----------------------------------------------------------------------------
 // METHODS for BlockCheckpointInfo
@@ -1766,6 +1792,19 @@ Int MemoryPool::countBlobsInPool()
 }
 
 //-----------------------------------------------------------------------------
+Bool MemoryPool::ownsUserBlockPointer(void *pBlockPtr)
+{
+	for (MemoryPoolBlob *blob = m_firstBlob; blob != nullptr; blob = blob->getNextInList())
+	{
+		if (blob->ownsUserBlockPointer(pBlockPtr))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------
 /**
 	if the pool has any blobs that are completely unused, they are released back to the
 	operating system. this will rarely, if ever, be called, but may be useful
@@ -2098,6 +2137,28 @@ MemoryPool *DynamicMemoryAllocator::findPoolForSize(Int allocSize)
 }
 
 //-----------------------------------------------------------------------------
+Bool DynamicMemoryAllocator::ownsUserBlockPointer(void *pBlockPtr)
+{
+	for (Int i = 0; i < m_numPools; i++)
+	{
+		if (m_pools[i] != nullptr && m_pools[i]->ownsUserBlockPointer(pBlockPtr))
+		{
+			return true;
+		}
+	}
+
+	for (MemoryPoolSingleBlock *block = m_rawBlocks; block != nullptr; block = block->getNextRawBlock())
+	{
+		if (block->getUserData() == pBlockPtr)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
 /**
 	add this DMA to the factory's list of dmas.
 */
@@ -2289,6 +2350,19 @@ void DynamicMemoryAllocator::freeBytes(void* pBlockPtr)
 		return;
 
 	ScopedCriticalSection scopedCriticalSection(TheDmaCriticalSection);
+
+#if defined(__APPLE__) || defined(__linux__)
+	// System frameworks and shared libraries can resolve C++ delete to the game's
+	// global replacement operator. Only pointers that match our pool/raw-block
+	// ranges may be interpreted as MemoryPoolSingleBlock user data. Do not try to
+	// "repair" foreign deletes with free(): some system internals pass sentinel
+	// or interior values through delete (e.g. Metal compiler teardown on macOS),
+	// and malloc_size() is not a sufficient exact-allocation test for those values.
+	if (!ownsUserBlockPointer(pBlockPtr))
+	{
+		return;
+	}
+#endif
 
 #ifdef MEMORYPOOL_CHECK_BLOCK_OWNERSHIP
 	DEBUG_ASSERTCRASH(debugIsBlockInDma(pBlockPtr), ("block is not in this dma"));

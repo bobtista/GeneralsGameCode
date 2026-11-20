@@ -1,6 +1,6 @@
 /*
 **	Command & Conquer Generals Zero Hour(tm)
-**	Copyright 2025 TheSuperHackers
+**	Copyright 2026 TheSuperHackers
 **
 **	This program is free software: you can redistribute it and/or modify
 **	it under the terms of the GNU General Public License as published by
@@ -20,8 +20,12 @@
 #include "Common/GlobalData.h"
 #include "GameClient/GameText.h"
 #include "GameClient/InGameUI.h"
+#include "WW3D2/Renderer.h"
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/surfaceclass.h"
+#include "WW3D2/texturecompatibilityinterop.h"
+#endif
 #include "WWLib/mpsc_intrusive_queue.h"
 #include <stb_image_write.h>
 
@@ -82,10 +86,11 @@ static DWORD WINAPI screenshotThreadFunc(LPVOID param)
 		// Convert A8R8G8B8/X8R8G8B8 to R8G8B8
 		for (unsigned int y = 0; y < height; ++y)
 		{
-			const unsigned int* srcLine = reinterpret_cast<const unsigned int*>(data->pixelData + y * data->pitch);
+			const unsigned char* srcLine = data->pixelData + y * data->pitch;
 			for (unsigned int x = 0; x < width; ++x)
 			{
-				const unsigned int argb = srcLine[x];
+				unsigned int argb;
+				memcpy(&argb, srcLine + x * sizeof(argb), sizeof(argb));
 				const unsigned int index = 3 * (x + y * width);
 				image[index + 0] = (unsigned char)(argb >> 16); // r
 				image[index + 1] = (unsigned char)(argb >> 8);  // g
@@ -98,10 +103,11 @@ static DWORD WINAPI screenshotThreadFunc(LPVOID param)
 		// Convert R5G6B5 to R8G8B8
 		for (unsigned int y = 0; y < height; ++y)
 		{
-			const unsigned short* srcLine = reinterpret_cast<const unsigned short*>(data->pixelData + y * data->pitch);
+			const unsigned char* srcLine = data->pixelData + y * data->pitch;
 			for (unsigned int x = 0; x < width; ++x)
 			{
-				const unsigned short rgb = srcLine[x];
+				unsigned short rgb;
+				memcpy(&rgb, srcLine + x * sizeof(rgb), sizeof(rgb));
 				const unsigned int index = 3 * (x + y * width);
 				image[index + 0] = (unsigned char)((rgb & 0xF800) >> 8); // r
 				image[index + 1] = (unsigned char)((rgb & 0x07E0) >> 3); // g
@@ -166,6 +172,29 @@ void W3D_TakeCompressedScreenshot(ScreenshotFormat format, Int jpegQuality)
 	sprintf(leafname, "sshot_%04d%02d%02d_%02d%02d%02d_%03d.%s",
 		st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds, extension);
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// bgfx performs the back-buffer readback asynchronously and currently exposes PNG as its
+	// native compressed screenshot format. Keep F12 functional when it requests the legacy JPEG
+	// format by emitting PNG instead; Ctrl+F12 already requests PNG explicitly.
+	char pathname[_MAX_PATH];
+	strlcpy(pathname, TheGlobalData->getPath_UserData().str(), ARRAY_SIZE(pathname));
+	strlcat(pathname, "Screenshots\\", ARRAY_SIZE(pathname));
+	CreateDirectory(pathname, nullptr);
+
+	char* extensionStart = strrchr(leafname, '.');
+	if (extensionStart != nullptr)
+	{
+		strlcpy(extensionStart + 1, "png", ARRAY_SIZE(leafname) - (extensionStart + 1 - leafname));
+	}
+	strlcat(pathname, leafname, ARRAY_SIZE(pathname));
+
+	if (Renderer::Is_Initialized() && Renderer::Request_Native_Screen_Shot(pathname))
+	{
+		UnicodeString ufileName;
+		ufileName.translate(leafname);
+		TheInGameUI->message(TheGameText->fetch("GUI:ScreenCapture"), ufileName.str());
+	}
+#else
 	// TheSuperHackers @bugfix xezon 21/05/2025 Get the back buffer and create a copy of the surface.
 	// Originally this code took the front buffer and tried to lock it. This does not work when the
 	// render view clips outside the desktop boundaries. It crashed the game.
@@ -185,8 +214,8 @@ void W3D_TakeCompressedScreenshot(ScreenshotFormat format, Int jpegQuality)
 		return;
 	}
 
-	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format)));
-	DX8Wrapper::_Copy_DX8_Rects(surface->Peek_D3D_Surface(), nullptr, 0, surfaceCopy->Peek_D3D_Surface(), nullptr);
+	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format));
+	DX8Wrapper::_Copy_DX8_Rects(Peek_Legacy_Surface(*surface), nullptr, 0, Peek_Legacy_Surface(*surfaceCopy), nullptr);
 
 	surface->Release_Ref();
 	surface = nullptr;
@@ -233,4 +262,5 @@ void W3D_TakeCompressedScreenshot(ScreenshotFormat format, Int jpegQuality)
 	{
 		delete threadData;
 	}
+#endif
 }

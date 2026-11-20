@@ -169,12 +169,30 @@ Bool TransitionWindow::init()
 	m_winID = TheNameKeyGenerator->nameToKey(m_winName);
 	m_win		= TheWindowManager->winGetWindowFromId(nullptr, m_winID);
 	m_currentFrameDelay = m_frameDelay;
-//	DEBUG_ASSERTCRASH( m_win, ("TransitionWindow::init Failed to find window %s", m_winName.str()));
-//	if( !m_win )
-//		return FALSE;
+#if !defined(_WIN32)
+	// Some non-Windows data/layout combinations do not create every window
+	// referenced by transition INI groups. The original Windows path assumes
+	// those references are valid; keep that behavior there, but avoid leaving
+	// a null transition object queued for the next frame on SDL/macOS.
+	// TheSuperHackers @bugfix bobtista 18/07/2026 Only bail for a named window that failed to
+	// resolve. Whole-screen fades (SCREENFADE/FULLFADE) have an empty WinName and no window by
+	// design, so bailing on them here dropped the load fade-out/fade-in on non-Windows builds.
+	if( !m_win && !m_winName.isEmpty() )
+	{
+		delete m_transition;
+		m_transition = nullptr;
+		return FALSE;
+	}
+#endif
 
 	delete m_transition;
 	m_transition = getTransitionForStyle( m_style );
+#if !defined(_WIN32)
+	if( !m_transition )
+	{
+		return FALSE;
+	}
+#endif
 	m_transition->init(m_win);
 
 	// TheSuperHackers @fix Mauller 15/05/2025 Link TransitionWindow to the GameWindow so the GameWindow can unlink itself when it is destroyed
@@ -186,16 +204,27 @@ Bool TransitionWindow::init()
 
 void TransitionWindow::update( Int frame )
 {
+#if !defined(_WIN32)
+	// TransitionGroup::init() return values are ignored by the legacy caller,
+	// so a failed TransitionWindow::init() must be harmless during update.
+	if( !m_transition )
+		return;
+#endif
 	if(frame < m_currentFrameDelay || frame > (m_currentFrameDelay + m_transition->getFrameLength()))
 		return;
 
-	if(m_transition)
+	// TheSuperHackers @bugfix bobtista 09/06/2026 If the GameWindow was destroyed mid-transition it
+	// unlinks itself and nulls m_win, but the transition object lives on in the handler. The style
+	// update()/reverse()/skip() methods dereference m_win (e.g. CountUpTransition::update -> winHide),
+	// so stop forwarding once the window is gone, and report finished so the group does not stall.
+	// Windowless whole-screen fades (empty WinName) never had a window, so keep forwarding those.
+	if(m_transition && (m_win || m_winName.isEmpty()))
 		m_transition->update( frame - m_currentFrameDelay);
 }
 
 Bool TransitionWindow::isFinished()
 {
-	if(m_transition)
+	if(m_transition && (m_win || m_winName.isEmpty()))
 		return m_transition->isFinished();
 	return TRUE;
 }
@@ -203,19 +232,19 @@ Bool TransitionWindow::isFinished()
 void TransitionWindow::reverse( Int totalFrames )
 {
 	//m_currentFrameDelay = totalFrames - (m_transition->getFrameLength() + m_frameDelay);
-	if(m_transition)
+	if(m_transition && (m_win || m_winName.isEmpty()))
 		m_transition->reverse();
 }
 
 void TransitionWindow::skip()
 {
-	if(m_transition)
+	if(m_transition && (m_win || m_winName.isEmpty()))
 		m_transition->skip();
 }
 
 void TransitionWindow::draw()
 {
-	if(m_transition)
+	if(m_transition && (m_win || m_winName.isEmpty()))
 		m_transition->draw();
 }
 
@@ -509,6 +538,14 @@ void GameWindowTransitionsHandler::setGroup(AsciiString groupName, Bool immediat
 void GameWindowTransitionsHandler::reverse( AsciiString groupName )
 {
 	TransitionGroup *g = findGroup(groupName);
+#if !defined(_WIN32)
+	// Missing transition groups can happen with incomplete retail data on
+	// non-Windows builds; on Windows preserve the original assert/crash path.
+	if( !g )
+	{
+		return;
+	}
+#endif
 	if( m_currentGroup == g )
 	{
 		m_currentGroup->reverse();
@@ -606,4 +643,3 @@ void GameWindowTransitionsHandler::parseWindow( INI* ini, void *instance, void *
 	ini->initFromINI(transWin, myFieldParse);
 	((TransitionGroup*)instance)->addWindow(transWin);
 }
-

@@ -51,6 +51,7 @@
 #include "GameClient/Water.h"
 #include "GameLogic/TerrainLogic.h"
 #include "Common/FramePacer.h"
+#include "Common/GameState.h"
 #include "Common/GlobalData.h"
 #include "Common/UnicodeString.h"
 #include "Common/file.h"
@@ -61,7 +62,12 @@
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/assetmgr.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx8fvf.h"
+#include "WW3D2/Renderer.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/renderbufferclasses.h"
+#include "WW3D2/vertexbuffer.h"
+#include "WW3D2/Renderer.h"
 
 //number of vertex pages allocated - allows double buffering of vertex updates.
 //while one is being rendered, another is being updated.  Improves HW parallelism.
@@ -105,14 +111,16 @@ struct waveInfo
 	const char *m_waveTypeName;			//name of this wave type.
 };
 
-waveInfo waveTypeInfo[WaveTypeMax]=
+waveInfo waveTypeInfo[]=
 {
 	{28.0f, 18.0f, 25.0f, 0.018f, 900, 0.01f, 0.18f, 1500, 0,"wave256.tga","Pond"},	//pond
 	{55.0f, 36.0f, 80.0f, 0.015f, 2000, 0.5f, 0.18f, 1000, 6267,"wave256.tga","Ocean"},	//ocean
 	{55.0f, 36.0f, 80.0f, 0.015f, 2000, 0.05f, 0.18f, 1000, 6267,"wave256.tga","Close Ocean"},
 	{55.0f, 36.0f, 80.0f, 0.015f, 4000, 0.01f, 0.18f, 2000, 6267,"wave256.tga","Close Ocean Double"},
 	{55.0f, 27.0f, 80.0f, 0.015f, 2000, 0.01f, 8.0f, 2000, 5367,"wave256.tga","Radial"},
+	{0.0f, 0.0f, 0.0f, 0.0f, 0, 0.0f, 0.0f, 0, 0, nullptr, nullptr},	//stationary
 };
+static_assert(ARRAY_SIZE(waveTypeInfo) == WaveTypeMax, "Incorrect array size");
 
 //=============================================================================
 // WaterTracksObj::~WaterTracksObj
@@ -131,9 +139,30 @@ WaterTracksObj::~WaterTracksObj()
 //=============================================================================
 WaterTracksObj::WaterTracksObj()
 {
+	m_type=WaveTypePond;
+	m_x=0;
+	m_y=0;
 	m_stageZeroTexture=nullptr;
 	m_bound=false;
 	m_initTimeOffset=0;
+	m_elapsedMs=0;
+	m_flipU=0;
+	m_nextSystem=nullptr;
+	m_prevSystem=nullptr;
+	m_waveDistance=0;
+	m_initialVelocity=0;
+	m_totalMs=0;
+	m_fadeMs=0;
+	m_waveInitialWidth=0;
+	m_waveInitialHeight=0;
+	m_waveFinalWidth=0;
+	m_waveFinalHeight=0;
+	m_timeToReachBeach=0;
+	m_frontSlowDownAcc=0;
+	m_timeToStop=0;
+	m_timeToRetreat=0;
+	m_backSlowDownAcc=0;
+	m_timeToCompress=0;
 }
 
 //=============================================================================
@@ -142,7 +171,8 @@ WaterTracksObj::WaterTracksObj()
 /** WW3D method that returns object bounding sphere used in frustum culling*/
 //=============================================================================
 void WaterTracksObj::Get_Obj_Space_Bounding_Sphere(SphereClass & sphere) const
-{	/// @todo: Add code to cull track marks to screen by constantly updating bounding volumes
+{
+	/// @todo: Add code to cull track marks to screen by constantly updating bounding volumes
 	sphere=m_boundingSphere;
 }
 
@@ -201,33 +231,39 @@ void WaterTracksObj::init( Real width, Real length, const Vector2 &start, const 
 	//m_startPos -= m_waveDir*m_width;
 	//move back initial tip off of wave a couple units off the final position
 	//to give it some room to travel. Travel vector is stored in m_waveDir.
-	m_waveDistance = waveTypeInfo[m_type].m_waveDistance;	//total distance traveled by wave front
+	if (m_type < WaveTypeStationary) {
+		m_waveDistance = waveTypeInfo[m_type].m_waveDistance;
+	} else {
+		m_waveDistance = 0;
+	}
 
 	m_waveDir *= m_waveDistance;
 	m_startPos -= m_waveDir;	//move start point down away from shoreline
 
-	m_initialVelocity=waveTypeInfo[m_type].m_initialVelocity;			//velocity per ms
-	m_totalMs = m_waveDistance/m_initialVelocity; //amount of time for wave to travel complete distance
+	if (m_type < WaveTypeStationary) {
+		m_initialVelocity=waveTypeInfo[m_type].m_initialVelocity;			//velocity per ms
+		m_totalMs = m_waveDistance/m_initialVelocity; //amount of time for wave to travel complete distance
 
-	m_fadeMs = waveTypeInfo[m_type].m_fadeMs;		//time for wave to fade out after it stops on beach
+		m_fadeMs = waveTypeInfo[m_type].m_fadeMs;		//time for wave to fade out after it stops on beach
 
-	m_waveInitialWidth=length * waveTypeInfo[m_type].m_initialWidthFraction;///<width of wave segment when it first appears
-	m_waveInitialHeight=m_waveInitialWidth * waveTypeInfo[m_type].m_initialHeightWidthFraction;	///<height of wave segment when it first appears
-	m_waveFinalWidth=length;	///<width of wave segment at full size
-	m_waveFinalHeight=width;		///<final height of unstretched wave
+		m_waveInitialWidth=length * waveTypeInfo[m_type].m_initialWidthFraction;///<width of wave segment when it first appears
+		m_waveInitialHeight=m_waveInitialWidth * waveTypeInfo[m_type].m_initialHeightWidthFraction;	///<height of wave segment when it first appears
+		m_waveFinalWidth=length;	///<width of wave segment at full size
+		m_waveFinalHeight=width;		///<final height of unstretched wave
 
-	//get total time for front to complete its cycle
-	m_timeToReachBeach=(m_waveDistance - m_waveFinalHeight)/m_initialVelocity;
-	m_frontSlowDownAcc= -(m_initialVelocity*m_initialVelocity)/(2*m_waveFinalHeight);	//deceleration of wave after it hits land
-	m_timeToStop = -m_initialVelocity/m_frontSlowDownAcc;
-	m_timeToRetreat = sqrt(fabs(2.0f*m_waveFinalHeight/m_frontSlowDownAcc));
-	m_totalMs = m_timeToReachBeach + m_timeToStop + m_timeToRetreat;	//total time that wave front is on screen
-	m_backSlowDownAcc = (2.0f*m_waveInitialHeight/(m_timeToStop*m_timeToStop));//((m_waveInitialHeight - m_velocity*m_timeToStop)*2.0f)/(m_timeToStop*m_timeToStop);
-	m_timeToCompress = waveTypeInfo[m_type].m_timeToCompress;	//time for back of wave to continue moving forward after front starts retreating.
-
+		//get total time for front to complete its cycle
+		m_timeToReachBeach=(m_waveDistance - m_waveFinalHeight)/m_initialVelocity;
+		m_frontSlowDownAcc= -(m_initialVelocity*m_initialVelocity)/(2*m_waveFinalHeight);	//deceleration of wave after it hits land
+		m_timeToStop = -m_initialVelocity/m_frontSlowDownAcc;
+		m_timeToRetreat = sqrt(fabs(2.0f*m_waveFinalHeight/m_frontSlowDownAcc));
+		m_totalMs = m_timeToReachBeach + m_timeToStop + m_timeToRetreat;	//total time that wave front is on screen
+		m_backSlowDownAcc = (2.0f*m_waveInitialHeight/(m_timeToStop*m_timeToStop));//((m_waveInitialHeight - m_velocity*m_timeToStop)*2.0f)/(m_timeToStop*m_timeToStop);
+		m_timeToCompress = waveTypeInfo[m_type].m_timeToCompress;	//time for back of wave to continue moving forward after front starts retreating.
+	}
 
 	if (m_type == WaveTypeStationary)
-	{	//this is a stationary wave slightly behind starting point
+	{
+		//this is a stationary wave slightly behind starting point
 		m_timeToRetreat = 1000; //time to fade out.
 		m_totalMs = m_timeToReachBeach + m_timeToStop+m_fadeMs+m_timeToRetreat;	//trigger when other wave stops.
 		m_startPos = start;
@@ -293,7 +329,7 @@ Int WaterTracksObj::update(Int msElapsed)
  */
 //=============================================================================
 
-Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
+Int WaterTracksObj::render(RenderVertexBufferClass *vertexBuffer, Int batchStart)
 {
 	// TheSuperHackers @tweak The wave movement time step is now decoupled from the render update.
 	m_elapsedMs += TheFramePacer->getLogicTimeStepMilliseconds();
@@ -305,18 +341,26 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 	Real	waveAlpha;
 	Real	widthFrac;
 	Real	heightFrac;
+	unsigned lockFlags=RB_LOCK_NOOVERWRITE;
 
 	if (batchStart < (WATER_VB_PAGES*WATER_STRIP_X*WATER_STRIP_Y-m_x*m_y))
-	{	//we have room in current VB, append new verts
-		if(vertexBuffer->Get_DX8_Vertex_Buffer()->Lock(batchStart*vertexBuffer->FVF_Info().Get_FVF_Size(),m_x*m_y*vertexBuffer->FVF_Info().Get_FVF_Size(),(unsigned char**)&vb,D3DLOCK_NOOVERWRITE) != D3D_OK)
-			return batchStart;
+	{
+		//we have room in current VB, append new verts
 	}
 	else
-	{	//ran out of room in last VB, request a substitute VB.
-		if(vertexBuffer->Get_DX8_Vertex_Buffer()->Lock(0,m_x*m_y*vertexBuffer->FVF_Info().Get_FVF_Size(),(unsigned char**)&vb,D3DLOCK_DISCARD) != D3D_OK)
-			return batchStart;
+	{
+		//ran out of room in last VB, request a substitute VB.
 		batchStart=0;	//reset start of page to first vertex
+		lockFlags=RB_LOCK_DISCARD;
 	}
+	VertexBufferClass::AppendLockClass vertexLock(
+		vertexBuffer,
+		batchStart,
+		m_x*m_y,
+		lockFlags);
+	vb=static_cast<VertexFormatXYZDUV1 *>(vertexLock.Get_Vertex_Array());
+	if (vb == nullptr)
+		return batchStart;
 
 	//Adjust wave position in a non-linear way so that it slows down as it hits the target.  Using 1/4 sine wave
 	//seems to work okay since it maxes out at 1.0 at our final position.
@@ -328,7 +372,8 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 	widthFrac = 1.0f;
 
 	if (m_type == WaveTypeStationary)
-	{	//stationary wave
+	{
+		//stationary wave
 		waveFrontOrigin = m_startPos;
 		waveFrontOrigin -= m_perpDir*m_waveFinalWidth*0.5f;	//offset to left edge of wave
 		waveTailOrigin = waveFrontOrigin - m_waveFinalHeight * ooWaveDirLen*m_waveDir;
@@ -337,7 +382,8 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 		if (m_elapsedMs >= m_totalMs)
 			m_elapsedMs = 0;	//done with effect*/
 		if (m_elapsedMs > (m_timeToReachBeach + m_timeToStop -1000 + m_fadeMs))
-		{	//fading out
+		{
+			//fading out
 			waveAlpha = m_elapsedMs-(m_timeToReachBeach + m_timeToStop - 1000 +m_fadeMs);//(m_totalMs-m_timeToRetreat -m_fadeMs - m_elapsedMs)/m_fadeMs;
 			waveAlpha = waveAlpha / m_timeToRetreat;
 			waveAlpha = 1.0f - waveAlpha;
@@ -346,7 +392,8 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 		}
 		else
 		if (m_elapsedMs > (m_timeToReachBeach + m_timeToStop - 1000))
-		{	//start fading up
+		{
+			//start fading up
 
 			waveAlpha = m_elapsedMs-(m_timeToReachBeach + m_timeToStop - 1000);//(m_totalMs-m_timeToRetreat -m_fadeMs - m_elapsedMs)/m_fadeMs;
 			waveAlpha = waveAlpha / m_fadeMs;
@@ -355,11 +402,13 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 		}
 	}
 	else
-	{	//moving wave
+	{
+		//moving wave
 
 		//get coordinate of top left of wave strip
 		if (m_elapsedMs < m_timeToReachBeach)
-		{	//wave has not reached beach yet so position only depends on velocity
+		{
+			//wave has not reached beach yet so position only depends on velocity
 			waveAlpha = m_elapsedMs / m_timeToReachBeach;
 			widthFrac = waveAlpha;
 			widthFrac=(m_waveInitialWidth + widthFrac* (m_waveFinalWidth-m_waveInitialWidth))/m_waveFinalWidth;
@@ -469,14 +518,19 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 	vb->v1=1.0f;
 	vb++;
 
-	vertexBuffer->Get_DX8_Vertex_Buffer()->Unlock();
-
-	Int idxCount=(m_y-1)*(m_x*2+2) - 2;	//index count
-
-	DX8Wrapper::Set_Index_Buffer(TheWaterTracksRenderSystem->m_indexBuffer,batchStart);
-	DX8Wrapper::Draw_Strip(0,idxCount-2,0,m_x*m_y);	//there are always n-2 primitives for n index strip.
-
 	return batchStart+m_x*m_y;	//return new offset into unused area of vertex buffer
+}
+
+void WaterTracksRenderSystem::drawBatch(Int firstVertex, Int trackCount, TextureClass *texture)
+{
+	if (trackCount <= 0)
+	{
+		return;
+	}
+
+	Renderer::Set_Texture(0,texture);
+	Renderer::Set_Index_Buffer(m_batchIndexBuffer,firstVertex);
+	Renderer::Draw_Triangles(0,trackCount*2,0,trackCount*WATER_STRIP_X*WATER_STRIP_Y);
 }
 
 //=============================================================================
@@ -510,7 +564,8 @@ WaterTracksObj *WaterTracksRenderSystem::bindTrack(waveType type)
 		for( nextmod = m_usedModules; nextmod; prevmod=nextmod,nextmod = nextmod->m_nextSystem )
 		{
 			if (nextmod->m_type==type)
-			{	//found start of other shadows using same texture, insert new shadow here.
+			{
+				//found start of other shadows using same texture, insert new shadow here.
 				mod->m_nextSystem=nextmod;
 				mod->m_prevSystem=prevmod;
 				nextmod->m_prevSystem=mod;
@@ -524,7 +579,8 @@ WaterTracksObj *WaterTracksRenderSystem::bindTrack(waveType type)
 		}
 
 		if (nextmod==nullptr)
-		{	//shadow with new texture. Add to top of list.
+		{
+			//shadow with new texture. Add to top of list.
 			mod->m_nextSystem = m_usedModules;
 			if (m_usedModules)
 				m_usedModules->m_prevSystem=mod;
@@ -602,6 +658,7 @@ WaterTracksRenderSystem::WaterTracksRenderSystem()
 	m_usedModules = nullptr;
 	m_freeModules = nullptr;
 	m_indexBuffer = nullptr;
+	m_batchIndexBuffer = nullptr;
 	m_vertexMaterialClass = nullptr;
 	m_vertexBuffer = nullptr;
 	m_stripSizeX=WATER_STRIP_X;
@@ -637,6 +694,7 @@ void WaterTracksRenderSystem::ReAcquireResources()
 
 	// just for paranoia's sake.
 	REF_PTR_RELEASE(m_indexBuffer);
+	REF_PTR_RELEASE(m_batchIndexBuffer);
 	REF_PTR_RELEASE(m_vertexBuffer);
 
 	//Will need m_y-1 strips, each of length m_x*2.
@@ -645,11 +703,11 @@ void WaterTracksRenderSystem::ReAcquireResources()
 
 	Int idxCount=(m_stripSizeY-1)*(m_stripSizeX*2+2) - 2;
 
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,(idxCount));
+	m_indexBuffer=NEW_REF(RenderIndexBufferClass,(idxCount));
 
 	// Fill up the IB
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 
 		for (i=0,j=0,k=0; i<idxCount; j++)
@@ -671,7 +729,25 @@ void WaterTracksRenderSystem::ReAcquireResources()
 		}
 	}
 
-	m_vertexBuffer=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,m_stripSizeX*m_stripSizeY*WATER_VB_PAGES,DX8VertexBufferClass::USAGE_DYNAMIC));
+	m_batchIndexBuffer=NEW_REF(RenderIndexBufferClass,(WATER_VB_PAGES*2*3));
+	{
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_batchIndexBuffer);
+		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
+
+		for (i=0; i<WATER_VB_PAGES; i++)
+		{
+			UnsignedShort vertexBase = static_cast<UnsignedShort>(i*WATER_STRIP_X*WATER_STRIP_Y);
+			ib[0] = vertexBase+2;
+			ib[1] = vertexBase;
+			ib[2] = vertexBase+3;
+			ib[3] = vertexBase;
+			ib[4] = vertexBase+1;
+			ib[5] = vertexBase+3;
+			ib += 6;
+		}
+	}
+
+	m_vertexBuffer=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,m_stripSizeX*m_stripSizeY*WATER_VB_PAGES,RenderVertexBufferClass::USAGE_DYNAMIC));
 	m_batchStart=0;
 }
 
@@ -683,6 +759,7 @@ void WaterTracksRenderSystem::ReAcquireResources()
 void WaterTracksRenderSystem::ReleaseResources()
 {
 	REF_PTR_RELEASE(m_indexBuffer);
+	REF_PTR_RELEASE(m_batchIndexBuffer);
 	REF_PTR_RELEASE(m_vertexBuffer);
 	// Note - it is ok to not release the material, as it is a w3d object that
 	// has no dx8 resources. jba.
@@ -803,6 +880,7 @@ void WaterTracksRenderSystem::shutdown()
 
 	}
 
+	REF_PTR_RELEASE(m_batchIndexBuffer);
 	REF_PTR_RELEASE(m_indexBuffer);
 	REF_PTR_RELEASE(m_vertexMaterialClass);
 	REF_PTR_RELEASE(m_vertexBuffer);
@@ -829,7 +907,8 @@ void WaterTracksRenderSystem::update()
 		nextMod = mod->m_nextSystem;
 
 		if (!mod->m_bound || (!mod->update(timeDiff) && !mod->m_bound))
-		{ //object is not longer updating and is unbound so ok to release it.
+		{
+			//object is not longer updating and is unbound so ok to release it.
 			releaseTrack(mod);
 		}
 
@@ -886,15 +965,20 @@ Try improving the fit to vertical surfaces like cliffs.
 	diffuseLight=REAL_TO_INT(shadeB) | (REAL_TO_INT(shadeG) << 8) | (REAL_TO_INT(shadeR) << 16);
 
 	Matrix3D tm(1);	///set to identity
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);	//position the water surface
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
 
-	DX8Wrapper::Set_Material(m_vertexMaterialClass);
-	DX8Wrapper::Set_Shader(m_shaderClass);
+	Renderer::Set_Material(m_vertexMaterialClass);
+	Renderer::Set_Shader(m_shaderClass);
 
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexBuffer);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS,8);
+	Renderer::Set_Vertex_Buffer(m_vertexBuffer);
+	Renderer::Set_Z_Bias(8);
 	//Force apply of render states so we can override them.
-	DX8Wrapper::Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
+	// TheSuperHackers @bugfix bobtista 28/04/2026 Water-track wave quads
+	// are submitted after the water surface in legacy draw order. bgfx
+	// executes views by id, so keep them in the water view instead of the
+	// earlier opaque world view where the water pass would cover them.
+	Renderer::Begin_Water_Overlay();
 
 	if (TheTerrainRenderObject->getShroud())
 	{
@@ -902,37 +986,69 @@ Try improving the fit to vertical surfaces like cliffs.
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 1);
 
 		//modulate with shroud texture
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );	//stage 1 texture
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );	//previous stage texture
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
+		Renderer::Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);	//stage 1 texture
+		Renderer::Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);	//previous stage texture
+		Renderer::Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
+		Renderer::Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);
 
 		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 		//write to the zbuffer.  Change to LESSEQUAL.
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+		Renderer::Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	}
 
-	Int LastTextureType=-1;
-
 	WaterTracksObj *mod=m_usedModules;
+	TextureClass *batchTexture=nullptr;
+	Int batchTextureType=-1;
+	Int batchFirstVertex=0;
+	Int batchTrackCount=0;
+	const Int maxBatchVertices = WATER_VB_PAGES*WATER_STRIP_X*WATER_STRIP_Y;
 
 	while( mod )
 	{
-		if (LastTextureType != mod->m_type)
-			DX8Wrapper::Set_Texture(0,mod->m_stageZeroTexture);
+		Bool textureChanged = batchTrackCount > 0 && batchTextureType != mod->m_type;
+		Bool pageFull = m_batchStart >= maxBatchVertices - mod->m_x*mod->m_y;
+		if (textureChanged || pageFull)
+		{
+			drawBatch(batchFirstVertex,batchTrackCount,batchTexture);
+			batchTexture=nullptr;
+			batchTextureType=-1;
+			batchTrackCount=0;
+			if (pageFull)
+			{
+				m_batchStart = 0xffff;
+			}
+		}
+
+		Int trackVertexStart = m_batchStart;
+		if (trackVertexStart >= maxBatchVertices - mod->m_x*mod->m_y)
+		{
+			trackVertexStart = 0;
+		}
 
 		Int vertsRendered=mod->render(m_vertexBuffer,m_batchStart);
+
+		if (batchTrackCount == 0)
+		{
+			batchTexture=mod->m_stageZeroTexture;
+			batchTextureType=mod->m_type;
+			batchFirstVertex=trackVertexStart;
+		}
+		batchTrackCount++;
 
 		m_batchStart = vertsRendered;	//advance past vertices already in buffer
 
 		mod = mod->m_nextSystem;
 	}
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS,0);
+	drawBatch(batchFirstVertex,batchTrackCount,batchTexture);
+
+	Renderer::Set_Z_Bias(0);
+	Renderer::End_Water_Overlay();
 
 	if (TheTerrainRenderObject->getShroud())
-	{	//we used the shroud shader, so reset it.
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, D3DCMP_EQUAL);
+	{
+		//we used the shroud shader, so reset it.
+		Renderer::Set_Depth_Func(RB_CMP_EQUAL);
 		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 	}
 }
@@ -971,7 +1087,8 @@ void WaterTracksRenderSystem::saveTracks()
 		umod=m_usedModules;
 		while(umod)
 		{	if (umod->m_initTimeOffset == 0)
-			{	//only save the primary wave front, second layer is added automatically.
+			{
+				//only save the primary wave front, second layer is added automatically.
 				fwrite(&umod->m_initStartPos,sizeof(umod->m_startPos),1,fp);
 				fwrite(&umod->m_initEndPos,sizeof(umod->m_perpDir),1,fp);
 				fwrite(&umod->m_type,sizeof(umod->m_type),1,fp);
@@ -996,6 +1113,28 @@ void WaterTracksRenderSystem::loadTracks()
 	fileName.concat(".wak");
 
 	File *file = TheFileSystem->openFile(fileName.str(), File::READ | File::BINARY);
+
+	// TheSuperHackers @bugfix bobtista 26/05/2026 On save game load, the
+	// terrain source filename has been rewritten to Save\<name>.map because
+	// the save extracted the embedded .map into the save directory. The
+	// companion .wak is never extracted, so the lookup above misses the surf
+	// data that lives at the pristine .big-archive path. Fall back to the
+	// pristine map name (Maps\<name>\<name>.wak) when the save-relative open
+	// fails.
+	if (file == nullptr && TheGameState != nullptr)
+	{
+		AsciiString pristineName = TheGameState->getPristineMapName();
+		if (!pristineName.isEmpty())
+		{
+			FileSystem::removeExtension(pristineName);
+			pristineName.concat(".wak");
+			if (pristineName != fileName)
+			{
+				file = TheFileSystem->openFile(pristineName.str(), File::READ | File::BINARY);
+			}
+		}
+	}
+
 	WaterTracksObj *umod;
 	Int trackCount=0;
 	Int flipU=0;
@@ -1009,19 +1148,18 @@ void WaterTracksRenderSystem::loadTracks()
 		file->seek(0, File::START);
 		for (Int i=0; i<trackCount; i++)
 		{
-		tryagain:
 			file->read(&startPos,sizeof(startPos));
 			file->read(&endPos,sizeof(endPos));
 			file->read(&wtype,sizeof(wtype));
-			//Check if this track already exists.
 			if (findTrack(startPos,endPos,wtype))
-			{	i++;
-				goto tryagain;
+			{
+				continue;
 			}
 
 			umod=bindTrack(wtype);
 			if (umod)
-			{	//umod->init(1.5f*MAP_XY_FACTOR,Vector2(0,0),Vector2(1,1),"wave256.tga");
+			{
+				//umod->init(1.5f*MAP_XY_FACTOR,Vector2(0,0),Vector2(1,1),"wave256.tga");
 				flipU ^= 1;	//toggle flip state
 				umod->init(waveTypeInfo[wtype].m_finalHeight,waveTypeInfo[wtype].m_finalWidth,startPos,endPos,waveTypeInfo[wtype].m_textureName,0);
 				umod->m_flipU=flipU;
@@ -1102,7 +1240,8 @@ void TestWaterUpdate()
 	pauseWaves=FALSE;
 
 	if (doInit)
-	{	//create the system
+	{
+		//create the system
 		doInit=0;
 
 //		TheWaterTracksRenderSystem = NEW (WaterTracksRenderSystem);
@@ -1139,7 +1278,8 @@ void TestWaterUpdate()
 			trackEditMode ^= 1;	//toggle editor on/off
 
 			if (trackEditMode == 0)
-			{	//editor was turned off, save changes
+			{
+				//editor was turned off, save changes
 				haveStart=0;
 				haveEnd=0;
 			}
@@ -1150,7 +1290,8 @@ void TestWaterUpdate()
 		trackEditModeReset=1;
 
 	if (trackEditMode)
-	{   //we are in wave edit mode
+	{
+		//we are in wave edit mode
 
 		if (GetCursorPos(&screenPoint))	//read mouse position
 		{
@@ -1179,7 +1320,8 @@ void TestWaterUpdate()
 							//Have enough info to add a wave now
 							track=TheWaterTracksRenderSystem->bindTrack(currentWaveType);
 							if (track)
-							{//	track->init(1.5f*MAP_XY_FACTOR,Vector2(terrainPointStart.x,terrainPointStart.y),Vector2(terrainPointEnd.x,terrainPointEnd.y),"wave256.tga");
+							{
+								//	track->init(1.5f*MAP_XY_FACTOR,Vector2(terrainPointStart.x,terrainPointStart.y),Vector2(terrainPointEnd.x,terrainPointEnd.y),"wave256.tga");
 								//Generate valid input for the 2 points
 								Vector2 startPoint(terrainPointStart.x,terrainPointStart.y);
 								Vector2 endPoint(terrainPointEnd.x,terrainPointEnd.y);
@@ -1217,7 +1359,8 @@ void TestWaterUpdate()
 				addPointReset=1;
 
 			if (GetAsyncKeyState(VK_DELETE) & 0x8001)
-			{	//delete last segment added
+			{
+				//delete last segment added
 				if (deleteTrackReset && track)
 				{	deleteTrackReset=0;
 					TheWaterTracksRenderSystem->unbindTrack(track);
@@ -1233,7 +1376,8 @@ void TestWaterUpdate()
 				deleteTrackReset=1;
 
 			if (GetAsyncKeyState(VK_INSERT) & 0x8001)
-			{	//change current wave type
+			{
+				//change current wave type
 				if (changeTypeReset)
 				{	changeTypeReset=0;
 					currentWaveType = (waveType)((Int)currentWaveType + 1);
@@ -1249,7 +1393,8 @@ void TestWaterUpdate()
 				changeTypeReset=1;
 
 			if (GetAsyncKeyState(VK_F7) & 0x8001)
-			{	//save all segments added
+			{
+				//save all segments added
 				if (saveTracksReset)
 				{	saveTracksReset=0;
 					TheWaterTracksRenderSystem->saveTracks();
@@ -1266,7 +1411,8 @@ void TestWaterUpdate()
 				saveTracksReset=1;
 
 			if (GetAsyncKeyState(VK_F8) & 0x8001)
-			{	//load tracks for map
+			{
+				//load tracks for map
 				if (loadTracksReset)
 				{	loadTracksReset=0;
 					TheWaterTracksRenderSystem->reset();
@@ -1285,7 +1431,8 @@ void TestWaterUpdate()
 		};
 
 		if (haveStart && !haveEnd)
-		{	//draw a guide line
+		{
+			//draw a guide line
 //			View *tacticalView = TheDisplay->getFirstView();
 //			tacticalView->worldToScreen( &m_moveHint[i].pos, &pos );
 
@@ -1296,7 +1443,7 @@ void TestWaterUpdate()
 				Real ydiff=terrainPointEnd.y - terrainPointStart.y;
 				if (sqrt (xdiff * xdiff + ydiff * ydiff) <= waveTypeInfo[currentWaveType].m_finalWidth)
 				{	TheDisplay->drawLine(mouseAnchor.x, mouseAnchor.y, screenPoint.x, screenPoint.y,1,0xffccccff);
-					DX8Wrapper::Invalidate_Cached_Render_States();
+					Renderer::Invalidate_Cached_Render_States();
 					ShaderClass::Invalidate();
 				}
 

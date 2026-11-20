@@ -26,14 +26,22 @@
 
 
 #include "streakRender.h"
-#include "WW3D2/ww3d.h"
-#include "WW3D2/rinfo.h"
+#include "ww3d.h"
+#include "rinfo.h"
+#include "ww3dcolor.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "sortingrenderer.h"
 #include "WWMath/vp.h"
 #include "WWMath/Vector3i.h"
 #include "WWLib/RANDOM.h"
 #include "WWMath/v3_rnd.h"
+#include "WW3D2/vertmaterial.h"
+#include "WW3D2/vertexbuffer.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/dx8fvf.h"
+#include "WW3D2/Renderer.h"
+#include "WW3D2/w3d_file.h"
 
 
 /* We have chunking logic which handles N segments at a time. To simplify the subdivision logic,
@@ -311,11 +319,11 @@ void StreakRendererClass::RenderStreak
 )
 {
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+	Renderer::Get_Transform(RB_TRANSFORM_VIEW,view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW, identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
@@ -333,7 +341,7 @@ void StreakRendererClass::RenderStreak
 	// LastUsedSyncTime = WW3D::Get_Sync_Time();
 
 	// Used later
-	TextureMapMode map_mode = Get_Texture_Mapping_Mode();
+	//TextureMapMode map_mode = Get_Texture_Mapping_Mode();
 
 	/*
 	** Process line geometry:
@@ -527,9 +535,11 @@ void StreakRendererClass::RenderStreak
 
 
 		for (segmentIndex = 1; segmentIndex < point_cnt; segmentIndex++)
-		{	// #segments = #points - 1 (+ 2 dummy segments)
+		{
+			// #segments = #points - 1 (+ 2 dummy segments)
 
-			radius = widths[segmentIndex]; /// NEW ///// // TODO: Does not work correctly when subdivision are not 0
+			// TheSuperHackers @bugfix bobtista 14/10/2026 Offset by the chunk start so later chunks read their own widths.
+			radius = widths[MIN(chunkIndex + segmentIndex, num_points - 1)]; /// NEW ///// // TODO: Does not work correctly when subdivision are not 0
 
 			Vector3 &curr_point = points[segmentIndex - 1];
 			Vector3 &next_point = points[segmentIndex];
@@ -745,7 +755,7 @@ void StreakRendererClass::RenderStreak
 
 			// Relevant midpoint:
 			Vector3 &midpoint = points[intersectionIndex - 1];
-			float mid_tex_v = tex_v[intersectionIndex - 1];
+//			float mid_tex_v = tex_v[intersectionIndex - 1];
 
 			// Initialize misc. fields
 			intersection[intersectionIndex][TOP_EDGE].PointCount = 1;
@@ -1277,7 +1287,7 @@ void StreakRendererClass::RenderStreak
 
 		// If color is not white or opacity not 100%, enable gradient in shader and in renderer - otherwise disable.
 		//unsigned int rgba;
-		//rgba=DX8Wrapper::Convert_Color(Color,Opacity);
+		//rgba=WW3DColor::To_ARGB(Color,Opacity);
 		//bool rgba_all=(rgba==0xFFFFFFFF);
 
 //		int colorIndex = 0;
@@ -1286,7 +1296,7 @@ void StreakRendererClass::RenderStreak
 //			//vertexArray[vertexIndex].diffuse = rgba;/// OLD WAY COLORS THEM ALL TO THE COLOR,OPACITY MEMBERS /////////////////
 //			unsigned int perPointARGB;
 //			colorIndex = MIN(vertexIndex / 2, point_cnt);
-//			perPointARGB = DX8Wrapper::Convert_Color( colors[colorIndex] );// twice as many verts as points? or so?
+//			perPointARGB = WW3DColor::To_ARGB( colors[colorIndex] );// twice as many verts as points? or so?
 //			vertexArray[vertexIndex].diffuse = perPointARGB;
 //			vertexArray[vertexIndex].u1 = (float)((vertexIndex&2) == 2);
 //			vertexArray[vertexIndex].v1 = (float)((vertexIndex&1) == 1);
@@ -1303,7 +1313,7 @@ void StreakRendererClass::RenderStreak
 
 		VertexMaterialClass *mat;
 		mat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(mat);
+		Renderer::Set_Material(mat);
 		REF_PTR_RELEASE(mat);
 
 		// If Texture is non-null enable texturing in shader - otherwise disable.
@@ -1322,42 +1332,28 @@ void StreakRendererClass::RenderStreak
 		** Render
 		*/
 
-		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),dynamic_fvf_type,vnum);
+		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC),dynamic_fvf_type,vnum);
 		// Copy in the data to the  VB
 		{
 			DynamicVBAccessClass::WriteLockClass Lock(&Verts);
 			unsigned int i;
-			unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
-			const FVFInfoClass& fvfinfo=Verts.FVF_Info();
-			int segIdx = 0;
-			unsigned int argb = 0x00000000;
-
-			unsigned int oddEven = 0;
-
-			//oddEven = ( personalities[0] & 1 );
-
-			const unsigned verticesOffset = fvfinfo.Get_Location_Offset();
-			const unsigned diffuseOffset = fvfinfo.Get_Diffuse_Offset();
-			const unsigned textureOffset = fvfinfo.Get_Tex_Offset(0);
-			const unsigned vbSize = fvfinfo.Get_FVF_Size();
+			VertexFormatXYZNDUV2* vb=Lock.Get_Formatted_Vertex_Array();
 
 			for (i=0; i<vnum; i++)
 			{
 				DEBUG_ASSERTCRASH(vertexArray[i].x != (float)0xdeadbeef && vertexArray[i].y != (float)0xdeadbeef && vertexArray[i].z != (float)0xdeadbeef && vertexArray[i].u1 != (float)0xdeadbeeef && vertexArray[i].v1 != (float)0xdeadbeef, ("Uninitialized vertexArray[%d]", i));
 				DEBUG_ASSERTCRASH((! _isnan(vertexArray[i].x) && _finite(vertexArray[i].x) && ! _isnan(vertexArray[i].y) && _finite(vertexArray[i].y) && ! _isnan(vertexArray[i].z) && _finite(vertexArray[i].z)) , ("Bad vertexArray[%d]", i));
-				Vector3 *vertex = reinterpret_cast<Vector3 *>(vb + verticesOffset);
-				vertex->X = vertexArray[i].x;
-				vertex->Y = vertexArray[i].y;
-				vertex->Z = vertexArray[i].z;
-				*reinterpret_cast<unsigned int *>(vb + diffuseOffset) = DX8Wrapper::Convert_Color_Clamp(colors[MIN((i/2), point_cnt)]); // TODO: Does not work correctly when subdivision are not 0
-				Vector2 *texture = reinterpret_cast<Vector2 *>(vb + textureOffset);
-				texture->U = vertexArray[i].u1;
-				texture->V = vertexArray[i].v1;
-				vb += vbSize;
+				vb[i].x = vertexArray[i].x;
+				vb[i].y = vertexArray[i].y;
+				vb[i].z = vertexArray[i].z;
+				// TheSuperHackers @bugfix bobtista 14/10/2026 Offset by the chunk start and stay inside the color array.
+				vb[i].diffuse = WW3DColor::To_ARGB_Clamp(colors[MIN(chunkIndex + MIN((i/2), point_cnt - 1), num_points - 1)]); // TODO: Does not work correctly when subdivision are not 0
+				vb[i].u1 = vertexArray[i].u1;
+				vb[i].v1 = vertexArray[i].v1;
 			}
 		}
 
-		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),triangleIndex*3);
+		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC),triangleIndex*3);
 		{
 			unsigned int i;
 			DynamicIBAccessClass::WriteLockClass lock(&ib_access);
@@ -1372,23 +1368,25 @@ void StreakRendererClass::RenderStreak
 		}
 
 
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Vertex_Buffer(Verts);
-		DX8Wrapper::Set_Texture(0,Texture);
-		DX8Wrapper::Set_Shader(shader);
+		Renderer::Set_Index_Buffer(ib_access,0);
+		Renderer::Set_Vertex_Buffer(Verts);
+		Renderer::Set_Texture(0,Texture);
+		Renderer::Set_Shader(shader);
 
 		if (sorting)
 		{
+			Renderer::Set_Streak_Render_Active(true);
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,triangleIndex,0,vnum);
+			Renderer::Set_Streak_Render_Active(false);
 		}
 		else
 		{
-			DX8Wrapper::Draw_Triangles(0,triangleIndex,0,vnum);
+			Renderer::Draw_Triangles(0,triangleIndex,0,vnum);
 		}
 
 	}
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,view);
 
 }
 

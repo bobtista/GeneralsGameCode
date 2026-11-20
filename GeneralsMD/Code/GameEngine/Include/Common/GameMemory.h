@@ -61,10 +61,14 @@
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 
-#include <new.h>
+#include <new>
 #include <Utility/stdio_adapter.h>
 #ifdef MEMORYPOOL_OVERRIDE_MALLOC
-	#include <malloc.h>
+	#ifdef _WIN32
+		#include <malloc.h>
+	#else
+		#include <cstdlib>
+	#endif
 #endif
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
@@ -320,6 +324,7 @@ public:
 	MemoryPool *getNextPoolInList();					///< return next pool in linked list
 	void addToList(MemoryPool **pHead);				///< add this pool to head of the linked list
 	void removeFromList(MemoryPool **pHead);	///< remove this pool from the linked list
+	Bool ownsUserBlockPointer(void *pBlock);
 	#ifdef MEMORYPOOL_DEBUG
 		static void debugPoolInfoReport( MemoryPool *pool, FILE *fp = nullptr );	///< dump a report about this pool to the logfile
 		const char *debugGetBlockTagString(void *pBlock);		///< return the tagstring for the given block (assumed to belong to this pool)
@@ -409,6 +414,7 @@ private:
 
 	/// return the best pool for the given allocSize, or null if none are suitable
 	MemoryPool *findPoolForSize(Int allocSize);
+	Bool ownsUserBlockPointer(void *pBlock);
 
 public:
 

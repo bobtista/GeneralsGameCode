@@ -60,7 +60,6 @@
 #include "thread.h"
 #include "WWDebug/wwdebug.h"
 #include "WWDebug/wwmemlog.h"
-#include "mutex.h"
 
 #include	<conio.h>
 #include	<imagehlp.h>
@@ -113,91 +112,19 @@ int ExceptionRecursions = -1;
 */
 DynamicVectorClass<ThreadInfoType*> ThreadList;
 
-/*
-** Returns the CRITICAL_SECTION used to protect ThreadList.
-**
-** Allocated from the Windows process heap (not the CRT heap) and never freed.
-** The CRT heap can be torn down during application shutdown before all threads
-** have exited. If a thread calls Unregister_Thread_ID after the CRT heap is
-** destroyed, any CRITICAL_SECTION allocated via _aligned_malloc (which uses
-** the CRT heap) would already be invalid memory, causing an access violation
-** when EnterCriticalSection dereferences it.
-**
-** The Windows process heap (GetProcessHeap) outlives the CRT heap and is only
-** reclaimed when the process terminates, so this CRITICAL_SECTION remains valid
-** for the entire process lifetime regardless of CRT shutdown order.
-**
-** Thread-safe one-time initialization is achieved via
-** InterlockedCompareExchangePointer, which works on all supported Windows versions.
-*/
-static CRITICAL_SECTION* GetThreadListCS()
+// TheSuperHackers @bugfix bobtista 12/07/2026 Static-destruction sentinel for
+// ThreadList. Constructed after the list, so it destructs first and flips the
+// flag before the list's own destructor runs; late-exiting threads that
+// unregister during atexit are then skipped instead of walking freed memory.
+static bool ThreadListAlive = true;
+namespace
 {
-	static CRITICAL_SECTION* volatile s_cs = nullptr;
-
-	if (s_cs == nullptr) {
-		CRITICAL_SECTION* cs = reinterpret_cast<CRITICAL_SECTION*>(
-			HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(CRITICAL_SECTION)));
-		if (cs != nullptr) {
-			InitializeCriticalSection(cs);
-		}
-		// Race-free handoff: only one thread's allocation wins; the loser is discarded.
-		if (InterlockedCompareExchangePointer(
-				reinterpret_cast<volatile PVOID*>(&s_cs), cs, nullptr) != nullptr) {
-			// Another thread initialized it first; discard our copy.
-			if (cs != nullptr) {
-				DeleteCriticalSection(cs);
-				HeapFree(GetProcessHeap(), 0, cs);
-			}
-		}
-	}
-
-	return s_cs;
-}
-
-/*
-** RAII lock guard for the raw ThreadList CRITICAL_SECTION.
-** Replaces CriticalSectionClass::LockClass for the thread-list lock so that
-** the CriticalSectionClass wrapper (and its _aligned_malloc-based handle) is
-** never used for this particular, shutdown-sensitive critical path.
-*/
-struct ScopedThreadListLock
+struct ThreadListLifetimeSentinel
 {
-	explicit ScopedThreadListLock(CRITICAL_SECTION* cs) : cs_(cs)
-	{
-		if (cs_ != nullptr) {
-			EnterCriticalSection(cs_);
-		}
-	}
-	~ScopedThreadListLock()
-	{
-		if (cs_ != nullptr) {
-			LeaveCriticalSection(cs_);
-		}
-	}
-private:
-	CRITICAL_SECTION* cs_;
-	ScopedThreadListLock(const ScopedThreadListLock&);
-	ScopedThreadListLock& operator=(const ScopedThreadListLock&);
+	~ThreadListLifetimeSentinel() { ThreadListAlive = false; }
 };
-
-/*
-** Set once ThreadList has been destroyed during CRT shutdown. Threads that exit after
-** that point must not touch the list.
-*/
-static bool ThreadListDestroyed = false;
-
-/*
-** Defined after ThreadList, so it is destroyed first and marks the list as gone
-** before the list's own destructor runs.
-*/
-static struct ThreadListShutdownGuard
-{
-	~ThreadListShutdownGuard()
-	{
-		ScopedThreadListLock lock(GetThreadListCS());
-		ThreadListDestroyed = true;
-	}
-} ThreadListShutdownGuardInstance;
+static ThreadListLifetimeSentinel TheThreadListLifetimeSentinel;
+}
 
 /*
 ** Definitions to allow run-time linking to the Imagehlp.dll functions.
@@ -264,7 +191,7 @@ int __cdecl _purecall()
 	*/
 	WWDEBUG_SAY(("Pure Virtual Function call. Oh No!"));
 	WWDEBUG_BREAK
-#endif	//_DEBUG_ASSERT
+#endif
 
 	return(return_code);
 }
@@ -426,7 +353,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	/*
 	** Scrap buffer for constructing dump strings
 	*/
-	char scrap [256] = {};
+	char scrap [256];
 
 	/*
 	** Clear out the dump buffer
@@ -442,13 +369,13 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	if (imagehelp != nullptr) {
 		DebugString ("Exception Handler: Found IMAGEHLP.DLL - linking to required functions\n");
 		char const *function_name = nullptr;
-		unsigned long *fptr = (unsigned long*) &_SymCleanup;
+		uintptr_t *fptr = (uintptr_t*) &_SymCleanup;
 		int count = 0;
 
 		do {
 			function_name = ImagehelpFunctionNames[count];
 			if (function_name) {
-				*fptr = (unsigned long) GetProcAddress(imagehelp, function_name);
+				*fptr = (uintptr_t) GetProcAddress(imagehelp, function_name);
 				fptr++;
 				count++;
 			}
@@ -552,8 +479,9 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	symptr->SizeOfStruct = sizeof (IMAGEHLP_SYMBOL);
 	symptr->MaxNameLength = 256-sizeof (IMAGEHLP_SYMBOL);
 	symptr->Size = 0;
-	symptr->Address = context->Eip;
 
+#if defined(_M_IX86)
+	symptr->Address = context->Eip;
 	if (!IsBadCodePtr((FARPROC)context->Eip)) {
 		if (_SymGetSymFromAddr != nullptr && _SymGetSymFromAddr (GetCurrentProcess(), context->Eip, &displacement, symptr)) {
 			snprintf(scrap, ARRAY_SIZE(scrap), "Exception occurred at %08X - %s + %08X\r\n",
@@ -568,6 +496,12 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	} else {
 		DebugString ("Exception Handler: context->Eip is bad code pointer\n");
 	}
+#else
+	// TheSuperHackers @todo bobtista 11/06/2026 Symbolize the faulting address on x64 by wiring
+	// SymGetSymFromAddr64 into Load_Image_Helper. Build+verify on a Windows x64 machine. The raw
+	// faulting address is still recorded here.
+	sprintf (scrap, "Exception occurred at %p\r\n", (void*)context->Rip);
+#endif
 
 	Add_Txt (scrap);
 
@@ -667,6 +601,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 
 	Add_Txt("\r\nDetails:\r\n");
 
+#if defined(_M_IX86)
 	DebugString("Register dump...\n");
 
 	/*
@@ -731,7 +666,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	** Dump the bytes at EIP. This will make it easier to match the crash address with later versions of the game.
 	*/
 	DebugString("EIP bytes dump...\n");
-	snprintf(scrap, ARRAY_SIZE(scrap), "\r\nBytes at CS:EIP (%08X)  : ", context->Eip);
+	sprintf(scrap, "\r\nBytes at CS:EIP (%08X)  : ", context->Eip);
 
 	unsigned char *eip_ptr = (unsigned char *) (context->Eip);
 	char bytestr[32];
@@ -793,6 +728,15 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 		Add_Txt(scrap);
 		stackptr++;
 	}
+#else
+	// TheSuperHackers @todo bobtista 11/06/2026 Implement the x64 register/FP context dump: print
+	// Rax..R15/Rip/RFlags + segment registers, the XMM register state (the x64 CONTEXT has no x87
+	// FloatSave / 80387 ST registers), the bytes at RIP, and an Rsp-based stack dump symbolized
+	// via SymGetSymFromAddr64. Build+verify on a Windows x64 machine. The faulting address above
+	// and the call stack from StackDump.cpp's StackWalk64 path still land in the crash log.
+	Add_Txt("\r\nRegister/FP context dump is not yet implemented on x64.\r\n");
+	Add_Txt("See the StackDump.cpp call stack above for the crash location.\r\n");
+#endif
 
 	/*
 	** Unload the symbols.
@@ -976,10 +920,6 @@ void Register_Thread_ID(unsigned long thread_id, char *thread_name, bool main_th
 {
 	WWMEMLOG(MEM_GAMEDATA);
 	if (thread_name) {
-		ScopedThreadListLock lock(GetThreadListCS());
-		if (ThreadListDestroyed) {
-			return;
-		}
 
 		/*
 		** See if we already know about this thread. Maybe just the thread_id changed.
@@ -1090,11 +1030,13 @@ HANDLE Get_Thread_Handle(int thread_index)
  *=============================================================================================*/
 void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
 {
-	ScopedThreadListLock lock(GetThreadListCS());
-	if (ThreadListDestroyed) {
+	// TheSuperHackers @bugfix bobtista 12/07/2026 A thread that outlives engine
+	// shutdown (the texture loader when process exit bypasses it) unregisters
+	// here during atexit, after the static ThreadList was destructed — walking
+	// it then reads freed memory (0xC0000005 on win64 harness exits).
+	if (!ThreadListAlive) {
 		return;
 	}
-	
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (strcmp(thread_name, ThreadList[i]->ThreadName) == 0) {
 			assert(ThreadList[i]->ThreadID == thread_id);
@@ -1123,11 +1065,6 @@ void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
  *=============================================================================================*/
 unsigned long Get_Main_Thread_ID()
 {
-	ScopedThreadListLock lock(GetThreadListCS());
-	if (ThreadListDestroyed) {
-		return(0);
-	}
-	
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (ThreadList[i]->Main) {
 			return(ThreadList[i]->ThreadID);
@@ -1166,13 +1103,13 @@ void Load_Image_Helper()
 
 		if (ImageHelp != nullptr) {
 			char const *function_name = nullptr;
-			unsigned long *fptr = (unsigned long *) &_SymCleanup;
+			uintptr_t *fptr = (uintptr_t *) &_SymCleanup;
 			int count = 0;
 
 			do {
 				function_name = ImagehelpFunctionNames[count];
 				if (function_name) {
-					*fptr = (unsigned long) GetProcAddress(ImageHelp, function_name);
+					*fptr = (uintptr_t) GetProcAddress(ImageHelp, function_name);
 					fptr++;
 					count++;
 				}
@@ -1327,6 +1264,7 @@ int Stack_Walk(unsigned long *return_addresses, int num_addresses, CONTEXT *cont
 	/*
 	** Set up the stack frame structure for the start point of the stack walk (i.e. here).
 	*/
+#if defined(_M_IX86)
 	STACKFRAME stack_frame;
 	memset(&stack_frame, 0, sizeof(stack_frame));
 
@@ -1390,6 +1328,18 @@ here:
 	}
 
 	return(pointer_index);
+#else
+	// TheSuperHackers @todo bobtista 11/06/2026 Port this legacy stack walk to the 64-bit DbgHelp
+	// API: capture an x64 CONTEXT (Rip/Rsp/Rbp), build a STACKFRAME64, call StackWalk64 with
+	// IMAGE_FILE_MACHINE_AMD64, and load SymFunctionTableAccess64/SymGetModuleBase64 in
+	// Load_Image_Helper. Must be built and verified on a Windows x64 machine. The primary crash
+	// call stack is already produced by StackDump.cpp's StackWalk64 path, so this legacy
+	// duplicate reports no frames for now rather than walking with the wrong (32-bit) unwinder.
+	(void)return_addresses;
+	(void)num_addresses;
+	(void)context;
+	return(0);
+#endif
 }
 
 

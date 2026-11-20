@@ -8,6 +8,12 @@ target_link_libraries(z_wwcommon INTERFACE
     stlport
 )
 
+if(NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
+    target_link_libraries(z_wwcommon INTERFACE
+        d3d8lib
+    )
+endif()
+
 target_include_directories(z_wwcommon INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )

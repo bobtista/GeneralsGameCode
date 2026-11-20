@@ -90,11 +90,12 @@ public:
 	virtual UnsignedInt getBitDepth() { return m_bitDepth; }
 	virtual void setWindowed(Bool windowed) { m_windowed = windowed; }  ///< set windowed/fullscreen flag
 	virtual Bool getWindowed() { return m_windowed; }				///< return widowed/fullscreen flag
-	virtual Bool setDisplayMode(UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed);	///<sets screen resolution/mode
-	virtual Int getDisplayModeCount() { return 0; }	///<return number of display modes/resolutions supported by video card.
-	virtual void getDisplayModeDescription(Int modeIndex, Int* xres, Int* yres, Int* bitDepth) {}	///<return description of mode
-	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) {};
-	virtual Bool testMinSpecRequirements(Bool* videoPassed, Bool* cpuPassed, Bool* memPassed, StaticGameLODLevel* idealVideoLevel = nullptr, Real* cpuTime = nullptr) { *videoPassed = *cpuPassed = *memPassed = true; return true; }
+	virtual Bool setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed );	///<sets screen resolution/mode
+	virtual Bool applyExternalResize( UnsignedInt xres, UnsignedInt yres ) { return FALSE; }	///<sync engine resolution to an OS-driven window size change, without touching the OS window
+	virtual Int getDisplayModeCount() {return 0;}	///<return number of display modes/resolutions supported by video card.
+	virtual void getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, Int *bitDepth) {}	///<return description of mode
+ 	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) {};
+	virtual Bool testMinSpecRequirements(Bool *videoPassed, Bool *cpuPassed, Bool *memPassed,StaticGameLODLevel *idealVideoLevel=nullptr, Real *cpuTime=nullptr) {*videoPassed=*cpuPassed=*memPassed=true; return true;}
 	virtual void doSmartAssetPurgeAndPreload(const char* usageFileName) = 0;
 #if defined(RTS_DEBUG)
 	virtual void dumpAssetUsage(const char* mapname) = 0;
@@ -131,10 +132,22 @@ public:
 
 	virtual void step() {}; ///< Do one fixed time step
 	virtual void draw() override;																		///< Redraw the entire display
-	virtual void setTimeOfDay(TimeOfDay tod) = 0;								///< Set the time of day for this display
-	virtual void createLightPulse(const Coord3D* pos, const RGBColor* color, Real innerRadius, Real attenuationWidth,
-		UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime//, Bool donut = FALSE
-	) = 0;
+	virtual void setTimeOfDay( TimeOfDay tod ) = 0;								///< Set the time of day for this display
+	virtual void createLightPulse( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real attenuationWidth,
+																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime,
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f ) = 0;
+
+	// TheSuperHackers @feature bobtista 23/06/2026 A single persistent "tracking" dynamic light that
+	// a moving emitter (e.g. the particle-cannon beam) repositions every frame, instead of spawning a
+	// fresh light per frame (which flickers as the strongest-light pick jumps between overlapping
+	// pulses). Refresh it each active frame and clear it when the emitter stops. Default no-ops so
+	// non-W3D displays need not implement.
+	// TheSuperHackers @feature bobtista 14/07/2026 snapBlend requests fast blend factors so the
+	// emitter can drive rapid intensity flicker through the light instead of the smooth easing.
+	virtual void updateTrackingLight( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real attenuationWidth,
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f, Bool snapBlend = FALSE,
+																 UnsignedInt emitterId = 0 ) { }
+	virtual void clearTrackingLight( void ) { }
 
 	/// draw a line on the display in pixel coordinates with the specified color
 	virtual void drawLine(Int startX, Int startY, Int endX, Int endY,

@@ -34,6 +34,7 @@
 #pragma once
 
 #include "WW3D2/texture.h"
+#include "WW3D2/Renderer.h"
 enum FilterTypes CPP_11(: Int);
 enum FilterModes CPP_11(: Int);
 enum CustomScenePassModes CPP_11(: Int);
@@ -79,6 +80,8 @@ public:
 	static void init();	///<determine optimal shaders for current device.
 	static void shutdown();	///<release resources used by shaders
 	static void updateCloud();	///<update the cloud position once every render frame.
+	static void pushCloudShadowToBackend(Bool enabled, TextureClass * cloudTex);
+	static void pushLightMapToBackend(Bool enabled, TextureClass * noiseTex);	///<push cloud scroll + stretch + texture to Renderer (bgfx modulates in uber shader).
 
 	static ChipsetType getChipset();	///<return current device chipset.
 	static GraphicsVenderID getCurrentVendor() {return m_currentVendor;}	///<return current card vendor.
@@ -86,6 +89,10 @@ public:
 	static Int getShaderPasses(ShaderTypes shader);	///<rendering passes required for shader
 	static Int setShader(ShaderTypes shader, Int pass);	///<enable specific shader pass.
 	static Int setShroudTex(Int stage);	///<Set shroud in a texture stage.
+	static RenderBackendGroundMaps getGroundMaps(TextureClass *cloudTexture, TextureClass *lightMapTexture);	///<cloud and light map inputs of ground effects.
+	static RenderBackendShroud getShroud();	///<terrain shroud input of effects, with a null texture when there is no shroud.
+	static void beginShroudOverlay();	///<draws until endShroudOverlay are darkened by the terrain shroud.
+	static void endShroudOverlay();
 	static void resetShader(ShaderTypes shader);	///<make sure W3D2 gets restored to normal
 	///Specify all textures (up to 8) which can be accessed by the shaders.
 	static void setTexture(Int stage,TextureClass* texture) {m_Textures[stage]=texture;}
@@ -93,8 +100,8 @@ public:
 	static TextureClass *getShaderTexture(Int stage) { return m_Textures[stage];}	///<returns currently selected texture for given stage
 	///Return last activated shader.
 	static ShaderTypes getCurrentShader() {return m_currentShader;}
-	/// Loads a .vso file and creates a vertex shader for it
-	static HRESULT LoadAndCreateD3DShader(const char* strFilePath, const DWORD* pDeclaration, DWORD Usage, Bool ShaderType, DWORD* pHandle);
+	/// Loads a legacy shader object and creates a backend shader for it.
+	static HRESULT LoadAndCreateLegacyShader(const char* strFilePath, const DWORD* pDeclaration, DWORD Usage, Bool ShaderType, DWORD* pHandle);
 
 	static Bool testMinimumRequirements(ChipsetType *videoChipType, CpuType *cpuType, Int *cpuFreq, MemValueType *numRAM, Real *intBenchIndex, Real *floatBenchIndex, Real *memBenchIndex);
 	static StaticGameLODLevel getGPUPerformanceIndex();
@@ -106,11 +113,11 @@ public:
 	static Bool filterSetup(FilterTypes filter, FilterModes mode);
 
 	// Support routines for filter methods.
-	static Bool canRenderToTexture() { return (m_oldRenderSurface && m_newRenderSurface);}
+	static Bool canRenderToTexture();
 	static void startRenderToTexture(); ///< Sets render target to texture.
-	static IDirect3DTexture8 * endRenderToTexture(); ///< Ends render to texture, & returns texture.
-	static IDirect3DTexture8 * getRenderTexture();	///< returns last used render target texture
-	static Bool isRenderingToTexture() {return m_renderingToTexture; }
+	static Bool endRenderToTexture(); ///< Ends render to texture.
+	static Bool hasRenderTexture();	///< returns whether a captured render target texture is available.
+	static Bool isRenderingToTexture();
 	static void drawViewport(Int color);	///<draws 2 triangles covering the current tactical viewport
 
 
@@ -125,12 +132,6 @@ protected:
 	static FilterTypes m_currentFilter; ///< Last filter that was set.
 	// Info for a render to texture surface for special effects.
 	static Bool m_renderingToTexture;
-	static IDirect3DSurface8 *m_oldRenderSurface;	///<previous render target
-	static IDirect3DTexture8 *m_renderTexture;		///<texture into which rendering will be redirected.
-	static IDirect3DSurface8 *m_newRenderSurface;	///<new render target inside m_renderTexture
-	static IDirect3DSurface8 *m_oldDepthSurface;	///<previous depth buffer surface
-
-
 };
 
 class W3DFilterInterface

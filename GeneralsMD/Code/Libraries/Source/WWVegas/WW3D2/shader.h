@@ -284,7 +284,7 @@ public:
 
 	inline void	Reset();
 
-	DepthCompareType		Get_Depth_Compare()	const								{ return (DepthCompareType)(ShaderBits&MASK_DEPTHCOMPARE>>SHIFT_DEPTHCOMPARE); }
+	DepthCompareType		Get_Depth_Compare()	const								{ return (DepthCompareType)((ShaderBits&MASK_DEPTHCOMPARE)>>SHIFT_DEPTHCOMPARE); }
 	DepthMaskType			Get_Depth_Mask() const									{ return (DepthMaskType)((ShaderBits&MASK_DEPTHMASK)>>SHIFT_DEPTHMASK); }
 	ColorMaskType			Get_Color_Mask() const									{ return (ColorMaskType)((ShaderBits&MASK_COLORMASK)>>SHIFT_COLORMASK); }
 	DetailAlphaFuncType	Get_Post_Detail_Alpha_Func() const					{ return (DetailAlphaFuncType)((ShaderBits&MASK_POSTDETAILALPHAFUNC)>>SHIFT_POSTDETAILALPHAFUNC); }

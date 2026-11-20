@@ -28,6 +28,12 @@
 #include <windows.h>
 #endif
 
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#elif defined(__linux__)
+#include <sys/sysinfo.h>
+#endif
+
 #ifdef _UNIX
 # include <time.h>  // for time(), localtime() and timezone variable.
 #endif
@@ -919,7 +925,31 @@ void CPUDetectClass::Init_Memory()
 #endif // defined(_MSC_VER) && _MSC_VER < 1300
 
 #else
-#warning FIX Init_Memory()
+#if defined(__APPLE__)
+	uint64_t total_memory = 0;
+	size_t total_size = sizeof(total_memory);
+	if (sysctlbyname("hw.memsize", &total_memory, &total_size, nullptr, 0) == 0)
+	{
+		TotalPhysicalMemory = total_memory;
+		AvailablePhysicalMemory = total_memory;
+		TotalPageMemory = total_memory;
+		AvailablePageMemory = total_memory;
+		TotalVirtualMemory = total_memory;
+		AvailableVirtualMemory = total_memory;
+	}
+#elif defined(__linux__)
+	struct sysinfo mem;
+	if (sysinfo(&mem) == 0)
+	{
+		const uint64_t unit = mem.mem_unit ? mem.mem_unit : 1;
+		TotalPhysicalMemory = uint64_t(mem.totalram) * unit;
+		AvailablePhysicalMemory = uint64_t(mem.freeram) * unit;
+		TotalPageMemory = uint64_t(mem.totalswap) * unit;
+		AvailablePageMemory = uint64_t(mem.freeswap) * unit;
+		TotalVirtualMemory = TotalPhysicalMemory + TotalPageMemory;
+		AvailableVirtualMemory = AvailablePhysicalMemory + AvailablePageMemory;
+	}
+#endif
 #endif // WIN32
 }
 

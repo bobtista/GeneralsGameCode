@@ -50,12 +50,32 @@ protected:
 
 	Bool		m_enabled;
 
+	// TheSuperHackers @feature bobtista 23/06/2026 Opt-in: this dynamic light is applied as a
+	// dedicated coloured point light in the uber shader (objects + terrain). m_shadowStrength controls
+	// how strongly it darkens occluded surfaces: 0 = glow only (no shadow map rendered), >0 = casts a
+	// perspective shadow that darkens by that amount.
+	Bool		m_castsShadows;
+	Real		m_shadowBias;
+	Real		m_shadowStrength;
+	Real		m_targetShadowStrength;
+
+	// TheSuperHackers @feature bobtista 15/07/2026 Opt-out of per-object LightEnvironment
+	// gathering. A light that already illuminates the scene through the dedicated shadowed
+	// point-light path would double-light receivers via the light environment - unshadowed,
+	// and clipping bright foliage texels to white speckles under MODULATE2X materials.
+	Bool		m_excludeFromLightEnv;
+
 	Bool		m_decayRange;
 	Bool		m_decayColor;
 	UnsignedInt m_curDecayFrameCount;
 	UnsignedInt m_curIncreaseFrameCount;
 	UnsignedInt m_decayFrameCount;
 	UnsignedInt m_increaseFrameCount;
+	// TheSuperHackers @bugfix bobtista 17/07/2026 Shadow-casting pulses advance their fade once per
+	// logic frame instead of once per rendered frame, so the ramp/decay is framerate-independent.
+	// Without this a load-settle or high-fps burst plays the whole pulse in a few render frames,
+	// flashing the cast shadow on and off.
+	UnsignedInt m_lastFadeLogicFrame;
 	Real		m_targetRange;
 	Vector3 m_targetAmbient;
 	Vector3 m_targetDiffuse;
@@ -70,6 +90,15 @@ public:
 
 	void setEnabled(Bool enabled) { m_enabled = enabled; m_decayRange = false; m_decayFrameCount = 0; m_decayColor = false; m_increaseFrameCount = 0;};
 	Bool isEnabled() {return m_enabled;};
+
+	void setCastsShadows(Bool b) { m_castsShadows = b; }
+	Bool getCastsShadows() const { return m_castsShadows; }
+	void setExcludeFromLightEnv(Bool b) { m_excludeFromLightEnv = b; }
+	Bool getExcludeFromLightEnv() const { return m_excludeFromLightEnv; }
+	void setShadowBias(Real b) { m_shadowBias = b; }
+	Real getShadowBias() const { return m_shadowBias; }
+	void setShadowStrength(Real s) { m_shadowStrength = s; m_targetShadowStrength = s; }
+	Real getShadowStrength() const { return m_shadowStrength; }
 
 
 	/// 0 frameIncreaseTime means it starts out full size/intensity, 0 decay time means it lasts forever.

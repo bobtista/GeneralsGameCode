@@ -51,7 +51,13 @@
 #include "Common/GlobalData.h"
 #include "GameLogic/GameLogic.h"
 #include "Common/MapObject.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
+// TheSuperHackers @build bobtista 30/05/2026 Restore DynamicVBAccess/DynamicIBAccess,
+// BUFFER_TYPE_DYNAMIC and ShaderClass declarations needed by the RTS_DEBUG path after
+// the "neutral dynamic buffer type at draw sites" refactor removed transitive includes.
+#include "WW3D2/vertexbuffer.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/shader.h"
 
 #if defined(RTS_DEBUG)
 
@@ -215,14 +221,15 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 	//
 	Bool anyVanished = false;
 	if (m_numDebugIcons==0) return;
-	DX8Wrapper::Apply_Render_State_Changes();
+	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
+	// through the IRenderBackend abstraction.
+	Renderer::Apply_Render_State_Changes();
 
-	DX8Wrapper::Set_Material(m_vertexMaterialClass);
-	DX8Wrapper::Set_Texture(0, nullptr);
-	DX8Wrapper::Apply_Render_State_Changes();
+	Renderer::Set_Material(m_vertexMaterialClass);
+	Renderer::Set_Texture(0, nullptr);
+	Renderer::Apply_Render_State_Changes();
 
-	Matrix3D tm(Transform);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);
 
 	Int numRect = m_numDebugIcons;
 	static Real offset = 30;
@@ -233,8 +240,8 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 	for (k=0; k<m_numDebugIcons;) {
 		Int curIndex = 0;
 		Int	numVertex = 0;
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,DX8_FVF_XYZNDUV2,numRect*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,numRect*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,RENDER_VERTEX_FORMAT_XYZNDUV2,numRect*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,numRect*6);
 		{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 		VertexFormatXYZNDUV2* vb= lock.Get_Formatted_Vertex_Array();
@@ -303,10 +310,10 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 		}
 		}
 		if (numVertex == 0) break;
-		DX8Wrapper::Set_Shader(ShaderClass(SC_ALPHA));
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Vertex_Buffer(vb_access);
-		DX8Wrapper::Draw_Triangles(	0,curIndex/3, 0,	numVertex);	//draw a quad, 2 triangles, 4 verts
+		Renderer::Set_Shader(ShaderClass(SC_ALPHA));
+		Renderer::Set_Index_Buffer(ib_access,0);
+		Renderer::Set_Vertex_Buffer(vb_access);
+		Renderer::Draw_Triangles(	0,curIndex/3, 0,	numVertex);	//draw a quad, 2 triangles, 4 verts
 	}
 
 	if (anyVanished) {

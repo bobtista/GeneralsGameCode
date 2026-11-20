@@ -1,11 +1,11 @@
 set(GAMEENGINEDEVICE_SRC
 #    Include/MilesAudioDevice/MilesAudioManager.h
 #    Include/VideoDevice/Bink/BinkVideoPlayer.h
-    Include/W3DDevice/Common/W3DConvert.h
-    Include/W3DDevice/Common/W3DFunctionLexicon.h
-    Include/W3DDevice/Common/W3DModuleFactory.h
+#    Include/W3DDevice/Common/W3DConvert.h
+#    Include/W3DDevice/Common/W3DFunctionLexicon.h
+#    Include/W3DDevice/Common/W3DModuleFactory.h
 #    Include/W3DDevice/Common/W3DRadar.h
-    Include/W3DDevice/Common/W3DThingFactory.h
+#    Include/W3DDevice/Common/W3DThingFactory.h
 #    Include/W3DDevice/GameClient/BaseHeightMap.h
 #    Include/W3DDevice/GameClient/camerashakesystem.h
 #    Include/W3DDevice/GameClient/FlatHeightMap.h
@@ -32,29 +32,27 @@ set(GAMEENGINEDEVICE_SRC
 #    Include/W3DDevice/GameClient/TerrainTex.h
 #    Include/W3DDevice/GameClient/TileData.h
     Include/W3DDevice/GameClient/W3DAssetManager.h
-    Include/W3DDevice/GameClient/W3DAssetManagerExposed.h
     Include/W3DDevice/GameClient/W3DBibBuffer.h
     Include/W3DDevice/GameClient/W3DBridgeBuffer.h
     Include/W3DDevice/GameClient/W3DBufferManager.h
-    Include/W3DDevice/GameClient/W3DCustomEdging.h
     Include/W3DDevice/GameClient/W3DCustomScene.h
-    Include/W3DDevice/GameClient/W3DDebugDisplay.h
-    Include/W3DDevice/GameClient/W3DDebugIcons.h
-    Include/W3DDevice/GameClient/W3DDisplay.h
-    Include/W3DDevice/GameClient/W3DDisplayString.h
-    Include/W3DDevice/GameClient/W3DDisplayStringManager.h
+#    Include/W3DDevice/GameClient/W3DDebugDisplay.h
+#    Include/W3DDevice/GameClient/W3DDebugIcons.h
+#    Include/W3DDevice/GameClient/W3DDisplay.h
+#    Include/W3DDevice/GameClient/W3DDisplayString.h
+#    Include/W3DDevice/GameClient/W3DDisplayStringManager.h
     Include/W3DDevice/GameClient/W3DDynamicLight.h
     Include/W3DDevice/GameClient/W3DFileSystem.h
 #    Include/W3DDevice/GameClient/W3DGadget.h
     Include/W3DDevice/GameClient/W3DGameClient.h
-    Include/W3DDevice/GameClient/W3DGameFont.h
-    Include/W3DDevice/GameClient/W3DGameWindow.h
-    Include/W3DDevice/GameClient/W3DGameWindowManager.h
-    Include/W3DDevice/GameClient/W3DGUICallbacks.h
+#    Include/W3DDevice/GameClient/W3DGameFont.h
+#    Include/W3DDevice/GameClient/W3DGameWindow.h
+#    Include/W3DDevice/GameClient/W3DGameWindowManager.h
+#    Include/W3DDevice/GameClient/W3DGUICallbacks.h
     Include/W3DDevice/GameClient/W3DInGameUI.h
     Include/W3DDevice/GameClient/W3DMirror.h
 #    Include/W3DDevice/GameClient/W3DMouse.h
-    Include/W3DDevice/GameClient/W3DParticleSys.h
+#    Include/W3DDevice/GameClient/W3DParticleSys.h
     Include/W3DDevice/GameClient/W3DPoly.h
     Include/W3DDevice/GameClient/W3DProjectedShadow.h
 #    Include/W3DDevice/GameClient/W3DPropBuffer.h
@@ -81,9 +79,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameLogic/W3DGameLogic.h
     Include/W3DDevice/GameLogic/W3DGhostObject.h
     Include/W3DDevice/GameLogic/W3DTerrainLogic.h
-#    Include/Win32Device/Common/Win32BIGFile.h
-#    Include/Win32Device/Common/Win32BIGFileSystem.h
-    Include/Win32Device/Common/Win32GameEngine.h
+#    Include/Win32Device/Common/Win32GameEngine.h
 #    Include/Win32Device/Common/Win32LocalFile.h
 #    Include/Win32Device/Common/Win32LocalFileSystem.h
 #    Include/Win32Device/GameClient/Win32DIKeyboard.h
@@ -91,11 +87,11 @@ set(GAMEENGINEDEVICE_SRC
 #    Include/Win32Device/GameClient/Win32Mouse.h
 #    Source/MilesAudioDevice/MilesAudioManager.cpp
 #    Source/VideoDevice/Bink/BinkVideoPlayer.cpp
-    Source/W3DDevice/Common/System/W3DFunctionLexicon.cpp
+#    Source/W3DDevice/Common/System/W3DFunctionLexicon.cpp
 #    Source/W3DDevice/Common/System/W3DRadar.cpp
-    Source/W3DDevice/Common/Thing/W3DModuleFactory.cpp
-    Source/W3DDevice/Common/Thing/W3DThingFactory.cpp
-    Source/W3DDevice/Common/W3DConvert.cpp
+#    Source/W3DDevice/Common/Thing/W3DModuleFactory.cpp
+#    Source/W3DDevice/Common/Thing/W3DThingFactory.cpp
+#    Source/W3DDevice/Common/W3DConvert.cpp
 #    Source/W3DDevice/GameClient/BaseHeightMap.cpp
 #    Source/W3DDevice/GameClient/camerashakesystem.cpp
 #    Source/W3DDevice/GameClient/Drawable/Draw/W3DDebrisDraw.cpp
@@ -130,11 +126,10 @@ set(GAMEENGINEDEVICE_SRC
 #    Source/W3DDevice/GameClient/GUI/Gadget/W3DTextEntry.cpp
 #    Source/W3DDevice/GameClient/GUI/Gadget/W3DVerticalSlider.cpp
 #    Source/W3DDevice/GameClient/GUI/GUICallbacks/W3DControlBar.cpp
-    Source/W3DDevice/GameClient/GUI/GUICallbacks/W3DMainMenu.cpp
-    Source/W3DDevice/GameClient/GUI/GUICallbacks/W3DMOTD.cpp
-    Source/W3DDevice/GameClient/GUI/W3DGameFont.cpp
-    Source/W3DDevice/GameClient/GUI/W3DGameWindow.cpp
-    Source/W3DDevice/GameClient/GUI/W3DGameWindowManager.cpp
+#    Source/W3DDevice/GameClient/GUI/GUICallbacks/W3DMainMenu.cpp
+#    Source/W3DDevice/GameClient/GUI/W3DGameFont.cpp
+#    Source/W3DDevice/GameClient/GUI/W3DGameWindow.cpp
+#    Source/W3DDevice/GameClient/GUI/W3DGameWindowManager.cpp
 #    Source/W3DDevice/GameClient/HeightMap.cpp
     Source/W3DDevice/GameClient/Shadow/W3DBufferManager.cpp
     Source/W3DDevice/GameClient/Shadow/W3DProjectedShadow.cpp
@@ -143,15 +138,13 @@ set(GAMEENGINEDEVICE_SRC
 #    Source/W3DDevice/GameClient/TerrainTex.cpp
 #    Source/W3DDevice/GameClient/TileData.cpp
     Source/W3DDevice/GameClient/W3DAssetManager.cpp
-    Source/W3DDevice/GameClient/W3DAssetManagerExposed.cpp
     Source/W3DDevice/GameClient/W3DBibBuffer.cpp
     Source/W3DDevice/GameClient/W3DBridgeBuffer.cpp
-    Source/W3DDevice/GameClient/W3DCustomEdging.cpp
-    Source/W3DDevice/GameClient/W3DDebugDisplay.cpp
-    Source/W3DDevice/GameClient/W3DDebugIcons.cpp
-    Source/W3DDevice/GameClient/W3DDisplay.cpp
-    Source/W3DDevice/GameClient/W3DDisplayString.cpp
-    Source/W3DDevice/GameClient/W3DDisplayStringManager.cpp
+#    Source/W3DDevice/GameClient/W3DDebugDisplay.cpp
+#    Source/W3DDevice/GameClient/W3DDebugIcons.cpp
+#    Source/W3DDevice/GameClient/W3DDisplay.cpp
+#    Source/W3DDevice/GameClient/W3DDisplayString.cpp
+#    Source/W3DDevice/GameClient/W3DDisplayStringManager.cpp
     Source/W3DDevice/GameClient/W3DDynamicLight.cpp
     Source/W3DDevice/GameClient/W3DFileSystem.cpp
     Source/W3DDevice/GameClient/W3DGameClient.cpp
@@ -181,16 +174,32 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameLogic/W3DGameLogic.cpp
     Source/W3DDevice/GameLogic/W3DGhostObject.cpp
     Source/W3DDevice/GameLogic/W3DTerrainLogic.cpp
-#    Source/Win32Device/Common/Win32BIGFile.cpp
-#    Source/Win32Device/Common/Win32BIGFileSystem.cpp
-    Source/Win32Device/Common/Win32GameEngine.cpp
+#    Source/Win32Device/Common/Win32GameEngine.cpp
 #    Source/Win32Device/Common/Win32LocalFile.cpp
 #    Source/Win32Device/Common/Win32LocalFileSystem.cpp
-    Source/Win32Device/Common/Win32OSDisplay.cpp
 #    Source/Win32Device/GameClient/Win32DIKeyboard.cpp
 #    #Source/Win32Device/GameClient/Win32DIMouse.cpp
 #    Source/Win32Device/GameClient/Win32Mouse.cpp
 )
+
+if(NOT WIN32)
+    list(REMOVE_ITEM GAMEENGINEDEVICE_SRC
+        Include/Win32Device/Common/Win32GameEngine.h
+        Source/Win32Device/Common/Win32GameEngine.cpp
+        Source/Win32Device/Common/Win32OSDisplay.cpp
+    )
+endif()
+
+if(SAGE_USE_SDL3)
+    list(APPEND GAMEENGINEDEVICE_SRC
+        Include/SDL3GameEngine.h
+        Include/SDL3Device/GameClient/SDL3Keyboard.h
+        Include/SDL3Device/GameClient/SDL3Mouse.h
+        Source/SDL3GameEngine.cpp
+        Source/SDL3Device/GameClient/SDL3Keyboard.cpp
+        Source/SDL3Device/GameClient/SDL3Mouse.cpp
+    )
+endif()
 
 add_library(z_gameenginedevice STATIC)
 
@@ -200,23 +209,46 @@ target_include_directories(z_gameenginedevice PUBLIC
     Include
 )
 
+# TheSuperHackers @build bobtista 29/04/2026 Force the win32 compat shims to
+# the front of the include path so our stub <dinput.h> wins over the dx8 SDK
+# version that ships with d3d8lib (the SDK header references CLSID_*/IID_*
+# symbols that don't exist on non-Win and unconditionally fail to parse).
+if(NOT WIN32)
+    target_include_directories(z_gameenginedevice BEFORE PRIVATE
+        ${CMAKE_SOURCE_DIR}/Core/Libraries/Source/WWVegas/compat/win32_shims
+    )
+endif()
+
+# TheSuperHackers @build bobtista 29/04/2026 Make the precompiled header
+# unconditional. <windows.h> resolves to the win32 compat shim on macOS/Linux
+# (compat/win32_shims is on core_wwvegas's INTERFACE include path), so the same
+# PCH list works everywhere.
 target_precompile_headers(z_gameenginedevice PRIVATE
-    [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
+    [["Precompiled/BasePrecomp.h"]] # Must be first
+    <windows.h>
     [["Common/STLTypedefs.h"]]
     [["Common/SubsystemInterface.h"]]
     [["WWLib/INI.h"]]
     [["WWLib/WWCommon.h"]]
-    <windows.h>
 )
 
 target_link_libraries(z_gameenginedevice PRIVATE
     corei_gameenginedevice_private
     zi_always
     zi_main
-    stb
 )
 
 target_link_libraries(z_gameenginedevice PUBLIC
     corei_gameenginedevice_public
     z_gameengine
 )
+
+# TheSuperHackers @build bobtista 12/11/2026 GameEngine calls back into GameEngineDevice. GNU ld scans
+# each static archive once, in order, so declare the cycle and CMake repeats both archives on the link line.
+if(UNIX AND NOT APPLE)
+    target_link_libraries(z_gameengine INTERFACE z_gameenginedevice)
+endif()
+
+if(SAGE_USE_SDL3)
+    target_link_libraries(z_gameenginedevice PUBLIC sdl3lib)
+endif()

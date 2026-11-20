@@ -27,13 +27,18 @@
 // Debug class implementation
 //////////////////////////////////////////////////////////////////////////////
 
-#include "debug.h"
+#include "debug/debug.h"
 #include "internal.h"
 #include "internal_except.h"
 #include "internal_io.h"
 #include <stdlib.h>
 #include <windows.h>
-#include <WWLib/WWCommon.h>
+// TheSuperHackers @build bobtista 12/06/2026 _ReturnAddress intrinsic for the x64 frame capture.
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
+#include <Utility/stdio_adapter.h>
+#include <Utility/stringex.h>
 #include <new>      // needed for placement new prototype
 
 // a little dummy variable that makes the linker actually include
@@ -306,12 +311,16 @@ bool Debug::SkipNext()
   // do not implement this function inline, we do need
   // a valid frame pointer here!
   unsigned help;
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(__i386__))
   _asm
   {
     mov eax,[ebp+4]   // return address
     mov help,eax
   };
+#elif defined(_MSC_VER)
+  // TheSuperHackers @build bobtista 12/06/2026 MSVC x64 has no inline asm; the intrinsic returns
+  // this function's return address (the [ebp+4] equivalent), truncated to the 32-bit frame key.
+  help = (unsigned)(size_t)_ReturnAddress();
 #elif (defined(__GNUC__) || defined(__clang__)) && (defined(__i386__) || defined(_M_IX86))
   // GCC/Clang inline assembly for x86-32
   __asm__ __volatile__(
@@ -434,8 +443,13 @@ bool Debug::AssertDone()
           }
           break;
         case IDRETRY:
-#if defined(_MSC_VER)
-          _asm int 0x03
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(__i386__))
+          __asm
+          {
+            int 0x03
+          }
+#elif defined(_MSC_VER)
+          __debugbreak();
 #elif defined(__GNUC__)
           __builtin_trap();
 #else
@@ -708,8 +722,13 @@ bool Debug::CrashDone(bool die)
             }
             break;
           case IDRETRY:
-#if defined(_MSC_VER)
-            _asm int 0x03
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(__i386__))
+            __asm
+            {
+              int 0x03
+            }
+#elif defined(_MSC_VER)
+            __debugbreak();
 #elif defined(__GNUC__)
             __builtin_trap();
 #else
@@ -1228,7 +1247,7 @@ Debug::FrameHashEntry* Debug::AddFrameEntry(unsigned addr, unsigned type,
   else
   {
     // no, just add file name (without path though)
-    e->fileOrGroup=fileOrGroup?strrchr(fileOrGroup,'\\'):nullptr;
+    e->fileOrGroup=fileOrGroup?strrpbrk(fileOrGroup,"/\\"):nullptr;
     e->fileOrGroup=e->fileOrGroup?e->fileOrGroup+1:fileOrGroup;
   }
 
@@ -1245,7 +1264,7 @@ void Debug::UpdateFrameStatus(FrameHashEntry &entry)
       entry.frameType==FrameTypeCheck)
     wsprintf(help,"%s(%i)",entry.fileOrGroup,entry.line);
   else
-    strlcpy(help, entry.fileOrGroup, ARRAY_SIZE(help));
+    strlcpy(help, entry.fileOrGroup, sizeof(help));
 
   // update frame status
   bool active=entry.frameType!=FrameTypeLog;
@@ -1265,7 +1284,7 @@ const char *Debug::AddLogGroup(const char *fileOrGroup, const char *descr)
   char help[200];
 
   // do we need to strip down fileOrGroup?
-  const char *p=strrchr(fileOrGroup,'\\');
+  const char *p=strrpbrk(fileOrGroup,"/\\");
   const char *q=strchr(p?p:fileOrGroup,'.');
   if (p||q)
   {

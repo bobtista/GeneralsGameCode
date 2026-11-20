@@ -5921,4 +5921,3 @@ SightingInfo::~SightingInfo()
 {
 
 }
-

@@ -41,8 +41,40 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
-//#include "WinMain.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
+#include "Common/INI.h"
+
+//-------------------------------------------------------------------------------------------------
+/** The INI data fields for Webpage URL's */
+//-------------------------------------------------------------------------------------------------
+const FieldParse WebBrowserURL::m_URLFieldParseTable[] =
+{
+	{ "URL",										INI::parseAsciiString,							nullptr, offsetof( WebBrowserURL, m_url ) },
+	{ nullptr,											nullptr,																nullptr, 0 },
+};
+
+WebBrowserURL::WebBrowserURL()
+{
+	m_next = nullptr;
+	m_tag.clear();
+	m_url.clear();
+}
+
+WebBrowserURL::~WebBrowserURL()
+{
+}
+
+#ifndef _WIN32
+// TheSuperHackers @build bobtista 29/04/2026 Define the global on non-Win.
+WebBrowser *TheWebBrowser = nullptr;
+#endif
+
+// TheSuperHackers @build bobtista 29/04/2026 The whole ATL-based WebBrowser
+// (CComObject, IBrowserDispatch) is Win-only. Non-Win builds use the inline
+// stub class declared in WebBrowser.h.
+#ifdef _WIN32
+
+//#include "WinMain.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/Display.h"
 
@@ -126,27 +158,6 @@ WebBrowser::~WebBrowser()
 	}
 }
 
-//-------------------------------------------------------------------------------------------------
-/** The INI data fields for Webpage URL's */
-//-------------------------------------------------------------------------------------------------
-const FieldParse WebBrowserURL::m_URLFieldParseTable[] =
-{
-
-	{ "URL",										INI::parseAsciiString,							nullptr, offsetof( WebBrowserURL, m_url ) },
-	{ nullptr,											nullptr,																nullptr, 0 },
-
-};
-
-WebBrowserURL::WebBrowserURL()
-{
-	m_next = nullptr;
-	m_tag.clear();
-	m_url.clear();
-}
-
-WebBrowserURL::~WebBrowserURL()
-{
-}
 /******************************************************************************
 *
 * NAME
@@ -308,3 +319,6 @@ STDMETHODIMP WebBrowser::TestMethod(Int num1)
 	DEBUG_LOG(("WebBrowser::TestMethod - num1 = %d", num1));
 	return S_OK;
 }
+
+
+#endif // _WIN32 (WebBrowser Win impl)

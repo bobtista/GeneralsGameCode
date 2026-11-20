@@ -1870,7 +1870,7 @@ void W3DModelDraw::allocateShadows()
 		shadowInfo.m_sizeY					= tmplate->getShadowSizeY();
 		shadowInfo.m_offsetX				= tmplate->getShadowOffsetX();
 		shadowInfo.m_offsetY				= tmplate->getShadowOffsetY();
-  		m_shadow = TheW3DShadowManager->addShadow(m_renderObject, &shadowInfo);
+			m_shadow = TheW3DShadowManager->addShadow(m_renderObject, &shadowInfo, getDrawable());
 		if (m_shadow)
 		{	m_shadow->enableShadowInvisible(m_fullyObscuredByShroud);
 			if (m_renderObject->Is_Hidden() || !m_shadowEnabled)
@@ -3026,6 +3026,20 @@ void W3DModelDraw::setModelState(const ModelConditionInfo* newState)
 		{
 			m_renderObject = W3DDisplay::m_assetManager->Create_Render_Obj(newState->m_modelName.str(), draw->getScale(), m_hexColor);
 			DEBUG_ASSERTCRASH(m_renderObject, ("*** ASSET ERROR: Model %s not found!",newState->m_modelName.str()));
+			// TheSuperHackers @bugfix bobtista 11/07/2026 The assert above is
+			// debug-only; release builds silently accepted the null and the
+			// drawable stayed invisible while its object simulated normally.
+			// Say so where a release build can see it (throttled).
+			if (m_renderObject == nullptr)
+			{
+				static int s_nullModelLogCount = 0;
+				if (++s_nullModelLogCount <= 20)
+				{
+					std::fprintf(stderr, "[ggc] model load failed, drawable will be invisible: %s\n",
+						newState->m_modelName.str());
+					std::fflush(stderr);
+				}
+			}
 		}
 
 		//BONEPOS_LOG(("validateStuff() from within W3DModelDraw::setModelState()"));
@@ -4320,4 +4334,3 @@ void W3DModelDrawModuleData::xfer( Xfer *x )
 void W3DModelDrawModuleData::loadPostProcess()
 {
 }
-

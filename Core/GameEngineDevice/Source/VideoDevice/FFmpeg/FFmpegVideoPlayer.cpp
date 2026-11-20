@@ -207,14 +207,6 @@ VideoStreamInterface* FFmpegVideoPlayer::createStream( File* file )
 		stream->m_next = m_firstStream;
 		stream->m_player = this;
 		m_firstStream = stream;
-
-		// never let volume go to 0, as Bink will interpret that as "play at full volume".
-		Int mod = (Int) ((TheAudio->getVolume(AudioAffect_Speech) * 0.8f) * 100) + 1;
-		[[maybe_unused]]  Int volume = (32768 * mod) / 100;
-		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - About to set volume (%g -> %d -> %d",
-			TheAudio->getVolume(AudioAffect_Speech), mod, volume));
-		//BinkSetVolume( stream->m_handle,0, volume);
-		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - set volume"));
 	}
 
 	return stream;
@@ -315,6 +307,9 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
 	// Release the audio handle if it's already in use
 	OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
 	audioStream->reset();
+
+	// TheSuperHackers @bugfix bobtista 01/07/2026 Apply speech volume to movie audio; the Bink port left this unset so videos ignored the volume sliders.
+	audioStream->setVolume(TheAudio->getVolume(AudioAffect_Speech));
 #endif
 
 	// Decode until we have our first video frame
@@ -335,6 +330,18 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
 
 FFmpegVideoStream::~FFmpegVideoStream()
 {
+#ifdef RTS_USE_OPENAL
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Cut this movie's audio immediately like BinkClose
+	// did; otherwise up to a second of already queued audio keeps playing after the stream closes.
+	if (TheAudio != NULL)
+	{
+		OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
+		if (audioStream != NULL)
+		{
+			audioStream->reset();
+		}
+	}
+#endif
 	av_freep(&m_audioBuffer);
 	av_frame_free(&m_frame);
 	sws_freeContext(m_swsContext);
@@ -409,9 +416,12 @@ void FFmpegVideoStream::onFrame(AVFrame *frame, int stream_idx, int stream_type,
 void FFmpegVideoStream::update()
 {
 #ifdef RTS_USE_OPENAL
-	// Start audio playback
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Service the audio stream instead of restarting it.
+	// alSourcePlay on an already playing source rewinds it to the head of its queued buffers every
+	// client frame, machine-gunning movie audio; update() unqueues played buffers and only restarts
+	// a genuinely underrun source.
 	OpenALAudioStream* audioStream = (OpenALAudioStream*)TheAudio->getHandleForBink();
-	audioStream->play();
+	audioStream->update();
 #endif
 	//BinkWait( m_handle );
 }
@@ -474,7 +484,9 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 
 	switch (buffer->format()) {
 		case VideoBuffer::TYPE_R8G8B8:
-			dst_pix_fmt = AV_PIX_FMT_RGB24;
+			// TheSuperHackers @bugfix bobtista 13/07/2026 D3D R8G8B8 memory byte order is B,G,R
+			// on little endian, which is FFmpeg BGR24; RGB24 rendered with red and blue swapped.
+			dst_pix_fmt = AV_PIX_FMT_BGR24;
 			break;
 		case VideoBuffer::TYPE_X8R8G8B8:
 			dst_pix_fmt = AV_PIX_FMT_BGR0;
@@ -540,7 +552,22 @@ void FFmpegVideoStream::frameNext()
 
 Int FFmpegVideoStream::frameIndex()
 {
-	return m_ffmpegFile->getCurrentFrame();
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Match the Bink contract: zero-based index while
+	// playing (FFmpeg's frame_num is one-based) and 0 once the stream is exhausted, like Bink
+	// wrapping FrameNum past the last frame. Callers depend on both: Display stops fullscreen
+	// movies at frameCount()-1 and WindowVideoManager detects completion via frameIndex()==0
+	// after frameNext.
+	if (!m_good)
+	{
+		return 0;
+	}
+
+	Int index = m_ffmpegFile->getCurrentFrame() - 1;
+	if (index < 0)
+	{
+		return 0;
+	}
+	return index;
 }
 
 //============================================================================
@@ -558,7 +585,15 @@ Int	FFmpegVideoStream::frameCount()
 
 void FFmpegVideoStream::frameGoto( Int index )
 {
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Reset the stream state and rebase the pacing
+	// clock after a seek, then prime the frame at the new position like BinkGoto did. Without the
+	// rebase isFrameReady() compares against frameTime * index and stalls for the skipped span.
 	m_ffmpegFile->seekFrame(index);
+	m_good = true;
+	m_gotFrame = false;
+	frameNext();
+	uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	m_startTime = now - (uint64_t)(m_ffmpegFile->getFrameTime() * frameIndex());
 }
 
 //============================================================================

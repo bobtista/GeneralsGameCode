@@ -75,16 +75,16 @@
 
 
 #include "texproject.h"
-#include "WW3D2/vertmaterial.h"
-#include "WW3D2/shader.h"
+#include "vertmaterial.h"
+#include "shader.h"
 #include "texture.h"
 #include "rendobj.h"
-#include "WW3D2/rinfo.h"
-#include "WW3D2/camera.h"
+#include "rinfo.h"
+#include "camera.h"
 #include "matpass.h"
 #include "bwrender.h"
-#include "WW3D2/assetmgr.h"
-#include "dx8wrapper.h"
+#include "assetmgr.h"
+#include "Renderer.h"
 
 
 // DEBUG DEBUG
@@ -931,16 +931,15 @@ bool TexProjectClass::Compute_Perspective_Projection
 	** Calculate the axis-aligned bounding box of the model in the camera's coordinate system.
 	*/
 	AABoxClass box = obj_box;
-	Matrix3D obj_to_world = tm;
 	Matrix3D obj_to_texture;
-	Matrix3D::Multiply(texture_tm_inv,obj_to_world,&obj_to_texture);
+	Matrix3D::Multiply(texture_tm_inv,tm,&obj_to_texture);
 	box.Transform(obj_to_texture);
 
 	/*
 	** If the box is behind the viewpoint or the viewpoint is inside the box
 	** our FOV will be > 180 degrees. Have to give up
 	*/
-	if ((box.Center.Z > 0.0f) || (box.Extent.Z > WWMath::Fabs(box.Center.Z))) {
+	if ((box.Center.Z > 0.0f) || (box.Extent.Z > WWMath::Fabsf_Legacy(box.Center.Z))) {
 		return false;
 	}
 
@@ -958,8 +957,8 @@ bool TexProjectClass::Compute_Perspective_Projection
 		zfar = box.Center.Z + user_zfar;
 	}
 
-	float tan_hfov2 = WWMath::Fabs(box.Extent.X / (box.Center.Z + box.Extent.Z));
-	float tan_vfov2 = WWMath::Fabs(box.Extent.Y / (box.Center.Z + box.Extent.Z));
+	float tan_hfov2 = WWMath::Fabsf_Legacy(box.Extent.X / (box.Center.Z + box.Extent.Z));
+	float tan_vfov2 = WWMath::Fabsf_Legacy(box.Extent.Y / (box.Center.Z + box.Extent.Z));
 	float hfov = 2.0f * WWMath::Atan(tan_hfov2);
 	float vfov = 2.0f * WWMath::Atan(tan_vfov2);
 
@@ -1060,9 +1059,8 @@ bool TexProjectClass::Compute_Ortho_Projection
 	** Calculate the axis-aligned bounding box of the model in the camera's coordinate system.
 	*/
 	AABoxClass box = obj_box;
-	Matrix3D obj_to_world = tm;
 	Matrix3D obj_to_texture;
-	Matrix3D::Multiply(texture_tm_inv,obj_to_world,&obj_to_texture);
+	Matrix3D::Multiply(texture_tm_inv,tm,&obj_to_texture);
 	box.Transform(obj_to_texture);
 
 	/*
@@ -1138,7 +1136,7 @@ bool TexProjectClass::Compute_Texture
 		/*
 		** Set the render target
 		*/
-		DX8Wrapper::Set_Render_Target_With_Z (rtarget,ztarget);
+		Renderer::Set_Render_Target_With_Z(rtarget, ztarget);
 
 		/*
 		** Set up the camera
@@ -1157,14 +1155,20 @@ bool TexProjectClass::Compute_Texture
 
 		bool snapshot=WW3D::Is_Snapshot_Activated();
 		SNAPSHOT_SAY(("TexProjectCLass::Begin_Render()"));
-		WW3D::Begin_Render(true,zclear,color);	// false to zclear as we don't have z-buffer
-		WW3D::Render(*model,*context);
-		SNAPSHOT_SAY(("TexProjectCLass::End_Render()"));
-		WW3D::End_Render(false);
+		WW3DErrorType renderResult=WW3D::Begin_Render(true,zclear,color);
+		if (renderResult == WW3D_ERROR_OK)
+		{
+			WW3D::Render(*model,*context);
+			SNAPSHOT_SAY(("TexProjectCLass::End_Render()"));
+			WW3D::End_Render(false);
+		}
 		WW3D::Activate_Snapshot(snapshot);	// End_Render() ends the shapsnot, so restore the state
 
-		DX8Wrapper::Set_Render_Target((IDirect3DSurface8 *)nullptr);
-
+		// TheSuperHackers @fix bobtista 21/04/2026 Route the end-of-RTT-pass target clear through
+		// Renderer:: so the bgfx renderToTexture flag is reset and later draws are not
+		// misrouted to the RTT view.
+		Renderer::Set_Render_Target_With_Z(nullptr, nullptr);
+		return renderResult == WW3D_ERROR_OK;
 	}
 
 #if 0
@@ -1386,4 +1390,3 @@ void TexProjectClass::Update_WS_Bounding_Volume()
 	WorldBoundingVolume.Compute_Axis_Aligned_Extent(&extent);
 	Set_Cull_Box(AABoxClass(WorldBoundingVolume.Center,extent));
 }
-

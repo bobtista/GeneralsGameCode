@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.28)
 
 # Use packagename_ROOT for FindPackage.
 if(POLICY CMP0074)
@@ -30,6 +30,10 @@ if (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
     message(FATAL_ERROR "Building in-source is not supported! Create a build dir and remove ${CMAKE_SOURCE_DIR}/CMakeCache.txt")
 endif()
 
+# Define VCPKG feature before the project block
+# since they need to be initialized before the toolchain is
+include(cmake/config-vcpkg.cmake)
+
 # Top level project, doesn't really affect anything.
 project(genzh LANGUAGES C CXX)
 
@@ -49,13 +53,13 @@ if(MINGW)
 endif()
 
 # Find/Add build dependencies and stubs shared by all projects
-if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
-    include(cmake/miles.cmake)
-    include(cmake/bink.cmake)
+# The standalone bgfx renderer still uses legacy D3D8/D3DX8 headers for
+# shared math/types even on non-Windows builds, so make the min-dx8-sdk
+# header target available there as well.
+if(GGC_BGFX_STANDALONE OR ((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4))
     include(cmake/dx8.cmake)
 endif()
 
-# Define a dummy stlport target when not on VC6.
 if (IS_VS6_BUILD)
     include(cmake/stlport.cmake)
 else()
@@ -64,21 +68,49 @@ endif()
 
 include(cmake/config.cmake)
 include(cmake/gamespy.cmake)
+if (IS_VS6_BUILD)
+    add_library(gamemath INTERFACE)
+else()
+    include(cmake/gamemath.cmake)
+endif()
 include(cmake/lzhl.cmake)
 include(cmake/stb.cmake)
 
-if (IS_VS6_BUILD)
-    # The original max sdk does not compile against a modern compiler.
-    # If there is a desire to make this work, then a fixed max sdk needs to be created.
-    add_subdirectory(Dependencies/MaxSDK)
+if(SAGE_USE_SDL3)
+    include(cmake/sdl3.cmake)
 endif()
-add_subdirectory(Dependencies/Utility)
 
-# To be removed when abandoning VC6
-if (IS_VS6_BUILD)
-    include_directories(Dependencies/Utility)
-    add_compile_options(/FIUtility/CppMacros.h)
+if(SAGE_USE_OPENAL)
+    include(cmake/openal.cmake)
 endif()
+
+# Rendering backend selection. Must come after config.cmake (which sets
+# IS_VS6_BUILD) and before Core is added (which references the backend flag).
+include(cmake/render-backend.cmake)
+
+# TheSuperHackers @build bobtista 19/04/2026 Propagate the render backend
+# compile define globally so all targets can #if on it, not just WW3D2.
+if(DEFINED GGC_RENDER_BACKEND_COMPILE_DEFINE)
+    add_compile_definitions(${GGC_RENDER_BACKEND_COMPILE_DEFINE})
+endif()
+
+if(RTS_BUILD_OPTION_PROFILE_TRACY)
+    include(cmake/tracy.cmake)
+else()
+    add_library(core_profile_tracy INTERFACE)
+endif()
+
+if(RTS_BUILD_OPTION_TESTS)
+    # Must come before the subdirectories that add tests.
+    enable_testing()
+    include(cmake/googletest.cmake)
+endif()
+
+if(RTS_BUILD_OPTION_BENCHMARKS)
+    include(cmake/googlebenchmark.cmake)
+endif()
+
+add_subdirectory(Dependencies)
 
 add_subdirectory(resources)
 
@@ -91,6 +123,14 @@ endif()
 
 if(RTS_BUILD_GENERALS)
     add_subdirectory(Generals)
+endif()
+
+if(RTS_BUILD_OPTION_TESTS)
+    add_subdirectory(Tests)
+endif()
+
+if(RTS_BUILD_OPTION_BENCHMARKS)
+    add_subdirectory(Benchmarks)
 endif()
 
 feature_summary(WHAT ENABLED_FEATURES DESCRIPTION "Enabled features:")

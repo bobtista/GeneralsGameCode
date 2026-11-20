@@ -89,20 +89,21 @@
 
 
 #include "boxrobj.h"
-#include "WW3D2/w3d_util.h"
+#include "w3d_util.h"
 #include "WWDebug/wwdebug.h"
 #include "vertmaterial.h"
 #include "ww3d.h"
 #include "WWLib/chunkio.h"
 #include "rinfo.h"
-#include "WW3D2/coltest.h"
-#include "WW3D2/inttest.h"
-#include "WW3D2/dx8wrapper.h"
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8fvf.h"
-#include "WW3D2/sortingrenderer.h"
-#include "WW3D2/visrasterizer.h"
+#include "coltest.h"
+#include "inttest.h"
+#include "ww3dcolor.h"
+#include "Renderer.h"
+#include "dx8indexbuffer.h"
+#include "dx8vertexbuffer.h"
+#include "dx8fvf.h"
+#include "sortingrenderer.h"
+#include "visrasterizer.h"
 #include "meshgeometry.h"
 
 
@@ -458,9 +459,9 @@ void BoxRenderObjClass::render_box(RenderInfoClass & rinfo,const Vector3 & cente
 		/*
 		** Dump the box vertices into the sorting dynamic vertex buffer.
 		*/
-		DWORD color = DX8Wrapper::Convert_Color(Color,Opacity);
+		DWORD color = WW3DColor::To_ARGB(Color, Opacity);
 
-		int buffer_type = BUFFER_TYPE_DYNAMIC_DX8;
+		int buffer_type = BUFFER_TYPE_DYNAMIC;
 
 		DynamicVBAccessClass vbaccess(buffer_type,dynamic_fvf_type,NUM_BOX_VERTS);
 		{
@@ -504,14 +505,14 @@ void BoxRenderObjClass::render_box(RenderInfoClass & rinfo,const Vector3 & cente
 		/*
 		** Apply the shader and material
 		*/
-		DX8Wrapper::Set_Material(_BoxMaterial);
-		DX8Wrapper::Set_Shader(_BoxShader);
-		DX8Wrapper::Set_Texture(0,nullptr);
+		Renderer::Set_Material(_BoxMaterial);
+		Renderer::Set_Shader(_BoxShader);
+		Renderer::Set_Texture(0,nullptr);
 
-		DX8Wrapper::Set_Index_Buffer(ibaccess,0);
-		DX8Wrapper::Set_Vertex_Buffer(vbaccess);
+		Renderer::Set_Index_Buffer(ibaccess, 0);
+		Renderer::Set_Vertex_Buffer(vbaccess);
 
-		DX8Wrapper::Draw_Triangles(buffer_type,0,NUM_BOX_FACES,0,NUM_BOX_VERTS);
+		Renderer::Draw_Triangles(buffer_type, 0, NUM_BOX_FACES, 0, NUM_BOX_VERTS);
 	}
 }
 
@@ -701,7 +702,7 @@ void AABoxRenderObjClass::Render(RenderInfoClass & rinfo)
 {
 	Matrix3D temp(1);
 	temp.Translate(Transform.Get_Translation());
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,temp);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,temp);
 	render_box(rinfo,ObjSpaceCenter,ObjSpaceExtent);
 }
 
@@ -1085,7 +1086,7 @@ int OBBoxRenderObjClass::Class_ID() const
  *=============================================================================================*/
 void OBBoxRenderObjClass::Render(RenderInfoClass & rinfo)
 {
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,Transform);
 	render_box(rinfo,ObjSpaceCenter,ObjSpaceExtent);
 }
 
@@ -1384,5 +1385,3 @@ RenderObjClass * BoxPrototypeClass::Create()
 ** Global instance of the box loader
 */
 BoxLoaderClass _BoxLoader;
-
-

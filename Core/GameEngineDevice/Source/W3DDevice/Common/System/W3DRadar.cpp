@@ -52,14 +52,55 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/texture.h"
-#include "WW3D2/dx8caps.h"
+#include "WW3D2/surfaceclass.h"
+#include "WW3D2/Renderer.h"
 #include "WWMath/vector2i.h"
 #include "GameClient/ControlBar.h"
+
+#include <cstring>
 
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 enum { OVERLAY_REFRESH_RATE = 6 };  ///< over updates once this many frames
+
+static void W3DRadar_DrawPixel(TextureClass::MutableTextureMipView &mip, Int x, Int y, unsigned int color)
+{
+	if (!mip.Is_Valid() || x < 0 || y < 0 || x >= static_cast<Int>(mip.Width) || y >= static_cast<Int>(mip.Height))
+	{
+		return;
+	}
+
+	const unsigned int bytesPerPixel = Get_Bytes_Per_Pixel(mip.Format);
+	if (bytesPerPixel == 0)
+	{
+		return;
+	}
+
+	unsigned char *dst = mip.Data + static_cast<size_t>(y) * mip.Pitch + static_cast<size_t>(x) * bytesPerPixel;
+	std::memcpy(dst, &color, bytesPerPixel);
+}
+
+static void W3DRadar_ClearTexture(TextureClass *texture)
+{
+	if (texture == nullptr)
+	{
+		return;
+	}
+
+	TextureClass::MutableTextureMipView mip = texture->Begin_Mip_Write(0);
+	if (!mip.Is_Valid())
+	{
+		return;
+	}
+
+	const unsigned int rowBytes = mip.Width * Get_Bytes_Per_Pixel(mip.Format);
+	for (unsigned int y = 0; y < mip.Height; ++y)
+	{
+		std::memset(mip.Data + static_cast<size_t>(y) * mip.Pitch, 0, rowBytes);
+	}
+	texture->End_Mip_Write(0);
+}
 
 //-------------------------------------------------------------------------------------------------
 /** Is the point legal, that is, inside the resolution of the radar cells */
@@ -81,7 +122,7 @@ static WW3DFormat findFormat(const WW3DFormat formats[])
 	for( Int i = 0; formats[ i ] != WW3D_FORMAT_UNKNOWN; i++ )
 	{
 
-		if( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( formats[ i ] ) )
+		if( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( formats[ i ] ) )
 		{
 
 			return formats[ i ];
@@ -93,6 +134,14 @@ static WW3DFormat findFormat(const WW3DFormat formats[])
 	return WW3D_FORMAT_UNKNOWN;
 }
 
+static TextureClass *createWritableRadarTexture(unsigned width, unsigned height, WW3DFormat format)
+{
+	SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
+	TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
+	REF_PTR_RELEASE(surface);
+	return texture;
+}
+
 //-------------------------------------------------------------------------------------------------
 /** Find the texture format we're going to use for the radar.  The texture format must
 	* be supported by the hardware.  The "more preferred" formats appear at the top of
@@ -102,8 +151,12 @@ void W3DRadar::initializeTextureFormats()
 {
 	const WW3DFormat terrainFormats[] =
 	{
-		WW3D_FORMAT_R8G8B8,
+		// TheSuperHackers @bugfix bobtista 26/04/2026 Prefer an opaque
+		// 32-bit radar terrain texture in standalone. bgfx can upload
+		// X8R8G8B8 directly, while R8G8B8 has no native bgfx texture
+		// format and falls back to the backend's white placeholder.
 		WW3D_FORMAT_X8R8G8B8,
+		WW3D_FORMAT_R8G8B8,
 		WW3D_FORMAT_R5G6B5,
 		WW3D_FORMAT_X1R5G5B5,
 		WW3D_FORMAT_UNKNOWN				// keep this one last
@@ -168,7 +221,7 @@ void W3DRadar::deleteResources()
 		deleteInstance(m_shroudImage);
 	m_shroudImage = nullptr;
 
-	DEBUG_ASSERTCRASH(m_shroudSurface == nullptr, ("W3DRadar::deleteResources: m_shroudSurface is expected null"));
+	DEBUG_ASSERTCRASH(!m_shroudMipActive, ("W3DRadar::deleteResources: m_shroud mip write is expected inactive"));
 	DEBUG_ASSERTCRASH(m_shroudSurfaceBits == nullptr, ("W3DRadar::deleteResources: m_shroudSurfaceBits is expected null"));
 
 }
@@ -620,9 +673,7 @@ void W3DRadar::drawIcons( Int pixelX, Int pixelY, Int width, Int height )
 void W3DRadar::updateObjectTexture(TextureClass *texture)
 {
 	// reset the overlay texture
-	SurfaceClass *surface = texture->Get_Surface_Level();
-	surface->Clear();
-	REF_PTR_RELEASE(surface);
+	W3DRadar_ClearTexture(texture);
 
 	// rebuild the object overlay
 	renderObjectList( m_objectList, texture );
@@ -687,19 +738,16 @@ void W3DRadar::renderObjectList( const RadarObject *listHead, TextureClass *text
 	if( listHead == nullptr || texture == nullptr )
 		return;
 
-	// get surface for texture to render into
-	SurfaceClass *surface = texture->Get_Surface_Level();
+	TextureClass::MutableTextureMipView mip = texture->Begin_Mip_Write(0);
+	if (!mip.Is_Valid())
+	{
+		return;
+	}
 
 	// loop through all objects and draw
 	ICoord2D radarPoint;
 
 	Player *player = rts::getObservedOrLocalPlayer();
-
-	SurfaceClass::SurfaceDescription surfaceDesc;
-	surface->Get_Description(surfaceDesc);
-	int pitch;
-	void *pBits = surface->Lock(&pitch);
-	const unsigned int bytesPerPixel = Get_Bytes_Per_Pixel(surfaceDesc.Format);
 
 	for( const RadarObject *rObj = listHead; rObj; rObj = rObj->friend_getNext() )
 	{
@@ -738,29 +786,27 @@ void W3DRadar::renderObjectList( const RadarObject *listHead, TextureClass *text
 
 		}
 
-		const unsigned int pixelColor = ARGB_Color_To_WW3D_Color(surfaceDesc.Format, argbColor);
+		const unsigned int pixelColor = ARGB_Color_To_WW3D_Color(mip.Format, argbColor);
 
 		// draw the blip, but make sure the points are legal
 		if( legalRadarPoint( radarPoint.x, radarPoint.y ) )
-			surface->Draw_Pixel( radarPoint.x, radarPoint.y, pixelColor, bytesPerPixel, pBits, pitch );
+			W3DRadar_DrawPixel(mip, radarPoint.x, radarPoint.y, pixelColor);
 
 		radarPoint.y++;
 		if( legalRadarPoint( radarPoint.x, radarPoint.y ) )
-			surface->Draw_Pixel( radarPoint.x, radarPoint.y, pixelColor, bytesPerPixel, pBits, pitch );
+			W3DRadar_DrawPixel(mip, radarPoint.x, radarPoint.y, pixelColor);
 
 		radarPoint.x++;
 		if( legalRadarPoint( radarPoint.x, radarPoint.y ) )
-			surface->Draw_Pixel( radarPoint.x, radarPoint.y, pixelColor, bytesPerPixel, pBits, pitch );
+			W3DRadar_DrawPixel(mip, radarPoint.x, radarPoint.y, pixelColor);
 
 		radarPoint.y--;
 		if( legalRadarPoint( radarPoint.x, radarPoint.y ) )
-			surface->Draw_Pixel( radarPoint.x, radarPoint.y, pixelColor, bytesPerPixel, pBits, pitch );
+			W3DRadar_DrawPixel(mip, radarPoint.x, radarPoint.y, pixelColor);
 
 	}
 
-	surface->Unlock();
-	REF_PTR_RELEASE(surface);
-
+	texture->End_Mip_Write(0);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -856,7 +902,7 @@ W3DRadar::W3DRadar()
 	m_shroudTextureFormat = WW3D_FORMAT_UNKNOWN;
 	m_shroudImage = nullptr;
 	m_shroudTexture = nullptr;
-	m_shroudSurface = nullptr;
+	m_shroudMipActive = FALSE;
 	m_shroudSurfaceBits = nullptr;
 	m_shroudSurfacePitch = 0;
 	m_shroudSurfaceFormat = WW3D_FORMAT_UNKNOWN;
@@ -907,13 +953,11 @@ void W3DRadar::init()
 
 	// allocate our terrain texture
 	// poolify
-	m_terrainTexture = MSGNEW("TextureClass") TextureClass( m_textureWidth, m_textureHeight,
-																			 m_terrainTextureFormat, MIP_LEVELS_1 );
+	m_terrainTexture = createWritableRadarTexture( m_textureWidth, m_textureHeight, m_terrainTextureFormat );
 	DEBUG_ASSERTCRASH( m_terrainTexture, ("W3DRadar: Unable to allocate terrain texture") );
 
 	// allocate our overlay texture
-	m_overlayTexture = MSGNEW("TextureClass") TextureClass( m_textureWidth, m_textureHeight,
-																			 m_overlayTextureFormat, MIP_LEVELS_1 );
+	m_overlayTexture = createWritableRadarTexture( m_textureWidth, m_textureHeight, m_overlayTextureFormat );
 	DEBUG_ASSERTCRASH( m_overlayTexture, ("W3DRadar: Unable to allocate overlay texture") );
 
 	// set filter type for the overlay texture, try it and see if you like it, I don't ;)
@@ -921,8 +965,7 @@ void W3DRadar::init()
 //	m_overlayTexture->Set_Mag_Filter( TextureFilterClass::FILTER_TYPE_NONE );
 
 	// allocate our shroud texture
-	m_shroudTexture = MSGNEW("TextureClass") TextureClass( m_textureWidth, m_textureHeight,
-																			 m_shroudTextureFormat, MIP_LEVELS_1 );
+	m_shroudTexture = createWritableRadarTexture( m_textureWidth, m_textureHeight, m_shroudTextureFormat );
 	DEBUG_ASSERTCRASH( m_shroudTexture, ("W3DRadar: Unable to allocate shroud texture") );
 	m_shroudTexture->Get_Filter().Set_Min_Filter( TextureFilterClass::FILTER_TYPE_DEFAULT );
 	m_shroudTexture->Get_Filter().Set_Mag_Filter( TextureFilterClass::FILTER_TYPE_DEFAULT );
@@ -992,21 +1035,8 @@ void W3DRadar::reset()
 	Radar::reset();
 
 	// clear our texture data, but do not delete the resources
-	SurfaceClass *surface;
-
-	surface = m_terrainTexture->Get_Surface_Level();
-	if( surface )
-	{
-		surface->Clear();
-		REF_PTR_RELEASE(surface);
-	}
-
-	surface = m_overlayTexture->Get_Surface_Level();
-	if( surface )
-	{
-		surface->Clear();
-		REF_PTR_RELEASE(surface);
-	}
+	W3DRadar_ClearTexture(m_terrainTexture);
+	W3DRadar_ClearTexture(m_overlayTexture);
 
 	// don't call Clear(); that wips to transparent. do this instead.
 	//gs Dude, it's called CLEARshroud.  It needs to clear the shroud.
@@ -1050,7 +1080,6 @@ void W3DRadar::newMap( TerrainLogic *terrain )
 // ------------------------------------------------------------------------------------------------
 void W3DRadar::buildTerrainTexture( TerrainLogic *terrain )
 {
-	SurfaceClass *surface;
 	RGBColor waterColor;
 
 	// we will want to reconstruct our new view box now
@@ -1062,8 +1091,12 @@ void W3DRadar::buildTerrainTexture( TerrainLogic *terrain )
 	waterColor.blue = TheWaterTransparency->m_radarColor.blue;
 
 	// get the terrain surface to draw in
-	surface = m_terrainTexture->Get_Surface_Level();
-	DEBUG_ASSERTCRASH( surface, ("W3DRadar: Can't get surface for terrain texture") );
+	TextureClass::MutableTextureMipView mip = m_terrainTexture->Begin_Mip_Write(0);
+	DEBUG_ASSERTCRASH(mip.Is_Valid(), ("W3DRadar: Can't get writable mip for terrain texture"));
+	if (!mip.Is_Valid())
+	{
+		return;
+	}
 
 	// build the terrain
 	RGBColor sampleColor;
@@ -1073,12 +1106,6 @@ void W3DRadar::buildTerrainTexture( TerrainLogic *terrain )
 	ICoord2D radarPoint;
 	Coord3D worldPoint;
 	Bridge *bridge;
-
-	SurfaceClass::SurfaceDescription surfaceDesc;
-	surface->Get_Description(surfaceDesc);
-	int pitch;
-	void *pBits = surface->Lock(&pitch);
-	const unsigned int bytesPerPixel = Get_Bytes_Per_Pixel(surfaceDesc.Format);
 
 	for( y = 0; y < m_textureHeight; y++ )
 	{
@@ -1268,16 +1295,14 @@ void W3DRadar::buildTerrainTexture( TerrainLogic *terrain )
 			// draw the pixel for the terrain at this point, note that because of the orientation
 			// of our world we draw it with positive y in the "up" direction
 			const Color argbColor = GameMakeColor( color.red * 255, color.green * 255, color.blue * 255, 255 );
-			const unsigned int pixelColor = ARGB_Color_To_WW3D_Color(surfaceDesc.Format, argbColor);
-			surface->Draw_Pixel( x, y, pixelColor, bytesPerPixel, pBits, pitch );
+			const unsigned int pixelColor = ARGB_Color_To_WW3D_Color(mip.Format, argbColor);
+			W3DRadar_DrawPixel(mip, x, y, pixelColor);
 
 		}
 
 	}
 
-	// all done with the surface
-	surface->Unlock();
-	REF_PTR_RELEASE(surface);
+	m_terrainTexture->End_Mip_Write(0);
 
 }
 
@@ -1290,22 +1315,8 @@ void W3DRadar::clearShroud()
 		return;
 #endif
 
-	SurfaceClass *surface = m_shroudTexture->Get_Surface_Level();
-
 	// fill to clear, shroud will make black.  Don't want to make something black that logic can't clear
-
-	int pitch;
-	void *pBits = surface->Lock(&pitch);
-	const unsigned int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
-	const Color color = GameMakeColor( 0, 0, 0, 0 );
-
-	for( Int y = 0; y < m_textureHeight; y++ )
-	{
-		surface->Draw_H_Line(y, 0, m_textureWidth-1, color, bytesPerPixel, pBits, pitch);
-	}
-
-	surface->Unlock();
-	REF_PTR_RELEASE(surface);
+	W3DRadar_ClearTexture(m_shroudTexture);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1358,29 +1369,27 @@ void W3DRadar::setShroudLevel(Int shroudX, Int shroudY, CellShroudStatus setting
 	else
 		alpha = 0;
 
-	if (m_shroudSurface == nullptr)
+	if (!m_shroudMipActive)
 	{
 		// This is expensive.
-		SurfaceClass* surface = m_shroudTexture->Get_Surface_Level();
-		DEBUG_ASSERTCRASH( surface, ("W3DRadar: Can't get surface for Shroud texture") );
-		SurfaceClass::SurfaceDescription surfaceDesc;
-		surface->Get_Description(surfaceDesc);
-		int pitch;
-		void *pBits = surface->Lock(&pitch);
-		const unsigned int bytesPerPixel = Get_Bytes_Per_Pixel(surfaceDesc.Format);
+		TextureClass::MutableTextureMipView mip = m_shroudTexture->Begin_Mip_Write(0);
+		DEBUG_ASSERTCRASH(mip.Is_Valid(), ("W3DRadar: Can't get writable mip for Shroud texture"));
+		if (!mip.Is_Valid())
+		{
+			return;
+		}
 		const Color argbColor = GameMakeColor( 0, 0, 0, alpha );
-		const unsigned int pixelColor = ARGB_Color_To_WW3D_Color(surfaceDesc.Format, argbColor);
+		const unsigned int pixelColor = ARGB_Color_To_WW3D_Color(mip.Format, argbColor);
 
 		for( Int y = radarMinY; y <= radarMaxY; ++y )
 		{
 			for( Int x = radarMinX; x <= radarMaxX; ++x )
 			{
-				surface->Draw_Pixel( x, y, pixelColor, bytesPerPixel, pBits, pitch );
+				W3DRadar_DrawPixel(mip, x, y, pixelColor);
 			}
 		}
 
-		surface->Unlock();
-		REF_PTR_RELEASE(surface);
+		m_shroudTexture->End_Mip_Write(0);
 	}
 	else
 	{
@@ -1395,7 +1404,14 @@ void W3DRadar::setShroudLevel(Int shroudX, Int shroudY, CellShroudStatus setting
 		{
 			for( Int x = radarMinX; x <= radarMaxX; ++x )
 			{
-				m_shroudSurface->Draw_Pixel( x, y, pixelColor, m_shroudSurfacePixelSize, m_shroudSurfaceBits, m_shroudSurfacePitch );
+				if (x < 0 || y < 0 || x >= m_textureWidth || y >= m_textureHeight)
+				{
+					continue;
+				}
+				unsigned char *dst = static_cast<unsigned char *>(m_shroudSurfaceBits)
+					+ static_cast<size_t>(y) * m_shroudSurfacePitch
+					+ static_cast<size_t>(x) * m_shroudSurfacePixelSize;
+				std::memcpy(dst, &pixelColor, m_shroudSurfacePixelSize);
 			}
 		}
 	}
@@ -1403,29 +1419,32 @@ void W3DRadar::setShroudLevel(Int shroudX, Int shroudY, CellShroudStatus setting
 
 void W3DRadar::beginSetShroudLevel()
 {
-	DEBUG_ASSERTCRASH( m_shroudSurface == nullptr, ("W3DRadar::beginSetShroudLevel: m_shroudSurface is expected null") );
-	m_shroudSurface = m_shroudTexture->Get_Surface_Level();
-	DEBUG_ASSERTCRASH( m_shroudSurface != nullptr, ("W3DRadar::beginSetShroudLevel: Can't get surface for Shroud texture") );
-
-	SurfaceClass::SurfaceDescription surfaceDesc;
-	m_shroudSurface->Get_Description(surfaceDesc);
-	m_shroudSurfaceBits = m_shroudSurface->Lock(&m_shroudSurfacePitch);
-	m_shroudSurfaceFormat = surfaceDesc.Format;
-	m_shroudSurfacePixelSize = Get_Bytes_Per_Pixel(surfaceDesc.Format);
+	DEBUG_ASSERTCRASH(!m_shroudMipActive, ("W3DRadar::beginSetShroudLevel: shroud mip write is expected inactive"));
+	TextureClass::MutableTextureMipView mip = m_shroudTexture->Begin_Mip_Write(0);
+	DEBUG_ASSERTCRASH(mip.Is_Valid(), ("W3DRadar::beginSetShroudLevel: Can't get writable mip for Shroud texture"));
+	if (!mip.Is_Valid())
+	{
+		return;
+	}
+	m_shroudMipActive = TRUE;
+	m_shroudSurfaceBits = mip.Data;
+	m_shroudSurfacePitch = static_cast<int>(mip.Pitch);
+	m_shroudSurfaceFormat = mip.Format;
+	m_shroudSurfacePixelSize = Get_Bytes_Per_Pixel(mip.Format);
 }
 
 void W3DRadar::endSetShroudLevel()
 {
-	DEBUG_ASSERTCRASH( m_shroudSurface != nullptr, ("W3DRadar::endSetShroudLevel: m_shroudSurface is not expected null") );
+	DEBUG_ASSERTCRASH(m_shroudMipActive, ("W3DRadar::endSetShroudLevel: shroud mip write is expected active"));
 	if (m_shroudSurfaceBits != nullptr)
 	{
-		m_shroudSurface->Unlock();
+		m_shroudTexture->End_Mip_Write(0);
 		m_shroudSurfaceBits = nullptr;
 		m_shroudSurfacePitch = 0;
 		m_shroudSurfaceFormat = WW3D_FORMAT_UNKNOWN;
 		m_shroudSurfacePixelSize = 0;
 	}
-	REF_PTR_RELEASE(m_shroudSurface);
+	m_shroudMipActive = FALSE;
 }
 
 //-------------------------------------------------------------------------------------------------

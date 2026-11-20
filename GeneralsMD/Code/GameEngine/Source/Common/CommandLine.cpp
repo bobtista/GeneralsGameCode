@@ -28,6 +28,7 @@
 #include "Common/ArchiveFileSystem.h"
 #include "Common/CommandLine.h"
 #include "Common/CRCDebug.h"
+#include "Common/FramePacer.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/Recorder.h"
 #include "Common/version.h"
@@ -36,6 +37,7 @@
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
 #include "WWLib/trim.h"
+#include "GgcRuntimeFlags.h"
 
 
 
@@ -119,6 +121,174 @@ Int parseWin(char *args[], int)
 {
 	TheWritableGlobalData->m_windowed = true;
 
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
+// TheSuperHackers @feature bobtista 24/06/2026 Enable the bgfx renderer's optional
+// lighting effects in one switch (for demos/sharing). These all default off (CRC-safe)
+// and are no-ops on the DX8 backend. Equivalent to the Ctrl+Alt+N / +Y / +R / +K dev hotkeys.
+Int parseBgfxEffects(char *args[], int)
+{
+	TheWritableGlobalData->m_bgfxDynamicLightShadows = TRUE; // nuke + particle-cannon lights/shadows
+	TheWritableGlobalData->m_bgfxShadowMaps = TRUE;          // sun shadow map
+	TheWritableGlobalData->m_bgfxRimLight = TRUE;            // rim light
+	TheWritableGlobalData->m_bgfxEmissiveBoost = TRUE;       // emissive boost
+	TheWritableGlobalData->m_bgfxEmissiveBoostScale = 2.0f;
+
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
+Int parseBgfxNoEffects(char *args[], int)
+{
+	TheWritableGlobalData->m_bgfxDynamicLightShadows = FALSE;
+	TheWritableGlobalData->m_bgfxShadowMaps = FALSE;
+	TheWritableGlobalData->m_bgfxRimLight = FALSE;
+	TheWritableGlobalData->m_bgfxEmissiveBoost = FALSE;
+
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
+static Int parseSetFlag(GgcFlagId id)
+{
+	GgcFlags::SetOverride(id, "1");
+	return 1;
+}
+
+Int parseBgfxProbeNullSubmit(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeNullSubmit);
+}
+
+Int parseBgfxProbeFreezeState(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeFreezeState);
+}
+
+Int parseBgfxProbeNoSorted(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeNoSorted);
+}
+
+Int parseBgfxProbeNoTexBind(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeNoTexBind);
+}
+
+Int parseBgfxProbeNoMaterialUniform(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeNoMatUniform);
+}
+
+Int parseBgfxProbeNoLightUniform(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeNoLightUniform);
+}
+
+Int parseBgfxProbeNoRenderThread(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_BgfxNoRenderThread);
+}
+
+Int parseBgfxProbeNoParticleRender(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeNoParticleRender);
+}
+
+Int parseBgfxProbeNoSortFlush(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeNoSortFlush);
+}
+
+Int parseBgfxProbeNoSceneObjectRender(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeNoSceneObjectRender);
+}
+
+Int parseBgfxProbeIdentityInstances(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeIdentityInstances);
+}
+
+Int parseBgfxProbeTransposeInstances(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_ProbeTransposeInstances);
+}
+
+Int parseBgfxInstancingNoReorder(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_BgfxInstancingNoReorder);
+}
+
+Int parseBgfxDisableInstancing(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_BgfxNoInstancing);
+}
+
+Int parseBgfxDisableSortedMaterialRecaptureSkip(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_BgfxDisableSortedMaterialRecaptureSkip);
+}
+
+Int parseBgfxDisableSortedMaterialSnapshot(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_BgfxDisableSortedMaterialSnapshot);
+}
+
+Int parseBgfxSortedTextureArray(char *args[], int)
+{
+	// No-op since the merge became the default; accepted so existing harnesses stay valid.
+	return parseSetFlag(GgcFlag_BgfxSortedTextureArray);
+}
+
+Int parseBgfxNoSortedTextureArray(char *args[], int)
+{
+	return parseSetFlag(GgcFlag_BgfxNoSortedTextureArray);
+}
+
+Int parseBgfxFrameTimingAfter(char *args[], int num)
+{
+	if (num > 1)
+	{
+		GgcFlags::SetOverride(GgcFlag_BgfxFrameTimingAfter, args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parseBgfxFrameTimingInterval(char *args[], int num)
+{
+	if (num > 1)
+	{
+		GgcFlags::SetOverride(GgcFlag_BgfxFrameTimingInterval, args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parseBgfxFrameTimingPath(char *args[], int num)
+{
+	if (num > 1)
+	{
+		GgcFlags::SetOverride(GgcFlag_BgfxFrameTimingPath, args[1]);
+		return 2;
+	}
+	return 1;
+}
+
+Int parseBgfxSortedPacketCollectorDiag(char *args[], int num)
+{
+	GgcFlags::SetOverride(GgcFlag_BgfxSortedPacketCollectorDiag, "1");
+	if (num > 1 && args[1][0] != '-')
+	{
+		GgcFlags::SetOverride(GgcFlag_BgfxSortedPacketCollectorDiagLimit, args[1]);
+		return 2;
+	}
 	return 1;
 }
 
@@ -499,6 +669,29 @@ Int parseYRes(char *args[], int num)
 	return 1;
 }
 
+// TheSuperHackers @feature bobtista 16/08/2026 Override the camera height limits without editing GameData.ini, which keeps the INI CRC unchanged.
+#if PRESERVE_RETAIL_SCRIPTED_CAMERA
+Int parseCameraHeight(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_cameraHeight = (Real)atof(args[1]);
+		return 2;
+	}
+	return 1;
+}
+#endif
+
+Int parseMaxCameraHeight(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_maxCameraHeight = (Real)atof(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
 #if defined(RTS_DEBUG)
 //=============================================================================
 //=============================================================================
@@ -687,6 +880,21 @@ Int parsePreload( char *args[], int num )
 #endif
 
 
+// TheSuperHackers @feature bobtista 14/05/2026 Load a map directly from the
+// command line in release builds. Useful for creating visual regression saves
+// from maps that are normally only reached through shell flow.
+Int parseLoadMap(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_initialFile = args[1];
+		TheWritableGlobalData->m_shellMapOn = FALSE;
+		TheWritableGlobalData->m_playIntro = FALSE;
+		return 2;
+	}
+	return 1;
+}
+
 #if defined(RTS_DEBUG)
 Int parseDisplayDebug(char *args[], int)
 {
@@ -835,7 +1043,6 @@ Int parseWinCursors(char *args[], int num)
 Int parseQuickStart( char *args[], int num )
 {
 	parseNoLogo( args, num );
-	parseNoShellMap( args, num );
 	parseNoWindowAnimation( args, num );
 	return 1;
 }
@@ -1027,6 +1234,146 @@ Int parseNoFPSLimit(char *args[], int num)
 	return 1;
 }
 
+Int parseMaxRenderFPS(char *args[], int num)
+{
+	if (num > 1)
+	{
+		int fps = atoi(args[1]);
+		if (fps <= 0)
+		{
+			TheWritableGlobalData->m_useFpsLimit = false;
+			TheWritableGlobalData->m_framesPerSecondLimit = 30000;
+		}
+		else
+		{
+			TheWritableGlobalData->m_useFpsLimit = true;
+			TheWritableGlobalData->m_framesPerSecondLimit = fps;
+		}
+		return 2;
+	}
+	return 1;
+}
+
+// TheSuperHackers @feature bobtista 03/06/2026 Pin the logic-tick rate to
+// fps regardless of render rate. Use with -noFPSLimit to measure pure
+// rendering throughput: render runs as fast as possible while simulation
+// state advances at the same rate every run.
+Int parseFixedLogicFPS(char *args[], int num)
+{
+	if (num > 1)
+	{
+		int fps = atoi(args[1]);
+		if (fps > 0 && TheFramePacer != nullptr)
+		{
+			TheFramePacer->enableLogicTimeScale(TRUE);
+			TheFramePacer->setLogicTimeScaleFps(fps);
+		}
+		return 2;
+	}
+	return 1;
+}
+
+Int parseMsaa(char *args[], int num)
+{
+	if (num > 1)
+	{
+		int level = atoi(args[1]);
+		if (level == 2 || level == 4 || level == 8 || level == 16)
+		{
+			TheWritableGlobalData->m_bgfxMsaa = level;
+			char buf[8];
+			snprintf(buf, sizeof(buf), "%d", level);
+			GgcFlags::SetOverride(GgcFlag_BgfxMsaa, buf);
+		}
+		return 2;
+	}
+	return 1;
+}
+
+Int parseSrgb(char *args[], int num)
+{
+	GgcFlags::SetOverride(GgcFlag_BgfxSrgb, "1");
+	return 1;
+}
+
+Int parseLogFrameTimes(char *args[], int num)
+{
+	if (TheFramePacer != nullptr)
+	{
+		TheFramePacer->enablePerformanceLog(TRUE);
+	}
+	else
+	{
+		DEBUG_LOG(("parseLogFrameTimes() - TheFramePacer is not initialized"));
+	}
+
+	return 1;
+}
+
+Int parseLogBgfxStats(char *args[], int num)
+{
+	TheWritableGlobalData->m_bgfxLogStats = TRUE;
+
+	return 1;
+}
+
+Int parsePerfAutoExitSeconds(char *args[], int num)
+{
+	if (num > 1)
+	{
+		int seconds = atoi(args[1]);
+		if (seconds > 0)
+		{
+			char buf[16];
+			snprintf(buf, sizeof(buf), "%d", seconds);
+			GgcFlags::SetOverride(GgcFlag_AutoExitSeconds, buf);
+		}
+		return 2;
+	}
+
+	return 1;
+}
+
+Int parseBgfxSkipStaticVolumeShadows(char *args[], int)
+{
+	GgcFlags::SetOverride(GgcFlag_BgfxSkipStaticVolumeShadows, "1");
+	return 1;
+}
+
+Int parseBgfxNoSceneFramebuffer(char *args[], int num)
+{
+	TheWritableGlobalData->m_bgfxNoSceneFramebuffer = TRUE;
+
+	return 1;
+}
+
+Int parseBgfxNoPostFx(char *args[], int num)
+{
+	TheWritableGlobalData->m_bgfxNoPostFx = TRUE;
+
+	return 1;
+}
+
+Int parseBgfxScreenshotAfter(char *args[], int num)
+{
+	// -bgfxScreenshotAfter <frame> [<base path>]
+	// Once frameIndex >= <frame>, request a native bgfx screenshot every 500
+	// frames into <base path>.NNNNNN.bmp. Default base path is bgfx_capture.bmp
+	// in the working directory (developer iteration tool — not shipped).
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_bgfxScreenshotAfter = atoi(args[1]);
+		if (num > 2 && args[2][0] != '-')
+		{
+			TheWritableGlobalData->m_bgfxScreenshotPath = args[2];
+			return 3;
+		}
+		TheWritableGlobalData->m_bgfxScreenshotPath = "bgfx_capture.bmp";
+		return 2;
+	}
+	return 1;
+}
+
 Int parseDumpAssetUsage(char *args[], int num)
 {
 	TheWritableGlobalData->m_dumpAssetUsage = true;
@@ -1069,6 +1416,12 @@ Int parseMod(char *args[], Int num)
 
 		if (!TheLocalFileSystem->doesFileExist(modPath.str()))
 		{
+			// TheSuperHackers @tweak bobtista 29/07/2026 A mistyped mod name used to
+			// drop back to the base game silently in release builds, which looks just
+			// like a mod that loaded and changed nothing. Report it where a release
+			// build can see it, as failed archive mounts already do.
+			fprintf(stderr, "[ggc] mod not found, starting without it: %s\n", modPath.str());
+			fflush(stderr);
 			DEBUG_LOG(("Mod does not exist."));
 			return 2; // no such file/dir.
 		}
@@ -1077,6 +1430,8 @@ Int parseMod(char *args[], Int num)
 		struct _stat statBuf;
 		if (_stat(modPath.str(), &statBuf) != 0)
 		{
+			fprintf(stderr, "[ggc] mod could not be read, starting without it: %s\n", modPath.str());
+			fflush(stderr);
 			DEBUG_LOG(("Could not _stat() mod."));
 			return 2; // could not stat the file/dir.
 		}
@@ -1176,10 +1531,16 @@ static CommandLineParam paramsForStartup[] =
 static CommandLineParam paramsForEngineInit[] =
 {
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
+	{ "-bgfxEffects", parseBgfxEffects }, // must be in this (post-INI) table so it overrides Bgfx.ini/GameData.ini
+	{ "-bgfxNoEffects", parseBgfxNoEffects }, // must be post-INI so parity/perf runs can override Bgfx.ini/GameData.ini
 	{ "-noshellmap", parseNoShellMap },
 	{ "-noShellAnim", parseNoWindowAnimation }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-xres", parseXRes },
 	{ "-yres", parseYRes },
+#if PRESERVE_RETAIL_SCRIPTED_CAMERA
+	{ "-cameraHeight", parseCameraHeight },
+#endif
+	{ "-maxCameraHeight", parseMaxCameraHeight },
 	{ "-fullVersion", parseFullVersion },
 	{ "-particleEdit", parseParticleEdit },
 	{ "-scriptDebug", parseScriptDebug },
@@ -1189,6 +1550,42 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },
+	{ "-loadmap", parseLoadMap },
+	{ "-ignoresync", parseSync },
+	{ "-noFPSLimit", parseNoFPSLimit },
+	{ "-maxRenderFPS", parseMaxRenderFPS },
+	{ "-fixedLogicFPS", parseFixedLogicFPS },
+	{ "-perfAutoExitSeconds", parsePerfAutoExitSeconds },
+	{ "-bgfxSkipStaticVolumeShadows", parseBgfxSkipStaticVolumeShadows },
+	{ "-bgfxProbeNullSubmit", parseBgfxProbeNullSubmit },
+	{ "-bgfxProbeFreezeState", parseBgfxProbeFreezeState },
+	{ "-bgfxProbeNoSorted", parseBgfxProbeNoSorted },
+	{ "-bgfxProbeNoTexBind", parseBgfxProbeNoTexBind },
+	{ "-bgfxProbeNoMaterialUniform", parseBgfxProbeNoMaterialUniform },
+	{ "-bgfxProbeNoLightUniform", parseBgfxProbeNoLightUniform },
+	{ "-bgfxProbeNoRenderThread", parseBgfxProbeNoRenderThread },
+	{ "-bgfxProbeNoParticleRender", parseBgfxProbeNoParticleRender },
+	{ "-bgfxProbeNoSortFlush", parseBgfxProbeNoSortFlush },
+	{ "-bgfxProbeNoSceneObjectRender", parseBgfxProbeNoSceneObjectRender },
+	{ "-bgfxProbeIdentityInstances", parseBgfxProbeIdentityInstances },
+	{ "-bgfxProbeTransposeInstances", parseBgfxProbeTransposeInstances },
+	{ "-bgfxInstancingNoReorder", parseBgfxInstancingNoReorder },
+	{ "-bgfxDisableInstancing", parseBgfxDisableInstancing },
+	{ "-bgfxDisableSortedMaterialRecaptureSkip", parseBgfxDisableSortedMaterialRecaptureSkip },
+	{ "-bgfxDisableSortedMaterialSnapshot", parseBgfxDisableSortedMaterialSnapshot },
+	{ "-bgfxSortedTextureArray", parseBgfxSortedTextureArray },
+	{ "-bgfxNoSortedTextureArray", parseBgfxNoSortedTextureArray },
+	{ "-bgfxFrameTimingAfter", parseBgfxFrameTimingAfter },
+	{ "-bgfxFrameTimingInterval", parseBgfxFrameTimingInterval },
+	{ "-bgfxFrameTimingPath", parseBgfxFrameTimingPath },
+	{ "-bgfxSortedPacketCollectorDiag", parseBgfxSortedPacketCollectorDiag },
+	{ "-msaa", parseMsaa },
+	{ "-srgb", parseSrgb },
+	{ "-logFrameTimes", parseLogFrameTimes },
+	{ "-logBgfxStats", parseLogBgfxStats },
+	{ "-bgfxNoSceneFramebuffer", parseBgfxNoSceneFramebuffer },
+	{ "-bgfxNoPostFx", parseBgfxNoPostFx },
+	{ "-bgfxScreenshotAfter", parseBgfxScreenshotAfter },
 
 	// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 	{ "-forcefullviewport", parseFullViewport },
@@ -1308,7 +1705,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-constantDebug", parseConstantDebug },
 	{ "-seed", parseSeed },
 	{ "-noagpfix", parseIncrAGPBuf },
-	{ "-noFPSLimit", parseNoFPSLimit },
 	{ "-dumpAssetUsage", parseDumpAssetUsage },
 	{ "-jumpToFrame", parseJumpToFrame },
 	{ "-updateImages", parseUpdateImages },

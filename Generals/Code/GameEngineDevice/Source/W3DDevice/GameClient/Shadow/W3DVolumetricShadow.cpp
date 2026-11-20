@@ -43,6 +43,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -3294,15 +3295,21 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		nShadowIndicesInBuf = 0xffff;
 		nShadowVertsInBuf = 0xffff;
 
+		// TheSuperHackers @refactor bobtista 10/04/2026 the high-level Set_Material/Set_Shader/Set_Texture/Apply_Render_State_Changes
+		// calls below are routed through Renderer::. The raw m_pDev->SetRenderState
+		// and m_pDev->SetTextureStageState calls in the same function remain on the
+		// IDirect3DDevice8 device pointer because they belong to the deeply-coupled
+		// stencil-volume rendering inner loop.
+
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(vmat);
+		Renderer::Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);
 
-		DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-		DX8Wrapper::Set_Texture(0,nullptr);	//turn off textures
-		DX8Wrapper::Set_Texture(1,nullptr);	//turn off textures
-		DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+		Renderer::Set_Shader(ShaderClass::_PresetOpaqueShader);
+		Renderer::Set_Texture(0,nullptr);	//turn off textures
+		Renderer::Set_Texture(1,nullptr);	//turn off textures
+		Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		// turn off z writing
 		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
@@ -3338,8 +3345,8 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 	#else
 		//disable writes to color buffer
 		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
-		{	DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,0);
+		{	oldColorWriteEnable = Renderer::Get_Color_Write_Mask();
+			Renderer::Set_Color_Write_Mask(0);
 		}
 		else
 		{	//device does not support disabling writes to color buffer so fake it through alpha blending
@@ -3456,8 +3463,10 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		//m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 
 
+		// oldColorWriteEnable is a captured DWORD bitmask; restore it through
+		// the mask variant instead of re-decoding individual channels.
 		if (oldColorWriteEnable != 0x12345678)
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,oldColorWriteEnable);
+			Renderer::Set_Color_Write_Mask(oldColorWriteEnable);
 
 		//
 		// render the big transparent square of shadows in the stencil buffer
@@ -3471,24 +3480,26 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , FALSE);
 		m_pDev->SetRenderState(D3DRS_LIGHTING, FALSE);
 
-		DX8Wrapper::Invalidate_Cached_Render_States();
+		Renderer::Invalidate_Cached_Render_States();
 	}
 	else
 	if (forceStencilFill)
 	{	//no shadows to render, but still need to fill stencil buffer
 		//for other effects.
 
+		// TheSuperHackers @refactor bobtista 10/04/2026 same pattern as the main shadow-render branch above.
+
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(vmat);
+		Renderer::Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);
-		DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-		DX8Wrapper::Set_Texture(0,nullptr);
-		DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+		Renderer::Set_Shader(ShaderClass::_PresetOpaqueShader);
+		Renderer::Set_Texture(0,nullptr);
+		Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		renderStencilShadows();
 
-		DX8Wrapper::Invalidate_Cached_Render_States();
+		Renderer::Invalidate_Cached_Render_States();
 	}
 
 }
@@ -3663,7 +3674,7 @@ void W3DVolumetricShadowManager::reset()
 // ============================================================================
 W3DVolumetricShadow* W3DVolumetricShadowManager::addShadow(RenderObjClass *robj, Shadow::ShadowTypeInfo *shadowInfo, Drawable *draw)
 {
-	if (!DX8Wrapper::Has_Stencil() || !robj || !TheGlobalData->m_useShadowVolumes)
+	if (!Renderer::Has_Stencil() || !robj || !TheGlobalData->m_useShadowVolumes)
 		return nullptr;	//right now we require a stencil buffer
 
 	W3DShadowGeometry *sg=nullptr;

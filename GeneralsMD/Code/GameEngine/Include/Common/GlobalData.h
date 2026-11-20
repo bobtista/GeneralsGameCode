@@ -162,6 +162,67 @@ public:
 	Bool m_useCloudPlane;
 	Bool m_useShadowVolumes;
 	Bool m_useShadowDecals;
+	Bool m_bgfxPostProcessing;
+	Real m_bgfxPostSharpenAmount;
+	Real m_bgfxPostSaturation;
+	Real m_bgfxPostContrast;
+	Real m_bgfxPostFxaaAmount;
+	Bool m_bgfxWipeEnabled;
+	Bool m_bgfxWipeFollowMouse;
+	Real m_bgfxWipeSplit;
+	Bool m_bgfxColorGrade;
+	Real m_bgfxColorGradeStrength;
+	Real m_bgfxColorGradeTemperature;
+	Real m_bgfxColorGradeTint;
+	Bool m_bgfxBloom;
+	Real m_bgfxBloomThreshold;
+	Real m_bgfxBloomIntensity;
+	Bool m_bgfxHdr;
+	Bool m_bgfxVignette;
+	Real m_bgfxVignetteStrength;
+	Bool m_bgfxChromaticAberration;
+	Real m_bgfxChromaticAberrationAmount;
+	Bool m_bgfxFilmGrain;
+	Real m_bgfxFilmGrainStrength;
+	Bool m_bgfxSSAO;
+	Real m_bgfxSSAORadius;
+	Real m_bgfxSSAOIntensity;
+	Real m_bgfxRenderScale;
+	Bool m_bgfxSpecular;
+	Real m_bgfxSpecularStrength;
+	Bool m_bgfxRimLight;
+	Real m_bgfxRimStrength;
+	Real m_bgfxRimPower;
+	Bool m_bgfxEmissiveBoost;
+	Real m_bgfxEmissiveBoostScale;
+	Bool m_bgfxShadowMaps;
+	Real m_bgfxShadowMapBias;
+	Real m_bgfxShadowMapStrength;
+	Bool m_bgfxShadowFullPcf;
+	Bool m_bgfxStencilShadows;
+	// TheSuperHackers @feature bobtista 23/06/2026 Toggle for the perspective point-light shadow map.
+	Bool m_bgfxDynamicLightShadows;
+	// TheSuperHackers @feature bobtista 16/07/2026 INI toggle for the experimental dramatic
+	// Particle Cannon lighting (mirrors the GGC_PCANNON_ENHANCED env flag, which still overrides).
+	Bool m_pcannonEnhanced;
+	// TheSuperHackers @tweak bobtista 18/07/2026 Live-tunable knobs for the enhanced Particle
+	// Cannon lighting so its feel can be dialed from Bgfx.ini without a rebuild.
+	Real m_pcannonFlashRadius;   ///< Max horizontal offset of a lightning flash from the beam
+	Int  m_pcannonFlashInterval; ///< Frames between flash windows (lower = more frequent)
+	Int  m_pcannonFlashFadeIn;   ///< Flash light fade-in frames (0 = instant pop)
+	Int  m_pcannonFlashFadeOut;  ///< Flash light fade-out frames
+	Real m_pcannonDimTarget;     ///< Scene ambient floor at the beam (lower = darker/more impact)
+	Bool m_bgfxPointFilter;
+	Bool m_bgfxSoftParticles;
+	Real m_bgfxSoftParticleFadeScale;
+	Bool m_bgfxLogStats;
+	Bool m_bgfxNoSceneFramebuffer;
+	Bool m_bgfxNoPostFx;
+	Int  m_bgfxMsaa;
+	Bool m_bgfxSrgb;
+	AsciiString m_bgfxRenderer; // empty = platform default; dx11, dx12, vulkan, metal, gl
+	Int  m_bgfxScreenshotAfter; // 0 = disabled; otherwise once frameIndex >= this value, request a native bgfx screenshot every 500 frames into m_bgfxScreenshotPath.<frame>.bmp
+	AsciiString m_bgfxScreenshotPath;
 	Int  m_textureReductionFactor;	//how much to cut texture resolution: 2 is half, 3 is quarter, etc.
 	Bool m_enableBehindBuildingMarkers;
 	Real m_waterPositionX;

@@ -411,7 +411,9 @@ void GameClient::init()
 		// finish initializing the mouse.
 		TheMouse->init();
 		TheMouse->initCapture();
-		TheMouse->setPosition( 0, 0 );
+		// TheSuperHackers @bugfix bobtista 11/07/2026 Was setPosition(0, 0); the
+		// default implementation still is. See Mouse::syncPositionToSystemCursor.
+		TheMouse->syncPositionToSystemCursor();
 		TheMouse->setMouseLimits();
 		TheMouse->setName("TheMouse");
 	}
@@ -545,6 +547,10 @@ void GameClient::update()
 
 			TheShell->showShellMap(TRUE);
 			TheShell->showShell();
+			// TheSuperHackers @bugfix bobtista 27/04/2026 Resume rendering after
+			// startup movie cancellation. With the shell map enabled, MainMenuInit
+			// may not run before the first shell-map frames.
+			TheWritableGlobalData->m_breakTheMovie = FALSE;
 		}
 	}
 

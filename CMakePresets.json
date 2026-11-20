@@ -131,11 +131,27 @@
             }
         },
         {
+            "name": "win32-bgfx",
+            "inherits": "win32",
+            "displayName": "Windows 32bit Release (bgfx)",
+            "cacheVariables": {
+                "GGC_RENDER_BACKEND": "bgfx"
+            }
+        },
+        {
             "name": "win32-debug",
             "inherits": "win32",
             "displayName": "Windows 32bit Debug",
             "cacheVariables": {
                 "RTS_BUILD_OPTION_DEBUG": "ON"
+            }
+        },
+        {
+            "name": "win32-debug-bgfx",
+            "inherits": "win32-debug",
+            "displayName": "Windows 32bit Debug (bgfx)",
+            "cacheVariables": {
+                "GGC_RENDER_BACKEND": "bgfx"
             }
         },
         {
@@ -206,6 +222,94 @@
             "inherits": "default-vcpkg",
             "hidden": false,
             "displayName": "Unix 32bit VCPKG Release"
+        },
+        {
+            "name": "macos-generalsmd-sdl3-bgfx",
+            "inherits": "default",
+            "hidden": false,
+            "displayName": "macOS GeneralsMD SDL3 bgfx Release",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0",
+                "RTS_BUILD_GENERALS": "OFF",
+                "RTS_BUILD_GENERALS_TOOLS": "OFF",
+                "RTS_BUILD_ZEROHOUR": "ON",
+                "RTS_BUILD_ZEROHOUR_TOOLS": "OFF",
+                "RTS_BUILD_CORE_TOOLS": "OFF",
+                "RTS_BUILD_OPTION_FFMPEG": "ON",
+                "SAGE_USE_SDL3": "ON",
+                "SAGE_USE_OPENAL": "ON",
+                "RTS_GAMEMEMORY_ENABLE": "OFF",
+                "GGC_RENDER_BACKEND": "bgfx",
+                "GGC_BGFX_RENDERER": "metal"
+            }
+        },
+        {
+            "name": "macos-generalsmd-sdl3-bgfx-profile",
+            "inherits": "macos-generalsmd-sdl3-bgfx",
+            "displayName": "macOS GeneralsMD SDL3 bgfx Profile (Tracy)",
+            "cacheVariables": {
+                "RTS_BUILD_OPTION_PROFILE_TRACY": "ON",
+                "RTS_CRASHDUMP_ENABLE": "OFF"
+            }
+        },
+        {
+            "name": "linux-generalsmd-sdl3-bgfx",
+            "inherits": "default",
+            "hidden": false,
+            "displayName": "Linux GeneralsMD SDL3 bgfx Release",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "RTS_BUILD_GENERALS": "OFF",
+                "RTS_BUILD_GENERALS_TOOLS": "OFF",
+                "RTS_BUILD_ZEROHOUR": "ON",
+                "RTS_BUILD_ZEROHOUR_TOOLS": "OFF",
+                "RTS_BUILD_CORE_TOOLS": "OFF",
+                "RTS_BUILD_OPTION_FFMPEG": "ON",
+                "RTS_CRASHDUMP_ENABLE": "OFF",
+                "SAGE_USE_SDL3": "ON",
+                "SAGE_USE_OPENAL": "ON",
+                "RTS_GAMEMEMORY_ENABLE": "OFF",
+                "GGC_RENDER_BACKEND": "bgfx",
+                "GGC_BGFX_RENDERER": "vulkan"
+            }
+        },
+        {
+            "name": "win32-generalsmd-sdl3-bgfx",
+            "inherits": "win32-bgfx",
+            "displayName": "Windows 32bit GeneralsMD SDL3 bgfx Release",
+            "cacheVariables": {
+                "RTS_BUILD_GENERALS": "OFF",
+                "RTS_BUILD_GENERALS_TOOLS": "OFF",
+                "RTS_BUILD_ZEROHOUR": "ON",
+                "RTS_BUILD_ZEROHOUR_TOOLS": "OFF",
+                "RTS_BUILD_CORE_TOOLS": "OFF",
+                "RTS_BUILD_OPTION_FFMPEG": "ON",
+                "SAGE_USE_SDL3": "ON",
+                "SAGE_USE_OPENAL": "ON"
+            }
+        },
+        {
+            "name": "win64",
+            "inherits": "win32-generalsmd-sdl3-bgfx",
+            "displayName": "Windows 64bit GeneralsMD SDL3 bgfx Release",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "environment": {
+                "FFMPEG_ROOT": "${sourceDir}/.deps-cache/ffmpeg-x64"
+            }
+        },
+        {
+            "name": "win64-debug",
+            "inherits": "win64",
+            "displayName": "Windows 64bit GeneralsMD SDL3 bgfx Debug",
+            "cacheVariables": {
+                "RTS_BUILD_OPTION_DEBUG": "ON"
+            }
         },
         {
             "name": "mingw-w64-i686",
@@ -283,6 +387,46 @@
             "displayName": "Build Windows 32bit Profile",
             "description": "Build Windows 32bit Profile",
             "configuration": "Release"
+        },
+        {
+            "name": "win32-bgfx",
+            "configurePreset": "win32-bgfx",
+            "displayName": "Build Windows 32bit Release (bgfx)",
+            "description": "Build Windows 32bit Release (bgfx)",
+            "configuration": "Release",
+            "targets": [
+                "z_generals"
+            ]
+        },
+        {
+            "name": "win32-generalsmd-sdl3-bgfx",
+            "configurePreset": "win32-generalsmd-sdl3-bgfx",
+            "displayName": "Build Windows 32bit GeneralsMD SDL3 bgfx Release",
+            "description": "Build Windows 32bit Release (bgfx + SDL3 + OpenAL + FFmpeg, GeneralsMD only)",
+            "configuration": "Release",
+            "targets": [
+                "z_generals"
+            ]
+        },
+        {
+            "name": "win64",
+            "configurePreset": "win64",
+            "displayName": "Build Windows 64bit GeneralsMD SDL3 bgfx Release",
+            "description": "Build Windows 64bit Release (bgfx + SDL3 + OpenAL + FFmpeg, GeneralsMD only)",
+            "configuration": "Release",
+            "targets": [
+                "z_generals"
+            ]
+        },
+        {
+            "name": "win64-debug",
+            "configurePreset": "win64-debug",
+            "displayName": "Build Windows 64bit GeneralsMD SDL3 bgfx Debug",
+            "description": "Build Windows 64bit Debug (bgfx + SDL3 + OpenAL + FFmpeg, GeneralsMD only)",
+            "configuration": "Debug",
+            "targets": [
+                "z_generals"
+            ]
         },
         {
             "name": "win32-debug",
@@ -448,6 +592,58 @@
                 {
                     "type": "build",
                     "name": "win32-profile"
+                }
+            ]
+        },
+        {
+            "name": "win32-bgfx",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win32-bgfx"
+                },
+                {
+                    "type": "build",
+                    "name": "win32-bgfx"
+                }
+            ]
+        },
+        {
+            "name": "win32-generalsmd-sdl3-bgfx",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win32-generalsmd-sdl3-bgfx"
+                },
+                {
+                    "type": "build",
+                    "name": "win32-generalsmd-sdl3-bgfx"
+                }
+            ]
+        },
+        {
+            "name": "win64",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win64"
+                },
+                {
+                    "type": "build",
+                    "name": "win64"
+                }
+            ]
+        },
+        {
+            "name": "win64-debug",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win64-debug"
+                },
+                {
+                    "type": "build",
+                    "name": "win64-debug"
                 }
             ]
         },

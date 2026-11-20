@@ -42,9 +42,13 @@
 
 #include "GameClient/ControlBar.h"
 #include "GameClient/GameClient.h"
+#include "GameClient/Display.h"
+#include "GameClient/View.h"
 #include "GameClient/Drawable.h"
 #include "GameClient/ParticleSys.h"
 #include "GameClient/FXList.h"
+
+#include "Common/GlobalData.h"
 
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/PartitionManager.h"
@@ -57,6 +61,7 @@
 #include "GameLogic/Module/ParticleUplinkCannonUpdate.h"
 #include "GameLogic/Module/PhysicsUpdate.h"
 #include "GameLogic/Module/ActiveBody.h"
+#include "GgcRuntimeFlags.h"
 
 // TheSuperHackers @fix Mirelle 04/02/2026: Raised from 500.0f so that
 // enormous camera heights cannot see above the laser origin.
@@ -655,11 +660,139 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 				audioPos.z += ORBITAL_BEAM_AUDIO_Z_OFFSET;
 				beam->setPosition( &audioPos );
 			}
+
 			// TheSuperHackers @refactor helmutbuhler/xezon 17/05/2025
 			// Originally the damageRadius was calculated with a value updated by LaserUpdate::clientUpdate.
 			// To no longer rely on GameClient updates, this class now maintains a copy of the LaserRadiusUpdate.
 			m_orbitToTargetLaserRadius.updateRadius();
 			const Real logicalLaserRadius = templateLaserRadius * m_orbitToTargetLaserRadius.getWidthScale();
+
+			// TheSuperHackers @feature bobtista 23/06/2026 Coloured light that rides the beam, washing
+			// nearby vehicles/buildings in the beam's faction colour (blue, or magenta for the
+			// Superweapon General) with a specular glint and a cast shadow. Gated on the BGFX
+			// dynamic-light feature so it is a no-op on the DX8 reference path; render-only, no CRC
+			// effect. One persistent light is repositioned each frame (no per-frame flicker). Its
+			// intensity follows the logic-owned laser radius rather than the client drawable's current
+			// width, so the light/shadow envelope decays smoothly with the beam instead of snapping on
+			// client update ordering.
+			static const Bool disableParticleCannonTrackingLight = GgcFlags::Enabled(GgcFlag_DisableParticleCannonTrackingLight);
+			if( !disableParticleCannonTrackingLight && TheDisplay != NULL && TheGlobalData != NULL && TheGlobalData->m_bgfxDynamicLightShadows )
+			{
+				Real intensity = (templateLaserRadius > 0.0f) ? (logicalLaserRadius / templateLaserRadius) : 1.0f;
+				if( intensity > 1.0f ) { intensity = 1.0f; }
+				if( intensity < 0.0f ) { intensity = 0.0f; }
+				const Bool isSuperweapon = (strstr( data->m_particleBeamLaserName.str(), "SupW" ) != NULL);
+				RGBColor beamColor;
+				if( isSuperweapon )
+				{
+					beamColor.red = 1.25f; beamColor.green = 0.1f; beamColor.blue = 1.25f;
+				}
+				else
+				{
+					beamColor.red = 0.06f; beamColor.green = 0.18f; beamColor.blue = 0.85f;
+				}
+				beamColor.red *= intensity;
+				beamColor.green *= intensity;
+				beamColor.blue *= intensity;
+				Coord3D beamLightPos = m_currentTargetPosition;
+				beamLightPos.z += 95.0f;
+				Real beamShadowStrength = 0.48f * intensity;
+				Bool snapBlend = FALSE;
+				// TheSuperHackers @feature bobtista 14/07/2026 Experimental dramatic beam lighting
+				// (GGC_PCANNON_ENHANCED): the primary beam light (and its main shadow) stays put with a
+				// gentle intensity flicker; the drama comes from short-lived "lightning" pulse lights
+				// spawned beside the beam at hashed, irregular moments. Each pulse decays over a few
+				// frames and casts its own real shadow through the renderer's second point-shadow
+				// slot, so extra shadows blink in from changing directions while the main shadow
+				// never moves. Purely visual: lights feed the render backend only, no logic state is
+				// touched, and the randomness is a hash of the logic frame (no game RNG consumed).
+				static const Bool dramaticBeamLight = GgcFlags::Enabled(GgcFlag_PCannonEnhanced)
+					|| (TheGlobalData != NULL && TheGlobalData->m_pcannonEnhanced);
+				if( dramaticBeamLight )
+				{
+					static const Bool noFlicker = GgcFlags::Enabled(GgcFlag_PCannonNoFlicker);
+					static const Bool noFlash = GgcFlags::Enabled(GgcFlag_PCannonNoFlash);
+					// The drama beam glow runs brighter than the plain tracking light: with the
+					// point-light contributions gated out of shadows and off cutouts/decals, the
+					// remaining lit-ground glow needs the extra energy to read at all.
+					beamColor.red *= 2.4f;
+					beamColor.green *= 2.4f;
+					beamColor.blue *= 2.4f;
+					// The primary light stays fixed on the beam column: one steady main shadow.
+					// The "messy" secondary shadows come only from the flash pulses sparking just
+					// outside the beam (an orbiting primary read as a nonsensical rotating shadow).
+					if( !noFlicker )
+					{
+						UnsignedInt h = now;
+						h = (h ^ 61u) ^ (h >> 16); h *= 9u; h = h ^ (h >> 4); h *= 0x27d4eb2du; h = h ^ (h >> 15);
+						const Real flickerRand = (Real)(h & 0xFFFFu) / 65535.0f;
+						const Real flicker = 0.62f + 0.38f * flickerRand;
+						beamColor.red *= flicker;
+						beamColor.green *= flicker;
+						beamColor.blue *= flicker;
+						// The beam's shadow darkness stays constant: only the light's brightness
+						// flickers. Any throb on shadow strength reads as shadow patches flashing.
+						snapBlend = TRUE;
+					}
+
+					// One lightning pulse may fire per window (PCannonFlashInterval frames), at a hashed
+					// frame within it, from a hashed direction beside the beam. The pulse fades in over
+					// PCannonFlashFadeIn frames and out over PCannonFlashFadeOut frames so it pulses
+					// softly instead of strobing.
+					const UnsignedInt flashWindow = (UnsignedInt)max( 1, TheGlobalData->m_pcannonFlashInterval );
+					const UnsignedInt window = now / flashWindow;
+					UnsignedInt wh = window * 7919u + 97u;
+					wh = (wh ^ 61u) ^ (wh >> 16); wh *= 9u; wh = wh ^ (wh >> 4); wh *= 0x27d4eb2du; wh = wh ^ (wh >> 15);
+					const Bool windowHasFlash = ((wh & 0xFFu) > 40u); // ~84% of windows
+					const UnsignedInt flashStart = window * flashWindow + ((wh >> 8) % 8u);
+					if( !noFlash && windowHasFlash && now == flashStart )
+					{
+						const Real flashAngle = ((Real)((wh >> 12) & 0x3FFu) / 1023.0f) * 6.2832f;
+						const Real flashRadiusMax = TheGlobalData->m_pcannonFlashRadius;
+						const Real flashRadiusMin = flashRadiusMax * 0.4f;
+						const Real flashRadius = flashRadiusMin + ((Real)((wh >> 22) & 0xFFu) / 255.0f) * (flashRadiusMax - flashRadiusMin);
+						Coord3D flashPos = m_currentTargetPosition;
+						flashPos.x += flashRadius * WWMath::Cosf( flashAngle );
+						flashPos.y += flashRadius * WWMath::Sinf( flashAngle );
+						// Keep the flash well overhead: a low light grazes its own shadow map across
+						// the whole footprint (a visible dark square of acne on the ground) and blows
+						// out nearby foliage sitting inside the near-full attenuation zone.
+						flashPos.z += 80.0f;
+						RGBColor flashColor;
+						// Cool and local: deep blue, so flashes read as lightning beside the beam
+						// instead of scene-wide warm brightness pulses. Bright enough to register on
+						// sunlit ground now that shadows/cutouts/decals are gated out entirely.
+						flashColor.red = 0.70f * intensity;
+						flashColor.green = 1.40f * intensity;
+						flashColor.blue = 4.20f * intensity;
+						TheDisplay->createLightPulse( &flashPos, &flashColor, 110.0f, 260.0f,
+							TheGlobalData->m_pcannonFlashFadeIn, TheGlobalData->m_pcannonFlashFadeOut,
+							TRUE, 0.003f, 0.45f * intensity );
+						// TheSuperHackers @tweak bobtista 08/08/2026 Prototype tracing that emits per
+						// flash pulse. Keep it reachable for tuning but off by default, so it does
+						// not fill the log a release build now ships to players.
+						static const Bool tracePCannonFlash = GgcFlags::Enabled(GgcFlag_Trace);
+						if( tracePCannonFlash )
+						{
+							DEBUG_LOG(("PCANNON flash pulse frame=%d radius=%.0f pos=(%.0f,%.0f,%.0f) fadeIn=%d fadeOut=%d",
+								now, flashRadius, flashPos.x, flashPos.y, flashPos.z,
+								TheGlobalData->m_pcannonFlashFadeIn, TheGlobalData->m_pcannonFlashFadeOut));
+						}
+					}
+
+					// TheSuperHackers @feature bobtista 17/07/2026 Light continuous camera rumble while
+					// the beam fires, like the Battle Master's fire shake but re-impulsed periodically
+					// so it sustains gently instead of building to the clamp. View-only (attenuates by
+					// the local camera's distance, decays on its own), so no logic/CRC/replay effect.
+					static const Bool noShake = GgcFlags::Enabled(GgcFlag_PCannonNoShake);
+					if( !noShake && TheTacticalView != NULL && (now % 6) == 0 )
+					{
+						TheTacticalView->shake( &m_currentTargetPosition, View::SHAKE_SUBTLE );
+					}
+				}
+				TheDisplay->updateTrackingLight( &beamLightPos, &beamColor, dramaticBeamLight ? 90.0f : 190.0f, dramaticBeamLight ? 290.0f : 560.0f, TRUE, 0.0015f, beamShadowStrength, snapBlend,
+					(UnsignedInt)getObject()->getID() );
+			}
 			damageRadius = logicalLaserRadius * data->m_damageRadiusScalar;
 			scorchRadius = logicalLaserRadius * data->m_scorchMarkScalar;
 #if defined(RETAIL_COMPATIBLE_CRC)

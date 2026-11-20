@@ -62,7 +62,7 @@
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -158,9 +158,11 @@ RoadType::~RoadType()
 //=============================================================================
 void RoadType::applyTexture()
 {
- 	W3DShaderManager::setTexture(0,m_roadTexture);
-	DX8Wrapper::Set_Index_Buffer(m_indexRoad,0);
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexRoad);
+ 	Renderer::Set_Texture(0,m_roadTexture);
+	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
+	// through the IRenderBackend abstraction.
+	Renderer::Set_Index_Buffer(m_indexRoad,0);
+	Renderer::Set_Vertex_Buffer(m_vertexRoad,0);
 }
 
 
@@ -174,7 +176,16 @@ void RoadType::loadTexture(AsciiString path, Int ID)
 	/// @todo - delay loading textures and only load textures referenced by map.
 	WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @bugfix bobtista 17/06/2026 Road shape is encoded in the texture's alpha
+	// channel and the road is alpha-blended over the terrain. With mipmaps the alpha averages down
+	// at distance, so far-away roads fade to fully transparent and appear cut off (the cut shifts as
+	// the camera scrolls). bgfx mips the alpha more aggressively than the DX8 path, so keep road
+	// textures unmipped on bgfx to preserve the road silhouette into the distance.
+	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_1);
+#else
 	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3);
+#endif
 	//Hack to disable texture reduction
 	//m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3, WW3D_FORMAT_UNKNOWN,true,TextureBaseClass::TEX_REGULAR, false);
 
@@ -183,8 +194,13 @@ void RoadType::loadTexture(AsciiString path, Int ID)
 	m_roadTexture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_REPEAT);
 	m_roadTexture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_REPEAT);
 
-	m_vertexRoad=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,TheGlobalData->m_maxRoadVertex+4, (s_dynamic?DX8VertexBufferClass::USAGE_DYNAMIC:DX8VertexBufferClass::USAGE_DEFAULT)));
-	m_indexRoad=NEW_REF(DX8IndexBufferClass,(TheGlobalData->m_maxRoadIndex+4, (s_dynamic?DX8IndexBufferClass::USAGE_DYNAMIC:DX8IndexBufferClass::USAGE_DEFAULT)));
+	m_vertexRoad=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZDUV1,
+		TheGlobalData->m_maxRoadVertex+4,
+		(s_dynamic?Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>():Render_Buffer_Usage_Default<RenderVertexBufferClass>())));
+	m_indexRoad=NEW_REF(RenderIndexBufferClass,(
+		TheGlobalData->m_maxRoadIndex+4,
+		(s_dynamic?Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>():Render_Buffer_Usage_Default<RenderIndexBufferClass>())));
 	m_numRoadVertices=0;
 	m_numRoadIndices=0;
 
@@ -1236,8 +1252,8 @@ void W3DRoadBuffer::loadRoadsInVertexAndIndexBuffers()
 		this->m_roadTypes[m_curRoadType].setNumIndices(0);
 		return;
 	}
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_roadTypes[m_curRoadType].getIB(), s_dynamic?D3DLOCK_DISCARD:0);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_roadTypes[m_curRoadType].getVB(), s_dynamic?D3DLOCK_DISCARD:0);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_roadTypes[m_curRoadType].getIB(), s_dynamic?RB_LOCK_DISCARD:0);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_roadTypes[m_curRoadType].getVB(), s_dynamic?RB_LOCK_DISCARD:0);
 	vb=(VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 	// Add to the index buffer & vertex buffer.
@@ -1315,8 +1331,8 @@ void W3DRoadBuffer::loadLitRoadsInVertexAndIndexBuffers(RefRenderObjListIterator
 	VertexFormatXYZDUV1 *vb;
 	UnsignedShort *ib;
 	// Lock the buffers.
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_roadTypes[m_curRoadType].getIB());
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_roadTypes[m_curRoadType].getVB());
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_roadTypes[m_curRoadType].getIB());
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_roadTypes[m_curRoadType].getVB());
 	vb=(VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 	// Add to the index buffer & vertex buffer.
@@ -3301,22 +3317,9 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 		}
 	}
 	Int stacking;
-	W3DShaderManager::ShaderTypes st=W3DShaderManager::ST_ROAD_BASE; //set default shader
-	if (cloudTexture) {
-		st=W3DShaderManager::ST_ROAD_BASE_NOISE1;
-		if (noiseTexture)
-			st=W3DShaderManager::ST_ROAD_BASE_NOISE12;
-	}
-	else
-	if (noiseTexture)
-		st=W3DShaderManager::ST_ROAD_BASE_NOISE2;
-
-	Int devicePasses = 1;	//assume regular rendering
- 	//Find number of passes required to render current shader
-	devicePasses=W3DShaderManager::getShaderPasses(st);
-
-	W3DShaderManager::setTexture(1,cloudTexture);	//cloud
-	W3DShaderManager::setTexture(2,noiseTexture);	//noise/lightmap
+	RenderBackendRoadDraw road;
+	road.maps = W3DShaderManager::getGroundMaps(cloudTexture, noiseTexture);
+	road.trilinear_filtering = TheGlobalData && TheGlobalData->m_trilinearTerrainTex;
 
 
 	Bool loadBuffers = false;
@@ -3336,28 +3339,22 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 			m_curRoadType = i;
 			if (loadBuffers) loadRoadsInVertexAndIndexBuffers();
 			if (m_roadTypes[i].getNumIndices() == 0) continue;
+			// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
+			// through the IRenderBackend abstraction.
 			if (wireframe) {
 				m_roadTypes[i].applyTexture();
-				DX8Wrapper::Set_Texture(0,nullptr);
+				Renderer::Set_Texture(0,nullptr);
 			} else {
 				m_roadTypes[i].applyTexture();
 			}
-	#ifdef RTS_DEBUG
-			//DX8Wrapper::Set_Shader(detailShader); // shows clipping.
-	#endif
-			for (Int pass=0; pass < devicePasses; pass++)
-			{
-				if (!wireframe)
-		 			W3DShaderManager::setShader(st, pass);
-				//Draw all this road type.
-				DX8Wrapper::Draw_Triangles(	0, m_roadTypes[i].getNumIndices()/3, 0,	m_roadTypes[i].getNumVertices());
+			//Draw all this road type.
+			if (wireframe)
+				Renderer::Draw_Triangles(	0, m_roadTypes[i].getNumIndices()/3, 0,	m_roadTypes[i].getNumVertices());
+			else
+				Renderer::Draw_Road(road, 0, m_roadTypes[i].getNumIndices()/3, 0,	m_roadTypes[i].getNumVertices());
 #ifdef LOG_STATS
-				polys += m_roadTypes[i].getNumIndices()/3;
+			polys += m_roadTypes[i].getNumIndices()/3;
 #endif
-			}
-
-			if (!wireframe)	//shader was applied at least once?
- 				W3DShaderManager::resetShader(st);
 		}
 	}
 #ifdef LOG_STATS
@@ -3368,8 +3365,8 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 
 #if 0
 	// Need to use a separate set of index & vertex buffers for this.  jba.
-	DX8Wrapper::Set_Index_Buffer(nullptr,0);
-	DX8Wrapper::Set_Vertex_Buffer(nullptr);
+	Renderer::Set_Index_Buffer(nullptr,0);
+	Renderer::Set_Vertex_Buffer(nullptr,0);
 	if (pDynamicLightsIterator) {
 		for (i=0; i<m_maxRoadTypes; i++) {
 			m_curRoadType = i;
@@ -3378,20 +3375,18 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 			loadLitRoadsInVertexAndIndexBuffers(pDynamicLightsIterator);
 			if (this->m_curNumRoadIndices == 0) continue;
 			if (wireframe) {
-					DX8Wrapper::Set_Texture(0,nullptr);
+					Renderer::Set_Texture(0,nullptr);
 			} else {
 				m_roadTypes[i].applyTexture();
 				if (cloudTexture) {
-					DX8Wrapper::Set_Texture(1,cloudTexture);
+					Renderer::Set_Texture(1,cloudTexture);
 				}
 			}
-			DX8Wrapper::Set_Shader(detailAlphaShader);
+			Renderer::Set_Shader(detailAlphaShader);
 			//Draw all the roads.
-			DX8Wrapper::Draw_Triangles(	0, m_curNumRoadIndices/3, 0,	m_curNumRoadVertices);
+			Renderer::Draw_Triangles(	0, m_curNumRoadIndices/3, 0,	m_curNumRoadVertices);
 		}
 	}
 #endif
 	m_curRoadType = 0;
 }
-
-

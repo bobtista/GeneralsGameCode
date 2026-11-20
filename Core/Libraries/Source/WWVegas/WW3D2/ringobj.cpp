@@ -74,26 +74,31 @@
 #include "ringobj.h"
 #include "w3d_util.h"
 #include "WWDebug/wwdebug.h"
-#include "WW3D2/vertmaterial.h"
-#include "WW3D2/ww3d.h"
+#include "vertmaterial.h"
+#include "ww3d.h"
 #include "WWLib/chunkio.h"
-#include "WW3D2/rinfo.h"
+#include "rinfo.h"
 #include "coltest.h"
 #include "inttest.h"
 #include	"WWMath/matrix3.h"
 #include	"WWMath/wwmath.h"
-#include "WW3D2/assetmgr.h"
+#include "assetmgr.h"
 #include "WWLib/wwstring.h"
 #include "WWLib/bound.h"
-#include "WW3D2/camera.h"
+#include "camera.h"
 #include "statistics.h"
 #include "predlod.h"
+#include "ww3dcolor.h"
+#include "indexbuffer.h"
+#include "vertexbuffer.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
 #include "sortingrenderer.h"
 #include "WWMath/Vector3i.h"
 #include "visrasterizer.h"
+#include "Renderer.h"
 
 
 static bool Ring_Array_Valid = false;
@@ -531,13 +536,13 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 	} else {
 		RingShader.Set_Texturing (ShaderClass::TEXTURING_DISABLE);
 	}
-	DX8Wrapper::Set_Shader(RingShader);
-	DX8Wrapper::Set_Texture(0,RingTexture);
-	DX8Wrapper::Set_Material(RingMaterial);
+	Renderer::Set_Shader(RingShader);
+	Renderer::Set_Texture(0,RingTexture);
+	Renderer::Set_Material(RingMaterial);
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (RingShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (RingShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
-	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC;
 
 	DynamicVBAccessClass vb(buffer_type, dynamic_fvf_type, ring.Vertex_ct);
 	{
@@ -549,9 +554,9 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 		//
 		unsigned color;
 		if (RingShader.Get_Dst_Blend_Func () == ShaderClass::DSTBLEND_ONE) {
-			color = DX8Wrapper::Convert_Color(Alpha * Color,1.0f);
+			color = WW3DColor::To_ARGB(Alpha * Color,1.0f);
 		} else {
-			color = DX8Wrapper::Convert_Color(Color,Alpha);
+			color = WW3DColor::To_ARGB(Color,Alpha);
 		}
 
 		for (int i=0; i<ring.Vertex_ct; i++)
@@ -586,13 +591,13 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 		}
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb);
-	DX8Wrapper::Set_Index_Buffer(ib,0);
+	Renderer::Set_Vertex_Buffer(vb);
+	Renderer::Set_Index_Buffer(ib,0);
 
 	if (sort) {
 		SortingRendererClass::Insert_Triangles(Get_Bounding_Sphere(), 0, ring.face_ct, 0, ring.Vertex_ct);
 	} else {
-		DX8Wrapper::Draw_Triangles(0, ring.face_ct, 0, ring.Vertex_ct);
+		Renderer::Draw_Triangles(0, ring.face_ct, 0, ring.Vertex_ct);
 	}
 
 }
@@ -690,8 +695,6 @@ void RingRenderObjClass::Render(RenderInfoClass & rinfo)
 		// Process texture reductions:
 //		if (RingTexture) RingTexture->Process_Reduction();
 
-		Matrix3D temp = Transform;
-
 		// Do Time Based Animation
 		animate ();
 
@@ -722,9 +725,9 @@ void RingRenderObjClass::Render(RenderInfoClass & rinfo)
 
 			Matrix3D temp;
 			temp.Look_At(obj_position, obj_position + camera_z_vector, 0.0f);
-			DX8Wrapper::Set_Transform(D3DTS_WORLD, temp);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD, temp);
 		} else {
-			DX8Wrapper::Set_Transform(D3DTS_WORLD, Transform);
+			Renderer::Set_Transform(RB_TRANSFORM_WORLD, Transform);
 		}
 
 		//
@@ -1223,12 +1226,7 @@ RingPrototypeClass::RingPrototypeClass(RingRenderObjClass *ring)
 	//
 	if (ring->RingTexture != nullptr) {
 		StringClass name = ring->RingTexture->Get_Full_Path();
-		const char *filename = ::strrchr (name, '\\');
-		if (filename != nullptr) {
-			filename ++;
-		} else {
-			filename = name;
-		}
+		const char *filename = getFileName (name.str());
 
 		strlcpy(Definition.TextureName, filename, ARRAY_SIZE(Definition.TextureName));
 	}
@@ -1538,8 +1536,8 @@ void RingMeshClass::Generate(float radius, int slices)
 
 	for (index = 0; index < Vertex_ct; index += 2) {
 
-		float x_pos = -WWMath::Sin (angle);
-		float y_pos = WWMath::Cos (angle);
+		float x_pos = -WWMath::Sinf_Legacy (angle);
+		float y_pos = WWMath::Cosf_Legacy (angle);
 
 		//
 		//	Place the inner index
@@ -1614,11 +1612,11 @@ RingMeshClass::~RingMeshClass()
 void RingMeshClass::Free()
 {
 
-	delete vtx;
-	delete orig_vtx;
-	delete vtx_normal;
-	delete vtx_uv;
-	delete tri_poly;
+	delete[] vtx;
+	delete[] orig_vtx;
+	delete[] vtx_normal;
+	delete[] vtx_uv;
+	delete[] tri_poly;
 
 	vtx			= nullptr;
 	orig_vtx		= nullptr;

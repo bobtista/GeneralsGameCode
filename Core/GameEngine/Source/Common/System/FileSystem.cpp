@@ -369,7 +369,7 @@ Bool FileSystem::isPathInDirectory(const AsciiString& testPath, const AsciiStrin
 		basePathNormalized.concat(pathSep);
 	}
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__APPLE__)
 	if (!testPathNormalized.startsWithNoCase(basePathNormalized))
 #else
 	if (!testPathNormalized.startsWith(basePathNormalized))

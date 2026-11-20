@@ -34,11 +34,15 @@
 static void drawFramerateBar();
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
+#include <cstdio>
 #include <numeric>
+#include <algorithm>
+#include <functional>
 #include <stdlib.h>
 #include <windows.h>
 #include <io.h>
 #include <time.h>
+#include "Lib/Profile.h"
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "Common/FramePacer.h"
@@ -58,6 +62,7 @@ static void drawFramerateBar();
 #include "GameClient/Drawable.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GraphDraw.h"
+#include "GameClient/Image.h"
 #include "GameClient/Line2D.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/GlobalLanguage.h"
@@ -77,6 +82,7 @@ static void drawFramerateBar();
 #include "W3DDevice/GameClient/W3DScene.h"
 #include "W3DDevice/GameClient/W3DTerrainTracks.h"
 #include "W3DDevice/GameClient/W3DWater.h"
+#include "WW3D2/statistics.h"
 #include "W3DDevice/GameClient/W3DVideoBuffer.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "W3DDevice/GameClient/W3DDebugDisplay.h"
@@ -86,12 +92,15 @@ static void drawFramerateBar();
 #include "WWMath/wwmath.h"
 #include "WWLib/registry.h"
 #include "WW3D2/ww3d.h"
+#include "WW3D2/BgfxRenderProfile.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/predlod.h"
 #include "WW3D2/part_emt.h"
 #include "WW3D2/part_ldr.h"
-#include "WW3D2/dx8caps.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/ww3dformat.h"
 #include "WW3D2/agg_def.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/render2dsentence.h"
 #include "WW3D2/sortingrenderer.h"
 #include "WW3D2/textureloader.h"
@@ -102,6 +111,7 @@ static void drawFramerateBar();
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/rddesc.h"
 #include "WWLib/TARGA.h"
+#include "GgcRuntimeFlags.h"
 
 #include "GameLogic/ScriptEngine.h"		// For TheScriptEngine - jkmcd
 #include "GameLogic/GameLogic.h"
@@ -122,6 +132,54 @@ static Real theLightYOffset = 0.07f;
 static Int theFlashCount = 0;
 #endif
 
+static RectClass makeAtlasSafeUVRect(const Image *image)
+{
+	const Region2D *uv = image->getUV();
+	RectClass uvRect(uv->lo.x, uv->lo.y, uv->hi.x, uv->hi.y);
+
+	// TheSuperHackers @bugfix bobtista 17/07/2026 Only inset atlas sub-rects on the shader
+	// pipeline. The legacy fixed-function backend sampled the raw UV rect in retail; applying
+	// the half-texel inset there shifted UI sampling on the DX8 build.
+	if (!Renderer::Is_Initialized() || !Renderer::Has_Shader_Pipeline())
+	{
+		return uvRect;
+	}
+
+	if (BitIsSet(image->getStatus(), IMAGE_STATUS_RAW_TEXTURE))
+	{
+		return uvRect;
+	}
+
+	const ICoord2D *textureSize = image->getTextureSize();
+	if (textureSize == nullptr || textureSize->x <= 0 || textureSize->y <= 0)
+	{
+		return uvRect;
+	}
+
+	const bool isAtlasSubRect =
+		uvRect.Left > 0.0f || uvRect.Top > 0.0f ||
+		uvRect.Right < 1.0f || uvRect.Bottom < 1.0f;
+	if (!isAtlasSubRect)
+	{
+		return uvRect;
+	}
+
+	const float halfU = 0.5f / static_cast<float>(textureSize->x);
+	const float halfV = 0.5f / static_cast<float>(textureSize->y);
+	if (uvRect.Width() > halfU * 2.0f)
+	{
+		uvRect.Left += halfU;
+		uvRect.Right -= halfU;
+	}
+	if (uvRect.Height() > halfV * 2.0f)
+	{
+		uvRect.Top += halfV;
+		uvRect.Bottom -= halfV;
+	}
+
+	return uvRect;
+}
+
 //*****************************************************************************************
 //*****************************************************************************************
 //**** Start Statistical Dump *************************************************************
@@ -130,7 +188,6 @@ static Int theFlashCount = 0;
 #ifdef DUMP_PERF_STATS
 
 #include <cstdarg>
-#include "../NextGenMP_defines.h"
 
 class StatDumpClass
 {
@@ -150,7 +207,7 @@ StatDumpClass::StatDumpClass( const char *fname )
 {
 	char buffer[ _MAX_PATH ];
 	GetModuleFileName( nullptr, buffer, sizeof( buffer ) );
-	if (char *pEnd = strrchr(buffer, '\\'))
+	if (char *pEnd = getLastPathSeparator(buffer))
 	{
 		*pEnd = 0;
 	}
@@ -379,44 +436,6 @@ inline Int64 getPerformanceCounterFrequency()
 	return tmp;
 }
 
-// Startup splash window created by WinMain; the game window stays hidden until handed over here
-HWND ApplicationSplashHWnd = nullptr;
-
-// Show the game window and close the splash
-static void finishStartupSplash()
-{
-	extern HWND ApplicationHWnd;
-	if (ApplicationSplashHWnd == nullptr)
-		return;
-
-	if (ApplicationHWnd != nullptr)
-	{
-		::ShowWindow(ApplicationHWnd, SW_SHOW);
-		::SetForegroundWindow(ApplicationHWnd);
-		::SetFocus(ApplicationHWnd);
-	}
-	::DestroyWindow(ApplicationSplashHWnd);
-	ApplicationSplashHWnd = nullptr;
-}
-
-// Windowed hand-over, once per frame until done: the first frame shows the game window behind the
-// splash without activating it, the next one (after a presented frame) closes the splash
-static void updateStartupSplash()
-{
-	extern HWND ApplicationHWnd;
-	if (ApplicationSplashHWnd == nullptr || ApplicationHWnd == nullptr)
-		return;
-
-	if (!::IsWindowVisible(ApplicationHWnd))
-	{
-		::SetWindowPos(ApplicationHWnd, ApplicationSplashHWnd, 0, 0, 0, 0,
-			SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-		return;
-	}
-
-	finishStartupSplash();
-}
-
 // W3DDisplay::W3DDisplay =====================================================
 /** */
 //=============================================================================
@@ -425,11 +444,17 @@ W3DDisplay::W3DDisplay()
 	Int i;
 
 	m_initialized = false;
+	for (i = 0; i < MAX_TRACKING_LIGHTS; ++i)
+	{
+		m_trackingLights[i].emitterId = 0;
+		m_trackingLights[i].light = nullptr;
+	}
 	m_assetManager = nullptr;
 	m_3DScene = nullptr;
 	m_2DScene = nullptr;
 	m_3DInterfaceScene = nullptr;
 	m_averageFPS = TheGlobalData->m_framesPerSecondLimit;
+	m_low1PercentFPS = TheGlobalData->m_framesPerSecondLimit;
 #if defined(RTS_DEBUG)
 	m_timerAtCumuFPSStart = 0;
 #endif
@@ -444,11 +469,20 @@ W3DDisplay::W3DDisplay()
 
 	for (i = 0; i < DisplayStringCount; i++)
 		m_displayStrings[i] = nullptr;
+	m_benchmarkDisplayString = nullptr;
+	m_cinematicDisplayString = nullptr;
 
 	m_batchTexture = nullptr;
 	m_batchMode = DRAW_IMAGE_ALPHA;
 	m_batchGrayscale = FALSE;
 	m_batchNeedsInit = FALSE;
+
+	m_historyOffset = 0;
+	m_historyCount = 1;
+	m_lastUpdateTime64 = 0;
+	m_lastLow1PercentUpdateMs = 0;
+	m_currentFPS = 30.0f;
+	std::fill(m_durationHistory, m_durationHistory + FPS_HISTORY_SIZE, QuantizedUnsignedShort((UnsignedShort)(QuantizedTicksPerSecond / 30)));
 
 #ifdef PROFILER_ENABLED
 	m_profilerFrameCapture = NEW W3DProfilerFrameCapture();
@@ -478,6 +512,8 @@ W3DDisplay::~W3DDisplay()
 	if( m_benchmarkDisplayString ) {
 		TheDisplayStringManager->freeDisplayString(m_benchmarkDisplayString);
 	}
+
+	TheDisplayStringManager->freeDisplayString(m_cinematicDisplayString);
 
 	// delete 2D renderer
 	if( m_2DRender )
@@ -527,29 +563,76 @@ inline Bool isResolutionSupported(const ResolutionDescClass &res)
 	return res.Width >= DEFAULT_DISPLAY_WIDTH && res.BitDepth >= minBitDepth;
 }
 
+#if defined(SAGE_USE_SDL3)
+// TheSuperHackers @bugfix bobtista 11/06/2026 Offer a curated set of standard resolutions clamped
+// to the desktop size (raw SDL fullscreen modes are non-standard on HiDPI and omit 800x600);
+// setDisplayMode already snaps requests to the nearest real fullscreen mode.
+struct OptionsResolution { int w; int h; };
+
+static int Build_Options_Resolution_List(OptionsResolution * out, int cap)
+{
+	extern SDL_Window *TheSDL3Window;
+	int maxW = 1920;
+	int maxH = 1080;
+	if (TheSDL3Window != nullptr)
+	{
+		const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(TheSDL3Window));
+		if (desktop != nullptr)
+		{
+			maxW = desktop->w;
+			maxH = desktop->h;
+		}
+	}
+	static const OptionsResolution standard[] = {
+		{ 800, 600 }, { 1024, 768 }, { 1152, 864 }, { 1280, 720 }, { 1280, 800 },
+		{ 1280, 960 }, { 1280, 1024 }, { 1360, 768 }, { 1366, 768 }, { 1440, 900 },
+		{ 1600, 900 }, { 1600, 1200 }, { 1680, 1050 }, { 1920, 1080 }, { 1920, 1200 },
+		{ 2560, 1440 }, { 2560, 1600 }, { 3840, 2160 }
+	};
+	const int standardCount = sizeof(standard) / sizeof(standard[0]);
+	int n = 0;
+	bool hasNative = false;
+	for (int i = 0; i < standardCount && n < cap; ++i)
+	{
+		if (standard[i].w >= DEFAULT_DISPLAY_WIDTH && standard[i].h >= DEFAULT_DISPLAY_HEIGHT
+			&& standard[i].w <= maxW && standard[i].h <= maxH)
+		{
+			out[n] = standard[i];
+			++n;
+			if (standard[i].w == maxW && standard[i].h == maxH)
+			{
+				hasNative = true;
+			}
+		}
+	}
+	if (!hasNative && n < cap && maxW >= DEFAULT_DISPLAY_WIDTH && maxH >= DEFAULT_DISPLAY_HEIGHT)
+	{
+		out[n].w = maxW;
+		out[n].h = maxH;
+		++n;
+	}
+	DEBUG_LOG(("Options resolution list: %d entries (desktop %dx%d)", n, maxW, maxH));
+	return n;
+}
+#endif
+
 /*Return number of screen modes supported by the current device*/
 Int W3DDisplay::getDisplayModeCount()
 {
+#if defined(SAGE_USE_SDL3)
+	extern SDL_Window *TheSDL3Window;
+	if (TheSDL3Window != nullptr)
+	{
+		OptionsResolution list[32];
+		return Build_Options_Resolution_List(list, 32);
+	}
+#endif
 	const RenderDeviceDescClass &devDesc=WW3D::Get_Render_Device_Desc(0);
 	const DynamicVectorClass <ResolutionDescClass> &resolutions=devDesc.Enumerate_Resolutions();
 
 	Int numResolutions=0;
-/*	Bool needStencil=false;
-	Bool needDestinationAlpha=false;
-	Int minBitDepth=16;
-
-	//Walk through all resolutions and determine which ones are compatible with other settings
-	//chosen by user.  For example, 32-bit may be required for shadows, occlusion, soft water edge, etc.
-	if (TheGlobalData->m_useShadowVolumes || (TheGlobalData->m_enableBehindBuildingMarkers && TheGameLogic->getShowBehindBuildingMarkers()))
-		needStencil=true;
-
-	if (TheGlobalData->m_showSoftWaterEdge)
-	{	minBitDepth=32;
-	}
-*/
 	for (int res = 0; res < resolutions.Count ();  res ++)
 	{
-		// Is this the resolution we are looking for?
 		if (isResolutionSupported(resolutions[res]))
 		{
 			numResolutions++;
@@ -561,17 +644,32 @@ Int W3DDisplay::getDisplayModeCount()
 
 void W3DDisplay::getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, Int *bitDepth)
 {
+#if defined(SAGE_USE_SDL3)
+	extern SDL_Window *TheSDL3Window;
+	if (TheSDL3Window != nullptr)
+	{
+		OptionsResolution list[32];
+		int n = Build_Options_Resolution_List(list, 32);
+		if (modeIndex >= 0 && modeIndex < n)
+		{
+			*xres = list[modeIndex].w;
+			*yres = list[modeIndex].h;
+			*bitDepth = 32;
+		}
+		return;
+	}
+#endif
 	Int numResolutions=0;
 	const RenderDeviceDescClass &devDesc=WW3D::Get_Render_Device_Desc(0);
 	const DynamicVectorClass <ResolutionDescClass> &resolutions=devDesc.Enumerate_Resolutions();
 
 	for (int res = 0; res < resolutions.Count ();  res ++)
 	{
-		// Is this the resolution we are looking for?
 		if (isResolutionSupported(resolutions[res]))
 		{
 			if (numResolutions == modeIndex)
-			{	//found the mode
+			{
+				//found the mode
 				*xres=resolutions[res].Width;
 				*yres=resolutions[res].Height;
 				*bitDepth=resolutions[res].BitDepth;
@@ -587,7 +685,7 @@ void W3DDisplay::setGamma(Real gamma, Real bright, Real contrast, Bool calibrate
 	if (m_windowed)
 		return;	//we don't allow gamma to change in window because it would affect desktop.
 
-	DX8Wrapper::Set_Gamma(gamma,bright,contrast,calibrate, false);
+	Renderer::Set_Gamma(gamma,bright,contrast,calibrate, false);
 }
 
 /** Set resolution of display */
@@ -599,10 +697,49 @@ Bool W3DDisplay::setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt
 	const UnsignedInt oldBitDepth = getBitDepth();
 	const Bool oldWindowed = getWindowed();
 
+#if defined(SAGE_USE_SDL3)
+	extern SDL_Window *TheSDL3Window;
+	if (TheSDL3Window != nullptr)
+	{
+		if (windowed)
+		{
+			SDL_SetWindowFullscreen(TheSDL3Window, false);
+			SDL_SetWindowSize(TheSDL3Window, xres, yres);
+			SDL_SyncWindow(TheSDL3Window);
+		}
+		else
+		{
+			// TheSuperHackers @feature bobtista 07/06/2026 Real fullscreen at non-native
+			// resolutions. Startup and the old code only ever used SDL_SetWindowFullscreenMode
+			// with nullptr (desktop fullscreen), which forces native resolution. Select the
+			// closest real fullscreen mode for the requested size and switch to exclusive
+			// fullscreen so non-native resolutions actually mode-switch and fill the screen.
+			const SDL_DisplayID display = SDL_GetDisplayForWindow(TheSDL3Window);
+			SDL_DisplayMode mode;
+			if (SDL_GetClosestFullscreenDisplayMode(display, (int)xres, (int)yres, 0.0f, false, &mode))
+			{
+				SDL_SetWindowFullscreenMode(TheSDL3Window, &mode);
+			}
+			else
+			{
+				SDL_SetWindowFullscreenMode(TheSDL3Window, nullptr);
+			}
+			SDL_SetWindowFullscreen(TheSDL3Window, true);
+			SDL_SyncWindow(TheSDL3Window);
+		}
+	}
+#endif
 	if (WW3D_ERROR_OK == WW3D::Set_Device_Resolution(xres,yres,bitdepth,windowed,true))
 	{
 		Render2DClass::Set_Screen_Resolution(RectClass(0, 0, xres, yres));
 		Display::setDisplayMode(xres, yres, bitdepth, windowed);
+
+		// TheSuperHackers @tweak Font point sizes are scaled from the resolution, so every glyph
+		// cached for the old resolution is now dead weight. Discard the current glyphs and start
+		// with a clean slate.
+		WW3DAssetManager::Get_Instance()->Free_All_FontChars_Glyph_Caches();
+
+		Renderer::Begin_Scene();
 		return TRUE;
 	}
 
@@ -613,6 +750,26 @@ Bool W3DDisplay::setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt
 	return FALSE;	//did not change to a new mode.
 }
 
+// TheSuperHackers @bugfix bobtista 08/06/2026 Sync the engine-side resolution (render device, 2D
+// coordinate range, display dimensions) to an OS-driven window size change WITHOUT touching the SDL
+// window. macOS fullscreen settles to the usable area below the menu bar/notch (e.g. 982 -> 949)
+// after the window is shown, and a windowed drag-resize changes it live. bgfx already tracks the
+// real window size, so re-driving SDL via setDisplayMode here would re-enter the fullscreen
+// transition and destabilize it (it grabbed transition-intermediate sizes and crashed). The
+// windowed flag and bit depth are kept as-is; only the dimensions follow the window.
+Bool W3DDisplay::applyExternalResize( UnsignedInt xres, UnsignedInt yres )
+{
+	// Update only the engine-side coordinate state. Deliberately do NOT call Set_Device_Resolution:
+	// the bgfx backend already resizes its backbuffer and scene render targets to the live window
+	// size every frame in Begin_Scene, so a device reset here is redundant - and calling it from the
+	// event-poll context (mid-frame, outside the options-menu/game-start flow it was written for)
+	// crashes. Updating the 2D coordinate range and the display dimensions is enough for the mouse
+	// mapping, UI layout and camera to follow the window.
+	Render2DClass::Set_Screen_Resolution(RectClass(0, 0, xres, yres));
+	Display::setDisplayMode(xres, yres, getBitDepth(), getWindowed());
+	return TRUE;
+}
+
 /** Set width of display */
 //=============================================================================
 void W3DDisplay::setWidth( UnsignedInt width )
@@ -620,6 +777,13 @@ void W3DDisplay::setWidth( UnsignedInt width )
 
 	// extending functionality
 	Display::setWidth( width );
+
+	// TheSuperHackers @bugfix bobtista 28/08/2026 A headless run never creates the 2D renderer,
+	// so guard it the way the shutdown path already does instead of dereferencing it.
+	if( m_2DRender == nullptr )
+	{
+		return;
+	}
 
 	// our 2D renderer will use mapping coords to make (0,0) the upper left
 	// of the screen with (width,height) at the lower right
@@ -635,6 +799,13 @@ void W3DDisplay::setHeight( UnsignedInt height )
 
 	// extending functionality
 	Display::setHeight( height );
+
+	// TheSuperHackers @bugfix bobtista 28/08/2026 A headless run never creates the 2D renderer,
+	// so guard it the way the shutdown path already does instead of dereferencing it.
+	if( m_2DRender == nullptr )
+	{
+		return;
+	}
 
 	// our 2D renderer will use mapping coords to make (0,0) the upper left
 	// of the screen with (width,height) at the lower right
@@ -864,8 +1035,6 @@ void W3DDisplay::init()
 		WW3D::Set_Collision_Box_Display_Mask(0x00);	///<set to 0xff to make collision boxes visible
 		WW3D::Enable_Static_Sort_Lists(true);
 		WW3D::Set_Thumbnail_Enabled(false);
-		WW3D::Set_Screen_UV_Bias( TRUE );  ///< this makes text look good :)
-		WW3D::Set_Texture_Bitdepth(32);
 
 		setWindowed( TheGlobalData->m_windowed );
 
@@ -920,19 +1089,41 @@ void W3DDisplay::init()
 			}
 			}
 
-			// TheSuperHackers @feature Mauller 13/03/2026 Add native MSAA support, must be set before creating render device
-#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
-			WW3D::Set_MSAA_Mode((WW3D::MultiSampleModeEnum)TheWritableGlobalData->m_antiAliasLevel);
-#else
-			WW3D::Set_MSAA_Mode(WW3D::MultiSampleModeEnum::MULTISAMPLE_MODE_NONE);
+#if defined(SAGE_USE_SDL3)
+			extern SDL_Window *TheSDL3Window;
+			if (TheSDL3Window != nullptr)
+			{
+				// TheSuperHackers @bugfix bobtista 25/06/2026 In windowed mode the SDL window is created at
+				// a fixed default size before the saved Option Preferences (or -xres/-yres) are parsed, so
+				// size it to the resolution set above (TheGlobalData->m_xResolution) rather than overwriting
+				// that resolution with the default window size - otherwise the saved windowed resolution
+				// never persists across launches. Fullscreen still adopts the actual drawable size.
+				if (TheGlobalData->m_windowed)
+				{
+					SDL_SetWindowSize(TheSDL3Window, getWidth(), getHeight());
+					// TheSuperHackers @bugfix bobtista 25/06/2026 Re-center after resizing: SDL_SetWindowSize
+					// keeps the top-left corner, so growing from the default window size leaves the window
+					// off-center (and partly off-screen at larger resolutions).
+					SDL_SetWindowPosition(TheSDL3Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+					SDL_SyncWindow(TheSDL3Window);
+				}
+				else
+				{
+					int wPts = 0, hPts = 0;
+					SDL_GetWindowSize(TheSDL3Window, &wPts, &hPts);
+					if (wPts > 0 && hPts > 0)
+					{
+						setWidth(wPts);
+						setHeight(hPts);
+						TheWritableGlobalData->m_xResolution = wPts;
+						TheWritableGlobalData->m_yResolution = hPts;
+					}
+				}
+			}
 #endif
 
-			// exclusive fullscreen needs the game window visible and in the foreground when the device is
-			// created, and the mode switch blanks the screen anyway, so hand over from the splash now
-			if (!getWindowed())
-			{
-				finishStartupSplash();
-			}
+			// TheSuperHackers @feature Mauller 13/03/2026 Add native MSAA support, must be set before creating render device
+			WW3D::Set_MSAA_Mode((WW3D::MultiSampleModeEnum)TheWritableGlobalData->m_antiAliasLevel);
 
 			renderDeviceError = WW3D::Set_Render_Device(
 				0,
@@ -944,7 +1135,6 @@ void W3DDisplay::init()
 
 			// TheSuperHackers @info Update the MSAA mode that was set as some GPU's may not support certain levels
 			// Texture filtering must also be updated after render device initialization
-#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 			if (renderDeviceError == WW3D_ERROR_OK) {
 				TheWritableGlobalData->m_antiAliasLevel = (UnsignedInt)WW3D::Get_MSAA_Mode();
 				WW3D::Set_Texture_Filter(TheWritableGlobalData->m_textureFilteringMode);
@@ -952,7 +1142,6 @@ void W3DDisplay::init()
 				WW3D::Set_Anisotropy_Level(TheWritableGlobalData->m_textureAnisotropyLevel);
 				TheWritableGlobalData->m_textureAnisotropyLevel = WW3D::Get_Anisotropy_Level();
 			}
-#endif
 
 			++attempt;
 		}
@@ -966,6 +1155,12 @@ void W3DDisplay::init()
 			DEBUG_CRASH( ("Unable to set render device") );
 			return;
 		}
+		WW3D::Set_Texture_Bitdepth(getBitDepth());
+
+		// TheSuperHackers @fix bobtista 21/04/2026 Legacy half-pixel UV bias causes sub-pixel misalignment on shader backends (visible stripes on UI atlases from half-texel sampling offsets). Call this AFTER Set_Render_Device because the render backend is only constructed by Do_Onetime_Device_Dependent_Inits which Set_Render_Device triggers — calling earlier would read Renderer::=nullptr and incorrectly enable the bias on bgfx.
+		const bool shaderPipeline =
+			(Renderer::Is_Initialized() && Renderer::Has_Shader_Pipeline());
+		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE keeps text aligned on the legacy fixed-function backend.
 
 		//Check if level was never set and default to setting most suitable for system.
 		if (TheGameLODManager->getStaticLODLevel() == STATIC_GAME_LOD_UNKNOWN)
@@ -1019,6 +1214,7 @@ void W3DDisplay::init()
 
 	// we're now online
 	m_initialized = true;
+	m_lastUpdateTime64 = getPerformanceCounter();
 	if( TheGlobalData->m_displayDebug )
 	{
 		m_debugDisplayCallback = StatDebugDisplay;
@@ -1033,6 +1229,10 @@ void W3DDisplay::reset()
 {
 
 	Display::reset();
+
+	// TheSuperHackers @tweak Discard the current glyphs and start with a clean slate.
+	// This can reduce the memory overhead from glyphs that are no longer needed from here on.
+	WW3DAssetManager::Get_Instance()->Free_All_FontChars_Glyph_Caches();
 
 	// Remove all render objects.
 
@@ -1062,14 +1262,77 @@ void W3DDisplay::reset()
 
 const UnsignedInt START_CUMU_FRAME = LOGICFRAMES_PER_SECOND / 2;	// skip first half-sec
 
-void W3DDisplay::updateAverageFPS()
+void W3DDisplay::addFpsSample(Real elapsedSeconds)
 {
-	constexpr const Int FPS_HISTORY_SIZE = 30;
+	QuantizedUnsignedShort duration = QuantizedUnsignedShort::fromSeconds(elapsedSeconds);
 
-	static Int64 lastUpdateTime64 = 0;
-	static Int historyOffset = 0;
-	static Real fpsHistory[FPS_HISTORY_SIZE] = {0};
+	m_currentFPS = 1.0f / elapsedSeconds;
+	m_durationHistory[m_historyOffset] = duration;
 
+	m_historyOffset = (m_historyOffset + 1) & (FPS_HISTORY_SIZE - 1);
+	if (m_historyCount < FPS_HISTORY_SIZE)
+	{
+		m_historyCount++;
+	}
+}
+
+Real W3DDisplay::calculateAverageFPS(Real timeWindowSeconds)
+{
+	UnsignedInt unitsSum = 0;
+	Int samples = 0;
+	const UnsignedInt windowUnits = (UnsignedInt)(timeWindowSeconds * QuantizedTicksPerSecond);
+
+	for (Int i = 0; i < m_historyCount; ++i)
+	{
+		Int idx = (m_historyOffset - 1 - i) & (FPS_HISTORY_SIZE - 1);
+		unitsSum += m_durationHistory[idx].getValue();
+		samples++;
+
+		if (unitsSum >= windowUnits)
+		{
+			break;
+		}
+	}
+
+	return (Real)samples * QuantizedTicksPerSecond / (Real)unitsSum;
+}
+
+Real W3DDisplay::calculateLow1PercentFPS(Real timeWindowSeconds)
+{
+	UnsignedInt unitsSum = 0;
+	Int sampleCount = 0;
+	const UnsignedInt windowUnits = (UnsignedInt)(timeWindowSeconds * QuantizedTicksPerSecond);
+	UnsignedShort sortBuffer[FPS_HISTORY_SIZE];
+
+	Int i;
+	for (i = 0; i < m_historyCount; ++i)
+	{
+		Int idx = (m_historyOffset - 1 - i) & (FPS_HISTORY_SIZE - 1);
+		const UnsignedShort units = m_durationHistory[idx].getValue();
+		unitsSum += units;
+		sortBuffer[sampleCount++] = units;
+
+		if (unitsSum >= windowUnits)
+		{
+			break;
+		}
+	}
+
+	const Int low1PercentSampleCount = std::max((sampleCount + 50) / 100, 1);
+
+	std::nth_element(sortBuffer, sortBuffer + low1PercentSampleCount, sortBuffer + sampleCount, std::greater<UnsignedShort>());
+
+	UnsignedInt durationUnitsSum = 0;
+	for (i = 0; i < low1PercentSampleCount; ++i)
+	{
+		durationUnitsSum += sortBuffer[i];
+	}
+
+	return (Real)low1PercentSampleCount * QuantizedTicksPerSecond / (Real)durationUnitsSum;
+}
+
+void W3DDisplay::updatePerformanceMetrics()
+{
 	const Int64 freq64 = getPerformanceCounterFrequency();
 	const Int64 time64 = getPerformanceCounter();
 
@@ -1080,23 +1343,13 @@ void W3DDisplay::updateAverageFPS()
 	}
 #endif
 
-	const Int64 timeDiff = time64 - lastUpdateTime64;
+	const Int64 timeDiff = time64 - m_lastUpdateTime64;
+	Real elapsedSeconds = (Real)timeDiff / (Real)freq64;
 
-	// convert elapsed time to seconds
-	Real elapsedSeconds = (Real)timeDiff/(Real)freq64;
+	addFpsSample(elapsedSeconds);
+	m_averageFPS = calculateAverageFPS(1.0f); // 1.0s window for smooth Dynamic LOD tracking and UI matching
 
-	// append new sample to fps history.
-	if (historyOffset >= FPS_HISTORY_SIZE)
-		historyOffset = 0;
-
-	m_currentFPS = 1.0f/elapsedSeconds;
-	fpsHistory[historyOffset++] = m_currentFPS;
-
-	// determine average frame rate over our past history.
-	const Real sum = std::accumulate(fpsHistory, fpsHistory + FPS_HISTORY_SIZE, 0.0f);
-	m_averageFPS = sum / FPS_HISTORY_SIZE;
-
-	lastUpdateTime64 = time64;
+	m_lastUpdateTime64 = time64;
 }
 
 #if defined(RTS_DEBUG)	//debug hack to view object under mouse stats
@@ -1242,76 +1495,76 @@ void W3DDisplay::gatherDebugStats()
 		} else if (statMode == gameOverhead) {
 			gameOverheadMS = ms;
 			statMode = console;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = false;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = false;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == console) {
 			consoleMS = ms;
 			statMode = threeDOverhead;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == threeDOverhead) {
 			threeDOverheadMS = ms;
 			statMode = terrain;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableTerrain = false;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == terrain) {
 			terrainMS = ms;
 			statMode = objects;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = false;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == objects) {
 			objectMS = ms;
 			statMode = overlap;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableWater = false;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_sleepTime = (int)(terrainMS);
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableOverhead = false;
+			g_renderDebugStats.m_disableTerrain = false;
+			g_renderDebugStats.m_disableWater = false;
+			g_renderDebugStats.m_disableObjects = false;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_sleepTime = (int)(terrainMS);
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == overlap) {
 			overlapMS = ms;
 			statMode = normal;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableWater = false;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_sleepTime = 0;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableOverhead = false;
+			g_renderDebugStats.m_disableTerrain = false;
+			g_renderDebugStats.m_disableWater = false;
+			g_renderDebugStats.m_disableObjects = false;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_sleepTime = 0;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == normal) {
 			overlapMS = (ms + ((int)terrainMS) - overlapMS );
 			statMode = disabled;
 			extendedStats = SHOW_STATS_TIME;
 
 			// Done collecting stats. Re-enable stuff
-			DX8Wrapper::stats.m_disableConsole = false;
-			DX8Wrapper::stats.m_debugLinesToShow = -1;
-		} else if (!DX8Wrapper::stats.m_showingStats) {
+			g_renderDebugStats.m_disableConsole = false;
+			g_renderDebugStats.m_debugLinesToShow = -1;
+		} else if (!g_renderDebugStats.m_showingStats) {
 			// start collecting extended info.
-			DX8Wrapper::stats.m_showingStats = true;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_showingStats = true;
+			g_renderDebugStats.m_disableOverhead = false;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 			statMode = sync;
 			gameOverheadMS = 0.0f;
 			threeDOverheadMS = 0.0f;
@@ -1524,6 +1777,12 @@ void W3DDisplay::gatherDebugStats()
 		unibuffer.format( L"Particles: %d in world, %d being displayed", totalParticles, onScreenParticleCount );
 		m_displayStrings[Particles]->setText( unibuffer );
 
+		//display the terrain-conforming particle load
+		unibuffer.format( L"Terrain Particles: %d tris, %d draws",
+			Debug_Statistics::Get_Terrain_Particle_Triangles(),
+			Debug_Statistics::Get_Terrain_Particle_Batches() );
+		m_displayStrings[TerrainParticles]->setText( unibuffer );
+
 		//display the number of objects in the world
 		UnsignedInt objCount = TheGameLogic->getObjectCount();
 		UnsignedInt objScreenCount = TheGameClient->getRenderedObjectCount();
@@ -1673,9 +1932,9 @@ void W3DDisplay::drawDebugStats()
 
 	int linesOfStrings = DisplayStringCount;
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_debugLinesToShow > -1)
+	if (g_renderDebugStats.m_debugLinesToShow > -1)
 	{
-		linesOfStrings = DX8Wrapper::stats.m_debugLinesToShow;
+		linesOfStrings = g_renderDebugStats.m_debugLinesToShow;
 	}
 
 #endif
@@ -1779,7 +2038,8 @@ void W3DDisplay::calculateTerrainLOD()
 			// start render block
 			updateViews();
 			if (WW3D::Begin_Render( true, true, Vector3( 0.0f, 0.0f, 0.0f ) ) == WW3D_ERROR_OK)
-			{	// draw all views of the world
+			{
+				// draw all views of the world
 				drawViews();
 				// render is all done!
 				WW3D::End_Render();
@@ -1822,6 +2082,18 @@ Real W3DDisplay::getAverageFPS()
 	return m_averageFPS;
 }
 
+Real W3DDisplay::getLow1PercentFPS()
+{
+	const UnsignedInt now = timeGetTime();
+	const UnsignedInt elapsedMs = now - m_lastLow1PercentUpdateMs;
+	if (elapsedMs >= 1000)
+	{
+		m_low1PercentFPS = calculateLow1PercentFPS(3.0f);
+		m_lastLow1PercentUpdateMs = now - (elapsedMs % 1000);
+	}
+	return m_low1PercentFPS;
+}
+
 Real W3DDisplay::getCurrentFPS()
 {
 	return m_currentFPS;
@@ -1830,6 +2102,51 @@ Real W3DDisplay::getCurrentFPS()
 Int W3DDisplay::getLastFrameDrawCalls()
 {
 	return Debug_Statistics::Get_Draw_Calls();
+}
+
+// W3DDisplay::update =========================================================
+/** Update the client state of the W3D Display */
+//=============================================================================
+void W3DDisplay::update()
+{
+	Display::update();
+
+	if (TheGlobalData->m_headless)
+		return;
+
+	// TheSuperHackers @bugfix The client updates have moved here from W3DDisplay::draw, so that
+	// they also advance when the draw is skipped, for example when the window is minimized.
+
+	Bool freezeTime = TheFramePacer->isTimeFrozen() || TheFramePacer->isGameHalted();
+
+	if (!freezeTime && TheScriptEngine->isTimeFast())
+	{
+		/// @todo: I'm assuming the first view is our main 3D view.
+		W3DView *primaryW3DView=(W3DView *)getFirstView();
+		primaryW3DView->updateCameraMovements();  // Update camera motion effects.
+		return;
+	}
+
+	//update state of all the terrain tracks (fade, remove, etc.)
+	if (TheGlobalData->m_loadScreenRender != TRUE)
+	{
+		if (TheTerrainTracksRenderObjClassSystem)
+			TheTerrainTracksRenderObjClassSystem->update();
+	}
+
+	WW3D::Update_Logic_Frame_Time(TheFramePacer->getLogicTimeStepMilliseconds());
+
+	// TheSuperHackers @info This binds the WW3D update to the logic update.
+	WW3D::Sync(TheGameLogic->hasUpdated());
+
+	// update all views of the world - recomputes data which will affect drawing
+	if (Renderer::Is_Initialized() && !Renderer::Is_Device_Lost())
+	{
+		// Checking if we have the device before updating views because the heightmap crashes otherwise while
+		// trying to refresh the visible terrain geometry.
+		// TheSuperHackers @todo Remove the renderer dependency from the update.
+		updateViews();
+	}
 }
 
 //=============================================================================
@@ -1846,6 +2163,9 @@ void W3DDisplay::step()
 //DECLARE_PERF_TIMER(W3DDisplay_draw)
 void W3DDisplay::draw()
 {
+	PROFILER_SECTION;
+	GGCRenderProfile::EndFrame();
+	GGC_RPROFILE(FRAME_DRAW);
 	//USE_PERF_TIMER(W3DDisplay_draw)
 
 	extern HWND ApplicationHWnd;
@@ -1856,19 +2176,18 @@ void W3DDisplay::draw()
 	if (TheGlobalData->m_headless)
 		return;
 
-	updateStartupSplash();
-
 	// TheSuperHackers @feature bobtista 10/07/2026 Show messages for screenshots finished by the screenshot thread.
 	W3D_UpdateScreenshotMessages();
 
-	updateAverageFPS();
+	updatePerformanceMetrics();
 	if (TheGlobalData->m_enableDynamicLOD && TheGameLogic->getShowDynamicLOD())
 	{
 		DynamicGameLODLevel lod=TheGameLODManager->findDynamicLODLevel(m_averageFPS);
 		TheGameLODManager->setDynamicLODLevel(lod);
 	}
 	else
-	{	//if dynamic LOD is turned off, force highest LOD
+	{
+		//if dynamic LOD is turned off, force highest LOD
 		TheGameLODManager->setDynamicLODLevel(DYNAMIC_GAME_LOD_VERY_HIGH);
 	}
 
@@ -1910,7 +2229,7 @@ AGAIN:
 #ifdef EXTENDED_STATS
 	else
 	{
-		DX8Wrapper::stats.m_showingStats = false;
+		g_renderDebugStats.m_showingStats = false;
 	}
 #endif
 
@@ -1943,21 +2262,13 @@ AGAIN:
 
 	if (!freezeTime && TheScriptEngine->isTimeFast())
 	{
-		primaryW3DView->updateCameraMovements();  // Update camera motion effects.
 		return;
 	}
 
 	Debug_Statistics::Begin_Statistics();	//reset all counters (polygons, vertices, etc) before drawing
 
-	//update state of all the terrain tracks (fade, remove, etc.)
-	/// @todo: Is there a better place to put per-frame updates like this?
-
 	if(TheGlobalData->m_loadScreenRender != TRUE)
 	{
-
-		if (TheTerrainTracksRenderObjClassSystem)
-			TheTerrainTracksRenderObjClassSystem->update();
-
 		//Shroud data is needed to render all other views, so handle this first.
 		if (TheTerrainRenderObject)
 		{
@@ -1972,11 +2283,6 @@ AGAIN:
 		}
 	}
 
-	WW3D::Update_Logic_Frame_Time(TheFramePacer->getLogicTimeStepMilliseconds());
-
-	// TheSuperHackers @info This binds the WW3D update to the logic update.
-	WW3D::Sync(TheGameLogic->hasUpdated());
-
 	static Int now;
 	now=timeGetTime();
 
@@ -1990,32 +2296,39 @@ AGAIN:
 		// limit the framerate, because while fast time is on, the game logic is running as fast as it can.
 	}
 
+	Bool viewsUpdated = TRUE;
+
 	do {
 
 		// update all views of the world - recomputes data which will affect drawing
-		if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) == D3D_OK)
-		{	//Checking if we have the device before updating views because the heightmap crashes otherwise while
-			//trying to refresh the visible terrain geometry.
-//			if(TheGlobalData->m_loadScreenRender != TRUE)
+		const Bool renderDeviceReady = (Renderer::Is_Initialized() && !Renderer::Is_Device_Lost());
+		if (renderDeviceReady)
+		{
+			// TheSuperHackers @info The views are updated in W3DDisplay::update, except in the repeated passes
+			// of this loop, which keep moving the camera while the time is frozen for a camera movement.
+			if (!viewsUpdated)
+			{
+				PROFILER_SECTION_NAME("update views");
+				GGC_RPROFILE(UPDATE_VIEWS);
 				updateViews();
-     		TheParticleSystemManager->update();//LORENZEN AND WILCZYNSKI MOVED THIS FROM ITS NATIVE POSITION, ABOVE
-                                           //FOR THE PURPOSE OF LETTING THE PARTICLE SYSTEM LOOK UP THE RENDER OBJECT"S
-                                           //TRANSFORM MATRIX, WHILE IT IS STILL VALID (HAVING DONE ITS CLIENT TRANSFORMS
-                                           //BUT NOT YET RESETTING TOT HE LOGICAL TRANSFORM)
-                                           //THE RESULT IS THAT PARTICLESYSTEMS LINKED TO BONES IN DRAWABLES.OBJECTS
-                                           //MOVE WITH THE CLIENT TRANSFORMS, NOW.
-                                           //REVOLUTIONARY!
-                                           //-LORENZEN
+			}
 
+			TheParticleSystemManager->DRAW();
 
-			if (TheWaterRenderObj && TheGlobalData->m_waterType == 2)
-				TheWaterRenderObj->updateRenderTargetTextures(primaryW3DView->get3DCamera());	//do a render into each texture
+				{
+					PROFILER_SECTION_NAME("render to texture");
+					GGC_RPROFILE(RTT);
+					if (TheWaterRenderObj && TheGlobalData->m_waterType == 2)
+						TheWaterRenderObj->updateRenderTargetTextures(primaryW3DView->get3DCamera());	//do a render into each texture
 
 			//Can't render into textures while rendering to screen so these textures need to be updated
 			//before we enter main rendering loop.
 			if (TheW3DProjectedShadowManager)
 				TheW3DProjectedShadowManager->updateRenderTargetTextures();
+			}
 		}
+
+		viewsUpdated = FALSE;
 
 		Debug_Statistics::End_Statistics();	//record number of polygons rendered in RenderTargetTextures.
 
@@ -2049,8 +2362,13 @@ AGAIN:
 					Debug_Statistics::Record_DX8_Polys_And_Vertices(numRenderTargetPolygons,numRenderTargetVertices,ShaderClass::_PresetOpaqueShader);
 
 				// draw all views of the world
-				drawViews();
+				{
+					GGC_RPROFILE(DRAW_VIEWS);
+					drawViews();
+				}
 
+				{
+				GGC_RPROFILE(UI_DRAW);
 				// draw the user interface
 				TheInGameUI->DRAW();
 
@@ -2059,6 +2377,7 @@ AGAIN:
 				// draw the mouse
 				if( TheMouse )
 					TheMouse->DRAW();
+				}
 
 				if ( m_videoStream && m_videoBuffer )
 				{
@@ -2072,28 +2391,29 @@ AGAIN:
 				// display cinematicText over the black
 				if( m_cinematicText != AsciiString::TheEmptyString && m_cinematicTextFrames != 0)
 				{
-					DisplayString *displayString = TheDisplayStringManager->newDisplayString();
+					if( m_cinematicDisplayString == nullptr )
+						m_cinematicDisplayString = TheDisplayStringManager->newDisplayString();
 
 					// set word wrap if necessary
 
 					Int wordWrapWidth = TheDisplay->getWidth() - 20;
-					displayString->setWordWrap( wordWrapWidth );
-					displayString->setWordWrapCentered( TRUE );
+					m_cinematicDisplayString->setWordWrap( wordWrapWidth );
+					m_cinematicDisplayString->setWordWrapCentered( TRUE );
 
 					UnicodeString text;
 					text.translate( m_cinematicText );
-					displayString->setText( text );
+					m_cinematicDisplayString->setText( text );
 					Color color = GameMakeColor( 255, 255, 255, 255 );  // white
 					Color backColor = GameMakeColor( 0, 0, 0, 0 );      // black
-					displayString->setFont( m_cinematicFont );
+					m_cinematicDisplayString->setFont( m_cinematicFont );
 					Int height = TheDisplay->getHeight() * .9;
 
 					Int width;
-					if( displayString->getWidth() > TheDisplay->getWidth() )
+					if( m_cinematicDisplayString->getWidth() > TheDisplay->getWidth() )
 						width = 20;
 					else
-						width = ( TheDisplay->getWidth() - displayString->getWidth() ) / 2;
-					displayString->draw( width, height, color, backColor );
+						width = ( TheDisplay->getWidth() - m_cinematicDisplayString->getWidth() ) / 2;
+					m_cinematicDisplayString->draw( width, height, color, backColor );
 
 					m_cinematicTextFrames--;
 				}
@@ -2131,7 +2451,10 @@ AGAIN:
 				}
 #endif
 				// render is all done!
-				WW3D::End_Render();
+				{
+					GGC_RPROFILE(END_RENDER);
+					WW3D::End_Render();
+				}
 			}
 			else
 			{
@@ -2151,7 +2474,7 @@ AGAIN:
 	} while (freezeTime && !TheTacticalView->isCameraMovementFinished());
 
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableOverhead) {
+	if (g_renderDebugStats.m_disableOverhead) {
 		goto AGAIN;
 	}
 #endif
@@ -2182,7 +2505,8 @@ void W3DDisplay::renderLetterBox(UnsignedInt currentTime)
 #endif
 		}
 		else
-		{	//letter box is disabled, but may still be fading out
+		{
+			//letter box is disabled, but may still be fading out
 			if (m_letterBoxFadeLevel != 0.0f)
 			{
 				m_letterBoxFadeLevel = 1.0f - (currentTime - m_letterBoxFadeStartTime)/LETTER_BOX_FADE_TIME;
@@ -2200,7 +2524,8 @@ void W3DDisplay::renderLetterBox(UnsignedInt currentTime)
 #endif
 			}
 			else
-			{	//box has finished fading out
+			{
+				//box has finished fading out
 #ifdef SLIDE_LETTERBOX
 				TheTacticalView->setOrigin(0, 0);
 #else
@@ -2232,8 +2557,8 @@ Bool W3DDisplay::isLetterBoxed()
 void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
 																	 Real innerRadius, Real attenuationWidth,
 																	 UnsignedInt increaseFrameTime,
-																	 UnsignedInt decayFrameTime//, Bool donut
-																	 )
+																	 UnsignedInt decayFrameTime,
+																	 Bool castsShadows, Real shadowBias, Real shadowStrength )
 {
 	if (m_3DScene == nullptr)
 		return;
@@ -2251,9 +2576,155 @@ void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
 	theDynamicLight->setFrameFade(increaseFrameTime, decayFrameTime);
 	theDynamicLight->setDecayRange();
 	theDynamicLight->setDecayColor();
-	//theDynamicLight->setDonut(donut);
+	theDynamicLight->setCastsShadows(castsShadows);
+	theDynamicLight->setShadowBias(shadowBias);
+	theDynamicLight->setShadowStrength(shadowStrength);
+	// TheSuperHackers @bugfix bobtista 15/07/2026 A shadow-casting pulse lights receivers through
+	// the dedicated shadowed point-light path in the uber shader; it must not ALSO enter the
+	// per-object LightEnvironment, which double-lights receivers unshadowed and clips bright
+	// foliage texels into white speckles under MODULATE2X materials. Set unconditionally: pooled
+	// lights are reused and would otherwise carry a stale flag.
+	theDynamicLight->setExcludeFromLightEnv(castsShadows);
 	// (gth) CNC3 enable far attenuation.  C&C3 defaults to disabled.  Must enable to match Generals. MW 8-06-03
 	theDynamicLight->Set_Flag(LightClass::FAR_ATTENUATION,true);
+}
+
+// TheSuperHackers @feature bobtista 23/06/2026 Reposition a single persistent dynamic light each
+// frame for a moving emitter (particle-cannon beam), instead of spawning a fresh pulse per frame.
+// The light's colour and shadow strength ease toward the requested beam intensity, with a longer
+// decay window kept armed so the light tails off if the emitter stops refreshing it. This avoids both
+// per-frame flicker from overlapping pulses and building receiver snaps at beam start/end.
+W3DDynamicLight *W3DDisplay::getTrackingLight( const W3DDynamicLight *exclude ) const
+{
+	for (Int tl = 0; tl < MAX_TRACKING_LIGHTS; ++tl)
+	{
+		W3DDynamicLight *light = m_trackingLights[tl].light;
+		if (light != nullptr && light != exclude && light->isEnabled() && light->getCastsShadows())
+		{
+			return light;
+		}
+	}
+	return nullptr;
+}
+
+Bool W3DDisplay::isTrackingLight( const W3DDynamicLight *light ) const
+{
+	for (Int tl = 0; tl < MAX_TRACKING_LIGHTS; ++tl)
+	{
+		if (m_trackingLights[tl].light == light)
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+void W3DDisplay::updateTrackingLight( const Coord3D *pos, const RGBColor *color,
+																		 Real innerRadius, Real attenuationWidth,
+																		 Bool castsShadows, Real shadowBias, Real shadowStrength, Bool snapBlend,
+																		 UnsignedInt emitterId )
+{
+	if (m_3DScene == nullptr)
+		return;
+	// TheSuperHackers @bugfix bobtista 16/07/2026 One light PER EMITTER: two cannons firing at
+	// once fought over a single light, snapping every drama element between the beams per frame.
+	// Find this emitter's live slot, else claim a dead one.
+	Int slot = -1;
+	for (Int tl = 0; tl < MAX_TRACKING_LIGHTS; ++tl)
+	{
+		if (m_trackingLights[tl].light != nullptr
+			&& m_trackingLights[tl].emitterId == emitterId
+			&& m_trackingLights[tl].light->isEnabled())
+		{
+			slot = tl;
+			break;
+		}
+	}
+	if (slot == -1)
+	{
+		for (Int tl = 0; tl < MAX_TRACKING_LIGHTS; ++tl)
+		{
+			if (m_trackingLights[tl].light == nullptr || !m_trackingLights[tl].light->isEnabled())
+			{
+				slot = tl;
+				break;
+			}
+		}
+	}
+	if (slot == -1)
+	{
+		return; // every slot is busy with another live emitter
+	}
+	const Bool hadActiveTrackingLight = (m_trackingLights[slot].light != nullptr
+		&& m_trackingLights[slot].light->isEnabled()
+		&& m_trackingLights[slot].emitterId == emitterId);
+	if (m_trackingLights[slot].light == nullptr || !m_trackingLights[slot].light->isEnabled())
+	{
+		m_trackingLights[slot].light = m_3DScene->getADynamicLight();
+	}
+	m_trackingLights[slot].emitterId = emitterId;
+	W3DDynamicLight *light = m_trackingLights[slot].light;
+	Vector3 desiredColor( color->red, color->green, color->blue );
+	Real desiredShadowStrength = shadowStrength;
+	Vector3 currentColor( 0.0f, 0.0f, 0.0f );
+	Real currentShadowStrength = 0.0f;
+	if (hadActiveTrackingLight)
+	{
+		light->Get_Diffuse( &currentColor );
+		currentShadowStrength = light->getShadowStrength();
+	}
+	// TheSuperHackers @feature bobtista 14/07/2026 snapBlend keeps a touch of smoothing but lets
+	// per-frame flicker from the emitter come through mostly intact (dramatic beam lighting).
+	const Real upBlend = snapBlend ? 0.65f : 0.02f;
+	const Real downSmooth = snapBlend ? 0.70f : 0.96f;
+	const Real shadowUpBlend = snapBlend ? 0.65f : 0.08f;
+	const Real shadowDownSmooth = snapBlend ? 0.75f : 0.98f;
+	if (desiredColor.X >= currentColor.X) { desiredColor.X = currentColor.X + (desiredColor.X - currentColor.X) * upBlend; }
+	else if (desiredColor.X < currentColor.X * downSmooth) { desiredColor.X = currentColor.X * downSmooth; }
+	if (desiredColor.Y >= currentColor.Y) { desiredColor.Y = currentColor.Y + (desiredColor.Y - currentColor.Y) * upBlend; }
+	else if (desiredColor.Y < currentColor.Y * downSmooth) { desiredColor.Y = currentColor.Y * downSmooth; }
+	if (desiredColor.Z >= currentColor.Z) { desiredColor.Z = currentColor.Z + (desiredColor.Z - currentColor.Z) * upBlend; }
+	else if (desiredColor.Z < currentColor.Z * downSmooth) { desiredColor.Z = currentColor.Z * downSmooth; }
+	if (desiredShadowStrength >= currentShadowStrength)
+	{
+		desiredShadowStrength = currentShadowStrength + (desiredShadowStrength - currentShadowStrength) * shadowUpBlend;
+	}
+	else if (desiredShadowStrength < currentShadowStrength * shadowDownSmooth)
+	{
+		desiredShadowStrength = currentShadowStrength * shadowDownSmooth;
+	}
+	light->setEnabled(true);
+	light->Set_Ambient( desiredColor );
+	light->Set_Diffuse( desiredColor );
+	light->Set_Position( Vector3( pos->x, pos->y, pos->z ) );
+	// Same rule as createLightPulse: a shadow-casting tracking light illuminates through the
+	// dedicated shadowed point-light path only (see @bugfix 15/07/2026 there).
+	light->setExcludeFromLightEnv(castsShadows);
+	light->Set_Far_Attenuation_Range( innerRadius, innerRadius + attenuationWidth );
+	// Keep a decay window armed every refresh. If the emitter stops calling updateTrackingLight, the
+	// current eased colour/shadow strength tails off instead of disappearing on the next render frame.
+	light->setFrameFade(0, 45);
+	light->setCastsShadows(castsShadows);
+	light->setShadowBias(shadowBias);
+	light->setShadowStrength(desiredShadowStrength);
+	light->setDecayRange();
+	light->setDecayColor();
+	light->Set_Flag(LightClass::FAR_ATTENUATION, true);
+}
+
+void W3DDisplay::clearTrackingLight( void )
+{
+	for (Int tl = 0; tl < MAX_TRACKING_LIGHTS; ++tl)
+	{
+		if (m_trackingLights[tl].light != nullptr)
+		{
+			m_trackingLights[tl].light->setFrameFade(0, 45);
+			m_trackingLights[tl].light->setDecayRange();
+			m_trackingLights[tl].light->setDecayColor();
+			m_trackingLights[tl].light = nullptr;
+			m_trackingLights[tl].emitterId = 0;
+		}
+	}
 }
 
 void W3DDisplay::toggleLetterBox()
@@ -2273,7 +2744,8 @@ void W3DDisplay::enableLetterBox(Bool enable)
 	if (enable)
 	{
 		if (!m_letterBoxEnabled)
-		{	//letterbox mode not previously enabled
+		{
+			//letterbox mode not previously enabled
 			m_letterBoxEnabled = TRUE;
 			m_letterBoxFadeStartTime = timeGetTime();
 
@@ -2287,7 +2759,8 @@ void W3DDisplay::enableLetterBox(Bool enable)
 	else
 	{
 		if (m_letterBoxEnabled)
-		{	//letterbox mode no previously disabled
+		{
+			//letterbox mode no previously disabled
 			m_letterBoxEnabled = FALSE;
 			m_letterBoxFadeStartTime = timeGetTime();
 
@@ -2807,22 +3280,43 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 	// but it not derived on the W3DDisplay
 	// !!
 
-	const Region2D *uv = image->getUV();
-
 	TextureClass *tex = nullptr;
 	if (BitIsSet(image->getStatus(), IMAGE_STATUS_RAW_TEXTURE))
 		tex = (TextureClass *)(image->getRawTextureData());
 	else
 		tex = WW3DAssetManager::Get_Instance()->Get_Texture(image->getFilename().str(), MIP_LEVELS_1);
+	if (GgcFlags::Enabled(GgcFlag_MapPreviewDiag) && image->getFilename().endsWith(".tga"))
+	{
+		AsciiString imageName = image->getName();
+		AsciiString filename = image->getFilename();
+		if (imageName.startsWith("maps_") || imageName.startsWith("userdata_maps_") ||
+			filename.startsWith("maps_") || filename.startsWith("userdata_maps_"))
+		{
+			FILE *f = fopen("ggc_map_preview_diag.txt", "a");
+			if (f != nullptr)
+			{
+				fprintf(f, "drawImage name='%s' filename='%s' status=0x%x tex=%p texInit=%d texFmt=%d texPath='%s' imageSize=%dx%d texSize=%dx%d screen=(%d,%d)-(%d,%d) mode=%d color=0x%08x\n",
+					imageName.str(), filename.str(), image->getStatus(), tex,
+					tex ? tex->Is_Initialized() : 0,
+					tex ? static_cast<int>(tex->Get_Texture_Format()) : -1,
+					tex ? tex->Get_Full_Path().str() : "(null)",
+					image->getImageSize()->x, image->getImageSize()->y,
+					image->getTextureSize()->x, image->getTextureSize()->y,
+					startX, startY, endX, endY, static_cast<int>(mode), color);
+				fclose(f);
+			}
+		}
+	}
 
 	Bool grayscale = (mode == DRAW_IMAGE_GRAYSCALE);
 	setup2DRenderState(tex, mode, grayscale);
 
 	RectClass screen_rect(startX,startY,endX,endY);
-	RectClass uv_rect(uv->lo.x,uv->lo.y,uv->hi.x,uv->hi.y);
+	RectClass uv_rect = makeAtlasSafeUVRect(image);
 
 	if (m_isClippedEnabled)
-	{	//need to clip this quad to clip rectangle
+	{
+		//need to clip this quad to clip rectangle
 		if (screen_rect.Left < m_clipRegion.lo.x || screen_rect.Right > m_clipRegion.hi.x || screen_rect.Top < m_clipRegion.lo.y || screen_rect.Bottom > m_clipRegion.hi.y)
 		{
 			RectClass clipped_rect;
@@ -2953,28 +3447,39 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 
 	// first try to use the native format
 
-	WW3DFormat displayFormat = DX8Wrapper::getBackBufferFormat();
+#if defined(__APPLE__)
+	// bgfx uploads D3D-style X8R8G8B8 video buffers as BGRA8, which preserves
+	// the BGR0 frames FFmpeg produces on little-endian macOS. Avoid 16-bit
+	// R5G6B5 here; it is both slower in swscale and currently renders with
+	// swapped-looking colors through the bgfx texture path.
+	if ( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+	{
+		format = VideoBuffer::TYPE_X8R8G8B8;
+	}
+#endif
 
-	if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
+	WW3DFormat displayFormat = Renderer::Get_Back_Buffer_Format();
+
+	if ( format == VideoBuffer::TYPE_UNKNOWN && Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( displayFormat ))
 	{
 		format = W3DVideoBuffer::W3DFormatToType( displayFormat );
 	}
 
 	if ( format == VideoBuffer::TYPE_UNKNOWN )
 	{
-		if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+		if ( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_X8R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R8G8B8 ))
+		else if ( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( WW3D_FORMAT_R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R5G6B5 ))
+		else if ( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( WW3D_FORMAT_R5G6B5 ))
 		{
 			format = VideoBuffer::TYPE_R5G6B5;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
+		else if ( Renderer::Is_Initialized() && Renderer::Supports_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
 		{
 			format = VideoBuffer::TYPE_X1R5G5B5;
 		}
@@ -2985,8 +3490,10 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 		}
 	}
 	// on low mem machines, render every video in 16bit
+#if !defined(__APPLE__)
 	if (TheGameLODManager && (!TheGameLODManager->didMemPass() || W3DShaderManager::getChipset() == DC_GEFORCE2))
 		format = VideoBuffer::TYPE_R5G6B5;
+#endif
 
 	W3DVideoBuffer *buffer = NEW W3DVideoBuffer( format );
 
@@ -3039,7 +3546,10 @@ void W3DDisplay::drawVideoBuffer( VideoBuffer *buffer, Int startX, Int startY, I
 {
 	W3DVideoBuffer *vbuffer = (W3DVideoBuffer*) buffer;
 
-	setup2DRenderState(vbuffer->texture(), DRAW_IMAGE_ALPHA, FALSE);
+	// Video buffers are opaque frames. The legacy D3D X8 formats sampled the
+	// unused alpha byte as 1.0; drawing them solid keeps the bgfx path from
+	// depending on undefined X-channel contents.
+	setup2DRenderState(vbuffer->texture(), DRAW_IMAGE_SOLID, FALSE);
 
 	m_2DRender->Add_Quad( RectClass( startX, startY, endX, endY ),
 												vbuffer->Rect( 0, 0, 1, 1) );
@@ -3277,11 +3787,7 @@ void W3DDisplay::dumpAssetUsage(const char* mapname)
 	DynamicVectorClass<StringClass> names(8000);
 	m_assetManager->Create_Asset_List(names);
 
-	const char* leafname = strrchr(mapname, '\\');
-	if (leafname)
-		++leafname;					// point to first character after the last backslash
-	else
-		leafname = mapname;		// point to the start of the filename
+	const char* leafname = getFileName(mapname);
 
 	char buf[256];
 	int idx = 1;

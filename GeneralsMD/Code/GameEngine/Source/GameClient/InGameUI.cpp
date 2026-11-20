@@ -1189,6 +1189,8 @@ InGameUI::InGameUI()
 	m_lastRenderFps = ~0u;
 	m_lastRenderFpsLimit = ~0u;
 	m_lastRenderFpsUpdateMs = 0u;
+	m_lastMoneyDisplayed = ~0u;
+	m_lastIncomeDisplayed = ~0u;
 
 	m_systemTimeString = nullptr;
 	m_systemTimeFont = "Tahoma";
@@ -1208,6 +1210,8 @@ InGameUI::InGameUI()
 	m_gameTimePosition.y = kHudAnchorY;
 	m_gameTimeColor = GameMakeColor(255, 255, 255, 255);
 	m_gameTimeDropColor = GameMakeColor(0, 0, 0, 255);
+	m_gameTimeReservedWidth = 0;
+	m_gameTimeFrameReservedWidth = 0;
 
 	m_playerInfoListFont = "Tahoma";
 	m_playerInfoListPointSize = TheGlobalData->m_playerInfoListFontSize;
@@ -1557,6 +1561,15 @@ void InGameUI::handleRadiusCursor()
 {
 	if (!m_curRadiusCursor.isEmpty())
 	{
+		// The quit menu consumes gameplay input, but preDraw still runs and the hardware mouse
+		// position continues to change. Hide the targeting decal while the menu is open so this
+		// render-time update cannot make a special-power target appear interactive through it.
+		if (m_isQuitMenuVisible)
+		{
+			m_curRadiusCursor.setOpacity(0.0f);
+			return;
+		}
+
 		if (TheGlobalData->m_doubleClickAttackMove && m_duringDoubleClickAttackMoveGuardHintTimer > 0)
 		{
 			m_curRadiusCursor.setOpacity(m_duringDoubleClickAttackMoveGuardHintTimer * 0.1f);
@@ -2083,8 +2096,6 @@ void InGameUI::update()
 
 	// update the player money window if the money amount has changed
 	// this seems like as good a place as any to do the power hide/show
-	static UnsignedInt lastMoney = ~0u;
-	static UnsignedInt lastIncome = ~0u;
 	static NameKeyType moneyWindowKey = TheNameKeyGenerator->nameToKey("ControlBar.wnd:MoneyDisplay");
 	static NameKeyType powerWindowKey = TheNameKeyGenerator->nameToKey("ControlBar.wnd:PowerWindow");
 
@@ -2107,13 +2118,13 @@ void InGameUI::update()
 		if (!doShowIncome)
 		{
 			UnsignedInt currentMoney = money->countMoney();
-			if (lastMoney != currentMoney)
+			if (m_lastMoneyDisplayed != currentMoney)
 			{
 				UnicodeString buffer;
 
 				buffer.format(TheGameText->fetch("GUI:ControlBarMoneyDisplay"), currentMoney);
 				GadgetStaticTextSetText(moneyWin, buffer);
-				lastMoney = currentMoney;
+				m_lastMoneyDisplayed = currentMoney;
 
 			}
 		}
@@ -2122,7 +2133,7 @@ void InGameUI::update()
 			// TheSuperHackers @feature L3-M 21/08/2025 player money per minute
 			UnsignedInt currentMoney = money->countMoney();
 			UnsignedInt cashPerMin = money->getCashPerMinute();
-			if (lastMoney != currentMoney || lastIncome != cashPerMin)
+			if (m_lastMoneyDisplayed != currentMoney || m_lastIncomeDisplayed != cashPerMin)
 			{
 				UnicodeString buffer;
 				UnicodeString moneyStr = formatMoneyValue(currentMoney);
@@ -2130,8 +2141,8 @@ void InGameUI::update()
 
 				buffer.format(TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:ControlBarMoneyDisplayIncome", L"$ %ls +%ls/min", moneyStr.str(), incomeStr.str()));
 				GadgetStaticTextSetText(moneyWin, buffer);
-				lastMoney = currentMoney;
-				lastIncome = cashPerMin;
+				m_lastMoneyDisplayed = currentMoney;
+				m_lastIncomeDisplayed = cashPerMin;
 			}
 		}
 		moneyWin->winHide(FALSE);
@@ -2390,7 +2401,7 @@ void InGameUI::message(AsciiString stringManagerLabel, ...)
 	va_list args;
 	va_start(args, stringManagerLabel);
 	WideChar buf[UnicodeString::MAX_FORMAT_BUF_LEN];
-	int result = vswprintf(buf, sizeof(buf) / sizeof(WideChar), stringManagerString.str(), args);
+	int result = formatStringW(buf, sizeof(buf) / sizeof(WideChar), stringManagerString.str(), args);
 	va_end(args);
 
 	if (result >= 0)
@@ -2431,7 +2442,7 @@ void InGameUI::message(UnicodeString format, ...)
 	va_list args;
 	va_start(args, format);
 	WideChar buf[UnicodeString::MAX_FORMAT_BUF_LEN];
-	int result = vswprintf(buf, sizeof(buf) / sizeof(WideChar), format.str(), args);
+	int result = formatStringW(buf, sizeof(buf) / sizeof(WideChar), format.str(), args);
 	va_end(args);
 
 	if (result >= 0)
@@ -2463,7 +2474,7 @@ void InGameUI::messageColor(const RGBColor * rgbColor, UnicodeString format, ...
 	va_list args;
 	va_start(args, format);
 	WideChar buf[UnicodeString::MAX_FORMAT_BUF_LEN];
-	int result = vswprintf(buf, sizeof(buf) / sizeof(WideChar), format.str(), args);
+	int result = formatStringW(buf, sizeof(buf) / sizeof(WideChar), format.str(), args);
 	va_end(args);
 
 	if (result >= 0)
@@ -6214,6 +6225,77 @@ void InGameUI::recreateControlBar()
 	TheControlBar->init();
 }
 
+// TheSuperHackers @bugfix bobtista 20/07/2026 Retail never changed resolution mid-match, so no path
+// rebuilds the whole in-game HUD on a live window resize. recreateControlBar() alone only rebuilds the
+// ControlBar.wnd tree; the money/superweapon/named-timer state and the radar window pointer are left
+// stale. This reproduces the game-start HUD build (GameLogic::startNewGame) and clears the cached
+// state that does not self-correct, so the HUD comes back intact after a resize.
+void InGameUI::onResolutionChanged()
+{
+	recreateControlBar();
+
+	const Bool inRealGame =
+		(TheGameLogic != NULL && TheGameLogic->isInGame() && !TheGameLogic->isInShellGame());
+	if (inRealGame)
+	{
+		if (TheControlBar != NULL && ThePlayerList != NULL)
+		{
+			Player *localPlayer = ThePlayerList->getLocalPlayer();
+			if (localPlayer != NULL)
+			{
+				TheControlBar->setControlBarSchemeByPlayer(localPlayer);
+				TheControlBar->rebuildSpecialPowerShortcutBarForResolution(localPlayer);
+				TheControlBar->markUIDirty();
+			}
+		}
+
+		// The radar window pointer was destroyed with the old ControlBar.wnd tree; re-hook it to the
+		// freshly created LeftHUD window without resetting the radar data (newMap would wipe it).
+		if (TheRadar != NULL)
+		{
+			TheRadar->reattachWindow();
+		}
+	}
+
+	refreshCustomUiResources();
+
+	// The superweapon countdown and named-timer display strings cache their rendered width and only
+	// recompute it on setFont/setText. Their font size is resolution-scaled, so re-apply the font and
+	// force a text refresh; otherwise the name and time columns drift apart at the new size.
+	for (Int i = 0; i < MAX_PLAYER_COUNT; ++i)
+	{
+		for (SuperweaponMap::iterator mapIt = m_superweapons[i].begin(); mapIt != m_superweapons[i].end(); ++mapIt)
+		{
+			for (SuperweaponList::iterator listIt = mapIt->second.begin(); listIt != mapIt->second.end(); ++listIt)
+			{
+				SuperweaponInfo *info = *listIt;
+				if (info != NULL)
+				{
+					info->setFont(m_superweaponNormalFont, m_superweaponNormalPointSize, m_superweaponNormalBold);
+					info->m_forceUpdateText = TRUE;
+				}
+			}
+		}
+	}
+	for (NamedTimerMapIt timerIt = m_namedTimers.begin(); timerIt != m_namedTimers.end(); ++timerIt)
+	{
+		NamedTimerInfo *info = timerIt->second;
+		if (info != NULL && info->displayString != NULL)
+		{
+			info->displayString->setFont( TheFontLibrary->getFont( m_namedTimerNormalFont,
+				TheGlobalLanguageData->adjustFontSize(m_namedTimerNormalPointSize), m_namedTimerNormalBold ) );
+			info->timestamp = ~0u;
+		}
+	}
+
+	// Force the value caches to repaint the freshly recreated (blank) gadgets on the next update.
+	m_lastMoneyDisplayed = ~0u;
+	m_lastIncomeDisplayed = ~0u;
+	m_lastNetworkLatencyFrames = ~0u;
+	m_lastRenderFps = ~0u;
+	m_lastRenderFpsLimit = ~0u;
+}
+
 // ======================================================================================
 // Observer Notification
 // ======================================================================================
@@ -6950,6 +7032,28 @@ void InGameUI::refreshGameTimeResources()
 	GameFont* gameTimeFont = TheWindowManager->winFindFont(m_gameTimeFont, adjustedGameTimeFontSize, m_gameTimeBold);
 	m_gameTimeString->setFont(gameTimeFont);
 	m_gameTimeFrameString->setFont(gameTimeFont);
+
+	// TheSuperHackers @fix bobtista 07/07/2026 Reserve widths from the widest digit so the clock does not jitter
+	Int maxDigitWidth = 0;
+	for (WideChar digit = L'0'; digit <= L'9'; ++digit)
+	{
+		UnicodeString digitString;
+		digitString.concat(digit);
+		m_gameTimeString->setText(digitString);
+		Int digitWidth = m_gameTimeString->getWidth();
+		if (digitWidth > maxDigitWidth)
+		{
+			maxDigitWidth = digitWidth;
+		}
+	}
+
+	m_gameTimeString->setText(UnicodeString(L":"));
+	Int colonWidth = m_gameTimeString->getWidth();
+	m_gameTimeString->setText(UnicodeString(L"."));
+	Int dotWidth = m_gameTimeString->getWidth();
+
+	m_gameTimeReservedWidth = 6 * maxDigitWidth + 2 * colonWidth;
+	m_gameTimeFrameReservedWidth = dotWidth + 2 * maxDigitWidth;
 }
 
 void InGameUI::refreshPlayerInfoListResources()
@@ -7280,8 +7384,9 @@ void InGameUI::drawGameTime()
 	m_gameTimeFrameString->setText(gameTimeFrameString);
 
 	// TheSuperHackers @info this implicitly offsets the game timer from the right instead of left of the screen
-	int horizontalTimerOffset = TheDisplay->getWidth() - (Int)m_gameTimePosition.x - m_gameTimeString->getWidth() - m_gameTimeFrameString->getWidth();
-	int horizontalFrameOffset = TheDisplay->getWidth() - (Int)m_gameTimePosition.x - m_gameTimeFrameString->getWidth();
+	// TheSuperHackers @fix bobtista 07/07/2026 Anchor timer left to reserved widths so it stops jittering; butt frame against its live right edge
+	int horizontalTimerOffset = TheDisplay->getWidth() - (Int)m_gameTimePosition.x - m_gameTimeReservedWidth - m_gameTimeFrameReservedWidth;
+	int horizontalFrameOffset = horizontalTimerOffset + m_gameTimeString->getWidth();
 
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180, 180, 180, 255), m_gameTimeDropColor);

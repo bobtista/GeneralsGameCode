@@ -391,6 +391,167 @@ void UnicodeString::truncateTo(const Int maxLength)
 }
 
 // -----------------------------------------------------
+#ifndef _WIN32
+static Bool isFlagWidthPrecChar(WideChar c)
+{
+	return c == L'-' || c == L'+' || c == L' ' || c == L'#'
+		|| (c >= L'0' && c <= L'9') || c == L'.' || c == L'*';
+}
+
+static Bool isLengthModChar(WideChar c)
+{
+	return c == L'h' || c == L'l' || c == L'L' || c == L'w'
+		|| c == L'j' || c == L'z' || c == L't' || c == L'q';
+}
+
+// Rewrite an MSVC-semantics wide format string into one that standard libc vswprintf reads
+// the same way. MSVC: %s/%c are wide, %S/%C narrow, %hs/%hc narrow, %ls/%lc/%ws/%wc wide.
+// libc: %s/%c are narrow, %ls/%lc wide, %S/%C wide. So bare %s/%c gain an 'l' (become wide),
+// %ws/%wc map to %ls/%lc, and %S/%C become narrow %s/%c.
+static void translateWideFormat(const WideChar* in, WideChar* out, size_t outCap)
+{
+	size_t o = 0;
+	for (const WideChar* p = in; *p != 0; )
+	{
+		if (*p != L'%')
+		{
+			if (o + 1 < outCap)
+			{
+				out[o++] = *p;
+			}
+			++p;
+			continue;
+		}
+		if (o + 1 < outCap)
+		{
+			out[o++] = *p;
+		}
+		++p;
+		if (*p == L'%')
+		{
+			if (o + 1 < outCap)
+			{
+				out[o++] = *p;
+			}
+			++p;
+			continue;
+		}
+		while (*p != 0 && isFlagWidthPrecChar(*p))
+		{
+			if (o + 1 < outCap)
+			{
+				out[o++] = *p;
+			}
+			++p;
+		}
+		// TheSuperHackers @bugfix mirelle7 29/07/2026 Hold the length modifiers back until
+		// the conversion character is known, because an 'h' on s/c has to be dropped rather
+		// than passed through. MSVC spells a narrow argument %hs/%hc, but musl (Emscripten)
+		// rejects that outright: vswprintf returns -1 and the whole string comes out empty.
+		// GameText formats its missing-label placeholder that way ("MISSING: '%hs'"), so any
+		// INI naming a label the string table lacks - retail CommandMap.ini asks for
+		// GUI:SaveView5, which generals.csf does not define - fetched an empty string and
+		// INI::parseAndTranslateLabel threw, killing the engine during startup. Modifiers on
+		// other conversions (%hd, %zu) still pass through untouched.
+		WideChar lengthMods[8];
+		size_t lengthModCount = 0;
+		Bool wideLen = FALSE;
+		Bool narrowLen = FALSE;
+		while (*p != 0 && isLengthModChar(*p))
+		{
+			WideChar emit = *p;
+			if (*p == L'h')
+			{
+				narrowLen = TRUE;
+			}
+			else if (*p == L'w')
+			{
+				wideLen = TRUE;
+				emit = L'l';
+			}
+			else if (*p == L'l' || *p == L'L')
+			{
+				wideLen = TRUE;
+			}
+			if (lengthModCount < sizeof(lengthMods) / sizeof(lengthMods[0]))
+			{
+				lengthMods[lengthModCount++] = emit;
+			}
+			++p;
+		}
+		WideChar c = *p;
+		if (c == 0)
+		{
+			break;
+		}
+		if (c == L's' || c == L'c')
+		{
+			// %hs/%hc mean narrow, which is exactly what a bare %s/%c already means to libc,
+			// so the modifier is dropped entirely. Anything else wide keeps its 'l'.
+			if (!narrowLen)
+			{
+				for (size_t i = 0; i < lengthModCount; ++i)
+				{
+					if (o + 1 < outCap)
+					{
+						out[o++] = lengthMods[i];
+					}
+				}
+				if (!wideLen && o + 1 < outCap)
+				{
+					out[o++] = L'l';
+				}
+			}
+			if (o + 1 < outCap)
+			{
+				out[o++] = c;
+			}
+			++p;
+		}
+		else if (c == L'S' || c == L'C')
+		{
+			if (o + 1 < outCap)
+			{
+				out[o++] = (c == L'S') ? L's' : L'c';
+			}
+			++p;
+		}
+		else
+		{
+			for (size_t i = 0; i < lengthModCount; ++i)
+			{
+				if (o + 1 < outCap)
+				{
+					out[o++] = lengthMods[i];
+				}
+			}
+			if (o + 1 < outCap)
+			{
+				out[o++] = c;
+			}
+			++p;
+		}
+	}
+	if (outCap > 0)
+	{
+		out[(o < outCap) ? o : (outCap - 1)] = 0;
+	}
+}
+#endif
+
+// -----------------------------------------------------
+Int formatStringW(WideChar* buf, size_t bufCount, const WideChar* format, va_list args)
+{
+#ifdef _WIN32
+	return vswprintf(buf, bufCount, format, args);
+#else
+	WideChar translated[UnicodeString::MAX_FORMAT_BUF_LEN];
+	translateWideFormat(format, translated, sizeof(translated) / sizeof(WideChar));
+	return vswprintf(buf, bufCount, translated, args);
+#endif
+}
+
+// -----------------------------------------------------
 void UnicodeString::format(UnicodeString format, ...)
 {
 	validate();
@@ -423,7 +584,7 @@ void UnicodeString::format_va(const WideChar* format, va_list args)
 {
 	validate();
 	WideChar buf[MAX_FORMAT_BUF_LEN];
-	const int result = vswprintf(buf, sizeof(buf)/sizeof(WideChar), format, args);
+	const int result = formatStringW(buf, sizeof(buf)/sizeof(WideChar), format, args);
 	if (result >= 0)
 	{
 		set(buf);

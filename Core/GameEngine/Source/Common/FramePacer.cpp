@@ -42,10 +42,19 @@ FramePacer::FramePacer()
 	m_enableLogicTimeScale = FALSE;
 	m_isTimeFrozen = FALSE;
 	m_isGameHalted = FALSE;
+	m_enablePerformanceLog = FALSE;
+	m_performanceLogFrameCount = 0;
+	m_performanceLogWindowFrames = 0;
+	m_performanceLogElapsedSeconds = 0.0f;
+	m_performanceLogWindowSeconds = 0.0f;
+	m_performanceLogWindowMinMs = 0.0f;
+	m_performanceLogWindowMaxMs = 0.0f;
 }
 
 FramePacer::~FramePacer()
 {
+	flushPerformanceLogWindow();
+
 	// Restore the previous time slice for Windows.
 	timeEndPeriod(1);
 }
@@ -56,6 +65,108 @@ void FramePacer::update()
 	// with higher resolution counters to cap the frame rate more accurately to the desired limit.
 	const UnsignedInt maxFps = getActualFramesPerSecondLimit();// allowFpsLimit ? getFramesPerSecondLimit() : RenderFpsPreset::UncappedFpsValue;
 	m_updateTime = m_frameRateLimit.wait(maxFps);
+
+	if (TheGameLogic != nullptr)
+	{
+		// Set or advance the logic frame phase by the render step that the next update will draw.
+		// It is capped at a whole logic frame, because the render steps in between can add up to more than one.
+		// Consumers are expected to interpolate towards the next logic frame and not extrapolate past it.
+		const Real timeScale = getActualLogicTimeScaleOverFpsRatio();
+
+		if (TheGameLogic->hasUpdated())
+		{
+			m_logicFramePhase = timeScale;
+		}
+		else
+		{
+			m_logicFramePhase = min(1.0f, m_logicFramePhase + timeScale);
+		}
+	}
+	updatePerformanceLog();
+}
+
+void FramePacer::enablePerformanceLog(Bool enable)
+{
+	m_enablePerformanceLog = enable;
+	m_performanceLogFrameCount = 0;
+	m_performanceLogWindowFrames = 0;
+	m_performanceLogElapsedSeconds = 0.0f;
+	m_performanceLogWindowSeconds = 0.0f;
+	m_performanceLogWindowMinMs = 0.0f;
+	m_performanceLogWindowMaxMs = 0.0f;
+
+	if (m_enablePerformanceLog)
+	{
+		FILE *file = fopen("PerfLog_FrameTimes.csv", "wt");
+		if (file != nullptr)
+		{
+			fprintf(file, "elapsed_seconds,total_frames,window_frames,avg_ms,min_ms,max_ms,fps\n");
+			fclose(file);
+		}
+		else
+		{
+			DEBUG_LOG(("FramePacer::enablePerformanceLog() - failed to open PerfLog_FrameTimes.csv"));
+		}
+	}
+}
+
+void FramePacer::flushPerformanceLogWindow()
+{
+	if (!m_enablePerformanceLog || m_performanceLogWindowFrames == 0)
+	{
+		return;
+	}
+
+	FILE *file = fopen("PerfLog_FrameTimes.csv", "at");
+	if (file != nullptr)
+	{
+		const Real avgMs = (m_performanceLogWindowSeconds * 1000.0f) / (Real)m_performanceLogWindowFrames;
+		const Real fps = (Real)m_performanceLogWindowFrames / m_performanceLogWindowSeconds;
+		fprintf(file, "%.3f,%u,%u,%.3f,%.3f,%.3f,%.3f\n",
+			m_performanceLogElapsedSeconds,
+			m_performanceLogFrameCount,
+			m_performanceLogWindowFrames,
+			avgMs,
+			m_performanceLogWindowMinMs,
+			m_performanceLogWindowMaxMs,
+			fps);
+		fclose(file);
+	}
+
+	m_performanceLogWindowFrames = 0;
+	m_performanceLogWindowSeconds = 0.0f;
+	m_performanceLogWindowMinMs = 0.0f;
+	m_performanceLogWindowMaxMs = 0.0f;
+}
+
+void FramePacer::updatePerformanceLog()
+{
+	if (!m_enablePerformanceLog)
+	{
+		return;
+	}
+
+	const Real frameMs = m_updateTime * 1000.0f;
+	++m_performanceLogFrameCount;
+	++m_performanceLogWindowFrames;
+	m_performanceLogElapsedSeconds += m_updateTime;
+	m_performanceLogWindowSeconds += m_updateTime;
+
+	if (m_performanceLogWindowFrames == 1)
+	{
+		m_performanceLogWindowMinMs = frameMs;
+		m_performanceLogWindowMaxMs = frameMs;
+	}
+	else
+	{
+		m_performanceLogWindowMinMs = min(m_performanceLogWindowMinMs, frameMs);
+		m_performanceLogWindowMaxMs = max(m_performanceLogWindowMaxMs, frameMs);
+	}
+
+	if (m_performanceLogWindowSeconds >= 1.0f)
+	{
+		flushPerformanceLogWindow();
+	}
 }
 
 void FramePacer::reset()

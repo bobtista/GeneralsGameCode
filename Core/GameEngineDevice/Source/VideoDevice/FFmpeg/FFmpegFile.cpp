@@ -27,7 +27,7 @@
 /////////////////////////////////////////////////
 
 #include "VideoDevice/FFmpeg/FFmpegFile.h"
-#include "Common/File.h"
+#include "Common/file.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -51,9 +51,10 @@ Bool FFmpegFile::open(File *file)
 {
 	DEBUG_ASSERTCRASH(m_file == nullptr, ("already open"));
 	DEBUG_ASSERTCRASH(file != nullptr, ("null file pointer"));
-#if LOGGING_LEVEL != LOGLEVEL_NONE
-	av_log_set_level(AV_LOG_INFO);
-#endif
+	// FFmpeg/swscale can emit per-frame warnings for valid software color
+	// conversions during startup movies. Keep actual failures visible without
+	// flooding stderr while the game is launched from a terminal.
+	av_log_set_level(AV_LOG_ERROR);
 
 // This is required for FFmpeg older than 4.0 -> deprecated afterwards though
 #if LIBAVFORMAT_VERSION_MAJOR < 58
@@ -78,7 +79,9 @@ Bool FFmpegFile::open(File *file)
 		return false;
 	}
 
-	m_avioCtx = avio_alloc_context(buffer, avio_ctx_buffer_size, 0, file, &readPacket, nullptr, nullptr);
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Provide a seek callback; without one the demuxer
+	// cannot reposition, so av_seek_frame (frameGoto) always failed on this custom IO context.
+	m_avioCtx = avio_alloc_context(buffer, avio_ctx_buffer_size, 0, file, &readPacket, nullptr, &seekPacket);
 	if (m_avioCtx == nullptr) {
 		DEBUG_LOG(("Failed to alloc AVIOContext"));
 		close();
@@ -170,6 +173,43 @@ int FFmpegFile::readPacket(void *opaque, uint8_t *buf, int buf_size)
 }
 
 /**
+ * Seek within the file for the FFmpeg demuxer
+ */
+int64_t FFmpegFile::seekPacket(void *opaque, int64_t offset, int whence)
+{
+	File *file = static_cast<File *>(opaque);
+
+	if ((whence & AVSEEK_SIZE) != 0)
+	{
+		return file->size();
+	}
+
+	File::seekMode mode;
+	switch (whence & ~AVSEEK_FORCE)
+	{
+		case SEEK_SET:
+			mode = File::START;
+			break;
+		case SEEK_CUR:
+			mode = File::CURRENT;
+			break;
+		case SEEK_END:
+			mode = File::END;
+			break;
+		default:
+			return -1;
+	}
+
+	const Int pos = file->seek(static_cast<Int>(offset), mode);
+	if (pos < 0)
+	{
+		return -1;
+	}
+
+	return pos;
+}
+
+/**
  * close all the open FFmpeg handles for an open file.
  */
 void FFmpegFile::close()
@@ -199,6 +239,65 @@ void FFmpegFile::close()
 		m_file->close();
 		m_file = nullptr;
 	}
+
+	m_flushed = false;
+}
+
+// TheSuperHackers @bugfix bobtista 02/08/2026 Hand every frame the decoder has ready to the
+// callback. Returns false only on a hard decode error; a decoder asking for more input, or one
+// that has finished draining, is not an error.
+Bool FFmpegFile::receiveFrames(FFmpegStream &stream)
+{
+	for (;;)
+	{
+		const int result = avcodec_receive_frame(stream.codec_ctx, stream.frame);
+		if (result == AVERROR(EAGAIN) || result == AVERROR_EOF)
+		{
+			return true;
+		}
+
+		if (result < 0)
+		{
+			char error_buffer[1024];
+			av_strerror(result, error_buffer, sizeof(error_buffer));
+			DEBUG_LOG(("Failed 'avcodec_receive_frame': %s", error_buffer));
+			return false;
+		}
+
+		if (m_frameCallback != nullptr)
+		{
+			m_frameCallback(stream.frame, stream.stream_idx, stream.stream_type, m_userData);
+		}
+	}
+}
+
+// TheSuperHackers @bugfix bobtista 02/08/2026 Emit the frames the decoders were still holding when
+// the container ran dry, one per stream per call so the caller can stop as soon as it has the video
+// frame it wanted. Returns false once every decoder is empty, which ends the stream.
+Bool FFmpegFile::drainDecoders()
+{
+	Bool emittedFrame = false;
+
+	for (auto &stream : m_streams)
+	{
+		if (stream.codec_ctx == nullptr)
+		{
+			continue;
+		}
+
+		if (avcodec_receive_frame(stream.codec_ctx, stream.frame) < 0)
+		{
+			continue;
+		}
+
+		if (m_frameCallback != nullptr)
+		{
+			m_frameCallback(stream.frame, stream.stream_idx, stream.stream_type, m_userData);
+		}
+		emittedFrame = true;
+	}
+
+	return emittedFrame;
 }
 
 Bool FFmpegFile::decodePacket()
@@ -206,83 +305,111 @@ Bool FFmpegFile::decodePacket()
 	DEBUG_ASSERTCRASH(m_fmtCtx != nullptr, ("null format context"));
 	DEBUG_ASSERTCRASH(m_packet != nullptr, ("null packet pointer"));
 
+	if (m_flushed)
+	{
+		return drainDecoders();
+	}
+
 	int result = av_read_frame(m_fmtCtx, m_packet);
-	if (result == AVERROR_EOF)
-		return false;
+	if (result < 0)
+	{
+		// TheSuperHackers @bugfix bobtista 02/08/2026 Flush the decoders when the container runs
+		// out instead of returning right away. A decoder buffers frames internally, and how many
+		// depends on the FFmpeg build and the thread count it picks for the machine, so those
+		// frames were silently dropped and the stream ended short of getNumFrames() on some
+		// platforms and not others. Callers that play until the last frame then never finished.
+		if (result != AVERROR_EOF)
+		{
+			char error_buffer[1024];
+			av_strerror(result, error_buffer, sizeof(error_buffer));
+			DEBUG_LOG(("Failed 'av_read_frame': %s", error_buffer));
+		}
+
+		for (auto &stream : m_streams)
+		{
+			if (stream.codec_ctx != nullptr)
+			{
+				avcodec_send_packet(stream.codec_ctx, nullptr);
+			}
+		}
+		m_flushed = true;
+
+		return drainDecoders();
+	}
 
 	const int stream_idx = m_packet->stream_index;
-	if (stream_idx < 0 || (size_t)stream_idx >= m_streams.size()) {
-		DEBUG_LOG(("Invalid stream index: %d (total streams: %zu)", stream_idx, m_streams.size()));
-		av_packet_unref(m_packet);
-		return true;
-	}
+	DEBUG_ASSERTCRASH(m_streams.size() > stream_idx, ("stream index out of bounds"));
 
 	auto &stream = m_streams[stream_idx];
 	AVCodecContext *codec_ctx = stream.codec_ctx;
-	if (codec_ctx == nullptr) {
-		DEBUG_LOG(("Null codec context for stream %d", stream_idx));
-		av_packet_unref(m_packet);
-		return true;
-	}
-
 	result = avcodec_send_packet(codec_ctx, m_packet);
-	// Check if we need more data
+
+	// TheSuperHackers @bugfix bobtista 02/08/2026 AVERROR(EAGAIN) means the decoder cannot take
+	// more input until its pending output is read. This used to return early, and the next call
+	// overwrote the packet with av_read_frame, so the packet and its frame were lost every time it
+	// happened. Read the pending output and resend the same packet instead.
 	if (result == AVERROR(EAGAIN))
-		return true;
+	{
+		if (!receiveFrames(stream))
+		{
+			av_packet_unref(m_packet);
+			return false;
+		}
+		result = avcodec_send_packet(codec_ctx, m_packet);
+	}
+	av_packet_unref(m_packet);
 
 	// Handle any other errors
 	if (result < 0) {
 		char error_buffer[1024];
 		av_strerror(result, error_buffer, sizeof(error_buffer));
 		DEBUG_LOG(("Failed 'avcodec_send_packet': %s", error_buffer));
-		av_packet_unref(m_packet);
 		return false;
 	}
-	av_packet_unref(m_packet);
 
 	// Get all frames in this packet
-	while (result >= 0) {
-		result = avcodec_receive_frame(codec_ctx, stream.frame);
-
-		// Check if we need more data
-		if (result == AVERROR(EAGAIN))
-			return true;
-
-		// Handle any other errors
-		if (result < 0) {
-			char error_buffer[1024];
-			av_strerror(result, error_buffer, sizeof(error_buffer));
-			DEBUG_LOG(("Failed 'avcodec_receive_frame': %s", error_buffer));
-			return false;
-		}
-
-		// Validate the frame before passing to callback
-		if (stream.frame != nullptr && stream.frame->data[0] != nullptr && 
-			stream.frame->width > 0 && stream.frame->height > 0) {
-			if (m_frameCallback != nullptr) {
-				m_frameCallback(stream.frame, stream_idx, stream.stream_type, m_userData);
-			}
-		} else {
-			DEBUG_LOG(("Decoded frame has invalid data or dimensions"));
-		}
-	}
-
-	return true;
+	return receiveFrames(stream);
 }
 
 void FFmpegFile::seekFrame(int frame_idx)
 {
-	// Note: not tested, since not used ingame
-	for (const auto &stream : m_streams) {
-		Int64 timestamp = av_q2d(m_fmtCtx->streams[stream.stream_idx]->time_base) * frame_idx
-			* av_q2d(m_fmtCtx->streams[stream.stream_idx]->avg_frame_rate);
-		int result = av_seek_frame(m_fmtCtx, stream.stream_idx, timestamp, AVSEEK_FLAG_ANY);
-		if (result < 0) {
-			char error_buffer[1024];
-			av_strerror(result, error_buffer, sizeof(error_buffer));
-			DEBUG_LOG(("Failed 'av_seek_frame': %s", error_buffer));
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Seek on the video stream with a correct timestamp;
+	// the previous math multiplied by the frame rate and time base instead of dividing, which
+	// truncated every seek target to the start of the file. Flush all decoders afterwards so
+	// packets from the new position decode cleanly.
+	const FFmpegStream *video = findMatch(AVMEDIA_TYPE_VIDEO);
+	if (m_fmtCtx == nullptr || video == nullptr)
+	{
+		return;
+	}
+
+	const AVStream *avStream = m_fmtCtx->streams[video->stream_idx];
+	const double fps = av_q2d(avStream->avg_frame_rate);
+	const double timeBase = av_q2d(avStream->time_base);
+	if (fps <= 0.0 || timeBase <= 0.0)
+	{
+		return;
+	}
+
+	const Int64 timestamp = static_cast<Int64>(frame_idx / (fps * timeBase));
+	const int result = av_seek_frame(m_fmtCtx, video->stream_idx, timestamp, AVSEEK_FLAG_ANY);
+	if (result < 0)
+	{
+		char error_buffer[1024];
+		av_strerror(result, error_buffer, sizeof(error_buffer));
+		DEBUG_LOG(("Failed 'av_seek_frame': %s", error_buffer));
+		return;
+	}
+
+	for (const auto &stream : m_streams)
+	{
+		if (stream.codec_ctx != nullptr)
+		{
+			avcodec_flush_buffers(stream.codec_ctx);
 		}
 	}
+
+	m_flushed = false;
 }
 
 Bool FFmpegFile::hasAudio() const
@@ -361,6 +488,12 @@ Int FFmpegFile::getNumFrames() const
 	if (m_fmtCtx == nullptr || stream == nullptr || m_fmtCtx->streams[stream->stream_idx] == nullptr)
 		return 0;
 
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Prefer the exact frame count from the container
+	// (the Bink demuxer stores it); the duration*fps product is only an estimate, which broke
+	// callers doing exact end-of-movie math against frameIndex().
+	if (m_fmtCtx->streams[stream->stream_idx]->nb_frames > 0)
+		return static_cast<Int>(m_fmtCtx->streams[stream->stream_idx]->nb_frames);
+
 	return (m_fmtCtx->duration / (double)AV_TIME_BASE) * av_q2d(m_fmtCtx->streams[stream->stream_idx]->avg_frame_rate);
 }
 
@@ -369,7 +502,14 @@ Int FFmpegFile::getCurrentFrame() const
 	const FFmpegStream *stream = findMatch(AVMEDIA_TYPE_VIDEO);
 	if (stream == nullptr)
 		return 0;
+	// TheSuperHackers @build bobtista 24/07/2026 AVCodecContext::frame_number was
+	// renamed to frame_num in FFmpeg 6.0 (libavcodec 60). Support both so the
+	// video device builds against FFmpeg 5.1 (Debian 12) through 7.x.
+#if LIBAVCODEC_VERSION_MAJOR >= 60
 	return stream->codec_ctx->frame_num;
+#else
+	return stream->codec_ctx->frame_number;
+#endif
 }
 
 Int FFmpegFile::getPixelFormat() const
@@ -381,10 +521,17 @@ Int FFmpegFile::getPixelFormat() const
 	return stream->codec_ctx->pix_fmt;
 }
 
-UnsignedInt FFmpegFile::getFrameTime() const
+// TheSuperHackers @bugfix bobtista 13/07/2026 Return the frame time unrounded; truncating to whole
+// milliseconds ran video ~1% fast against its audio, drifting seconds apart over a full movie.
+double FFmpegFile::getFrameTime() const
 {
 	const FFmpegStream *stream = findMatch(AVMEDIA_TYPE_VIDEO);
 	if (stream == nullptr)
-		return 0u;
-	return 1000u / av_q2d(m_fmtCtx->streams[stream->stream_idx]->avg_frame_rate);
+		return 0.0;
+
+	const double fps = av_q2d(m_fmtCtx->streams[stream->stream_idx]->avg_frame_rate);
+	if (fps <= 0.0)
+		return 0.0;
+
+	return 1000.0 / fps;
 }

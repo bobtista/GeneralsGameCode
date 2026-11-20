@@ -36,6 +36,8 @@
 
 #pragma once
 
+#include "WWMath/wwmath.h"
+
 template<class T> class TRect;
 
 /*

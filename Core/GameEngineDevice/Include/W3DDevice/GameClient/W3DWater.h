@@ -29,14 +29,14 @@
 #include "WWLib/always.h"
 #include "WW3D2/rendobj.h"
 #include "WW3D2/w3d_file.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/shader.h"
 #include "WW3D2/vertmaterial.h"
 #include "WW3D2/light.h"
 #include "Lib/BaseType.h"
 #include "Common/GameType.h"
 #include "Common/Snapshot.h"
+
+#include <vector>
 
 #define INVALID_WATER_HEIGHT 0.0f	///water height guaranteed to be below all terrain.
 
@@ -49,7 +49,11 @@
 #define CV_PATCH_SCALE_OFFSET 10
 
 class PolygonTrigger;
+struct RenderBackendWaterDraw;
 class WaterTracksRenderSystem;
+// TheSuperHackers @build bobtista 01/06/2026 RenderIndexBufferClass is a type
+// alias on the dx8 backend; include the shared header.
+#include "WW3D2/renderbufferclasses.h"
 class Xfer;
 /// Custom render object that draws mirrors, water, and skies.
 /**
@@ -125,7 +129,8 @@ public:
 	void replaceSkyboxTexture(const AsciiString& oldTexName, const AsciiString& newTextName);
 
 protected:
-	DX8IndexBufferClass			*m_indexBuffer;	///<indices defining quad
+	RenderIndexBufferClass		*m_indexBuffer;	///<indices defining quad
+	RenderIndexBufferClass		*m_waterMeshIndexBuffer;	///<indices defining the grid-mesh water strip
 	SceneClass							*m_parentScene;	///<scene to be reflected
 	ShaderClass m_shaderClass; ///<shader or rendering state for heightmap
 	VertexMaterialClass	  		*m_vertexMaterialClass;	///<vertex lighting material
@@ -146,25 +151,8 @@ protected:
 	WaterType	m_waterType;		///<type of water being used
 	Int			m_sortLevel;		///<sort order after main scene is rendered
 
-	//Data used in GeForce3 bump-mapped water (uses direct D3D resources for better
-	//performance and compatibility (most of these featues are not supported by W3D).
-	struct SEA_PATCH_VERTEX	//vertex structure passed to D3D
-	{
-		float x,y,z;
-		unsigned int c;
-		float tu, tv;
-	};
-
-	LPDIRECT3DDEVICE8 m_pDev;						///<pointer to D3D Device
-	LPDIRECT3DVERTEXBUFFER8 m_vertexBufferD3D;		///<D3D vertex buffer
-	LPDIRECT3DINDEXBUFFER8	m_indexBufferD3D;	///<D3D index buffer
-	Int						m_vertexBufferD3DOffset;	///<location to start writing vertices
-	DWORD					m_dwWavePixelShader;	///<handle to D3D pixel shader
-	DWORD					m_dwWaveVertexShader;	///<handle to D3D vertex shader
-	Int	m_numVertices;				///<number of vertices in D3D vertex buffer
-	Int m_numIndices;				///<number of indices in D3D index buffer
-	LPDIRECT3DTEXTURE8 m_pBumpTexture[NUM_BUMP_FRAMES]; ///<animation frames
-	LPDIRECT3DTEXTURE8 m_pBumpTexture2[NUM_BUMP_FRAMES]; ///<animation frames
+	Int	m_numVertices;				///<number of vertices in the generated water buffer
+	Int m_numIndices;				///<number of indices in the generated water buffer
 	Real				m_fBumpFrame;	///<current animation frame
 	Real				m_fBumpScale;	///<scales bump map uv perturbation
 	TextureClass * m_pReflectionTexture;	///<render target for reflection
@@ -205,11 +193,7 @@ protected:
 
 	Real m_riverVOrigin;
 	TextureClass *m_riverTexture;
-	TextureClass *m_whiteTexture;		///< a texture containing only white used for null pixel shader stages.
 	TextureClass *m_waterNoiseTexture;
-	DWORD	m_waterPixelShader;		///<D3D handle to pixel shader.
-	DWORD	m_riverWaterPixelShader;		///<D3D handle to pixel shader.
-	DWORD	m_trapezoidWaterPixelShader;	///<handle to D3D vertex shader
 	TextureClass *m_waterSparklesTexture;
 	Real m_riverXOffset;
 	Real m_riverYOffset;
@@ -219,43 +203,50 @@ protected:
 
 	TimeOfDay m_tod;	///<time of day setting for reflected cloud layer
 
+	struct WaterTrapezoidBatchEntry
+	{
+		Vector3 points[4];
+	};
+
+	struct SeaPatchBatchEntry
+	{
+		Int patchX;
+		Int patchY;
+	};
+
 	struct Setting
 	{
 		TextureClass	*skyTexture;
 		TextureClass	*waterTexture;
 		Int				waterRepeatCount;
 		Real			skyTexelsPerUnit;	//texel density of sky plane (higher value repeats texture more).
-		DWORD			vertex00Diffuse;
-		DWORD			vertex10Diffuse;
-		DWORD			vertex11Diffuse;
-		DWORD			vertex01Diffuse;
-		DWORD			waterDiffuse;
-		DWORD			transparentWaterDiffuse;
+		UnsignedInt		vertex00Diffuse;
+		UnsignedInt		vertex10Diffuse;
+		UnsignedInt		vertex11Diffuse;
+		UnsignedInt		vertex01Diffuse;
+		UnsignedInt		waterDiffuse;
+		UnsignedInt		transparentWaterDiffuse;
 		Real			uScrollPerMs;
 		Real			vScrollPerMs;
 	};
 
 	Setting m_settings[ TIME_OF_DAY_COUNT ];	///< settings for each time of day
 	void drawRiverWater(PolygonTrigger *pTrig);
-	void drawTrapezoidWater(Vector3 points[4]);
+	void drawTrapezoidWaterBatch(const std::vector<WaterTrapezoidBatchEntry> &trapezoids);
 	void loadSetting ( Setting *skySetting, TimeOfDay timeOfDay );	///<init sky/water settings from GDF
 	void renderSky();	///<draw the sky layer (clouds, stars, etc.)
 	void testCurvedWater();	///<draw the sky layer (clouds, stars, etc.)
 	void renderSkyBody(Matrix3D *mat);	///<draw the sky body (sun, moon, etc.)
 	void renderWaterMesh();			///<draw the water surface mesh (deformed 3d mesh).
-	HRESULT initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass *pBumpSource);	///<copies data into bump-map format.
 	void renderMirror(CameraClass *cam);	///< Draw reflected scene into texture
-	void drawSea(RenderInfoClass & rinfo);	///< Draw the surface of the water
+	void drawSeaBatch(RenderInfoClass & rinfo);	///< Draw the sea through the render backend
 	///bounding box of frustum clipped polygon plane
 	Bool getClippedWaterPlane(CameraClass *cam, AABoxClass *box);
 
-	void setupFlatWaterShader();
-	void setupJbaWaterShader();
-	void cleanupJbaWaterShader();
+	void fillWaterDraw(RenderBackendWaterDraw &water);	///<fill the inputs shared by all water surfaces
 
 	//Methods used for GeForce3 specific water
-	HRESULT generateIndexBuffer(int sizeX, int sizeY);	///<Generate static index buufer
-	HRESULT generateVertexBuffer( Int sizeX, Int sizeY, Int vertexSize, Bool doFill);///<Generate static vertex buffer
+	bool generateIndexBuffer(int sizeX, int sizeY);	///<Generate water strip index buffer
 
 	// snapshot methods for save/load
 	virtual void crc( Xfer *xfer ) override;

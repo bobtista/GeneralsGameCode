@@ -76,19 +76,21 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "meshmdl.h"
-#include "WW3D2/aabtree.h"
-#include "WW3D2/matinfo.h"
+#include "aabtree.h"
+#include "matinfo.h"
 #include "vertmaterial.h"
 #include "shader.h"
-#include "WW3D2/texture.h"
+#include "texture.h"
 #include "WWLib/chunkio.h"
-#include "WW3D2/w3derr.h"
+#include "w3derr.h"
 #include "w3d_file.h"
-#include "WW3D2/w3d_util.h"
+#include "w3d_util.h"
 #include "assetmgr.h"
 #include "WWLib/simplevec.h"
 #include "WWLib/realcrc.h"
-#include "WW3D2/dx8wrapper.h"
+#include "ww3dcolor.h"
+
+#include <math.h>
 
 #ifdef _UNIX
 #include "osdep/osdep.h"
@@ -96,6 +98,169 @@
 
 #define MESH_SINGLE_MATERIAL_HACK		0		// (gth) forces all multi-material meshes to use their first material only. (NOT RECOMMENDED, TESTING ONLY!)
 #define MESH_FORCE_STATIC_SORT_HACK	0		// (gth) forces all sorting meshes to use static sort level 1 instead.
+
+static bool Same_Position(const Vector3 & a, const Vector3 & b)
+{
+	const float dx = a.X - b.X;
+	const float dy = a.Y - b.Y;
+	const float dz = a.Z - b.Z;
+	return dx * dx + dy * dy + dz * dz < 0.000001f;
+}
+
+static bool Triangles_Share_Positions(const Vector3 * verts, const TriIndex & a, const TriIndex & b)
+{
+	bool matched[3] = { false, false, false };
+	for (int ai = 0; ai < 3; ++ai) {
+		bool found = false;
+		for (int bi = 0; bi < 3; ++bi) {
+			if (!matched[bi] && Same_Position(verts[a[ai]], verts[b[bi]])) {
+				matched[bi] = true;
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool Compute_Triangle_Plane(const Vector3 * verts, const TriIndex & tri, Vector3 * normal, float * dist)
+{
+	const Vector3 & p0 = verts[tri[0]];
+	const Vector3 & p1 = verts[tri[1]];
+	const Vector3 & p2 = verts[tri[2]];
+	Vector3 e0 = p1 - p0;
+	Vector3 e1 = p2 - p0;
+	Vector3::Cross_Product(e0, e1, normal);
+	if (normal->Length2() < 0.000001f) {
+		return false;
+	}
+	normal->Normalize();
+	*dist = Vector3::Dot_Product(*normal, p0);
+	return true;
+}
+
+static bool Compute_Averaged_Vertex_Normal(const Vector3 * norms, const TriIndex & tri, Vector3 * normal)
+{
+	*normal = norms[tri[0]] + norms[tri[1]] + norms[tri[2]];
+	if (normal->Length2() < 0.000001f) {
+		return false;
+	}
+	normal->Normalize();
+	return true;
+}
+
+static bool Triangle_Is_On_Plane(const Vector3 * verts, const TriIndex & tri, const Vector3 & normal, float dist)
+{
+	for (int i = 0; i < 3; ++i) {
+		if (fabsf(Vector3::Dot_Product(normal, verts[tri[i]]) - dist) > 0.001f) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static int Dominant_Axis(const Vector3 & normal)
+{
+	const float ax = fabsf(normal.X);
+	const float ay = fabsf(normal.Y);
+	const float az = fabsf(normal.Z);
+	if (ax >= ay && ax >= az) {
+		return 0;
+	}
+	if (ay >= az) {
+		return 1;
+	}
+	return 2;
+}
+
+static void Project_Vertex(const Vector3 & v, int drop_axis, float * u, float * w)
+{
+	if (drop_axis == 0) {
+		*u = v.Y;
+		*w = v.Z;
+	} else if (drop_axis == 1) {
+		*u = v.X;
+		*w = v.Z;
+	} else {
+		*u = v.X;
+		*w = v.Y;
+	}
+}
+
+static bool Projected_Triangle_Bounds_Overlap(const Vector3 * verts,
+	const TriIndex & a,
+	const TriIndex & b,
+	const Vector3 & plane_normal)
+{
+	const int drop_axis = Dominant_Axis(plane_normal);
+	float amin_u = 0.0f, amin_w = 0.0f, amax_u = 0.0f, amax_w = 0.0f;
+	float bmin_u = 0.0f, bmin_w = 0.0f, bmax_u = 0.0f, bmax_w = 0.0f;
+	for (int i = 0; i < 3; ++i) {
+		float u = 0.0f;
+		float w = 0.0f;
+		Project_Vertex(verts[a[i]], drop_axis, &u, &w);
+		if (i == 0 || u < amin_u) amin_u = u;
+		if (i == 0 || u > amax_u) amax_u = u;
+		if (i == 0 || w < amin_w) amin_w = w;
+		if (i == 0 || w > amax_w) amax_w = w;
+		Project_Vertex(verts[b[i]], drop_axis, &u, &w);
+		if (i == 0 || u < bmin_u) bmin_u = u;
+		if (i == 0 || u > bmax_u) bmax_u = u;
+		if (i == 0 || w < bmin_w) bmin_w = w;
+		if (i == 0 || w > bmax_w) bmax_w = w;
+	}
+	return amin_u <= bmax_u + 0.001f
+		&& amax_u + 0.001f >= bmin_u
+		&& amin_w <= bmax_w + 0.001f
+		&& amax_w + 0.001f >= bmin_w;
+}
+
+static bool Has_Coplanar_Opposite_Triangle_Pairs(MeshGeometryClass * mesh)
+{
+	const int poly_count = mesh->Get_Polygon_Count();
+	if (poly_count < 2) {
+		return false;
+	}
+
+	const TriIndex * polys = mesh->Get_Polygon_Array();
+	const Vector3 * verts = mesh->Get_Vertex_Array();
+	const Vector3 * norms = mesh->Get_Vertex_Normal_Array();
+	for (int i = 0; i < poly_count; ++i) {
+		Vector3 ni;
+		float di = 0.0f;
+		if (!Compute_Triangle_Plane(verts, polys[i], &ni, &di)) {
+			continue;
+		}
+		for (int j = i + 1; j < poly_count; ++j) {
+			Vector3 nj;
+			float dj = 0.0f;
+			if (!Compute_Triangle_Plane(verts, polys[j], &nj, &dj)) {
+				continue;
+			}
+			const bool same_positions = Triangles_Share_Positions(verts, polys[i], polys[j]);
+			const bool opposite_face_planes =
+				Vector3::Dot_Product(ni, nj) < -0.999f && fabsf(di + dj) < 0.001f;
+			if (same_positions && opposite_face_planes) {
+				return true;
+			}
+			Vector3 vni;
+			Vector3 vnj;
+			if (opposite_face_planes
+				&& Triangle_Is_On_Plane(verts, polys[j], ni, di)
+				&& Projected_Triangle_Bounds_Overlap(verts, polys[i], polys[j], ni)
+				&& Compute_Averaged_Vertex_Normal(norms, polys[i], &vni)
+				&& Compute_Averaged_Vertex_Normal(norms, polys[j], &vnj)
+				&& Vector3::Dot_Product(vni, vnj) < -0.9f) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 /**
 ** MeshLoadContextClass
 ** This class is just used as a temporary scratchpad while a mesh is being
@@ -898,7 +1063,7 @@ WW3DErrorType MeshModelClass::read_vertex_colors(ChunkLoadClass & cload,MeshLoad
 
 			Vector4 col;
 			col.Set((float)color.R / 255.0f,(float)color.G / 255.0f,(float)color.B / 255.0f, 1.0f);
-			dcg[i]=DX8Wrapper::Convert_Color(col);
+			dcg[i]=WW3DColor::To_ARGB(col);
 		}
 	}
 	CurMatDesc->Set_DCG_Source(context->CurPass,VertexMaterialClass::COLOR1);
@@ -952,6 +1117,7 @@ WW3DErrorType MeshModelClass::read_shaders(ChunkLoadClass & cload,MeshLoadContex
 		W3dUtilityClass::Convert_Shader(shader,&newshader);
 
 		int index = context->Add_Shader(newshader);
+		(void)index;
 		WWASSERT(index == (int)i);
 	}
 	return WW3D_ERROR_OK;
@@ -1264,7 +1430,7 @@ WW3DErrorType MeshModelClass::read_dcg(ChunkLoadClass & cload,MeshLoadContextCla
 			cload.Read(&color,sizeof(color));
 			Vector4 col;
 			W3dUtilityClass::Convert_Color(color,&col);
-			dcg[i]=DX8Wrapper::Convert_Color(col);
+			dcg[i]=WW3DColor::To_ARGB(col);
 		}
 	} else if (context->PrelitChunkID==W3D_CHUNK_PRELIT_VERTEX) {
 
@@ -1274,9 +1440,9 @@ WW3DErrorType MeshModelClass::read_dcg(ChunkLoadClass & cload,MeshLoadContextCla
 		for (int i=0; i<Get_Vertex_Count(); i++) {
 			cload.Read(&color,sizeof(color));
 			Vector4 col;
-			col=DX8Wrapper::Convert_Color(dcg[i]);
+			col=WW3DColor::From_ARGB(dcg[i]);
 			col.W = float(color.A)/255.0f;
-			dcg[i]=DX8Wrapper::Convert_Color(col);
+			dcg[i]=WW3DColor::To_ARGB(col);
 		}
 	}
 
@@ -1326,7 +1492,7 @@ WW3DErrorType MeshModelClass::read_dig(ChunkLoadClass & cload,MeshLoadContextCla
 			col.Y = float(color.G)/255.0f;
 			col.Z = float(color.B)/255.0f;
 			col.W = 1.0f;
-			dcg[i]=DX8Wrapper::Convert_Color(col);
+			dcg[i]=WW3DColor::To_ARGB(col);
 
 
 		}
@@ -1334,11 +1500,11 @@ WW3DErrorType MeshModelClass::read_dig(ChunkLoadClass & cload,MeshLoadContextCla
 		unsigned * dcg = matdesc->Get_Color_Array(0);
 		for (int i=0; i<Get_Vertex_Count(); i++) {
 			cload.Read(&color,sizeof(color));
-			Vector4 col=DX8Wrapper::Convert_Color(dcg[i]);
+			Vector4 col=WW3DColor::From_ARGB(dcg[i]);
 			col.X *= float(color.R)/255.0f;
 			col.Y *= float(color.G)/255.0f;
 			col.Z *= float(color.B)/255.0f;
-			dcg[i]=DX8Wrapper::Convert_Color(col);
+			dcg[i]=WW3DColor::To_ARGB(col);
 		}
 	}
 
@@ -1640,6 +1806,36 @@ WW3DErrorType MeshModelClass::read_prelit_material (ChunkLoadClass &cload, MeshL
  *=============================================================================================*/
 void MeshModelClass::post_process()
 {
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @info bobtista 17/07/2026 Loader-side patch of shipped art: the USA
+	// Strategy Center's "AC BOX" sub-mesh authors these 16 vertices against atlas padding
+	// that the DX8 fixed-function pipeline happened to sample acceptably but the bgfx path
+	// renders as black. Remap them to the intended 24x24 texel window. If this asset is
+	// ever re-exported or modded, this remap silently overrides its UVs - remove it then.
+	if (stricmp(Get_Name(), "ABSTRATEGY.AC BOX") == 0
+		&& Get_Vertex_Count() > 59
+		&& DefMatDesc->Get_UV_Array(0, 0) != nullptr) {
+		Vector2 *uv = DefMatDesc->Get_UV_Array(0, 0);
+		const int side_vertices[][4] = {
+			{ 44, 45, 46, 47 },
+			{ 48, 49, 50, 51 },
+			{ 52, 53, 54, 55 },
+			{ 56, 57, 58, 59 },
+		};
+		const float u0 = 44.0f / 256.0f;
+		const float u1 = 68.0f / 256.0f;
+		const float v0 = 216.0f / 256.0f;
+		const float v1 = 240.0f / 256.0f;
+
+		for (int face = 0; face < 4; ++face) {
+			uv[side_vertices[face][0]].Set(u0, v0);
+			uv[side_vertices[face][1]].Set(u0, v1);
+			uv[side_vertices[face][2]].Set(u1, v1);
+			uv[side_vertices[face][3]].Set(u1, v0);
+		}
+	}
+#endif
+
 #if 0
 	// we want to allow this now due to usage of the static sort
 	// Ensure no sorting, multipass meshes (for they are abomination...)
@@ -1655,6 +1851,13 @@ void MeshModelClass::post_process()
 			REF_PTR_RELEASE(CullTree);
 		}
 	}
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @performance bobtista 17/07/2026 The coplanar scan is O(polys^2) at
+	// load and only feeds the bgfx normal-bias (and instancing exclusion); the DX8 backend
+	// never consumes the flag, so skip the cost there.
+	Set_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS, Has_Coplanar_Opposite_Triangle_Pairs(this));
+#endif
 
 	// turn off backface culling if the mesh is supposed to be two-sided
 	if (Get_Flag(MeshGeometryClass::TWO_SIDED)) {

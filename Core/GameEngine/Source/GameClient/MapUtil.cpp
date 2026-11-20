@@ -1133,6 +1133,19 @@ Bool isOfficialMap( AsciiString mapName )
 const MapMetaData *MapCache::findMap(AsciiString mapName)
 {
 	mapName.toLower();
+	// TheSuperHackers @bugfix bobtista 11/07/2026 Normalize separators to the
+	// platform's cache-key form in both directions. The 09/06/2026 fix covered
+	// only the macOS direction ('\\'->'/'), so on Windows a forward-slash map
+	// name (legacy cross-platform saves, lobby map names) could never match.
+	{
+		std::string normalized(mapName.str());
+#ifdef _WIN32
+		std::replace(normalized.begin(), normalized.end(), '/', '\\');
+#else
+		std::replace(normalized.begin(), normalized.end(), '\\', '/');
+#endif
+		mapName.set(normalized.c_str());
+	}
 	MapCache::iterator it = find(mapName);
 	if (it == end())
 		return nullptr;
@@ -1225,7 +1238,8 @@ Image *getMapPreviewImage( AsciiString mapName )
 	if(!image)
 	{
 
-		if(!TheFileSystem->doesFileExist(tgaName.str()))
+		Bool sourceExists = TheFileSystem->doesFileExist(tgaName.str());
+		if(!sourceExists)
 			return nullptr;
 		AsciiString mapPreviewDir;
 		mapPreviewDir.format(MAP_PREVIEW_DIR_PATH, TheGlobalData->getPath_UserData().str());
@@ -1246,7 +1260,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 
 		if (success)
 		{
-    	image = newInstance(Image);
+			image = newInstance(Image);
 			image->setName(tempName);
 			//image->setFullPath("mission.tga");
 			image->setFilename(name);
@@ -1401,4 +1415,3 @@ void findDrawPositions( Int startX, Int startY, Int width, Int height, Region3D 
 	lr->y += startY;
 
 }
-

@@ -55,6 +55,8 @@
 #include "GameClient/WindowXlat.h"
 #include "GameClient/Shell.h"
 #include "GameClient/Display.h"
+#include "GameClient/MetaEvent.h"
+#include "GameLogic/GameLogic.h"
 
 
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -74,6 +76,27 @@
 #if defined(RTS_DEBUG)	//debug hack to view object under mouse stats
 extern ICoord2D TheMousePos;
 #endif
+
+// isFastForwardReplayKey =====================================================
+/** Is the key mapped to the replay fast forward toggle while watching a replay? */
+//=============================================================================
+static Bool isFastForwardReplayKey( UnsignedByte key )
+{
+	if( TheMetaMap == nullptr || TheGameLogic == nullptr || !TheGameLogic->isInReplayGame() )
+	{
+		return FALSE;
+	}
+
+	for( const MetaMapRec *map = TheMetaMap->getFirstMetaMapRec(); map; map = map->m_next )
+	{
+		if( map->m_meta == GameMessage::MSG_META_TOGGLE_FAST_FORWARD_REPLAY && map->m_key == (MappableKeyType)key )
+		{
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
 
 // rawMouseToWindowMessage ====================================================
 /** Translate a raw mouse input event to a game window specific message
@@ -171,6 +194,30 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 	GameMessageDisposition disp = KEEP_MESSAGE;
 	Bool forceKeepMessage = FALSE;
 	WinInputReturnCode returnCode = WIN_INPUT_NOT_USED;
+
+// TheSuperHackers @tweak bobtista 09/08/2026 Reports on every gate change, which is far too
+// chatty for a release build that now ships logging. Keep it for INTENSE_DEBUG sessions.
+#if defined(DEBUG_LOGGING) && defined(INTENSE_DEBUG)
+	// TheSuperHackers @info bobtista 04/08/2026 The mouse lock gate below drops raw input before it
+	// can reach TheWindowManager, so the GUI keeps rendering while ignoring clicks and keys. Report
+	// every change of the gate state so a dead menu can be attributed to it.
+	{
+		const Bool mouseLocked = (TheTacticalView != nullptr && TheTacticalView->isMouseLocked());
+		const Bool uiScrolling = (TheInGameUI != nullptr && TheInGameUI->isScrolling());
+		const Int gateState = mouseLocked ? (uiScrolling ? 1 : 2) : 0;
+		static Int lastGateState = 0;
+		if( gateState != lastGateState )
+		{
+			lastGateState = gateState;
+			DEBUG_LOG(("WindowXlat gate: mouseLocked=%d uiScrolling=%d shellActive=%d inputEnabled=%d -> %s",
+				mouseLocked ? 1 : 0,
+				uiScrolling ? 1 : 0,
+				(TheShell != nullptr && TheShell->isShellActive()) ? 1 : 0,
+				(TheInGameUI != nullptr && TheInGameUI->getInputEnabled()) ? 1 : 0,
+				gateState == 0 ? "OPEN" : (gateState == 1 ? "MOUSE POS AND KEYS DROPPED" : "ALL GUI INPUT DROPPED")));
+		}
+	}
+#endif
 
 	if (TheTacticalView && TheTacticalView->isMouseLocked())
 	{
@@ -317,9 +364,9 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 
 
 			// If we're in a movie, we want to be able to escape out of it
-			if(returnCode != WIN_INPUT_USED
-				&& (key == KEY_ESC)
-				&& (BitIsSet( state, KEY_STATE_UP )) )
+			if(returnCode != WIN_INPUT_USED &&
+				(key == KEY_ESC) &&
+				(BitIsSet( state, KEY_STATE_UP )) )
 			{
 				if (TheGameClient->skipCurrentIntroStage())
 				{
@@ -334,9 +381,11 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 
 			// TheSuperHackers @bugfix If the input is disabled, then only allow the ESC button to get through.
 			// Otherwise it would be possible to call user camera actions during scripted camera scenes.
-			if(returnCode != WIN_INPUT_USED
-				&& (key != KEY_ESC)
-				&& (TheInGameUI && (TheInGameUI->getInputEnabled() == FALSE)) )
+			// TheSuperHackers @bugfix bobtista 14/10/2026 Also let the replay fast forward key through, so a replay can be fast forwarded during scripted camera scenes.
+			if(returnCode != WIN_INPUT_USED &&
+				(key != KEY_ESC) &&
+				!isFastForwardReplayKey(key) &&
+				(TheInGameUI && (TheInGameUI->getInputEnabled() == FALSE)) )
 			{
 				returnCode = WIN_INPUT_USED;
 			}

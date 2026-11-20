@@ -33,6 +33,7 @@
 #include <WW3D2/rinfo.h>
 #include <WW3D2/camera.h>
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/shader.h"
 #include "Common/GlobalData.h"
 #include "Common/MapObject.h"
@@ -317,12 +318,16 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 		if (m_needUpdate) {
 			updateCircleVB();
 		}
+		// TheSuperHackers @refactor bobtista 10/04/2026 Introduced the
+		// IRenderBackend migration for this function; completed it by
+		// routing the fade blend-op overrides through the new interface API.
+
 		//Apply the shader and material
-		DX8Wrapper::Set_Material(m_vertexMaterialClass);
-		DX8Wrapper::Set_Shader(m_shaderClass);
-		DX8Wrapper::Set_Texture(0, nullptr);
-		DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
-		DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferCircle);
+		Renderer::Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Shader(m_shaderClass);
+		Renderer::Set_Texture(0, nullptr);
+		Renderer::Set_Index_Buffer(m_indexBuffer,0);
+		Renderer::Set_Vertex_Buffer(m_vertexBufferCircle, 0);
 		setIndex = true;
 
 		Vector3 vec(0.95f, 0.67f, 0);
@@ -330,8 +335,8 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 
 		tm.Set_Translation(vec);
 
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
-		DX8Wrapper::Draw_Triangles(	0,NUM_TRI, 0,	(m_numTriangles*3));
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
+		Renderer::Draw_Triangles(	0,NUM_TRI, 0,	(m_numTriangles*3));
 	}
 
 
@@ -341,9 +346,9 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 	}
 
 	if (!setIndex) {
-		DX8Wrapper::Set_Material(m_vertexMaterialClass);
-		DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
-		DX8Wrapper::Set_Texture(0, nullptr);
+		Renderer::Set_Material(m_vertexMaterialClass);
+		Renderer::Set_Index_Buffer(m_indexBuffer,0);
+		Renderer::Set_Texture(0, nullptr);
 	}
 
 	tm.Make_Identity();
@@ -351,32 +356,32 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 	Int clr = 255*intensity;
 	Int diffuse = (0xff<<24)|(clr<<16)|(clr<<8)|clr;	 // b g<<8 r<<16 a<<24.
 	updateScreenVB(diffuse);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
-	DX8Wrapper::Set_Shader(ShaderClass(SC_ADD));
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferScreen);
-	DX8Wrapper::Apply_Render_State_Changes();
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,tm);
+	Renderer::Set_Shader(ShaderClass(SC_ADD));
+	Renderer::Set_Vertex_Buffer(m_vertexBufferScreen, 0);
+	Renderer::Apply_Render_State_Changes();
 	switch (fade) {
 		default:
 		case ScriptEngine::FADE_ADD:
-			DX8Wrapper::Draw_Triangles(	0,2, 0,	(2*3));
+			Renderer::Draw_Triangles(	0,2, 0,	(2*3));
 			break;
 		case ScriptEngine::FADE_SUBTRACT:
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP, D3DBLENDOP_REVSUBTRACT );
-			DX8Wrapper::Draw_Triangles(	0,2, 0,	(2*3));
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP, D3DBLENDOP_ADD );
+			// TheSuperHackers @refactor bobtista 10/04/2026 Route the remaining
+			// blend-op override through the IRenderBackend extension.
+			Renderer::Set_Blend_Op(RB_BLEND_OP_REV_SUBTRACT);
+			Renderer::Draw_Triangles(	0,2, 0,	(2*3));
+			Renderer::Set_Blend_Op(RB_BLEND_OP_ADD);
 			break;
 		case ScriptEngine::FADE_SATURATE:
 			// 4x multiply
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_SRCCOLOR);
-			DX8Wrapper::Draw_Triangles(	0,2, 0,	(2*3));
-			DX8Wrapper::Draw_Triangles(	0,2, 0,	(2*3));
+			Renderer::Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_SRC_COLOR);
+			Renderer::Draw_Triangles(	0,2, 0,	(2*3));
+			Renderer::Draw_Triangles(	0,2, 0,	(2*3));
 			break;
 		case ScriptEngine::FADE_MULTIPLY:
 			// Straight multiply
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_ZERO);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_SRCCOLOR);
-			DX8Wrapper::Draw_Triangles(	0,2, 0,	(2*3));
+			Renderer::Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_SRC_COLOR);
+			Renderer::Draw_Triangles(	0,2, 0,	(2*3));
 			break;
 	}
 	ShaderClass::Invalidate();

@@ -89,6 +89,11 @@ public:
 	void destroyLightsIterator(RefRenderObjListIterator * it);
 	RefRenderObjListClass *getDynamicLights() {return &m_dynamicLightList;};
 	W3DDynamicLight *getADynamicLight();
+	// TheSuperHackers @feature bobtista 23/06/2026 Returns the brightest enabled CastsShadows
+	// dynamic light (by current diffuse magnitude), or NULL. Drives the single point-shadow map.
+	// TheSuperHackers @feature bobtista 14/07/2026 Optional exclude skips one light so the
+	// second-strongest caster can be found for the second point-shadow slot.
+	W3DDynamicLight *getStrongestShadowCastingDynamicLight(const W3DDynamicLight *exclude = NULL);
 	void setGlobalLight(LightClass *pLight,Int lightIndex=0);
 	LightEnvironmentClass &getDefaultLightEnv() {return m_defaultLightEnv;}
 
@@ -119,6 +124,7 @@ protected:
 	LightEnvironmentClass	m_foggedLightEnv;		///<default light environment applied to objects without custom/dynamic lighting.
 
 	W3DShroudMaterialPassClass	*m_shroudMaterialPass;	///< Custom render pass which applies shrouds to objects
+	W3DShroudMaterialPassClass	*m_objectShroudMaterialPass;	///< Delayed per-pixel object shroud overlay for bgfx structures (clear/fogged/shrouded)
 	W3DMaskMaterialPassClass *m_maskMaterialPass;			///< Custom render pass applied to entire scene used to mask out pixels.
 	MaterialPassClass *m_heatVisionMaterialPass;			///< Custom render passed applied on top of objects with heatvision effect.
 	MaterialPassClass *m_heatVisionOnlyPass;					///< Custom render pass applied in place of regular pass on objects with heat vision effect.

@@ -37,35 +37,34 @@
 
 #pragma once
 
+#include <stdint.h>
+
 typedef unsigned char	uint8;
 typedef unsigned short	uint16;
-#if defined(_MSC_VER)
-typedef unsigned __int32	uint32;
-#else
-typedef unsigned long	uint32;
-#endif
+typedef uint32_t			uint32;
 typedef unsigned int    uint;
 
 typedef signed char		sint8;
 typedef signed short		sint16;
-typedef signed long		sint32;
+typedef int32_t			sint32;
 typedef signed int      sint;
 
 typedef float				float32;
 typedef double				float64;
 
-typedef unsigned long   DWORD;
+#ifdef _WIN32
+typedef unsigned long	DWORD;
+#else
+typedef uint32_t			DWORD;
+#endif
 typedef unsigned short	WORD;
 typedef unsigned char   BYTE;
 typedef int             BOOL;
 typedef unsigned short	USHORT;
 typedef const char *		LPCSTR;
 typedef unsigned int    UINT;
-typedef unsigned long   ULONG;
-
-#if defined(_MSC_VER) && _MSC_VER < 1300
-#ifndef _WCHAR_T_DEFINED
-typedef unsigned short wchar_t;
-#define _WCHAR_T_DEFINED
-#endif
+#ifdef _WIN32
+typedef unsigned long	ULONG;
+#else
+typedef uint32_t			ULONG;
 #endif

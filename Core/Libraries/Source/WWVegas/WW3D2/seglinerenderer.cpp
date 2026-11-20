@@ -38,16 +38,27 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "seglinerenderer.h"
-#include "WW3D2/ww3d.h"
-#include "WW3D2/rinfo.h"
+#include "ww3d.h"
+#include "rinfo.h"
+#include "ww3dcolor.h"
 #include "dx8wrapper.h"
+#include "Renderer.h"
 #include "sortingrenderer.h"
 #include "WWMath/vp.h"
 #include "WWMath/Vector3i.h"
 #include "WWLib/RANDOM.h"
 #include "WWMath/v3_rnd.h"
-#include "WW3D2/meshgeometry.h"
-#include <algorithm>
+#include "meshgeometry.h"
+#include "vertmaterial.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
+#include "dx8fvf.h"
+#include "Renderer.h"
+#include "GgcRuntimeFlags.h"
+#include "w3d_file.h"
+
+#include <cstdio>
+#include <cstdlib>
 
 
 /* We have chunking logic which handles N segments at a time. To simplify the subdivision logic,
@@ -65,9 +76,6 @@
 #define MAX_SEGLINE_POINT_BUFFER_SIZE (1 + SEGLINE_CHUNK_SIZE)
 // This macro depends on the assumption that each line segment is two polys.
 #define MAX_SEGLINE_POLY_BUFFER_SIZE (SEGLINE_CHUNK_SIZE * 2)
-
-
-
 
 SegLineRendererClass::SegLineRendererClass() :
 		Texture(nullptr),
@@ -192,7 +200,14 @@ void SegLineRendererClass::Set_Texture_Tile_Factor(float factor)
 	///@todo: I raised this number and didn't see much difference on our min-spec. -MW
 	const static float MAX_LINE_TILING_FACTOR = 50.0f;
 	if (factor > MAX_LINE_TILING_FACTOR) {
-		WWDEBUG_SAY(("Texture (%s) Tile Factor (%.2f) too large in SegLineRendererClass!", Peek_Texture()->Get_Texture_Name().str(), TextureTileFactor));
+		// TheSuperHackers @tweak bobtista 08/08/2026 An offending texture re-warns on every
+		// setter call, which was a fifth of a release log. Warn once per texture instead.
+		const TextureClass *warnTexture = Peek_Texture();
+		static const TextureClass *lastWarnedTexture = NULL;
+		if (warnTexture != lastWarnedTexture) {
+			lastWarnedTexture = warnTexture;
+			WWDEBUG_SAY(("Texture (%s) Tile Factor (%.2f) too large in SegLineRendererClass!", warnTexture->Get_Texture_Name().str(), TextureTileFactor));
+		}
 		factor = MAX_LINE_TILING_FACTOR;
 	} else {
 		factor = MAX(factor, 0.0f);
@@ -218,24 +233,17 @@ void SegLineRendererClass::Render
 	Vector4 * rgbas
 )
 {
+	const bool diagSegline = GgcFlags::Enabled(GgcFlag_SeglineDiag);
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+	Renderer::Get_Transform(RB_TRANSFORM_VIEW,view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD,identity);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW, identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
 	*/
-// TODO_MERGE: Check this, old code was:
-/*
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-	unsigned int delta = std::max<unsigned int>(33, WW3D::Get_Sync_Time() - LastUsedSyncTime);
-#else
-	unsigned int delta = WW3D::Get_Sync_Time() - LastUsedSyncTime;
-#endif
-*/
 	// TheSuperHackers @tweak The render update is now decoupled from the logic step.
 	const unsigned int delta = WW3D::Get_Logic_Time_Milliseconds() - LastUsedSyncTime;
 	Vector2 uv_offset = CurrentUVOffset + UVOffsetDeltaPerMS * (float)delta;
@@ -298,6 +306,27 @@ void SegLineRendererClass::Render
 
 		VectorProcessorClass::Transform(&xformed_pts[0],
 			&points[chidx], modelview, point_cnt);
+		if (diagSegline && chidx == 0)
+		{
+			if (FILE *diag = std::fopen("ggc_segline_diag.txt", "a"))
+			{
+				const char *textureName = Texture != nullptr ? Texture->Get_Texture_Name().str() : "<none>";
+				std::fprintf(diag,
+					"segline texture=%s points=%u width=%.3f opacity=%.3f shader=0x%08x firstEye=(%.2f,%.2f,%.2f) lastEye=(%.2f,%.2f,%.2f)\n",
+					textureName,
+					point_cnt,
+					Width,
+					Opacity,
+					Shader.Get_Bits(),
+					xformed_pts[0].X,
+					xformed_pts[0].Y,
+					xformed_pts[0].Z,
+					xformed_pts[point_cnt - 1].X,
+					xformed_pts[point_cnt - 1].Y,
+					xformed_pts[point_cnt - 1].Z);
+				std::fclose(diag);
+			}
+		}
 
 
 		/*
@@ -419,7 +448,8 @@ void SegLineRendererClass::Render
 		// segment.
 		LineSegmentIntersection intersection[MAX_SEGLINE_POINT_BUFFER_SIZE + 1][NUM_EDGES];
 
-		for (sidx = 1; sidx < point_cnt; sidx++) {	// #segments = #points - 1 (+ 2 dummy segments)
+		for (sidx = 1; sidx < point_cnt; sidx++) {
+			// #segments = #points - 1 (+ 2 dummy segments)
 
 			Vector3 &curr_point = points[sidx - 1];
 			Vector3 &next_point = points[sidx];
@@ -951,14 +981,14 @@ void SegLineRendererClass::Render
 		vArray[vidx].x = top.X;
 		vArray[vidx].y = top.Y;
 		vArray[vidx].z = top.Z;
-		vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[1][TOP_EDGE].RGBA);
+		vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[1][TOP_EDGE].RGBA);
 		vArray[vidx].u1 = u_values[0] + uv_offset.X;
 		vArray[vidx].v1 = intersection[1][TOP_EDGE].TexV + uv_offset.Y;
 		vidx++;
 		vArray[vidx].x = bottom.X;
 		vArray[vidx].y = bottom.Y;
 		vArray[vidx].z = bottom.Z;
-		vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[1][BOTTOM_EDGE].RGBA);
+		vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[1][BOTTOM_EDGE].RGBA);
 		vArray[vidx].u1 = u_values[1] + uv_offset.X;
 		vArray[vidx].v1 = intersection[1][BOTTOM_EDGE].TexV + uv_offset.Y;
 		vidx++;
@@ -1012,14 +1042,14 @@ void SegLineRendererClass::Render
 				vArray[vidx].x = top.X;
 				vArray[vidx].y = top.Y;
 				vArray[vidx].z = top.Z;
-				vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[top_int_idx][TOP_EDGE].RGBA);
+				vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[top_int_idx][TOP_EDGE].RGBA);
 				vArray[vidx].u1 = u_values[0] + uv_offset.X;
 				vArray[vidx].v1 = intersection[top_int_idx][TOP_EDGE].TexV + uv_offset.Y;
 				vidx++;
 				vArray[vidx].x = bottom.X;
 				vArray[vidx].y = bottom.Y;
 				vArray[vidx].z = bottom.Z;
-				vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
+				vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
 				vArray[vidx].u1 = u_values[1] + uv_offset.X;
 				vArray[vidx].v1 = intersection[bottom_int_idx][BOTTOM_EDGE].TexV + uv_offset.Y;
 				vidx++;
@@ -1048,7 +1078,7 @@ void SegLineRendererClass::Render
 					vArray[vidx].x = bottom.X;
 					vArray[vidx].y = bottom.Y;
 					vArray[vidx].z = bottom.Z;
-					vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
+					vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
 					vArray[vidx].u1 = u_values[1] + uv_offset.X;
 					vArray[vidx].v1 = intersection[bottom_int_idx][BOTTOM_EDGE].TexV + uv_offset.Y;
 					vidx++;
@@ -1077,7 +1107,7 @@ void SegLineRendererClass::Render
 					vArray[vidx].x = top.X;
 					vArray[vidx].y = top.Y;
 					vArray[vidx].z = top.Z;
-					vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[top_int_idx][TOP_EDGE].RGBA);
+					vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[top_int_idx][TOP_EDGE].RGBA);
 					vArray[vidx].u1 = u_values[0] + uv_offset.X;
 					vArray[vidx].v1 = intersection[top_int_idx][TOP_EDGE].TexV + uv_offset.Y;
 					vidx++;
@@ -1108,11 +1138,28 @@ void SegLineRendererClass::Render
 
 		// If color is not white or opacity not 100%, enable gradient in shader and in renderer - otherwise disable.
 		unsigned int rgba;
-		rgba=DX8Wrapper::Convert_Color(Color,Opacity);
+		rgba=WW3DColor::To_ARGB(Color,Opacity);
 		bool rgba_all=(rgba==0xFFFFFFFF);
 
 		// Enable sorting if sorting has not been disabled and line is translucent and alpha testing is not enabled.
 		bool sorting = (!Is_Sorting_Disabled()) && (Shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO && Shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE);
+		if (diagSegline)
+		{
+			if (FILE *diag = std::fopen("ggc_segline_diag.txt", "a"))
+			{
+				const char *textureName = Texture != nullptr ? Texture->Get_Texture_Name().str() : "<none>";
+				std::fprintf(diag,
+					"segline-submit texture=%s sorting=%d vnum=%u polys=%u rgbaAll=%d mapMode=%d disableSort=%d\n",
+					textureName,
+					sorting ? 1 : 0,
+					vnum,
+					tidx,
+					rgba_all ? 1 : 0,
+					static_cast<int>(map_mode),
+					Is_Sorting_Disabled() ? 1 : 0);
+				std::fclose(diag);
+			}
+		}
 
 		ShaderClass shader = Shader;
 		shader.Set_Cull_Mode(ShaderClass::CULL_MODE_DISABLE);
@@ -1141,35 +1188,26 @@ void SegLineRendererClass::Render
 		** Render
 		*/
 
-		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),dynamic_fvf_type,vnum);
+		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC),dynamic_fvf_type,vnum);
 		// Copy in the data to the  VB
 		{
 			DynamicVBAccessClass::WriteLockClass Lock(&Verts);
 			unsigned int i;
-			unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
-			const FVFInfoClass& fvfinfo=Verts.FVF_Info();
-
-			const unsigned int verticesOffset = fvfinfo.Get_Location_Offset();
-			const unsigned diffuseOffset = fvfinfo.Get_Diffuse_Offset();
-			const unsigned textureOffset = fvfinfo.Get_Tex_Offset(0);
-			const unsigned vbSize = fvfinfo.Get_FVF_Size();
+			VertexFormatXYZNDUV2* vb=Lock.Get_Formatted_Vertex_Array();
 
 			for (i=0; i<vnum; i++)
 			{
-				// Copy Locations
-				Vector3 *vertex = reinterpret_cast<Vector3 *>(vb + verticesOffset);
-				vertex->X = vArray[i].x;
-				vertex->Y = vArray[i].y;
-				vertex->Z = vArray[i].z;
-				*reinterpret_cast<unsigned int *>(vb + diffuseOffset) = vArray[i].diffuse;
-				Vector2 *texture = reinterpret_cast<Vector2 *>(vb + textureOffset);
-				texture->U = vArray[i].u1;
-				texture->V = vArray[i].v1;
-				vb += vbSize;
+				// Copy the location, color and texture coordinates
+				vb[i].x = vArray[i].x;
+				vb[i].y = vArray[i].y;
+				vb[i].z = vArray[i].z;
+				vb[i].diffuse = vArray[i].diffuse;
+				vb[i].u1 = vArray[i].u1;
+				vb[i].v1 = vArray[i].v1;
 			}
 		}
 
-		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),tidx*3);
+		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC),tidx*3);
 		{
 			unsigned int i;
 			DynamicIBAccessClass::WriteLockClass lock(&ib_access);
@@ -1183,23 +1221,25 @@ void SegLineRendererClass::Render
 			}
 		}
 
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Vertex_Buffer(Verts);
-		DX8Wrapper::Set_Material(mat);
-		DX8Wrapper::Set_Texture(0,Texture);
-		DX8Wrapper::Set_Shader(shader);
+		Renderer::Set_Index_Buffer(ib_access,0);
+		Renderer::Set_Vertex_Buffer(Verts);
+		Renderer::Set_Material(mat);
+		Renderer::Set_Texture(0,Texture);
+		Renderer::Set_Shader(shader);
 
 		if (sorting) {
+			Renderer::Set_Streak_Render_Active(true);
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,tidx,0,vnum);
+			Renderer::Set_Streak_Render_Active(false);
 		} else {
-			DX8Wrapper::Draw_Triangles(0,tidx,0,vnum);
+			Renderer::Draw_Triangles(0,tidx,0,vnum);
 		}
 
 		REF_PTR_RELEASE(mat);
 
 	}
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	Renderer::Set_Transform(RB_TRANSFORM_VIEW,view);
 
 }
 

@@ -90,8 +90,6 @@
 //         Private Functions
 //----------------------------------------------------------------------------
 
-
-
 //----------------------------------------------------------------------------
 //         Public Functions
 //----------------------------------------------------------------------------
@@ -104,7 +102,7 @@
 W3DVideoBuffer::W3DVideoBuffer( VideoBuffer::Type format )
 : VideoBuffer(format),
 	m_texture(nullptr),
-	m_surface(nullptr)
+	m_lockedTexture(FALSE)
 {
 
 }
@@ -168,16 +166,20 @@ void*		W3DVideoBuffer::lock()
 {
 	void *mem = nullptr;
 
-	if ( m_surface != nullptr )
+	if ( m_lockedTexture )
 	{
 		unlock();
 	}
 
-	m_surface = m_texture->Get_Surface_Level();
-
-	if ( m_surface )
+	if ( m_texture )
 	{
-		mem = m_surface->Lock( (Int*) &m_pitch );
+		TextureClass::MutableTextureMipView mip = m_texture->Begin_Mip_Write(0);
+		if ( mip.Is_Valid() )
+		{
+			m_pitch = mip.Pitch;
+			mem = mip.Data;
+			m_lockedTexture = TRUE;
+		}
 	}
 
 	return mem;
@@ -189,11 +191,13 @@ void*		W3DVideoBuffer::lock()
 
 void		W3DVideoBuffer::unlock()
 {
-	if ( m_surface != nullptr )
+	if ( m_lockedTexture )
 	{
-		m_surface->Unlock();
-		m_surface->Release_Ref();
-		m_surface = nullptr;
+		if ( m_texture != nullptr )
+		{
+			m_texture->End_Mip_Write(0);
+		}
+		m_lockedTexture = FALSE;
 	}
 }
 
@@ -220,7 +224,7 @@ void	W3DVideoBuffer::free()
 		m_texture->Release_Ref();
 		m_texture = nullptr;
 	}
-	m_surface = nullptr;
+	m_lockedTexture = FALSE;
 
 	VideoBuffer::free();
 }

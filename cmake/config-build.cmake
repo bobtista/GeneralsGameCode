@@ -13,6 +13,11 @@ set_property(CACHE RTS_BUILD_OPTION_PGO PROPERTY STRINGS OFF GENERATE USE)
 set(RTS_PGO_FILE "${CMAKE_BINARY_DIR}/genzh.pgd" CACHE FILEPATH "MSVC PGO database path.")
 option(RTS_BUILD_OPTION_VC6_FULL_DEBUG "Build VC6 with full debug info." OFF)
 option(RTS_BUILD_OPTION_FFMPEG "Enable FFmpeg support" OFF)
+cmake_dependent_option(RTS_BUILD_OPTION_TESTS "Build the unit tests." OFF "NOT IS_VS6_BUILD" OFF)
+cmake_dependent_option(RTS_BUILD_OPTION_BENCHMARKS "Build the benchmarks." OFF "NOT IS_VS6_BUILD" OFF)
+option(SAGE_USE_SDL3 "Use SDL3 for GeneralsMD windowing and input (cross-platform alternative to the Win32 path; macOS and Windows)." OFF)
+option(SAGE_USE_OPENAL "Use OpenAL for GeneralsMD audio (cross-platform alternative to the Windows audio path; macOS and Windows)." OFF)
+option(GGC_DIAGNOSTIC_TOOLS "Compile diagnostic- and probe-tier GGC_* runtime flags into the game (see GgcRuntimeFlags.h)." ON)
 
 if(NOT RTS_BUILD_ZEROHOUR AND NOT RTS_BUILD_GENERALS)
     set(RTS_BUILD_ZEROHOUR TRUE)
@@ -75,6 +80,11 @@ elseif(MSVC AND NOT "${RTS_BUILD_OPTION_PGO}" STREQUAL "OFF" AND NOT IS_VS6_BUIL
 endif()
 add_feature_info(Vc6FullDebug RTS_BUILD_OPTION_VC6_FULL_DEBUG "Building VC6 with full debug info")
 add_feature_info(FFmpegSupport RTS_BUILD_OPTION_FFMPEG "Building with FFmpeg support")
+add_feature_info(Tests RTS_BUILD_OPTION_TESTS "Building the unit tests")
+add_feature_info(Benchmarks RTS_BUILD_OPTION_BENCHMARKS "Building the benchmarks")
+add_feature_info(SDL3Windowing SAGE_USE_SDL3 "Using SDL3 for GeneralsMD windowing and input")
+add_feature_info(OpenALAudio SAGE_USE_OPENAL "Using OpenAL for GeneralsMD audio")
+add_feature_info(GgcDiagnosticTools GGC_DIAGNOSTIC_TOOLS "Compiling diagnostic/probe GGC_* runtime flags")
 
 set(RTS_BUILD_OUTPUT_SUFFIX "" CACHE STRING "Suffix appended to output names of installable targets")
 
@@ -109,6 +119,10 @@ else()
     target_compile_options(core_config INTERFACE ${RTS_FLAGS})
 endif()
 
+if(GGC_DIAGNOSTIC_TOOLS)
+    target_compile_definitions(core_config INTERFACE GGC_DIAGNOSTIC_TOOLS)
+endif()
+
 # This disables a lot of warnings steering developers to use windows only functions/function names.
 if(MSVC)
     target_compile_definitions(core_config INTERFACE _CRT_NONSTDC_NO_WARNINGS _CRT_SECURE_NO_WARNINGS $<$<CONFIG:DEBUG>:_DEBUG_CRT>)
@@ -116,6 +130,14 @@ endif()
 
 if(UNIX)
     target_compile_definitions(core_config INTERFACE _UNIX)
+endif()
+
+if(SAGE_USE_SDL3)
+    target_compile_definitions(core_config INTERFACE SAGE_USE_SDL3)
+endif()
+
+if(SAGE_USE_OPENAL)
+    target_compile_definitions(core_config INTERFACE SAGE_USE_OPENAL RTS_HAS_OPENAL RTS_USE_OPENAL)
 endif()
 
 if(RTS_BUILD_OPTION_DEBUG)

@@ -27,10 +27,13 @@
 // High level profiling
 //////////////////////////////////////////////////////////////////////////////
 
-#include "profile.h"
+#include "profile/profile.h"
 #include "internal.h"
 #include <new>
-#include <WWLib/WWCommon.h>
+// GeneralsX @build fbraz 03/02/2026 Add C string functions for Linux
+#include <cstring>
+#include <Utility/stdio_adapter.h>
+#include <Utility/stringex.h>
 
 // our own fast critical section
 static ProfileFastCS cs;
@@ -196,7 +199,12 @@ void ProfileId::Maximum(double max)
 const char *ProfileId::AsString(double v) const
 {
   char help1[10],help[40];
+// GeneralsX @build fbraz 03/02/2026 Use snprintf on Linux, wsprintf on Windows
+#ifdef _WIN32
   wsprintf(help1,"%%%i.lf",m_precision);
+#else
+  snprintf(help1, sizeof(help1), "%%%i.lf", m_precision);
+#endif
 
   double mul=1.0;
   int k;

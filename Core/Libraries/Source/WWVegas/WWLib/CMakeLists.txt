@@ -32,11 +32,6 @@ set(WWLIB_SRC
     #crcstraw.h
     cstraw.cpp
     cstraw.h
-    DbgHelpGuard.cpp
-    DbgHelpGuard.h
-    DbgHelpLoader.cpp
-    DbgHelpLoader.h
-    DbgHelpLoader_minidump.h
     Except.cpp
     Except.h
     FastAllocator.cpp
@@ -45,6 +40,8 @@ set(WWLIB_SRC
     ffactory.h
     gcd_lcm.cpp
     gcd_lcm.h
+    GgcRuntimeFlags.cpp
+    GgcRuntimeFlags.h
     #global.h
     hash.cpp
     hash.h
@@ -101,6 +98,8 @@ set(WWLIB_SRC
     ref_ptr.h
     refcount.cpp
     refcount.h
+    registryini.cpp
+    registryini.h
     #regexpr.cpp
     #regexpr.h
     #search.h
@@ -112,13 +111,11 @@ set(WWLIB_SRC
     SLNODE.h
     stimer.cpp
     stimer.h
-    STLUtils.h
     straw.cpp
     STRAW.h
     strtok_r.cpp
     strtok_r.h
     #swap.h
-    SystemAllocator.h
     systimer.cpp
     systimer.h
     TARGA.cpp
@@ -133,13 +130,15 @@ set(WWLIB_SRC
     trim.cpp
     trim.h
     uarray.h
+    utf8.cpp
+    utf8.h
     vector.cpp
     Vector.h
-    visualc.h
     widestring.cpp
     widestring.h
     win.h
     WWCommon.h
+    WWDefines.h
     wwfile.cpp
     WWFILE.h
     wwstring.cpp
@@ -162,6 +161,13 @@ if(WIN32)
         verchk.h
         WWCOMUtil.cpp
         WWCOMUtil.h
+)
+else()
+    # TheSuperHackers @build bobtista 29/04/2026 Stub the legacy WWLib
+    # RegistryClass on non-Win so DX8Wrapper / W3DDisplay still link.
+    list(APPEND WWLIB_SRC
+        registry.h
+        registry_unix_stub.cpp
     )
 endif()
 
@@ -170,15 +176,32 @@ set_target_properties(core_wwlib PROPERTIES OUTPUT_NAME wwlib)
 
 target_sources(core_wwlib PRIVATE ${WWLIB_SRC})
 
-target_precompile_headers(core_wwlib PRIVATE
-    [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
-    [["WWLib/always.h"]]
-    [["WWLib/STLUtils.h"]]
-    [["WWLib/win.h"]]
-    [["WWLib/WWCommon.h"]]
-    [["WWLib/wwstring.h"]]
-    <windows.h>
+target_include_directories(core_wwlib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+# TheSuperHackers @build bobtista 28/04/2026 Skip <windows.h> in the
+# precompiled header on non-Windows builds so wwlib can compile on Linux/macOS.
+if(WIN32)
+    target_precompile_headers(core_wwlib PRIVATE
+        [["Precompiled/BasePrecomp.h"]] # Must be first
+        [["WWLib/always.h"]]
+        [["Utility/STLUtils.h"]]
+        [["WWLib/win.h"]]
+        [["WWLib/WWCommon.h"]]
+        [["WWLib/wwstring.h"]]
+        <windows.h>
+    )
+else()
+    target_precompile_headers(core_wwlib PRIVATE
+        [["Precompiled/BasePrecomp.h"]] # Must be first
+        [["WWLib/always.h"]]
+        [["Utility/STLUtils.h"]]
+        [["WWLib/win.h"]]
+        [["WWLib/WWCommon.h"]]
+        [["WWLib/wwstring.h"]]
+    )
+endif()
 
 target_link_libraries(core_wwlib PRIVATE
     core_wwcommon

@@ -33,10 +33,12 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "WWLib/always.h"
+#include "GgcRuntimeFlags.h"
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
+#include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -45,7 +47,6 @@
 #include "WW3D2/dx8renderer.h"
 #include "Lib/BaseType.h"
 #include "W3DDevice/GameClient/HeightMap.h"
-#include "d3dx8math.h"
 #include "Common/GlobalData.h"
 #include "W3DDevice/GameClient/W3DProjectedShadow.h"
 #include "WW3D2/statistics.h"
@@ -56,6 +57,11 @@
 #include "GameClient/Drawable.h"
 #include "W3DDevice/GameClient/Module/W3DModelDraw.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
+#include "Common/ThingTemplate.h"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 
 /** @todo: We're going to have a pool of a couple rendertargets to use
@@ -78,8 +84,8 @@ W3DProjectedShadowManager *TheW3DProjectedShadowManager=nullptr;	//global single
 ProjectedShadowManager	*TheProjectedShadowManager;				//global singleton with simpler interface.
 extern const FrustumClass *shadowCameraFrustum;	//defined in W3DShadow.
 ///@todo: Externs from volumetric shadow renderer - these need to be moved into W3DBufferManager
-extern LPDIRECT3DVERTEXBUFFER8 shadowVertexBufferD3D;		///<D3D vertex buffer
-extern LPDIRECT3DINDEXBUFFER8	shadowIndexBufferD3D;	///<D3D index buffer
+extern RenderVertexBufferClass * shadowVertexBuffer;
+extern RenderIndexBufferClass  * shadowIndexBuffer;
 extern int nShadowVertsInBuf;	//model vetices in vertex buffer
 extern int nShadowStartBatchVertex;
 extern int nShadowIndicesInBuf;	//model vetices in vertex buffer
@@ -95,10 +101,22 @@ struct SHADOW_DECAL_VERTEX	//vertex structure passed to D3D
 		float u,v;
 };
 
-#define SHADOW_DECAL_FVF	D3DFVF_XYZ|D3DFVF_TEX1|D3DFVF_DIFFUSE
+#define SHADOW_DECAL_FVF	RENDER_VERTEX_FORMAT_XYZDUV1
 
-LPDIRECT3DVERTEXBUFFER8 shadowDecalVertexBufferD3D=nullptr;		///<D3D vertex buffer
-LPDIRECT3DINDEXBUFFER8	shadowDecalIndexBufferD3D=nullptr;	///<D3D index buffer
+// TheSuperHackers @refactor bobtista 16/04/2026 wrap the
+// decal shadow buffers in W3D classes so Renderer:: can capture them.
+RenderVertexBufferClass * shadowDecalVertexBuffer = nullptr;
+RenderIndexBufferClass  * shadowDecalIndexBuffer  = nullptr;
+// TheSuperHackers @bugfix bobtista 31/05/2026 The projected decal list draws from its own
+// dynamic buffers; sharing the shadowDecal* buffers let a re-lock overwrite still-pending
+// blob shadow submits in the bgfx deferred-submit model.
+RenderVertexBufferClass * decalListVertexBuffer = nullptr;
+RenderIndexBufferClass  * decalListIndexBuffer  = nullptr;
+// TheSuperHackers @bugfix bobtista 01/06/2026 Dedicated buffers for the infantry blob
+// batch; sharing shadowDecal* let the second texture-batch re-lock overwrite the pending
+// blob draw at frame end, vanishing most infantry blob shadows.
+RenderVertexBufferClass * blobDecalVertexBuffer = nullptr;
+RenderIndexBufferClass  * blobDecalIndexBuffer  = nullptr;
 int nShadowDecalVertsInBuf=0;	//model vetices in vertex buffer
 int nShadowDecalStartBatchVertex=0;
 int nShadowDecalIndicesInBuf=0;	//model vetices in vertex buffer
@@ -106,8 +124,82 @@ int nShadowDecalStartBatchIndex=0;
 int	nShadowDecalPolysInBatch=0;
 int	nShadowDecalVertsInBatch=0;
 int SHADOW_DECAL_VERTEX_SIZE=32768;
-int SHADOW_DECAL_INDEX_SIZE=65536;
+int SHADOW_DECAL_INDEX_SIZE=65535;
 
+static bool DecalDiagEnabled()
+{
+	return GgcFlags::Enabled(GgcFlag_DecalDiag);
+}
+
+static bool ShadowPathDiagEnabled()
+{
+	return GgcFlags::Enabled(GgcFlag_ShadowPathDiag);
+}
+
+static const char *ShadowTypeDebugName(ShadowType type)
+{
+	switch (type)
+	{
+		case SHADOW_DECAL: return "SHADOW_DECAL";
+		case SHADOW_ALPHA_DECAL: return "SHADOW_ALPHA_DECAL";
+		case SHADOW_ADDITIVE_DECAL: return "SHADOW_ADDITIVE_DECAL";
+		case SHADOW_PROJECTION: return "SHADOW_PROJECTION";
+		default: return "SHADOW_OTHER";
+	}
+}
+
+static const char *DrawableTemplateName(const Drawable *draw)
+{
+	return draw != nullptr && draw->getTemplate() != nullptr
+		? draw->getTemplate()->getName().str()
+		: "(null-drawable)";
+}
+
+static void LogProjectedShadowPath(const char *event,
+	RenderObjClass *robj,
+	Drawable *draw,
+	const Shadow::ShadowTypeInfo *shadowInfo,
+	ShadowType resolvedType,
+	const char *textureName,
+	Bool allowWorldAlign,
+	Bool allowSunDirection,
+	Real sizeX,
+	Real sizeY,
+	Real offsetX,
+	Real offsetY)
+{
+	if (!ShadowPathDiagEnabled())
+		return;
+
+	if (FILE *diag = std::fopen("ggc_shadow_path_diag.txt", "a"))
+	{
+		const ShadowType requestedType = shadowInfo != nullptr ? shadowInfo->m_type : SHADOW_NONE;
+		std::fprintf(diag,
+			"%s projected resolved=%s resolvedMask=0x%x requested=%s requestedMask=0x%x texture=%s robj=%s drawable=%u template=%s worldAlign=%d sunDirection=%d size=(%.2f,%.2f) offset=(%.2f,%.2f)\n",
+			event,
+			ShadowTypeDebugName(resolvedType),
+			static_cast<unsigned>(resolvedType),
+			ShadowTypeDebugName(requestedType),
+			static_cast<unsigned>(requestedType),
+			textureName != nullptr ? textureName : "(null-texture)",
+			robj != nullptr && robj->Get_Name() != nullptr ? robj->Get_Name() : "(null-robj)",
+			draw != nullptr ? static_cast<unsigned>(draw->getID()) : 0,
+			DrawableTemplateName(draw),
+			allowWorldAlign ? 1 : 0,
+			allowSunDirection ? 1 : 0,
+			sizeX,
+			sizeY,
+			offsetX,
+			offsetY);
+		std::fclose(diag);
+	}
+}
+
+static bool ShouldSkipDefaultBlobShadows()
+{
+	return GgcFlags::Enabled(GgcFlag_BgfxEnableDiagnosticOverrides)
+		&& GgcFlags::Enabled(GgcFlag_BgfxSkipBlobShadows);
+}
 
 class W3DShadowTexture;	//forward reference
 class W3DShadowTextureManager;	//forward reference
@@ -147,7 +239,7 @@ class W3DShadowTexture : public RefCountClass, public	HashableClass
 	public:
 
 		W3DShadowTexture()
-		{	m_lastLightPosition.Set(0,0,0); m_lastObjectOrientation.Make_Identity();
+		{	m_texture=nullptr; m_lastLightPosition.Set(1.0e30f,1.0e30f,1.0e30f); m_lastObjectOrientation.Make_Identity();
 			m_shadowUV[0].Set(1.0f,0.0f,0.0f);	//u runs along world x axis
 			m_shadowUV[1].Set(0.0f,-1.0f,0.0f);	//v runs along world -y axis
 		}
@@ -187,6 +279,41 @@ class W3DShadowTexture : public RefCountClass, public	HashableClass
 		SphereClass	m_areaEffectSphere;			///<boundary defining object-space volume affected by shadow.
 		Vector3		m_shadowUV[2];		///world-space vectors defining the u and v texture coordinate axis.
 };
+
+static bool IsDefaultInfantryBlobShadowName(const char *name)
+{
+	return name != nullptr
+		&& (_stricmp(name, "shadowi.tga") == 0
+			|| _stricmp(name, "shadowi.dds") == 0
+			|| _stricmp(name, "shadowi") == 0);
+}
+
+static bool IsDefaultInfantryBlobShadowDecal(W3DShadowTexture *texture, ShadowType type)
+{
+	return type == SHADOW_DECAL
+		&& texture != nullptr
+		&& IsDefaultInfantryBlobShadowName(texture->Get_Name());
+}
+
+static RenderBackendProjectedDecalMode GetProjectedDecalMode(W3DShadowTexture *texture, ShadowType type)
+{
+	if (IsDefaultInfantryBlobShadowDecal(texture, type))
+	{
+		return RB_PROJECTED_DECAL_BLOB_SHADOW;
+	}
+
+	switch (type)
+	{
+		case SHADOW_ADDITIVE_DECAL:
+			return RB_PROJECTED_DECAL_ADDITIVE;
+		case SHADOW_ALPHA_DECAL:
+			return RB_PROJECTED_DECAL_ALPHA;
+		case SHADOW_DECAL:
+			return RB_PROJECTED_DECAL_MULTIPLY;
+		default:
+			return RB_PROJECTED_DECAL_NONE;
+	}
+}
 
 /*
 ** An Iterator to get to all loaded W3DShadowGeometries in a W3DShadowGeometryManager
@@ -261,41 +388,49 @@ Bool W3DProjectedShadowManager::ReAcquireResources()
 	DEBUG_ASSERTCRASH(m_dynamicRenderTarget == nullptr, ("Acquire of existing shadow render target"));
 
 	m_renderTargetHasAlpha=TRUE;
-	if ((m_dynamicRenderTarget=DX8Wrapper::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_A8R8G8B8)) == nullptr)
+	if ((m_dynamicRenderTarget=Renderer::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_A8R8G8B8)) == nullptr)
 	{
 			m_renderTargetHasAlpha=FALSE;
 
 			//failed to get a render target with alpha.
 			//try again without.
-			m_dynamicRenderTarget=DX8Wrapper::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT);
+			m_dynamicRenderTarget=Renderer::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_UNKNOWN);
 	}
 
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+	DEBUG_ASSERTCRASH(shadowDecalIndexBuffer == nullptr && shadowDecalVertexBuffer == nullptr, ("ReAcquireResources not released in W3DProjectedShadowManager"));
 
-	DEBUG_ASSERTCRASH(m_pDev, ("Trying to ReAcquireResources on W3DProjectedShadowManager without device"));
-	DEBUG_ASSERTCRASH(shadowDecalIndexBufferD3D == nullptr && shadowDecalIndexBufferD3D == nullptr, ("ReAcquireResources not released in W3DProjectedShadowManager"));
-
-	if (FAILED(m_pDev->CreateIndexBuffer
-	(
-		SHADOW_DECAL_INDEX_SIZE*sizeof(WORD),
-		D3DUSAGE_WRITEONLY|D3DUSAGE_DYNAMIC,
-		D3DFMT_INDEX16,
-		D3DPOOL_DEFAULT,
-		&shadowDecalIndexBufferD3D
-	)))
+	shadowDecalIndexBuffer = NEW_REF(RenderIndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
+	if (shadowDecalIndexBuffer == nullptr)
 		return FALSE;
 
-	if (shadowDecalVertexBufferD3D == nullptr)
-	{	// Create vertex buffer
+	if (shadowDecalVertexBuffer == nullptr)
+	{
+		shadowDecalVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+		if (shadowDecalVertexBuffer == nullptr)
+			return FALSE;
+	}
 
-		if (FAILED(m_pDev->CreateVertexBuffer
-		(
-			SHADOW_DECAL_VERTEX_SIZE*sizeof(SHADOW_DECAL_VERTEX),
-			D3DUSAGE_WRITEONLY|D3DUSAGE_DYNAMIC,
-			0,
-			D3DPOOL_DEFAULT,
-			&shadowDecalVertexBufferD3D
-		)))
+	// TheSuperHackers @bugfix bobtista 31/05/2026 Dedicated buffers for the decal-list pass.
+	decalListIndexBuffer = NEW_REF(RenderIndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
+	if (decalListIndexBuffer == nullptr)
+		return FALSE;
+
+	if (decalListVertexBuffer == nullptr)
+	{
+		decalListVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+		if (decalListVertexBuffer == nullptr)
+			return FALSE;
+	}
+
+	// TheSuperHackers @bugfix bobtista 01/06/2026 Dedicated buffers for the infantry blob batch.
+	blobDecalIndexBuffer = NEW_REF(RenderIndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
+	if (blobDecalIndexBuffer == nullptr)
+		return FALSE;
+
+	if (blobDecalVertexBuffer == nullptr)
+	{
+		blobDecalVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+		if (blobDecalVertexBuffer == nullptr)
 			return FALSE;
 	}
 
@@ -306,12 +441,12 @@ void W3DProjectedShadowManager::ReleaseResources()
 {
 	invalidateCachedLightPositions();	//textures need to be updated
 	REF_PTR_RELEASE(m_dynamicRenderTarget);	//need to create a new render target
-	if (shadowDecalIndexBufferD3D)
-		shadowDecalIndexBufferD3D->Release();
-	if (shadowDecalVertexBufferD3D)
-		shadowDecalVertexBufferD3D->Release();
-	shadowDecalIndexBufferD3D=nullptr;
-	shadowDecalVertexBufferD3D=nullptr;
+	REF_PTR_RELEASE(shadowDecalIndexBuffer);
+	REF_PTR_RELEASE(shadowDecalVertexBuffer);
+	REF_PTR_RELEASE(decalListIndexBuffer);
+	REF_PTR_RELEASE(decalListVertexBuffer);
+	REF_PTR_RELEASE(blobDecalIndexBuffer);
+	REF_PTR_RELEASE(blobDecalVertexBuffer);
 }
 
 void W3DProjectedShadowManager::invalidateCachedLightPositions()
@@ -332,7 +467,8 @@ void W3DProjectedShadowManager::updateRenderTargetTextures()
 
 	if (m_numProjectionShadows)
 	for( shadow = m_shadowList; shadow; shadow = shadow->m_next )
-	{	//decals don't need any updates on a per-frame basis since
+	{
+		//decals don't need any updates on a per-frame basis since
 		//the image never changes.
 		if (shadow->m_type != SHADOW_DECAL)
 			shadow->update();
@@ -354,7 +490,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 	Bool flipForBlend;
 
 
-	#define SHADOW_VOLUME_FVF	D3DFVF_XYZ
+	#define SHADOW_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZ
 
 	if (TheTerrainRenderObject)
 	{
@@ -368,9 +504,9 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 		Real mapScaleInv=1.0f/MAP_XY_FACTOR;
 		SHADOW_VOLUME_VERTEX* pvVertices;
 		UnsignedShort *pvIndices;
-		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
 
-		if (!m_pDev)	return 0;
+		if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost())
+			return 0;
 
 		//Get terrain cell index for area with shadow
 		Int startX=REAL_TO_INT_FLOOR(((cx - dx)*mapScaleInv));
@@ -392,58 +528,60 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 
 		Int numVerts = vertsPerRow *vertsPerColumn;	//number of terrain vertices
 
-		if (nShadowVertsInBuf > (SHADOW_VERTEX_SIZE-numVerts))	//check if room for model verts
-		{	//flush the buffer by drawing the contents and re-locking again
-			if (shadowVertexBufferD3D->Lock(0,numVerts*sizeof(SHADOW_VOLUME_VERTEX),(unsigned char**)&pvVertices,D3DLOCK_DISCARD) != D3D_OK)
-				return 0;
+		// TheSuperHackers @refactor bobtista 15/04/2026 route
+		// projected terrain shadow buffers through W3D classes so bgfx
+		// capture hooks fire. DISCARD on wrap, NOOVERWRITE on append.
+		const bool wrapVerts = (nShadowVertsInBuf > (SHADOW_VERTEX_SIZE-numVerts));
+		if (wrapVerts)
+		{
 			nShadowVertsInBuf=0;
 			nShadowStartBatchVertex=0;
 		}
-		else
-		{	if (shadowVertexBufferD3D->Lock(nShadowVertsInBuf*sizeof(SHADOW_VOLUME_VERTEX),numVerts*sizeof(SHADOW_VOLUME_VERTEX), (unsigned char**)&pvVertices,D3DLOCK_NOOVERWRITE) != D3D_OK)
-				return 0;
-		}
-
-		if(pvVertices)
 		{
-			//insert each cell's bottom/left edge vertex
-			for (j=startY; j <= endY; j++)
-			{
-				float ycoord = (float)j * MAP_XY_FACTOR;
+			const unsigned vbFlags = wrapVerts ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
+			VertexBufferClass::AppendLockClass vbLock(shadowVertexBuffer, nShadowVertsInBuf, numVerts, vbFlags);
+			pvVertices = (SHADOW_VOLUME_VERTEX *)vbLock.Get_Vertex_Array();
 
-				for (i=startX; i <= endX; i++)
+			if(pvVertices)
+			{
+				//insert each cell's bottom/left edge vertex
+				for (j=startY; j <= endY; j++)
 				{
-					pvVertices->x=(float)i*MAP_XY_FACTOR;
-					pvVertices->y=ycoord;
-					pvVertices->z=(float)hmap->getHeight(i,j)*MAP_HEIGHT_SCALE;
-					pvVertices++;
+					float ycoord = (float)j * MAP_XY_FACTOR;
+
+					for (i=startX; i <= endX; i++)
+					{
+						pvVertices->x=(float)i*MAP_XY_FACTOR;
+						pvVertices->y=ycoord;
+						pvVertices->z=(float)hmap->getHeight(i,j)*MAP_HEIGHT_SCALE;
+						pvVertices++;
+					}
 				}
 			}
 		}
 
-		shadowVertexBufferD3D->Unlock();
-
 		Int numIndex=(endX - startX) * (endY-startY)*6;	//6 indices per terrain cell (2 triangles).
 
-		if (nShadowIndicesInBuf > (SHADOW_INDEX_SIZE-numIndex))	//check if room for model verts
-		{	//flush the buffer by drawing the contents and re-locking again
-			if (shadowIndexBufferD3D->Lock(0,numIndex*sizeof(short),(unsigned char**)&pvIndices,D3DLOCK_DISCARD) != D3D_OK)
-				return 0;
+		const bool wrapIndices = (nShadowIndicesInBuf > (SHADOW_INDEX_SIZE-numIndex));
+		if (wrapIndices)
+		{
 			nShadowIndicesInBuf=0;
 			nShadowStartBatchIndex=0;
 		}
-		else
-		{	if (shadowIndexBufferD3D->Lock(nShadowIndicesInBuf*sizeof(short),numIndex*sizeof(short), (unsigned char**)&pvIndices,D3DLOCK_NOOVERWRITE) != D3D_OK)
-				return 0;
-		}
+		{
+			const unsigned ibFlags = wrapIndices ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
+			IndexBufferClass::AppendLockClass ibLock(shadowIndexBuffer, nShadowIndicesInBuf, numIndex, ibFlags);
+			pvIndices = ibLock.Get_Index_Array();
 
-		if(pvIndices)
-		{		//fill each cell's vertex indices
+			if(pvIndices)
+			{
+					//fill each cell's vertex indices
 				Int rowStart;
 				for (j=startY,rowStart=0; j<endY; j++,rowStart+=vertsPerRow)
 				{
 					for (i=rowStart,k=startX; k<endX; i++,k++)
-					{	///@todo: Fix this to deal with flipped triangles
+					{
+						///@todo: Fix this to deal with flipped triangles
 						hmap->getAlphaUVData(k, j, UA, VA, alpha, &flipForBlend);
 /*						if (flipForBlend)
 						{	pvIndices[0]=i;
@@ -479,45 +617,50 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 						pvIndices += 6;
 					}
 				}
+			}
 		}
 
-		shadowIndexBufferD3D->Unlock();
-
-		m_pDev->SetIndices(shadowIndexBufferD3D,nShadowStartBatchVertex);
-
-		m_pDev->SetTransform(D3DTS_WORLD,(_D3DMATRIX *)&mWorld);
-
-		m_pDev->SetStreamSource(0,shadowVertexBufferD3D,sizeof(SHADOW_VOLUME_VERTEX));
-		m_pDev->SetVertexShader(SHADOW_VOLUME_FVF);
+		// TheSuperHackers @refactor bobtista 15/04/2026 route
+		// buffers/shader through DX8Wrapper cache so cached stencil/blend
+		// state flushes on Draw_Triangles. The caller has just installed the
+		// TexProjectClass material pass; keep its projected texture stages
+		// intact so bgfx can render building floor emblems onto the terrain.
+		Renderer::Set_Index_Buffer(shadowIndexBuffer, nShadowStartBatchVertex);
+		Renderer::Set_Transform(RB_TRANSFORM_WORLD, reinterpret_cast<const Matrix4x4&>(mWorld));
+		Renderer::Set_Vertex_Buffer(shadowVertexBuffer, 0);
+		Renderer::Set_Vertex_Shader(SHADOW_VOLUME_FVF);
+		Renderer::Override_Terrain_Blend(false);
 
 		Int numPolys = (endX - startX)*(endY - startY)*2;	//2 triangles per cell
 
-		m_pDev->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);	//should reject background pixels
-		m_pDev->SetRenderState( D3DRS_STENCILENABLE, TRUE );
-		m_pDev->SetRenderState( D3DRS_STENCILFUNC,     D3DCMP_ALWAYS );
-		m_pDev->SetRenderState( D3DRS_STENCILREF,      0x1 );
-		m_pDev->SetRenderState( D3DRS_STENCILMASK,     0xffffffff );
-		m_pDev->SetRenderState( D3DRS_STENCILWRITEMASK,0xffffffff );
-		m_pDev->SetRenderState( D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP );
-		m_pDev->SetRenderState( D3DRS_STENCILFAIL,  D3DSTENCILOP_KEEP );
-		m_pDev->SetRenderState( D3DRS_STENCILPASS,  D3DSTENCILOP_INCR );
+		Renderer::Override_Alpha_Test(true, 0, RB_CMP_ALWAYS);	//should reject background pixels
+		Renderer::Set_Stencil_Enable(true);
+		Renderer::Set_Stencil_Func(RB_CMP_ALWAYS);
+		Renderer::Set_Stencil_Ref(0x1);
+		Renderer::Set_Stencil_Mask(0xffffffff);
+		Renderer::Set_Stencil_Write_Mask(0xffffffff);
+		Renderer::Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
+		Renderer::Set_Stencil_Pass_Op(RB_STENCIL_OP_INCR);
 
-//    m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );	//useful to see bounds
-		m_pDev->SetRenderState( D3DRS_LIGHTING, FALSE);
-		m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_DESTCOLOR);
-		m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ZERO );
+		Renderer::Set_Lighting_Enable(false);
+		Renderer::Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 
 
-		if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+		if (Renderer::Is_Triangle_Draw_Enabled())
 		{
 			Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
-			m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,numVerts,nShadowStartBatchIndex,numPolys);
+			// TheSuperHackers @bugfix bobtista 01/05/2026 Submit projected
+			// terrain shadows as regular material draws in bgfx. Routing these
+			// flat receiver quads through the shadow-volume path drops the
+			// projector texture entirely; the normal uber path has the texture
+			// transform and blend state needed for floor emblems.
+			Renderer::Draw_Triangles(nShadowStartBatchIndex, numPolys, 0, numVerts);
 		}
 
-		m_pDev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);	//should reject background pixels
-		m_pDev->SetRenderState( D3DRS_STENCILENABLE, FALSE );
-//    m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
-		m_pDev->SetRenderState( D3DRS_LIGHTING, TRUE);
+		Renderer::Override_Alpha_Test(false, 0, RB_CMP_ALWAYS);	//disable atest
+		Renderer::Set_Stencil_Enable(false);
+		Renderer::Set_Lighting_Enable(true);
 
 		nShadowVertsInBuf += numVerts;
 		nShadowStartBatchVertex=nShadowVertsInBuf;
@@ -529,270 +672,96 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 	return 0;
 }
 
-#if 0
-
-TextureClass *snow=nullptr;
-TextureClass *grass=nullptr;
-TextureClass *ground=nullptr;
-
-#define V_COUNT  (4*4)	//4 vertices per cell
-#define I_COUNT  (4*6)	//6 indices per cell
-#define TILE_HEIGHT	10.1f
-#define TILE_DIFFUSE 0x00b4b0a5
-
-enum BlendDirection CPP_11(: Int)
-{	B_A,	//visible on all sides
-	B_R,	//visible on right
-	B_L,	//visible on left
-	B_T,	//visible on top
-	B_B,	//visble on bottom
-	B_TL,	//visible on top/left
-	B_BR,	//visible on bottom/right
-	B_TR,	//visible on top/right
-	B_BL	//visilbe on bottom/left
-};
-
-//Vertex alpha values for each blend direction assuming tile vertices
-//start at top left corner and continue counter-clockwise
-DWORD BDToVA[9][4]=
-{
-	{0xff000000,0xff000000,0xff000000,0xff000000},
-	{0,0,0xff000000,0xff000000},
-	{0xff000000,0xff000000,0,0},
-	{0xff000000,0,0,0xff000000},
-	{0,0xff000000,0xff000000,0},
-	{0xff000000,0,0,0},
-	{0,0,0xff000000,0},
-	{0,0,0,0xff000000},
-	{0,0xff000000,0,0}
-};
-
-static void RenderVBTile(TextureClass *text, Real ox, Real oy, Real ou, Real ov, BlendDirection bd=B_A)
-{
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,DX8_FVF_XYZNDUV2,4);
-	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,6);
-
-	DynamicVBAccessClass::WriteLockClass lock(&vb_access);
-	VertexFormatXYZNDUV2* vb= lock.Get_Formatted_Vertex_Array();
-	DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
-	if (!vb) return;
-
-	UnsignedShort *ib=lockib.Get_Index_Array();
-
-	vb->x=ox;
-	vb->y=oy;
-	vb->z=TILE_HEIGHT;
-	vb->diffuse=TILE_DIFFUSE|BDToVA[bd][0];
-	vb->u1=ou;
-	vb->v1=ov;
-	vb++;
-
-	vb->x=ox;
-	vb->y=oy-10.0f;
-	vb->z=TILE_HEIGHT;
-	vb->diffuse=TILE_DIFFUSE|BDToVA[bd][1];
-	vb->u1=ou;
-	vb->v1=ov+0.25f;
-	vb++;
-
-	vb->x=ox+10.0f;
-	vb->y=oy-10.0f;
-	vb->z=TILE_HEIGHT;
-	vb->diffuse=TILE_DIFFUSE|BDToVA[bd][2];
-	vb->u1=ou+0.25f;
-	vb->v1=ov+0.25f;
-	vb++;
-
-	vb->x=ox+10.0f;
-	vb->y=oy;
-	vb->z=TILE_HEIGHT;
-	vb->diffuse=TILE_DIFFUSE|BDToVA[bd][3];
-	vb->u1=ou+0.25f;
-	vb->v1=ov;
-	vb++;
-
-	ib[0]=0;
-	ib[1]=1;
-	ib[2]=3;
-	ib[3]=3;
-	ib[4]=1;
-	ib[5]=2;
-
-	if (bd == B_TR || bd == B_BL)
-	{	//need to flip triangles so alpha gradient doesn't follow diagonal edge
-		ib[2]=2;
-		ib[4]=0;
-	}
-
-	DX8Wrapper::Set_Index_Buffer(ib_access,0);
-	DX8Wrapper::Set_Vertex_Buffer(vb_access);
-	DX8Wrapper::Set_Texture(0, text);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA );
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA  );
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE, TRUE );
-	ShaderClass::Invalidate();	//invalidate to force shader to reset since we directly changed states
-	DX8Wrapper::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
-}
-
-//Debug code used to draw some dummy polygons.
-void TestBlendRender(RenderInfoClass & rinfo)
-{
-	static Int doInit=1;
-
-	if (doInit)
-	{	doInit = 0;
-		snow = WW3DAssetManager::Get_Instance()->Get_Texture("TXSnow04a.tga");
-		grass = WW3DAssetManager::Get_Instance()->Get_Texture("TMGras23a.tga");
-		ground = WW3DAssetManager::Get_Instance()->Get_Texture("TXAsph01a.tga");
-	}
-
-	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vmat);
-	REF_PTR_RELEASE(vmat);
-	DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-
-	Matrix3D tm(1);	//identity
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
-
-	//grass
-	RenderVBTile(grass,580.0f,480.0f,0.0f,0.0f);	RenderVBTile(grass,590.0f,480.0f,0.25f,0.0f);
-	RenderVBTile(grass,580.0f,470.0f,0.0f,0.25f);	RenderVBTile(grass,590.0f,470.0f,0.25f,0.25f);
-	RenderVBTile(grass,580.0f,460.0f,0.0f,0.5f);	RenderVBTile(grass,590.0f,460.0f,0.25f,0.5f,B_L);
-	RenderVBTile(grass,580.0f,450.0f,0.0f,0.75f);	RenderVBTile(grass,590.0f,450.0f,0.25f,0.75f,B_L);
-	RenderVBTile(grass,580.0f,440.0f,0.0f,0.0f);	RenderVBTile(grass,590.0f,440.0f,0.25f,0.0f,B_L);
-
-	RenderVBTile(grass,610.0f,460.0f,0.0f,0.5f, B_B);
-	RenderVBTile(grass,610.0f,450.0f,0.0f,0.75f);
-	RenderVBTile(grass,610.0f,440.0f,0.0f,0.0f);
-
-
-	//snow
-	RenderVBTile(snow,590.0f,480.0f,0.0f,0.0f, B_R);	RenderVBTile(snow,600.0f,480.0f,0.25f,0.0f);	RenderVBTile(snow,610.0f,480.0f,0.5f,0.0f);
-	RenderVBTile(snow,590.0f,470.0f,0.0f,0.25f, B_R);	RenderVBTile(snow,600.0f,470.0f,0.25f,0.25f);	RenderVBTile(snow,610.0f,470.0f,0.5f,0.25f);
-	RenderVBTile(snow,590.0f,460.0f,0.0f,0.5f, B_TR);	RenderVBTile(snow,600.0f,460.0f,0.25f,0.5f,B_T); RenderVBTile(snow,610.0f,460.0f,0.5f,0.5f,B_T);
-}
-#endif
 
 void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowType type)
 {
 	static	Matrix4x4 mWorld(true);	//initialize to identity matrix
 
 	if (nShadowDecalVertsInBatch == 0 && nShadowDecalPolysInBatch == 0)
-	{	//nothing to render
+	{
+		//nothing to render
 		return;
 	}
 
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-	if (!m_pDev)	return;	//no D3D Device to render
+	if (DecalDiagEnabled())
+	{
+		TextureClass *tex = texture ? texture->getTexture() : nullptr;
+		std::fprintf(stderr,
+			"[GGC_DECAL] flush type=%s name=%s tex=%s verts=%d polys=%d startV=%d startI=%d\n",
+			ShadowTypeDebugName(type),
+			texture ? texture->Get_Name() : "(null-shadow-texture)",
+			tex ? tex->Get_Full_Path().str() : "(null-texture)",
+			nShadowDecalVertsInBatch,
+			nShadowDecalPolysInBatch,
+			nShadowDecalStartBatchVertex,
+			nShadowDecalStartBatchIndex);
+	}
+
+	if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost())
+		return;	//no D3D Device to render
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vmat);
+	Renderer::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	DX8Wrapper::Set_Texture(0,texture->getTexture());
+	Renderer::Set_Texture(0,texture->getTexture());
+	// Decal textures are authored with transparent/black padding outside the
+	// useful image. The load path marks them clamp, but bgfx samples from the
+	// current stage state at submit time, so make the intended state explicit.
+	Renderer::Set_Texture_Clamp_Mode(0, true, true);
 
-//	DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);	//good for debugging, draws without alpha
 	switch (type)
 	{
 		case SHADOW_DECAL:
-			DX8Wrapper::Set_Shader(ShaderClass::_PresetMultiplicativeShader);
+			Renderer::Set_Shader(ShaderClass::_PresetMultiplicativeShader);
 			break;
 		case SHADOW_ALPHA_DECAL:
-			DX8Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
+			Renderer::Set_Shader(ShaderClass::_PresetAlphaShader);
 			break;
 		case SHADOW_ADDITIVE_DECAL:
-			DX8Wrapper::Set_Shader(ShaderClass::_PresetAdditiveShader);
+			Renderer::Set_Shader(ShaderClass::_PresetAdditiveShader);
 			break;
 	}
 
-//	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x60);
-//	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_GREATEREQUAL);
-	//_PresetAlphaSpriteShader
+	Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 
-	DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+	// TheSuperHackers @bugfix bobtista 16/04/2026 TFACTOR removed.
+	// _PresetMultiplicativeShader uses COLORARG2=DIFFUSE (vertex color), not
+	// COLORARG2=TFACTOR, so Set_Texture_Factor is a no-op on DX8. On bgfx it
+	// incorrectly maps to matDiffuse which uniformly darkens the entire quad,
+	// making the square boundary visible. The shadow shape comes from the
+	// texture alone via multiplicative blend.
 
-//Alpha Blended Shadows
-//	m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA );
-//	m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA  );
-/*	UnsignedInt color=TheW3DShadowManager->getShadowColor();
-	m_pDev->SetRenderState( D3DRS_TEXTUREFACTOR, 0xff000000 | color);
-	m_pDev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-	m_pDev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-	m_pDev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
+	Renderer::Set_Index_Buffer(shadowDecalIndexBuffer, nShadowDecalStartBatchVertex);
+	Renderer::Set_Transform(RB_TRANSFORM_WORLD, reinterpret_cast<const Matrix4x4&>(mWorld));
 
-	m_pDev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-	m_pDev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-	m_pDev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
-*/
+	Renderer::Set_Vertex_Buffer(shadowDecalVertexBuffer, 0);
+	Renderer::Set_Vertex_Shader(SHADOW_DECAL_FVF);
 
-
-	m_pDev->SetIndices(shadowDecalIndexBufferD3D,nShadowDecalStartBatchVertex);
-	m_pDev->SetTransform(D3DTS_WORLD,(_D3DMATRIX *)&mWorld);
-
-	m_pDev->SetStreamSource(0,shadowDecalVertexBufferD3D,sizeof(SHADOW_DECAL_VERTEX));
-	m_pDev->SetVertexShader(SHADOW_DECAL_FVF);
-
-//Hard Shadows using stencil
-/*	m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_ZERO);
-	m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
-	m_pDev->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);	//should reject background pixels
-	m_pDev->SetRenderState( D3DRS_STENCILENABLE, TRUE );
-*/
-/*	m_pDev->SetRenderState( D3DRS_STENCILFUNC,     D3DCMP_ALWAYS );
-	m_pDev->SetRenderState( D3DRS_STENCILREF,      0x1 );
-	m_pDev->SetRenderState( D3DRS_STENCILMASK,     0xffffffff );
-	m_pDev->SetRenderState( D3DRS_STENCILWRITEMASK,0xffffffff );
-	m_pDev->SetRenderState( D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP );
-	m_pDev->SetRenderState( D3DRS_STENCILFAIL,  D3DSTENCILOP_KEEP );
-	m_pDev->SetRenderState( D3DRS_STENCILPASS,  D3DSTENCILOP_INCR );
-*/
-//m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );	//useful to see bounds
-
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (Renderer::Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(nShadowDecalPolysInBatch,nShadowDecalVertsInBatch,ShaderClass::_PresetOpaqueShader);
-		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,nShadowDecalVertsInBatch,nShadowDecalStartBatchIndex,nShadowDecalPolysInBatch);
+		// TheSuperHackers @bugfix bobtista 30/04/2026 Skip only the
+		// default blob shadow texture. SHADOW_DECAL also carries authored
+		// ground decals such as faction floor emblems, which still need to
+		// render in the bgfx path.
+		const RenderBackendProjectedDecalMode projectedDecalMode = GetProjectedDecalMode(texture, type);
+		const bool isDefaultBlobShadowDecal = projectedDecalMode == RB_PROJECTED_DECAL_BLOB_SHADOW;
+		if (isDefaultBlobShadowDecal && ShouldSkipDefaultBlobShadows())
+		{
+			Renderer::Skip_Next_Bgfx_Submit();
+		}
+		Renderer::Set_Projected_Decal_Mode(projectedDecalMode);
+		Renderer::Draw_Triangles(nShadowDecalStartBatchIndex, nShadowDecalPolysInBatch, 0, nShadowDecalVertsInBatch);
+		Renderer::Set_Projected_Decal_Mode(RB_PROJECTED_DECAL_NONE);
 	}
 
-//	m_pDev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);	//should reject background pixels
-//	m_pDev->SetRenderState( D3DRS_STENCILENABLE, FALSE );
-//m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
-
-
-	//Restore multiplicative sprite shader
-//	m_pDev->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_SRCCOLOR);	//restore W3D state
-//	m_pDev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);
-
-/*	m_pDev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-	m_pDev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-	m_pDev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_CURRENT);
-	m_pDev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-	m_pDev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-	m_pDev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_CURRENT);
-*/
+	Renderer::Set_Vertex_Buffer(nullptr, 0);
+	Renderer::Set_Index_Buffer(nullptr, 0);
 	nShadowDecalStartBatchVertex=nShadowDecalVertsInBuf;
 	nShadowDecalStartBatchIndex=nShadowDecalIndicesInBuf;
 	nShadowDecalPolysInBatch=0;	//reset number of polys in texture batch
 	nShadowDecalVertsInBatch=0;
 }
-
-/*
-void testShadowDecal()
-{
-	Shadow::ShadowTypeInfo decalInfo;
-	decalInfo.allowUpdates = FALSE;	//shadow image will never update
-	decalInfo.allowWorldAlign = TRUE;	//shadow image will wrap around world objects
-	decalInfo.m_type = SHADOW_ALPHA_DECAL;
-	strcpy(decalInfo.m_ShadowName,"exwave256");
-	decalInfo.m_sizeX = 1280.0f;
-	decalInfo.m_sizeY = 1280.0f;
-	decalInfo.m_offsetX = 0;
-	decalInfo.m_offsetY = 0;
-	Shadow *shadow=TheProjectedShadowManager->addDecal(&decalInfo);
-	shadow->setPosition(600,600,600);
-	shadow->setAngle(0.0f);
-	shadow->setColor(0xffff0000);
-}
-*/
 
 #define BRIDGE_OFFSET_FACTOR 1.5f
 /**Decals have a low poly count so its better to render large numbers at once.  This system will queue them
@@ -816,9 +785,9 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 
 	if (TheTerrainRenderObject)
 	{
-		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-		if (!m_pDev)	return;	//no D3D Device to render
+		if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost()) {
+			return;
+		}
 
 		WorldHeightMap *hmap=TheTerrainRenderObject->getMap();
 		borderSize=hmap->getBorderSizeInline();
@@ -832,13 +801,15 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 				const Object *object=draw->getObject();
 				PathfindLayerEnum objectLayer;
 				if (object && (objectLayer=object->getLayer()) != LAYER_GROUND)
-				{	//check if object that this decal belongs to is not on the ground (bridge?)
+				{
+					//check if object that this decal belongs to is not on the ground (bridge?)
 					layerHeight=BRIDGE_OFFSET_FACTOR+TheTerrainLogic->getLayerHeight(objPos.X,objPos.Y,objectLayer);
 				}
 			}
 		}
 		else
-		{	//no render object so use shadow's local position and default orientation
+		{
+			//no render object so use shadow's local position and default orientation
 			objPos.Set(shadow->m_x,shadow->m_y,shadow->m_z);
 			objXform.Rotate_Z(shadow->m_localAngle);
 		}
@@ -917,7 +888,8 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 */
 //	  Experimental code to try and get a better fitting bounding box around shadow
 	/*  Experimental code to try and get a better fitting bounding box around shadow
-	{	//use the object's bounding box to determine shadow extent
+	{
+		//use the object's bounding box to determine shadow extent
 		///@todo: Most of the values below can be cached in shadow object
 		uVector=objXform.Get_X_Vector();
 		uVector.Z=0;
@@ -971,7 +943,8 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 		//enough to cover typical map.
 		Int numExtraX=(endX - startX+1)-104;
 		if (numExtraX > 0)
-		{	//figure out how much to clip out at each edge of decal
+		{
+			//figure out how much to clip out at each edge of decal
 			Int numStartExtraX=REAL_TO_INT_FLOOR((float)numExtraX/2.0f);
 			Int numEdgeExtraX=numExtraX-numStartExtraX;
 			startX+=numStartExtraX;
@@ -996,23 +969,40 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 		Int numVerts = vertsPerRow *vertsPerColumn;	//number of terrain vertices
 		Int numIndex=(endX - startX) * (endY-startY)*6;	//6 indices per terrain cell (2 triangles).
 
+		if (DecalDiagEnabled())
+		{
+			std::fprintf(stderr,
+				"[GGC_DECAL] queue type=%s name=%s robj=%s visible=%d pos=(%.2f,%.2f,%.2f) cells=%d,%d..%d,%d verts=%d indices=%d diffuse=0x%08x size=(%.2f,%.2f)\n",
+				ShadowTypeDebugName(shadow->m_type),
+				shadow->m_shadowTexture[0] ? shadow->m_shadowTexture[0]->Get_Name() : "(null-shadow-texture)",
+				robj ? robj->Get_Name() : "(none)",
+				robj ? (robj->Is_Really_Visible() ? 1 : 0) : 1,
+				objPos.X,
+				objPos.Y,
+				objPos.Z,
+				startX,
+				startY,
+				endX,
+				endY,
+				numVerts,
+				numIndex,
+				static_cast<unsigned>(shadow->m_diffuse),
+				shadow->m_decalSizeX,
+				shadow->m_decalSizeY);
+		}
+
 		SHADOW_DECAL_VERTEX* pvVertices;
 		UnsignedShort *pvIndices;
 
 		if (nShadowDecalVertsInBuf > (SHADOW_DECAL_VERTEX_SIZE-numVerts))	//check if room for model verts
-		{	//flush the buffer by drawing the contents and re-locking again
+		{
+			//flush the buffer by drawing the contents and re-locking again
 			flushDecals(shadow->m_shadowTexture[0], shadow->m_type);
-			if (shadowDecalVertexBufferD3D->Lock(0,numVerts*sizeof(SHADOW_DECAL_VERTEX),(unsigned char**)&pvVertices,D3DLOCK_DISCARD) != D3D_OK)
-				return;
 
 			nShadowDecalStartBatchVertex=0;
 			nShadowDecalPolysInBatch=0;	//reset number of polys in texture batch
 			nShadowDecalVertsInBatch=0;
 			nShadowDecalVertsInBuf=0;
-		}
-		else
-		{	if (shadowDecalVertexBufferD3D->Lock(nShadowDecalVertsInBuf*sizeof(SHADOW_DECAL_VERTEX),numVerts*sizeof(SHADOW_DECAL_VERTEX), (unsigned char**)&pvVertices,D3DLOCK_NOOVERWRITE) != D3D_OK)
-				return;
 		}
 
 		//code to deal with rotated shadows based on sun direction, fix this later.  For now shadow rotates with object rotation.
@@ -1028,9 +1018,33 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 */
 		DEBUG_ASSERTCRASH(numVerts == ((endY-startY+1)*(endX-startX+1)), ("queueDecal VB size mismatch"));
 
-		if(pvVertices)
 		{
-			if (layerHeight)
+			unsigned vbFlags = (nShadowDecalVertsInBuf == 0) ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
+			VertexBufferClass::AppendLockClass vbLock(shadowDecalVertexBuffer, nShadowDecalVertsInBuf, numVerts, vbFlags);
+			pvVertices = (SHADOW_DECAL_VERTEX *)vbLock.Get_Vertex_Array();
+
+			if(pvVertices)
+			{
+				if (layerHeight)
+					for (j=startY; j <= endY; j++)
+					{
+						hmapVertex.Y=(float)(j-borderSize) * MAP_XY_FACTOR;
+
+						for (i=startX; i <= endX; i++)
+						{
+							hmapVertex.X=(float)(i-borderSize)*MAP_XY_FACTOR;
+							hmapVertex.Z=__max((float)hmap->getHeight(i,j)*MAP_HEIGHT_SCALE,layerHeight);
+							pvVertices->x=hmapVertex.X;
+							pvVertices->y=hmapVertex.Y;
+							pvVertices->z=hmapVertex.Z;
+							pvVertices->diffuse=shadow->m_diffuse;
+							pvVertices->u=Vector3::Dot_Product(uVector, (hmapVertex-objPos))+uOffset;
+							pvVertices->v=Vector3::Dot_Product(vVector, (hmapVertex-objPos))+vOffset;
+							pvVertices++;
+						}
+					}
+				else
+				//insert each cell's bottom/left edge vertex
 				for (j=startY; j <= endY; j++)
 				{
 					hmapVertex.Y=(float)(j-borderSize) * MAP_XY_FACTOR;
@@ -1038,7 +1052,7 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 					for (i=startX; i <= endX; i++)
 					{
 						hmapVertex.X=(float)(i-borderSize)*MAP_XY_FACTOR;
-						hmapVertex.Z=__max((float)hmap->getHeight(i,j)*MAP_HEIGHT_SCALE,layerHeight);
+						hmapVertex.Z=(float)hmap->getHeight(i,j)*MAP_HEIGHT_SCALE+0.01f * MAP_XY_FACTOR;
 						pvVertices->x=hmapVertex.X;
 						pvVertices->y=hmapVertex.Y;
 						pvVertices->z=hmapVertex.Z;
@@ -1048,76 +1062,55 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 						pvVertices++;
 					}
 				}
-			else
-			//insert each cell's bottom/left edge vertex
-			for (j=startY; j <= endY; j++)
-			{
-				hmapVertex.Y=(float)(j-borderSize) * MAP_XY_FACTOR;
-
-				for (i=startX; i <= endX; i++)
-				{
-					hmapVertex.X=(float)(i-borderSize)*MAP_XY_FACTOR;
-					hmapVertex.Z=(float)hmap->getHeight(i,j)*MAP_HEIGHT_SCALE+0.01f * MAP_XY_FACTOR;
-					pvVertices->x=hmapVertex.X;
-					pvVertices->y=hmapVertex.Y;
-					pvVertices->z=hmapVertex.Z;
-					pvVertices->diffuse=shadow->m_diffuse;
-					pvVertices->u=Vector3::Dot_Product(uVector, (hmapVertex-objPos))+uOffset;
-					pvVertices->v=Vector3::Dot_Product(vVector, (hmapVertex-objPos))+vOffset;
-					pvVertices++;
-				}
 			}
 		}
 
-		shadowDecalVertexBufferD3D->Unlock();
-
 		if (nShadowDecalIndicesInBuf > (SHADOW_DECAL_INDEX_SIZE-numIndex))	//check if room for model verts
-		{	//flush the buffer by drawing the contents and re-locking again
+		{
+			//flush the buffer by drawing the contents and re-locking again
 			flushDecals(shadow->m_shadowTexture[0], shadow->m_type);
-
-			if (shadowDecalIndexBufferD3D->Lock(0,numIndex*sizeof(short),(unsigned char**)&pvIndices,D3DLOCK_DISCARD) != D3D_OK)
-				return;
 
 			nShadowDecalStartBatchIndex=0;
 			nShadowDecalPolysInBatch=0;	//reset number of polys in texture batch
 			nShadowDecalVertsInBatch=0;
 			nShadowDecalIndicesInBuf=0;
 		}
-		else
-		{	if (shadowDecalIndexBufferD3D->Lock(nShadowDecalIndicesInBuf*sizeof(short),numIndex*sizeof(short), (unsigned char**)&pvIndices,D3DLOCK_NOOVERWRITE) != D3D_OK)
-				return;
-		}
 
-		if(pvIndices)
-		{	//fill each cell's vertex indices
-			Int rowStart;
-			for (j=startY,rowStart=0; j<endY; j++,rowStart+=vertsPerRow)
+		{
+			unsigned ibFlags = (nShadowDecalIndicesInBuf == 0) ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
+			IndexBufferClass::AppendLockClass ibLock(shadowDecalIndexBuffer, nShadowDecalIndicesInBuf, numIndex, ibFlags);
+			pvIndices = ibLock.Get_Index_Array();
+
+			if(pvIndices)
 			{
-				for (i=rowStart,k=startX; k<endX; i++,k++)
+				//fill each cell's vertex indices
+				Int rowStart;
+				for (j=startY,rowStart=0; j<endY; j++,rowStart+=vertsPerRow)
 				{
-					///@todo: fix the winding order in heightmap to be in strip order like above!
-					if (hmap->getFlipState(k,j))
-					{	pvIndices[0]=i+1+nShadowDecalVertsInBatch;
-						pvIndices[1]=i+vertsPerRow+nShadowDecalVertsInBatch;
-						pvIndices[2]=i+nShadowDecalVertsInBatch;
-						pvIndices[3]=i+1+nShadowDecalVertsInBatch;
-						pvIndices[4]=i+1+vertsPerRow+nShadowDecalVertsInBatch;
-						pvIndices[5]=i+vertsPerRow+nShadowDecalVertsInBatch;
+					for (i=rowStart,k=startX; k<endX; i++,k++)
+					{
+						///@todo: fix the winding order in heightmap to be in strip order like above!
+						if (hmap->getFlipState(k,j))
+						{	pvIndices[0]=i+1+nShadowDecalVertsInBatch;
+							pvIndices[1]=i+vertsPerRow+nShadowDecalVertsInBatch;
+							pvIndices[2]=i+nShadowDecalVertsInBatch;
+							pvIndices[3]=i+1+nShadowDecalVertsInBatch;
+							pvIndices[4]=i+1+vertsPerRow+nShadowDecalVertsInBatch;
+							pvIndices[5]=i+vertsPerRow+nShadowDecalVertsInBatch;
+						}
+						else
+						{	pvIndices[0]=i+nShadowDecalVertsInBatch;
+							pvIndices[1]=i+1+vertsPerRow+nShadowDecalVertsInBatch;
+							pvIndices[2]=i+vertsPerRow+nShadowDecalVertsInBatch;
+							pvIndices[3]=i+nShadowDecalVertsInBatch;
+							pvIndices[4]=i+1+nShadowDecalVertsInBatch;
+							pvIndices[5]=i+1+vertsPerRow+nShadowDecalVertsInBatch;
+						}
+						pvIndices += 6;
 					}
-					else
-					{	pvIndices[0]=i+nShadowDecalVertsInBatch;
-						pvIndices[1]=i+1+vertsPerRow+nShadowDecalVertsInBatch;
-						pvIndices[2]=i+vertsPerRow+nShadowDecalVertsInBatch;
-						pvIndices[3]=i+nShadowDecalVertsInBatch;
-						pvIndices[4]=i+1+nShadowDecalVertsInBatch;
-						pvIndices[5]=i+1+vertsPerRow+nShadowDecalVertsInBatch;
-					}
-					pvIndices += 6;
 				}
 			}
 		}
-
-		shadowDecalIndexBufferD3D->Unlock();
 
 		Int numPolys = (endX - startX)*(endY - startY)*2;	//2 triangles per cell
 		nShadowDecalPolysInBatch += numPolys;
@@ -1147,14 +1140,20 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 
 	if (TheTerrainRenderObject)
 	{
-		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-		if (!m_pDev)	return;	//no D3D Device to render
+		if (!Renderer::Is_Initialized() || Renderer::Is_Device_Lost()) {
+			return;
+		}
 
 		objPos=shadow->m_robj->Get_Position();
 		objXform=shadow->m_robj->Get_Transform();
 		Real groundHeight=TheTerrainRenderObject->getHeightMapHeight(objPos.X, objPos.Y, &normal);
 		Vector3 groundNormal(normal.x,normal.y,normal.z);
+		// TheSuperHackers @bugfix bobtista 31/05/2026 Normalize the ground normal and
+		// the derived v axis. getHeightMapHeight returns an unnormalized normal, and
+		// the cross product below is only unit-length if both inputs are; without this
+		// the blob quad gets a wrong-length/zero v axis and collapses, so the simple
+		// infantry blob shadow renders nothing.
+		groundNormal.Normalize();
 
 		//Find new tu vector parallel to terrain by projecting existing x_vector onto
 		//terrain normal and subtracting the result.
@@ -1164,6 +1163,13 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 		uVector.Normalize();
 		//Find new tv vector parallel to terrain by crossing new tu vector with terrain normal.
 		Vector3::Cross_Product(uVector,groundNormal,&vVector);
+		vVector.Normalize();
+
+		// Blob decal size can carry a negative Y (used as a V-flip in the legacy
+		// projected path). For the simple quad use the magnitude for geometry so a
+		// negative size cannot fold the quad onto itself.
+		const Real simpleSizeX = fabs(shadow->m_decalSizeX);
+		const Real simpleSizeY = fabs(shadow->m_decalSizeY);
 
 		Int numVerts = 4;	//number of decal vertices
 		Int numIndex=6;	//(2 triangles).
@@ -1172,94 +1178,113 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 		UnsignedShort *pvIndices;
 
 		if (nShadowDecalVertsInBuf > (SHADOW_DECAL_VERTEX_SIZE-numVerts))	//check if room for model verts
-		{	//flush the buffer by drawing the contents and re-locking again
+		{
+			//flush the buffer by drawing the contents and re-locking again
 			flushDecals(shadow->m_shadowTexture[0], shadow->m_type);
-			if (shadowDecalVertexBufferD3D->Lock(0,numVerts*sizeof(SHADOW_DECAL_VERTEX),(unsigned char**)&pvVertices,D3DLOCK_DISCARD) != D3D_OK)
-				return;
 
 			nShadowDecalStartBatchVertex=0;
 			nShadowDecalPolysInBatch=0;	//reset number of polys in texture batch
 			nShadowDecalVertsInBatch=0;
 			nShadowDecalVertsInBuf=0;
 		}
-		else
-		{	if (shadowDecalVertexBufferD3D->Lock(nShadowDecalVertsInBuf*sizeof(SHADOW_DECAL_VERTEX),numVerts*sizeof(SHADOW_DECAL_VERTEX), (unsigned char**)&pvVertices,D3DLOCK_NOOVERWRITE) != D3D_OK)
-				return;
-		}
 
 		objPos.Z=groundHeight;	//force decal to ground level
 		objPos += groundNormal * 1.0f;	//offset decal slightly above terrain to reduce z-fighting.
+
+		// TheSuperHackers @bugfix bobtista 01/06/2026 Drape the blob quad over the
+		// terrain by sampling the heightmap at each corner and pinning that corner's
+		// Z to its own ground height (plus the lift), instead of emitting one flat
+		// quad tilted to the center normal. A flat quad's downhill corners sink below
+		// sloped terrain and get depth-rejected, so the blob vanishes when zoomed out
+		// (worse for larger quads that span more undulation); this is the clipping the
+		// original TODO describes.
+		Coord3D cornerNormal;
 		Vector3 vertex;
 
-		if(pvVertices)
 		{
-			//Top-left
-			vertex = objPos + vVector * shadow->m_decalSizeY * -0.5f - uVector * shadow->m_decalSizeX * 0.5f;
-			pvVertices->x=vertex.X;
-			pvVertices->y=vertex.Y;
-			pvVertices->z=vertex.Z;
-			pvVertices->u=0.0f;
-			pvVertices->v=0.0f;
-			pvVertices++;
+			unsigned vbFlags = (nShadowDecalVertsInBuf == 0) ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
+			VertexBufferClass::AppendLockClass vbLock(shadowDecalVertexBuffer, nShadowDecalVertsInBuf, numVerts, vbFlags);
+			pvVertices = (SHADOW_DECAL_VERTEX *)vbLock.Get_Vertex_Array();
 
-			//Bottom-left
-			vertex += vVector * shadow->m_decalSizeY;
-			pvVertices->x=vertex.X;
-			pvVertices->y=vertex.Y;
-			pvVertices->z=vertex.Z;
-			pvVertices->u=0.0f;
-			pvVertices->v=1.0f;
-			pvVertices++;
+			if(pvVertices)
+			{
+				//Top-left
+				vertex = objPos + vVector * simpleSizeY * -0.5f - uVector * simpleSizeX * 0.5f;
+				vertex.Z = TheTerrainRenderObject->getHeightMapHeight(vertex.X, vertex.Y, &cornerNormal) + 1.0f;
+				pvVertices->x=vertex.X;
+				pvVertices->y=vertex.Y;
+				pvVertices->z=vertex.Z;
+				// TheSuperHackers @bugfix bobtista 16/04/2026 initialize vertex
+				// diffuse to white. The uber shader MODULATE stage multiplies
+				// tex0 by vertex color; uninitialized diffuse produces black on
+				// bgfx. White passes the texture through so matDiffuse (from
+				// TFACTOR) provides the shadow tint.
+				pvVertices->diffuse=0xFFFFFFFF;
+				pvVertices->u=0.0f;
+				pvVertices->v=0.0f;
+				pvVertices++;
 
-			//Bottom-right
-			vertex += uVector * shadow->m_decalSizeX;
-			pvVertices->x=vertex.X;
-			pvVertices->y=vertex.Y;
-			pvVertices->z=vertex.Z;
-			pvVertices->u=1.0f;
-			pvVertices->v=1.0f;
-			pvVertices++;
+				//Bottom-left
+				vertex += vVector * simpleSizeY;
+				vertex.Z = TheTerrainRenderObject->getHeightMapHeight(vertex.X, vertex.Y, &cornerNormal) + 1.0f;
+				pvVertices->x=vertex.X;
+				pvVertices->y=vertex.Y;
+				pvVertices->z=vertex.Z;
+				pvVertices->diffuse=0xFFFFFFFF;
+				pvVertices->u=0.0f;
+				pvVertices->v=1.0f;
+				pvVertices++;
 
-			//Top-right
-			vertex -= vVector * shadow->m_decalSizeY;
-			pvVertices->x=vertex.X;
-			pvVertices->y=vertex.Y;
-			pvVertices->z=vertex.Z;
-			pvVertices->u=1.0f;
-			pvVertices->v=0.0f;
-			pvVertices++;
+				//Bottom-right
+				vertex += uVector * simpleSizeX;
+				vertex.Z = TheTerrainRenderObject->getHeightMapHeight(vertex.X, vertex.Y, &cornerNormal) + 1.0f;
+				pvVertices->x=vertex.X;
+				pvVertices->y=vertex.Y;
+				pvVertices->z=vertex.Z;
+				pvVertices->diffuse=0xFFFFFFFF;
+				pvVertices->u=1.0f;
+				pvVertices->v=1.0f;
+				pvVertices++;
+
+				//Top-right
+				vertex -= vVector * simpleSizeY;
+				vertex.Z = TheTerrainRenderObject->getHeightMapHeight(vertex.X, vertex.Y, &cornerNormal) + 1.0f;
+				pvVertices->x=vertex.X;
+				pvVertices->y=vertex.Y;
+				pvVertices->z=vertex.Z;
+				pvVertices->diffuse=0xFFFFFFFF;
+				pvVertices->u=1.0f;
+				pvVertices->v=0.0f;
+				pvVertices++;
+			}
 		}
 
-		shadowDecalVertexBufferD3D->Unlock();
-
 		if (nShadowDecalIndicesInBuf > (SHADOW_DECAL_INDEX_SIZE-numIndex))	//check if room for model verts
-		{	//flush the buffer by drawing the contents and re-locking again
+		{
+			//flush the buffer by drawing the contents and re-locking again
 			flushDecals(shadow->m_shadowTexture[0],shadow->m_type);
-
-			if (shadowDecalIndexBufferD3D->Lock(0,numIndex*sizeof(short),(unsigned char**)&pvIndices,D3DLOCK_DISCARD) != D3D_OK)
-				return;
 
 			nShadowDecalStartBatchIndex=0;
 			nShadowDecalPolysInBatch=0;	//reset number of polys in texture batch
 			nShadowDecalVertsInBatch=0;
 			nShadowDecalIndicesInBuf=0;
 		}
-		else
-		{	if (shadowDecalIndexBufferD3D->Lock(nShadowDecalIndicesInBuf*sizeof(short),numIndex*sizeof(short), (unsigned char**)&pvIndices,D3DLOCK_NOOVERWRITE) != D3D_OK)
-				return;
-		}
 
-		if(pvIndices)
-		{	pvIndices[0]=nShadowDecalVertsInBatch;
-			pvIndices[1]=nShadowDecalVertsInBatch+1;
-			pvIndices[2]=nShadowDecalVertsInBatch+2;
-			pvIndices[3]=nShadowDecalVertsInBatch;
-			pvIndices[4]=nShadowDecalVertsInBatch+2;
-			pvIndices[5]=nShadowDecalVertsInBatch+3;
-			pvIndices += 6;
-		}
+		{
+			unsigned ibFlags = (nShadowDecalIndicesInBuf == 0) ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
+			IndexBufferClass::AppendLockClass ibLock(shadowDecalIndexBuffer, nShadowDecalIndicesInBuf, numIndex, ibFlags);
+			pvIndices = ibLock.Get_Index_Array();
 
-		shadowDecalIndexBufferD3D->Unlock();
+			if(pvIndices)
+			{	pvIndices[0]=nShadowDecalVertsInBatch;
+				pvIndices[1]=nShadowDecalVertsInBatch+1;
+				pvIndices[2]=nShadowDecalVertsInBatch+2;
+				pvIndices[3]=nShadowDecalVertsInBatch;
+				pvIndices[4]=nShadowDecalVertsInBatch+2;
+				pvIndices[5]=nShadowDecalVertsInBatch+3;
+				pvIndices += 6;
+			}
+		}
 
 		Int numPolys = 2;	//2 triangles per decal
 		nShadowDecalPolysInBatch += numPolys;
@@ -1313,10 +1338,20 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 	nShadowDecalVertsInBuf = 0xffff;
 	nShadowDecalIndicesInBuf = 0xffff;
 
-	if (TheGlobalData->m_useShadowDecals)
+	// TheSuperHackers @feature bobtista 16/06/2026 Suppress blob/decal shadows while the
+	// bgfx sun shadow map is active: infantry and other cutout casters now cast real
+	// silhouettes into the map, so the decals would double up.
+	if (TheGlobalData->m_useShadowDecals && !TheGlobalData->m_bgfxShadowMaps)
 	{
 		// Render the object
 		TheDX8MeshRenderer.Set_Camera(&rinfo.Camera);
+
+		// TheSuperHackers @bugfix bobtista 01/06/2026 Point the buffer globals at the blob
+		// buffers while a blob run is active so interleaved blob and non-blob batches never
+		// alias one buffer; the pending batch is always flushed before a switch.
+		RenderVertexBufferClass *savedShadowVB = shadowDecalVertexBuffer;
+		RenderIndexBufferClass *savedShadowIB = shadowDecalIndexBuffer;
+		bool blobBuffersActive = false;
 
 		//keep track of active decal texture so we can render all decals at once.
 		W3DShadowTexture *lastShadowDecalTexture=nullptr;
@@ -1326,12 +1361,27 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 		{
 			if (shadow->m_isEnabled && !shadow->m_isInvisibleEnabled)
 			{
+				if (shadow->m_type != SHADOW_DECAL)
+					shadow->update();
 				if (shadow->m_type & SHADOW_DECAL)
 				{
+					// TheSuperHackers @bugfix bobtista 01/06/2026 Decide whether this
+					// decal will be routed to queueSimpleDecal (blob buffers) or to
+					// queueDecal (shared buffers) before we touch the buffer globals,
+					// mirroring the queueSimpleDecal gate below.
+					bool useBlobBuffer = false;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+					if (shadow->m_robj != nullptr
+						&& IsDefaultInfantryBlobShadowDecal(shadow->m_shadowTexture[0], shadow->m_type))
+					{
+						useBlobBuffer = true;
+					}
+#endif
+
 					if (lastShadowDecalTexture == nullptr)
-						lastShadowDecalTexture=m_shadowList->m_shadowTexture[0];
+						lastShadowDecalTexture=shadow->m_shadowTexture[0];
 					if (lastShadowType == SHADOW_NONE)
-						lastShadowType = m_shadowList->m_type;
+						lastShadowType = shadow->m_type;
 
 					if (shadow->m_shadowTexture[0] != lastShadowDecalTexture ||
 						shadow->m_type != lastShadowType)
@@ -1339,10 +1389,54 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 						lastShadowDecalTexture=shadow->m_shadowTexture[0];
 						lastShadowType=shadow->m_type;
 					}
+
+					// TheSuperHackers @bugfix bobtista 01/06/2026 Point the buffer
+					// globals at the buffer set this run needs. The pending batch was
+					// already flushed above on the texture change, so switching here
+					// never splits a batch across buffers. Force a fresh DISCARD on the
+					// newly-selected buffer so its batch starts at offset 0.
+					if (useBlobBuffer != blobBuffersActive)
+					{
+						if (useBlobBuffer)
+						{
+							shadowDecalVertexBuffer = blobDecalVertexBuffer;
+							shadowDecalIndexBuffer = blobDecalIndexBuffer;
+						}
+						else
+						{
+							shadowDecalVertexBuffer = savedShadowVB;
+							shadowDecalIndexBuffer = savedShadowIB;
+						}
+						blobBuffersActive = useBlobBuffer;
+						nShadowDecalVertsInBuf = 0xffff;
+						nShadowDecalIndicesInBuf = 0xffff;
+						nShadowDecalStartBatchVertex = 0;
+						nShadowDecalStartBatchIndex = 0;
+					}
 					///@todo: may need to fix this if shadows are large enough to be seen while object is not visible
-					if (shadow->m_robj->Is_Really_Visible())
-					{	//queueSimpleDecal(shadow);
-						queueDecal(shadow);	//only draw shadow if casting object is visible
+					if (shadow->m_robj == nullptr || shadow->m_robj->Is_Really_Visible() || shadow->m_type == SHADOW_DECAL)
+					{
+						// TheSuperHackers @bugfix bobtista 31/05/2026 Default infantry
+						// blob shadows are tiny (~14 units). queueDecal projects them
+						// onto the heightmap receiver mesh, where they only cover a
+						// cell or two; the covered-cell count shifts with camera zoom
+						// and terrain LOD, so the blobs flicker, partially render, or
+						// vanish when zoomed out. queueSimpleDecal emits a fixed
+						// 4-vertex ground quad sized to the blob with full [0,1] UV,
+						// which is zoom-independent. Route default infantry blobs there
+						// (bgfx only); everything else keeps the heightmap projection.
+#if defined(GGC_RENDER_BACKEND_BGFX)
+						// useBlobBuffer was computed above with the identical gate and
+						// selected the dedicated blob buffers, so reuse it here.
+						if (useBlobBuffer)
+						{
+							queueSimpleDecal(shadow);
+						}
+						else
+#endif
+						{
+							queueDecal(shadow);	//only draw shadow if casting object is visible
+						}
 						projectionCount++;
 					}
 					continue;
@@ -1354,7 +1448,8 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 
 				CollisionMath::OverlapType result=CollisionMath::Overlap_Test(*shadowCameraFrustum,sphere);
 				if (result == CollisionMath::OVERLAPPED)
-				{	//do a more accurate test against bounding box.
+				{
+					//do a more accurate test against bounding box.
 					aaBox=shadow->m_shadowTexture[0]->getBoundingBox();
 					aaBox.Translate(shadow->m_robj->Get_Position());	//translate bounding box to world space.
 					if (CollisionMath::Overlap_Test(*shadowCameraFrustum,aaBox) == CollisionMath::OUTSIDE)
@@ -1379,8 +1474,9 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 					TexProjectClass *projector=shadow->getShadowProjector();
 
 					//terrain is always visible and affected by all shadows so must render
+					Renderer::Invalidate_Cached_Render_States();
 					projector->Peek_Material_Pass()->Install_Materials();
-					DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+					Renderer::Apply_Render_State_Changes();	//force update of view and projection matrices
 					if (renderProjectedTerrainShadow(shadow, aaBox))
 						projectionCount++;
 					projector->Peek_Material_Pass()->UnInstall_Materials();
@@ -1428,10 +1524,27 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 		}
 
 		flushDecals(lastShadowDecalTexture,lastShadowType);	//make sure there are not any unrendered decals left over.
+
+		// TheSuperHackers @bugfix bobtista 01/06/2026 Restore the shadow-decal buffer
+		// globals after the m_shadowList pass so the dedicated blob buffers are never
+		// left selected for the later decal-list pass (which captures these globals).
+		shadowDecalVertexBuffer = savedShadowVB;
+		shadowDecalIndexBuffer = savedShadowIB;
+
 		TheDX8MeshRenderer.Flush();	//draw all the shadow receiving objects
 	}
 	if (m_decalList)
 	{
+		// TheSuperHackers @bugfix bobtista 31/05/2026 Point queueDecal/flushDecals
+		// at the dedicated decal-list buffers so this pass does not re-lock the
+		// buffer the still-pending blob/projection shadow submits depend on.
+		RenderVertexBufferClass *savedDecalVB = shadowDecalVertexBuffer;
+		RenderIndexBufferClass *savedDecalIB = shadowDecalIndexBuffer;
+		shadowDecalVertexBuffer = decalListVertexBuffer;
+		shadowDecalIndexBuffer = decalListIndexBuffer;
+		nShadowDecalVertsInBuf = 0xffff;	//force a fresh DISCARD on the decal-list buffer
+		nShadowDecalIndicesInBuf = 0xffff;
+
 		//keep track of active decal texture so we can render all decals at once.
 		W3DShadowTexture *lastShadowDecalTexture=nullptr;
 		ShadowType lastShadowType = SHADOW_NONE;
@@ -1441,9 +1554,9 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 			if (shadow->m_isEnabled && !shadow->m_isInvisibleEnabled)
 			{
 				if (lastShadowDecalTexture == nullptr)
-					lastShadowDecalTexture=m_decalList->m_shadowTexture[0];
+					lastShadowDecalTexture=shadow->m_shadowTexture[0];
 				if (lastShadowType == SHADOW_NONE)
-					lastShadowType = m_decalList->m_type;
+					lastShadowType = shadow->m_type;
 
 				if (shadow->m_shadowTexture[0] != lastShadowDecalTexture ||
 					shadow->m_type != lastShadowType)
@@ -1453,7 +1566,8 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 				}
 				///@todo: may need to fix this if shadows are large enough to be seen while object is not visible
 				if (!(shadow->m_robj && !shadow->m_robj->Is_Really_Visible()))
-				{	//queueSimpleDecal(shadow);
+				{
+					//queueSimpleDecal(shadow);
 					queueDecal(shadow);	//only draw shadow if casting object is visible
 					projectionCount++;
 				}
@@ -1461,7 +1575,18 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 		}
 
 		flushDecals(lastShadowDecalTexture,lastShadowType);	//make sure there are not any unrendered decals left over.
+
+		// TheSuperHackers @bugfix bobtista 01/06/2026 Restore the shadow-decal buffer
+		// globals after the decal-list pass. Without this restore the globals stay
+		// pointed at decalListVertexBuffer/decalListIndexBuffer, so on every later
+		// frame the m_shadowList blob pass locks the decal-list buffer too. The
+		// reveal/radius decal pass then re-locks that shared buffer and overwrites the
+		// still-pending blob shadow submits in the bgfx deferred-submit model, making
+		// infantry blob shadows vanish whenever a reveal targeting decal is active.
+		shadowDecalVertexBuffer = savedDecalVB;
+		shadowDecalIndexBuffer = savedDecalIB;
 	}
+
 	return projectionCount;
 }
 
@@ -1477,6 +1602,7 @@ Shadow* W3DProjectedShadowManager::addDecal(Shadow::ShadowTypeInfo *shadowInfo)
 
 	Bool	allowSunDirection=FALSE;
 	Char texture_name[ARRAY_SIZE(shadowInfo->m_ShadowName)];
+	texture_name[0] = '\0';
 
 	if (!shadowInfo)
 		return nullptr;	//right now we require hardware render-to-texture support
@@ -1540,6 +1666,9 @@ Shadow* W3DProjectedShadowManager::addDecal(Shadow::ShadowTypeInfo *shadowInfo)
 	shadow->m_flags	= allowSunDirection;
 
 	shadow->init();
+	LogProjectedShadowPath("addDecal-free", nullptr, nullptr, shadowInfo,
+		shadowType, texture_name, allowWorldAlign, allowSunDirection,
+		decalSizeX, decalSizeY, 0.0f, 0.0f);
 
 	// add to our shadow list through the shadow next links, insert next to other shadows using same texture
 
@@ -1547,7 +1676,8 @@ Shadow* W3DProjectedShadowManager::addDecal(Shadow::ShadowTypeInfo *shadowInfo)
 	for( nextShadow = m_decalList; nextShadow; prevShadow=nextShadow,nextShadow = nextShadow->m_next )
 	{
 		if (nextShadow->m_shadowTexture[0]==st)
-		{	//found start of other shadows using same texture, insert new shadow here.
+		{
+			//found start of other shadows using same texture, insert new shadow here.
 			shadow->m_next=nextShadow;
 			if (prevShadow)
 			{	prevShadow->m_next=shadow;
@@ -1559,7 +1689,8 @@ Shadow* W3DProjectedShadowManager::addDecal(Shadow::ShadowTypeInfo *shadowInfo)
 	}
 
 	if (nextShadow==nullptr)
-	{	//shadow with new texture. Add to top of list.
+	{
+		//shadow with new texture. Add to top of list.
 		shadow->m_next = m_decalList;
 		m_decalList = shadow;
 	}
@@ -1582,6 +1713,7 @@ Shadow* W3DProjectedShadowManager::addDecal(RenderObjClass *robj, Shadow::Shadow
 
 	Bool	allowSunDirection=FALSE;
 	Char texture_name[ARRAY_SIZE(shadowInfo->m_ShadowName)];
+	texture_name[0] = '\0';
 
 	if (!robj || !shadowInfo)
 		return nullptr;	//right now we require hardware render-to-texture support
@@ -1663,6 +1795,9 @@ Shadow* W3DProjectedShadowManager::addDecal(RenderObjClass *robj, Shadow::Shadow
 	shadow->m_flags	= allowSunDirection;
 
 	shadow->init();
+	LogProjectedShadowPath("addDecal-robj", robj, nullptr, shadowInfo,
+		shadowType, texture_name, allowWorldAlign, allowSunDirection,
+		decalSizeX, decalSizeY, decalOffsetX, decalOffsetY);
 
 	// add to our shadow list through the shadow next links, insert next to other shadows using same texture
 
@@ -1670,7 +1805,8 @@ Shadow* W3DProjectedShadowManager::addDecal(RenderObjClass *robj, Shadow::Shadow
 	for( nextShadow = m_decalList; nextShadow; prevShadow=nextShadow,nextShadow = nextShadow->m_next )
 	{
 		if (nextShadow->m_shadowTexture[0]==st)
-		{	//found start of other shadows using same texture, insert new shadow here.
+		{
+			//found start of other shadows using same texture, insert new shadow here.
 			shadow->m_next=nextShadow;
 			if (prevShadow)
 			{	prevShadow->m_next=shadow;
@@ -1682,7 +1818,8 @@ Shadow* W3DProjectedShadowManager::addDecal(RenderObjClass *robj, Shadow::Shadow
 	}
 
 	if (nextShadow==nullptr)
-	{	//shadow with new texture. Add to top of list.
+	{
+		//shadow with new texture. Add to top of list.
 		shadow->m_next = m_decalList;
 		m_decalList = shadow;
 	}
@@ -1704,17 +1841,36 @@ W3DProjectedShadow* W3DProjectedShadowManager::addShadow(RenderObjClass *robj, S
 
 	Bool	allowSunDirection=FALSE;
 	Char texture_name[ARRAY_SIZE(shadowInfo->m_ShadowName)];
+	texture_name[0] = '\0';
 
 
-	if (!m_dynamicRenderTarget || !robj || !TheGlobalData->m_useShadowDecals)
-		return nullptr;	//right now we require hardware render-to-texture support
+	if (!robj || !TheGlobalData->m_useShadowDecals)
+	{
+		LogProjectedShadowPath("addShadow-skip", robj, draw, shadowInfo,
+			SHADOW_NONE, texture_name, allowWorldAlign, allowSunDirection,
+			decalSizeX, decalSizeY, decalOffsetX, decalOffsetY);
+		return nullptr;
+	}
+
+	const bool canUseStaticDecalWithoutRenderTarget =
+		shadowInfo != nullptr
+		&& shadowInfo->m_type == SHADOW_DECAL
+		&& IsDefaultInfantryBlobShadowName(shadowInfo->m_ShadowName);
+	if (!m_dynamicRenderTarget && !canUseStaticDecalWithoutRenderTarget)
+	{
+		LogProjectedShadowPath("addShadow-skip", robj, draw, shadowInfo,
+			SHADOW_NONE, texture_name, allowWorldAlign, allowSunDirection,
+			decalSizeX, decalSizeY, decalOffsetX, decalOffsetY);
+		return nullptr;
+	}
 
 
 	if (shadowInfo)
 	{
 		//determine what kind of shadow is needed
 		if (shadowInfo->m_type==SHADOW_DECAL)
-		{		//simple decal using the premade texture specified.
+		{
+				//simple decal using the premade texture specified.
 				//can be always perpendicular to model's z-axis or projected
 				//onto world geometry.
 				if (strlen(shadowInfo->m_ShadowName) <= 1)	//no texture name given, use same as object
@@ -1758,11 +1914,13 @@ W3DProjectedShadow* W3DProjectedShadowManager::addShadow(RenderObjClass *robj, S
 		}
 		else
 		if (shadowInfo->m_type==SHADOW_PROJECTION)
-		{		//projection of object geometry into a texture.
+		{
+				//projection of object geometry into a texture.
 				//can be applied on a plane horizontal to model's z-axis or
 				//projected onto world geometry.
 				if (shadowInfo->m_ShadowName[0] != '\0')
-				{	//the shadow will be based on another render object
+				{
+					//the shadow will be based on another render object
 					//to allow multiple models to share same shadow - for
 					//example, all trees could use same shadow even if slightly
 					//different color, etc.
@@ -1774,7 +1932,8 @@ W3DProjectedShadow* W3DProjectedShadowManager::addShadow(RenderObjClass *robj, S
 
 				st=m_W3DShadowTextureManager->getTexture(texture_name);
 				if (st == nullptr)
-				{	//texture doesn't exist, use current render object to create it
+				{
+					//texture doesn't exist, use current render object to create it
 					m_W3DShadowTextureManager->createTexture(robj,texture_name);
 					//try loading again
 					st=m_W3DShadowTextureManager->getTexture(texture_name);
@@ -1788,13 +1947,15 @@ W3DProjectedShadow* W3DProjectedShadowManager::addShadow(RenderObjClass *robj, S
 		}
 	}
 	else
-	{	//no shadow info, assume user wants a projected shadow
+	{
+		//no shadow info, assume user wants a projected shadow
 		strlcpy(texture_name, robj->Get_Name(), ARRAY_SIZE(texture_name));
 
 		st=m_W3DShadowTextureManager->getTexture(texture_name);
 
 		if (st==nullptr)
-		{	//did not find a cached copy of the shadow geometry, create a new one
+		{
+			//did not find a cached copy of the shadow geometry, create a new one
 			m_W3DShadowTextureManager->createTexture(robj,texture_name);
 			//try loading again
 			st=m_W3DShadowTextureManager->getTexture(texture_name);
@@ -1852,6 +2013,9 @@ W3DProjectedShadow* W3DProjectedShadowManager::addShadow(RenderObjClass *robj, S
 	shadow->m_flags	= allowSunDirection;
 
 	shadow->init();
+	LogProjectedShadowPath("addShadow", robj, draw, shadowInfo,
+		shadowType, texture_name, allowWorldAlign, allowSunDirection,
+		decalSizeX, decalSizeY, decalOffsetX, decalOffsetY);
 
 	// add to our shadow list through the shadow next links, insert next to other shadows using same texture
 
@@ -1859,7 +2023,8 @@ W3DProjectedShadow* W3DProjectedShadowManager::addShadow(RenderObjClass *robj, S
 	for( nextShadow = m_shadowList; nextShadow; prevShadow=nextShadow,nextShadow = nextShadow->m_next )
 	{
 		if (nextShadow->m_shadowTexture[0]==st)
-		{	//found start of other shadows using same texture, insert new shadow here.
+		{
+			//found start of other shadows using same texture, insert new shadow here.
 			shadow->m_next=nextShadow;
 			if (prevShadow)
 			{	prevShadow->m_next=shadow;
@@ -1871,7 +2036,8 @@ W3DProjectedShadow* W3DProjectedShadowManager::addShadow(RenderObjClass *robj, S
 	}
 
 	if (nextShadow==nullptr)
-	{	//shadow with new texture. Add to top of list.
+	{
+		//shadow with new texture. Add to top of list.
 		shadow->m_next = m_shadowList;
 		m_shadowList = shadow;
 	}
@@ -2114,14 +2280,20 @@ void W3DProjectedShadow::updateTexture(Vector3 &lightPos)
 {
 	SpecialRenderInfoClass *context;
 	//default uv coordinates before rotation starting at top/left going clockwise
-	static Vector2 uvData[4]={Vector2(-0.5,-0.5f),Vector2(-0.5,0.5f),Vector2(0.5f,0.5f),Vector2(-0.5f,0.5f)};
+	static Vector2 uvData[4]={
+		Vector2(-0.5,-0.5f),
+		Vector2(-0.5,0.5f),
+		Vector2(0.5f,0.5f),
+		Vector2(-0.5f,0.5f)
+	};
 
 	//force light always 2000 units from object - for some reason projection fails if
 	//light is too far.
 	///@todo: See why infinite light sources don't project shadows correctly.
 
 	if (m_type == SHADOW_PROJECTION)
-	{	//projected shadows use custom runtime generated textures based on object geometry
+	{
+		//projected shadows use custom runtime generated textures based on object geometry
 		Vector3 objPos=m_robj->Get_Position();
 		if (objPos == Vector3(0,0,0))
 			return; //render object does not have a valid position (never rendered).
@@ -2138,21 +2310,33 @@ void W3DProjectedShadow::updateTexture(Vector3 &lightPos)
 
 		context->light_environment->Reset(m_robj->Get_Position(), Vector3(0,0,0));
 
-		m_shadowProjector->Compute_Texture(m_robj,context);
+		if (!m_shadowProjector->Compute_Texture(m_robj,context))
+		{
+			return;
+		}
 
-		//Need to copy generated texture into permanent texture.
-		SurfaceClass *oldSurface=m_shadowTexture[0]->getTexture()->Get_Surface_Level();
-		SurfaceClass *newSurface=TheW3DProjectedShadowManager->getRenderTarget()->Get_Surface_Level();
+			//Need to copy generated texture into permanent texture.
+#if defined(GGC_RENDER_BACKEND_BGFX)
+			Renderer::Copy_Render_Target_To_Texture(
+				m_shadowTexture[0]->getTexture(),
+				TheW3DProjectedShadowManager->getRenderTarget());
+#else
+			SurfaceClass *oldSurface=m_shadowTexture[0]->getTexture()->Get_Surface_Level();
+			SurfaceClass *newSurface=TheW3DProjectedShadowManager->getRenderTarget()->Get_Surface_Level();
 
-		//Copy shadow from temporary video-memory surface into a permanent texture
-		oldSurface->Copy(0,0,0,0,DEFAULT_RENDER_TARGET_WIDTH,DEFAULT_RENDER_TARGET_HEIGHT,newSurface);
-		REF_PTR_RELEASE(newSurface);
-		REF_PTR_RELEASE(oldSurface);
-		m_shadowTexture[0]->updateBounds(TheW3DShadowManager->getLightPosWorld(0),m_robj);	//update local shadow bounds
-	}
+			//Copy shadow from temporary video-memory surface into a permanent texture
+			oldSurface->Copy(0,0,0,0,DEFAULT_RENDER_TARGET_WIDTH,DEFAULT_RENDER_TARGET_HEIGHT,newSurface);
+			REF_PTR_RELEASE(newSurface);
+			REF_PTR_RELEASE(oldSurface);
+			Renderer::Copy_Render_Target_To_Texture(m_shadowTexture[0]->getTexture(), TheW3DProjectedShadowManager->getRenderTarget());
+#endif
+			m_shadowProjector->Set_Texture(m_shadowTexture[0]->getTexture());
+			m_shadowTexture[0]->updateBounds(TheW3DShadowManager->getLightPosWorld(0),m_robj);	//update local shadow bounds
+		}
 	else
 	if (m_type == SHADOW_DECAL)
-	{	//decal shadows use artist supplied textures.  We just need to tweak the uv coordinates to match
+	{
+		//decal shadows use artist supplied textures.  We just need to tweak the uv coordinates to match
 		//the light direction.
 		Vector3 objPos=m_robj->Get_Position();
 		Vector3 objectToLight;
@@ -2197,11 +2381,13 @@ void W3DProjectedShadow::updateProjectionParameters(const Matrix3D &cameraXform)
 void W3DProjectedShadow::update()
 {
 	if (m_shadowTexture[0]->getLightPosHistory() != TheW3DShadowManager->getLightPosWorld(0))
-	{	//light has moved since last time this shadow was calculated. Need update
+	{
+		//light has moved since last time this shadow was calculated. Need update
 		updateTexture(TheW3DShadowManager->getLightPosWorld(0));
 	}
 	if (m_lastObjPosition != m_robj->Get_Position())
-	{	//object has moved.  Texture stays the same but projection matrix needs updating.
+	{
+		//object has moved.  Texture stays the same but projection matrix needs updating.
 		//force light always 2000 units from object - for some reason projection fails if
 		//light is too far.
 		///@todo: See why infinite light sources don't project shadows correctly.
@@ -2363,7 +2549,7 @@ Bool W3DShadowTextureManager::addTexture(W3DShadowTexture *newTexture)
 void W3DShadowTextureManager::invalidateCachedLightPositions()
 {
 	// step through each of our shadow textures and update previous light position.
-	Vector3 idVec(0,0,0);
+	Vector3 idVec(1.0e30f,1.0e30f,1.0e30f);
 
 	W3DShadowTextureManagerIterator it( *this );
 	for( it.First(); !it.Is_Done(); it.Next() )
@@ -2422,11 +2608,13 @@ int W3DShadowTextureManager::createTexture(RenderObjClass *robj, const char *nam
 	res=newTexture->init(robj);
 
 	if (res != TRUE)
-	{	// load failed!
+	{
+		// load failed!
 		newTexture->Release_Ref();
 		goto Error;
 	} else if (peekTexture(newTexture->Get_Name()) != nullptr)
-	{	// duplicate exists!
+	{
+		// duplicate exists!
 		newTexture->Release_Ref();	// Release the one we just loaded
 		goto Error;
 	} else

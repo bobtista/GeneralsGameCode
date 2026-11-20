@@ -32,6 +32,11 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#ifdef _UNIX
+#include <filesystem>
+#include <stdlib.h>
+#endif
+
 #include "WW3D2/ww3d.h"
 #include "WW3D2/texturefilter.h"
 
@@ -54,11 +59,13 @@
 #include "Common/version.h"
 
 #include "GameLogic/AI.h"
+#include "GameLogic/GameLogic.h"
 #include "GameLogic/Weapon.h"
 #include "GameLogic/Module/BodyModule.h"
 
 #include "GameClient/Color.h"
 #include "GameClient/Display.h"
+#include "GameClient/Mouse.h"
 #include "GameClient/TerrainVisual.h"
 
 #include "GameNetwork/FirewallHelper.h"
@@ -69,6 +76,7 @@ GlobalData* TheWritableGlobalData = nullptr;				///< The global data singleton
 //-------------------------------------------------------------------------------------------------
 GlobalData* GlobalData::m_theOriginal = nullptr;
 
+#ifndef _UNIX
 #ifndef WC_NO_BEST_FIT_CHARS
 #define WC_NO_BEST_FIT_CHARS 0x00000400
 #endif
@@ -111,6 +119,447 @@ static AsciiString widePathToFileApiPath(const wchar_t* widePath)
 	DEBUG_LOG(("Documents path can't be represented in code page %u and has no short name", GetACP()));
 	return AsciiString::TheEmptyString;
 }
+#endif
+
+extern "C" void GGC_GetBgfxPostProcessParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.08f;
+	params[1] = 1.015f;
+	params[2] = 1.01f;
+	params[3] = 0.35f;
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	if (!TheGlobalData->m_bgfxPostProcessing || TheGlobalData->m_bgfxNoPostFx)
+	{
+		params[0] = 0.0f;
+		params[1] = 1.0f;
+		params[2] = 1.0f;
+		params[3] = 0.0f;
+	}
+	else
+	{
+		params[0] = TheGlobalData->m_bgfxPostSharpenAmount;
+		params[1] = TheGlobalData->m_bgfxPostSaturation;
+		params[2] = TheGlobalData->m_bgfxPostContrast;
+		params[3] = TheGlobalData->m_bgfxPostFxaaAmount;
+	}
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Expose the split-screen wipe state
+// to the bgfx composite pass. params: x = split position 0..1, y = enabled.
+extern "C" void GGC_GetBgfxWipeParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.5f;
+	params[1] = 0.0f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData || !TheGlobalData->m_bgfxWipeEnabled)
+	{
+		return;
+	}
+
+	Real split = TheGlobalData->m_bgfxWipeSplit;
+	if (TheGlobalData->m_bgfxWipeFollowMouse && TheMouse && TheDisplay)
+	{
+		const Int width = (Int)TheDisplay->getWidth();
+		const MouseIO *status = TheMouse->getMouseStatus();
+		if (width > 0 && status)
+		{
+			split = (Real)status->pos.x / (Real)width;
+		}
+	}
+
+	if (split < 0.0f)
+	{
+		split = 0.0f;
+	}
+	if (split > 1.0f)
+	{
+		split = 1.0f;
+	}
+
+	params[0] = split;
+	params[1] = 1.0f;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Expose color-grade controls to the
+// bgfx composite pass. params: x = enabled, y = strength, z = temperature, w = tint.
+extern "C" void GGC_GetBgfxColorGradeParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0f;
+	params[1] = 1.0f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData || !TheGlobalData->m_bgfxColorGrade)
+	{
+		return;
+	}
+
+	params[0] = 1.0f;
+	params[1] = TheGlobalData->m_bgfxColorGradeStrength;
+	params[2] = TheGlobalData->m_bgfxColorGradeTemperature;
+	params[3] = TheGlobalData->m_bgfxColorGradeTint;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Expose bloom controls to the bgfx
+// composite/bloom passes. params: x = enabled, y = threshold, z = intensity.
+extern "C" void GGC_GetBgfxBloomParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0f;
+	params[1] = 0.75f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData || !TheGlobalData->m_bgfxBloom)
+	{
+		return;
+	}
+
+	params[0] = 1.0f;
+	params[1] = TheGlobalData->m_bgfxBloomThreshold;
+	params[2] = TheGlobalData->m_bgfxBloomIntensity;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Opt-in HDR scene color. When set,
+// the bgfx scene/bloom targets use RGBA16F and the composite applies ACES
+// tonemapping, giving richer bloom and highlight rolloff. Default off.
+extern "C" int GGC_GetBgfxHdrEnabled()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxHdr)
+	{
+		return 0;
+	}
+	return 1;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Cheap fullscreen post effects.
+// params: x = vignette strength, y = chromatic aberration amount, z = film grain
+// strength. Zero means off.
+extern "C" void GGC_GetBgfxPostFx2Params(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0f;
+	params[1] = 0.0f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	if (TheGlobalData->m_bgfxVignette)
+	{
+		params[0] = TheGlobalData->m_bgfxVignetteStrength;
+	}
+	if (TheGlobalData->m_bgfxChromaticAberration)
+	{
+		params[1] = TheGlobalData->m_bgfxChromaticAberrationAmount;
+	}
+	if (TheGlobalData->m_bgfxFilmGrain)
+	{
+		params[2] = TheGlobalData->m_bgfxFilmGrainStrength;
+	}
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 MSAA sample count for the offscreen
+// scene framebuffer (0/2/4/8). Drives true multisampling of the 3D scene, distinct
+// from the backbuffer reset MSAA.
+extern "C" int GGC_GetBgfxMsaaSamples()
+{
+	if (!TheGlobalData)
+	{
+		return 0;
+	}
+	return TheGlobalData->m_bgfxMsaa;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Internal render-scale (supersampling)
+// for the 3D scene. 1.0 = native; up to 2.0 renders the scene at a multiple and the
+// composite downsamples to native, antialiasing geometry and shading alike.
+extern "C" float GGC_GetBgfxRenderScale()
+{
+	if (!TheGlobalData)
+	{
+		return 1.0f;
+	}
+	return TheGlobalData->m_bgfxRenderScale;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Screen-space ambient occlusion.
+// params: x = enabled, y = radius (world units), z = intensity.
+extern "C" void GGC_GetBgfxSSAOParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0f;
+	params[1] = 1.0f;
+	params[2] = 1.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData || !TheGlobalData->m_bgfxSSAO)
+	{
+		return;
+	}
+
+	params[0] = 1.0f;
+	params[1] = TheGlobalData->m_bgfxSSAORadius;
+	params[2] = TheGlobalData->m_bgfxSSAOIntensity;
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Uber-shader material lighting effects.
+// These read existing W3D material data (specular color/shininess) and the camera eye
+// vector; no new art assets are required.
+// params: x = specular strength (0 = off), y = rim-light strength (0 = off),
+// z = rim-light power, w = emissive boost multiplier (1 = neutral).
+extern "C" void GGC_GetBgfxMaterialFxParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0f;
+	params[1] = 0.0f;
+	params[2] = 3.0f;
+	params[3] = 1.0f;
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	if (TheGlobalData->m_bgfxSpecular)
+	{
+		params[0] = TheGlobalData->m_bgfxSpecularStrength;
+	}
+	if (TheGlobalData->m_bgfxRimLight)
+	{
+		params[1] = TheGlobalData->m_bgfxRimStrength;
+		params[2] = TheGlobalData->m_bgfxRimPower;
+	}
+	if (TheGlobalData->m_bgfxEmissiveBoost)
+	{
+		params[3] = TheGlobalData->m_bgfxEmissiveBoostScale;
+	}
+}
+
+// TheSuperHackers @feature bobtista 15/06/2026 Sun shadow map. Render-only directional
+// shadows from the sun's POV as a modern alternative to stencil volumes / blob decals.
+extern "C" int GGC_GetBgfxShadowMapEnabled()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxShadowMaps)
+	{
+		return 0;
+	}
+	return 1;
+}
+
+// TheSuperHackers @feature bobtista 23/06/2026 Perspective point-light shadow map toggle.
+// Default FALSE; enable via INI BgfxDynamicLightShadows=Yes or the Ctrl+Alt dev hotkey.
+extern "C" int GGC_GetBgfxDynamicLightShadowsEnabled()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxDynamicLightShadows)
+	{
+		return 0;
+	}
+	return 1;
+}
+
+// TheSuperHackers @feature bobtista 16/07/2026 INI toggle for the experimental dramatic Particle
+// Cannon lighting. Data/INI/Bgfx.ini "PCannonEnhanced = Yes" enables it without the env flag; the
+// GGC_PCANNON_ENHANCED env flag still overrides (checked alongside this in the read sites).
+extern "C" int GGC_GetPCannonEnhancedEnabled()
+{
+	return (TheGlobalData && TheGlobalData->m_pcannonEnhanced) ? 1 : 0;
+}
+
+// TheSuperHackers @tweak bobtista 18/07/2026 Scene ambient floor at the beam for the enhanced
+// Particle Cannon dim, read by the bgfx backend. Lower = darker/more impact.
+extern "C" float GGC_GetPCannonDimTarget()
+{
+	return (TheGlobalData) ? (float)TheGlobalData->m_pcannonDimTarget : 0.72f;
+}
+
+// params: x = depth bias, y = shadow strength (0 = none, 1 = full).
+extern "C" void GGC_GetBgfxShadowMapParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.0015f;
+	params[1] = 0.7f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	params[0] = TheGlobalData->m_bgfxShadowMapBias;
+	params[1] = TheGlobalData->m_bgfxShadowMapStrength;
+}
+
+// TheSuperHackers @feature bobtista 16/06/2026 Debug: force nearest/point texture
+// filtering (the old blocky look) instead of the smooth linear/trilinear baseline.
+extern "C" int GGC_GetBgfxPointFilter()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxPointFilter)
+	{
+		return 0;
+	}
+	return 1;
+}
+
+extern "C" const char * GGC_GetBgfxRenderer()
+{
+	if (!TheGlobalData)
+	{
+		return "";
+	}
+	return TheGlobalData->m_bgfxRenderer.str();
+}
+
+extern "C" int GGC_GetBgfxSrgb()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxSrgb)
+	{
+		return 0;
+	}
+	return 1;
+}
+
+extern "C" int GGC_GetBgfxShadowFullPcf()
+{
+	if (!TheGlobalData || !TheGlobalData->m_bgfxShadowFullPcf)
+	{
+		return 0;
+	}
+	return 1;
+}
+
+extern "C" int GGC_GetBgfxStencilShadowsEnabled()
+{
+	if (!TheGlobalData)
+	{
+		return 1;
+	}
+	// TheSuperHackers @feature bobtista 15/07/2026 The sun shadow map replaces the legacy
+	// stencil volumes; running both doubles every unit shadow. GGC_ENABLE_LEGACY_STENCIL_SHADOWS
+	// still forces the legacy path back on in the backend for A/B comparison.
+	if (TheGlobalData->m_bgfxShadowMaps)
+	{
+		return 0;
+	}
+	return TheGlobalData->m_bgfxStencilShadows ? 1 : 0;
+}
+
+extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
+{
+	if (logStats)
+	{
+		*logStats = 0;
+	}
+	if (noSceneFramebuffer)
+	{
+		*noSceneFramebuffer = 0;
+	}
+	if (noPostFx)
+	{
+		*noPostFx = 0;
+	}
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	if (logStats)
+	{
+		*logStats = TheGlobalData->m_bgfxLogStats ? 1 : 0;
+	}
+	if (noSceneFramebuffer)
+	{
+		*noSceneFramebuffer = TheGlobalData->m_bgfxNoSceneFramebuffer ? 1 : 0;
+	}
+	if (noPostFx)
+	{
+		*noPostFx = TheGlobalData->m_bgfxNoPostFx ? 1 : 0;
+	}
+}
+
+extern "C" int GGC_GetBgfxScreenshotFrame()
+{
+	return TheGlobalData ? TheGlobalData->m_bgfxScreenshotAfter : 0;
+}
+
+extern "C" const char * GGC_GetBgfxScreenshotPath()
+{
+	return TheGlobalData ? TheGlobalData->m_bgfxScreenshotPath.str() : "";
+}
+
+// TheSuperHackers @feature bobtista 03/06/2026 Expose the simulation frame so the
+// render backend can trigger a screenshot at a deterministic logic frame (identical
+// scene state across runs/backends) rather than a render frame (render rate varies).
+extern "C" int GGC_GetCurrentLogicFrame()
+{
+	return TheGameLogic ? (int)TheGameLogic->getFrame() : 0;
+}
+
+extern "C" void GGC_ClearBgfxScreenshotRequest()
+{
+	if (TheWritableGlobalData)
+	{
+		TheWritableGlobalData->m_bgfxScreenshotAfter = 0;
+	}
+}
+
+extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 1.0f;
+	params[1] = 80.0f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	params[0] = TheGlobalData->m_bgfxSoftParticles ? 1.0f : 0.0f;
+	params[1] = TheGlobalData->m_bgfxSoftParticleFadeScale;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -147,6 +596,63 @@ static AsciiString widePathToFileApiPath(const wchar_t* widePath)
 	{ "DownwindAngle",							INI::parseReal,				nullptr,			offsetof( GlobalData, m_downwindAngle ) },
 	{ "UseShadowVolumes",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_useShadowVolumes ) },
 	{ "UseShadowDecals",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_useShadowDecals ) },
+	// TheSuperHackers @feature bobtista 27/04/2026 bgfx scene-composite
+	// post-process controls. Values are intentionally subtle by default
+	// so Zero Hour keeps its original visual identity.
+	{ "BgfxPostProcessing",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxPostProcessing ) },
+	{ "BgfxPostSharpenAmount",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostSharpenAmount ) },
+	{ "BgfxPostSaturation",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostSaturation ) },
+	{ "BgfxPostContrast",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostContrast ) },
+	{ "BgfxPostFxaaAmount",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostFxaaAmount ) },
+	{ "BgfxWipeEnabled",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxWipeEnabled ) },
+	{ "BgfxWipeFollowMouse",			INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxWipeFollowMouse ) },
+	{ "BgfxWipeSplit",						INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxWipeSplit ) },
+	{ "BgfxColorGrade",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxColorGrade ) },
+	{ "BgfxColorGradeStrength",		INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxColorGradeStrength ) },
+	{ "BgfxColorGradeTemperature",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxColorGradeTemperature ) },
+	{ "BgfxColorGradeTint",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxColorGradeTint ) },
+	{ "BgfxBloom",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxBloom ) },
+	{ "BgfxBloomThreshold",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxBloomThreshold ) },
+	{ "BgfxBloomIntensity",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxBloomIntensity ) },
+	{ "BgfxHdr",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxHdr ) },
+	{ "BgfxVignette",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxVignette ) },
+	{ "BgfxVignetteStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxVignetteStrength ) },
+	{ "BgfxChromaticAberration",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxChromaticAberration ) },
+	{ "BgfxChromaticAberrationAmount",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxChromaticAberrationAmount ) },
+	{ "BgfxFilmGrain",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxFilmGrain ) },
+	{ "BgfxFilmGrainStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxFilmGrainStrength ) },
+	{ "BgfxSSAO",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSSAO ) },
+	{ "BgfxSSAORadius",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSSAORadius ) },
+	{ "BgfxSSAOIntensity",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSSAOIntensity ) },
+	{ "BgfxRenderScale",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxRenderScale ) },
+	{ "BgfxSpecular",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSpecular ) },
+	{ "BgfxSpecularStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSpecularStrength ) },
+	{ "BgfxRimLight",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxRimLight ) },
+	{ "BgfxRimStrength",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxRimStrength ) },
+	{ "BgfxRimPower",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxRimPower ) },
+	{ "BgfxEmissiveBoost",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxEmissiveBoost ) },
+	{ "BgfxEmissiveBoostScale",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxEmissiveBoostScale ) },
+	{ "BgfxShadowMaps",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxShadowMaps ) },
+	{ "BgfxShadowMapBias",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapBias ) },
+	{ "BgfxShadowMapStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapStrength ) },
+	{ "BgfxShadowFullPcf",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxShadowFullPcf ) },
+	{ "BgfxStencilShadows",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxStencilShadows ) },
+	{ "BgfxDynamicLightShadows",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxDynamicLightShadows ) },
+	{ "PCannonEnhanced",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_pcannonEnhanced ) },
+	{ "PCannonFlashRadius",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_pcannonFlashRadius ) },
+	{ "PCannonFlashInterval",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_pcannonFlashInterval ) },
+	{ "PCannonFlashFadeIn",				INI::parseInt,				nullptr,			offsetof( GlobalData, m_pcannonFlashFadeIn ) },
+	{ "PCannonFlashFadeOut",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_pcannonFlashFadeOut ) },
+	{ "PCannonDimTarget",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_pcannonDimTarget ) },
+	{ "BgfxPointFilter",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxPointFilter ) },
+	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
+	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
+	{ "BgfxLogStats",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxLogStats ) },
+	{ "BgfxNoSceneFramebuffer",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoSceneFramebuffer ) },
+	{ "BgfxNoPostFx",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoPostFx ) },
+	{ "BgfxMSAA",						INI::parseInt,				nullptr,			offsetof( GlobalData, m_bgfxMsaa ) },
+	{ "BgfxSrgb",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSrgb ) },
+	{ "BgfxRenderer",					INI::parseAsciiString,	nullptr,			offsetof( GlobalData, m_bgfxRenderer ) },
 	{ "TextureReductionFactor",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_textureReductionFactor ) },
 	{ "UseBehindBuildingMarker",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_enableBehindBuildingMarkers ) },
 	{ "WaterPositionX",							INI::parseReal,				nullptr,			offsetof( GlobalData, m_waterPositionX ) },
@@ -704,6 +1210,67 @@ GlobalData::GlobalData()
 	m_downwindAngle = ( -0.785f );//Northeast!
 	m_useShadowVolumes = FALSE;
 	m_useShadowDecals = FALSE;
+	m_bgfxPostProcessing = TRUE;
+	m_bgfxPostSharpenAmount = 0.08f;
+	m_bgfxPostSaturation = 1.015f;
+	m_bgfxPostContrast = 1.01f;
+	m_bgfxPostFxaaAmount = 0.35f;
+	m_bgfxWipeEnabled = FALSE;
+	m_bgfxWipeFollowMouse = TRUE;
+	m_bgfxWipeSplit = 0.5f;
+	m_bgfxColorGrade = FALSE;
+	m_bgfxColorGradeStrength = 1.0f;
+	m_bgfxColorGradeTemperature = 0.0f;
+	m_bgfxColorGradeTint = 0.0f;
+	m_bgfxBloom = FALSE;
+	// TheSuperHackers @tweak bobtista 15/06/2026 A threshold around 0.7 is the
+	// practical middle ground on this game's display-referred art: bright effects
+	// and surfaces bloom while most terrain stays clean. Best paired with BgfxHdr.
+	m_bgfxBloomThreshold = 0.7f;
+	m_bgfxBloomIntensity = 0.5f;
+	m_bgfxHdr = FALSE;
+	m_bgfxVignette = FALSE;
+	m_bgfxVignetteStrength = 0.4f;
+	m_bgfxChromaticAberration = FALSE;
+	m_bgfxChromaticAberrationAmount = 0.5f;
+	m_bgfxFilmGrain = FALSE;
+	m_bgfxFilmGrainStrength = 0.08f;
+	m_bgfxSSAO = FALSE;
+	// Radius is in world units; Generals' camera is far, so contact AO needs a
+	// fairly large radius to read at all.
+	m_bgfxSSAORadius = 12.0f;
+	m_bgfxSSAOIntensity = 1.0f;
+	m_bgfxRenderScale = 1.0f;
+	m_bgfxSpecular = FALSE;
+	m_bgfxSpecularStrength = 3.0f;
+	m_bgfxRimLight = FALSE;
+	m_bgfxRimStrength = 0.3f;
+	m_bgfxRimPower = 3.0f;
+	m_bgfxEmissiveBoost = FALSE;
+	m_bgfxEmissiveBoostScale = 2.0f;
+	m_bgfxShadowMaps = FALSE;
+	m_bgfxShadowMapBias = 0.0006f;
+	m_bgfxShadowMapStrength = 0.35f;
+	m_bgfxDynamicLightShadows = FALSE;
+	m_pcannonEnhanced = FALSE;
+	m_pcannonFlashRadius = 55.0f;
+	m_pcannonFlashInterval = 7;
+	m_pcannonFlashFadeIn = 4;
+	m_pcannonFlashFadeOut = 14;
+	m_pcannonDimTarget = 0.72f;
+	m_bgfxPointFilter = FALSE;
+	m_bgfxSoftParticles = FALSE;
+	m_bgfxSoftParticleFadeScale = 80.0f;
+	m_bgfxLogStats = FALSE;
+	m_bgfxNoSceneFramebuffer = FALSE;
+	m_bgfxNoPostFx = FALSE;
+	m_bgfxMsaa = 4;
+	m_bgfxSrgb = FALSE;
+	m_bgfxRenderer = "";
+	m_bgfxShadowFullPcf = FALSE;
+	m_bgfxStencilShadows = TRUE;
+	m_bgfxScreenshotAfter = 0;
+	m_bgfxScreenshotPath = "";
 	m_textureReductionFactor = -1;
 	m_enableBehindBuildingMarkers = TRUE;
 	m_scriptDebug = FALSE;
@@ -1110,7 +1677,7 @@ GlobalData::GlobalData()
 	m_cameraRotateSpeedMultiplier = 1.0f;
 	m_cameraPitchSpeedMultiplier = 1.0f;
 
-#if defined(USE_MAULLER_ONEDRIVE_FIX)
+#if defined(USE_MAULLER_ONEDRIVE_FIX) || defined(_UNIX)
 	// Set user data directory based on registry settings instead of INI parameters.
 	// This allows us to localize the leaf name.
 	m_userDataDir = BuildUserDataPathFromRegistry();
@@ -1443,6 +2010,51 @@ UnsignedInt GlobalData::generateExeCRC()
 
 AsciiString GlobalData::BuildUserDataPathFromRegistry()
 {
+#ifdef _UNIX
+	// TheSuperHackers @feature bobtista 28/04/2026 Non-Windows user data
+	// directory. Adapted from fbraz3/GeneralsX (Bender 01/04/2026).
+	//   macOS: ~/Library/Application Support/Command and Conquer Generals Zero Hour Data/
+	//   Linux: $XDG_DATA_HOME/Command and Conquer Generals Zero Hour Data/
+	//          (falls back to ~/.local/share/...)
+	const char *kLeafName = "Command and Conquer Generals Zero Hour Data";
+
+	std::filesystem::path basePath;
+	const char *home = getenv("HOME");
+
+#ifdef __APPLE__
+	if (home != nullptr && home[0] != '\0')
+	{
+		basePath = std::filesystem::path(home) / "Library" / "Application Support";
+	}
+#else
+	const char *xdgDataHome = getenv("XDG_DATA_HOME");
+	if (xdgDataHome != nullptr && xdgDataHome[0] != '\0')
+	{
+		basePath = std::filesystem::path(xdgDataHome);
+	}
+	else if (home != nullptr && home[0] != '\0')
+	{
+		basePath = std::filesystem::path(home) / ".local" / "share";
+	}
+#endif
+
+	if (basePath.empty())
+	{
+		basePath = ".";
+	}
+
+	std::filesystem::path fullPath = basePath / kLeafName;
+	std::error_code ec;
+	std::filesystem::create_directories(fullPath, ec);
+
+	AsciiString userDataDir = fullPath.string().c_str();
+	if (!userDataDir.endsWith("/"))
+	{
+		userDataDir.concat('/');
+	}
+
+	return userDataDir;
+#else
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
 	// VC6 lacks FOLDERID_Documents and KF_FLAG_DEFAULT
 	const GUID FOLDERID_Documents = { 0xFDD39AD0, 0x238F, 0x46AF, 0xAD, 0xB4, 0x6C, 0x85, 0x48, 0x03, 0x69, 0xC7 };
@@ -1497,4 +2109,5 @@ AsciiString GlobalData::BuildUserDataPathFromRegistry()
 	}
 
 	return myDocumentsDirectory;
+#endif // _UNIX
 }

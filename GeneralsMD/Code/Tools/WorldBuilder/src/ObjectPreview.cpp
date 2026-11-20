@@ -46,6 +46,7 @@
 #include "GameClient/Color.h"
 
 #include "W3DDevice/GameClient/W3DAssetManager.h"
+#include "WW3D2/texturecompatibilityinterop.h"
 #include "WW3D2/dx8wrapper.h"
 #include "WWLib/TARGA.h"
 
@@ -124,7 +125,7 @@ static UnsignedByte * saveSurface(IDirect3DSurface8 *surface)
 	targ.Header.Height=height;
 	targ.Header.PixelDepth=24;
 	targ.Header.ImageType=TGA_TRUECOLOR;
-	targ.SetImage(image);
+	targ.SetImage(image, sizeof(image));
 	targ.YFlip();
 
 	targ.Save("ObjectPreview.tga",TGAF_IMAGE,false);
@@ -234,29 +235,34 @@ static UnsignedByte * generatePreview( const ThingTemplate *tt )
 			if (orthoCamera)
 				camera->Set_Projection_Type( CameraClass::ORTHO );
 
+			UnsignedByte *data = nullptr;
 			// Clear the backbuffer
-			WW3D::Begin_Render(true,true,Vector3(0.5f,0.5f,0.5f));
-			//WW3D::Begin_Render(true,true,Vector3(1.0f,1.0f,1.0f));
+			WW3DErrorType renderResult = WW3D::Begin_Render(true,true,Vector3(0.5f,0.5f,0.5f));
+			if (renderResult == WW3D_ERROR_OK)
+			{
+				RenderInfoClass rinfo(*camera);
+				LightEnvironmentClass lightEnv;
+				rinfo.light_environment = &lightEnv;
+				lightEnv.Reset(Vector3(0.0f, 0.0f, 0.0f), Vector3(1.0f, 1.0f, 1.0f));
 
-			RenderInfoClass rinfo(*camera);
-			LightEnvironmentClass lightEnv;
-			rinfo.light_environment = &lightEnv;
-			lightEnv.Reset(Vector3(0.0f, 0.0f, 0.0f), Vector3(1.0f, 1.0f, 1.0f));
+				WW3D::Render(*model, rinfo);
 
-			WW3D::Render(*model, rinfo);
-
-			WW3D::End_Render(false);
+				WW3D::End_Render(false);
+			}
 
 			// Change the rendertarget back to the main backbuffer
 			DX8Wrapper::Set_Render_Target((IDirect3DSurface8 *)nullptr);
 
-			SurfaceClass *surface = objectTexture->Get_Surface_Level();
-			UnsignedByte *data = saveSurface(surface->Peek_D3D_Surface());
-
-			REF_PTR_RELEASE(surface);
+			if (renderResult == WW3D_ERROR_OK)
+			{
+				SurfaceClass *surface = objectTexture->Get_Surface_Level();
+				data = saveSurface(Peek_Legacy_Surface(*surface));
+				REF_PTR_RELEASE(surface);
+			}
 
 			REF_PTR_RELEASE(objectTexture);
 			REF_PTR_RELEASE(camera);
+			model->Release_Ref();
 			return data;
 		}
 	}
@@ -316,5 +322,4 @@ void ObjectPreview::DrawMyTexture(CDC *pDc, int top, int left, Int width, Int he
 		DIB_RGB_COLORS, SRCCOPY);
 	delete(pBI);
 }
-
 

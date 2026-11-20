@@ -56,7 +56,7 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/Renderer.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -125,8 +125,8 @@ void W3DCustomEdging::loadEdgingsInVertexAndIndexBuffers(WorldHeightMap *pMap, I
 	VertexFormatXYZDUV2 *vb;
 	UnsignedShort *ib;
 	// Lock the buffers.
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexEdging);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexEdging);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexEdging);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexEdging);
 	vb=(VertexFormatXYZDUV2*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 
@@ -312,8 +312,13 @@ void W3DCustomEdging::freeEdgingBuffers()
 //=============================================================================
 void W3DCustomEdging::allocateEdgingBuffers()
 {
-	m_vertexEdging=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV2,MAX_EDGE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-	m_indexEdging=NEW_REF(DX8IndexBufferClass,(2*MAX_EDGE_INDEX+4, DX8IndexBufferClass::USAGE_DYNAMIC));
+	m_vertexEdging=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZDUV2,
+		MAX_EDGE_VERTEX+4,
+		Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+	m_indexEdging=NEW_REF(RenderIndexBufferClass,(
+		2*MAX_EDGE_INDEX+4,
+		Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	m_curNumEdgingVertices=0;
 	m_curNumEdgingIndices=0;
 	//m_edgeTexture = MSGNEW("TextureClass") TextureClass("EdgingTemplate.tga","EdgingTemplate.tga", MIP_LEVELS_3);
@@ -354,80 +359,55 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 	}
 	TextureClass *edgeTex = pMap->getEdgeTerrainTexture();
 	// Setup the vertex buffer, shader & texture.
-	DX8Wrapper::Set_Index_Buffer(m_indexEdging,0);
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexEdging);
-	DX8Wrapper::Set_Shader(detailAlphaTestShader);
+	Renderer::Set_Index_Buffer(m_indexEdging,0);
+	Renderer::Set_Vertex_Buffer(m_vertexEdging);
+	Renderer::Set_Shader(detailAlphaTestShader);
 #ifdef RTS_DEBUG
-	//DX8Wrapper::Set_Shader(detailShader); // shows clipping.
+	//Renderer::Set_Shader(detailShader); // shows clipping.
 #endif
 
-	DX8Wrapper::Set_Texture(0,terrainTexture);
-	DX8Wrapper::Set_Texture(1,edgeTex);
-	DX8Wrapper::Apply_Render_State_Changes();
+	Renderer::Set_Texture(0,terrainTexture);
+	Renderer::Set_Texture(1,edgeTex);
+	Renderer::Apply_Render_State_Changes();
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x7B);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_LESSEQUAL);	//pass pixels who's alpha is not zero
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, true);	//test pixels if transparent(clipped) before rendering.
-	DX8Wrapper::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
+	Renderer::Override_Alpha_Test(true, 0x7B, RB_CMP_LESS_EQUAL);
+	Renderer::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 
-	DX8Wrapper::Set_Texture(0,edgeTex);
-	DX8Wrapper::Set_Texture(1, nullptr);
+	Renderer::Set_Texture(0,edgeTex);
+	Renderer::Set_Texture(1, nullptr);
 	// Draw the custom edge.
-	DX8Wrapper::Apply_Render_State_Changes();
+	Renderer::Apply_Render_State_Changes();
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x84);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_GREATEREQUAL);	//pass pixels who's alpha is not zero
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, true);	//test pixels if transparent(clipped) before rendering.
-	DX8Wrapper::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
+	Renderer::Override_Alpha_Test(true, 0x84, RB_CMP_GREATER_EQUAL);
+	Renderer::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 
 #if 0 // Dumps out unmasked data.
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,false);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, false);	//test pixels if transparent(clipped) before rendering.
-	DX8Wrapper::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
+	Renderer::Set_Alpha_Blend_Enable(false);
+	Renderer::Set_Alpha_Test_Enable(false);	//test pixels if transparent(clipped) before rendering.
+	Renderer::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 #endif
-	DX8Wrapper::Set_Texture(1, nullptr);
+	Renderer::Set_Texture(1, nullptr);
 	if (cloudTexture) {
-		DX8Wrapper::Set_Shader(detailOpaqueShader);
-		DX8Wrapper::Apply_Render_State_Changes();
-		DX8Wrapper::Set_Texture(1,edgeTex);
-		DX8Wrapper::Apply_Render_State_Changes();
-		DX8Wrapper::Set_Texture(0,cloudTexture);
-		DX8Wrapper::Apply_Render_State_Changes();
-#if 1
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAARG1,   D3DTA_CURRENT );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
-
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_CURRENT );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_TEXTURE );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG1,   D3DTA_CURRENT );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG2,   D3DTA_TEXTURE );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2 );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1 );
-#endif
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x80);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_NOTEQUAL);	//pass pixels who's alpha is not zero
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, true);	//test pixels if transparent(clipped) before rendering.
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,true);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_ZERO);
-		DX8Wrapper::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
+		Renderer::Set_Shader(detailOpaqueShader);
+		Renderer::Apply_Render_State_Changes();
+		Renderer::Set_Texture(1,edgeTex);
+		Renderer::Apply_Render_State_Changes();
+		Renderer::Set_Texture(0,cloudTexture);
+		Renderer::Apply_Render_State_Changes();
+		Renderer::Configure_Custom_Edging_Cloud_Texture_Stages();
+		Renderer::Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
+		Renderer::Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
+		Renderer::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 	}
 	if (noiseTexture) {
-		DX8Wrapper::Set_Texture(1, nullptr);
-		DX8Wrapper::Set_Texture(0,noiseTexture);
-		DX8Wrapper::Apply_Render_State_Changes();
-		DX8Wrapper::Set_Texture(1,edgeTex);
-		DX8Wrapper::Apply_Render_State_Changes();
+		Renderer::Set_Texture(1, nullptr);
+		Renderer::Set_Texture(0,noiseTexture);
+		Renderer::Apply_Render_State_Changes();
+		Renderer::Set_Texture(1,edgeTex);
+		Renderer::Apply_Render_State_Changes();
 
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x80);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_NOTEQUAL);	//pass pixels who's alpha is not zero
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, true);	//test pixels if transparent(clipped) before rendering.
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,true);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_ZERO);
-		DX8Wrapper::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
+		Renderer::Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
+		Renderer::Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
+		Renderer::Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 	}
 }
-
-

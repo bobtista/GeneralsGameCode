@@ -91,6 +91,7 @@
 #include "GameClient/CampaignManager.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/VideoPlayer.h"
+#include "GameClient/View.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 #include "GameNetwork/NetworkDefs.h"
@@ -157,6 +158,29 @@ static Bool s_needToFinishSinglePlayerInit = FALSE;
 static Bool buttonIsFinishCampaign = FALSE;
 static WindowLayout *s_blankLayout = nullptr;
 
+#if defined(DEBUG_LOGGING)
+// TheSuperHackers @info bobtista 04/08/2026 Timestamps the score screen so the delay before the
+// buttons accept input can be measured against the window and transition state.
+static UnsignedInt s_debugInitTimeMsec = 0;
+static UnsignedInt s_debugLastReportMsec = 0;
+
+static void debugReportScoreScreenState( const char *what )
+{
+	const UnsignedInt now = timeGetTime();
+	DEBUG_LOG(("ScoreScreen[%s] +%ums: ok(hidden=%d enabled=%d) continue(hidden=%d enabled=%d) transitionFinished=%d shellActive=%d mouseLocked=%d uiScrolling=%d",
+		what,
+		now - s_debugInitTimeMsec,
+		buttonOk ? (buttonOk->winIsHidden() ? 1 : 0) : -1,
+		buttonOk ? (BitIsSet( buttonOk->winGetStatus(), WIN_STATUS_ENABLED ) ? 1 : 0) : -1,
+		buttonContinue ? (buttonContinue->winIsHidden() ? 1 : 0) : -1,
+		buttonContinue ? (BitIsSet( buttonContinue->winGetStatus(), WIN_STATUS_ENABLED ) ? 1 : 0) : -1,
+		(TheTransitionHandler && TheTransitionHandler->isFinished()) ? 1 : 0,
+		(TheShell && TheShell->isShellActive()) ? 1 : 0,
+		(TheTacticalView && TheTacticalView->isMouseLocked()) ? 1 : 0,
+		(TheInGameUI && TheInGameUI->isScrolling()) ? 1 : 0));
+}
+#endif
+
 void initSkirmish( void );
 void initLANMultiPlayer(void);
 void initInternetMultiPlayer(void);
@@ -199,7 +223,9 @@ void startNextCampaignGame(void)
 	TheShell->popImmediate();
 	TheShell->hideShell();
 	TheWritableGlobalData->m_pendingFile = TheCampaignManager->getCurrentMap();
-	if (TheCampaignManager->getCurrentCampaign() && TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
+	const Bool isChallenge = (TheCampaignManager->getCurrentCampaign()
+		&& TheCampaignManager->getCurrentCampaign()->isChallengeCampaign());
+	if (isChallenge)
 	{
 		DEBUG_ASSERTCRASH( TheChallengeGameInfo, ("TheChallengeGameInfo doesn't exist.") );
 		TheChallengeGameInfo->init();  
@@ -218,6 +244,11 @@ void startNextCampaignGame(void)
 		if (TheGameLogic->isInGame())
 			TheGameLogic->clearGameData();
 	}
+
+	// TheSuperHackers @bugfix bobtista 14/10/2026 The logic update must not be halted to process the new game message.
+	TheGameLogic->setGamePaused(FALSE);
+	TheScriptEngine->forceUnfreezeTime();
+	TheScriptEngine->doUnfreezeTime();
 
 	// send a message to the logic for a new game
 	GameMessage *msg = TheMessageStream->appendMessage( GameMessage::MSG_NEW_GAME );
@@ -421,6 +452,12 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
         }
     }
 #endif
+#if defined(DEBUG_LOGGING)
+	s_debugInitTimeMsec = timeGetTime();
+	s_debugLastReportMsec = 0;
+	debugReportScoreScreenState("init");
+#endif
+
 }
 
 void FixupScoreScreenMovieWindow( void )
@@ -482,8 +519,25 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 	{
 		finishSinglePlayerInit();
 		s_needToFinishSinglePlayerInit = FALSE;
+#if defined(DEBUG_LOGGING)
+		debugReportScoreScreenState("finishInit");
+#endif
 	}
-	
+
+// TheSuperHackers @tweak bobtista 09/08/2026 Polling twice a second was a quarter of a release
+// log once these builds started shipping with logging on. The one-shot init, finishInit and
+// selected reports carry the state that matters; keep the poll for INTENSE_DEBUG sessions.
+#if defined(DEBUG_LOGGING) && defined(INTENSE_DEBUG)
+	{
+		const UnsignedInt now = timeGetTime();
+		if( now - s_debugLastReportMsec >= 500 )
+		{
+			s_debugLastReportMsec = now;
+			debugReportScoreScreenState("update");
+		}
+	}
+#endif
+
 	//TheGameLogic->clearGameData() gets called after ScoreScreenInit and before the
 	//first ScoreScreenUpdate(), so it was creatively moved here so we can actually
 	//hear the music play.
@@ -618,6 +672,9 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 		// --------------------------------------------------------------------------------------------
 		case GBM_SELECTED:
 		{
+#if defined(DEBUG_LOGGING)
+			debugReportScoreScreenState("selected");
+#endif
 			TheTransitionHandler->remove("ScoreScreenShow", TRUE);
 			ReplayWasPressed = FALSE;
 
@@ -858,7 +915,17 @@ void PlayMovieAndBlock(AsciiString movieTitle)
 
 		videoStream->frameDecompress();
 		videoStream->frameRender(videoBuffer);
+
+		// TheSuperHackers @bugfix bobtista 02/08/2026 Stop when the stream stops advancing. An
+		// exhausted stream reports frame 0 forever (the Bink end-of-stream contract), so a movie
+		// that ends before frameCount() left this loop spinning at full speed forever with the game
+		// stuck on a black screen and every core pegged.
+		const Int frameIndexBeforeAdvance = videoStream->frameIndex();
 		videoStream->frameNext();
+		if (videoStream->frameIndex() <= frameIndexBeforeAdvance)
+		{
+			break;
+		}
 
 		if(videoBuffer)
 			movieWindow->winGetInstanceData()->setVideoBuffer(videoBuffer);

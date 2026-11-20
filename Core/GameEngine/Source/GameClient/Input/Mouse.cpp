@@ -546,6 +546,7 @@ Mouse::Mouse()
 	m_tooltipBackColor.alpha = 255;
 
 	m_cursorCaptureMode = 0;
+	m_cursorCaptureInitialized = FALSE;
 
 	m_captureBlockReasonBits = (1 << CursorCaptureBlockReason_NoInit);
 	DEBUG_LOG(("Mouse::Mouse: m_blockCaptureReason=CursorCaptureBlockReason_NoInit"));
@@ -670,7 +671,17 @@ void Mouse::reset()
   if ( m_cursorTextDisplayString )
   	m_cursorTextDisplayString->reset();
 
-	blockCapture(CursorCaptureBlockReason_NoInit);
+	// TheSuperHackers @bugfix bobtista 27/06/2026 Only block capture with NoInit before the first
+	// initCapture(). Once capture has been initialized, refresh it instead so reset() does not
+	// permanently re-disable cursor capture (and therefore edge-of-screen scrolling) during gameplay.
+	if (!m_cursorCaptureInitialized)
+	{
+		blockCapture(CursorCaptureBlockReason_NoInit);
+	}
+	else
+	{
+		refreshCursorCapture();
+	}
 
 }
 
@@ -1061,6 +1072,7 @@ void Mouse::initCapture()
 	OptionPreferences prefs;
 	m_cursorCaptureMode = prefs.getCursorCaptureMode();
 
+	m_cursorCaptureInitialized = TRUE;
 	unblockCapture(CursorCaptureBlockReason_NoInit);
 }
 
