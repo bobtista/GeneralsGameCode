@@ -364,6 +364,10 @@ char const * GameFileClass::Set_Name( char const *filename )
 		{
 			W3DFileDiagProbe("user", filename, m_filePath, m_fileExists);
 		}
+		if (getenv("GO_MAPLOG") && fileType == FILE_TYPE_TGA)
+		{
+			fprintf(stderr, "GO_MAPLOG preview probe '%s' -> '%s' exists %d\n", filename, m_filePath, (int)m_fileExists);
+		}
 
 	}
 

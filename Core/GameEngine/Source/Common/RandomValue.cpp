@@ -262,6 +262,36 @@ Real GetGameClientRandomValueReal( Real lo, Real hi, const char *file, int line 
 	return rval;
 }
 
+static void goRngLog(const char* kind, const char* file, int line)
+{
+	static FILE* f = NULL;
+	static Int lo = -1;
+	static Int hi = -1;
+	if (lo < 0)
+	{
+		const char* e = getenv("GO_RNGLOG");
+		if (!e)
+		{
+			lo = 0x7fffffff;
+			return;
+		}
+		sscanf(e, "%d,%d", &lo, &hi);
+		const char* fn = getenv("GO_RNGLOG_FILE");
+		f = fopen(fn ? fn : "rnglog.txt", "w");
+	}
+	if (!f || !TheGameLogic)
+	{
+		return;
+	}
+	Int frame = (Int)TheGameLogic->getFrame();
+	if (frame < lo || frame > hi)
+	{
+		return;
+	}
+	fprintf(f, "%d %s %d %s:%d\n", frame, kind, TheGameLogic->isInGameLogicUpdate() ? 1 : 0, file ? file : "?", line);
+	fflush(f);
+}
+
 //
 // Integer random value
 //
@@ -279,6 +309,7 @@ Int GetGameLogicRandomValue( int lo, int hi, const char *file, int line )
 #endif
 
 	const Int rval = ((Int)(randomValue(theGameLogicSeed) % delta)) + lo;
+	goRngLog("I", file, line);
 
 #ifdef DEBUG_RANDOM_LOGIC
 	DEBUG_LOG(( "%d: GetGameLogicRandomValue = %d (%d - %d), %s line %d",
@@ -306,6 +337,7 @@ Real GetGameLogicRandomValueReal( Real lo, Real hi, const char *file, int line )
 #endif
 
 	const Real rval = ((Real)(randomValue(theGameLogicSeed)) * theMultFactor) * delta + lo;
+	goRngLog("R", file, line);
 
 #ifdef DEBUG_RANDOM_LOGIC
 	DEBUG_LOG(( "%d: GetGameLogicRandomValueReal = %f, %s line %d",

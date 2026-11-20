@@ -77,6 +77,42 @@
 
 static Xfer *s_xfer = nullptr;
 
+#include "Common/XferCRC.h"
+
+static void goIniLog(const AsciiString& fn, Xfer* x)
+{
+	static FILE* f = NULL;
+	static Bool init = FALSE;
+	static AsciiString last;
+	static Int lines = 0;
+	static UnsignedInt crc = 0;
+	if (!init)
+	{
+		init = TRUE;
+		const char* e = getenv("GO_INILOG");
+		if (e)
+		{
+			f = fopen(e, "w");
+		}
+	}
+	if (!f || !x)
+	{
+		return;
+	}
+	if (fn != last)
+	{
+		if (lines)
+		{
+			fprintf(f, "%s %d %08X\n", last.str(), lines, crc);
+			fflush(f);
+		}
+		last = fn;
+		lines = 0;
+	}
+	lines++;
+	crc = ((XferCRC*)x)->getCRC();
+}
+
 
 //-------------------------------------------------------------------------------------------------
 /** This is the table of data types we can have in INI files.  To add a new data type
@@ -514,6 +550,7 @@ void INI::readLine()
 	if (s_xfer)
 	{
 		s_xfer->xferUser( m_buffer, sizeof( char ) * strlen( m_buffer ) );
+		goIniLog(m_filename, s_xfer);
 		//DEBUG_LOG(("Xfer val is now 0x%8.8X in %s, line %s", ((XferCRC *)s_xfer)->getCRC(), m_filename.str(), m_buffer));
 	}
 }

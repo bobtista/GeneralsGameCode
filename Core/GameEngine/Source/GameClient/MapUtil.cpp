@@ -508,6 +508,28 @@ void MapCache::updateCache()
 		m_doLoadStandardMapCacheINI = FALSE;
 	}
 
+	if (getenv("GO_MAPLOG"))
+	{
+		Int official = 0;
+		Int resolved = 0;
+		AsciiString firstMp;
+		for (MapCache::iterator dbgIt = begin(); dbgIt != end(); ++dbgIt)
+		{
+			if (dbgIt->second.m_isOfficial)
+			{
+				++official;
+			}
+			if (findMap(dbgIt->first) != nullptr)
+			{
+				++resolved;
+			}
+			if (firstMp.isEmpty() && dbgIt->second.m_isMultiplayer)
+			{
+				firstMp = dbgIt->first;
+			}
+		}
+		fprintf(stderr, "GO_MAPLOG updateCache total %d official %d resolved %d firstMp '%s' found %d\n", (int)size(), official, resolved, firstMp.str(), findMap(firstMp) != nullptr);
+	}
 }
 
 void MapCache::prepareUnseenMaps( const AsciiString &mapDir )
@@ -584,6 +606,15 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 	filenamepattern.format("*.%s", getMapExtension().str());
 
 	TheFileSystem->getFileListInDirectory(toplevelPattern, filenamepattern, filepathList, TRUE);
+	if (getenv("GO_MAPLOG"))
+	{
+		fprintf(stderr, "GO_MAPLOG loadMapsFromDisk pattern '%s' count %d cache %d\n", toplevelPattern.str(), (int)filepathList.size(), (int)size());
+		Int shown = 0;
+		for (FilenameListIter dbgIt = filepathList.begin(); dbgIt != filepathList.end() && shown < 3; ++dbgIt, ++shown)
+		{
+			fprintf(stderr, "GO_MAPLOG   %s\n", dbgIt->str());
+		}
+	}
 
 	filepathIt = filepathList.begin();
 
@@ -623,7 +654,12 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 			continue;
 		}
 
-		mapListChanged |= addMap(mapDir, *filepathIt, filepathLower, fileInfo, isOfficial);
+		Bool added = addMap(mapDir, *filepathIt, filepathLower, fileInfo, isOfficial);
+		if (added && getenv("GO_MAPLOG"))
+		{
+			fprintf(stderr, "GO_MAPLOG   changed %s\n", filepathLower.str());
+		}
+		mapListChanged |= added;
 	}
 
 	if (clearUnseenMaps(mapDir))
@@ -1277,6 +1313,10 @@ Image *getMapPreviewImage( AsciiString mapName )
 	// copy source tgaName, to name
 
 	Image *image = (Image *)TheMappedImageCollection->findImageByName(tempName);
+	if (getenv("GO_MAPLOG"))
+	{
+		fprintf(stderr, "GO_MAPLOG getMapPreviewImage map '%s' tga '%s' image '%s' cached %d\n", mapName.str(), tgaName.str(), tempName.str(), image != nullptr);
+	}
 	if(!image)
 	{
 

@@ -482,6 +482,16 @@ UpdateSleepTime SlowDeathBehavior::update()
 void SlowDeathBehavior::onDie( const DamageInfo *damageInfo )
 {
 	Object *obj = getObject();
+	if (getenv("GO_SDLOG"))
+	{
+		FILE* f = fopen(getenv("GO_SDLOG"), "a");
+		if (f)
+		{
+			AIUpdateInterface* dai = obj->getAIUpdateInterface();
+			const DieMuxData& mux = getSlowDeathBehaviorModuleData()->m_dieMuxData; fprintf(f, "%u onDie obj=%u %s app=%d aidead=%d dt=%d dmgt=%d src=%u dtf=%08X dtok=%d vet=%d vetok=%d exok=%d reqok=%d\n", TheGameLogic->getFrame(), (UnsignedInt)obj->getID(), obj->getTemplate()->getName().str(), isDieApplicable(damageInfo) ? 1 : 0, dai ? (dai->isAiInDeadState() ? 1 : 0) : -1, (Int)damageInfo->in.m_deathType, (Int)damageInfo->in.m_damageType, (UnsignedInt)damageInfo->in.m_sourceID, (UnsignedInt)mux.m_deathTypes, getDeathTypeFlag(mux.m_deathTypes, damageInfo->in.m_deathType) ? 1 : 0, (Int)obj->getVeterancyLevel(), getVeterancyLevelFlag(mux.m_veterancyLevels, obj->getVeterancyLevel()) ? 1 : 0, obj->getStatusBits().testForNone(mux.m_exemptStatus) ? 1 : 0, obj->getStatusBits().testForAll(mux.m_requiredStatus) ? 1 : 0);
+			fclose(f);
+		}
+	}
 
 	if (!isDieApplicable(damageInfo))
 		return;

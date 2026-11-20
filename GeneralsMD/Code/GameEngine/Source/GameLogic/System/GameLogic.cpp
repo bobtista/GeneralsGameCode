@@ -62,6 +62,7 @@
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
 #include "Common/XferDeepCRC.h"
+#include "Common/XferDeepCRC.h"
 #include "Common/GameSpyMiscPreferences.h"
 
 #include "GameClient/CommandXlat.h"
@@ -4187,6 +4188,77 @@ extern __int64 Total_Load_3D_Assets;
 // ------------------------------------------------------------------------------------------------
 /** Update all objects in the world by invoking their update() methods. */
 // ------------------------------------------------------------------------------------------------
+static void goCrcDump(UnsignedInt frame)
+{
+	static FILE* f = NULL;
+	static Int lo = -1;
+	static Int hi = -1;
+	if (lo < 0)
+	{
+		const char* e = getenv("GO_CRCDUMP");
+		if (!e)
+		{
+			lo = 0x7fffffff;
+			return;
+		}
+		sscanf(e, "%d,%d", &lo, &hi);
+		const char* fn = getenv("GO_CRCDUMP_FILE");
+		f = fopen(fn ? fn : "crcdump.txt", "w");
+		if (f)
+		{
+			fprintf(f, "INICRC %08X EXECRC %08X\n", TheGlobalData->m_iniCRC, TheGlobalData->m_exeCRC);
+		}
+	}
+	if (!f || (Int)frame < lo || (Int)frame > hi)
+	{
+		return;
+	}
+	{
+		const char* d = getenv("GO_DEEPOBJ");
+		const char* df = getenv("GO_DEEPOBJ_FILE");
+		if (d && df && frame == (UnsignedInt)atoi(getenv("GO_DEEPFRAME") ? getenv("GO_DEEPFRAME") : "0"))
+		{
+			UnsignedInt want = (UnsignedInt)atoi(d);
+			for (Object* o = TheGameLogic->getFirstObject(); o; o = o->getNextObject())
+			{
+				if ((UnsignedInt)o->getID() == want)
+				{
+					XferDeepCRC dx;
+					dx.open(df);
+					dx.xferSnapshot(o);
+					dx.close();
+				}
+			}
+		}
+	}
+	for (Object* obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject())
+	{
+		XferCRC x;
+		x.open("o");
+		x.xferSnapshot(obj);
+		x.close();
+		const Coord3D* pos = obj->getPosition();
+		Real hp = obj->getBodyModule() ? obj->getBodyModule()->getHealth() : -1.0f;
+		UnsignedInt hpBits;
+		memcpy(&hpBits, &hp, sizeof(hpBits));
+		fprintf(f, "%u O %u %s %08X %.3f %.3f %.3f H %08X\n", frame, (UnsignedInt)obj->getID(), obj->getTemplate()->getName().str(), x.getCRC(), pos->x, pos->y, pos->z, hpBits);
+	}
+	{
+		XferCRC x; x.open("p"); x.xferSnapshot(ThePartitionManager); x.close();
+		fprintf(f, "%u PARTITION %08X\n", frame, x.getCRC());
+	}
+	{
+		XferCRC x; x.open("pl"); x.xferSnapshot(ThePlayerList); x.close();
+		fprintf(f, "%u PLAYERLIST %08X\n", frame, x.getCRC());
+	}
+	{
+		XferCRC x; x.open("ai"); x.xferSnapshot(TheAI); x.close();
+		fprintf(f, "%u AI %08X\n", frame, x.getCRC());
+	}
+	fprintf(f, "%u SEED %08X\n", frame, GetGameLogicRandomSeedCRC());
+	fflush(f);
+}
+
 void GameLogic::update()
 {
 	USE_PERF_TIMER(GameLogic_update)
@@ -4307,6 +4379,8 @@ void GameLogic::update()
 #else
 	Bool generateForSolo = isSoloGameOrReplay && (REPLAY_CRC_INTERVAL > 0 && (m_frame % REPLAY_CRC_INTERVAL) == 0);
 #endif // DEBUG_CRC
+
+	goCrcDump(m_frame);
 
 	if (generateForSolo || generateForMP)
 	{
