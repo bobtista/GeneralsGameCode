@@ -105,3 +105,11 @@ std::string GetMachineGuid();
 std::string GetPrimaryMacAddress();
 std::string GetVolumeSerial();
 std::string getGameExeCRC();
+
+#if defined(__APPLE__)
+std::string NGMP_Apple_GetPlatformUUID();
+std::string NGMP_Apple_GetPrimaryMacAddress();
+bool NGMP_Apple_KeychainRead(std::string& strOut);
+bool NGMP_Apple_KeychainWrite(const std::string& strData);
+void NGMP_Apple_KeychainDelete();
+#endif

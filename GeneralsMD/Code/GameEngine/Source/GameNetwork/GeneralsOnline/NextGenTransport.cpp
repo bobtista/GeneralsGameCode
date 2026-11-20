@@ -9,6 +9,10 @@
 #include <steam/steamnetworkingtypes.h>
 #include "GameNetwork/GeneralsOnline/PluginInterfaces.h"
 
+#if !defined(_WIN32)
+typedef unsigned char byte;
+#endif
+
 #ifdef _INTERNAL
 // for occasional debugging...
 //#pragma optimize("", off)

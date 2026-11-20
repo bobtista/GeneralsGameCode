@@ -17,7 +17,7 @@ endif()
 # Miles Sound System runtime loader). On non-Win we use OpenAL instead.
 if(WIN32)
     target_link_libraries(core_wwcommon INTERFACE
-        deps_miles
+        milesstub
     )
 endif()
 
@@ -41,6 +41,7 @@ add_subdirectory(WWDebug)
 add_subdirectory(WWDownload)
 add_subdirectory(WWLib)
 add_subdirectory(WWMath)
+add_subdirectory(WWSaveLoad)
 add_subdirectory(WWStub)
 
 # Helpful interface to bundle the ww modules together.
@@ -67,4 +68,5 @@ target_link_libraries(core_wwvegas INTERFACE
     # core_wwdownload
     core_wwlib
     core_wwmath
+    core_wwsaveload
 )

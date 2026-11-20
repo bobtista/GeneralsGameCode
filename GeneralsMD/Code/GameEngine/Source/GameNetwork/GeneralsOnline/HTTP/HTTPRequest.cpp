@@ -322,6 +322,9 @@ void HTTPRequest::PlatformStartRequest()
 
 		// Use the OS cert store (needed since we build curl against OpenSSL, not schannel).
 		curl_easy_setopt(m_pCURL, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+#if defined(__APPLE__)
+		curl_easy_setopt(m_pCURL, CURLOPT_CAINFO, "/etc/ssl/cert.pem");
+#endif
 		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 1L);
 		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 2L);
 #endif

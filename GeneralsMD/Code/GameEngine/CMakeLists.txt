@@ -1199,6 +1199,13 @@ if(WIN32)
     )
 endif()
 
+if(APPLE)
+    list(APPEND GAMEENGINE_SRC
+        Source/GameNetwork/GeneralsOnline/NGMP_PlatformApple.cpp
+    )
+    set_source_files_properties(Source/GameNetwork/GeneralsOnline/NGMP_PlatformApple.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+endif()
+
 
 add_library(z_gameengine STATIC)
 
@@ -1243,6 +1250,14 @@ if(NOT IS_VS6_BUILD)
         GameNetworkingSockets::GameNetworkingSockets_s
         sentry::sentry
     )
+
+    # The vcpkg protobuf package on macOS does not carry all of its abseil link dependencies.
+    if(APPLE)
+        find_package(absl CONFIG QUIET)
+        get_filename_component(_go_vcpkg_lib_dir "${CURL_DIR}/../../lib" ABSOLUTE)
+        file(GLOB _go_absl_libs "${_go_vcpkg_lib_dir}/libabsl_*.a" "${_go_vcpkg_lib_dir}/libutf8_*.a")
+        target_link_libraries(z_gameengine PUBLIC ${_go_absl_libs} "-framework CoreFoundation" "-framework IOKit" "-framework Security")
+    endif()
 endif()
 
 target_precompile_headers(z_gameengine PRIVATE

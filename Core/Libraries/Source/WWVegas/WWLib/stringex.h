@@ -18,11 +18,9 @@
 
 #pragma once
 
+#include "bittype.h"
 #include <string.h>
 #include <ctype.h>
-#include <wctype.h>
-// TheSuperHackers @build bobtista 17/11/2026 Declare the libc wcslcpy and wcslcat before ours so ours take their C linkage.
-#include <wchar.h>
 
 
 // Declaration
@@ -32,47 +30,24 @@ template<typename T> size_t strnlen_t(const T *str, size_t maxlen);
 
 #if defined(_MSC_VER) && _MSC_VER < 1300
 size_t strnlen(const char *str, size_t maxlen);
-size_t wcsnlen(const unichar *str, size_t maxlen);
+size_t wcsnlen(const wchar_t *str, size_t maxlen);
 #endif
 
 template<typename T> size_t strlcpy_t(T *dst, const T *src, size_t dstsize);
 template<typename T> size_t strlcat_t(T *dst, const T *src, size_t dstsize);
 
-// TheSuperHackers @build bobtista 24/07/2026 glibc 2.38 added strlcpy, strlcat,
-// wcslcpy and wcslcat. Declaring or defining our own then collides with the libc
-// versions (C linkage / noexcept mismatch). Detect glibc >= 2.38 early so both the
-// declarations here and the inline definitions below are suppressed. Non-glibc
-// platforms such as macOS are unaffected: __GLIBC__ is undefined there.
-#if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 38))
-#ifndef HAVE_STRLCPY
-#define HAVE_STRLCPY 1
-#endif
-#ifndef HAVE_STRLCAT
-#define HAVE_STRLCAT 1
-#endif
-#ifndef HAVE_WCSLCPY
-#define HAVE_WCSLCPY 1
-#endif
-#endif
-
-#ifndef HAVE_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t dstsize);
-#endif
-#ifndef HAVE_STRLCAT
 size_t strlcat(char *dst, const char *src, size_t dstsize);
-#endif
-#ifndef HAVE_WCSLCPY
-size_t wcslcpy(unichar *dst, const unichar *src, size_t dstsize);
-size_t wcslcat(unichar *dst, const unichar *src, size_t dstsize);
-#endif
+size_t wcslcpy(wchar_t *dst, const wchar_t *src, size_t dstsize);
+size_t wcslcat(wchar_t *dst, const wchar_t *src, size_t dstsize);
 
 template<typename T> size_t strlmove_t(T *dst, const T *src, size_t dstsize);
 template<typename T> size_t strlmcat_t(T *dst, const T *src, size_t dstsize);
 
 size_t strlmove(char *dst, const char *src, size_t dstsize);
 size_t strlmcat(char *dst, const char *src, size_t dstsize);
-size_t wcslmove(unichar *dst, const unichar *src, size_t dstsize);
-size_t wcslmcat(unichar *dst, const unichar *src, size_t dstsize);
+size_t wcslmove(wchar_t *dst, const wchar_t *src, size_t dstsize);
+size_t wcslmcat(wchar_t *dst, const wchar_t *src, size_t dstsize);
 
 #if !(defined(_MSC_VER) && _MSC_VER < 1300)
 template<size_t Size> size_t strlcpy_t(char (&dst)[Size], const char *src);
@@ -80,13 +55,6 @@ template<size_t Size> size_t strlcat_t(char (&dst)[Size], const char *src);
 template<size_t Size> size_t strlmove_t(char (&dst)[Size], const char *src);
 template<size_t Size> size_t strlmcat_t(char (&dst)[Size], const char *src);
 #endif
-
-template<typename T, typename U> T* strrpbrk_t(T* str, const U* accept);
-
-const char* strrpbrk(const char* str, const char* accept);
-char* strrpbrk(char* str, const char* accept);
-const unichar* wcsrpbrk(const unichar* str, const unichar* accept);
-unichar* wcsrpbrk(unichar* str, const unichar* accept);
 
 template<typename T> int strncmp_t(const T *str1, const T *str2, size_t maxcount);
 template<typename T> int strnicmp_t(const T* str1, const T* str2, size_t maxcount);
@@ -96,7 +64,6 @@ template<typename T> bool startsWithNoCase(const T *str, const T *prefix);
 template<typename T> bool endsWithNoCase(const T *str, const T *suffix);
 template<typename T> bool endsWithNoCase(const T *str, const T *suffix);
 
-const void* memcchr(const void* data, int c, size_t n);
 
 // Implementation
 
@@ -123,7 +90,7 @@ template<typename T> size_t strnlen_t(const T *str, size_t maxlen)
 
 #if defined(_MSC_VER) && _MSC_VER < 1300
 inline size_t strnlen(const char *str, size_t maxlen) { return strnlen_t(str, maxlen); }
-inline size_t wcsnlen(const unichar *str, size_t maxlen) { return strnlen_t(str, maxlen); }
+inline size_t wcsnlen(const wchar_t *str, size_t maxlen) { return strnlen_t(str, maxlen); }
 #endif
 
 // Templated strlcpy. Prefer using this over strncpy.
@@ -171,10 +138,8 @@ inline size_t strlcpy(char *dst, const char *src, size_t dstsize) { return strlc
 #ifndef HAVE_STRLCAT
 inline size_t strlcat(char *dst, const char *src, size_t dstsize) { return strlcat_t(dst, src, dstsize); }
 #endif
-#ifndef HAVE_WCSLCPY
-inline size_t wcslcpy(unichar *dst, const unichar *src, size_t dstsize) { return strlcpy_t(dst, src, dstsize); }
-inline size_t wcslcat(unichar *dst, const unichar *src, size_t dstsize) { return strlcat_t(dst, src, dstsize); }
-#endif
+inline size_t wcslcpy(wchar_t *dst, const wchar_t *src, size_t dstsize) { return strlcpy_t(dst, src, dstsize); }
+inline size_t wcslcat(wchar_t *dst, const wchar_t *src, size_t dstsize) { return strlcat_t(dst, src, dstsize); }
 
 // Templated strlmove. Prefer using this over strlcpy if dst and src overlap.
 // Moves src into dst until dstsize minus one. Always null terminates.
@@ -217,8 +182,8 @@ template<typename T> size_t strlmcat_t(T *dst, const T *src, size_t dstsize)
 
 inline size_t strlmove(char *dst, const char *src, size_t dstsize) { return strlmove_t(dst, src, dstsize); }
 inline size_t strlmcat(char *dst, const char *src, size_t dstsize) { return strlmcat_t(dst, src, dstsize); }
-inline size_t wcslmove(unichar *dst, const unichar *src, size_t dstsize) { return strlmove_t(dst, src, dstsize); }
-inline size_t wcslmcat(unichar *dst, const unichar *src, size_t dstsize) { return strlmcat_t(dst, src, dstsize); }
+inline size_t wcslmove(wchar_t *dst, const wchar_t *src, size_t dstsize) { return strlmove_t(dst, src, dstsize); }
+inline size_t wcslmcat(wchar_t *dst, const wchar_t *src, size_t dstsize) { return strlmcat_t(dst, src, dstsize); }
 
 #if !(defined(_MSC_VER) && _MSC_VER < 1300)
 template<size_t Size> size_t strlcpy_t(char (&dst)[Size], const char *src) { return strlcpy_t(dst, src, Size); }
@@ -226,31 +191,6 @@ template<size_t Size> size_t strlcat_t(char (&dst)[Size], const char *src) { ret
 template<size_t Size> size_t strlmove_t(char (&dst)[Size], const char *src) { return strlmove_t(dst, src, Size); }
 template<size_t Size> size_t strlmcat_t(char (&dst)[Size], const char *src) { return strlmcat_t(dst, src, Size); }
 #endif
-
-// Templated reverse strpbrk.
-// Returns a pointer to the last character in str that matches any character in accept, or null if there is none.
-// T may be const qualified, so the result keeps the constness of str.
-template<typename T, typename U> T* strrpbrk_t(T* str, const U* accept)
-{
-	T* last = nullptr;
-	for (; *str; ++str)
-	{
-		for (const U* a = accept; *a; ++a)
-		{
-			if (*str == *a)
-			{
-				last = str;
-				break;
-			}
-		}
-	}
-	return last;
-}
-
-inline const char* strrpbrk(const char* str, const char* accept) { return strrpbrk_t(str, accept); }
-inline char* strrpbrk(char* str, const char* accept) { return strrpbrk_t(str, accept); }
-inline const unichar* wcsrpbrk(const unichar* str, const unichar* accept) { return strrpbrk_t(str, accept); }
-inline unichar* wcsrpbrk(unichar* str, const unichar* accept) { return strrpbrk_t(str, accept); }
 
 // Templated strncmp.
 // Compares up to maxcount chars or a null byte is encountered, whichever comes first.
@@ -281,9 +221,9 @@ inline char tolower_t(char c)
 	return (char)tolower((unsigned char)c);
 }
 
-inline unichar tolower_t(unichar c)
+inline wchar_t tolower_t(wchar_t c)
 {
-	return (unichar)towlower(c);
+	return (wchar_t)towlower(c);
 }
 
 // Templated strnicmp.
@@ -360,16 +300,3 @@ template<typename T> inline bool endsWithNoCase(const T *str, const T *suffix)
 	return strnicmp_t(str + strlen - suffixlen, suffix, suffixlen) == 0;
 }
 
-// Memcchr. Multiple implementations: 1) VC6-compatible in x86 ASM; 2) SSE2 intrinsics; 3) portable.
-// Return a pointer to the first byte that differs from a given value, or nullptr if there is no mismatch.
-#if defined(_MSC_VER) && _MSC_VER < 1300
-  #include "stringex_memcchr_x86asm.inl"
-#else
-  #if defined(__SSE2__) || defined(_M_X64) || (defined(_MSC_VER) && defined(_M_IX86))
-    #include <bit>
-    #include <emmintrin.h>
-    #include "stringex_memcchr_sse2.inl"
-  #else
-    #include "stringex_memcchr.inl"
-  #endif
-#endif

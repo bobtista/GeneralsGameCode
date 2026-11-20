@@ -6,7 +6,9 @@
 #include <mutex>
 #include <thread>
 #include <atomic>
+#if defined(_WIN32)
 #include <winhttp.h>
+#endif
 #include "../NGMP_include.h"
 
 #pragma comment(lib, "winhttp.lib")

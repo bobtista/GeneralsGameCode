@@ -12,6 +12,89 @@ std::mutex m_logMutex;
 
 extern NGMPGame* TheNGMPGame;
 
+#if !defined(_WIN32)
+// wchar_t is UTF-32 here. Invalid input becomes U+FFFD, matching the Win32 conversions below.
+std::string to_utf8(const std::wstring& wstr)
+{
+	std::string result;
+	result.reserve(wstr.size());
+	for (wchar_t wc : wstr)
+	{
+		uint32_t cp = (uint32_t)wc;
+		if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
+			cp = 0xFFFD;
+
+		if (cp < 0x80)
+		{
+			result += (char)cp;
+		}
+		else if (cp < 0x800)
+		{
+			result += (char)(0xC0 | (cp >> 6));
+			result += (char)(0x80 | (cp & 0x3F));
+		}
+		else if (cp < 0x10000)
+		{
+			result += (char)(0xE0 | (cp >> 12));
+			result += (char)(0x80 | ((cp >> 6) & 0x3F));
+			result += (char)(0x80 | (cp & 0x3F));
+		}
+		else
+		{
+			result += (char)(0xF0 | (cp >> 18));
+			result += (char)(0x80 | ((cp >> 12) & 0x3F));
+			result += (char)(0x80 | ((cp >> 6) & 0x3F));
+			result += (char)(0x80 | (cp & 0x3F));
+		}
+	}
+	return result;
+}
+
+std::wstring from_utf8(const std::string& utf8_str)
+{
+	std::wstring result;
+	result.reserve(utf8_str.size());
+	const unsigned char* p = (const unsigned char*)utf8_str.data();
+	const size_t n = utf8_str.size();
+	size_t i = 0;
+	while (i < n)
+	{
+		unsigned char c = p[i];
+		uint32_t cp = 0;
+		size_t extra = 0;
+		uint32_t minValue = 0;
+		if (c < 0x80) { cp = c; extra = 0; minValue = 0; }
+		else if ((c & 0xE0) == 0xC0) { cp = c & 0x1F; extra = 1; minValue = 0x80; }
+		else if ((c & 0xF0) == 0xE0) { cp = c & 0x0F; extra = 2; minValue = 0x800; }
+		else if ((c & 0xF8) == 0xF0) { cp = c & 0x07; extra = 3; minValue = 0x10000; }
+		else
+		{
+			result += (wchar_t)0xFFFD;
+			++i;
+			continue;
+		}
+
+		size_t j = 1;
+		for (; j <= extra; ++j)
+		{
+			if (i + j >= n || (p[i + j] & 0xC0) != 0x80)
+				break;
+			cp = (cp << 6) | (p[i + j] & 0x3F);
+		}
+
+		if (j <= extra || cp < minValue || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
+		{
+			result += (wchar_t)0xFFFD;
+			i += j;
+			continue;
+		}
+
+		result += (wchar_t)cp;
+		i += extra + 1;
+	}
+	return result;
+}
+#else
 // Win32 conversions handle surrogate pairs and substitute U+FFFD for invalid input instead of throwing,
 // so a malformed name from the server can't take down the UI
 std::string to_utf8(const std::wstring& wstr)
@@ -35,6 +118,7 @@ std::wstring from_utf8(const std::string& utf8_str)
 	MultiByteToWideChar(CP_UTF8, 0, utf8_str.data(), (int)utf8_str.size(), result.data(), len);
 	return result;
 }
+#endif
 
 #ifndef WC_NO_BEST_FIT_CHARS
 #define WC_NO_BEST_FIT_CHARS 0x00000400
@@ -277,6 +361,9 @@ std::vector<uint8_t> Base64Decode(const std::string& encodedData) {
 
 std::string getGameExeCRC()
 {
+#if !defined(_WIN32)
+    return "";
+#else
     HMODULE hModule = GetModuleHandle(NULL);
     if (!hModule) return "";
 
@@ -316,6 +403,7 @@ std::string getGameExeCRC()
         }
     }
     return "";
+#endif
 }
 
 int RoundUpLatencyToFrameInterval(int latency, int frameInterval)
@@ -340,6 +428,42 @@ int ConvertMSLatencyToGenToolFrames(int ms)
 	return (int)ceil((float)ConvertMSLatencyToFrames(ms) / (float)GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER);
 }
 
+#if defined(__APPLE__)
+std::string GetMachineGuid()
+{
+	std::string strUUID = NGMP_Apple_GetPlatformUUID();
+	if (strUUID.empty())
+	{
+		return "";
+	}
+	return strUUID.append(std::string("YY"));
+}
+
+std::string GetPrimaryMacAddress()
+{
+	return NGMP_Apple_GetPrimaryMacAddress();
+}
+
+std::string GetVolumeSerial()
+{
+	return "";
+}
+#elif !defined(_WIN32)
+std::string GetMachineGuid()
+{
+	return "";
+}
+
+std::string GetPrimaryMacAddress()
+{
+	return "";
+}
+
+std::string GetVolumeSerial()
+{
+	return "";
+}
+#else
 #include <windows.h>
 #include <iphlpapi.h>
 #include <iostream>
@@ -405,3 +529,4 @@ std::string GetVolumeSerial() {
     }
     return "";
 }
+#endif

@@ -68,7 +68,7 @@ void NGMP_OnlineServices_StatsInterface::GetGlobalStats(std::function<void(Globa
 
 					int i = 0;
 
-#define PROCESS_JSON_PER_GENERAL_RESULT(name) i = 0; for (const auto& iter : jsonObjectRoot[#name]) { iter.get_to(stats.##name[i++]); }
+#define PROCESS_JSON_PER_GENERAL_RESULT(name) i = 0; for (const auto& iter : jsonObjectRoot[#name]) { iter.get_to(stats.name[i++]); }
 					PROCESS_JSON_PER_GENERAL_RESULT(wins);
 					PROCESS_JSON_PER_GENERAL_RESULT(matches);
 				}
@@ -140,7 +140,7 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByID(int64_t userID, std
 							jsonObjectRoot["EloMatches"].get_to(stats.elo_num_matches);
 							jsonObjectRoot["MonthlyEloRating"].get_to(stats.monthly_elo_rating);
 
-							#define PROCESS_JSON_PER_GENERAL_RESULT(name) i = 0; for (const auto& iter : jsonObjectRoot[#name]) { iter.get_to(stats.##name[i++]); }
+							#define PROCESS_JSON_PER_GENERAL_RESULT(name) i = 0; for (const auto& iter : jsonObjectRoot[#name]) { iter.get_to(stats.name[i++]); }
 							PROCESS_JSON_PER_GENERAL_RESULT(wins);
 							PROCESS_JSON_PER_GENERAL_RESULT(losses);
 							PROCESS_JSON_PER_GENERAL_RESULT(games);
@@ -166,7 +166,7 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByID(int64_t userID, std
 							PROCESS_JSON_PER_GENERAL_RESULT(customGames);
 							PROCESS_JSON_PER_GENERAL_RESULT(QMGames);
 
-#define PROCESS_JSON_STANDARD_RESULT(name) jsonObjectRoot[#name].get_to(stats.##name)
+#define PROCESS_JSON_STANDARD_RESULT(name) jsonObjectRoot[#name].get_to(stats.name)
 							PROCESS_JSON_STANDARD_RESULT(locale);
 							PROCESS_JSON_STANDARD_RESULT(gamesAsRandom);
 							PROCESS_JSON_STANDARD_RESULT(options);
@@ -298,7 +298,7 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByBatch(std::vector<int6
 							// now get stats
 							int i = 0;
 
-#define PROCESS_JSON_PER_GENERAL_RESULT(name) i = 0; for (const auto& iter : statsUserIter[#name]) { iter.get_to(stats.##name[i++]); }
+#define PROCESS_JSON_PER_GENERAL_RESULT(name) i = 0; for (const auto& iter : statsUserIter[#name]) { iter.get_to(stats.name[i++]); }
 							PROCESS_JSON_PER_GENERAL_RESULT(wins);
 							PROCESS_JSON_PER_GENERAL_RESULT(losses);
 							PROCESS_JSON_PER_GENERAL_RESULT(games);
@@ -324,7 +324,7 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByBatch(std::vector<int6
 							PROCESS_JSON_PER_GENERAL_RESULT(customGames);
 							PROCESS_JSON_PER_GENERAL_RESULT(QMGames);
 
-#define PROCESS_JSON_STANDARD_RESULT(name) statsUserIter[#name].get_to(stats.##name)
+#define PROCESS_JSON_STANDARD_RESULT(name) statsUserIter[#name].get_to(stats.name)
 							PROCESS_JSON_STANDARD_RESULT(locale);
 							PROCESS_JSON_STANDARD_RESULT(gamesAsRandom);
 							PROCESS_JSON_STANDARD_RESULT(options);

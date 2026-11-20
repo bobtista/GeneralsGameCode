@@ -151,7 +151,7 @@ class SurfaceClass : public RefCountClass
 		WW3DFormat Get_Surface_Format() const { return SurfaceFormat; }
 
 		// Check if the underlying D3D surface is valid
-		bool Is_Valid() const { return D3DSurface != NULL; }
+		bool Is_Valid() const { return Has_CPU_Surface_Snapshot() || Get_Native_Compatibility_Surface() != NULL; }
 
 	private:
 		SurfaceClass(const SurfaceImageData &image);

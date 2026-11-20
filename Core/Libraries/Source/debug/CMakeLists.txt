@@ -1,13 +1,9 @@
 set(DEBUG_SRC
-    "Include/debug/debug_cmd.h"
-    "Include/debug/debug_debug.h"
-    "Include/debug/debug_doc.h"
-    "Include/debug/debug_io.h"
-    "Include/debug/debug_macro.h"
-    "Include/debug/debug_stack.h"
-    "Include/debug/debug.h"
     "debug_cmd.cpp"
+    "debug_cmd.h"
     "debug_debug.cpp"
+    "debug_debug.h"
+    "debug_doc.h"
     "debug_except.cpp"
     "debug_getdefaultcommands.cpp"
     "debug_internal.cpp"
@@ -15,39 +11,37 @@ set(DEBUG_SRC
     "debug_io_flat.cpp"
     "debug_io_net.cpp"
     "debug_io_ods.cpp"
+    "debug_io.h"
+    "debug_macro.h"
     "debug_stack.cpp"
+    "debug_stack.h"
+    "debug.h"
     "internal_except.h"
     "internal_io.h"
     "internal.h"
 )
 
-# TheSuperHackers @build bobtista 29/04/2026 core_debug is Windows-only.
-# debug_debug.cpp self-#errors on non-Win/MSVC and the Win API surface
-# (SetUnhandledExceptionFilter, ReadFile, MessageBox, ...) does not have a
-# meaningful POSIX analog. Consumers that link core_debug must guard the
-# link on WIN32. Matches the fbraz3/GeneralsX approach.
+# core_debug is Windows-only.
 if(WIN32)
-    add_library(core_debug STATIC)
+add_library(core_debug STATIC)
 
-    target_sources(core_debug PRIVATE ${DEBUG_SRC})
+target_sources(core_debug PRIVATE ${DEBUG_SRC})
 
-    target_include_directories(core_debug PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/Include
-    )
+target_include_directories(core_debug INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
-    target_precompile_headers(core_debug PRIVATE
-        [["Precompiled/precompiled.h"]] # Must be first
-        "Include/debug/debug.h"
-        "internal.h"
-        "internal_except.h"
-        "internal_io.h"
-        <windows.h>
-    )
+target_precompile_headers(core_debug PRIVATE
+    [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
+    "debug.h"
+    "internal.h"
+    "internal_except.h"
+    "internal_io.h"
+    <windows.h>
+)
 
-    target_link_libraries(core_debug PRIVATE
-        depsi_always # Gives force included headers. Link early.
-        core_config
-        deps_utility
-        stlport
-    )
+target_link_libraries(core_debug PRIVATE
+    core_wwcommon
+    corei_always
+)
 endif()

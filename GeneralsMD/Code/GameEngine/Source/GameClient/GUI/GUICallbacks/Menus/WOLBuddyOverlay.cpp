@@ -251,8 +251,8 @@ WindowMsgHandledType BuddyControlSystem( GameWindow *window, UnsignedInt msg,
 					if(rc->pos < 0)
 						break;
 
-					GPProfile profileID = (GPProfile)GadgetListBoxGetItemData(control, rc->pos, 0);
-					RCItemType itemType = (RCItemType)(Int)GadgetListBoxGetItemData(control, rc->pos, 1);
+					GPProfile profileID = (GPProfile)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, 0);
+					RCItemType itemType = (RCItemType)(Int)(intptr_t)GadgetListBoxGetItemData(control, rc->pos, 1);
 					UnicodeString nick = UnicodeString(GadgetListBoxGetText(control, rc->pos).str() + 2); // Skip the online/offline indicator
 
 					GadgetListBoxSetSelected(control, rc->pos);
@@ -304,7 +304,7 @@ WindowMsgHandledType BuddyControlSystem( GameWindow *window, UnsignedInt msg,
 				if (selected >= 0)
 				{
 #if defined(GENERALS_ONLINE)
-					int profileID = (int)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
+					int profileID = (int)(intptr_t)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
 
 					// Block chatting with a buddy who is currently in the same game as us
 					if (TheNGMPGame && TheNGMPGame->isGameInProgress())
@@ -506,7 +506,7 @@ void updateBuddyInfo( void )
 
             GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
             if (selected >= 0)
-                selectedProfile = (GPProfile)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
+                selectedProfile = (GPProfile)(intptr_t)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
 
             selected = -1;
             GadgetListBoxReset(buddyControls.listboxBuddies);
@@ -1088,7 +1088,7 @@ void WOLBuddyOverlayInit( WindowLayout *layout, void *userData )
 				GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
 				if (selected >= 0)
 				{
-					GPProfile profileID = (GPProfile)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
+					GPProfile profileID = (GPProfile)(intptr_t)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
 
 
 					// sending to them, or getting from them, is valid
@@ -1294,7 +1294,7 @@ WindowMsgHandledType WOLBuddyOverlaySystem( GameWindow *window, UnsignedInt msg,
 				GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
 				if (selected >= 0)
 				{
-					GPProfile profileID = (GPProfile)GadgetListBoxGetItemData(control, selected);
+					GPProfile profileID = (GPProfile)(intptr_t)GadgetListBoxGetItemData(control, selected);
 					UnicodeString nick = GadgetListBoxGetText(control, selected);
 
 					NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
@@ -1363,7 +1363,7 @@ WindowMsgHandledType WOLBuddyOverlaySystem( GameWindow *window, UnsignedInt msg,
 					if (rc->pos < 0)
 						break;
 
-					GPProfile profileID = (GPProfile)GadgetListBoxGetItemData(control, rc->pos);
+					GPProfile profileID = (GPProfile)(intptr_t)GadgetListBoxGetItemData(control, rc->pos);
 					UnicodeString nick = GadgetListBoxGetText(control, rc->pos);
 
                     NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();

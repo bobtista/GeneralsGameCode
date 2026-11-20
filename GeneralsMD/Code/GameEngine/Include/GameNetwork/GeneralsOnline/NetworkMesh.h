@@ -1,7 +1,13 @@
 #pragma once
 
 #include "NGMP_include.h"
+#if defined(_WIN32)
 #include <ws2ipdef.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
 #include <chrono>
 #include <mutex>
 #include <steam/steamnetworkingcustomsignaling.h>

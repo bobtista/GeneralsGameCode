@@ -1,8 +1,6 @@
 set(WW3D2_SRC
     aabtree.cpp
     aabtree.h
-    aabtreebuilder.cpp
-    aabtreebuilder.h
     agg_def.cpp
     agg_def.h
     animatedsoundmgr.cpp
@@ -19,8 +17,6 @@ set(WW3D2_SRC
     bitmaphandler.h
     bmp2d.cpp
     bmp2d.h
-    boxrobj.cpp
-    boxrobj.h
     bwrender.cpp
     bwrender.h
     #camera.cpp
@@ -47,7 +43,6 @@ set(WW3D2_SRC
     dllist.h
     dx8caps.cpp
     dx8caps.h
-    dx8convert.h
     dx8fvf.cpp
     dx8fvf.h
     indexbuffer.cpp
@@ -85,10 +80,6 @@ set(WW3D2_SRC
     #hlod.h
     hmdldef.cpp
     hmdldef.h
-    hmorphanim.cpp
-    hmorphanim.h
-    hrawanim.cpp
-    hrawanim.h
     htree.cpp
     htree.h
     #htreemgr.cpp
@@ -99,49 +90,30 @@ set(WW3D2_SRC
     inttest.h
     layer.cpp
     layer.h
-    light.cpp
-    light.h
     #lightenvironment.cpp
     #lightenvironment.h
     line3d.cpp
     line3d.h
     #linegrp.cpp
     #linegrp.h
-    mapper.cpp
-    mapper.h
     matinfo.cpp
     matinfo.h
     matpass.cpp
     matpass.h
-    matrixmapper.cpp
-    matrixmapper.h
-    mesh.cpp
-    mesh.h
     #meshbuild.cpp
     #meshbuild.h
     meshdam.cpp
     meshdam.h
-    meshgeometry.cpp
-    meshgeometry.h
     #meshmatdesc.cpp
     #meshmatdesc.h
-    meshmdl.cpp
-    meshmdl.h
-    meshmdlio.cpp
     metalmap.cpp
     metalmap.h
     missingtexture.cpp
     missingtexture.h
-    motchan.cpp
-    motchan.h
     #nullrobj.cpp
     #nullrobj.h
     #part_buf.cpp
     #part_buf.h
-    part_emt.cpp
-    part_emt.h
-    part_ldr.cpp
-    part_ldr.h
     pivot.cpp
     pivot.h
     pointgr.cpp
@@ -182,8 +154,6 @@ set(WW3D2_SRC
     segline.h
     seglinerenderer.cpp
     seglinerenderer.h
-    shader.cpp
-    shader.h
     shattersystem.cpp
     shattersystem.h
     shdlib.h
@@ -221,24 +191,20 @@ set(WW3D2_SRC
     textureloader.h
     texturethumbnail.cpp
     texturethumbnail.h
-    vertmaterial.cpp
-    vertmaterial.h
     visrasterizer.cpp
     visrasterizer.h
     w3d_dep.cpp
     w3d_dep.h
-    w3d_file.h
     w3d_obsolete.h
     w3d_util.cpp
     w3d_util.h
     w3derr.h
     w3dexclusionlist.cpp
     w3dexclusionlist.h
-    ww3d.cpp
-    ww3d.h
     ww3dformat.cpp
     ww3dformat.h
     ww3dtrig.h
+    ww3dids.h
 )
 
 if(WIN32)

@@ -1802,7 +1802,7 @@ void HeightMapRenderObjClass::updateCenter(CameraClass *camera, const Vector3 *c
 		const Int deltaX = newDrawArea.originX - m_map->getDrawOrgX();
 		const Int deltaY = newDrawArea.originY - m_map->getDrawOrgY();
 
-		if (IABS(deltaX) > m_x/2 || IABS(deltaY)>m_x/2) {
+		if (abs(deltaX) > m_x/2 || abs(deltaY)>m_x/2) {
 			if (m_map->setDrawArea(newDrawArea)) {
 				m_originY = 0;
 				m_originX = 0;

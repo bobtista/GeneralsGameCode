@@ -601,7 +601,7 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 
 						TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																								GLM_DOUBLE_CLICKED,
-																								(WindowMsgData)window,
+																								(WindowMsgData)(uintptr_t)window,
 																								list->selectPos );
 					}
 
@@ -652,7 +652,7 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 
 						TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																								GLM_SELECTED,
-																								(WindowMsgData)window,
+																								(WindowMsgData)(uintptr_t)window,
 																								list->selectPos );
 					}
 
@@ -699,7 +699,7 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 
 						TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																								GLM_SELECTED,
-																								(WindowMsgData)window,
+																								(WindowMsgData)(uintptr_t)window,
 																								list->selectPos );
 					}
 
@@ -862,7 +862,7 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 					temp = oldPos;
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																					GLM_DOUBLE_CLICKED,
-																					(WindowMsgData)window,
+																					(WindowMsgData)(uintptr_t)window,
 																					temp );
 				//break;
 			}
@@ -883,7 +883,7 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 			list->doubleClickTime = timeGetTime();
 			TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																					GLM_SELECTED,
-																					(WindowMsgData)window,
+																					(WindowMsgData)(uintptr_t)window,
 																					list->selectPos );
 
 			break;
@@ -939,8 +939,8 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 			rc.mouseY = mousey;
 			TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																					GLM_RIGHT_CLICKED,
-																					(WindowMsgData)window,
-																					(WindowMsgData)&rc );
+																					(WindowMsgData)(uintptr_t)window,
+																					(WindowMsgData)(uintptr_t)&rc );
 			break;
 
 		}
@@ -955,7 +955,7 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 				BitSet( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																						GBM_MOUSE_ENTERING,
-																						(WindowMsgData)window,
+																						(WindowMsgData)(uintptr_t)window,
 																						0 );
 				//TheWindowManager->winSetFocus( window );
 
@@ -975,7 +975,7 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 				BitClear( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																						GBM_MOUSE_LEAVING,
-																						(WindowMsgData)window,
+																						(WindowMsgData)(uintptr_t)window,
 																						0 );
 			}
 
@@ -989,7 +989,7 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 			if (BitIsSet( instData->getStyle(), GWS_MOUSE_TRACK ) )
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																						GGM_LEFT_DRAG,
-																						(WindowMsgData)window,
+																						(WindowMsgData)(uintptr_t)window,
 																						0 );
 			break;
 
@@ -1104,7 +1104,7 @@ WindowMsgHandledType GadgetListBoxMultiInput( GameWindow *window, UnsignedInt ms
 
 			TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																					GLM_SELECTED,
-																					(WindowMsgData)window,
+																					(WindowMsgData)(uintptr_t)window,
 																					selectPos );
 			break;
 
@@ -1195,8 +1195,8 @@ WindowMsgHandledType GadgetListBoxMultiInput( GameWindow *window, UnsignedInt ms
 			rc.mouseY = mousey;
 			TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																					GLM_RIGHT_CLICKED,
-																					(WindowMsgData)window,
-																					(WindowMsgData)&rc );
+																					(WindowMsgData)(uintptr_t)window,
+																					(WindowMsgData)(uintptr_t)&rc );
 			break;
 
 		}
@@ -1233,7 +1233,7 @@ WindowMsgHandledType GadgetListBoxMultiInput( GameWindow *window, UnsignedInt ms
 				BitSet( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																						GBM_MOUSE_ENTERING,
-																						(WindowMsgData)window,
+																						(WindowMsgData)(uintptr_t)window,
 																						0 );
 				//TheWindowManager->winSetFocus( window );
 
@@ -1253,7 +1253,7 @@ WindowMsgHandledType GadgetListBoxMultiInput( GameWindow *window, UnsignedInt ms
 				BitClear( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																						GBM_MOUSE_LEAVING,
-																						(WindowMsgData)window,
+																						(WindowMsgData)(uintptr_t)window,
 																						0 );
 			}
 
@@ -1267,7 +1267,7 @@ WindowMsgHandledType GadgetListBoxMultiInput( GameWindow *window, UnsignedInt ms
 			if (BitIsSet( instData->getStyle(), GWS_MOUSE_TRACK ) )
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																						GGM_LEFT_DRAG,
-																						(WindowMsgData)window,
+																						(WindowMsgData)(uintptr_t)window,
 																						0 );
 			break;
 
@@ -1650,7 +1650,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																						GLM_SELECTED,
-																						(WindowMsgData)window,
+																						(WindowMsgData)(uintptr_t)window,
 																						list->selectPos );
 
 				break;
@@ -1693,7 +1693,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 				{
 					TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																						GLM_SELECTED,
-																						(WindowMsgData)window,
+																						(WindowMsgData)(uintptr_t)window,
 																						list->selectPos );
 					break;
 				}
@@ -1721,7 +1721,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 
 			TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 																					GLM_SELECTED,
-																					(WindowMsgData)window,
+																					(WindowMsgData)(uintptr_t)window,
 																					list->selectPos );
 			break;
 
@@ -1822,7 +1822,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 		{
 
 			if( list->multiSelect )
-				*(Int*)mData2 = (Int)list->selections;
+				*(Int**)mData2 = list->selections;
 			else
 				*(Int*)mData2 = list->selectPos;
 
@@ -2924,7 +2924,7 @@ void ApplyListBoxRowAnimation(GameWindow *window, Int rowIndex, Int rowHeight, I
 	Int animKey;
 	if (it->second == LIST_ROW_ANIM_ID)
 	{
-		Int itemID = (Int)GadgetListBoxGetItemData(window, rowIndex);
+		Int itemID = (Int)(intptr_t)GadgetListBoxGetItemData(window, rowIndex);
 		if (itemID <= 0)
 			return;
 

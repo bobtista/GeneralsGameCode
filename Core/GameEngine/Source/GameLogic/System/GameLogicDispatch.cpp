@@ -244,7 +244,7 @@ void GameLogic::closeWindows()
 	GameWindow *window = TheWindowManager->winGetWindowFromId( nullptr, TheNameKeyGenerator->nameToKey("OptionsMenu.wnd:OptionsMenuParent") );
 	if(window)
 		TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
-																			(WindowMsgData)button, buttonID );
+																			(WindowMsgData)(uintptr_t)button, buttonID );
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -290,7 +290,7 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 //	if(shellGame)
 
 
-	if (TheGlobalData->m_initialFile.isEmpty() == FALSE || TheGlobalData->m_loadSaveGame.isEmpty() == FALSE || m_quitToDesktopAfterMatch)
+	if (TheGlobalData->m_initialFile.isEmpty() == FALSE || m_quitToDesktopAfterMatch)
 	{
 		TheGameEngine->setQuitting(TRUE);
 		m_quitToDesktopAfterMatch = FALSE;

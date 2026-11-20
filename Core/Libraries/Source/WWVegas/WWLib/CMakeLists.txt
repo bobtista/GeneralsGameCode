@@ -111,11 +111,13 @@ set(WWLIB_SRC
     SLNODE.h
     stimer.cpp
     stimer.h
+    STLUtils.h
     straw.cpp
     STRAW.h
     strtok_r.cpp
     strtok_r.h
     #swap.h
+    SystemAllocator.h
     systimer.cpp
     systimer.h
     TARGA.cpp
@@ -130,10 +132,9 @@ set(WWLIB_SRC
     trim.cpp
     trim.h
     uarray.h
-    utf8.cpp
-    utf8.h
     vector.cpp
     Vector.h
+    visualc.h
     widestring.cpp
     widestring.h
     win.h
@@ -151,6 +152,11 @@ set(WWLIB_SRC
 
 if(WIN32)
     list(APPEND WWLIB_SRC
+        DbgHelpGuard.cpp
+        DbgHelpGuard.h
+        DbgHelpLoader.cpp
+        DbgHelpLoader.h
+        DbgHelpLoader_minidump.h
         mpu.cpp
         MPU.h
         rcfile.cpp
@@ -161,10 +167,9 @@ if(WIN32)
         verchk.h
         WWCOMUtil.cpp
         WWCOMUtil.h
-)
+    )
 else()
-    # TheSuperHackers @build bobtista 29/04/2026 Stub the legacy WWLib
-    # RegistryClass on non-Win so DX8Wrapper / W3DDisplay still link.
+    # Stub the legacy WWLib RegistryClass on non-Windows so DX8Wrapper / W3DDisplay still link.
     list(APPEND WWLIB_SRC
         registry.h
         registry_unix_stub.cpp
@@ -180,23 +185,22 @@ target_include_directories(core_wwlib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# TheSuperHackers @build bobtista 28/04/2026 Skip <windows.h> in the
-# precompiled header on non-Windows builds so wwlib can compile on Linux/macOS.
 if(WIN32)
     target_precompile_headers(core_wwlib PRIVATE
-        [["Precompiled/BasePrecomp.h"]] # Must be first
+        [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
         [["WWLib/always.h"]]
-        [["Utility/STLUtils.h"]]
+        [["WWLib/STLUtils.h"]]
         [["WWLib/win.h"]]
         [["WWLib/WWCommon.h"]]
         [["WWLib/wwstring.h"]]
         <windows.h>
     )
 else()
+    # Skip <windows.h> in the precompiled header on non-Windows builds.
     target_precompile_headers(core_wwlib PRIVATE
-        [["Precompiled/BasePrecomp.h"]] # Must be first
+        [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
         [["WWLib/always.h"]]
-        [["Utility/STLUtils.h"]]
+        [["WWLib/STLUtils.h"]]
         [["WWLib/win.h"]]
         [["WWLib/WWCommon.h"]]
         [["WWLib/wwstring.h"]]

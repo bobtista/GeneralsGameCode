@@ -366,7 +366,7 @@ static void playerTooltip(GameWindow *window,
 	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
 	if (pRoomsInterface != nullptr && pAuthInterface != nullptr && pStatsInterface != nullptr && pSocialInterface != nullptr)
 	{
-		int profileID = (int)GadgetListBoxGetItemData(listboxLobbyPlayers, row, 0);
+		int profileID = (int)(intptr_t)GadgetListBoxGetItemData(listboxLobbyPlayers, row, 0);
 		NetworkRoomMember* roomMember = pRoomsInterface->GetRoomMemberFromID(profileID);
 
 		// TODO_NGMP: This is an async call, we should block future popups until it returns to avoid weirdness
@@ -2375,7 +2375,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				if ( controlID == GetGameListBoxID() )
 				{
 					int rowSelected = mData2;
-					int64_t lobbyID = rowSelected >= 0 ? ResolveGameListLobbyID((Int)GadgetListBoxGetItemData(control, rowSelected, 0)) : 0;
+					int64_t lobbyID = rowSelected >= 0 ? ResolveGameListLobbyID((Int)(intptr_t)GadgetListBoxGetItemData(control, rowSelected, 0)) : 0;
 					if( lobbyID >= 0 )
 					{
 						buttonJoin->winEnable(TRUE);
@@ -2459,7 +2459,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					GadgetListBoxGetSelected(GetGameListBox(), &selected);
 					if (selected >= 0)
 					{
-						int64_t selectedID = ResolveGameListLobbyID((Int)GadgetListBoxGetItemData(GetGameListBox(), selected));
+						int64_t selectedID = ResolveGameListLobbyID((Int)(intptr_t)GadgetListBoxGetItemData(GetGameListBox(), selected));
 						if (selectedID >= 0)
 						{
 							auto Lobby = pLobbyInterface->GetLobbyFromID(selectedID);
@@ -2644,7 +2644,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					GadgetComboBoxGetSelectedPos(comboLobbyGroupRooms, &pos);
 					if (pos >= 0)
 					{
-						Int itemData = (Int)GadgetComboBoxGetItemData(comboLobbyGroupRooms, pos);
+						Int itemData = (Int)(intptr_t)GadgetComboBoxGetItemData(comboLobbyGroupRooms, pos);
 						if (itemData == LOBBY_COMBO_SEPARATOR_ITEM_DATA)
 						{
 							PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
@@ -2725,7 +2725,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					if (pRoomsInterface != nullptr && pAuthInterface != nullptr && pStatsInterface != nullptr && pSocialInterface != nullptr)
 					{
 
-						int profileID = (int)GadgetListBoxGetItemData(listboxLobbyPlayers, rc->pos, 0);
+						int profileID = (int)(intptr_t)GadgetListBoxGetItemData(listboxLobbyPlayers, rc->pos, 0);
 						NetworkRoomMember* roomMember = pRoomsInterface->GetRoomMemberFromID(profileID);
 
 						if (rc->pos >= 0)
@@ -2792,7 +2792,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 									break;
 								}
 
-								Int selectedID = (Int)GadgetListBoxGetItemData(control, rc->pos);
+								Int selectedID = (Int)(intptr_t)GadgetListBoxGetItemData(control, rc->pos);
 								if (selectedID > 0)
 								{
 									StagingRoomMap* srm = TheGameSpyInfo->getStagingRoomList();

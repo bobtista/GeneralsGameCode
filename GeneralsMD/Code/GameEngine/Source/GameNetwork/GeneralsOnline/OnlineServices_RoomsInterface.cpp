@@ -27,6 +27,14 @@ struct GOModuleInfo {
     bool isSigned;
 };
 
+#if !defined(_WIN32)
+#include <string>
+#include <vector>
+
+std::vector<GOModuleInfo> GetLoadedModules() {
+    return std::vector<GOModuleInfo>();
+}
+#else
 #include <windows.h>
 #include <psapi.h>
 #include <wincrypt.h>
@@ -106,6 +114,7 @@ std::vector<GOModuleInfo> GetLoadedModules() {
 
     return modules;
 }
+#endif
 
 
 WebSocket::WebSocket()
@@ -206,6 +215,9 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 #else
         // Use the OS cert store (needed since we build curl against OpenSSL, not schannel).
         curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+#if defined(__APPLE__)
+        curl_easy_setopt(m_pCurlWS, CURLOPT_CAINFO, "/etc/ssl/cert.pem");
+#endif
         curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 2L);
 #endif
@@ -1339,7 +1351,7 @@ void WebSocket::Tick()
 
 										if (bParsed)
 										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_REGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid);
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_REGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid.c_str());
 											if (!AnticheatPlugInterface::RegisterPlayer(acData.mwid, acData.user_id))
 											{
 												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AnticheatPlugInterface::RegisterPlayer failed");
@@ -1355,7 +1367,7 @@ void WebSocket::Tick()
 
 										if (bParsed)
 										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_DEREGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid);
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_DEREGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid.c_str());
 											if (!AnticheatPlugInterface::DeregisterPlayer(acData.mwid, acData.user_id))
 											{
 												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AnticheatPlugInterface::DeregisterPlayer failed");
@@ -2017,5 +2029,7 @@ void NGMP_OnlineServices_RoomsInterface::ReportRoomJoinFailure(const std::string
 	}
 }
 
-
-
+// Defined out of line so that deleting through a forward declaration still finds the destructor.
+NGMP_OnlineServices_RoomsInterface::~NGMP_OnlineServices_RoomsInterface()
+{
+}

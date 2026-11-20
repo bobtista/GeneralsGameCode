@@ -932,7 +932,7 @@ AsciiString GameInfoToAsciiString( const GameInfo *game )
 	}
 
 	fprintf(stderr, "GameInfoToAsciiString - portableMap='%s' encodedDir='%s'\n",
-		TheGameState->realMapPathToPortableMapPath(game.getMap()).str(), newMapName.str());
+		TheGameState->realMapPathToPortableMapPath(game->getMap()).str(), newMapName.str());
 	fflush(stderr);
 
 	AsciiString optionsString;

@@ -65,7 +65,7 @@
 
 #include <unordered_map>
 
-#include "Lib/Profile.h"
+#include "rts/profile.h"
 // TheSuperHackers @perf bobtista 24/06/2026 Lib/Profile.h pulls in Tracy.hpp (C++ API) but the bgfx profiler callbacks use the Tracy C API.
 #if defined(RTS_PROFILE_TRACY)
 #include <tracy/TracyC.h>

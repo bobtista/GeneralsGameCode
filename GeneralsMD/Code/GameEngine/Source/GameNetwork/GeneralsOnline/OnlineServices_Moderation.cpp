@@ -10,7 +10,9 @@
 #include <map>
 #include <stdexcept>
 #include <windows.h>
+#if defined(_WIN32)
 #include <shellapi.h>
+#endif
 
 namespace
 {

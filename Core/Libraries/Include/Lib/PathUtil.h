@@ -62,3 +62,10 @@ inline const wchar_t* getExtension(const wchar_t* path)
 
 	return lastDot;
 }
+
+// Returns the file name after the last path separator or the whole path as is if none was found.
+inline const char* getFileName(const char* path)
+{
+	const char* lastSeparator = maxPtr(strrchr(path, '/'), strrchr(path, '\\'));
+	return lastSeparator ? lastSeparator + 1 : path;
+}

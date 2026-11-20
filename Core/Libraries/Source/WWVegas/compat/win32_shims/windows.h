@@ -20,6 +20,9 @@
 #include <locale.h>
 #if defined(__APPLE__)
 #include <xlocale.h>
+#include <crt_externs.h>
+#include <spawn.h>
+#include <sys/wait.h>
 #endif
 
 #ifndef CALLBACK
@@ -98,6 +101,8 @@
 inline void _fpreset() {}
 inline unsigned int _controlfp(unsigned int /*newctrl*/, unsigned int /*mask*/) { return 0; }
 inline unsigned int _statusfp() { return 0; }
+// FP exceptions are masked by default on these platforms, so there is nothing to change.
+inline int _controlfp_s(unsigned int *currentControl, unsigned int /*newControl*/, unsigned int /*mask*/) { if (currentControl) *currentControl = 0; return 0; }
 inline void _clearfp() {}
 
 // _wtoi is the wide-char companion to atoi; provide a wcstol-based shim.
@@ -704,6 +709,33 @@ inline void DebugBreak() {}
 #endif
 #ifndef SW_SHOWNA
 #define SW_SHOWNA          8
+#endif
+
+#if defined(__APPLE__)
+inline HINSTANCE ShellExecuteA(HWND, const char *, const char *file, const char *, const char *, int)
+{
+	if (file == nullptr || (strncasecmp(file, "https://", 8) != 0 && strncasecmp(file, "http://", 7) != 0))
+	{
+		return (HINSTANCE)(intptr_t)33;
+	}
+
+	char openPath[] = "/usr/bin/open";
+	char *argv[] = { openPath, const_cast<char *>(file), nullptr };
+	pid_t pid = 0;
+	if (posix_spawn(&pid, openPath, nullptr, nullptr, argv, *_NSGetEnviron()) != 0)
+	{
+		return (HINSTANCE)(intptr_t)2;
+	}
+
+	int status = 0;
+	while (waitpid(pid, &status, 0) < 0 && errno == EINTR)
+	{
+	}
+	return (HINSTANCE)(intptr_t)33;
+}
+#else
+// Opening documents and URLs through the shell is not supported here. Values above 32 mean success.
+inline HINSTANCE ShellExecuteA(HWND, const char *, const char *, const char *, const char *, int) { return (HINSTANCE)(intptr_t)33; }
 #endif
 
 typedef struct _EXCEPTION_RECORD EXCEPTION_RECORD;

@@ -106,7 +106,10 @@ UnicodeString GetReplayFilenameFromListbox(GameWindow *listbox, Int index)
 
 static Bool readReplayMapInfo(const AsciiString& filename, RecorderClass::ReplayHeader &header, ReplayGameInfo &info, const MapMetaData *&mapData)
 {
-	if (TheRecorder != nullptr && TheRecorder->readReplayHeader(header, filename, FALSE))
+	header.forPlayback = FALSE;
+	header.filename = filename;
+
+	if (TheRecorder != nullptr && TheRecorder->readReplayHeader(header))
 	{
 		if (ParseAsciiStringToGameInfo(&info, header.gameOptions))
 		{
@@ -172,7 +175,8 @@ static UnicodeString createMapName(const AsciiString& filename, const ReplayGame
 		// TheSuperHackers @bugfix helmutbuhler 08/03/2025 Just use the filename.
 		// Displaying a long map path string would break the map list gui.
 #ifdef _WIN32
-		mapName.translate(getFileName(info.getMap().str()));
+		const char* filename = info.getMap().reverseFind('\\');
+		mapName.translate(filename ? filename + 1 : info.getMap());
 #else
 		mapName.translate(findPathLeaf(info.getMap()));
 #endif
@@ -291,7 +295,7 @@ void PopulateReplayFileListbox(GameWindow *listbox)
 	{
 		// just want the filename
 #ifdef _WIN32
-		asciistr.set(getFileName((*it).str()));
+		asciistr.set((*it).reverseFind('\\') + 1);
 #else
 		asciistr.set(findPathLeaf(*it));
 #endif
@@ -545,7 +549,7 @@ WindowMsgHandledType ReplayMenuInput( GameWindow *window, UnsignedInt msg,
 					{
 
 						TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
-																								(WindowMsgData)buttonBack, buttonBackID );
+																								(WindowMsgData)(uintptr_t)buttonBack, buttonBackID );
 
 					}
 

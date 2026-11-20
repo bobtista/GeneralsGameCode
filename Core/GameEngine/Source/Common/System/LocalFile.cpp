@@ -468,7 +468,7 @@ Int LocalFile::writeChar( const Char* character )
 {
 	// TheSuperHackers @fix bobtista 14/10/2026 Return the character written instead of its address.
 	if ( write( character, sizeof(Char) ) == sizeof(Char) ) {
-		return (Int)character;
+		return (Int)(intptr_t)character;
 	}
 
 	return EOF;

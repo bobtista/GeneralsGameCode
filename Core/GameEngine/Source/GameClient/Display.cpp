@@ -38,7 +38,7 @@
 //#include "GameLogic/GameLogic.h"
 
 /// The Display singleton instance.
-Display* TheDisplay = nullptr;
+Display *TheDisplay = nullptr;
 
 
 Display::Display()
@@ -81,9 +81,9 @@ Display::~Display()
 	*/
 void Display::deleteViews()
 {
-	View* v, * next;
+	View *v, *next;
 
-	for (v = m_viewList; v; v = next)
+	for( v = m_viewList; v; v = next )
 	{
 		next = v->getNextView();
 		delete v;
@@ -95,10 +95,10 @@ void Display::deleteViews()
  * Attach the given view to the world
  * @todo Rethink the "attachView" notion...
  */
-void Display::attachView(View* view)
+void Display::attachView( View *view )
 {
 	// prepend to head of list
-	m_viewList = view->prependViewToList(m_viewList);
+	m_viewList = view->prependViewToList( m_viewList );
 }
 
 /**
@@ -107,7 +107,7 @@ void Display::attachView(View* view)
 void Display::drawViews()
 {
 
-	for (View* v = m_viewList; v; v = v->getNextView())
+	for( View *v = m_viewList; v; v = v->getNextView() )
 		v->drawView();
 
 }
@@ -119,7 +119,7 @@ void Display::drawViews()
 void Display::updateViews()
 {
 
-	for (View* v = m_viewList; v; v = v->getNextView())
+	for( View *v = m_viewList; v; v = v->getNextView() )
 		v->updateView();
 
 }
@@ -127,7 +127,7 @@ void Display::updateViews()
 void Display::stepViews()
 {
 
-	for (View* v = m_viewList; v; v = v->getNextView())
+	for( View *v = m_viewList; v; v = v->getNextView() )
 		v->stepView();
 
 }
@@ -144,38 +144,38 @@ void Display::draw()
 }
 
 /** Sets screen resolution/mode*/
-Bool Display::setDisplayMode(UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed)
+Bool Display::setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed )
 {
 	//Get old values
-	UnsignedInt oldDisplayHeight = getHeight();
-	UnsignedInt oldDisplayWidth = getWidth();
-	Int oldViewWidth = TheTacticalView->getWidth();
-	Int oldViewHeight = TheTacticalView->getHeight();
-	Int oldViewOriginX, oldViewOriginY;
-	TheTacticalView->getOrigin(&oldViewOriginX, &oldViewOriginY);
+	UnsignedInt oldDisplayHeight=getHeight();
+	UnsignedInt oldDisplayWidth=getWidth();
+	Int oldViewWidth=TheTacticalView->getWidth();
+	Int oldViewHeight=TheTacticalView->getHeight();
+	Int oldViewOriginX,oldViewOriginY;
+	TheTacticalView->getOrigin(&oldViewOriginX,&oldViewOriginY);
 
 	setWidth(xres);
 	setHeight(yres);
 
 	//Adjust view to match previous proportions
-	TheTacticalView->setWidth((Real)oldViewWidth / (Real)oldDisplayWidth * (Real)xres);
-	TheTacticalView->setHeight((Real)oldViewHeight / (Real)oldDisplayHeight * (Real)yres);
-	TheTacticalView->setOrigin((Real)oldViewOriginX / (Real)oldDisplayWidth * (Real)xres,
-		(Real)oldViewOriginY / (Real)oldDisplayHeight * (Real)yres);
+	TheTacticalView->setWidth((Real)oldViewWidth/(Real)oldDisplayWidth*(Real)xres);
+	TheTacticalView->setHeight((Real)oldViewHeight/(Real)oldDisplayHeight*(Real)yres);
+	TheTacticalView->setOrigin((Real)oldViewOriginX/(Real)oldDisplayWidth*(Real)xres,
+	(Real)oldViewOriginY/(Real)oldDisplayHeight*(Real)yres);
 	return TRUE;
 }
 
 // Display::setWidth ==========================================================
 /** Set the width of the display */
 //=============================================================================
-void Display::setWidth(UnsignedInt width)
+void Display::setWidth( UnsignedInt width )
 {
 
 	// set the new width
 	m_width = width;
 
 	// set the new mouse limits
-	if (TheMouse)
+	if( TheMouse )
 		TheMouse->setMouseLimits();
 
 }
@@ -183,14 +183,14 @@ void Display::setWidth(UnsignedInt width)
 // Display::setHeight =========================================================
 /** Set the height of the display */
 //=============================================================================
-void Display::setHeight(UnsignedInt height)
+void Display::setHeight( UnsignedInt height )
 {
 
 	// se the new height
 	m_height = height;
 
 	// set the new mouse limits
-	if (TheMouse)
+	if( TheMouse )
 		TheMouse->setMouseLimits();
 
 }
@@ -199,16 +199,18 @@ void Display::setHeight(UnsignedInt height)
 // Display::playMovie
 //============================================================================
 
-void Display::playMovie(AsciiString movieName)
+void Display::playMovie( AsciiString movieName)
 {
+	if (TheGlobalData->m_headless)
+		return;
 
 	stopMovie();
 
 
 
-	m_videoStream = TheVideoPlayer->open(movieName);
+	m_videoStream = TheVideoPlayer->open( movieName );
 
-	if (m_videoStream == nullptr)
+	if ( m_videoStream == nullptr )
 	{
 		return;
 	}
@@ -216,9 +218,9 @@ void Display::playMovie(AsciiString movieName)
 	m_currentlyPlayingMovie = movieName;
 
 	m_videoBuffer = createVideoBuffer();
-	if (m_videoBuffer == nullptr ||
-		!m_videoBuffer->allocate(m_videoStream->width(),
-			m_videoStream->height())
+	if (	m_videoBuffer == nullptr ||
+				!m_videoBuffer->allocate(	m_videoStream->width(),
+													m_videoStream->height())
 		)
 	{
 		stopMovie();
@@ -236,7 +238,7 @@ void Display::stopMovie()
 	delete m_videoBuffer;
 	m_videoBuffer = nullptr;
 
-	if (m_videoStream)
+	if ( m_videoStream )
 	{
 		m_videoStream->close();
 		m_videoStream = nullptr;
@@ -254,13 +256,13 @@ void Display::stopMovie()
 
 void Display::update()
 {
-	if (m_videoStream && m_videoBuffer)
+	if ( m_videoStream && m_videoBuffer )
 	{
-		if (m_videoStream->isFrameReady())
+		if ( m_videoStream->isFrameReady())
 		{
 			m_videoStream->frameDecompress();
-			m_videoStream->frameRender(m_videoBuffer);
-			if (m_videoStream->frameIndex() != m_videoStream->frameCount() - 1)
+			m_videoStream->frameRender( m_videoBuffer );
+			if( m_videoStream->frameIndex() != m_videoStream->frameCount() - 1)
 			{
 				// TheSuperHackers @bugfix bobtista 02/08/2026 Also stop when the stream stops
 				// advancing. An exhausted stream reports frame 0 forever (the Bink end-of-stream
@@ -293,7 +295,7 @@ void Display::reset()
 	stopMovie();
 
 	// Reset all views that need resetting
-	for (View* v = m_viewList; v; v = v->getNextView())
+	for( View *v = m_viewList; v; v = v->getNextView() )
 		v->reset();
 }
 
@@ -310,7 +312,7 @@ Bool Display::isMoviePlaying()
 // Display::setDebugDisplayCallback
 //============================================================================
 
-void Display::setDebugDisplayCallback(DebugDisplayCallback* callback, void* userData)
+void Display::setDebugDisplayCallback( DebugDisplayCallback *callback, void *userData )
 {
 	m_debugDisplayCallback = callback;
 	m_debugDisplayUserData = userData;
@@ -320,7 +322,7 @@ void Display::setDebugDisplayCallback(DebugDisplayCallback* callback, void* user
 // Display::getDebugDisplayCallback
 //============================================================================
 
-Display::DebugDisplayCallback* Display::getDebugDisplayCallback()
+Display::DebugDisplayCallback *Display::getDebugDisplayCallback()
 {
 	return m_debugDisplayCallback;
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "NGMP_Platform.h"
+
 #if !defined(GENERALS_ONLINE)
 #define GENERALS_ONLINE
 #endif
@@ -14,6 +16,10 @@
 //#define USE_STUBBJAX_TRANSPORT_CONTAIN_FIX 1
 
 #define GENERALS_ONLINE_VERSION_STRING "100126_QFE2" // NOTE: Format is critical here for Sentry to work
+
+#if defined(__APPLE__) || defined(GGC_RENDER_BACKEND_BGFX)
+#define GENERALS_ONLINE_MAC_EXE_CRC 0x216B3EEAu
+#endif
 
 #define GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA 1
 

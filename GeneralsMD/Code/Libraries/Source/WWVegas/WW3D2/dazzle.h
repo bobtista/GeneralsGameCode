@@ -25,7 +25,7 @@
 #include "WWLib/wwstring.h"
 #include "WW3D2/proto.h"
 #include "WW3D2/w3derr.h"
-#include "shader.h"
+#include "WW3D2/shader.h"
 #include "WWMath/matrix4.h"
 
 class CameraClass;
@@ -297,10 +297,6 @@ public:
 	// the dazzle to the appropriate visible list. NOTE: It is also called
 	// internally by the Render() function.
 	void Set_Layer(DazzleLayerClass *layer);
-
-	// Persistent object save-load interface
-	// Dazzles save their "dazzle-type" and transform
-	virtual const PersistFactoryClass &	Get_Factory () const override;
 
 	// Set the static "current layer" variable. This variable is used in the
 	// Render() call so that the dazzle knows which list to add itself to if

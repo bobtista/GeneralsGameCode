@@ -68,6 +68,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
+#include "Lib/PathUtil.h"
 #include "sphereobj.h"
 #include "w3d_util.h"
 #include "WWDebug/wwdebug.h"

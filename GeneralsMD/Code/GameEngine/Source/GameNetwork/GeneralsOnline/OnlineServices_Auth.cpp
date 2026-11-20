@@ -4,12 +4,16 @@
 #include "GameNetwork/GeneralsOnline/HTTP/HTTPRequest.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_Moderation.h"
 #include "GameNetwork/GeneralsOnline/json.hpp"
+#if defined(_WIN32)
 #include <shellapi.h>
+#endif
 #include <algorithm>
 #include <chrono>
 #include <random>
 #include <windows.h>
+#if defined(_WIN32)
 #include <wincred.h>
+#endif
 #include "GameNetwork/GameSpyOverlay.h"
 #include "../json.hpp"
 
@@ -439,6 +443,10 @@ void NGMP_OnlineServices_AuthInterface::DoFullLoginFlow()
                         std::string strURI = std::format("https://www.playgenerals.online/login/?gamecode={}", m_strCode.c_str());
 #endif
 
+#if defined(__APPLE__)
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Login URL: %s", strURI.c_str());
+#endif
+
                         ClearGSMessageBoxes();
                         GSMessageBoxCancel(UnicodeString(L"Logging In"), UnicodeString(L"Please continue in your web browser"), []()
                             {
@@ -614,6 +622,9 @@ void NGMP_OnlineServices_AuthInterface::LogoutOfMyAccount()
 	NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", nullptr);
 
 	// delete local credentials cache
+#if defined(__APPLE__)
+	NGMP_Apple_KeychainDelete();
+#endif
 	std::string strCredentialsCachePath = GetCredentialsFilePath();
 
 	std::error_code ec;
@@ -637,6 +648,14 @@ void NGMP_OnlineServices_AuthInterface::SaveCredentials(const char* szRefreshTok
 	nlohmann::json root = { {"refresh_token", szRefreshToken} };
 
 	std::string strData = root.dump(1);
+
+#if defined(__APPLE__)
+	if (!NGMP_Apple_KeychainWrite(strData))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to save credentials to the keychain");
+	}
+	return;
+#endif
 
 	// encrypt before touching the file so a failure doesn't truncate the credentials already stored
 	std::string strFileData;
@@ -690,6 +709,13 @@ bool NGMP_OnlineServices_AuthInterface::GetCredentials()
 	return false;
 #endif
 	std::vector<uint8_t> vecBytes;
+#if defined(__APPLE__)
+	std::string strKeychainData;
+	if (NGMP_Apple_KeychainRead(strKeychainData))
+	{
+		vecBytes.assign(strKeychainData.begin(), strKeychainData.end());
+	}
+#else
 	FILE* file = fopen(GetCredentialsFilePath().c_str(), "rb");
 	if (file)
 	{
@@ -703,12 +729,13 @@ bool NGMP_OnlineServices_AuthInterface::GetCredentials()
 		}
 		fclose(file);
 	}
+#endif
 
 
 	if (!vecBytes.empty())
 	{
 		// needs decrypt first
-#if defined(GENERALS_ONLINE_ENCRYPT_CREDENTIALS)
+#if defined(GENERALS_ONLINE_ENCRYPT_CREDENTIALS) && !defined(__APPLE__)
 		DATA_BLOB encryptedBlob;
 		encryptedBlob.pbData = const_cast<BYTE*>(vecBytes.data());
 		encryptedBlob.cbData = static_cast<DWORD>(vecBytes.size());

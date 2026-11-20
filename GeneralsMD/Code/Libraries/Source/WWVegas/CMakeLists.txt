@@ -3,10 +3,14 @@ add_library(z_wwcommon INTERFACE)
 
 target_link_libraries(z_wwcommon INTERFACE
     core_wwcommon
-    d3d8lib
-    milesstub
     stlport
 )
+
+if(WIN32)
+    target_link_libraries(z_wwcommon INTERFACE
+        milesstub
+    )
+endif()
 
 if(NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_link_libraries(z_wwcommon INTERFACE

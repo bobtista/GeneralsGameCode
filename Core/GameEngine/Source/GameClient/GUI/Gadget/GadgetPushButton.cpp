@@ -102,7 +102,7 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 				if( instData->getOwner() != nullptr )
 					TheWindowManager->winSendSystemMsg( instData->getOwner(),
 																							GBM_MOUSE_ENTERING,
-																							(WindowMsgData)window,
+																							(WindowMsgData)(uintptr_t)window,
 																							mData1 );
 
 				//TheWindowManager->winSetFocus( window );
@@ -126,7 +126,7 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 				if( instData->getOwner() != nullptr )
 					TheWindowManager->winSendSystemMsg( instData->getOwner(),
 																							GBM_MOUSE_LEAVING,
-																							(WindowMsgData)window,
+																							(WindowMsgData)(uintptr_t)window,
 																							mData1 );
 			}
 
@@ -153,7 +153,7 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 
 			if( instData->getOwner() != nullptr )
 				TheWindowManager->winSendSystemMsg( instData->getOwner(), GGM_LEFT_DRAG,
-																						(WindowMsgData)window, mData1 );
+																						(WindowMsgData)(uintptr_t)window, mData1 );
 			break;
 
 		}
@@ -199,7 +199,7 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 			if (buttonTriggersOnMouseDown(window)) {
 				if( instData->getOwner() != nullptr )
 					TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
-																							(WindowMsgData)window, mData1 );
+																							(WindowMsgData)(uintptr_t)window, mData1 );
 			}
 
 			break;
@@ -223,7 +223,7 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 					// If it didn't trigger on mouse down, trigger on the mouse up. jba  [8/6/2003]
 					if( instData->getOwner() != nullptr )
 						TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
-																								(WindowMsgData)window, mData1 );
+																								(WindowMsgData)(uintptr_t)window, mData1 );
 				}
 
 			}
@@ -273,7 +273,7 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 
 					if( instData->getOwner() != nullptr )
 						TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED_RIGHT,
-																								(WindowMsgData)window, mData1 );
+																								(WindowMsgData)(uintptr_t)window, mData1 );
 
 				}
 				else
@@ -310,7 +310,7 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 
 					if( instData->getOwner() != nullptr )
 						TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED_RIGHT,
-																								(WindowMsgData)window, mData1 );
+																								(WindowMsgData)(uintptr_t)window, mData1 );
 
 					BitClear( instData->m_state, WIN_STATE_SELECTED );
 
@@ -357,7 +357,7 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 
 							if( instData->getOwner() != nullptr )
 								TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
-																										(WindowMsgData)window, 0 );
+																										(WindowMsgData)(uintptr_t)window, 0 );
 
 							BitClear( instData->m_state, WIN_STATE_SELECTED );
 
@@ -382,7 +382,7 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 
 							if( instData->getOwner() != nullptr )
 								TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
-																										(WindowMsgData)window, mData1 );
+																										(WindowMsgData)(uintptr_t)window, mData1 );
 
 						}
 						else
@@ -596,7 +596,7 @@ void GadgetButtonSetText( GameWindow *g, UnicodeString text )
 	if( g == nullptr )
 		return;
 
-	TheWindowManager->winSendSystemMsg( g, GGM_SET_LABEL, (WindowMsgData)&text, 0 );
+	TheWindowManager->winSendSystemMsg( g, GGM_SET_LABEL, (WindowMsgData)(uintptr_t)&text, 0 );
 
 }
 

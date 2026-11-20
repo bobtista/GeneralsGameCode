@@ -53,6 +53,11 @@ if(MINGW)
 endif()
 
 # Find/Add build dependencies and stubs shared by all projects
+if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
+    include(cmake/miles.cmake)
+    include(cmake/bink.cmake)
+endif()
+
 # The standalone bgfx renderer still uses legacy D3D8/D3DX8 headers for
 # shared math/types even on non-Windows builds, so make the min-dx8-sdk
 # header target available there as well.
@@ -94,12 +99,6 @@ if(DEFINED GGC_RENDER_BACKEND_COMPILE_DEFINE)
     add_compile_definitions(${GGC_RENDER_BACKEND_COMPILE_DEFINE})
 endif()
 
-if(RTS_BUILD_OPTION_PROFILE_TRACY)
-    include(cmake/tracy.cmake)
-else()
-    add_library(core_profile_tracy INTERFACE)
-endif()
-
 if(RTS_BUILD_OPTION_TESTS)
     # Must come before the subdirectories that add tests.
     enable_testing()
@@ -110,7 +109,26 @@ if(RTS_BUILD_OPTION_BENCHMARKS)
     include(cmake/googlebenchmark.cmake)
 endif()
 
-add_subdirectory(Dependencies)
+if (IS_VS6_BUILD)
+    # The original max sdk does not compile against a modern compiler.
+    # If there is a desire to make this work, then a fixed max sdk needs to be created.
+    add_subdirectory(Dependencies/MaxSDK)
+endif()
+add_subdirectory(Dependencies/Utility)
+
+# To be removed when abandoning VC6
+if (IS_VS6_BUILD)
+    include_directories(Dependencies/Utility)
+    add_compile_options(/FIUtility/CppMacros.h)
+endif()
+
+# Target names used by the macOS port's CMake files.
+add_library(depsi_always INTERFACE)
+add_library(deps_precompiled INTERFACE)
+add_library(deps_utility INTERFACE)
+target_link_libraries(deps_utility INTERFACE core_utility_no_pch)
+add_library(deps_dbghelp INTERFACE)
+add_library(deps_usp10 INTERFACE)
 
 add_subdirectory(resources)
 

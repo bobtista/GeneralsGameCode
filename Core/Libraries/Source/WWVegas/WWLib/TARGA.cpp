@@ -70,7 +70,7 @@
 #include <cstdlib>
 #endif
 #include <memory.h>
-#include "Utility/stringex.h"
+#include "stringex.h"
 #ifdef TGA_USES_WWLIB_FILE_CLASSES
 #include "WWFILE.h"
 #include "ffactory.h"

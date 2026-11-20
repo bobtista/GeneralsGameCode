@@ -1,5 +1,5 @@
 /*
-**	Command & Conquer Generals(tm)
+**	Command & Conquer Generals Zero Hour(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
 **	This program is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@
 // FILE: W3DDisplay.h /////////////////////////////////////////////////////////
 //
 // W3D Implementation for the W3D Display which is responsible for creating
-// and maintaning the entire visual display
+// and maintaining the entire visual display
 //
 // Author: Colin Day, April 2001
 //
@@ -48,6 +48,42 @@ class RTS2DScene;
 class RTS3DInterfaceScene;
 class TextureClass;
 
+// TheSuperHackers @info Number of quantized ticks per second. One tick is 1 s / 62500 = 16 microseconds.
+// A 16 bit tick count therefore covers frame durations from 16 us up to 65535 ticks = ~1.049 s.
+constexpr const Real QuantizedTicksPerSecond = 62500.0f;
+
+// TheSuperHackers @info Stores a frame duration as a 16 bit count of 16 us ticks.
+// Durations above ~1.049 s are clamped to 65535 ticks, and durations of zero or less to 1 tick.
+class QuantizedUnsignedShort
+{
+public:
+	QuantizedUnsignedShort() : m_value(0) {}
+	explicit QuantizedUnsignedShort(UnsignedShort val) : m_value(val) {}
+
+	static QuantizedUnsignedShort fromSeconds(Real seconds)
+	{
+		Int64 ticks = (Int64)(seconds * QuantizedTicksPerSecond + 0.5f);
+		if (ticks >= 65535)
+		{
+			return QuantizedUnsignedShort(65535);
+		}
+		if (ticks <= 0)
+		{
+			return QuantizedUnsignedShort(1);
+		}
+		return QuantizedUnsignedShort((UnsignedShort)ticks);
+	}
+
+	UnsignedShort getValue() const { return m_value; }
+	void setValue(UnsignedShort val) { m_value = val; }
+
+	Real toFPS() const { return QuantizedTicksPerSecond / (Real)m_value; }
+	Real toSeconds() const { return (Real)m_value / QuantizedTicksPerSecond; }
+
+private:
+	UnsignedShort m_value;
+};
+
 
 //=============================================================================
 /** W3D implementation of the game display which is responsible for creating
@@ -60,15 +96,16 @@ public:
 	W3DDisplay();
 	virtual ~W3DDisplay() override;
 
-	virtual void init() override;  ///< initialize or re-initialize the sytsem
-	virtual void reset() override;																///< Reset system
+	virtual void init() override;  ///< initialize or re-initialize the system
+ 	virtual void reset() override;																///< Reset system
 
-	virtual void setWidth(UnsignedInt width) override;
-	virtual void setHeight(UnsignedInt height) override;
-	virtual Bool setDisplayMode(UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed) override;
+	virtual void setWidth( UnsignedInt width ) override;
+	virtual void setHeight( UnsignedInt height ) override;
+	virtual Bool setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed ) override;
+	virtual Bool applyExternalResize( UnsignedInt xres, UnsignedInt yres ) override;
 	virtual Int getDisplayModeCount() override;	///<return number of display modes/resolutions supported by video card.
-	virtual void getDisplayModeDescription(Int modeIndex, Int* xres, Int* yres, Int* bitDepth) override;	///<return description of mode
-	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) override;
+	virtual void getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, Int *bitDepth) override;	///<return description of mode
+ 	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) override;
 	virtual void doSmartAssetPurgeAndPreload(const char* usageFileName) override;
 #if defined(RTS_DEBUG)
 	virtual void dumpAssetUsage(const char* mapname) override;
@@ -76,34 +113,46 @@ public:
 
 	//---------------------------------------------------------------------------
 	// Drawing management
-	virtual void setClipRegion(IRegion2D* region) override;	///< Set clip rectangle for 2D draw operations.
+	virtual void setClipRegion( IRegion2D *region ) override;	///< Set clip rectangle for 2D draw operations.
 	virtual Bool	isClippingEnabled() override { return m_isClippedEnabled; }
-	virtual void	enableClipping(Bool onoff) override { m_isClippedEnabled = onoff; }
+	virtual void	enableClipping( Bool onoff ) override { m_isClippedEnabled = onoff; }
 
+	virtual void update() override; ///< Update the client state of the display
 	virtual void step() override; ///< Do one fixed time step
 	virtual void draw() override;  ///< redraw the entire display
 
 	/// @todo Replace these light management routines with a LightManager singleton
-	virtual void createLightPulse(const Coord3D* pos, const RGBColor* color, Real innerRadius, Real outerRadius,
-		UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime//, Bool donut = FALSE
-	) override;
-	virtual void setTimeOfDay(TimeOfDay tod) override;
+	virtual void createLightPulse( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real outerRadius,
+																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime,
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f ) override;
+	virtual void updateTrackingLight( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real attenuationWidth,
+																 Bool castsShadows = FALSE, Real shadowBias = 0.0f, Real shadowStrength = 1.0f, Bool snapBlend = FALSE,
+																 UnsignedInt emitterId = 0 ) override;
+	virtual void clearTrackingLight( void ) override;
+	// TheSuperHackers @feature bobtista 15/07/2026 The persistent tracking lights keep the
+	// point-shadow slots: transient pulses may be momentarily brighter, and letting them steal
+	// a slot made a beam's cast shadows blink for the pulse's lifetime.
+	// TheSuperHackers @bugfix bobtista 16/07/2026 One light PER EMITTER: two cannons firing at
+	// once fought over a single light, snapping all drama lighting between the beams per frame.
+	class W3DDynamicLight *getTrackingLight( const class W3DDynamicLight *exclude = nullptr ) const;
+	Bool isTrackingLight( const class W3DDynamicLight *light ) const;
+	virtual void setTimeOfDay ( TimeOfDay tod ) override;
 
 	/// draw a line on the display in screen coordinates
-	virtual void drawLine(Int startX, Int startY, Int endX, Int endY,
-		Real lineWidth, UnsignedInt lineColor) override;
+	virtual void drawLine( Int startX, Int startY, Int endX, Int endY,
+												 Real lineWidth, UnsignedInt lineColor ) override;
 
 	/// draw a line on the display in screen coordinates
-	virtual void drawLine(Int startX, Int startY, Int endX, Int endY,
-		Real lineWidth, UnsignedInt lineColor1, UnsignedInt lineColor2) override;
+	virtual void drawLine( Int startX, Int startY, Int endX, Int endY,
+												 Real lineWidth, UnsignedInt lineColor1, UnsignedInt lineColor2 ) override;
 
 	/// draw a rect border on the display in pixel coordinates with the specified color
-	virtual void drawOpenRect(Int startX, Int startY, Int width, Int height,
-		Real lineWidth, UnsignedInt lineColor) override;
+	virtual void drawOpenRect( Int startX, Int startY, Int width, Int height,
+														 Real lineWidth, UnsignedInt lineColor ) override;
 
 	/// draw a filled rect on the display in pixel coords with the specified color
-	virtual void drawFillRect(Int startX, Int startY, Int width, Int height,
-		UnsignedInt color) override;
+	virtual void drawFillRect( Int startX, Int startY, Int width, Int height,
+														 UnsignedInt color ) override;
 
 	/// Draw a percentage of a rectangle, much like a clock (0 to x%)
 	virtual void drawRectClock(Int startX, Int startY, Int width, Int height, Int percent, UnsignedInt color) override;
@@ -112,15 +161,15 @@ public:
 	virtual void drawRemainingRectClock(Int startX, Int startY, Int width, Int height, Int percent, UnsignedInt color) override;
 
 	/// draw an image fit within the screen coordinates
-	virtual void drawImage(const Image* image, Int startX, Int startY,
-		Int endX, Int endY, Color color = 0xFFFFFFFF, DrawImageMode mode = DRAW_IMAGE_ALPHA) override;
+	virtual void drawImage( const Image *image, Int startX, Int startY,
+													Int endX, Int endY, Color color = 0xFFFFFFFF, DrawImageMode mode=DRAW_IMAGE_ALPHA) override;
 
 	/// draw a video buffer fit within the screen coordinates
-	virtual void drawScaledVideoBuffer(VideoBuffer* buffer, VideoStreamInterface* stream) override;
-	virtual void drawVideoBuffer(VideoBuffer* buffer, Int startX, Int startY,
-		Int endX, Int endY) override;
+	virtual void drawScaledVideoBuffer( VideoBuffer *buffer, VideoStreamInterface *stream ) override;
+	virtual void drawVideoBuffer( VideoBuffer *buffer, Int startX, Int startY,
+													Int endX, Int endY ) override;
 
-	virtual VideoBuffer* createVideoBuffer() override;							///< Create a video buffer that can be used for this display
+	virtual VideoBuffer*	createVideoBuffer() override;							///< Create a video buffer that can be used for this display
 
 	virtual void takeScreenShot(ScreenshotFormat format, Int jpegQuality) override;	//save screenshot in specified format
 	virtual void toggleMovieCapture() override;			//enable AVI or frame capture mode.
@@ -137,17 +186,18 @@ public:
 #if defined(RTS_DEBUG)
 	virtual void dumpModelAssets(const char *path) override;	///< dump all used models/textures to a file.
 #endif
-	virtual void preloadModelAssets(AsciiString model) override;			///< preload model asset
-	virtual void preloadTextureAssets(AsciiString texture) override;	///< preload texture asset
+	virtual void preloadModelAssets( AsciiString model ) override;			///< preload model asset
+	virtual void preloadTextureAssets( AsciiString texture ) override;	///< preload texture asset
 
 	/// @todo Need a scene abstraction
-	static RTS3DScene* m_3DScene;							///< our 3d scene representation
-	static RTS2DScene* m_2DScene;							///< our 2d scene representation
-	static RTS3DInterfaceScene* m_3DInterfaceScene;	///< our 3d interface scene that draws last (for 3d mouse cursor, etc)
-	static W3DAssetManager* m_assetManager;		///< W3D asset manager
+	static RTS3DScene *m_3DScene;							///< our 3d scene representation
+	static RTS2DScene *m_2DScene;							///< our 2d scene representation
+	static RTS3DInterfaceScene *m_3DInterfaceScene;	///< our 3d interface scene that draws last (for 3d mouse cursor, etc)
+	static W3DAssetManager *m_assetManager;		///< W3D asset manager
 
 	void drawFPSStats();								///< draw the fps on the screen
 	virtual Real getAverageFPS() override;						///< return the average FPS.
+	virtual Real getLow1PercentFPS() override;					///< return the 1% low FPS.
 	virtual Real getCurrentFPS() override;						///< return the current FPS.
 	virtual Int getLastFrameDrawCalls() override;				///< returns the number of draw calls issued in the previous frame
 
@@ -161,19 +211,37 @@ protected:
 	void drawCurrentDebugDisplay();			///< draws current debug display
 	void calculateTerrainLOD();						///< Calculate terrain LOD.
 	void renderLetterBox(UnsignedInt time);							///< draw letter box border
-	void updateAverageFPS();	///< calculate the average fps over the last 30 frames.
+	void updatePerformanceMetrics(); ///< update the average and 1% low fps metrics.
+	void addFpsSample(Real elapsedSeconds); ///< add a new sample to the history buffer.
+	Real calculateAverageFPS(Real timeWindowSeconds); ///< calculate average FPS over a time window.
+	Real calculateLow1PercentFPS(Real timeWindowSeconds); ///< calculate 1% low FPS over a time window.
 	void setup2DRenderState(TextureClass *tex, DrawImageMode mode, Bool grayscale);
 	virtual void onBeginBatch() override;
 	virtual void onEndBatch() override;
 	virtual void onFlush() override;
 
 	Byte m_initialized;												///< TRUE when system is initialized
-	LightClass* m_myLight[LightEnvironmentClass::MAX_LIGHTS];										///< light hack for now
-	Render2DClass* m_2DRender;								///< interface for common 2D functions
+	LightClass *m_myLight[LightEnvironmentClass::MAX_LIGHTS];										///< light hack for now
+	enum { MAX_TRACKING_LIGHTS = 4 };
+	struct TrackingLightSlot
+	{
+		UnsignedInt emitterId;
+		class W3DDynamicLight *light;
+	};
+	TrackingLightSlot m_trackingLights[MAX_TRACKING_LIGHTS];	///< persistent per-emitter lights (e.g. particle-cannon beams)
+	Render2DClass *m_2DRender;								///< interface for common 2D functions
 	IRegion2D m_clipRegion;									///< the clipping region for images
 	Bool m_isClippedEnabled;	///<used by 2D drawing operations to define clip re
-	Real m_averageFPS;		///<average fps over the last 30 frames.
+	Real m_averageFPS;		///< average fps over the last 1.0s.
+	Real m_low1PercentFPS;	///<1% low fps.
 	Real m_currentFPS;		///<current fps value.
+
+	enum { FPS_HISTORY_SIZE = 4096 }; ///< fps time windows cover at most this many frames, so at very high frame rates they span less time
+	QuantizedUnsignedShort m_durationHistory[FPS_HISTORY_SIZE];
+	Int  m_historyOffset;
+	Int  m_historyCount;
+	Int64 m_lastUpdateTime64;
+	UnsignedInt m_lastLow1PercentUpdateMs;
 
 	TextureClass *m_batchTexture;
 	DrawImageMode m_batchMode;
@@ -199,6 +267,7 @@ protected:
 		KEY_MOUSE_STATES, ///< keyboard modifier and mouse button states.
 		MousePosition,    ///< debug display mouse position
 		Particles,        ///< debug display particles
+		TerrainParticles, ///< debug display for terrain-conforming particles
 		Objects,          ///< debug display total number of objects
 		NetIncoming,			///< debug display network incoming stats
 		NetOutgoing,			///< debug display network outgoing stats
@@ -210,9 +279,10 @@ protected:
 		DisplayStringCount
 	};
 
-	DisplayString* m_displayStrings[DisplayStringCount];
-	DisplayString* m_benchmarkDisplayString;
+	DisplayString *m_displayStrings[DisplayStringCount];
+	DisplayString *m_benchmarkDisplayString;
+	DisplayString *m_cinematicDisplayString;
 
-	W3DDebugDisplay* m_nativeDebugDisplay;		///< W3D specific debug display interface
+	W3DDebugDisplay *m_nativeDebugDisplay;		///< W3D specific debug display interface
 
 };

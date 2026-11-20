@@ -71,6 +71,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
+#include "Lib/PathUtil.h"
 #include "ringobj.h"
 #include "w3d_util.h"
 #include "WWDebug/wwdebug.h"

@@ -20,9 +20,59 @@
 #include "Common/StatsUploader.h"
 #include "Common/AsciiString.h"
 
+#include <stdio.h>
+
+#if !defined(_WIN32)
+#include <curl/curl.h>
+
+void UploadStatsToServer(const AsciiString& url, const void *data, unsigned int dataLen, unsigned int seed)
+{
+	if (url.isEmpty() || data == nullptr || dataLen == 0)
+		return;
+
+	CURL* curl = curl_easy_init();
+	if (curl == nullptr)
+	{
+		printf("Stats upload: curl_easy_init failed\n");
+		return;
+	}
+
+	char seedHeader[64];
+	snprintf(seedHeader, sizeof(seedHeader), "X-Game-Seed: %u", seed);
+
+	struct curl_slist* headers = nullptr;
+	headers = curl_slist_append(headers, "Content-Type: application/gzip");
+	headers = curl_slist_append(headers, seedHeader);
+
+	curl_easy_setopt(curl, CURLOPT_URL, url.str());
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, "GeneralsStatsExporter/1.0");
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_POST, 1L);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)dataLen);
+#if defined(__APPLE__)
+	curl_easy_setopt(curl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+	curl_easy_setopt(curl, CURLOPT_CAINFO, "/etc/ssl/cert.pem");
+#endif
+
+	CURLcode result = curl_easy_perform(curl);
+	if (result == CURLE_OK)
+	{
+		long statusCode = 0;
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &statusCode);
+		printf("Stats upload: %s -> %ld\n", url.str(), statusCode);
+	}
+	else
+	{
+		printf("Stats upload: request failed (%s)\n", curl_easy_strerror(result));
+	}
+
+	curl_slist_free_all(headers);
+	curl_easy_cleanup(curl);
+}
+#else
 #include <windows.h>
 #include <wininet.h>
-#include <stdio.h>
 
 #pragma comment(lib, "wininet.lib")
 
@@ -102,3 +152,4 @@ void UploadStatsToServer(const AsciiString& url, const void *data, unsigned int 
 	InternetCloseHandle(hConnect);
 	InternetCloseHandle(hInternet);
 }
+#endif
