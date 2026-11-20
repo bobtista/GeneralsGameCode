@@ -43,6 +43,9 @@
 #if !defined(__APPLE__)
 #include "WW3D2/ww3d.h"
 #endif
+#if defined(_WIN32)
+#include "Lib/BaseType.h"
+#endif
 
 #if defined(__APPLE__)
 #if defined(interface)
@@ -1559,8 +1562,27 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	UniChar character = (ch >= 0 && ch <= 0xFFFF) ? static_cast<UniChar>(ch) : static_cast<UniChar>(0xFFFD);
 	CGGlyph glyph = 0;
 	if (!CTFontGetGlyphsForCharacters(font, &character, &glyph, 1) || glyph == 0) {
-		character = static_cast<UniChar>('?');
-		CTFontGetGlyphsForCharacters(font, &character, &glyph, 1);
+		// Use a system fallback font for glyphs the game font lacks, as GDI font linking does on Windows.
+		CFStringRef character_string = CFStringCreateWithCharacters(kCFAllocatorDefault, &character, 1);
+		CTFontRef fallback_font = character_string != nullptr
+			? CTFontCreateForString(font, character_string, CFRangeMake(0, 1))
+			: nullptr;
+		if (character_string != nullptr) {
+			CFRelease(character_string);
+		}
+		glyph = 0;
+		if (fallback_font != nullptr
+			&& CTFontGetGlyphsForCharacters(fallback_font, &character, &glyph, 1)
+			&& glyph != 0) {
+			CFRelease(font);
+			font = fallback_font;
+		} else {
+			if (fallback_font != nullptr) {
+				CFRelease(fallback_font);
+			}
+			character = static_cast<UniChar>('?');
+			CTFontGetGlyphsForCharacters(font, &character, &glyph, 1);
+		}
 	}
 
 	CGSize advance = CGSizeZero;

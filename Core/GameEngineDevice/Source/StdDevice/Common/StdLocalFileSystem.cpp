@@ -330,7 +330,11 @@ void StdLocalFileSystem::getFileListInDirectory(const AsciiString& currentDirect
 				AsciiString tempsearchstr;
 				tempsearchstr.concat(currentDirectory);
 				tempsearchstr.concat(filenameStr.c_str());
+#ifdef _WIN32
 				tempsearchstr.concat('\\');
+#else
+				tempsearchstr.concat('/');
+#endif
 
 				// recursively add files in subdirectories if required.
 				getFileListInDirectory(tempsearchstr, originalDirectory, searchName, filenameList, searchSubdirectories);

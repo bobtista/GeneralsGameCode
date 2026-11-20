@@ -112,6 +112,13 @@ public:
 
 	const MapMetaData *findMap(AsciiString mapName);
 
+#ifndef _WIN32
+	// Map names from the network and menus use backslashes, cache keys on this platform use forward slashes.
+	iterator find(const AsciiString &mapName) { return std::map<AsciiString, MapMetaData>::find(toCacheKeySeparators(mapName)); }
+	const_iterator find(const AsciiString &mapName) const { return std::map<AsciiString, MapMetaData>::find(toCacheKeySeparators(mapName)); }
+	static AsciiString toCacheKeySeparators(const AsciiString &mapName);
+#endif
+
 	// allow us to create a set of shippable maps to be in mapcache.ini.  For use with -buildMapCache.
 	void addShippingMap(AsciiString mapName) { mapName.toLower(); m_allowedMaps.insert(mapName); }
 

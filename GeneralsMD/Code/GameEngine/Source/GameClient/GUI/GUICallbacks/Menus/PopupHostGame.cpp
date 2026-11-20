@@ -566,7 +566,7 @@ WindowMsgHandledType PopupHostGameSystem( GameWindow *window, UnsignedInt msg, W
 				{
 					if (pos >= 0)
 					{
-						Int ladderID = (Int)GadgetComboBoxGetItemData(control, pos);
+						Int ladderID = (Int)(intptr_t)GadgetComboBoxGetItemData(control, pos);
 						if (ladderID < 0)
 						{
 							// "Choose a ladder" selected - open overlay
@@ -689,6 +689,15 @@ void createGame()
 		GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
 		SetLobbyAttemptHostJoin(FALSE);
 		GSMessageBoxOk(UnicodeString(L"Error"), UnicodeString(L"Failed to get Online Services Lobby Interface!"));
+		return;
+	}
+
+	if (!md)
+	{
+		parentPopup = nullptr;
+		GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
+		SetLobbyAttemptHostJoin(FALSE);
+		GSMessageBoxOk(UnicodeString(L"Error"), UnicodeString(L"No valid multiplayer map found!"));
 		return;
 	}
 

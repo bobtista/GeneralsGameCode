@@ -911,8 +911,13 @@ static const char* findLastBackslashInRangeInclusive(const char* start, const ch
 {
 	while (end >= start)
 	{
+#ifdef _WIN32
 		if (*end == '\\')
 			return end;
+#else
+		if (*end == '\\' || *end == '/')
+			return end;
+#endif
 		--end;
 	}
 	return nullptr;

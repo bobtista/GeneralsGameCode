@@ -94,9 +94,14 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_Map(UnicodeString st
 	// we need to parse out the map name for custom maps... its an absolute path
 	// it's safe to just get the file name, dir name and file name MUST be the same. Game enforces this
 	AsciiString sanitizedMapPath = strMapPath;
-	if (sanitizedMapPath.reverseFind('\\'))
 	{
-		sanitizedMapPath = sanitizedMapPath.reverseFind('\\') + 1;
+		const char *lastBackslash = sanitizedMapPath.reverseFind('\\');
+		const char *lastSlash = sanitizedMapPath.reverseFind('/');
+		const char *lastSeparator = (lastSlash > lastBackslash) ? lastSlash : lastBackslash;
+		if (lastSeparator)
+		{
+			sanitizedMapPath = lastSeparator + 1;
+		}
 	}
 
 	nlohmann::json j;
@@ -1502,9 +1507,14 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 			// we need to parse out the map name for custom maps... its an absolute path
 			// it's safe to just get the file name, dir name and file name MUST be the same. Game enforces this
 			AsciiString sanitizedMapPath = strInitialMapPath;
-			if (sanitizedMapPath.reverseFind('\\'))
 			{
-				sanitizedMapPath = sanitizedMapPath.reverseFind('\\') + 1;
+				const char *lastBackslash = sanitizedMapPath.reverseFind('\\');
+				const char *lastSlash = sanitizedMapPath.reverseFind('/');
+				const char *lastSeparator = (lastSlash > lastBackslash) ? lastSlash : lastBackslash;
+				if (lastSeparator)
+				{
+					sanitizedMapPath = lastSeparator + 1;
+				}
 			}
 
 			nlohmann::json j;
@@ -1705,4 +1715,9 @@ void NGMP_OnlineServices_LobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpd
 	}
 
 
+}
+
+// Defined out of line so that deleting through a forward declaration still finds the destructor.
+NGMP_OnlineServices_LobbyInterface::~NGMP_OnlineServices_LobbyInterface()
+{
 }

@@ -69,6 +69,34 @@
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static const char *mapExtension = ".map";
 
+static char getMapPathSeparator()
+{
+#ifdef _WIN32
+	return '\\';
+#else
+	return '/';
+#endif
+}
+
+static const char *getLastMapPathSeparator(const char *path)
+{
+	const char *last = nullptr;
+	for (; *path; ++path)
+	{
+		if (*path == '/' || *path == '\\')
+		{
+			last = path;
+		}
+	}
+	return last;
+}
+
+static const char *getMapFileName(const char *path)
+{
+	const char *sep = getLastMapPathSeparator(path);
+	return sep ? sep + 1 : path;
+}
+
 static Int m_width = 0;						///< Height map width.
 static Int m_height = 0;					///< Height map height (y size of array).
 static Int m_borderSize = 0;			///< Non-playable border area.
@@ -337,7 +365,7 @@ AsciiString MapCache::getMapExtension() const
 void MapCache::writeCacheINI( const AsciiString &mapDir )
 {
 	AsciiString filepath = mapDir;
-	filepath.concat('\\');
+	filepath.concat(getMapPathSeparator());
 
 	TheFileSystem->createDirectory(mapDir);
 
@@ -479,6 +507,7 @@ void MapCache::updateCache()
 		loadMapsFromMapCacheINI(mapDir);
 		m_doLoadStandardMapCacheINI = FALSE;
 	}
+
 }
 
 void MapCache::prepareUnseenMaps( const AsciiString &mapDir )
@@ -524,7 +553,7 @@ Bool MapCache::loadMapsFromMapCacheINI( const AsciiString &mapDir )
 {
 	INI ini;
 	AsciiString fname;
-	fname.format("%s\\%s", mapDir.str(), m_mapCacheName);
+	fname.format("%s%c%s", mapDir.str(), getMapPathSeparator(), m_mapCacheName);
 
 	if (TheFileSystem->doesFileExist(fname.str()))
 	{
@@ -549,7 +578,7 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 	FilenameList filepathList;
 	FilenameListIter filepathIt;
 	AsciiString toplevelPattern;
-	toplevelPattern.format("%s\\", mapDir.str());
+	toplevelPattern.format("%s%c", mapDir.str(), getMapPathSeparator());
 	Bool mapListChanged = FALSE;
 	AsciiString filenamepattern;
 	filenamepattern.format("*.%s", getMapExtension().str());
@@ -564,14 +593,13 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 		AsciiString filepathLower = *filepathIt;
 		filepathLower.toLower();
 
-		const char *szFilenameLower = filepathLower.reverseFind('\\');
+		const char *szFilenameLower = getLastMapPathSeparator(filepathLower.str());
 		if (!szFilenameLower)
 		{
-			DEBUG_CRASH(("Couldn't find \\ in map name!"));
+			DEBUG_CRASH(("Couldn't find / or \\ in map name!"));
 			continue;
 		}
 
-		AsciiString endingStr;
 		AsciiString filenameLower = szFilenameLower+1;
 		filenameLower.truncateBy(strlen(mapExtension));
 
@@ -581,9 +609,9 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 			continue;
 		}
 
-		endingStr.format("%s\\%s%s", filenameLower.str(), filenameLower.str(), mapExtension);
-
-		if (!filepathLower.endsWithNoCase(endingStr.str()))
+		// The map must sit in a folder of the same name
+		const AsciiString fullMapFolderLower(filepathLower.str(), szFilenameLower - filepathLower.str());
+		if (strcmp(getMapFileName(fullMapFolderLower.str()), filenameLower.str()) != 0)
 		{
 			DEBUG_CRASH(("Found map '%s' in wrong spot (%s)", filenameLower.str(), filepathLower.str()));
 			continue;
@@ -626,7 +654,7 @@ Bool MapCache::addMap(
 			{
 				// unofficial maps or maps without names
 				AsciiString tempdisplayname;
-				tempdisplayname = fname.reverseFind('\\') + 1;
+				tempdisplayname = getMapFileName(fname.str());
 				(*this)[lowerFname].m_displayName.translate(tempdisplayname);
 				if (md.m_numPlayers >= 2)
 				{
@@ -706,7 +734,7 @@ Bool MapCache::addMap(
 	{
 		DEBUG_LOG(("Missing TheKey_mapName!"));
 		AsciiString tempdisplayname;
-		tempdisplayname = fname.reverseFind('\\') + 1;
+		tempdisplayname = getMapFileName(fname.str());
 		md.m_displayName.translate(tempdisplayname);
 		if (md.m_numPlayers >= 2)
 		{
@@ -719,9 +747,10 @@ Bool MapCache::addMap(
 	else
 	{
 		AsciiString stringFileName;
-		stringFileName.format("%s\\%s", mapDir.str(), fname.str());
+		stringFileName.format("%s%c%s", mapDir.str(), getMapPathSeparator(), fname.str());
 		stringFileName.truncateBy(4);
-		stringFileName.concat("\\map.str");
+		stringFileName.concat(getMapPathSeparator());
+		stringFileName.concat("map.str");
 		TheGameText->initMapStringFile(stringFileName);
 		md.m_displayName = TheGameText->fetch(nameLookupTag);
 		if (md.m_numPlayers >= 2)
@@ -1130,6 +1159,19 @@ Bool isOfficialMap( AsciiString mapName )
 }
 
 
+#ifndef _WIN32
+AsciiString MapCache::toCacheKeySeparators(const AsciiString &mapName)
+{
+	if (mapName.find('\\') == nullptr)
+	{
+		return mapName;
+	}
+	std::string normalized(mapName.str());
+	std::replace(normalized.begin(), normalized.end(), '\\', '/');
+	return AsciiString(normalized.c_str());
+}
+#endif
+
 const MapMetaData *MapCache::findMap(AsciiString mapName)
 {
 	mapName.toLower();
@@ -1221,7 +1263,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 	for(Int i = 0; i < portableName.getLength(); ++i)
 	{
 		char c = portableName.getCharAt(i);
-		if (c == '\\' || c == ':')
+		if (c == '\\' || c == '/' || c == ':')
 			tempName.concat('_');
 		else
 			tempName.concat(c);
