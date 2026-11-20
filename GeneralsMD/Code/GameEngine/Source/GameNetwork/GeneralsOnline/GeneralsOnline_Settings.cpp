@@ -66,6 +66,10 @@ float GenOnlineSettings::DetermineCameraMaxHeight()
 
 std::string GenOnlineSettings::GetAnticheatPlugin() const
 {
+#if defined(__APPLE__)
+    return std::string();
+#endif
+
     // if empty, default to whatever official plugin is available
     if (m_Plugins_Anticheat.empty())
     {

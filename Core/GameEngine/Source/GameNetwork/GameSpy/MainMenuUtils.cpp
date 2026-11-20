@@ -325,7 +325,7 @@ static void queuePatch(Bool mandatory, AsciiString downloadURL)
 static GHTTPBool motdCallback( GHTTPRequest request, GHTTPResult result,
 															char * buffer, GHTTPByteCount bufferLen, void * param )
 {
-	Int run = (Int)param;
+	Int run = (Int)(intptr_t)param;
 	if (run != timeThroughOnline)
 	{
 		DEBUG_CRASH(("Old callback being called!"));
@@ -360,7 +360,7 @@ static GHTTPBool motdCallback( GHTTPRequest request, GHTTPResult result,
 static GHTTPBool configCallback( GHTTPRequest request, GHTTPResult result,
 																char * buffer, GHTTPByteCount bufferLen, void * param )
 {
-	Int run = (Int)param;
+	Int run = (Int)(intptr_t)param;
 	if (run != timeThroughOnline)
 	{
 		DEBUG_CRASH(("Old callback being called!"));
@@ -422,7 +422,7 @@ static GHTTPBool configCallback( GHTTPRequest request, GHTTPResult result,
 static GHTTPBool configHeadCallback( GHTTPRequest request, GHTTPResult result,
 																		char * buffer, GHTTPByteCount bufferLen, void * param )
 {
-	Int run = (Int)param;
+	Int run = (Int)(intptr_t)param;
 	if (run != timeThroughOnline)
 	{
 		DEBUG_CRASH(("Old callback being called!"));
@@ -506,7 +506,7 @@ static GHTTPBool configHeadCallback( GHTTPRequest request, GHTTPResult result,
 
 static GHTTPBool gamePatchCheckCallback( GHTTPRequest request, GHTTPResult result, char * buffer, GHTTPByteCount bufferLen, void * param )
 {
-	Int run = (Int)param;
+	Int run = (Int)(intptr_t)param;
 	if (run != timeThroughOnline)
 	{
 		DEBUG_CRASH(("Old callback being called!"));
@@ -848,10 +848,18 @@ void StartPatchCheck()
     timeThroughOnline++;
     checksLeftBeforeOnline = 0;
 
+#ifdef _WIN32
     SYSTEM_INFO SystemInfo;
     GetSystemInfo(&SystemInfo);
 
 	bool bIsARMArchitecture = SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM || SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64 || SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM32_ON_WIN64;
+#elif defined(__APPLE__)
+	bool bIsARMArchitecture = false;
+#elif defined(__aarch64__) || defined(__arm__)
+	bool bIsARMArchitecture = true;
+#else
+	bool bIsARMArchitecture = false;
+#endif
 	if (bIsARMArchitecture)
 	{
         MessageBoxOk(TheGameText->fetchOrSubstitute("GUI:NoARMSupportHeader", L"Unsupported System"),

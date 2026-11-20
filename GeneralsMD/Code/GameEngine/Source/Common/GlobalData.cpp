@@ -2005,6 +2005,10 @@ UnsignedInt GlobalData::generateExeCRC()
 
 	DEBUG_LOG(("EXE+Version(%d.%d)+SCB CRC is 0x%8.8X", version >> 16, version & 0xffff, exeCRC.get()));
 
+#if defined(__APPLE__) || defined(GGC_RENDER_BACKEND_BGFX)
+	return GENERALS_ONLINE_MAC_EXE_CRC;
+#endif
+
 	return exeCRC.get();
 }
 

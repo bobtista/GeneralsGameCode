@@ -7,7 +7,11 @@
 #include "Common/file.h"
 #include "WWLib/realcrc.h"
 #include "GameNetwork/DownloadManager.h"
+#if defined(_WIN32)
 #include <ws2tcpip.h>
+#else
+#include <netdb.h>
+#endif
 #include "GameClient/DisplayStringManager.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "Common/MultiplayerSettings.h"
@@ -25,11 +29,14 @@
 #include "GameClient/GameText.h"
 #include <unordered_set>
 
+// TheSuperHackers @build bobtista 18/11/2026 bgfx exports these hints itself.
+#if defined(_WIN32) && !defined(GGC_RENDER_BACKEND_BGFX)
 extern "C"
 {
 	__declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
+#endif
 
 NGMP_OnlineServicesManager* NGMP_OnlineServicesManager::m_pOnlineServicesManager = nullptr;
 std::recursive_mutex NGMP_OnlineServicesManager::m_singletonMutex;
@@ -376,6 +383,12 @@ void NGMP_OnlineServicesManager::Shutdown()
 
 void NGMP_OnlineServicesManager::StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback)
 {
+#if defined(__APPLE__) || defined(GGC_RENDER_BACKEND_BGFX)
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Skipped on bgfx build");
+	fnCallback(true, false);
+	return;
+#endif
+
 	std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("VersionCheck");
 
 	// NOTE: Generals 'CRCs' are not true CRC's, its a custom algorithm. This is fine for lobby comparisons, but its not good for patch comparisons.
@@ -578,6 +591,11 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 		return;
 	}
 
+#if !defined(_WIN32) || defined(GGC_RENDER_BACKEND_BGFX)
+	// no Direct3D 8 back buffer to read on this renderer
+	cbOnDataAvailable(std::vector<unsigned char>());
+	(void)bSucceeded;
+#else
 	SurfaceClass* surface = DX8Wrapper::_Get_DX8_Back_Buffer();
 	LPDIRECT3DSURFACE8 surf = nullptr;
 	SurfaceClass* surfaceCopy = nullptr;
@@ -753,6 +771,7 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 	{
 		cbOnDataAvailable(std::vector<unsigned char>());
 	}
+#endif
 }
 
 void NGMP_OnlineServicesManager::CancelUpdate()
@@ -769,11 +788,13 @@ void NGMP_OnlineServicesManager::LaunchPatcher()
 	std::string strPatcherDir = GetPatcherDirectoryPath();
 	std::string strPatcherPath = std::format("{}/{}", strPatcherDir, m_patcher_name);
 
+#if defined(_WIN32)
 	SHELLEXECUTEINFOA shellexInfo = { sizeof(shellexInfo) };
 	shellexInfo.lpVerb = "runas"; // admin
 	shellexInfo.lpFile = strPatcherPath.c_str();
 	shellexInfo.nShow = SW_SHOWNORMAL;
 	shellexInfo.lpDirectory = GameDir;
+#endif
 	//shellexInfo.lpParameters = "/VERYSILENT";
 
 	bool bPatcherExeExists = std::filesystem::exists(strPatcherPath) && std::filesystem::is_regular_file(strPatcherPath);
@@ -792,7 +813,12 @@ void NGMP_OnlineServicesManager::LaunchPatcher()
 		}
 	}
 
+#if defined(_WIN32)
 	if (!bInvalidSize && bPatcherExeExists && bPatcherDirExists && ShellExecuteExA(&shellexInfo))
+#else
+	// the patcher is a Windows executable
+	if (false)
+#endif
 	{
 		// Exit the application  
 		TheGameEngine->setQuitting(TRUE);
@@ -1085,7 +1111,11 @@ void NGMP_OnlineServicesManager::InitSentry()
 	{
 		std::wstring strUserDataPathW(wideLen - 1, L'\0');
 		MultiByteToWideChar(CP_ACP, 0, strUserDataPath.str(), -1, strUserDataPathW.data(), wideLen);
+#if defined(_WIN32)
 		strDumpPath = strUserDataPathW + L"GeneralsOnlineCrashData\\";
+#else
+		strDumpPath = strUserDataPathW + L"GeneralsOnlineCrashData/";
+#endif
 
 		std::error_code ec;
 		std::filesystem::create_directories(strDumpPath, ec);
@@ -1096,7 +1126,11 @@ void NGMP_OnlineServicesManager::InitSentry()
 	sentry_options_set_dsn(options, "https://61750bebd112d279bcc286d617819269@o4509316925554688.ingest.us.sentry.io/4509316927586304");
 	if (!strDumpPath.empty())
 	{
+#if defined(_WIN32)
 		sentry_options_set_database_pathw(options, strDumpPath.c_str());
+#else
+		sentry_options_set_database_path(options, to_utf8(strDumpPath).c_str());
+#endif
 	}
 
 	std::string strVersionStr = std::format("generalsonline-client@{}", GENERALS_ONLINE_VERSION_STRING);
