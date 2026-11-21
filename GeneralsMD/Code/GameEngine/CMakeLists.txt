@@ -1244,10 +1244,15 @@ if(NOT IS_VS6_BUILD)
     find_package(CURL CONFIG REQUIRED)
     find_package(GameNetworkingSockets CONFIG REQUIRED)
     find_package(sentry CONFIG REQUIRED)
+    if(TARGET GameNetworkingSockets::GameNetworkingSockets_s)
+        set(_go_gns_target GameNetworkingSockets::GameNetworkingSockets_s)
+    else()
+        set(_go_gns_target GameNetworkingSockets::GameNetworkingSockets)
+    endif()
 
     target_link_libraries(z_gameengine PUBLIC
         CURL::libcurl
-        GameNetworkingSockets::GameNetworkingSockets_s
+        ${_go_gns_target}
         sentry::sentry
     )
 
