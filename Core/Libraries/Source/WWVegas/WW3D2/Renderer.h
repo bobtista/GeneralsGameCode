@@ -268,8 +268,8 @@ public:
     static void Release_Effect_Resources();
     static void Draw_Road(const RenderBackendRoadDraw & road, unsigned short start_index, unsigned short polygon_count, unsigned short min_vertex_index, unsigned short vertex_count);
     static void Draw_Terrain(const RenderBackendTerrainDraw & terrain, VertexBufferClass * const * vertex_buffers, unsigned int vertex_buffer_count, unsigned short polygon_count, unsigned short vertex_count);
-    static void Begin_Shroud_Overlay(const RenderBackendShroud & shroud);
-    static void End_Shroud_Overlay();
+    static void Begin_Projected_Overlay(const RenderBackendShroud & shroud);
+    static void End_Projected_Overlay();
     static void Draw_Water(const RenderBackendWaterDraw & water, unsigned short start_index, unsigned short polygon_count, unsigned short min_vertex_index, unsigned short vertex_count);
     static void Set_World_Texture_Projection(unsigned stage, const RenderBackendWorldProjection & projection);
     static void Clear_Texture_Projection(unsigned stage);

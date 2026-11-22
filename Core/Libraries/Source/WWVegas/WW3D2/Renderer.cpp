@@ -1213,14 +1213,14 @@ void Renderer::Draw_Terrain(const RenderBackendTerrainDraw & terrain, VertexBuff
     return RENDERER_CALL(Draw_Terrain)(terrain, vertex_buffers, vertex_buffer_count, polygon_count, vertex_count);
 }
 
-void Renderer::Begin_Shroud_Overlay(const RenderBackendShroud & shroud)
+void Renderer::Begin_Projected_Overlay(const RenderBackendShroud & shroud)
 {
-    return RENDERER_CALL(Begin_Shroud_Overlay)(shroud);
+    return RENDERER_CALL(Begin_Projected_Overlay)(shroud);
 }
 
-void Renderer::End_Shroud_Overlay()
+void Renderer::End_Projected_Overlay()
 {
-    return RENDERER_CALL(End_Shroud_Overlay)();
+    return RENDERER_CALL(End_Projected_Overlay)();
 }
 
 void Renderer::Draw_Water(const RenderBackendWaterDraw & water, unsigned short start_index, unsigned short polygon_count, unsigned short min_vertex_index, unsigned short vertex_count)

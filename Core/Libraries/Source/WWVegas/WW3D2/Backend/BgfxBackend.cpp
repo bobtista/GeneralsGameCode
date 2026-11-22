@@ -11986,7 +11986,7 @@ void BgfxBackend::Draw_Road(const RenderBackendRoadDraw & road, unsigned short s
     Restore_Ground_Maps(saved);
 }
 
-void BgfxBackend::Begin_Shroud_Overlay(const RenderBackendShroud & shroud)
+void BgfxBackend::Begin_Projected_Overlay(const RenderBackendShroud & shroud)
 {
     // The overlay reuses the vertex buffers of the base draws, so it must not take the terrain branch.
     Override_Terrain_Blend(false);
@@ -12004,7 +12004,7 @@ void BgfxBackend::Begin_Shroud_Overlay(const RenderBackendShroud & shroud)
     Set_World_Texture_Projection(0, shroud.projection);
 }
 
-void BgfxBackend::End_Shroud_Overlay()
+void BgfxBackend::End_Projected_Overlay()
 {
     Set_Shroud_Texture_Pass_Active(false, 0);
     Set_Texture(0, nullptr);

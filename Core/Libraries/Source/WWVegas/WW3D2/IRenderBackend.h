@@ -1168,10 +1168,11 @@ public:
     // current shader.
     virtual void Draw_Terrain(const RenderBackendTerrainDraw & terrain, VertexBufferClass * const * vertex_buffers,
                               unsigned int vertex_buffer_count, unsigned short polygon_count, unsigned short vertex_count) {}
-    // Draws until End_Shroud_Overlay multiply the frame by the shroud at the drawn world position. Only pixels
-    // at the depth of the drawn geometry change. Depth is not written.
-    virtual void Begin_Shroud_Overlay(const RenderBackendShroud & shroud) {}
-    virtual void End_Shroud_Overlay() {}
+    // Until End_Projected_Overlay is called, drawing multiplies the framebuffer color
+    // by the overlay texture sampled at the geometry's world position.
+    // Only fragments whose depth matches the depth buffer are affected. Depth is not written.
+    virtual void Begin_Projected_Overlay(const RenderBackendShroud & shroud) {}
+    virtual void End_Projected_Overlay() {}
     // Draws the bound geometry as water blended over the frame, with depth test less-or-equal and no culling.
     // The grid draws a strip, the other surfaces draw triangles. Soft edge blends standing water by the
     // destination alpha.

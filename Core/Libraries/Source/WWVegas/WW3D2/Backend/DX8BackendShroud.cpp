@@ -23,7 +23,7 @@
 
 #include "WW3D2/vertmaterial.h"
 
-void DX8Backend::Begin_Shroud_Overlay(const RenderBackendShroud & shroud)
+void DX8Backend::Begin_Projected_Overlay(const RenderBackendShroud & shroud)
 {
     //force WW3D2 system to set it's states so it won't later overwrite our custom settings.
     VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
@@ -38,7 +38,7 @@ void DX8Backend::Begin_Shroud_Overlay(const RenderBackendShroud & shroud)
     Set_World_Texture_Projection(0, shroud.projection);
 }
 
-void DX8Backend::End_Shroud_Overlay()
+void DX8Backend::End_Projected_Overlay()
 {
     Set_Texture(0, nullptr);
     Set_Depth_Func(RB_CMP_LESS_EQUAL);

@@ -2501,7 +2501,7 @@ void W3DShaderManager::beginShroudOverlay()
 	RenderBackendShroud overlay;
 	overlay.texture = shroud->getShroudTexture();
 	overlay.projection = getShroudProjection(shroud);
-	Renderer::Begin_Shroud_Overlay(overlay);
+	Renderer::Begin_Projected_Overlay(overlay);
 }
 
 void W3DShaderManager::endShroudOverlay()
@@ -2513,7 +2513,7 @@ void W3DShaderManager::endShroudOverlay()
 		return;
 	}
 #endif
-	Renderer::End_Shroud_Overlay();
+	Renderer::End_Projected_Overlay();
 }
 
 RenderBackendGroundMaps W3DShaderManager::getGroundMaps(TextureClass *cloudTexture, TextureClass *lightMapTexture)

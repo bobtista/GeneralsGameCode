@@ -339,12 +339,12 @@ static void Draw_Standing_Water(IRenderBackend & backend, const RenderBackendWat
 		}
 		else
 		{
-			backend.Begin_Shroud_Overlay(water.shroud);
+			backend.Begin_Projected_Overlay(water.shroud);
 			backend.Set_Cull_Mode(RB_CULL_NONE);
 			backend.Set_Depth_Func(RB_CMP_LESS_EQUAL);
 			backend.Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
 			backend.Set_Depth_Func(RB_CMP_EQUAL);
-			backend.End_Shroud_Overlay();
+			backend.End_Projected_Overlay();
 		}
 	}
 	backend.Set_Cull_Mode(cull);
