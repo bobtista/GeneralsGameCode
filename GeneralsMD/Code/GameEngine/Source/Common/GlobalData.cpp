@@ -407,6 +407,21 @@ extern "C" float GGC_GetPCannonDimTarget()
 	return (TheGlobalData) ? (float)TheGlobalData->m_pcannonDimTarget : 0.72f;
 }
 
+// Sun shadow map edge in texels, clamped to a power of two from 1024 to 4096.
+extern "C" int GGC_GetBgfxShadowMapSize()
+{
+	const Int requested = TheGlobalData ? TheGlobalData->m_bgfxShadowMapSize : 4096;
+	if (requested <= 1024)
+	{
+		return 1024;
+	}
+	if (requested <= 2048)
+	{
+		return 2048;
+	}
+	return 4096;
+}
+
 // params: x = depth bias, y = shadow strength (0 = none, 1 = full).
 extern "C" void GGC_GetBgfxShadowMapParams(float * params)
 {
@@ -635,6 +650,7 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxShadowMaps",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxShadowMaps ) },
 	{ "BgfxShadowMapBias",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapBias ) },
 	{ "BgfxShadowMapStrength",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapStrength ) },
+	{ "BgfxShadowMapSize",				INI::parseInt,				nullptr,			offsetof( GlobalData, m_bgfxShadowMapSize ) },
 	{ "BgfxShadowFullPcf",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxShadowFullPcf ) },
 	{ "BgfxStencilShadows",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxStencilShadows ) },
 	{ "BgfxDynamicLightShadows",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxDynamicLightShadows ) },
@@ -1251,6 +1267,7 @@ GlobalData::GlobalData()
 	m_bgfxShadowMaps = FALSE;
 	m_bgfxShadowMapBias = 0.0006f;
 	m_bgfxShadowMapStrength = 0.35f;
+	m_bgfxShadowMapSize = 4096;
 	m_bgfxDynamicLightShadows = FALSE;
 	m_pcannonEnhanced = FALSE;
 	m_pcannonFlashRadius = 55.0f;

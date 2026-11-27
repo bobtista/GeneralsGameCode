@@ -198,6 +198,7 @@ public:
 	Bool m_bgfxShadowMaps;
 	Real m_bgfxShadowMapBias;
 	Real m_bgfxShadowMapStrength;
+	Int m_bgfxShadowMapSize;
 	Bool m_bgfxShadowFullPcf;
 	Bool m_bgfxStencilShadows;
 	// TheSuperHackers @feature bobtista 23/06/2026 Toggle for the perspective point-light shadow map.

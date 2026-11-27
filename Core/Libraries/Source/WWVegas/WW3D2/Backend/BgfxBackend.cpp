@@ -220,6 +220,7 @@ extern "C" void GGC_GetBgfxSSAOParams(float * params);
 extern "C" void GGC_GetBgfxMaterialFxParams(float * params);
 extern "C" int  GGC_GetBgfxShadowMapEnabled();
 extern "C" void GGC_GetBgfxShadowMapParams(float * params);
+extern "C" int GGC_GetBgfxShadowMapSize();
 extern "C" int  GGC_GetBgfxPointFilter();
 extern "C" const char * GGC_GetBgfxRenderer();
 extern "C" int  GGC_GetBgfxSrgb();
@@ -3765,7 +3766,7 @@ static bool CreateSceneFramebuffer()
         // TheSuperHackers @feature bobtista 17/06/2026 4096 atlas (2048 per cascade tile) halves the
         // shadow texel size for crisp shadows when zoomed in; affordable now that the caster set is
         // kept tight (only casters whose shadow reaches the view). One 4096 R32F + D24S8 ~= 96MB.
-        const uint16_t shadowSize = 4096;
+        const uint16_t shadowSize = static_cast<uint16_t>(GGC_GetBgfxShadowMapSize());
         const uint64_t shadowColorFlags = BGFX_TEXTURE_RT
             | BGFX_SAMPLER_POINT
             | BGFX_SAMPLER_U_CLAMP
