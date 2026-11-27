@@ -40,6 +40,7 @@ void SDL3Keyboard::reset()
 		m_buffer[i].key = KEY_NONE;
 		m_buffer[i].status = KeyboardIO::STATUS_UNUSED;
 		m_buffer[i].state = KEY_STATE_NONE;
+		m_buffer[i].keyDownTimeMsec = 0;
 	}
 	m_nextGetIndex = 0;
 	m_nextFreeIndex = 0;
@@ -88,6 +89,7 @@ void SDL3Keyboard::getKey(KeyboardIO *key)
 		key->key = KEY_NONE;
 		key->status = KeyboardIO::STATUS_UNUSED;
 		key->state = KEY_STATE_NONE;
+		key->keyDownTimeMsec = 0;
 		return;
 	}
 
@@ -101,6 +103,10 @@ void SDL3Keyboard::pushKey(KeyDefType key, UnsignedShort state)
 	slot.key = key;
 	slot.status = KeyboardIO::STATUS_UNUSED;
 	slot.state = state;
+	// TheSuperHackers @bugfix bobtista 27/11/2026 Stamp the press time on the clock that
+	// Keyboard::checkKeyRepeat() compares against, like DirectInput's dwTimeStamp. Left unset, a
+	// fresh press looked held since boot and auto-repeated in the same frame, doubling every tap.
+	slot.keyDownTimeMsec = timeGetTime();
 
 	m_nextFreeIndex = (m_nextFreeIndex + 1) % MAX_BUFFERED_KEYS;
 	if (m_nextFreeIndex == m_nextGetIndex)
