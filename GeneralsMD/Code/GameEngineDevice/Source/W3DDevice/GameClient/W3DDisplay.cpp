@@ -2366,7 +2366,7 @@ AGAIN:
 				updateViews();
 			}
 
-			TheParticleSystemManager->DRAW();
+			TheParticleSystemManager->update();
 
 				{
 					PROFILER_SECTION_NAME("render to texture");
