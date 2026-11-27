@@ -52,7 +52,7 @@ $data = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Command and Con
 Copy-Item (Join-Path $data 'Options.ini') $out -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $data 'GeneralsOnlineData\*.log') $out -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $data 'GeneralsOnlineData\settings.json') $out -ErrorAction SilentlyContinue
-Copy-Item (Join-Path $gameDir 'Bgfx.ini') $out -ErrorAction SilentlyContinue
+Copy-Item (Join-Path $gameDir 'Data\INI\Bgfx.ini') $out -ErrorAction SilentlyContinue
 Get-ChildItem (Join-Path $data 'CrashDumps') -Filter *.dmp -ErrorAction SilentlyContinue |
 	Where-Object { $_.LastWriteTime -gt (Get-Date).AddHours(-1) -and $_.Length -lt 50MB } |
 	Copy-Item -Destination $out -ErrorAction SilentlyContinue
