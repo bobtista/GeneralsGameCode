@@ -132,6 +132,8 @@ jobs:
           }
 
           Copy-Item "scripts/build/dist/go/Play GeneralsOnline bgfx.bat" $stage
+          Copy-Item "scripts/build/dist/go/Diagnose GeneralsOnline bgfx.bat" $stage
+          Copy-Item "scripts/build/dist/go/diagnose.ps1" $stage
           Copy-Item "scripts/build/dist/go/README-windows.txt" "$stage/README.txt"
           Copy-Item "LICENSE.md" $stage
           @(
