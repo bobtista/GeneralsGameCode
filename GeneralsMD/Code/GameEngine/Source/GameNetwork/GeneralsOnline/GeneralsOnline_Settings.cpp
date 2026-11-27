@@ -66,7 +66,7 @@ float GenOnlineSettings::DetermineCameraMaxHeight()
 
 std::string GenOnlineSettings::GetAnticheatPlugin() const
 {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(GGC_RENDER_BACKEND_BGFX)
     return std::string();
 #endif
 
