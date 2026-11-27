@@ -695,7 +695,7 @@ WindowMsgHandledType GameWindowManager::winSendSystemMsg(GameWindow* window,
 	WindowMsgData mData2)
 {
 
-	if (window == NULL)
+	if (window == NULL || window->m_system == NULL)
 		return MSG_IGNORED;
 
 	if (msg != GWM_DESTROY && BitIsSet(window->m_status, WIN_STATUS_DESTROYED))
