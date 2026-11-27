@@ -1102,7 +1102,7 @@ void NGMP_OnlineServicesManager::InitSentry()
 	// attempts to use them, preventing an access violation in mtx_do_lock on null mutex state.
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 
-#if !_DEBUG
+#if !_DEBUG && !defined(GGC_RENDER_BACKEND_BGFX)
 	// game paths are in the process code page, sentry's char* API wants UTF-8, so hand it the wide path
 	std::wstring strDumpPath;
 	const AsciiString& strUserDataPath = TheGlobalData->getPath_UserData();
