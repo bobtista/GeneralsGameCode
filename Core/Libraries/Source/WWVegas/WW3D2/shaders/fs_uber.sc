@@ -26,7 +26,7 @@ SAMPLER2D(s_sceneDepth, 6);
 uniform vec4 u_matSpecular; // rgb = specular color, w = shininess (Blinn-Phong power)
 uniform vec4 u_matFx; // x specular strength, y rim strength, z rim power, w emissive boost
 uniform vec4 u_eyePos; // xyz = world-space camera position
-SAMPLER2D(s_shadowMap, 7);
+SAMPLER2DSHADOW(s_shadowMap, 7);
 // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow map sampler and uniforms.
 // s_pointShadowMap is the depth map rendered from the strongest CastsShadows dynamic light.
 // u_pointShadowMatrix is the world->shadow-clip matrix for that light.
@@ -333,45 +333,31 @@ float sampleSunShadow(vec3 worldPos, vec3 nrm)
 	{
 		return 1.0; // outside the shadow footprint = lit
 	}
-	float curDepth = clamp(ndc.z, 0.0, 1.0) - bias;
-	// TheSuperHackers @performance bobtista 28/06/2026 The sun-shadow PCF is the single biggest
-	// full-screen frame cost. The original 3x3 grid did 4 manual-bilinear point fetches per tap = 36
-	// shadow-map fetches per pixel. The reduced path collapses each tap to one point fetch (9 fetches,
-	// 4x fewer): the 3x3 spread still softens the edge, only the sub-texel bilinear is lost (slightly
-	// harder texel stepping). u_shadowQuality.x selects: >0.5 = original 36-fetch, else reduced 9-fetch
-	// (default). GGC_BGFX_SHADOW_FULL_PCF=1 restores the original for a quality/perf A/B in one binary.
+#if BGFX_SHADER_LANGUAGE_GLSL
+	float refDepth = clamp(ndc.z * 0.5 + 0.5 - bias * 0.5, 0.0, 1.0);
+#else
+	float refDepth = clamp(ndc.z - bias, 0.0, 1.0);
+#endif
+	// TheSuperHackers @performance bobtista 27/11/2026 Each shadow2D fetch is a hardware 2x2 bilinear
+	// compare. The default 2x2 tap grid at half-texel offsets covers a 3x3 texel footprint in 4 fetches.
+	// u_shadowQuality.x > 0.5 (BgfxShadowFullPcf) uses a 3x3 tap grid over a 4x4 footprint in 9 fetches.
 	float lit = 0.0;
 	if (u_shadowQuality.x > 0.5)
 	{
-		float invTexel = 1.0 / texel;
 		for (int dy = -1; dy <= 1; ++dy)
 		{
 			for (int dx = -1; dx <= 1; ++dx)
 			{
-				vec2 sampUV = cuv + vec2(float(dx), float(dy)) * texel;
-				vec2 texelCoord = sampUV * invTexel - 0.5;
-				vec2 fracPart = fract(texelCoord);
-				vec2 baseUV = (floor(texelCoord) + 0.5) * texel;
-				float s00 = (curDepth <= texture2D(s_shadowMap, baseUV).x) ? 1.0 : 0.0;
-				float s10 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, 0.0)).x) ? 1.0 : 0.0;
-				float s01 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(0.0, texel)).x) ? 1.0 : 0.0;
-				float s11 = (curDepth <= texture2D(s_shadowMap, baseUV + vec2(texel, texel)).x) ? 1.0 : 0.0;
-				lit += mix(mix(s00, s10, fracPart.x), mix(s01, s11, fracPart.x), fracPart.y);
+				lit += shadow2D(s_shadowMap, vec3(cuv + vec2(float(dx), float(dy)) * texel, refDepth));
 			}
 		}
+		return lit * (1.0 / 9.0);
 	}
-	else
-	{
-		for (int dy = -1; dy <= 1; ++dy)
-		{
-			for (int dx = -1; dx <= 1; ++dx)
-			{
-				vec2 sampUV = cuv + vec2(float(dx), float(dy)) * texel;
-				lit += (curDepth <= texture2D(s_shadowMap, sampUV).x) ? 1.0 : 0.0;
-			}
-		}
-	}
-	return lit * (1.0 / 9.0);
+	lit += shadow2D(s_shadowMap, vec3(cuv + vec2(-0.5, -0.5) * texel, refDepth));
+	lit += shadow2D(s_shadowMap, vec3(cuv + vec2( 0.5, -0.5) * texel, refDepth));
+	lit += shadow2D(s_shadowMap, vec3(cuv + vec2(-0.5,  0.5) * texel, refDepth));
+	lit += shadow2D(s_shadowMap, vec3(cuv + vec2( 0.5,  0.5) * texel, refDepth));
+	return lit * 0.25;
 }
 
 // TheSuperHackers @feature bobtista 16/06/2026 Sun-shadow color multiplier. Returns the factor to

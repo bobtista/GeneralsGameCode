@@ -3037,7 +3037,7 @@ static void SetupSunShadowView()
     bgfx::setViewFrameBuffer(kBgfxShadowMapView, g_device.shadowMapFB);
     bgfx::setViewRect(kBgfxShadowMapView, 0, 0,
                       static_cast<uint16_t>(g_device.shadowMapSize), static_cast<uint16_t>(g_device.shadowMapSize));
-    bgfx::setViewClear(kBgfxShadowMapView, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0xffffffff, 1.0f, 0);
+    bgfx::setViewClear(kBgfxShadowMapView, BGFX_CLEAR_DEPTH, 0, 1.0f, 0);
     bgfx::setViewTransform(kBgfxShadowMapView, lightView, lightProj);
     for (int c = 1; c < kNumShadowCascades; ++c)
     {
@@ -3763,44 +3763,45 @@ static bool CreateSceneFramebuffer()
     // shadows after the first frame. The render-time toggle (SetupSunShadowView) decides
     // whether to use it; the target itself is cheap (one 2048 R32F + D24S8) and harmless idle.
     {
-        // TheSuperHackers @feature bobtista 17/06/2026 4096 atlas (2048 per cascade tile) halves the
-        // shadow texel size for crisp shadows when zoomed in; affordable now that the caster set is
-        // kept tight (only casters whose shadow reaches the view). One 4096 R32F + D24S8 ~= 96MB.
+        // TheSuperHackers @performance bobtista 27/11/2026 The sun shadow map is a depth-only target
+        // sampled through a comparison sampler. The caster pass writes no color, and one hardware
+        // fetch filters a 2x2 texel footprint, so the receiver needs fewer fetches for softer edges.
         const uint16_t shadowSize = static_cast<uint16_t>(GGC_GetBgfxShadowMapSize());
-        const uint64_t shadowColorFlags = BGFX_TEXTURE_RT
-            | BGFX_SAMPLER_POINT
+        const uint64_t shadowDepthFlags = BGFX_TEXTURE_RT
+            | BGFX_SAMPLER_COMPARE_LEQUAL
             | BGFX_SAMPLER_U_CLAMP
             | BGFX_SAMPLER_V_CLAMP;
-        bgfx::TextureHandle shadowColor = bgfx::createTexture2D(
-            shadowSize, shadowSize, false, 1, bgfx::TextureFormat::R32F, shadowColorFlags);
-        bgfx::TextureHandle shadowDepth = bgfx::createTexture2D(
-            shadowSize, shadowSize, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
-        bgfx::FrameBufferHandle shadowFB = BGFX_INVALID_HANDLE;
-        if (bgfx::isValid(shadowColor) && bgfx::isValid(shadowDepth))
+        bgfx::TextureFormat::Enum shadowFormat = bgfx::TextureFormat::D32F;
+        if (!bgfx::isTextureValid(0, false, 1, shadowFormat, shadowDepthFlags))
         {
-            bgfx::TextureHandle shadowAttachments[2] = { shadowColor, shadowDepth };
-            shadowFB = bgfx::createFrameBuffer(2, shadowAttachments, true);
+            shadowFormat = bgfx::TextureFormat::D24;
+        }
+        if (!bgfx::isTextureValid(0, false, 1, shadowFormat, shadowDepthFlags))
+        {
+            shadowFormat = bgfx::TextureFormat::D16;
+        }
+        bgfx::TextureHandle shadowDepth = bgfx::createTexture2D(
+            shadowSize, shadowSize, false, 1, shadowFormat, shadowDepthFlags);
+        bgfx::FrameBufferHandle shadowFB = BGFX_INVALID_HANDLE;
+        if (bgfx::isValid(shadowDepth))
+        {
+            shadowFB = bgfx::createFrameBuffer(1, &shadowDepth, true);
         }
         if (bgfx::isValid(shadowFB))
         {
             g_device.shadowMapFB = shadowFB;
-            g_device.shadowMapTex = shadowColor;
+            g_device.shadowMapTex = shadowDepth;
             g_device.shadowMapDepth = shadowDepth;
             g_device.shadowMapSize = shadowSize;
-            bgfx::setName(g_device.shadowMapTex, "sunShadowMapR32F");
-            bgfx::setName(g_device.shadowMapDepth, "sunShadowMapD24S8");
+            bgfx::setName(g_device.shadowMapTex, "sunShadowMapDepth");
             if (BgfxDiagVerbose())
             {
-                std::fprintf(stderr, "[ggc] sun shadow map target allocated (%ux%u).\n",
-                             shadowSize, shadowSize);
+                std::fprintf(stderr, "[ggc] sun shadow map target allocated (%ux%u, format %d).\n",
+                             shadowSize, shadowSize, static_cast<int>(shadowFormat));
             }
         }
         else
         {
-            if (bgfx::isValid(shadowColor))
-            {
-                bgfx::destroy(shadowColor);
-            }
             if (bgfx::isValid(shadowDepth))
             {
                 bgfx::destroy(shadowDepth);
@@ -9608,14 +9609,14 @@ static void UploadLightUniforms(bool fixedFunctionLightInputsNeeded, bgfx::ViewI
     }
     if (uploadInactiveShadowInputs && bgfx::isValid(g_uniforms.sShadowMap))
     {
-        const bgfx::TextureHandle shadowTex =
-            shadowMapActive
-                ? g_device.shadowMapTex
-                : g_device.defaultWhiteTexture;
+        // The shader declares a shadow sampler, so keep a depth texture bound even while inactive.
+        const bgfx::TextureHandle shadowTex = bgfx::isValid(g_device.shadowMapTex)
+            ? g_device.shadowMapTex
+            : g_device.defaultWhiteTexture;
         if (bgfx::isValid(shadowTex))
         {
             bgfx::setTexture(kBgfxShadowMapSamplerStage, g_uniforms.sShadowMap, shadowTex,
-                             BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+                             BGFX_SAMPLER_COMPARE_LEQUAL | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
         }
     }
     // TheSuperHackers @feature bobtista 23/06/2026 Point-light shadow uniforms + sampler. The shader
